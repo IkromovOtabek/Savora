@@ -164,3 +164,41 @@ NODE_ENV=
 - Har so'rovda do'kon **muddat/status** tekshiriladi.
 - Parollar — bcrypt.
 - super_admin va tenant zonalari middleware bilan qat'iy ajratiladi.
+
+---
+
+## 12. Sotuvga tayyorlash bosqichi — qo'shilgan imkoniyatlar (2026-06)
+
+> Quyidagilar clientlarga sotish uchun qo'shildi. Har biri alohida commit.
+
+- **Object storage (Cloudflare R2)** — `lib/storage.ts`. R2 sozlangan bo'lsa rasm/fayl bulutga,
+  bo'lmasa lokal `public/uploads` ga. `app/api/upload/route.ts` shuni ishlatadi.
+  Env: `R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_BUCKET, R2_PUBLIC_URL`.
+- **Audit jurnali** — `lib/models/tenant/AuditLog.ts` + `lib/audit.ts` (`recordAudit`).
+  products/sales/finance/users/branches action'lariga ulangan. Ko'rish: `/app/audit` (admin).
+- **Barcode** — `barcode` maydoni qidiruvga qo'shildi (`/app/products`). Kamera skaner:
+  `components/ui/CameraScanButton.tsx` (BarcodeDetector API). USB/pistalet: mavjud `BarcodeInputField`.
+- **Chek (80mm termal)** — `/app/sales/[id]/receipt` (oldin ham bor edi, do'kon tel + soni/narx qo'shildi).
+- **Backup/restore** — `scripts/backup.mjs`, `scripts/restore.mjs`. `npm run backup` / `npm run restore`.
+  Hujjat: `BACKUP.md`. Cron: har kuni 03:00 (mongodump kerak). Env: `BACKUP_DIR, BACKUP_KEEP_DAYS`.
+- **Telegram parol tiklash** — do'kon Telegram'ini ulash: Kabinet → "Telegram ulash"
+  (`components/tenant/TelegramConnect.tsx`) → `/start link_<orgId>` webhook → `org.telegramChatId`.
+  Tiklash: login → "Parolni unutdingizmi?" → `/forgot` → yangi vaqtinchalik parol Telegram'ga.
+  Env: `TELEGRAM_BOT_USERNAME` (deep link uchun). Webhook setWebhook bilan ulanadi.
+- **PWA** — `public/manifest.webmanifest`, `public/sw.js` (offline), `public/offline.html`,
+  `components/PWARegister.tsx` (faqat production'da SW). PWA ikonka: `public/icon-512.svg`
+  (favicon esa `app/icon.svg`). `app/layout.tsx` da manifest + viewport themeColor.
+- **Trial (sinov rejimi)** — `org.plan.isTrial`. Registratsiya 14 kunlik **Pro** trial yaratadi
+  (`app/actions/register.ts`, env `TRIAL_DAYS=14`). `ExpiryBanner` sinov sanog'ini ko'rsatadi.
+  Helperlar: `isTrialActive`, `daysUntilExpiry` (Organization.ts).
+- **Super analitika** — `/super`: MRR, faol, sinovda, 7 kunda tugaydi, muddati tugagan, +shu oyda.
+  "Tez orada tugaydi" jadvali.
+- **Onboarding** — `lib/onboarding.ts` (`markOnboardingStep`). Flaglar haqiqiy amallarda o'rnatiladi
+  (filial/mahsulot/sotuv/profil). Checklist: dashboard'dagi `OnboardingChecklist`.
+
+### Hali kerak (keyingi bosqich)
+- Test yo'q (sotuv/foyda/limit mantiqiga unit test kerak).
+- Default `SESSION_SECRET` fallback'i bor — production'da env majburiy qilish.
+- Login brute-force himoyasi (rate-limit) yo'q.
+- Avtomatik to'lov (Payme/Click) — hali qo'lda.
+- Brending: nom aralash ("Savora" UI + "savdopro" papka/paket) — bir xil qilish.
