@@ -3,6 +3,7 @@ import { getAppZone, getTenantSlug, resolveTenant } from '@/lib/tenantContext';
 import { getCurrentUser } from '@/lib/auth';
 import { isOrganizationActive } from '@/lib/models/master/Organization';
 import { DB_UNAVAILABLE_MESSAGE, isDbConnectionError } from '@/lib/dbError';
+import { tenantForgotUrl } from '@/lib/urls';
 import LoginForm from './LoginForm';
 
 export const metadata = { title: 'Kirish — Savora' };
@@ -57,6 +58,7 @@ export default async function LoginPage({
   }
 
   const tenantSlug = zone === 'tenant' ? await getTenantSlug() : '';
+  const forgotUrl = canLogin && zone === 'tenant' && tenantSlug ? tenantForgotUrl(tenantSlug) : undefined;
 
   return (
     <LoginForm
@@ -70,6 +72,7 @@ export default async function LoginPage({
       defaultUsername={sp?.u ? decodeURIComponent(sp.u) : undefined}
       loginZone={canLogin && zone === 'super' ? 'super' : canLogin && zone === 'tenant' ? 'tenant' : undefined}
       tenantSlug={tenantSlug || undefined}
+      forgotUrl={forgotUrl}
     />
   );
 }

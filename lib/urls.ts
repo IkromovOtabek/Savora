@@ -44,6 +44,15 @@ export function tenantLoginUrl(slug: string, query = ''): string {
     : `https://${slug}.${root}/login${q}`;
 }
 
+/** Do'kon — parolni tiklash sahifasi */
+export function tenantForgotUrl(slug: string): string {
+  if (usePathRouting()) return `${APP_BASE}/t/${slug}/forgot`;
+  const root = rootDomain();
+  return process.env.NODE_ENV !== 'production'
+    ? `http://${slug}.${root}:3000/forgot`
+    : `https://${slug}.${root}/forgot`;
+}
+
 /** Do'kon paneli (login qilingandan keyin) */
 export function tenantAppUrl(slug: string, path = '/app'): string {
   const p = path.startsWith('/') ? path : `/${path}`;

@@ -5,9 +5,7 @@ import { usePathname } from 'next/navigation';
 import Icon from '@/components/icons/Icon';
 import BrandMark from '@/components/BrandMark';
 import LogoutButton from '@/components/LogoutButton';
-import { PLATFORM_SYSTEMS, SUPER_NAV } from '@/lib/platformSystems';
-
-const MAIN_NAV_HREFS: string[] = SUPER_NAV.map((item) => item.href);
+import { MARKETING_LINK, SUPER_NAV } from '@/lib/platformSystems';
 
 /** Asosiy menyu — faqat bitta element active */
 function isMainNavActive(href: string, pathname: string): boolean {
@@ -21,20 +19,6 @@ function isMainNavActive(href: string, pathname: string): boolean {
     return pathname === '/super/organizations/new';
   }
   return pathname === href || pathname.startsWith(`${href}/`);
-}
-
-/**
- * Tizim funksiyalari — faqat asosiy menuda yo'q bo'lgan havolalar active bo'ladi.
- * Aks holda bir xil URL uchun ikkita tugma bir vaqtda yonadi.
- */
-function isSystemNavActive(href: string, pathname: string): boolean {
-  if (MAIN_NAV_HREFS.includes(href)) return false;
-  if (href.startsWith('http')) return false;
-  const base = href.split('#')[0];
-  if (base === '/super/systems') {
-    return pathname === '/super/systems' || pathname.startsWith('/super/systems/');
-  }
-  return pathname === base || pathname.startsWith(`${base}/`);
 }
 
 export default function SuperSidebar() {
@@ -69,50 +53,16 @@ export default function SuperSidebar() {
         })}
       </nav>
 
-      <div className="super-side-section">
-        <div className="super-side-section-title">
-          <Icon name="settings" size={16} />
-          Loyiha tizim funksiyalari
-        </div>
-        <nav className="super-side-systems" aria-label="Tizim funksiyalari">
-          {PLATFORM_SYSTEMS.map((sys) => {
-            const isExternal = sys.external || sys.href.startsWith('http');
-            const active = !isExternal && isSystemNavActive(sys.href, pathname);
-            const className = `super-side-system${active ? ' super-side-system--active' : ''}`;
-
-            if (isExternal) {
-              return (
-                <a
-                  key={sys.id}
-                  href={sys.href}
-                  className={className}
-                  target="_blank"
-                  rel="noreferrer"
-                  title={sys.description}
-                >
-                  <Icon name={sys.icon} size={16} />
-                  <span>{sys.label}</span>
-                </a>
-              );
-            }
-
-            return (
-              <Link
-                key={sys.id}
-                href={sys.href}
-                className={className}
-                title={sys.description}
-                aria-current={active ? 'page' : undefined}
-              >
-                <Icon name={sys.icon} size={16} />
-                <span>{sys.label}</span>
-              </Link>
-            );
-          })}
-        </nav>
-      </div>
-
       <div className="super-side-foot">
+        <a
+          href={MARKETING_LINK.href}
+          className="super-side-link"
+          target="_blank"
+          rel="noreferrer"
+        >
+          <Icon name={MARKETING_LINK.icon} size={18} />
+          {MARKETING_LINK.label}
+        </a>
         <LogoutButton />
       </div>
     </aside>

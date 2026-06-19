@@ -1,7 +1,13 @@
 /** Telegram bot orqali xabar yuborish (TELEGRAM_BOT_TOKEN + TELEGRAM_CHAT_ID) */
 export async function sendTelegram(text: string): Promise<boolean> {
-  const token = process.env.TELEGRAM_BOT_TOKEN;
   const chatId = process.env.TELEGRAM_CHAT_ID;
+  if (!chatId) return false;
+  return sendTelegramTo(chatId, text);
+}
+
+/** Aniq chat ID ga xabar yuborish (do'konning ulangan Telegram'i) */
+export async function sendTelegramTo(chatId: string, text: string): Promise<boolean> {
+  const token = process.env.TELEGRAM_BOT_TOKEN;
   if (!token || !chatId) return false;
 
   try {

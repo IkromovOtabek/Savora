@@ -2,11 +2,12 @@ import { getTenantSession, getOrgWithPlan } from '@/lib/tenantSession';
 import { resolveWarehouseBranchId } from '@/lib/warehouseBranch';
 import ProfileForms from '@/components/tenant/ProfileForms';
 import FilialManager from '@/components/tenant/FilialManager';
+import TelegramConnect from '@/components/tenant/TelegramConnect';
 
 export const metadata = { title: 'Kabinet — Savora' };
 
 export default async function ProfilePage() {
-  const { user, User, Branch } = await getTenantSession();
+  const { user, org, User, Branch } = await getTenantSession();
   const dbUser = await User.findById(user.id).lean();
 
   const isAdmin = user.role === 'admin';
@@ -59,6 +60,10 @@ export default async function ProfilePage() {
         fullName={dbUser?.fullName ?? ''}
         mustChangePassword={Boolean(dbUser?.mustChangePassword)}
       />
+
+      {isAdmin && (
+        <TelegramConnect orgId={org._id} connected={!!org.telegramChatId} />
+      )}
 
       {isAdmin && (
         <FilialManager

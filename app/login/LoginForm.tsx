@@ -16,6 +16,7 @@ interface Props {
   defaultUsername?: string;
   loginZone?: 'super' | 'tenant';
   tenantSlug?: string;
+  forgotUrl?: string;
 }
 
 export default function LoginForm({
@@ -29,6 +30,7 @@ export default function LoginForm({
   defaultUsername,
   loginZone,
   tenantSlug,
+  forgotUrl,
 }: Props) {
   const [state, formAction, isPending] = useActionState(loginAction, null);
   const error = state?.error ?? null;
@@ -74,6 +76,13 @@ export default function LoginForm({
             <button type="submit" className="btn btn-primary auth-submit" disabled={isPending}>
               {isPending ? 'Kirilmoqda...' : 'Kirish'}
             </button>
+            {forgotUrl && (
+              <p style={{ textAlign: 'center', marginTop: 12 }}>
+                <Link href={forgotUrl} className="cell-link" style={{ fontSize: '.85rem' }}>
+                  Parolni unutdingizmi?
+                </Link>
+              </p>
+            )}
           </form>
         )}
 
