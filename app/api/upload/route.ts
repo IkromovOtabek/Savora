@@ -1,0 +1,50 @@
+import { NextResponse } from 'next/server';
+import { randomUUID } from 'crypto';
+import { mkdir, writeFile } from 'fs/promises';
+import path from 'path';
+import { getSession } from '@/lib/session';
+import { getMasterModels } from '@/lib/masterDb';
+import { resolveOrgFeatures } from '@/lib/features';
+
+const MAX_BYTES = 5 * 1024 * 1024;
+const ALLOWED = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif']);
+
+export async function POST(req: Request) {
+  const session = await getSession();
+  if (!session.user) {
+    return NextResponse.json({ error: 'Kirish talab qilinadi.' }, { status: 401 });
+  }
+
+  let folder = 'super';
+  if (session.user.role !== 'super_admin') {
+    if (!session.user.dbName) {
+      return NextResponse.json({ error: 'Ruxsat yo\'q.' }, { status: 403 });
+    }
+    const { Organization } = await getMasterModels();
+    const org = await Organization.findOne({ dbName: session.user.dbName }).lean();
+    if (!org || !resolveOrgFeatures(org).mediaUpload) {
+      return NextResponse.json({ error: 'Rasm yuklash moduli o\'chirilgan.' }, { status: 403 });
+    }
+    folder = session.user.dbName.replace(/[^a-zA-Z0-9_-]/g, '_');
+  }
+
+  const formData = await req.formData();
+  const file = formData.get('file');
+  if (!file || !(file instanceof File)) {
+    return NextResponse.json({ error: 'Rasm tanlanmadi.' }, { status: 400 });
+  }
+  if (!ALLOWED.has(file.type)) {
+    return NextResponse.json({ error: 'Faqat JPG, PNG, WEBP yoki GIF.' }, { status: 400 });
+  }
+  if (file.size > MAX_BYTES) {
+    return NextResponse.json({ error: 'Maksimal hajm 5 MB.' }, { status: 400 });
+  }
+
+  const ext = file.type.split('/')[1]?.replace('jpeg', 'jpg') || 'jpg';
+  const filename = `${randomUUID()}.${ext}`;
+  const dir = path.join(process.cwd(), 'public', 'uploads', folder);
+  await mkdir(dir, { recursive: true });
+  await writeFile(path.join(dir, filename), Buffer.from(await file.arrayBuffer()));
+
+  return NextResponse.json({ url: `/uploads/${folder}/${filename}` });
+}

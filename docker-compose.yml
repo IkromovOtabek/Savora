@@ -1,0 +1,23 @@
+services:
+  mongo:
+    image: mongo:7
+    ports:
+      - '27017:27017'
+    volumes:
+      - mongo_data:/data/db
+
+  app:
+    build: .
+    ports:
+      - '3000:3000'
+    environment:
+      MONGO_URI: mongodb://mongo:27017
+      MASTER_DB_NAME: savdopro_master
+      SESSION_SECRET: change-this-in-production-32chars-min
+      ROOT_DOMAIN: lvh.me
+      NEXT_PUBLIC_ROOT_DOMAIN: lvh.me
+    depends_on:
+      - mongo
+
+volumes:
+  mongo_data:

@@ -1,0 +1,30 @@
+{
+  "name": "savdopro",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "predev": "node -e \"try{require('child_process').execSync('lsof -ti:3000 | xargs kill -9',{stdio:'ignore'})}catch(e){}\" && rm -rf .next",
+    "dev": "next dev -p 3000",
+    "build": "next build",
+    "start": "next start -p 3000",
+    "seed": "node --env-file=.env scripts/seed.mjs",
+    "migrate:dbs": "node --env-file=.env scripts/migrate-tenant-dbs.mjs",
+    "expire": "node --env-file=.env scripts/expire-orgs.mjs",
+    "notify": "node --env-file=.env scripts/notify-expiry.mjs"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "iron-session": "^8.0.4",
+    "mongoose": "^8.9.0",
+    "next": "15.5.4",
+    "react": "19.0.0",
+    "react-dom": "19.0.0"
+  },
+  "devDependencies": {
+    "@types/bcryptjs": "^2.4.6",
+    "@types/node": "^22.10.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "typescript": "^5.7.0"
+  }
+}
