@@ -196,6 +196,19 @@ NODE_ENV=
 - **Onboarding** — `lib/onboarding.ts` (`markOnboardingStep`). Flaglar haqiqiy amallarda o'rnatiladi
   (filial/mahsulot/sotuv/profil). Checklist: dashboard'dagi `OnboardingChecklist`.
 
+### Rol modeli (2026-06, soddalashtirildi)
+Endi faqat **2 xil tenant roli**: `admin` (do'kon egasi — hammasi + filiallararo hisobot) va
+`user` (= **filial login**, `branchId` bilan). Alohida "xodim" akkaunti **yo'q** — filialdagi barcha
+xodimlar bitta filial login/paroli bilan ishlaydi. (`createEmployeeAction`, `EmployeeForm`,
+`/app/users/new|[id]`, loginsiz `branches.ts` — o'chirildi.)
+- Filial yaratish: **`app/actions/filials.ts`** (filial + login birga). UI: `/app/users` (nav "Filiallar")
+  → `FilialManager` (login/parol bilan). Markaziy ombor (1-filial) ro'yxatda ko'rsatilmaydi.
+- **Scoping:** `lib/branchScope.ts` — `branchFilter(user)` (find) va `branchAggMatch(user)` (aggregate,
+  ObjectId). Filial login faqat o'z filiali ko'radi: products, sales, debts, kassa, inventory, transferred
+  (toBranchId), dashboard, monitoring, sales/new + lookupProductByImei. Session'ga `branchId` qo'shildi.
+- Eslatma: filial login mahsulot QO'SHsa hozir markaziy omborga tushadi (admin oqimi) — kerak bo'lsa
+  "mahsulot qo'shish"ni adminGagina cheklash mumkin.
+
 ### Hali kerak (keyingi bosqich)
 - Test yo'q (sotuv/foyda/limit mantiqiga unit test kerak).
 - Default `SESSION_SECRET` fallback'i bor — production'da env majburiy qilish.
