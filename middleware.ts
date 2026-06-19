@@ -29,7 +29,9 @@ export function middleware(req: NextRequest) {
   const isLocalHost = host === 'localhost' || host === '127.0.0.1';
   const usePathRouting = process.env.NEXT_PUBLIC_USE_PATH_ROUTING !== 'false' && (isLocalHost || process.env.NEXT_PUBLIC_USE_PATH_ROUTING === 'true');
 
-  if (usePathRouting && isLocalHost) {
+  // Path-routing (bitta domen: savora.uz/super/*, savora.uz/t/<slug>/*) — dev VA production'da.
+  // Subdomen rejimi uchun NEXT_PUBLIC_USE_PATH_ROUTING=false qo'ying.
+  if (usePathRouting) {
     if (pathname === '/super/login' || pathname.startsWith('/super/login')) {
       zone = 'super';
       const url = req.nextUrl.clone();
