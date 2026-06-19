@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { createFilialAction, updateFilialAction } from '@/app/actions/filials';
 import { toast } from '@/lib/toast';
@@ -16,22 +15,12 @@ interface Filial {
   username?: string;
 }
 
-interface Employee {
-  id: string;
-  fullName: string;
-  username: string;
-  active: boolean;
-  branchName?: string;
-}
-
 export default function FilialManager({
   filials,
-  employees,
   maxFilial,
   activeBranchCount,
 }: {
   filials: Filial[];
-  employees: Employee[];
   maxFilial: number;
   activeBranchCount: number;
 }) {
@@ -57,41 +46,7 @@ export default function FilialManager({
     <>
       <div className="panel" style={{ marginTop: 20 }}>
         <div className="panel-head">
-          <h2>Jamoa — Xodimlar</h2>
-          <Link href="/app/users/new" className="btn btn-primary btn-sm btn-with-icon">
-            <Icon name="plus" size={14} /> Xodim qo&apos;shish
-          </Link>
-        </div>
-        <div style={{ padding: '16px 24px' }}>
-          {employees.length === 0 ? (
-            <p className="field-hint">Hali xodim yo&apos;q.</p>
-          ) : (
-            <div className="filial-list">
-              {employees.map((e) => (
-                <Link key={e.id} href={`/app/users/${e.id}`} className={`filial-item filial-item--link${e.active ? '' : ' filial-item--off'}`}>
-                  <div className="filial-item-main">
-                    <div className="filial-item-name">{e.fullName}</div>
-                    <div className="filial-item-meta">
-                      <span>@{e.username}</span>
-                      {e.branchName && <span>{e.branchName}</span>}
-                    </div>
-                  </div>
-                  <div className="filial-item-side">
-                    <span className={`badge-status badge-status--${e.active ? 'active' : 'expired'}`}>
-                      {e.active ? 'Faol' : 'Nofaol'}
-                    </span>
-                    <Icon name="arrowRight" size={16} />
-                  </div>
-                </Link>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
-
-      <div className="panel" style={{ marginTop: 20 }}>
-        <div className="panel-head">
-          <h2>Jamoa — Filiallar</h2>
+          <h2>Filiallar</h2>
           <span className="panel-sub">Faol: {activeBranchCount} / {maxFilial}</span>
         </div>
 

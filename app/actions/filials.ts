@@ -2,6 +2,8 @@
 
 import { revalidatePath } from 'next/cache';
 import { getOrgWithPlan, getTenantAdminSession } from '@/lib/tenantSession';
+import { markOnboardingStep } from '@/lib/onboarding';
+import { recordAudit } from '@/lib/audit';
 
 type State = { error?: string; success?: string } | null;
 
