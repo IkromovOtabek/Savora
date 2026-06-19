@@ -9,6 +9,7 @@ import Icon, { IconName } from '@/components/icons/Icon';
 const NAV_ICONS: Record<string, IconName> = {
   '/app': 'home',
   '/app/sales': 'cart',
+  '/app/debts': 'bell',
   '/app/kassa': 'wallet',
   '/app/products': 'box',
   '/app/inventory': 'clipboard',
@@ -27,6 +28,7 @@ const NAV_ICONS: Record<string, IconName> = {
 const LINKS: { href: string; label: string; feature?: FeatureKey; adminOnly?: boolean; imeiOnly?: boolean; exact?: boolean }[] = [
   { href: '/app/products', label: 'Ombor', feature: 'products' },
   { href: '/app/sales', label: 'Sotildi', feature: 'sales' },
+  { href: '/app/debts', label: 'Qarzdorlik', feature: 'sales' },
   { href: '/app/transferred', label: 'Filialga berildi' },
   { href: '/app/kassa', label: 'Naxt kassa', feature: 'kassa' },
   { href: '/app/kirim-chiqim', label: 'Kirim-Chiqim', feature: 'kirimChiqim', adminOnly: true },

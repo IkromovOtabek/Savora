@@ -10,6 +10,7 @@ import { generateProductCode } from '@/lib/productId';
 import { parseQtyField, resolveStatusAfterSale } from '@/lib/productQuantity';
 import { resolveWarehouseBranchId } from '@/lib/warehouseBranch';
 import { recordAudit } from '@/lib/audit';
+import { markOnboardingStep } from '@/lib/onboarding';
 
 type State = { error?: string; success?: string } | null;
 type LocationStatus = 'warehouse' | 'sold' | 'branch';
@@ -165,6 +166,7 @@ export async function createProductAction(_prev: State, formData: FormData): Pro
       entityId: String(product._id),
       summary: `Mahsulot qo'shildi: ${name}`,
     });
+    await markOnboardingStep(user.organizationId, 'productAdded');
     revalidatePath('/app');
     revalidatePath('/app/products');
     redirect(`/app/products/${product._id}?created=1`);
@@ -381,6 +383,7 @@ export async function quickMarkSoldAction(_prev: State, formData: FormData): Pro
       summary: `Tez sotuv: ${product.name} · ${saleQty} ta · ${fmtSum(totalAmount)}`,
       meta: { saleQty, totalAmount },
     });
+    await markOnboardingStep(user.organizationId, 'saleMade');
     revalidatePath('/app');
     revalidatePath('/app/products');
     revalidatePath('/app/sales');

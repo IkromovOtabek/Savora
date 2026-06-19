@@ -236,6 +236,10 @@ export default function SaleForm({ isPhoneShop, products, mediaEnabled, features
                   <input id="installmentMonths" name="installmentMonths" type="number" min={1} max={60} defaultValue={12} disabled={isPending || !picked} />
                 </div>
               )}
+              <div className="auth-field">
+                <label htmlFor="dueDate">To&apos;lov muddati {paymentType === 'installment' ? '(ixtiyoriy)' : '*'}</label>
+                <input id="dueDate" name="dueDate" type="date" disabled={isPending || !picked} />
+              </div>
             </div>
           )}
 

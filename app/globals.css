@@ -393,6 +393,23 @@ img { max-width: 100%; display: block; }
   .cta-band { padding: 44px 24px; }
 }
 
+/* ── Qarzdorlik nazorati ─────────────────────── */
+.row-overdue { background: rgba(220, 38, 38, .05); }
+.row-overdue:hover { background: rgba(220, 38, 38, .09) !important; }
+.cell-sub--danger { color: #dc2626; font-weight: 700; }
+.dr-wrap { position: relative; display: inline-block; }
+.dr-menu {
+  position: absolute; right: 0; top: calc(100% + 4px); z-index: 30; min-width: 180px;
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--r);
+  box-shadow: var(--shadow-lg); padding: 6px; display: flex; flex-direction: column;
+}
+.dr-item {
+  display: block; width: 100%; text-align: left; padding: 9px 12px; border-radius: var(--r-sm);
+  font-size: .88rem; font-weight: 600; color: var(--ink-1); background: none; border: none; cursor: pointer;
+}
+.dr-item:hover { background: var(--bg-soft); color: var(--brand); }
+.dr-empty { padding: 9px 12px; font-size: .85rem; color: var(--ink-3); }
+
 /* ============================================================
    AUTH (login)
    ============================================================ */

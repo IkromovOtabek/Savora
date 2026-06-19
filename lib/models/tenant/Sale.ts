@@ -37,6 +37,7 @@ export interface ISale {
   paidAmount: number;
   remainingAmount: number;
   installmentMonths?: number;
+  dueDate?: Date;
   status: SaleStatus;
   payments: ISalePayment[];
   soldBy: string;
@@ -70,6 +71,7 @@ export const saleSchema = new Schema<ISale>(
     paidAmount: { type: Number, required: true, min: 0, default: 0 },
     remainingAmount: { type: Number, required: true, min: 0, default: 0 },
     installmentMonths: { type: Number, min: 1, max: 60 },
+    dueDate: { type: Date },
     status: { type: String, enum: ['paid', 'partial', 'cancelled'], default: 'paid' },
     payments: [{
       amount: { type: Number, required: true, min: 0 },
@@ -86,6 +88,7 @@ export const saleSchema = new Schema<ISale>(
 
 saleSchema.index({ createdAt: -1 });
 saleSchema.index({ status: 1, paymentType: 1 });
+saleSchema.index({ status: 1, dueDate: 1 });
 saleSchema.index({ 'productSnapshot.imei': 1 });
 
 export const PAYMENT_TYPE_LABELS: Record<PaymentType, string> = {

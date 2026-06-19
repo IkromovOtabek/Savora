@@ -10,6 +10,8 @@ import { PaymentType } from '@/lib/models/tenant/Sale';
 import { sendTelegram } from '@/lib/telegram';
 import { featureDisabledError } from '@/lib/featureAction';
 import { parseQtyField, resolveStatusAfterSale, getStockQty } from '@/lib/productQuantity';
+import { recordAudit } from '@/lib/audit';
+import { markOnboardingStep } from '@/lib/onboarding';
 
 type State = { error?: string; success?: string } | null;
 
@@ -63,6 +65,7 @@ export async function createSaleAction(_prev: State, formData: FormData): Promis
   const notes = String(formData.get('notes') || '').trim();
   const photoUrl = String(formData.get('photoUrl') || '').trim();
   const bankName = String(formData.get('bankName') || '').trim();
+  const dueDateRaw = String(formData.get('dueDate') || '').trim();
 
   if (!productId || !Types.ObjectId.isValid(productId)) return { error: 'Mahsulot tanlanishi shart.' };
   if (totalAmount === null || totalAmount <= 0) return { error: 'Sotuv summasi noto\'g\'ri.' };
@@ -119,6 +122,21 @@ export async function createSaleAction(_prev: State, formData: FormData): Promis
   const status = calcSaleStatus(totalAmount, paidAmount);
   const saleNo = await generateSaleNo(Sale);
 
+  // To'lov muddati — faqat qarz/nasiya/kredit va qoldiq bo'lsa
+  let dueDate: Date | undefined;
+  if (remainingAmount > 0 && paymentType !== 'cash') {
+    if (dueDateRaw) {
+      const d = new Date(dueDateRaw);
+      if (!Number.isNaN(d.getTime())) dueDate = d;
+    }
+    // Nasiya bo'lsa va muddat kiritilmagan bo'lsa — oxirgi oy bo'yicha hisoblaymiz
+    if (!dueDate && paymentType === 'installment' && installmentMonths) {
+      const d = new Date();
+      d.setMonth(d.getMonth() + installmentMonths);
+      dueDate = d;
+    }
+  }
+
   const payments = paidAmount > 0
     ? [{ amount: paidAmount, paidAt: new Date(), note: paymentType === 'cash' ? 'Naqd to\'lov' : 'Boshlang\'ich to\'lov', recordedBy: user.username }]
     : [];
@@ -148,6 +166,7 @@ export async function createSaleAction(_prev: State, formData: FormData): Promis
       paidAmount,
       remainingAmount,
       installmentMonths,
+      dueDate,
       status,
       payments,
       soldBy: user.username,
@@ -162,6 +181,15 @@ export async function createSaleAction(_prev: State, formData: FormData): Promis
       product.status = 'sold';
     }
     await product.save();
+
+    await recordAudit(user, {
+      action: 'sale.create',
+      entity: 'sale',
+      entityId: String(sale._id),
+      summary: `Sotuv ${saleNo}: ${product.name} · ${saleQty} ta · ${totalAmount.toLocaleString('uz-UZ')} so'm (${paymentType})`,
+      meta: { saleQty, totalAmount, paymentType },
+    });
+    await markOnboardingStep(user.organizationId, 'saleMade');
 
     void sendTelegram(
       `<b>Savora — Yangi sotuv</b>\n` +

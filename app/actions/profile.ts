@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { getSession } from '@/lib/session';
 import { getTenantSession } from '@/lib/tenantSession';
+import { markOnboardingStep } from '@/lib/onboarding';
 
 type State = { error?: string; success?: string } | null;
 
@@ -50,6 +51,7 @@ export async function updateProfileAction(_prev: State, formData: FormData): Pro
 
   dbUser.fullName = fullName || undefined;
   await dbUser.save();
+  if (fullName) await markOnboardingStep(user.organizationId, 'profileCompleted');
   revalidatePath('/app/profile');
   return { success: 'Profil yangilandi.' };
 }

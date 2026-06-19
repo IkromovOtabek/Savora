@@ -2,6 +2,8 @@
 
 import { revalidatePath } from 'next/cache';
 import { getOrgWithPlan, getTenantAdminSession } from '@/lib/tenantSession';
+import { markOnboardingStep } from '@/lib/onboarding';
+import { recordAudit } from '@/lib/audit';
 
 type State = { error?: string; success?: string } | null;
 
@@ -22,7 +24,14 @@ export async function createBranchAction(_prev: State, formData: FormData): Prom
   if (!name) return { error: 'Filial nomi kiritilishi shart.' };
 
   try {
-    await Branch.create({ name, address: address || undefined, phone: phone || undefined, active: true });
+    const branch = await Branch.create({ name, address: address || undefined, phone: phone || undefined, active: true });
+    await markOnboardingStep(user.organizationId, 'branchCreated');
+    await recordAudit(user, {
+      action: 'branch.create',
+      entity: 'branch',
+      entityId: String(branch._id),
+      summary: `Filial qo'shildi: ${name}`,
+    });
     revalidatePath('/app');
     revalidatePath('/app/users');
     revalidatePath('/app/products');

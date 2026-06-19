@@ -4,7 +4,8 @@ import BackLink from '@/components/ui/BackLink';
 import { getCurrentUser } from '@/lib/auth';
 import { getTenantSession } from '@/lib/tenantSession';
 import { PAYMENT_TYPE_LABELS, SALE_STATUS_LABELS } from '@/lib/models/tenant/Sale';
-import { fmtDateTime, fmtMoney } from '@/lib/format';
+import { fmtDate, fmtDateTime, fmtMoney } from '@/lib/format';
+import { computeDebtInfo } from '@/lib/debts';
 import SalePaymentForm from '@/components/tenant/SalePaymentForm';
 import CancelSaleButton from '@/components/tenant/CancelSaleButton';
 import SaleReviewTrigger from '@/components/tenant/SaleReviewTrigger';
@@ -85,6 +86,15 @@ export default async function SaleDetailPage({
             {sale.installmentMonths && (
               <div className="detail-row"><span className="detail-l">Nasiya</span><span>{sale.installmentMonths} oy</span></div>
             )}
+            {sale.dueDate && sale.remainingAmount > 0 && (() => {
+              const info = computeDebtInfo(sale);
+              return (
+                <div className="detail-row">
+                  <span className="detail-l">To&apos;lov muddati</span>
+                  <span>{fmtDate(sale.dueDate)} <span className={info.state === 'overdue' ? 'cell-sub--danger' : 'cell-sub'}>({info.label})</span></span>
+                </div>
+              );
+            })()}
             {sale.notes && <div className="detail-row"><span className="detail-l">Izoh</span><span>{sale.notes}</span></div>}
           </div>
         </div>
