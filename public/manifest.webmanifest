@@ -13,7 +13,7 @@
   "categories": ["business", "productivity", "finance"],
   "icons": [
     {
-      "src": "/icon.svg",
+      "src": "/icon-512.svg",
       "sizes": "any",
       "type": "image/svg+xml",
       "purpose": "any maskable"

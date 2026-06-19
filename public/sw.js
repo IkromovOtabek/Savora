@@ -1,7 +1,7 @@
 /* Savora PWA service worker — sodda, xavfsiz offline qatlam. */
 const CACHE = 'savora-v1';
 const OFFLINE_URL = '/offline.html';
-const PRECACHE = [OFFLINE_URL, '/icon.svg', '/manifest.webmanifest'];
+const PRECACHE = [OFFLINE_URL, '/icon-512.svg', '/manifest.webmanifest'];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(caches.open(CACHE).then((c) => c.addAll(PRECACHE)).then(() => self.skipWaiting()));

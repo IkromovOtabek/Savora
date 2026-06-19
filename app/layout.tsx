@@ -13,9 +13,9 @@ export const metadata: Metadata = {
     statusBarStyle: 'default',
     title: 'Savora',
   },
+  // Favicon — app/icon.svg avtomatik; bu yerda faqat apple-touch (PWA ikonkasi)
   icons: {
-    icon: '/icon.svg',
-    apple: '/icon.svg',
+    apple: '/icon-512.svg',
   },
 };
 
