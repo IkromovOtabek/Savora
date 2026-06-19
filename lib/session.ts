@@ -10,6 +10,7 @@ export interface SessionUser {
   tokenVersion: number;
   organizationId?: string; // tenant userlar uchun
   dbName?: string;         // tenant userlar uchun — qaysi bazaga ulanish
+  branchId?: string;       // filial login — qaysi filialga bog'langan (admin'da bo'lmaydi)
 }
 
 export interface SessionData {

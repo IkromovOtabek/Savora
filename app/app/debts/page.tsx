@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { getTenantSession } from '@/lib/tenantSession';
+import { branchFilter } from '@/lib/branchScope';
 import { fmtDate, fmtMoney } from '@/lib/format';
 import { computeDebtInfo, DEBT_STATE_META, buildReminderText, DebtState } from '@/lib/debts';
 import DebtReminderButton from '@/components/tenant/DebtReminderButton';
@@ -12,10 +13,10 @@ export default async function DebtsPage({
   searchParams: Promise<{ f?: string }>;
 }) {
   const sp = await searchParams;
-  const { Sale, org } = await getTenantSession();
+  const { user, Sale, org } = await getTenantSession();
 
-  // Faqat qarzdor (qisman to'langan) sotuvlar
-  const sales = await Sale.find({ status: 'partial', remainingAmount: { $gt: 0 } })
+  // Faqat qarzdor (qisman to'langan) sotuvlar — filial login faqat o'z filiali
+  const sales = await Sale.find({ ...branchFilter(user), status: 'partial', remainingAmount: { $gt: 0 } })
     .sort({ dueDate: 1, createdAt: -1 })
     .limit(500)
     .lean();

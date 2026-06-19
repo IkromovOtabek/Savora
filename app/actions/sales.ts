@@ -12,6 +12,7 @@ import { featureDisabledError } from '@/lib/featureAction';
 import { parseQtyField, resolveStatusAfterSale, getStockQty } from '@/lib/productQuantity';
 import { recordAudit } from '@/lib/audit';
 import { markOnboardingStep } from '@/lib/onboarding';
+import { branchFilter } from '@/lib/branchScope';
 
 type State = { error?: string; success?: string } | null;
 
@@ -25,11 +26,12 @@ function parsePaymentType(v: string): PaymentType {
 }
 
 export async function lookupProductByImei(imei: string) {
-  const { Product, Branch } = await getTenantSession();
+  const { user, Product, Branch } = await getTenantSession();
   const normalized = normalizeImei(imei);
   if (!normalized) return null;
 
-  const product = await Product.findOne({ imei: normalized, status: 'in_stock' }).lean();
+  // Filial login — faqat o'z filiali mahsulotini topadi
+  const product = await Product.findOne({ ...branchFilter(user), imei: normalized, status: 'in_stock' }).lean();
   if (!product) return null;
   const available = getStockQty(product);
 

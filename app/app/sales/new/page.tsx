@@ -1,4 +1,5 @@
 import { getTenantSession } from '@/lib/tenantSession';
+import { branchFilter } from '@/lib/branchScope';
 import { isPhoneShop } from '@/lib/businessTypes';
 import { getStockQty } from '@/lib/productQuantity';
 import SaleForm from '@/components/tenant/SaleForm';
@@ -11,10 +12,11 @@ export default async function NewSalePage({
   searchParams: Promise<{ productId?: string }>;
 }) {
   const sp = await searchParams;
-  const { Product, Branch, CreditBank, org, features } = await getTenantSession();
+  const { user, Product, Branch, CreditBank, org, features } = await getTenantSession();
   const phoneShop = isPhoneShop(org);
 
-  const inStock = await Product.find({ status: 'in_stock' }).sort({ name: 1 }).lean();
+  // Filial login — faqat o'z filiali mahsulotlarini sota oladi
+  const inStock = await Product.find({ ...branchFilter(user), status: 'in_stock' }).sort({ name: 1 }).lean();
   const branches = await Branch.find().lean();
   const branchMap = Object.fromEntries(branches.map((b) => [String(b._id), b.name]));
   const creditBanks = features.creditKassa

@@ -1,17 +1,23 @@
 import Link from 'next/link';
 import { getTenantSession } from '@/lib/tenantSession';
+import { branchFilter, isBranchScoped } from '@/lib/branchScope';
 import { PRODUCT_STATUS_LABELS } from '@/lib/models/tenant/Product';
 import { fmtMoney } from '@/lib/format';
 
 export const metadata = { title: 'Inventarizatsiya — Savora' };
 
 export default async function InventoryPage() {
-  const { Product, Branch } = await getTenantSession();
+  const { user, Product, Branch } = await getTenantSession();
 
-  const [branches, products] = await Promise.all([
+  const branchScopeFilter = branchFilter(user);
+  const [branchesAll, products] = await Promise.all([
     Branch.find({ active: true }).lean(),
-    Product.find({ status: 'in_stock' }).lean(),
+    Product.find({ ...branchScopeFilter, status: 'in_stock' }).lean(),
   ]);
+  // Filial login — faqat o'z filiali ko'rinadi
+  const branches = isBranchScoped(user)
+    ? branchesAll.filter((b) => String(b._id) === user.branchId)
+    : branchesAll;
 
   const byBranch = branches.map((b) => {
     const bid = String(b._id);

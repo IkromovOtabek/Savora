@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { getTenantSession } from '@/lib/tenantSession';
+import { branchFilter, branchAggMatch } from '@/lib/branchScope';
 import { PAYMENT_TYPE_LABELS, SALE_STATUS_LABELS, PaymentType, SaleStatus } from '@/lib/models/tenant/Sale';
 import { fmtDateTime, fmtMoney } from '@/lib/format';
 import Icon from '@/components/icons/Icon';
@@ -19,18 +20,22 @@ export default async function TenantDashboard({
   const todayStart = new Date();
   todayStart.setHours(0, 0, 0, 0);
 
+  // Filial login — barcha statistika faqat o'z filiali bo'yicha
+  const scope = branchFilter(user);
+  const aggScope = branchAggMatch(user);
+
   const [inStock, todaySalesCount, todayRevenueAgg, debtAgg, recentSales, userCount, branchCount, productCount] = await Promise.all([
-    Product.countDocuments({ status: 'in_stock' }),
-    Sale.countDocuments({ createdAt: { $gte: todayStart }, status: { $ne: 'cancelled' } }),
+    Product.countDocuments({ ...scope, status: 'in_stock' }),
+    Sale.countDocuments({ ...scope, createdAt: { $gte: todayStart }, status: { $ne: 'cancelled' } }),
     Sale.aggregate([
-      { $match: { createdAt: { $gte: todayStart }, status: { $ne: 'cancelled' } } },
+      { $match: { ...aggScope, createdAt: { $gte: todayStart }, status: { $ne: 'cancelled' } } },
       { $group: { _id: null, total: { $sum: '$paidAmount' } } },
     ]),
-    Sale.aggregate([{ $match: { status: 'partial' } }, { $group: { _id: null, total: { $sum: '$remainingAmount' } } }]),
-    Sale.find({ status: { $ne: 'cancelled' } }).sort({ createdAt: -1 }).limit(5).lean(),
+    Sale.aggregate([{ $match: { ...aggScope, status: 'partial' } }, { $group: { _id: null, total: { $sum: '$remainingAmount' } } }]),
+    Sale.find({ ...scope, status: { $ne: 'cancelled' } }).sort({ createdAt: -1 }).limit(5).lean(),
     User.countDocuments({ active: true }),
     Branch.countDocuments({ active: true }),
-    Product.countDocuments({}),
+    Product.countDocuments({ ...scope }),
   ]);
 
   const todayRevenue = todayRevenueAgg[0]?.total ?? 0;

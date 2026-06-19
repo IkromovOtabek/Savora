@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { getTenantSession } from '@/lib/tenantSession';
+import { branchFilter, branchAggMatch } from '@/lib/branchScope';
 import { PAYMENT_TYPE_LABELS, SALE_STATUS_LABELS, PaymentType, SaleStatus } from '@/lib/models/tenant/Sale';
 import { fmtDate, fmtMoney } from '@/lib/format';
 import SaleRowDelete from '@/components/tenant/SaleRowDelete';
@@ -12,9 +13,10 @@ export default async function SalesPage({
   searchParams: Promise<{ status?: string; type?: string }>;
 }) {
   const sp = await searchParams;
-  const { Sale, Product, Branch } = await getTenantSession();
+  const { user, Sale, Product, Branch } = await getTenantSession();
 
-  const filter: Record<string, unknown> = {};
+  const scope = branchFilter(user);
+  const filter: Record<string, unknown> = { ...scope };
   if (sp.status && sp.status in SALE_STATUS_LABELS) filter.status = sp.status;
   if (sp.type && sp.type in PAYMENT_TYPE_LABELS) filter.paymentType = sp.type;
 
@@ -31,9 +33,9 @@ export default async function SalesPage({
 
   const todayStart = new Date();
   todayStart.setHours(0, 0, 0, 0);
-  const todaySales = await Sale.countDocuments({ createdAt: { $gte: todayStart }, status: { $ne: 'cancelled' } });
+  const todaySales = await Sale.countDocuments({ ...scope, createdAt: { $gte: todayStart }, status: { $ne: 'cancelled' } });
   const debtTotal = await Sale.aggregate([
-    { $match: { status: 'partial' } },
+    { $match: { ...branchAggMatch(user), status: 'partial' } },
     { $group: { _id: null, total: { $sum: '$remainingAmount' } } },
   ]);
 

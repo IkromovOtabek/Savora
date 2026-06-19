@@ -1,13 +1,16 @@
 import Link from 'next/link';
 import { getTenantSession } from '@/lib/tenantSession';
+import { isBranchScoped } from '@/lib/branchScope';
 import { fmtDateTime } from '@/lib/format';
 
 export const metadata = { title: 'Filialga berildi — Savora' };
 
 export default async function TransferredPage() {
-  const { Transfer } = await getTenantSession();
+  const { user, Transfer } = await getTenantSession();
 
-  const transfers = await Transfer.find().sort({ createdAt: -1 }).limit(200).lean();
+  // Filial login — faqat o'z filialiga berilganlar
+  const tFilter = isBranchScoped(user) ? { toBranchId: user.branchId } : {};
+  const transfers = await Transfer.find(tFilter).sort({ createdAt: -1 }).limit(200).lean();
 
   const todayStart = new Date();
   todayStart.setHours(0, 0, 0, 0);

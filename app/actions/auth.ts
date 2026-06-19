@@ -75,6 +75,7 @@ export async function loginAction(_prev: State, formData: FormData): Promise<Sta
         tokenVersion: user.tokenVersion ?? 0,
         organizationId: String(org._id),
         dbName: org.dbName,
+        branchId: user.branchId ? String(user.branchId) : undefined,
       };
       await session.save();
       await setRouteCookies('tenant', org.slug);

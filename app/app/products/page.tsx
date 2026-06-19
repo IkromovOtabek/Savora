@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { getTenantSession } from '@/lib/tenantSession';
+import { branchFilter } from '@/lib/branchScope';
 import { isImeiEnabled } from '@/lib/features';
 import { PRODUCT_STATUS_LABELS, ProductStatus } from '@/lib/models/tenant/Product';
 import ProductSearch from '@/components/tenant/ProductSearch';
@@ -25,7 +26,7 @@ export default async function ProductsPage({
   searchParams: Promise<{ q?: string; branch?: string; status?: string; page?: string; created?: string; deleted?: string }>;
 }) {
   const sp = await searchParams;
-  const { Product, Branch, org, features } = await getTenantSession();
+  const { user, Product, Branch, org, features } = await getTenantSession();
   const showImei = isImeiEnabled(org);
   const richSale = !!(features.variant || features.creditKassa);
 
@@ -45,6 +46,8 @@ export default async function ProductsPage({
   }
   if (sp.branch) filter.branchId = sp.branch;
   if (sp.status && sp.status in PRODUCT_STATUS_LABELS) filter.status = sp.status;
+  // Filial login — faqat o'z filiali mahsulotlari (admin tanlovini ham bekor qiladi)
+  Object.assign(filter, branchFilter(user));
 
   const page = Math.max(1, parseInt(sp.page ?? '1', 10) || 1);
   const skip = (page - 1) * PAGE_SIZE;

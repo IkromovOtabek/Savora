@@ -1,12 +1,17 @@
 import { getTenantSession } from '@/lib/tenantSession';
+import { isBranchScoped } from '@/lib/branchScope';
 import NaxtKassaCards, { KassaCard } from '@/components/tenant/NaxtKassaCards';
 
 export const metadata = { title: 'Naxt kassa — Savora' };
 
 export default async function KassaPage() {
-  const { Sale, Branch, CashFlow } = await getTenantSession();
+  const { user, Sale, Branch, CashFlow } = await getTenantSession();
 
-  const branches = await Branch.find({ active: true }).sort({ createdAt: 1 }).lean();
+  const allBranches = await Branch.find({ active: true }).sort({ createdAt: 1 }).lean();
+  // Filial login — faqat o'z filiali kassasi
+  const branches = isBranchScoped(user)
+    ? allBranches.filter((b) => String(b._id) === user.branchId)
+    : allBranches;
   const branchIds = branches.map((b) => b._id);
 
   const [sales, expenseAgg] = await Promise.all([
