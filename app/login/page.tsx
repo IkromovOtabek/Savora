@@ -53,12 +53,19 @@ export default async function LoginPage({
       }
     }
   } else {
-    title = 'Tizimga kirish';
-    notice = 'Super Admin: http://localhost:3000/super/login · Do\'kon: http://localhost:3000/t/dokon-slug/login';
+    // Asosiy sayt — biznes egasi/xodim uchun to'g'ridan-to'g'ri kirish:
+    // do'kon manzili + login + parol bitta sahifada.
+    title = 'Do\'kon tizimiga kirish';
+    subtitle = 'Do\'kon manzili, login va parolingizni kiriting';
+    canLogin = true;
   }
 
   const tenantSlug = zone === 'tenant' ? await getTenantSlug() : '';
+  const needSlug = zone === 'root';
   const forgotUrl = canLogin && zone === 'tenant' && tenantSlug ? tenantForgotUrl(tenantSlug) : undefined;
+  // root zonada ham tenant sifatida autentifikatsiya qilinadi (slug formada kiritiladi)
+  const loginZone: 'super' | 'tenant' | undefined =
+    canLogin && zone === 'super' ? 'super' : canLogin ? 'tenant' : undefined;
 
   return (
     <LoginForm
@@ -70,8 +77,9 @@ export default async function LoginPage({
       blocked={sp?.blocked === '1'}
       welcome={sp?.welcome === '1'}
       defaultUsername={sp?.u ? decodeURIComponent(sp.u) : undefined}
-      loginZone={canLogin && zone === 'super' ? 'super' : canLogin && zone === 'tenant' ? 'tenant' : undefined}
+      loginZone={loginZone}
       tenantSlug={tenantSlug || undefined}
+      needSlug={needSlug}
       forgotUrl={forgotUrl}
     />
   );

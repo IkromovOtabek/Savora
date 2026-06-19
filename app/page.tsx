@@ -114,11 +114,11 @@ export default async function LandingPage() {
             <a href="#features">Imkoniyatlar</a>
             <a href="#pricing">Tariflar</a>
             <a href="#faq">Savollar</a>
-            <a href="#kirish">Kirish</a>
+            <a href="/login">Kirish</a>
           </nav>
           <div className="nav-cta">
             <ThemeToggle />
-            <Link href="#kirish" className="btn btn-ghost btn-with-icon">
+            <Link href="/login" className="btn btn-ghost btn-with-icon">
               <Icon name="login" size={16} />
               Kirish
             </Link>
@@ -145,7 +145,7 @@ export default async function LandingPage() {
                 <Icon name="signup" size={20} />
                 Ro&apos;yxatdan o&apos;tish — bepul boshlash
               </Link>
-              <a href="#kirish" className="btn btn-ghost btn-lg btn-with-icon">
+              <a href="/login" className="btn btn-ghost btn-lg btn-with-icon">
                 <Icon name="login" size={20} />
                 Kirish
               </a>

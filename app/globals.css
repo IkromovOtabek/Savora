@@ -393,6 +393,18 @@ img { max-width: 100%; display: block; }
   .cta-band { padding: 44px 24px; }
 }
 
+/* ── Chiqish (icon-only, qizil) ──────────────── */
+.logout-icon-btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 42px; height: 42px; border-radius: var(--r); cursor: pointer;
+  color: #dc2626; background: transparent; border: 1.5px solid transparent;
+  transition: background .15s, border-color .15s, color .15s;
+}
+.logout-icon-btn:hover { background: #fef2f2; border-color: #fecaca; color: #b91c1c; }
+.logout-icon-btn:disabled { opacity: .6; cursor: default; }
+.logout-icon-btn svg { transform: scaleX(-1); }
+.dark .logout-icon-btn:hover { background: rgba(220, 38, 38, .12); border-color: rgba(220, 38, 38, .3); color: #f87171; }
+
 /* ── Qarzdorlik nazorati ─────────────────────── */
 .row-overdue { background: rgba(220, 38, 38, .05); }
 .row-overdue:hover { background: rgba(220, 38, 38, .09) !important; }
@@ -789,7 +801,7 @@ img { max-width: 100%; display: block; }
 .quick-action { flex-direction: column; gap: 8px; }
 .quick-action span { display: flex; flex-direction: column; align-items: center; }
 .tenant-nav-link { display: flex; align-items: center; gap: 8px; }
-.super-side-foot { padding-top: 16px; border-top: 1px solid var(--border); margin-top: auto; }
+.super-side-foot { padding-top: 16px; border-top: 1px solid var(--border); margin-top: auto; display: flex; justify-content: flex-end; }
 .super-main { flex: 1; width: 100%; padding: 28px 28px; max-width: 1280px; margin: 0 auto; min-width: 0; }
 .super-page-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; margin-bottom: 24px; flex-wrap: wrap; }
 .super-page-head h1 { font-size: 1.6rem; font-weight: 850; margin: 8px 0 4px; }

@@ -16,6 +16,8 @@ interface Props {
   defaultUsername?: string;
   loginZone?: 'super' | 'tenant';
   tenantSlug?: string;
+  /** Asosiy saytda kirish — do'kon manzili (slug) ni formada so'rash */
+  needSlug?: boolean;
   forgotUrl?: string;
 }
 
@@ -30,6 +32,7 @@ export default function LoginForm({
   defaultUsername,
   loginZone,
   tenantSlug,
+  needSlug,
   forgotUrl,
 }: Props) {
   const [state, formAction, isPending] = useActionState(loginAction, null);
@@ -65,6 +68,22 @@ export default function LoginForm({
           <form action={formAction} className="auth-form">
             {loginZone && <input type="hidden" name="loginZone" value={loginZone} />}
             {tenantSlug && <input type="hidden" name="tenantSlug" value={tenantSlug} />}
+            {needSlug && (
+              <div className="auth-field">
+                <label htmlFor="tenantSlug">Do&apos;kon manzili</label>
+                <input
+                  id="tenantSlug"
+                  name="tenantSlug"
+                  type="text"
+                  inputMode="url"
+                  autoCapitalize="none"
+                  autoComplete="off"
+                  placeholder="masalan: dokon1"
+                  required
+                  disabled={isPending}
+                />
+              </div>
+            )}
             <div className="auth-field">
               <label htmlFor="username">Login</label>
               <input id="username" name="username" type="text" autoComplete="username" required autoFocus disabled={isPending} defaultValue={defaultUsername} />

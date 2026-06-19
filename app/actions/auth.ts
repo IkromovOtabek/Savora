@@ -35,7 +35,13 @@ export async function loginAction(_prev: State, formData: FormData): Promise<Sta
 
   const headerZone = await getAppZone();
   const zone = resolveLoginZone(formData, headerZone);
-  const tenantSlug = String(formData.get('tenantSlug') || '').trim() || (await getTenantSlug());
+  const rawSlug = String(formData.get('tenantSlug') || '').trim();
+  // Foydalanuvchi "dokon1", "dokon1.savora.uz" yoki to'liq URL yozishi mumkin — slug'ni ajratib olamiz
+  const cleanedSlug = rawSlug
+    .replace(/^https?:\/\//i, '')
+    .split(/[/.]/)[0]
+    .toLowerCase();
+  const tenantSlug = cleanedSlug || (await getTenantSlug());
 
   try {
     if (zone === 'super') {

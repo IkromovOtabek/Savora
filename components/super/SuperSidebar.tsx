@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation';
 import Icon from '@/components/icons/Icon';
 import BrandMark from '@/components/BrandMark';
 import LogoutButton from '@/components/LogoutButton';
-import { MARKETING_LINK, SUPER_NAV } from '@/lib/platformSystems';
+import { SUPER_NAV } from '@/lib/platformSystems';
 
 /** Asosiy menyu — faqat bitta element active */
 function isMainNavActive(href: string, pathname: string): boolean {
@@ -54,16 +54,7 @@ export default function SuperSidebar() {
       </nav>
 
       <div className="super-side-foot">
-        <a
-          href={MARKETING_LINK.href}
-          className="super-side-link"
-          target="_blank"
-          rel="noreferrer"
-        >
-          <Icon name={MARKETING_LINK.icon} size={18} />
-          {MARKETING_LINK.label}
-        </a>
-        <LogoutButton />
+        <LogoutButton iconOnly />
       </div>
     </aside>
   );
