@@ -1,0 +1,22 @@
+{
+  "name": "Savora — Savdo va nasiya tizimi",
+  "short_name": "Savora",
+  "description": "Ombor, sotuv, nasiya, kassa va filiallarni bitta joydan boshqaring.",
+  "start_url": "/app",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0F172A",
+  "theme_color": "#4F46E5",
+  "lang": "uz",
+  "dir": "ltr",
+  "categories": ["business", "productivity", "finance"],
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

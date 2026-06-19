@@ -10,7 +10,9 @@
     "seed": "node --env-file=.env scripts/seed.mjs",
     "migrate:dbs": "node --env-file=.env scripts/migrate-tenant-dbs.mjs",
     "expire": "node --env-file=.env scripts/expire-orgs.mjs",
-    "notify": "node --env-file=.env scripts/notify-expiry.mjs"
+    "notify": "node --env-file=.env scripts/notify-expiry.mjs",
+    "backup": "node --env-file=.env scripts/backup.mjs",
+    "restore": "node --env-file=.env scripts/restore.mjs"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1072.0",

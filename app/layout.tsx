@@ -1,11 +1,29 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import './globals.css';
 import Toaster from '@/components/ui/Toaster';
+import PWARegister from '@/components/PWARegister';
 
 export const metadata: Metadata = {
   title: 'Savora — Do\'koningiz uchun zamonaviy savdo va nasiya tizimi',
   description:
     'Savora — ombor, sotuv, nasiya, kassa va filiallarni bitta joydan boshqaring. 7 kun bepul sinab ko\'ring.',
+  manifest: '/manifest.webmanifest',
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'default',
+    title: 'Savora',
+  },
+  icons: {
+    icon: '/icon.svg',
+    apple: '/icon.svg',
+  },
+};
+
+export const viewport: Viewport = {
+  themeColor: '#4F46E5',
+  width: 'device-width',
+  initialScale: 1,
+  viewportFit: 'cover',
 };
 
 const themeScript = `
@@ -21,6 +39,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body>
         {children}
         <Toaster />
+        <PWARegister />
       </body>
     </html>
   );
