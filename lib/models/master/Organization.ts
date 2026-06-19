@@ -21,6 +21,8 @@ export interface IOrganization {
     yearlyPayment?: number;
     billingCycle?: 'monthly' | 'yearly';
     agreementNote?: string;
+    /** Sinov (trial) rejimi — muddati tugagach to'lov talab qilinadi */
+    isTrial?: boolean;
   };
   features?: Partial<OrgFeatures>;
   /** Referral tizim */
@@ -66,6 +68,7 @@ export const organizationSchema = new Schema<IOrganization>(
       yearlyPayment: { type: Number },
       billingCycle: { type: String, enum: ['monthly', 'yearly'], default: 'monthly' },
       agreementNote: { type: String, trim: true },
+      isTrial: { type: Boolean, default: false },
     },
     features: {
       sales: { type: Boolean },
@@ -102,6 +105,17 @@ organizationSchema.index({ status: 1, expiresAt: 1 });
 export function isOrganizationActive(org: Pick<IOrganization, 'status' | 'expiresAt'>): boolean {
   if (org.status !== 'active') return false;
   return new Date(org.expiresAt).getTime() > Date.now();
+}
+
+/** Muddat tugashiga necha kun qolgani (o'tgan bo'lsa manfiy) */
+export function daysUntilExpiry(org: Pick<IOrganization, 'expiresAt'>): number {
+  const ms = new Date(org.expiresAt).getTime() - Date.now();
+  return Math.ceil(ms / (24 * 60 * 60 * 1000));
+}
+
+/** Trial faolmi (sinov rejimi va muddat tugamagan) */
+export function isTrialActive(org: Pick<IOrganization, 'status' | 'expiresAt' | 'plan'>): boolean {
+  return !!org.plan?.isTrial && isOrganizationActive(org);
 }
 
 /** Bepul tarif ekanligini tekshirish */

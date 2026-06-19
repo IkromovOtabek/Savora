@@ -48,6 +48,8 @@ export interface CreateOrganizationInput {
   mustChangePassword?: boolean;
   referredBy?: string;
   billingCycle?: 'monthly' | 'yearly';
+  /** Sinov rejimi — muddati tugagach to'lov talab qilinadi */
+  isTrial?: boolean;
 }
 
 export async function createOrganization(input: CreateOrganizationInput): Promise<{ orgId: string; slug: string; adminUsername: string }> {
@@ -127,6 +129,7 @@ export async function createOrganization(input: CreateOrganizationInput): Promis
       monthlyPayment: isFree ? 0 : (input.monthlyPayment ?? preset.monthlyPrice),
       billingCycle: input.billingCycle ?? 'monthly',
       agreementNote: tier === 'custom' ? input.agreementNote?.trim() : undefined,
+      isTrial: input.isTrial ?? false,
     },
     features: defaultFeaturesForPlan(preset.tier),
     referralCode,

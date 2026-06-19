@@ -11,6 +11,9 @@ import { setRouteCookies } from '@/lib/routeCookies';
 
 type State = { error?: string } | null;
 
+/** Yangi do'kon uchun bepul sinov muddati (kun). .env: TRIAL_DAYS */
+const TRIAL_DAYS = Number(process.env.TRIAL_DAYS || 14);
+
 export async function registerAction(_prev: State, formData: FormData): Promise<State> {
   const zone = await getAppZone();
   if (zone !== 'root') {
@@ -41,7 +44,10 @@ export async function registerAction(_prev: State, formData: FormData): Promise<
       phone,
       businessType,
       adminPassword,
-      planTier: 'free',
+      // To'liq Pro imkoniyatlari bilan vaqtli sinov — muddati tugagach to'lov kerak
+      planTier: 'pro',
+      isTrial: true,
+      trialDays: TRIAL_DAYS,
       mustChangePassword: false,
       referredBy,
     });
