@@ -1,10 +1,8 @@
 import { NextResponse } from 'next/server';
-import { randomUUID } from 'crypto';
-import { mkdir, writeFile } from 'fs/promises';
-import path from 'path';
 import { getSession } from '@/lib/session';
 import { getMasterModels } from '@/lib/masterDb';
 import { resolveOrgFeatures } from '@/lib/features';
+import { saveFile } from '@/lib/storage';
 
 const MAX_BYTES = 5 * 1024 * 1024;
 const ALLOWED = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif']);
@@ -41,10 +39,8 @@ export async function POST(req: Request) {
   }
 
   const ext = file.type.split('/')[1]?.replace('jpeg', 'jpg') || 'jpg';
-  const filename = `${randomUUID()}.${ext}`;
-  const dir = path.join(process.cwd(), 'public', 'uploads', folder);
-  await mkdir(dir, { recursive: true });
-  await writeFile(path.join(dir, filename), Buffer.from(await file.arrayBuffer()));
+  const buffer = Buffer.from(await file.arrayBuffer());
+  const saved = await saveFile({ buffer, contentType: file.type }, folder, ext);
 
-  return NextResponse.json({ url: `/uploads/${folder}/${filename}` });
+  return NextResponse.json({ url: saved.url, key: saved.key });
 }

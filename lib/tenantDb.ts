@@ -8,8 +8,9 @@ import { saleSchema, ISale } from './models/tenant/Sale';
 import { creditBankSchema, ICreditBank } from './models/tenant/CreditBank';
 import { cashFlowSchema, ICashFlow } from './models/tenant/CashFlow';
 import { transferSchema, ITransfer } from './models/tenant/Transfer';
+import { auditLogSchema, IAuditLog } from './models/tenant/AuditLog';
 
-const TENANT_MODELS_VERSION = 4;
+const TENANT_MODELS_VERSION = 5;
 
 type TenantModelsMap = Map<string, ReturnType<typeof registerModels>>;
 const globalForTenant = global as unknown as { _savdoproTenantCache?: TenantModelsMap };
@@ -34,7 +35,9 @@ function registerModels(conn: import('mongoose').Connection) {
     (conn.models.CashFlow as Model<ICashFlow>) || conn.model<ICashFlow>('CashFlow', cashFlowSchema);
   const Transfer =
     (conn.models.Transfer as Model<ITransfer>) || conn.model<ITransfer>('Transfer', transferSchema);
-  return { conn, User, Branch, Product, Customer, Sale, CreditBank, CashFlow, Transfer };
+  const AuditLog =
+    (conn.models.AuditLog as Model<IAuditLog>) || conn.model<IAuditLog>('AuditLog', auditLogSchema);
+  return { conn, User, Branch, Product, Customer, Sale, CreditBank, CashFlow, Transfer, AuditLog };
 }
 
 /**

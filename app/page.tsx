@@ -7,6 +7,8 @@ import { fmtPlanPrice } from '@/lib/plans';
 import { getEffectivePlanPresets } from '@/lib/platformSettings';
 import { LOCALHOST_LINKS } from '@/lib/urls';
 import LoginPortal from '@/components/landing/LoginPortal';
+import ProductShowcase from '@/components/landing/ProductShowcase';
+import Faq from '@/components/landing/Faq';
 import Icon from '@/components/icons/Icon';
 import ThemeToggle from '@/components/ThemeToggle';
 
@@ -52,6 +54,27 @@ const PLANS_STATIC = [
   { tier: 'business' as const, featured: false },
 ];
 
+const STEPS = [
+  { n: '1', t: 'Ro\'yxatdan o\'ting', d: 'Do\'kon nomi va manzilini kiriting — 1 daqiqada hisob tayyor. Karta kerak emas.' },
+  { n: '2', t: 'Mahsulot va filial qo\'shing', d: 'Omborni to\'ldiring yoki Excel\'dan import qiling, xodimlarga login bering.' },
+  { n: '3', t: 'Sotuvni boshqaring', d: 'Sotuv, nasiya, kassa va foydani real vaqtda kuzating — istalgan qurilmadan.' },
+];
+
+const TESTIMONIALS = [
+  { name: 'Jasur Rahimov', role: 'SmartPhone, Toshkent', text: 'Avval hammasi daftarda edi — IMEI adashar, qarzdorlarni unutardik. Savora\'dan keyin ombor ham, nasiya ham bir joyda. Vaqtimni 2 barobar tejadim.', initials: 'JR' },
+  { name: 'Malika Yusupova', role: 'Mobi Market, Samarqand', text: '3 ta filialim bor. Endi har birini telefondan kuzataman, mahsulotni filiallar aro yuborish juda oson. Foyda hisobotini ko\'rib qaror qabul qilaman.', initials: 'MY' },
+  { name: 'Bekzod Karimov', role: 'TechZone, Farg\'ona', text: 'Xodimlarga alohida login berdim — kim qancha sotgani aniq ko\'rinadi. Kassa va kredit bo\'limi banklar bilan ishlashni soddalashtirdi.', initials: 'BK' },
+];
+
+const COMPARE = [
+  { f: 'IMEI va ombor nazorati', old: false, savora: true },
+  { f: 'Nasiya va qarzdorlar avtomatik', old: false, savora: true },
+  { f: 'Bir nechta filial bir ekranda', old: false, savora: true },
+  { f: 'Foyda/zarar avtomatik hisobi', old: false, savora: true },
+  { f: 'Istalgan joydan telefonda kirish', old: false, savora: true },
+  { f: 'Ma\'lumot yo\'qolishidan himoya', old: false, savora: true },
+];
+
 export default async function LandingPage() {
   const zone = await getAppZone();
   if (zone !== 'root') {
@@ -84,10 +107,11 @@ export default async function LandingPage() {
             Savora
           </div>
           <nav className="nav-links">
+            <a href="#demo">Demo</a>
             <a href="#features">Imkoniyatlar</a>
             <a href="#pricing">Tariflar</a>
+            <a href="#faq">Savollar</a>
             <a href="#kirish">Kirish</a>
-            <a href="#why">Nega biz?</a>
           </nav>
           <div className="nav-cta">
             <ThemeToggle />
@@ -178,6 +202,30 @@ export default async function LandingPage() {
         </div>
       </section>
 
+      {/* DEMO — real ko'rinishdagi panel skrinshotlari */}
+      <ProductShowcase />
+
+      {/* HOW IT WORKS */}
+      <section className="section section--soft" id="how">
+        <div className="container">
+          <div className="head">
+            <span className="eyebrow">Qanday ishlaydi</span>
+            <h2>3 qadamda ishga tushiring</h2>
+            <p>Murakkab sozlash yo&apos;q — bir necha daqiqada do&apos;koningiz raqamli bo&apos;ladi.</p>
+          </div>
+          <div className="steps">
+            {STEPS.map((s, i) => (
+              <div key={s.n} className="step">
+                <div className="step-num">{s.n}</div>
+                <h3>{s.t}</h3>
+                <p>{s.d}</p>
+                {i < STEPS.length - 1 && <span className="step-arrow" aria-hidden="true">→</span>}
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* FEATURES */}
       <section className="section" id="features">
         <div className="container">
@@ -192,6 +240,31 @@ export default async function LandingPage() {
                 <FeatureIcon d={f.icon} bg={f.bg} />
                 <h3>{f.t}</h3>
                 <p>{f.d}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* COMPARISON */}
+      <section className="section section--soft" id="compare">
+        <div className="container">
+          <div className="head">
+            <span className="eyebrow">Nega o&apos;tish kerak</span>
+            <h2>Daftar/Excel vs Savora</h2>
+            <p>Eski usul vaqtingizni va pulingizni yeydi. Farqni o&apos;zingiz ko&apos;ring.</p>
+          </div>
+          <div className="compare">
+            <div className="compare-row compare-head">
+              <div className="compare-feat">&nbsp;</div>
+              <div className="compare-col compare-old">Daftar / Excel</div>
+              <div className="compare-col compare-new">Savora</div>
+            </div>
+            {COMPARE.map((c) => (
+              <div key={c.f} className="compare-row">
+                <div className="compare-feat">{c.f}</div>
+                <div className="compare-col compare-old"><span className="compare-x">✕</span></div>
+                <div className="compare-col compare-new"><span className="compare-ck">✓</span></div>
               </div>
             ))}
           </div>
@@ -214,8 +287,34 @@ export default async function LandingPage() {
         </div>
       </section>
 
+      {/* TESTIMONIALS */}
+      <section className="section" id="reviews">
+        <div className="container">
+          <div className="head">
+            <span className="eyebrow">Mijozlar fikri</span>
+            <h2>Do&apos;kon egalari Savora&apos;ni tanlaydi</h2>
+            <p>O&apos;zbekiston bo&apos;ylab yuzlab do&apos;konlar har kuni biz bilan ishlaydi.</p>
+          </div>
+          <div className="reviews">
+            {TESTIMONIALS.map((t) => (
+              <figure key={t.name} className="review">
+                <div className="review-stars" aria-label="5 yulduz">★★★★★</div>
+                <blockquote>{t.text}</blockquote>
+                <figcaption className="review-author">
+                  <span className="review-avatar">{t.initials}</span>
+                  <span>
+                    <span className="review-name">{t.name}</span>
+                    <span className="review-role">{t.role}</span>
+                  </span>
+                </figcaption>
+              </figure>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* PRICING */}
-      <section className="section" id="pricing">
+      <section className="section section--soft" id="pricing">
         <div className="container">
           <div className="head">
             <span className="eyebrow">Tariflar</span>
@@ -243,6 +342,9 @@ export default async function LandingPage() {
           </div>
         </div>
       </section>
+
+      {/* FAQ */}
+      <Faq />
 
       {/* CTA */}
       <section className="section">

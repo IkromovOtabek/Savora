@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { getTenantAdminSession } from '@/lib/tenantSession';
+import { recordAudit } from '@/lib/audit';
 
 type State = { error?: string; success?: string } | null;
 
@@ -9,6 +10,10 @@ function parseAmount(v: string): number | null {
   const n = Number(v.replace(/\s/g, ''));
   if (!Number.isFinite(n) || n <= 0) return null;
   return n;
+}
+
+function fmtSum(n: number): string {
+  return new Intl.NumberFormat('uz-UZ').format(n) + ' so\'m';
 }
 
 export async function createCreditBankAction(_prev: State, formData: FormData): Promise<State> {
@@ -58,7 +63,14 @@ export async function createCashFlowAction(_prev: State, formData: FormData): Pr
   if (amount === null) return { error: 'Summa noto\'g\'ri.' };
 
   try {
-    await CashFlow.create({ type, amount, description, recordedBy: user.username });
+    const entry = await CashFlow.create({ type, amount, description, recordedBy: user.username });
+    await recordAudit(user, {
+      action: type === 'income' ? 'finance.income' : 'finance.expense',
+      entity: 'finance',
+      entityId: String(entry._id),
+      summary: `${type === 'income' ? 'Kirim' : 'Chiqim'}: ${fmtSum(amount)} — ${description}`,
+      meta: { type, amount },
+    });
     revalidatePath('/app/kirim-chiqim');
     return { success: type === 'income' ? 'Kirim qo\'shildi.' : 'Chiqim qo\'shildi.' };
   } catch {
@@ -67,10 +79,18 @@ export async function createCashFlowAction(_prev: State, formData: FormData): Pr
 }
 
 export async function deleteCashFlowAction(formData: FormData): Promise<void> {
-  const { CashFlow } = await getTenantAdminSession();
+  const { user, CashFlow } = await getTenantAdminSession();
   const entryId = String(formData.get('entryId') || '');
   if (!entryId) return;
 
-  await CashFlow.findByIdAndDelete(entryId);
+  const deleted = await CashFlow.findByIdAndDelete(entryId).lean();
+  await recordAudit(user, {
+    action: 'finance.delete',
+    entity: 'finance',
+    entityId: entryId,
+    summary: deleted
+      ? `${deleted.type === 'income' ? 'Kirim' : 'Chiqim'} o'chirildi: ${fmtSum(deleted.amount)} — ${deleted.description}`
+      : `Kirim/chiqim o'chirildi: ${entryId}`,
+  });
   revalidatePath('/app/kirim-chiqim');
 }

@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { getOrgWithPlan, getTenantAdminSession } from '@/lib/tenantSession';
 import { generateTempPassword, loginFromFullName } from '@/lib/credentials';
+import { recordAudit } from '@/lib/audit';
 
 type State = {
   error?: string;
@@ -44,6 +45,12 @@ export async function createEmployeeAction(_prev: State, formData: FormData): Pr
       mustChangePassword: true,
     });
     await emp.save();
+    await recordAudit(user, {
+      action: 'user.create',
+      entity: 'user',
+      entityId: String(emp._id),
+      summary: `Xodim qo'shildi: ${fullName} (${role === 'admin' ? 'admin' : 'xodim'})`,
+    });
     revalidatePath('/app/users');
     return {
       success: `${fullName} qo'shildi. Login va vaqtinchalik parolni xodimga bering — u profildan o'zgartiradi.`,
@@ -79,6 +86,15 @@ export async function updateEmployeeAction(_prev: State, formData: FormData): Pr
     emp.mustChangePassword = false;
   }
   await emp.save();
+  await recordAudit(user, {
+    action: newPassword.length >= 6 ? 'user.reset_password' : 'user.update',
+    entity: 'user',
+    entityId: userId,
+    summary:
+      `Xodim yangilandi: ${fullName || emp.username}` +
+      (newPassword.length >= 6 ? ' (parol almashtirildi)' : '') +
+      (!active ? ' (nofaol qilindi)' : ''),
+  });
 
   revalidatePath('/app/users');
   revalidatePath(`/app/users/${userId}`);

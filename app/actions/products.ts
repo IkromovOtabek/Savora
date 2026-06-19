@@ -9,6 +9,7 @@ import { ProductStatus } from '@/lib/models/tenant/Product';
 import { generateProductCode } from '@/lib/productId';
 import { parseQtyField, resolveStatusAfterSale } from '@/lib/productQuantity';
 import { resolveWarehouseBranchId } from '@/lib/warehouseBranch';
+import { recordAudit } from '@/lib/audit';
 
 type State = { error?: string; success?: string } | null;
 type LocationStatus = 'warehouse' | 'sold' | 'branch';
@@ -158,6 +159,12 @@ export async function createProductAction(_prev: State, formData: FormData): Pro
       createdBy: user.username,
       history: [{ action: 'created', detail: branch.name, by: user.username, at: new Date() }],
     });
+    await recordAudit(user, {
+      action: 'product.create',
+      entity: 'product',
+      entityId: String(product._id),
+      summary: `Mahsulot qo'shildi: ${name}`,
+    });
     revalidatePath('/app');
     revalidatePath('/app/products');
     redirect(`/app/products/${product._id}?created=1`);
@@ -201,6 +208,9 @@ export async function updateProductAction(_prev: State, formData: FormData): Pro
 
   const product = await Product.findById(productId);
   if (!product) return { error: 'Mahsulot topilmadi.' };
+
+  const prevSalePrice = product.salePrice;
+  const prevPurchasePrice = product.purchasePrice;
 
   if (locationStatus === 'branch') {
     const branch = await Branch.findOne({ _id: targetBranchId, active: true }).lean();
@@ -271,6 +281,18 @@ export async function updateProductAction(_prev: State, formData: FormData): Pro
 
   try {
     await product.save();
+    const priceChanged = prevSalePrice !== salePrice || prevPurchasePrice !== purchasePrice;
+    await recordAudit(user, {
+      action: priceChanged ? 'product.price_change' : 'product.update',
+      entity: 'product',
+      entityId: productId,
+      summary: priceChanged
+        ? `Narx o'zgardi: ${name} (sotuv ${fmtSum(prevSalePrice)} → ${fmtSum(salePrice)})`
+        : `Mahsulot tahrirlandi: ${name}`,
+      meta: priceChanged
+        ? { prevSalePrice, salePrice, prevPurchasePrice, purchasePrice }
+        : undefined,
+    });
     revalidatePath('/app');
     revalidatePath('/app/products');
     revalidatePath(`/app/products/${productId}`);
@@ -352,6 +374,13 @@ export async function quickMarkSoldAction(_prev: State, formData: FormData): Pro
       payments: [{ amount: totalAmount, paidAt: now, recordedBy: user.username }],
       soldBy: user.username,
     });
+    await recordAudit(user, {
+      action: 'sale.quick',
+      entity: 'sale',
+      entityId: String(product._id),
+      summary: `Tez sotuv: ${product.name} · ${saleQty} ta · ${fmtSum(totalAmount)}`,
+      meta: { saleQty, totalAmount },
+    });
     revalidatePath('/app');
     revalidatePath('/app/products');
     revalidatePath('/app/sales');
@@ -363,11 +392,18 @@ export async function quickMarkSoldAction(_prev: State, formData: FormData): Pro
 }
 
 export async function deleteProductAction(formData: FormData): Promise<void> {
-  const { Product } = await getTenantSession();
+  const { user, Product } = await getTenantSession();
   const productId = String(formData.get('productId') || '');
   if (!productId) return;
 
-  await Product.findByIdAndDelete(productId);
+  const deleted = await Product.findByIdAndDelete(productId).lean();
+  await recordAudit(user, {
+    action: 'product.delete',
+    entity: 'product',
+    entityId: productId,
+    summary: `Mahsulot o'chirildi: ${deleted?.name ?? productId}`,
+    meta: deleted ? { imei: deleted.imei, salePrice: deleted.salePrice } : undefined,
+  });
   revalidatePath('/app');
   revalidatePath('/app/products');
   redirect('/app/products?deleted=1');
