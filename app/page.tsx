@@ -7,7 +7,6 @@ import { fmtPlanPrice } from '@/lib/plans';
 import { getEffectivePlanPresets } from '@/lib/platformSettings';
 import { getLatestReviews } from '@/lib/reviews';
 import { LOCALHOST_LINKS } from '@/lib/urls';
-import LoginPortal from '@/components/landing/LoginPortal';
 import ProductShowcase from '@/components/landing/ProductShowcase';
 import Faq from '@/components/landing/Faq';
 import Icon from '@/components/icons/Icon';
@@ -192,8 +191,6 @@ export default async function LandingPage() {
           </div>
         </div>
       </section>
-
-      <LoginPortal />
 
       {/* STATS */}
       <section className="section section--soft">

@@ -100,7 +100,7 @@ export default function RegisterForm() {
 
         <p className="auth-foot">
           Allaqachon hisobingiz bormi?{' '}
-          <Link href="/#kirish" style={{ color: 'var(--brand)', fontWeight: 700 }}>Kirish</Link>
+          <Link href="/login" style={{ color: 'var(--brand)', fontWeight: 700 }}>Kirish</Link>
         </p>
       </div>
     </div>
