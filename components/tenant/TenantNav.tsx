@@ -36,6 +36,7 @@ const LINKS: { href: string; label: string; feature?: FeatureKey; adminOnly?: bo
   { href: '/app/inventory', label: 'Inventar', feature: 'inventory' },
   { href: '/app/imei', label: 'IMEI qidirish', imeiOnly: true },
   { href: '/app/monitoring', label: 'Hisobot', feature: 'monitoring' },
+  { href: '/app/users', label: 'Filiallar', feature: 'users', adminOnly: true },
   { href: '/app/audit', label: 'Audit jurnali', adminOnly: true },
   { href: '/app/profile', label: 'Kabinet' },
 ];

@@ -8,7 +8,9 @@ import { BUSINESS_TYPES } from '@/lib/businessTypes';
 import PasswordField from '@/components/auth/PasswordField';
 import Icon from '@/components/icons/Icon';
 
-const ROOT = process.env.NEXT_PUBLIC_ROOT_DOMAIN || 'lvh.me';
+const ROOT = process.env.NEXT_PUBLIC_ROOT_DOMAIN || 'savora.uz';
+const APP_HOST = (process.env.NEXT_PUBLIC_APP_URL || 'https://savora.uz').replace(/^https?:\/\//, '').replace(/\/$/, '');
+const PATH_ROUTING = process.env.NEXT_PUBLIC_USE_PATH_ROUTING !== 'false';
 
 export default function RegisterForm() {
   const [state, formAction, isPending] = useActionState(registerAction, null);
@@ -46,7 +48,7 @@ export default function RegisterForm() {
               placeholder="smartphone"
               onBlur={(e) => { e.target.value = normalizeSlug(e.target.value); }}
             />
-            <span className="field-hint">{`Sizning manzilingiz: smartphone.${ROOT}`}</span>
+            <span className="field-hint">{PATH_ROUTING ? `Sizning manzilingiz: ${APP_HOST}/t/smartphone` : `Sizning manzilingiz: smartphone.${ROOT}`}</span>
           </div>
 
           <div className="auth-field">

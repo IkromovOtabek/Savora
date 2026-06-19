@@ -4,10 +4,12 @@ import { NextRequest, NextResponse } from 'next/server';
  * Subdomen yoki localhost path → zona aniqlash.
  * Edge runtime'da ishlaydi (DB so'rovi YO'Q).
  *
- * Production subdomen:
- *   savdopro.uz            → root
- *   admin.savdopro.uz      → super
- *   dokon.savdopro.uz      → tenant
+ * Production (path routing — bitta domen):
+ *   savora.uz/             → root
+ *   savora.uz/super/*      → super panel
+ *   savora.uz/t/<slug>/*   → tenant
+ * Yoki subdomen rejimi (USE_PATH_ROUTING=false):
+ *   savora.uz / admin.savora.uz / <dokon>.savora.uz
  *
  * Localhost path (dev):
  *   localhost:3000/                    → root

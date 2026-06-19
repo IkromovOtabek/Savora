@@ -14,8 +14,8 @@ export default function ContactPage() {
         <h1 style={{ fontSize: '2rem', fontWeight: 850, marginBottom: 24 }}>Bog&apos;lanish</h1>
         <p style={{ color: 'var(--ink-2)', marginBottom: 24 }}>Savora jamoasi bilan bog&apos;lanish:</p>
         <ul style={{ color: 'var(--ink-2)', lineHeight: 2 }}>
-          <li>Telegram: @savdopro</li>
-          <li>Email: support@savdopro.uz</li>
+          <li>Telegram: @savora</li>
+          <li>Email: support@savora.uz</li>
           <li>Telefon: +998 90 000 00 00</li>
         </ul>
         <Link href="/register" className="btn btn-primary" style={{ marginTop: 24 }}>7 kun bepul sinov</Link>

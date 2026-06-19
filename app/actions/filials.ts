@@ -47,8 +47,15 @@ export async function createFilialAction(_prev: State, formData: FormData): Prom
       mustChangePassword: false,
     });
     await u.save();
+    await markOnboardingStep(user.organizationId, 'branchCreated');
+    await recordAudit(user, {
+      action: 'branch.create',
+      entity: 'branch',
+      entityId: String(branch._id),
+      summary: `Filial yaratildi: ${name} (login: ${username})`,
+    });
     revalidatePath('/app');
-    revalidatePath('/app/profile');
+    revalidatePath('/app/users');
     revalidatePath('/app/products');
     return { success: `${name} filiali yaratildi. Login: ${username}` };
   } catch {
@@ -58,7 +65,7 @@ export async function createFilialAction(_prev: State, formData: FormData): Prom
 
 /** Filial yangilash — filial + login (parol, holat) */
 export async function updateFilialAction(_prev: State, formData: FormData): Promise<State> {
-  const { User, Branch } = await getTenantAdminSession();
+  const { user, User, Branch } = await getTenantAdminSession();
 
   const branchId = String(formData.get('branchId') || '');
   const name = String(formData.get('name') || '').trim();
@@ -93,8 +100,18 @@ export async function updateFilialAction(_prev: State, formData: FormData): Prom
     await u.save();
   }
 
+  await recordAudit(user, {
+    action: newPassword && newPassword.length >= 6 ? 'branch.reset_password' : 'branch.update',
+    entity: 'branch',
+    entityId: branchId,
+    summary:
+      `Filial yangilandi: ${name}` +
+      (newPassword && newPassword.length >= 6 ? ' (parol almashtirildi)' : '') +
+      (!active ? ' (nofaol qilindi)' : ''),
+  });
+
   revalidatePath('/app');
-  revalidatePath('/app/profile');
+  revalidatePath('/app/users');
   revalidatePath('/app/products');
   return { success: 'Filial saqlandi.' };
 }
