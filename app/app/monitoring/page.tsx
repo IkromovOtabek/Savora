@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { getTenantSession } from '@/lib/tenantSession';
+import { branchFilter, isBranchScoped } from '@/lib/branchScope';
 import { statsFromSales, monthRange } from '@/lib/monitoring';
 import { PAYMENT_TYPE_LABELS, PaymentType } from '@/lib/models/tenant/Sale';
 import { fmtMoney } from '@/lib/format';
@@ -18,12 +19,17 @@ export default async function MonitoringPage({
   const [y, m] = (sp.month ?? `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`).split('-').map(Number);
   const { start, end } = monthRange(y, m);
 
-  const { Sale, Branch, Product } = await getTenantSession();
+  const { user, Sale, Branch, Product } = await getTenantSession();
 
-  const [sales, branches] = await Promise.all([
-    Sale.find({ status: { $ne: 'cancelled' }, createdAt: { $gte: start, $lt: end } }).lean(),
+  // Filial login — faqat o'z filiali hisoboti; admin — barcha filiallar taqqoslamasi
+  const scope = branchFilter(user);
+  const [sales, branchesAll] = await Promise.all([
+    Sale.find({ ...scope, status: { $ne: 'cancelled' }, createdAt: { $gte: start, $lt: end } }).lean(),
     Branch.find({ active: true }).lean(),
   ]);
+  const branches = isBranchScoped(user)
+    ? branchesAll.filter((b) => String(b._id) === user.branchId)
+    : branchesAll;
 
   const branchMap = Object.fromEntries(branches.map((b) => [String(b._id), b.name]));
 
