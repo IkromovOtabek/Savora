@@ -35,9 +35,12 @@ export default async function ProductsPage({
   const filter: Record<string, unknown> = {};
   const q = (sp.q ?? '').trim();
   if (q) {
+    const qNoSpace = q.replace(/\s/g, '');
     filter.$or = [
       { name: { $regex: q, $options: 'i' } },
-      { imei: { $regex: q.replace(/\s/g, ''), $options: 'i' } },
+      { imei: { $regex: qNoSpace, $options: 'i' } },
+      { barcode: { $regex: qNoSpace, $options: 'i' } },
+      { productId: { $regex: qNoSpace, $options: 'i' } },
     ];
   }
   if (sp.branch) filter.branchId = sp.branch;

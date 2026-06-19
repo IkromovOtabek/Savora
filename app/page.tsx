@@ -5,6 +5,7 @@ import { getCurrentUser } from '@/lib/auth';
 import { superDashboardUrl } from '@/lib/urls';
 import { fmtPlanPrice } from '@/lib/plans';
 import { getEffectivePlanPresets } from '@/lib/platformSettings';
+import { getLatestReviews } from '@/lib/reviews';
 import { LOCALHOST_LINKS } from '@/lib/urls';
 import LoginPortal from '@/components/landing/LoginPortal';
 import ProductShowcase from '@/components/landing/ProductShowcase';
@@ -60,11 +61,12 @@ const STEPS = [
   { n: '3', t: 'Sotuvni boshqaring', d: 'Sotuv, nasiya, kassa va foydani real vaqtda kuzating — istalgan qurilmadan.' },
 ];
 
-const TESTIMONIALS = [
-  { name: 'Jasur Rahimov', role: 'SmartPhone, Toshkent', text: 'Avval hammasi daftarda edi — IMEI adashar, qarzdorlarni unutardik. Savora\'dan keyin ombor ham, nasiya ham bir joyda. Vaqtimni 2 barobar tejadim.', initials: 'JR' },
-  { name: 'Malika Yusupova', role: 'Mobi Market, Samarqand', text: '3 ta filialim bor. Endi har birini telefondan kuzataman, mahsulotni filiallar aro yuborish juda oson. Foyda hisobotini ko\'rib qaror qabul qilaman.', initials: 'MY' },
-  { name: 'Bekzod Karimov', role: 'TechZone, Farg\'ona', text: 'Xodimlarga alohida login berdim — kim qancha sotgani aniq ko\'rinadi. Kassa va kredit bo\'limi banklar bilan ishlashni soddalashtirdi.', initials: 'BK' },
-];
+function initialsOf(s: string): string {
+  const parts = s.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return '★';
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[1][0]).toUpperCase();
+}
 
 const COMPARE = [
   { f: 'IMEI va ombor nazorati', old: false, savora: true },
@@ -83,6 +85,7 @@ export default async function LandingPage() {
     redirect(user ? '/app' : '/login');
   }
 
+  const reviews = await getLatestReviews(6);
   const presets = await getEffectivePlanPresets();
   const plans = PLANS_STATIC.map(({ tier, featured }) => {
     const p = presets[tier];
@@ -287,31 +290,35 @@ export default async function LandingPage() {
         </div>
       </section>
 
-      {/* TESTIMONIALS */}
-      <section className="section" id="reviews">
-        <div className="container">
-          <div className="head">
-            <span className="eyebrow">Mijozlar fikri</span>
-            <h2>Do&apos;kon egalari Savora&apos;ni tanlaydi</h2>
-            <p>O&apos;zbekiston bo&apos;ylab yuzlab do&apos;konlar har kuni biz bilan ishlaydi.</p>
+      {/* TESTIMONIALS — real baholar (oxirgi yozilgan) */}
+      {reviews.length > 0 && (
+        <section className="section" id="reviews">
+          <div className="container">
+            <div className="head">
+              <span className="eyebrow">Mijozlar fikri</span>
+              <h2>Mijozlarimiz nima deydi</h2>
+              <p>Sotuvdan so&apos;ng mijozlar va do&apos;konlar tomonidan qoldirilgan haqiqiy baholar.</p>
+            </div>
+            <div className="reviews">
+              {reviews.map((r) => (
+                <figure key={r.id} className="review">
+                  <div className="review-stars" aria-label={`${r.rating} yulduz`}>
+                    {'★'.repeat(r.rating)}<span className="review-stars-off">{'★'.repeat(5 - r.rating)}</span>
+                  </div>
+                  <blockquote>{r.comment}</blockquote>
+                  <figcaption className="review-author">
+                    <span className="review-avatar">{initialsOf(r.authorName || r.shopName)}</span>
+                    <span>
+                      <span className="review-name">{r.authorName || 'Mijoz'}</span>
+                      <span className="review-role">{r.shopName}</span>
+                    </span>
+                  </figcaption>
+                </figure>
+              ))}
+            </div>
           </div>
-          <div className="reviews">
-            {TESTIMONIALS.map((t) => (
-              <figure key={t.name} className="review">
-                <div className="review-stars" aria-label="5 yulduz">★★★★★</div>
-                <blockquote>{t.text}</blockquote>
-                <figcaption className="review-author">
-                  <span className="review-avatar">{t.initials}</span>
-                  <span>
-                    <span className="review-name">{t.name}</span>
-                    <span className="review-role">{t.role}</span>
-                  </span>
-                </figcaption>
-              </figure>
-            ))}
-          </div>
-        </div>
-      </section>
+        </section>
+      )}
 
       {/* PRICING */}
       <section className="section section--soft" id="pricing">

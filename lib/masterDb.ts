@@ -3,8 +3,9 @@ import { getBaseConnection } from './db';
 import { organizationSchema, IOrganization } from './models/master/Organization';
 import { superAdminSchema, ISuperAdmin } from './models/master/SuperAdmin';
 import { platformSettingsSchema, IPlatformSettings } from './models/master/PlatformSettings';
+import { reviewSchema, IReview } from './models/master/Review';
 
-/** Master DB modellari (Organization, SuperAdmin) */
+/** Master DB modellari (Organization, SuperAdmin, Review) */
 export async function getMasterModels() {
   const conn = await getBaseConnection();
   const Organization =
@@ -16,5 +17,8 @@ export async function getMasterModels() {
   const PlatformSettings =
     (conn.models.PlatformSettings as Model<IPlatformSettings>) ||
     conn.model<IPlatformSettings>('PlatformSettings', platformSettingsSchema);
-  return { conn, Organization, SuperAdmin, PlatformSettings };
+  const Review =
+    (conn.models.Review as Model<IReview>) ||
+    conn.model<IReview>('Review', reviewSchema);
+  return { conn, Organization, SuperAdmin, PlatformSettings, Review };
 }

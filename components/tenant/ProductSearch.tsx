@@ -1,7 +1,9 @@
 'use client';
 
+import { useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { PRODUCT_STATUS_LABELS, ProductStatus } from '@/lib/models/tenant/Product';
+import CameraScanButton from '@/components/ui/CameraScanButton';
 
 interface Props {
   branches: { id: string; name: string }[];
@@ -10,26 +12,34 @@ interface Props {
 
 export default function ProductSearch({ branches, initial }: Props) {
   const router = useRouter();
+  const qRef = useRef<HTMLInputElement>(null);
+
+  function go(q: string, branch: string, status: string) {
+    const params = new URLSearchParams();
+    if (q.trim()) params.set('q', q.trim());
+    if (branch) params.set('branch', branch);
+    if (status) params.set('status', status);
+    router.push(`/app/products?${params.toString()}`);
+  }
 
   function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const fd = new FormData(e.currentTarget);
-    const params = new URLSearchParams();
-    const q = String(fd.get('q') || '').trim();
-    const branch = String(fd.get('branch') || '');
-    const status = String(fd.get('status') || '');
-    if (q) params.set('q', q);
-    if (branch) params.set('branch', branch);
-    if (status) params.set('status', status);
-    router.push(`/app/products?${params.toString()}`);
+    go(String(fd.get('q') || ''), String(fd.get('branch') || ''), String(fd.get('status') || ''));
+  }
+
+  function onScan(code: string) {
+    if (qRef.current) qRef.current.value = code;
+    // Skanerlangach darhol qidiramiz (filial/holat saqlanadi)
+    go(code, initial.branch, initial.status);
   }
 
   return (
     <form onSubmit={onSubmit} className="search-bar panel" style={{ padding: '16px 20px' }}>
       <div className="search-bar-grid">
         <div className="auth-field" style={{ margin: 0 }}>
-          <label htmlFor="q">Qidiruv (IMEI, nom, brend)</label>
-          <input id="q" name="q" type="search" defaultValue={initial.q} placeholder="IMEI yoki nom..." />
+          <label htmlFor="q">Qidiruv (shtrix, IMEI, nom)</label>
+          <input ref={qRef} id="q" name="q" type="search" defaultValue={initial.q} placeholder="Shtrix, IMEI yoki nom..." />
         </div>
         <div className="auth-field" style={{ margin: 0 }}>
           <label htmlFor="branch">Filial</label>
@@ -49,7 +59,8 @@ export default function ProductSearch({ branches, initial }: Props) {
             ))}
           </select>
         </div>
-        <div className="search-bar-actions">
+        <div className="search-bar-actions" style={{ display: 'flex', gap: 8 }}>
+          <CameraScanButton onScan={onScan} label="Skaner" />
           <button type="submit" className="btn btn-primary btn-sm">Qidirish</button>
         </div>
       </div>

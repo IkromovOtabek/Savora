@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Icon from '@/components/icons/Icon';
+import CameraScanButton from '@/components/ui/CameraScanButton';
 
 const SCAN_GAP_MS = 80;
 const HID_FILTERS: HIDDeviceFilter[] = [{ usagePage: 0x008c }];
@@ -167,6 +168,7 @@ export default function BarcodeInputField({
         >
           <Icon name="search" size={16} />
         </button>
+        {!disabled && <CameraScanButton onScan={applyScan} label="" />}
       </div>
       {pistolActive ? (
         <span className="barcode-scan-status barcode-scan-status--ok">Pistalet faol</span>

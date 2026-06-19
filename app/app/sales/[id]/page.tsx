@@ -7,6 +7,7 @@ import { PAYMENT_TYPE_LABELS, SALE_STATUS_LABELS } from '@/lib/models/tenant/Sal
 import { fmtDateTime, fmtMoney } from '@/lib/format';
 import SalePaymentForm from '@/components/tenant/SalePaymentForm';
 import CancelSaleButton from '@/components/tenant/CancelSaleButton';
+import SaleReviewTrigger from '@/components/tenant/SaleReviewTrigger';
 
 export const metadata = { title: 'Sotuv — Savora' };
 
@@ -46,7 +47,10 @@ export default async function SaleDetailPage({
       </div>
 
       {sp?.created === '1' && (
-        <div className="auth-alert auth-alert--info" style={{ marginBottom: 20 }}>Sotuv muvaffaqiyatli yakunlandi.</div>
+        <>
+          <div className="auth-alert auth-alert--info" style={{ marginBottom: 20 }}>Sotuv muvaffaqiyatli yakunlandi.</div>
+          <SaleReviewTrigger saleId={id} />
+        </>
       )}
 
       <div className="detail-grid">

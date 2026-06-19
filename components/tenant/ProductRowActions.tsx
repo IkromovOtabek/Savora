@@ -7,6 +7,7 @@ import { quickMarkSoldAction } from '@/app/actions/products';
 import { transferProductAction } from '@/app/actions/transfer';
 import { toast } from '@/lib/toast';
 import Icon from '@/components/icons/Icon';
+import ReviewModal from '@/components/tenant/ReviewModal';
 
 interface Props {
   productId: string;
@@ -33,6 +34,7 @@ export default function ProductRowActions({
   const [price, setPrice] = useState('');
   const [branch, setBranch] = useState<{ id: string; name: string } | null>(null);
   const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
+  const [reviewOpen, setReviewOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const btnRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -75,6 +77,7 @@ export default function ProductRowActions({
     action: (fd: FormData) => Promise<{ error?: string; success?: string } | null>,
     extra: Record<string, string>,
     redirectTo: string,
+    onSuccess?: () => void,
   ) {
     setBusy(true);
     setErr(null);
@@ -96,6 +99,10 @@ export default function ProductRowActions({
     }
     toast(res?.success ?? 'Bajarildi.', 'success');
     setOpen(false);
+    if (onSuccess) {
+      onSuccess();
+      return;
+    }
     router.push(redirectTo);
     router.refresh();
   }
@@ -103,7 +110,14 @@ export default function ProductRowActions({
   function doSell() {
     const extra: Record<string, string> = { qty: String(qty) };
     if (price.trim()) extra.salePrice = price.trim();
-    run((fd) => quickMarkSoldAction(null, fd), extra, '/app/sales');
+    // Sotilgandan keyin baho modalini ochamiz
+    run((fd) => quickMarkSoldAction(null, fd), extra, '/app/sales', () => setReviewOpen(true));
+  }
+
+  function closeReview() {
+    setReviewOpen(false);
+    router.push('/app/sales');
+    router.refresh();
   }
   function doTransfer() {
     if (!branch) return;
@@ -199,6 +213,8 @@ export default function ProductRowActions({
       <Link href={`/app/products/${productId}`} className="icon-btn" title="Tahrirlash">
         <Icon name="edit" size={16} />
       </Link>
+
+      <ReviewModal open={reviewOpen} onClose={closeReview} />
     </div>
   );
 }

@@ -24,7 +24,8 @@ export default async function SaleReceiptPage({ params }: { params: Promise<{ id
       <div className="receipt-paper">
         <div className="receipt-head">
           <strong>{org.name}</strong>
-          <div>Savora — sotuv cheki</div>
+          {org.phone && <div>Tel: {org.phone}</div>}
+          <div>Sotuv cheki</div>
         </div>
         <div className="receipt-meta">
           <div>№ {sale.saleNo}</div>
@@ -34,6 +35,16 @@ export default async function SaleReceiptPage({ params }: { params: Promise<{ id
         <hr />
         <div className="receipt-line"><span>Mahsulot</span><span>{sale.productSnapshot.name}</span></div>
         <div className="receipt-line"><span>Kod</span><span>{sale.productSnapshot.imei}</span></div>
+        {(() => {
+          const qty = sale.productSnapshot.saleQuantity ?? 1;
+          if (qty > 1) {
+            const unit = Math.round(sale.totalAmount / qty);
+            return (
+              <div className="receipt-line"><span>Soni × narx</span><span>{qty} × {fmtMoney(unit)}</span></div>
+            );
+          }
+          return null;
+        })()}
         <div className="receipt-line"><span>Mijoz</span><span>{sale.customerSnapshot?.fullName ?? '—'}</span></div>
         <div className="receipt-line"><span>Telefon</span><span>{sale.customerSnapshot?.phone ?? '—'}</span></div>
         <hr />
