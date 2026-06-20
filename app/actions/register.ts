@@ -29,6 +29,12 @@ export async function registerAction(_prev: State, formData: FormData): Promise<
   const confirmPassword = String(formData.get('confirmPassword') || '');
   const referredBy = String(formData.get('referredBy') || '').trim().toUpperCase() || undefined;
 
+  // 2-qadamda tanlangan tarif. Bepul — doimiy; pulli — 14 kun sinov.
+  const rawTier = String(formData.get('planTier') || 'pro');
+  const planTier = (['free', 'starter', 'pro', 'business'].includes(rawTier) ? rawTier : 'pro') as
+    | 'free' | 'starter' | 'pro' | 'business';
+  const isFree = planTier === 'free';
+
   if (!adminPassword || adminPassword.length < 6) {
     return { error: 'Parol kamida 6 ta belgi.' };
   }
@@ -44,10 +50,11 @@ export async function registerAction(_prev: State, formData: FormData): Promise<
       phone,
       businessType,
       adminPassword,
-      // To'liq Pro imkoniyatlari bilan vaqtli sinov — muddati tugagach to'lov kerak
-      planTier: 'pro',
-      isTrial: true,
-      trialDays: TRIAL_DAYS,
+      // Tanlangan tarif — modullar `defaultFeaturesForPlan` orqali avtomatik yoqiladi.
+      // Bepul: doimiy; pulli: 14 kun sinov, muddati tugagach to'lov kerak.
+      planTier,
+      isTrial: !isFree,
+      trialDays: isFree ? undefined : TRIAL_DAYS,
       mustChangePassword: false,
       referredBy,
     });
