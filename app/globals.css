@@ -1337,3 +1337,13 @@ img { max-width: 100%; display: block; }
 @media (max-width: 900px) {
   .logout-mobile-only { display: inline-flex; }
 }
+
+/* ===== Yuklanish skeleton (app/app/loading.tsx) ===== */
+@keyframes sk-pulse { 0%,100% { opacity: 1; } 50% { opacity: .5; } }
+.app-skeleton { padding: 4px; }
+.app-skeleton > *, .sk-card { animation: sk-pulse 1.3s ease-in-out infinite; background: var(--bg-soft); border: 1px solid var(--border); border-radius: var(--r-sm, 12px); }
+.sk-head { height: 56px; margin-bottom: 20px; max-width: 320px; }
+.sk-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 20px; }
+.sk-card { height: 92px; }
+.sk-panel { height: 320px; }
+@media (max-width: 700px) { .sk-stats { grid-template-columns: repeat(2, 1fr); } }

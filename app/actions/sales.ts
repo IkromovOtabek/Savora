@@ -13,6 +13,7 @@ import { parseQtyField, resolveStatusAfterSale, getStockQty } from '@/lib/produc
 import { recordAudit } from '@/lib/audit';
 import { markOnboardingStep } from '@/lib/onboarding';
 import { branchFilter } from '@/lib/branchScope';
+import { logError } from '@/lib/logger';
 
 type State = { error?: string; success?: string } | null;
 
@@ -207,6 +208,7 @@ export async function createSaleAction(_prev: State, formData: FormData): Promis
     redirect(`/app/sales/${sale._id}?created=1`);
   } catch (err) {
     if (err && typeof err === 'object' && 'digest' in err) throw err;
+    logError('createSaleAction failed', err, { user: user.username, dbName: user.dbName });
     return { error: 'Sotuvda xatolik yuz berdi.' };
   }
 }

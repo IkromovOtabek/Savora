@@ -202,16 +202,29 @@ Endi faqat **2 xil tenant roli**: `admin` (do'kon egasi — hammasi + filiallara
 xodimlar bitta filial login/paroli bilan ishlaydi. (`createEmployeeAction`, `EmployeeForm`,
 `/app/users/new|[id]`, loginsiz `branches.ts` — o'chirildi.)
 - Filial yaratish: **`app/actions/filials.ts`** (filial + login birga). UI: `/app/users` (nav "Filiallar")
-  → `FilialManager` (login/parol bilan). Markaziy ombor (1-filial) ro'yxatda ko'rsatilmaydi.
+  → `FilialManager` — **jadval ko'rinishi** (avatar, rol, sana, tahrir/o'chirish, modal). `deleteFilialAction`
+  bor (mahsulot/sotuv bo'lsa bloklaydi).
+- **Markaziy ombor tushunchasi YO'Q** (OneNasiya modeli): har filial mustaqil. Mahsulot qo'shganda
+  filial-login → o'z filialiga; admin → filialni tanlaydi. Boshqa filialga "Filialga berish" (transfer).
 - **Scoping:** `lib/branchScope.ts` — `branchFilter(user)` (find) va `branchAggMatch(user)` (aggregate,
   ObjectId). Filial login faqat o'z filiali ko'radi: products, sales, debts, kassa, inventory, transferred
   (toBranchId), dashboard, monitoring, sales/new + lookupProductByImei. Session'ga `branchId` qo'shildi.
-- Eslatma: filial login mahsulot QO'SHsa hozir markaziy omborga tushadi (admin oqimi) — kerak bo'lsa
-  "mahsulot qo'shish"ni adminGagina cheklash mumkin.
 
-### Hali kerak (keyingi bosqich)
-- Test yo'q (sotuv/foyda/limit mantiqiga unit test kerak).
-- Default `SESSION_SECRET` fallback'i bor — production'da env majburiy qilish.
-- Login brute-force himoyasi (rate-limit) yo'q.
-- Avtomatik to'lov (Payme/Click) — hali qo'lda.
-- Brending: nom aralash ("Savora" UI + "savdopro" papka/paket) — bir xil qilish.
+### Sifat/xavfsizlik (2026-06, bajarildi ✅)
+- **Testlar:** Vitest + 30 unit test (`tests/`): branchScope, plans/features, sales, monitoring, slug, org.
+  `npm test`. **CI:** `.github/workflows/ci.yml` (typecheck + test + build).
+- **Xavfsizlik:** `SESSION_SECRET` production'da majburiy (`lib/session.ts`), login/reset **rate-limit**
+  (`lib/rateLimit.ts` — in-memory). Multi-tenant izolatsiya testlandi.
+- **Tuzatildi:** Sale `branchId` indeksi, `soldQuantity` nollanish bug'i, `referralCode` dup index.
+- **Logger:** `lib/logger.ts` (Sentry-ga tayyor) — kritik catch'larda `logError`.
+- **UX:** `app/app/loading.tsx` skeleton. Brending: paket nomi `savora`.
+
+### Yo'l xaritasi (tashqi kalit/server kerak — keyingi bosqich)
+- **Avtomatik to'lov (Payme/Click/Uzum)** — merchant kalit + webhook kerak. Hozir billing qo'lda.
+  Eng katta biznes ustuvorligi.
+- **Redis** — markazlashgan rate-limit (multi-instance), hot-read kesh, session store.
+- **BullMQ (background jobs)** — cron skriptlar o'rniga navbat (backup, eslatma, hisobot).
+- **Sentry** — `@sentry/nextjs` + DSN; `lib/logger.ts` ga ulanadi.
+- **zod validatsiya** — barcha action'larga sxema (hozir qo'lda parsing).
+- **Soft-delete** — o'chirish o'rniga `deletedAt` (audit kuchayadi).
+- **Offline-first POS** — PWA bor; keyingisi offline sotuv + sinxronlash.
