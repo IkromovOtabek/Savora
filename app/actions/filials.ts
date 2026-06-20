@@ -115,3 +115,32 @@ export async function updateFilialAction(_prev: State, formData: FormData): Prom
   revalidatePath('/app/products');
   return { success: 'Filial saqlandi.' };
 }
+
+/** Filialni o'chirish — login va filial yo'q qilinadi (mahsulot bo'lsa bloklanadi) */
+export async function deleteFilialAction(_prev: State, formData: FormData): Promise<State> {
+  const { user, User, Branch, Product, Sale } = await getTenantAdminSession();
+  const branchId = String(formData.get('branchId') || '');
+  if (!branchId) return { error: 'Filial topilmadi.' };
+
+  const [productCount, saleCount] = await Promise.all([
+    Product.countDocuments({ branchId }),
+    Sale.countDocuments({ branchId }),
+  ]);
+  if (productCount > 0 || saleCount > 0) {
+    return {
+      error: `Bu filialda ${productCount} ta mahsulot va ${saleCount} ta sotuv bor. O'chirish o'rniga uni "nofaol" qiling.`,
+    };
+  }
+
+  const branch = await Branch.findByIdAndDelete(branchId).lean();
+  await User.deleteOne({ branchId, role: 'user' });
+  await recordAudit(user, {
+    action: 'branch.delete',
+    entity: 'branch',
+    entityId: branchId,
+    summary: `Filial o'chirildi: ${branch?.name ?? branchId}`,
+  });
+  revalidatePath('/app');
+  revalidatePath('/app/users');
+  return { success: 'Filial o\'chirildi.' };
+}

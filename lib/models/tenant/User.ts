@@ -17,6 +17,8 @@ export interface IUser {
   mustChangePassword?: boolean;
   tokenVersion: number;
   active: boolean;
+  createdAt?: Date;
+  updatedAt?: Date;
   comparePassword(candidate: string): Promise<boolean>;
 }
 

@@ -1,8 +1,7 @@
 import { getTenantAdminSession, getOrgWithPlan } from '@/lib/tenantSession';
 import FilialManager from '@/components/tenant/FilialManager';
-import Icon from '@/components/icons/Icon';
 
-export const metadata = { title: 'Filiallar — Savora' };
+export const metadata = { title: 'Foydalanuvchilar — Savora' };
 
 export default async function UsersPage() {
   const { user, User, Branch } = await getTenantAdminSession();
@@ -11,42 +10,31 @@ export default async function UsersPage() {
 
   const [branches, users] = await Promise.all([
     Branch.find().sort({ createdAt: 1 }).lean(),
-    User.find({ role: 'user' }).lean(),
+    User.find().sort({ createdAt: 1 }).lean(),
   ]);
 
   const activeBranches = branches.filter((b) => b.active).length;
-  const loginByBranch = new Map(
-    users.filter((u) => u.branchId).map((u) => [String(u.branchId), u.username])
-  );
+  const branchById = new Map(branches.map((b) => [String(b._id), b]));
 
-  // Har filial — login bilan mustaqil ish birligi (markaziy ombor tushunchasi yo'q)
-  const filials = branches.map((b) => ({
-    branchId: String(b._id),
-    name: b.name,
-    address: b.address,
-    phone: b.phone,
-    active: b.active,
-    username: loginByBranch.get(String(b._id)),
-  }));
+  // Barcha foydalanuvchilar: admin + filial loginlari (bitta jadvalda)
+  const rows = users.map((u) => {
+    const branch = u.branchId ? branchById.get(String(u.branchId)) : undefined;
+    return {
+      id: String(u._id),
+      username: u.username,
+      name: u.fullName || branch?.name || u.username,
+      role: u.role as 'admin' | 'user',
+      active: u.active,
+      createdAt: (u.createdAt ?? new Date()).toString(),
+      isSelf: String(u._id) === user.id,
+      // Filial tahriri uchun
+      branchId: u.branchId ? String(u.branchId) : undefined,
+      phone: branch?.phone ?? '',
+      address: branch?.address ?? '',
+    };
+  });
 
   return (
-    <>
-      <div className="dash-head">
-        <div>
-          <h1 className="dash-hello">Filiallar</h1>
-          <p className="dash-sub">
-            Har filialga bitta login — o&apos;sha filial xodimlari shu login bilan ishlaydi
-          </p>
-        </div>
-      </div>
-
-      <div className="auth-alert auth-alert--info" style={{ marginTop: 8 }}>
-        <Icon name="building" size={16} /> Filial xodimlari alohida akkaunt olmaydi — hammasi
-        filialning login/paroli bilan kiradi. Admin barcha filiallarni va ular bo&apos;yicha
-        hisobotni ko&apos;radi.
-      </div>
-
-      <FilialManager filials={filials} maxFilial={maxFilial} activeBranchCount={activeBranches} />
-    </>
+    <FilialManager rows={rows} maxFilial={maxFilial} activeBranchCount={activeBranches} />
   );
 }
