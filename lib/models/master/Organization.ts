@@ -99,7 +99,8 @@ export const organizationSchema = new Schema<IOrganization>(
   { timestamps: true, collection: 'organizations' }
 );
 
-organizationSchema.index({ referralCode: 1 }, { sparse: true });
+// referralCode indeksi field'da `unique: true, sparse: true` orqali allaqachon yaratiladi —
+// bu yerda takrorlamaymiz (Mongoose "Duplicate schema index" ogohlantirishini oldini oladi).
 organizationSchema.index({ status: 1, expiresAt: 1 });
 
 export function isOrganizationActive(org: Pick<IOrganization, 'status' | 'expiresAt'>): boolean {

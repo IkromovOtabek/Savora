@@ -17,8 +17,16 @@ export interface SessionData {
   user?: SessionUser;
 }
 
+// Xavfsizlik: production'da SESSION_SECRET majburiy. Bo'lmasa — ishga tushmaydi
+// (publik fallback bilan sessiya imzolansa, uni soxtalashtirish mumkin edi).
+const SESSION_SECRET = process.env.SESSION_SECRET;
+if (process.env.NODE_ENV === 'production' && (!SESSION_SECRET || SESSION_SECRET.length < 32)) {
+  throw new Error('SESSION_SECRET (kamida 32 belgi) .env da o\'rnatilishi shart.');
+}
+
 export const sessionOptions: SessionOptions = {
-  password: process.env.SESSION_SECRET || 'savdopro-session-secret-change-this-32chars',
+  // Dev uchun fallback; production'da yuqorida majburiy tekshiruv bor
+  password: SESSION_SECRET || 'dev-only-session-secret-change-in-prod-32ch',
   cookieName: 'savdopro_session',
   cookieOptions: {
     secure: process.env.NODE_ENV === 'production',

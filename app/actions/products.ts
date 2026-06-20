@@ -86,8 +86,13 @@ function applyLocationStatus(
   // boshqa filialga o'tkazish "Filialga berish" (transfer) orqali.
   product.soldPaymentType = undefined;
   product.soldBankName = undefined;
+  // Faqat SOTILGAN holatdan omborga QAYTARILGANDA sotilgan sonni nollash.
+  // Oddiy tahrirda (allaqachon omborda) soldQuantity saqlanadi — aks holda
+  // qisman sotilgan mahsulot tahrir qilinsa, sotuv tarixi yo'qolardi.
+  if (product.status === 'sold') {
+    product.soldQuantity = 0;
+  }
   product.status = 'in_stock';
-  product.soldQuantity = 0;
   return null;
 }
 

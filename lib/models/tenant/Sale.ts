@@ -87,6 +87,7 @@ export const saleSchema = new Schema<ISale>(
 );
 
 saleSchema.index({ createdAt: -1 });
+saleSchema.index({ branchId: 1, createdAt: -1 }); // filial bo'yicha scoping/hisobot uchun
 saleSchema.index({ status: 1, paymentType: 1 });
 saleSchema.index({ status: 1, dueDate: 1 });
 saleSchema.index({ 'productSnapshot.imei': 1 });

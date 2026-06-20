@@ -10,6 +10,7 @@ import { clearRouteCookies, setRouteCookies } from '@/lib/routeCookies';
 import { rootUrl } from '@/lib/urls';
 import { generateTempPassword } from '@/lib/credentials';
 import { sendTelegramTo, sendTelegram } from '@/lib/telegram';
+import { hitRateLimit, clearRateLimit } from '@/lib/rateLimit';
 
 type State = { error?: string } | null;
 type ResetState = { error?: string; success?: string } | null;
@@ -43,6 +44,14 @@ export async function loginAction(_prev: State, formData: FormData): Promise<Sta
     .toLowerCase();
   const tenantSlug = cleanedSlug || (await getTenantSlug());
 
+  // Brute-force himoyasi — 15 daqiqada 6 ta noto'g'ri urinishdan keyin bloklash
+  const rlKey = `login:${zone}:${tenantSlug}:${username}`;
+  const rl = hitRateLimit(rlKey);
+  if (!rl.ok) {
+    const min = Math.ceil((rl.retryAfterSec ?? 0) / 60);
+    return { error: `Juda ko'p urinish. ${min} daqiqadan so'ng qayta urinib ko'ring.` };
+  }
+
   try {
     if (zone === 'super') {
       const { SuperAdmin } = await getMasterModels();
@@ -50,6 +59,7 @@ export async function loginAction(_prev: State, formData: FormData): Promise<Sta
       if (!sa || !(await sa.comparePassword(password))) {
         return { error: "Login yoki parol noto'g'ri." };
       }
+      clearRateLimit(rlKey);
       const session = await getSession();
       session.user = { id: String(sa._id), username: sa.username, role: 'super_admin', tokenVersion: sa.tokenVersion ?? 0 };
       await session.save();
@@ -67,6 +77,7 @@ export async function loginAction(_prev: State, formData: FormData): Promise<Sta
       if (!user || !user.active || !(await user.comparePassword(password))) {
         return { error: "Login yoki parol noto'g'ri." };
       }
+      clearRateLimit(rlKey);
       const session = await getSession();
       session.user = {
         id: String(user._id),
@@ -98,6 +109,12 @@ export async function loginAction(_prev: State, formData: FormData): Promise<Sta
 export async function requestPasswordResetAction(_prev: ResetState, formData: FormData): Promise<ResetState> {
   const username = String(formData.get('username') || '').trim().toLowerCase();
   const tenantSlug = String(formData.get('tenantSlug') || '').trim() || (await getTenantSlug());
+
+  // Spam himoyasi — 15 daqiqada 4 ta so'rovgacha
+  const rl = hitRateLimit(`reset:${tenantSlug}:${username}`, 4);
+  if (!rl.ok) {
+    return { error: 'Juda ko\'p so\'rov. Birozdan so\'ng qayta urinib ko\'ring.' };
+  }
 
   const generic =
     'Agar bunday foydalanuvchi mavjud bo\'lsa va do\'kon Telegram\'i ulangan bo\'lsa, yangi vaqtinchalik parol Telegram\'ga yuborildi.';
