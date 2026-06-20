@@ -182,7 +182,7 @@ export default function ProductRowActions({
                     <Icon name="arrowLeft" size={14} /> Orqaga
                   </button>
                   {otherBranches.length === 0 ? (
-                    <div className="row-action-empty">Boshqa faol filial yo&apos;q.<br />Kabinet &gt; Jamoa orqali qo&apos;shing.</div>
+                    <div className="row-action-empty">Boshqa filial yo&apos;q.<br /><b>Filiallar</b> bo&apos;limidan yangi filial qo&apos;shing.</div>
                   ) : otherBranches.map((b) => (
                     <button key={b.id} type="button" className="row-action-item" disabled={busy}
                       onClick={() => { setBranch(b); needQty ? (setQty(1), setView('branchQty')) : run((fd) => transferProductAction(null, fd), { qty: '1', branchId: b.id }, '/app/transferred'); }}>

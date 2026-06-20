@@ -21,9 +21,9 @@ export default async function UsersPage() {
     users.filter((u) => u.branchId).map((u) => [String(u.branchId), u.username])
   );
 
-  // Markaziy ombor (birinchi filial) ro'yxatda ko'rsatilmaydi — uni admin boshqaradi
+  // Markaziy ombor ham ro'yxatda ko'rinadi (alohida belgi bilan) — sanoq mos kelishi uchun.
+  // Tartib: avval markaziy ombor, keyin qolgan filiallar.
   const filials = branches
-    .filter((b) => String(b._id) !== warehouseBranchId)
     .map((b) => ({
       branchId: String(b._id),
       name: b.name,
@@ -31,7 +31,9 @@ export default async function UsersPage() {
       phone: b.phone,
       active: b.active,
       username: loginByBranch.get(String(b._id)),
-    }));
+      isWarehouse: String(b._id) === warehouseBranchId,
+    }))
+    .sort((a, b) => (a.isWarehouse === b.isWarehouse ? 0 : a.isWarehouse ? -1 : 1));
 
   return (
     <>
