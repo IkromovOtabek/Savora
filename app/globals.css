@@ -1331,3 +1331,9 @@ img { max-width: 100%; display: block; }
 .u-modal-head h3 { margin: 0; font-size: 1.05rem; font-weight: 800; }
 .u-modal form { padding: 18px 20px; display: flex; flex-direction: column; gap: 12px; }
 .u-modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 6px; }
+
+/* Logout: desktopda sidebar pastida, mobilda (sidebar yashiringanda) headerda */
+.logout-mobile-only { display: none; }
+@media (max-width: 900px) {
+  .logout-mobile-only { display: inline-flex; }
+}

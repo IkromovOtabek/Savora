@@ -1,6 +1,7 @@
 import { getTenantSession } from '@/lib/tenantSession';
 import ProfileForms from '@/components/tenant/ProfileForms';
 import TelegramConnect from '@/components/tenant/TelegramConnect';
+import ExpiryBanner from '@/components/ExpiryBanner';
 
 export const metadata = { title: 'Kabinet — Savora' };
 
@@ -18,6 +19,9 @@ export default async function ProfilePage() {
           <p className="dash-sub">Foydalanuvchi: <strong>{user.username}</strong> · {isAdmin ? 'Admin' : 'Filial'}</p>
         </div>
       </div>
+
+      {/* Obuna/sinov bildirishnomalari faqat shu yerda (Kabinet) ko'rsatiladi */}
+      <ExpiryBanner org={org} />
 
       <ProfileForms
         username={user.username}

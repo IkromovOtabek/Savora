@@ -7,7 +7,6 @@ import TenantClock from '@/components/tenant/TenantClock';
 import ThemeToggle from '@/components/ThemeToggle';
 import SearchParamToast from '@/components/ui/SearchParamToast';
 import { Suspense } from 'react';
-import ExpiryBanner from '@/components/ExpiryBanner';
 import BrandMark from '@/components/BrandMark';
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
@@ -31,6 +30,9 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         <div className="tenant-side-nav">
           <TenantNav isAdmin={user.role === 'admin'} features={features} showImei={showImei} />
         </div>
+        <div className="tenant-side-foot">
+          <LogoutButton iconOnly />
+        </div>
       </aside>
       <div className="tenant-body">
         <header className="tenant-top">
@@ -41,12 +43,12 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           <div className="tenant-top-center">{org.name}</div>
           <div className="tenant-top-actions">
             <ThemeToggle />
-            <LogoutButton />
+            {/* Mobilda sidebar yashirin — logout shu yerda (faqat mobil) */}
+            <span className="logout-mobile-only"><LogoutButton iconOnly /></span>
           </div>
         </header>
         <main className="tenant-main">
           <Suspense fallback={null}><SearchParamToast /></Suspense>
-          <ExpiryBanner org={org} />
           {children}
         </main>
       </div>
