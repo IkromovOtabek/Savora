@@ -1347,3 +1347,19 @@ img { max-width: 100%; display: block; }
 .sk-card { height: 92px; }
 .sk-panel { height: 320px; }
 @media (max-width: 700px) { .sk-stats { grid-template-columns: repeat(2, 1fr); } }
+
+/* ===== To'lov tasdiqlash (super: PaymentReview, tenant: PaymentSubmit) ===== */
+.pay-card { display: flex; gap: 16px; border: 1px solid var(--border); border-radius: var(--r-sm, 12px); padding: 14px; background: var(--bg-soft); }
+.pay-receipt { flex-shrink: 0; width: 120px; height: 120px; border-radius: 10px; overflow: hidden; border: 1px solid var(--border); background: var(--surface); display: block; }
+.pay-receipt img { width: 100%; height: 100%; object-fit: cover; }
+.pay-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+.pay-top { display: flex; align-items: baseline; gap: 8px; }
+.pay-top strong { font-size: 1rem; }
+.pay-meta { display: flex; flex-wrap: wrap; gap: 12px; font-size: .88rem; color: var(--ink-2); }
+.pay-flags { display: flex; flex-direction: column; gap: 4px; margin-top: 4px; }
+.pay-flag { display: inline-flex; align-items: center; gap: 6px; font-size: .76rem; color: #b45309; background: #fffbeb; padding: 3px 8px; border-radius: 6px; align-self: flex-start; }
+.dark .pay-flag { background: rgba(217,119,6,.14); color: #fcd34d; }
+.pay-actions { display: flex; gap: 8px; margin-top: 6px; }
+.pay-account-card { display: flex; flex-direction: column; gap: 2px; background: var(--bg-soft); border: 1px dashed var(--border); border-radius: 10px; padding: 12px 14px; margin: 6px 0; }
+.pay-account-card strong { font-size: 1.1rem; letter-spacing: 1px; font-variant-numeric: tabular-nums; }
+@media (max-width: 560px) { .pay-card { flex-direction: column; } .pay-receipt { width: 100%; height: 160px; } }

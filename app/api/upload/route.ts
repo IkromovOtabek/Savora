@@ -13,17 +13,24 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Kirish talab qilinadi.' }, { status: 401 });
   }
 
+  // To'lov cheki yuklash mediaUpload moduliga bog'liq emas (har do'kon to'lay olishi kerak)
+  const purpose = new URL(req.url).searchParams.get('purpose');
+
   let folder = 'super';
   if (session.user.role !== 'super_admin') {
     if (!session.user.dbName) {
       return NextResponse.json({ error: 'Ruxsat yo\'q.' }, { status: 403 });
     }
-    const { Organization } = await getMasterModels();
-    const org = await Organization.findOne({ dbName: session.user.dbName }).lean();
-    if (!org || !resolveOrgFeatures(org).mediaUpload) {
-      return NextResponse.json({ error: 'Rasm yuklash moduli o\'chirilgan.' }, { status: 403 });
+    if (purpose !== 'receipt') {
+      const { Organization } = await getMasterModels();
+      const org = await Organization.findOne({ dbName: session.user.dbName }).lean();
+      if (!org || !resolveOrgFeatures(org).mediaUpload) {
+        return NextResponse.json({ error: 'Rasm yuklash moduli o\'chirilgan.' }, { status: 403 });
+      }
     }
-    folder = session.user.dbName.replace(/[^a-zA-Z0-9_-]/g, '_');
+    folder = purpose === 'receipt'
+      ? `receipts/${session.user.dbName.replace(/[^a-zA-Z0-9_-]/g, '_')}`
+      : session.user.dbName.replace(/[^a-zA-Z0-9_-]/g, '_');
   }
 
   const formData = await req.formData();
