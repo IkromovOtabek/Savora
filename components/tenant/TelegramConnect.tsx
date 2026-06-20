@@ -11,7 +11,12 @@ interface Props {
  * va parolni tiklash kodlari keladi.
  */
 export default function TelegramConnect({ orgId, connected }: Props) {
-  const bot = process.env.TELEGRAM_BOT_USERNAME;
+  // Username'ni tozalaymiz: @, bo'sh joy, to'liq URL (t.me/...) yozilgan bo'lsa ham ishlaydi
+  const bot = (process.env.TELEGRAM_BOT_USERNAME || '')
+    .trim()
+    .replace(/^@/, '')
+    .replace(/^https?:\/\/(t\.me|telegram\.me)\//i, '')
+    .replace(/\/$/, '');
   if (!bot) return null;
 
   const link = `https://t.me/${bot}?start=link_${orgId}`;
