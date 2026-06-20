@@ -1,0 +1,30 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      # Build/test uchun soxta qiymatlar (haqiqiy sirlar deploy serverda)
+      SESSION_SECRET: ci-dummy-session-secret-32-characters-long
+      MONGO_URI: mongodb://127.0.0.1:27017
+      MASTER_DB_NAME: savora_ci
+      NEXT_PUBLIC_USE_PATH_ROUTING: 'true'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - name: Type check
+        run: npm run typecheck
+      - name: Tests
+        run: npm test
+      - name: Build
+        run: npm run build

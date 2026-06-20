@@ -19,8 +19,10 @@ export interface SessionData {
 
 // Xavfsizlik: production'da SESSION_SECRET majburiy. Bo'lmasa — ishga tushmaydi
 // (publik fallback bilan sessiya imzolansa, uni soxtalashtirish mumkin edi).
+// Build fazasida (next build) tekshirmaymiz — faqat ishlash (runtime) vaqtida.
 const SESSION_SECRET = process.env.SESSION_SECRET;
-if (process.env.NODE_ENV === 'production' && (!SESSION_SECRET || SESSION_SECRET.length < 32)) {
+const isBuildPhase = process.env.NEXT_PHASE === 'phase-production-build';
+if (process.env.NODE_ENV === 'production' && !isBuildPhase && (!SESSION_SECRET || SESSION_SECRET.length < 32)) {
   throw new Error('SESSION_SECRET (kamida 32 belgi) .env da o\'rnatilishi shart.');
 }
 

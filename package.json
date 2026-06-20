@@ -7,6 +7,9 @@
     "dev": "next dev -p 3000",
     "build": "next build",
     "start": "next start -p 3000",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit",
     "seed": "node --env-file=.env scripts/seed.mjs",
     "migrate:dbs": "node --env-file=.env scripts/migrate-tenant-dbs.mjs",
     "expire": "node --env-file=.env scripts/expire-orgs.mjs",
@@ -29,6 +32,7 @@
     "@types/node": "^22.10.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
-    "typescript": "^5.7.0"
+    "typescript": "^5.7.0",
+    "vitest": "^4.1.9"
   }
 }
