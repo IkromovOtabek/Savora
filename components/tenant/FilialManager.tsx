@@ -13,7 +13,6 @@ interface Filial {
   phone?: string;
   active: boolean;
   username?: string;
-  isWarehouse?: boolean;
 }
 
 export default function FilialManager({
@@ -53,9 +52,8 @@ export default function FilialManager({
 
         <div style={{ padding: '16px 24px' }}>
           <p className="field-hint" style={{ marginBottom: 12 }}>
-            Birinchi filial — <b>markaziy ombor</b> (admin boshqaradi, alohida login yo&apos;q). Qo&apos;shimcha
-            filial qo&apos;shsangiz, unga login/parol beriladi va ombordan mahsulot &quot;Filialga berish&quot;
-            orqali o&apos;sha filialga o&apos;tkaziladi.
+            Har filialga alohida login/parol beriladi. Filial o&apos;z login bilan kirib, faqat o&apos;z
+            mahsulot va sotuvini boshqaradi. Admin barcha filiallarni va hisobotni ko&apos;radi.
           </p>
 
           {canAdd && !adding && (
@@ -87,22 +85,10 @@ export default function FilialManager({
           )}
 
           <div className="filial-list">
+            {filials.length === 0 && !adding && <p className="field-hint">Hali filial yo&apos;q. Yuqoridagi tugma orqali qo&apos;shing.</p>}
             {filials.map((f) => (
               <div key={f.branchId} className={`filial-item${f.active ? '' : ' filial-item--off'}`}>
-                {f.isWarehouse ? (
-                  <div className="filial-item-row">
-                    <div className="filial-item-main">
-                      <div className="filial-item-name">{f.name}</div>
-                      <div className="filial-item-meta">
-                        <span>Admin boshqaradi — login yo&apos;q</span>
-                        {f.phone && <span>{f.phone}</span>}
-                      </div>
-                    </div>
-                    <div className="filial-item-side">
-                      <span className="badge-status badge-status--active">Markaziy ombor</span>
-                    </div>
-                  </div>
-                ) : editId === f.branchId ? (
+                {editId === f.branchId ? (
                   <form
                     className="filial-form"
                     onSubmit={(e) => { e.preventDefault(); submit((fd) => updateFilialAction(null, fd), e.currentTarget); }}

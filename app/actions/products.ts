@@ -13,7 +13,9 @@ import { recordAudit } from '@/lib/audit';
 import { markOnboardingStep } from '@/lib/onboarding';
 
 type State = { error?: string; success?: string } | null;
-type LocationStatus = 'warehouse' | 'sold' | 'branch';
+// Mahsulot holati formada: omborda (o'z filialida) yoki sotilgan.
+// Boshqa filialga o'tkazish — alohida "Filialga berish" (transfer) orqali.
+type LocationStatus = 'warehouse' | 'sold';
 
 function parsePrice(v: string): number | null {
   const n = Number(v.replace(/\s/g, ''));
@@ -39,7 +41,7 @@ function fmtSum(n: number): string {
 }
 
 function parseLocationStatus(v: string): LocationStatus {
-  if (v === 'sold' || v === 'branch') return v;
+  if (v === 'sold') return 'sold';
   return 'warehouse';
 }
 
@@ -54,8 +56,6 @@ function applyLocationStatus(
     soldBankName?: string;
   },
   locationStatus: LocationStatus,
-  warehouseBranchId: string,
-  targetBranchId: string,
   soldPaymentType: 'cash' | 'credit',
   soldBankName: string,
   creditKassaEnabled: boolean,
@@ -82,24 +82,12 @@ function applyLocationStatus(
     return null;
   }
 
+  // 'warehouse' = o'z filialida, omborda (in_stock). branchId o'zgarmaydi —
+  // boshqa filialga o'tkazish "Filialga berish" (transfer) orqali.
   product.soldPaymentType = undefined;
   product.soldBankName = undefined;
-
-  if (locationStatus === 'branch') {
-    if (!targetBranchId || !Types.ObjectId.isValid(targetBranchId)) {
-      return { error: 'Filial tanlanishi shart.' };
-    }
-    if (targetBranchId === warehouseBranchId) {
-      return { error: 'Filialga berish uchun boshqa filialni tanlang.' };
-    }
-    product.branchId = new Types.ObjectId(targetBranchId);
-    product.status = 'in_stock';
-    return null;
-  }
-
-  product.branchId = new Types.ObjectId(warehouseBranchId);
   product.status = 'in_stock';
-  if (locationStatus === 'warehouse') product.soldQuantity = 0;
+  product.soldQuantity = 0;
   return null;
 }
 
@@ -132,11 +120,16 @@ export async function createProductAction(_prev: State, formData: FormData): Pro
   if (purchasePrice === null) return { error: 'Kelish narxi noto\'g\'ri.' };
   if (salePrice === null) return { error: 'Sotuv narxi noto\'g\'ri.' };
 
-  const warehouseBranchId = await resolveWarehouseBranchId(Branch);
-  if (!warehouseBranchId) return { error: 'Faol filial topilmadi. Avval filial qo\'shing.' };
-
-  const branch = await Branch.findOne({ _id: warehouseBranchId, active: true }).lean();
-  if (!branch) return { error: 'Ombor filiali topilmadi yoki faol emas.' };
+  // Mahsulot qaysi filialga tegishli: filial-login → o'z filiali; admin → tanlangan filial
+  const targetBranchId =
+    user.role === 'user' && user.branchId
+      ? user.branchId
+      : String(formData.get('branchId') || '');
+  if (!targetBranchId || !Types.ObjectId.isValid(targetBranchId)) {
+    return { error: 'Filial tanlanishi shart.' };
+  }
+  const branch = await Branch.findOne({ _id: targetBranchId, active: true }).lean();
+  if (!branch) return { error: 'Tanlangan filial topilmadi yoki faol emas.' };
 
   const dup = await Product.findOne({ imei }).lean();
   if (dup) return { error: 'Bu IMEI allaqachon ro\'yxatda.' };
@@ -154,7 +147,7 @@ export async function createProductAction(_prev: State, formData: FormData): Pro
       quantity,
       soldQuantity: 0,
       status: 'in_stock',
-      branchId: warehouseBranchId,
+      branchId: targetBranchId,
       notes: notes || undefined,
       photoUrl: photoUrl || undefined,
       createdBy: user.username,
@@ -185,9 +178,6 @@ export async function updateProductAction(_prev: State, formData: FormData): Pro
   const imeiRaw = normalizeImei(String(formData.get('imei') || ''));
   const barcode = String(formData.get('barcode') || '').trim();
   const color = String(formData.get('color') || '').trim();
-  const targetBranchId = String(formData.get('branchId') || '');
-  const warehouseBranchId =
-    String(formData.get('warehouseBranchId') || '') || (await resolveWarehouseBranchId(Branch)) || '';
   const locationStatus = parseLocationStatus(String(formData.get('locationStatus') || 'warehouse'));
   const soldPaymentType = String(formData.get('soldPaymentType') || 'cash') === 'credit' ? 'credit' : 'cash';
   const soldBankName = String(formData.get('soldBankName') || '').trim();
@@ -204,20 +194,12 @@ export async function updateProductAction(_prev: State, formData: FormData): Pro
   if (phoneShop && (!imeiRaw || imeiRaw.length < 10)) return { error: 'IMEI noto\'g\'ri.' };
   if (purchasePrice === null) return { error: 'Kelish narxi noto\'g\'ri.' };
   if (salePrice === null) return { error: 'Sotuv narxi noto\'g\'ri.' };
-  if (!warehouseBranchId || !Types.ObjectId.isValid(warehouseBranchId)) {
-    return { error: 'Ombor filiali topilmadi.' };
-  }
 
   const product = await Product.findById(productId);
   if (!product) return { error: 'Mahsulot topilmadi.' };
 
   const prevSalePrice = product.salePrice;
   const prevPurchasePrice = product.purchasePrice;
-
-  if (locationStatus === 'branch') {
-    const branch = await Branch.findOne({ _id: targetBranchId, active: true }).lean();
-    if (!branch) return { error: 'Filial topilmadi yoki faol emas.' };
-  }
 
   if (locationStatus === 'sold' && features.creditKassa && soldPaymentType === 'credit') {
     const bank = await CreditBank.findOne({ name: soldBankName, active: true }).lean();
@@ -251,13 +233,10 @@ export async function updateProductAction(_prev: State, formData: FormData): Pro
   if (!product.createdBy) product.createdBy = user.username;
 
   const prevStatus = product.status;
-  const prevBranchId = String(product.branchId);
 
   const locationErr = applyLocationStatus(
     product,
     locationStatus,
-    warehouseBranchId,
-    targetBranchId,
     soldPaymentType,
     soldBankName,
     features.creditKassa,
@@ -271,9 +250,6 @@ export async function updateProductAction(_prev: State, formData: FormData): Pro
   if (product.status === 'sold' && prevStatus !== 'sold') {
     product.soldAt = now;
     product.history.push({ action: 'sold', detail: fmtSum(product.salePrice), by: user.username, at: now });
-  } else if (locationStatus === 'branch' && String(product.branchId) !== prevBranchId) {
-    const target = await Branch.findById(targetBranchId).lean();
-    product.history.push({ action: 'transferred', detail: target?.name, by: user.username, at: now });
   } else if (prevStatus === 'sold' && product.status === 'in_stock') {
     product.soldAt = undefined;
     product.history.push({ action: 'returned', by: user.username, at: now });

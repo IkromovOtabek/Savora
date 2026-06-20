@@ -1,7 +1,6 @@
 import { notFound } from 'next/navigation';
 import { getTenantSession } from '@/lib/tenantSession';
 import { isImeiEnabled } from '@/lib/features';
-import { resolveWarehouseBranchId } from '@/lib/warehouseBranch';
 import { ProductStatus } from '@/lib/models/tenant/Product';
 import ProductForm from '@/components/tenant/ProductForm';
 import DeleteProductButton from '@/components/tenant/DeleteProductButton';
@@ -18,13 +17,15 @@ export default async function ProductDetailPage({
 }) {
   const { id } = await params;
   const sp = await searchParams;
-  const { Product, Branch, CreditBank, org, features } = await getTenantSession();
+  const { user, Product, Branch, CreditBank, org, features } = await getTenantSession();
+  const isAdmin = user.role === 'admin';
 
   const product = await Product.findById(id).lean();
   if (!product) notFound();
+  // Filial-login faqat o'z filiali mahsulotini ko'radi/tahrirlaydi
+  if (!isAdmin && user.branchId && String(product.branchId) !== user.branchId) notFound();
 
   const branches = await Branch.find({ active: true }).sort({ name: 1 }).lean();
-  const warehouseBranchId = (await resolveWarehouseBranchId(Branch)) ?? '';
   const creditBanks = features.creditKassa
     ? await CreditBank.find({ active: true }).sort({ name: 1 }).lean()
     : [];
@@ -40,7 +41,8 @@ export default async function ProductDetailPage({
         mediaEnabled={features.mediaUpload}
         creditKassaEnabled={features.creditKassa}
         creditBanks={creditBanks.map((b) => ({ id: String(b._id), name: b.name }))}
-        warehouseBranchId={warehouseBranchId}
+        isAdmin={isAdmin}
+        currentBranchId={user.branchId}
         branches={branches.map((b) => ({ id: String(b._id), name: b.name }))}
         initial={{
           id: String(product._id),

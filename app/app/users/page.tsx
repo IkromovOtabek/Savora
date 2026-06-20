@@ -1,5 +1,4 @@
 import { getTenantAdminSession, getOrgWithPlan } from '@/lib/tenantSession';
-import { resolveWarehouseBranchId } from '@/lib/warehouseBranch';
 import FilialManager from '@/components/tenant/FilialManager';
 import Icon from '@/components/icons/Icon';
 
@@ -10,7 +9,6 @@ export default async function UsersPage() {
   const fullOrg = user.organizationId ? await getOrgWithPlan(user.organizationId) : null;
   const maxFilial = fullOrg?.plan.maxFilial ?? 1;
 
-  const warehouseBranchId = (await resolveWarehouseBranchId(Branch)) ?? '';
   const [branches, users] = await Promise.all([
     Branch.find().sort({ createdAt: 1 }).lean(),
     User.find({ role: 'user' }).lean(),
@@ -21,19 +19,15 @@ export default async function UsersPage() {
     users.filter((u) => u.branchId).map((u) => [String(u.branchId), u.username])
   );
 
-  // Markaziy ombor ham ro'yxatda ko'rinadi (alohida belgi bilan) — sanoq mos kelishi uchun.
-  // Tartib: avval markaziy ombor, keyin qolgan filiallar.
-  const filials = branches
-    .map((b) => ({
-      branchId: String(b._id),
-      name: b.name,
-      address: b.address,
-      phone: b.phone,
-      active: b.active,
-      username: loginByBranch.get(String(b._id)),
-      isWarehouse: String(b._id) === warehouseBranchId,
-    }))
-    .sort((a, b) => (a.isWarehouse === b.isWarehouse ? 0 : a.isWarehouse ? -1 : 1));
+  // Har filial — login bilan mustaqil ish birligi (markaziy ombor tushunchasi yo'q)
+  const filials = branches.map((b) => ({
+    branchId: String(b._id),
+    name: b.name,
+    address: b.address,
+    phone: b.phone,
+    active: b.active,
+    username: loginByBranch.get(String(b._id)),
+  }));
 
   return (
     <>

@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useActionState, useMemo, useState } from 'react';
+import { useActionState, useState } from 'react';
 import { useToastOnState } from '@/lib/useToastOnState';
 import { createProductAction, updateProductAction } from '@/app/actions/products';
 import { ProductStatus, SoldPaymentType } from '@/lib/models/tenant/Product';
@@ -12,12 +12,14 @@ import ImageUploadField from '@/components/ui/ImageUploadField';
 
 interface BranchOption { id: string; name: string }
 
-export type LocationStatus = 'warehouse' | 'sold' | 'branch';
+export type LocationStatus = 'warehouse' | 'sold';
 
 interface Props {
   mode: 'create' | 'edit';
   branches: BranchOption[];
-  warehouseBranchId: string;
+  /** Admin barcha filialni tanlaydi; filial-login uchun avtomatik o'z filiali */
+  isAdmin: boolean;
+  currentBranchId?: string;
   showImei: boolean;
   mediaEnabled?: boolean;
   creditKassaEnabled?: boolean;
@@ -43,20 +45,11 @@ interface Props {
   };
 }
 
-function deriveLocationStatus(
-  status: ProductStatus,
-  branchId: string,
-  warehouseBranchId: string
-): LocationStatus {
-  if (status === 'sold') return 'sold';
-  if (branchId && branchId !== warehouseBranchId) return 'branch';
-  return 'warehouse';
-}
-
 export default function ProductForm({
   mode,
   branches,
-  warehouseBranchId,
+  isAdmin,
+  currentBranchId,
   showImei,
   mediaEnabled,
   creditKassaEnabled = false,
@@ -67,20 +60,13 @@ export default function ProductForm({
   const [state, formAction, isPending] = useActionState(action, null);
   useToastOnState(state);
 
-  const initialLocation = useMemo(
-    () =>
-      initial
-        ? deriveLocationStatus(initial.status, initial.branchId, warehouseBranchId)
-        : 'warehouse',
-    [initial, warehouseBranchId]
+  const [locationStatus, setLocationStatus] = useState<LocationStatus>(
+    initial?.status === 'sold' ? 'sold' : 'warehouse'
   );
-
-  const [locationStatus, setLocationStatus] = useState<LocationStatus>(initialLocation);
   const [soldPaymentType, setSoldPaymentType] = useState<SoldPaymentType>(
     initial?.soldPaymentType ?? 'cash'
   );
   const [trackQuantity, setTrackQuantity] = useState(initial?.trackQuantity ?? false);
-  const branchOptions = branches.filter((b) => b.id !== warehouseBranchId);
   const activeCreditBanks = creditBanks.filter(Boolean);
 
   return (
@@ -105,7 +91,20 @@ export default function ProductForm({
       ) : (
         <form action={formAction} className="form-grid">
           {mode === 'edit' && initial && <input type="hidden" name="productId" value={initial.id} />}
-          <input type="hidden" name="warehouseBranchId" value={warehouseBranchId} />
+
+          {/* Filial tanlovi — admin yangi mahsulot qaysi filialga tegishli ekanini tanlaydi.
+              Filial-login uchun avtomatik o'z filiali (server sessiyadan oladi). */}
+          {mode === 'create' && isAdmin && (
+            <div className="auth-field">
+              <label htmlFor="branchId">Filial *</label>
+              <select id="branchId" name="branchId" required disabled={isPending} defaultValue={currentBranchId || branches[0]?.id}>
+                {branches.map((b) => (
+                  <option key={b.id} value={b.id}>{b.name}</option>
+                ))}
+              </select>
+              <span className="field-hint">Mahsulot shu filial omboriga qo&apos;shiladi</span>
+            </div>
+          )}
 
           {mode === 'edit' && initial?.productId && (
             <div className="auth-field">
@@ -221,17 +220,6 @@ export default function ProductForm({
                   />
                   <span>Sotildi</span>
                 </label>
-                <label className="status-option">
-                  <input
-                    type="radio"
-                    name="locationStatus"
-                    value="branch"
-                    checked={locationStatus === 'branch'}
-                    onChange={() => setLocationStatus('branch')}
-                    disabled={isPending}
-                  />
-                  <span>Filialga berildi</span>
-                </label>
               </div>
 
               {locationStatus === 'sold' && trackQuantity && (
@@ -297,29 +285,6 @@ export default function ProductForm({
                         </select>
                       )}
                     </div>
-                  )}
-                </div>
-              )}
-
-              {locationStatus === 'branch' && (
-                <div className="auth-field" style={{ marginTop: 12 }}>
-                  <label htmlFor="branchId">Faol filial *</label>
-                  {branchOptions.length === 0 ? (
-                    <p className="field-hint">Faol filial topilmadi. Jamoa bo&apos;limidan filial qo&apos;shing.</p>
-                  ) : (
-                    <select
-                      id="branchId"
-                      name="branchId"
-                      required
-                      defaultValue={
-                        initial?.branchId !== warehouseBranchId ? initial?.branchId : branchOptions[0]?.id
-                      }
-                      disabled={isPending}
-                    >
-                      {branchOptions.map((b) => (
-                        <option key={b.id} value={b.id}>{b.name}</option>
-                      ))}
-                    </select>
                   )}
                 </div>
               )}
