@@ -2,22 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Icon from '@/components/icons/Icon';
-
-/* BarcodeDetector — barcha brauzerlarda yo'q, shuning uchun minimal tip e'lon qilamiz */
-interface DetectedBarcode {
-  rawValue: string;
-}
-interface BarcodeDetectorLike {
-  detect(source: CanvasImageSource): Promise<DetectedBarcode[]>;
-}
-declare global {
-  interface Window {
-    BarcodeDetector?: {
-      new (opts?: { formats?: string[] }): BarcodeDetectorLike;
-      getSupportedFormats?: () => Promise<string[]>;
-    };
-  }
-}
+import { startCameraBarcodeScan } from '@/lib/barcodeCameraScan';
 
 interface Props {
   onScan: (code: string) => void;
@@ -26,74 +11,57 @@ interface Props {
   className?: string;
 }
 
-/** Telefon/noutbuk kamerasi orqali shtrix yoki QR kodni skanerlaydi. */
+/** Telefon/noutbuk kamerasi orqali shtrix yoki QR kodni skanerlaydi (barcha zamonaviy brauzerlar). */
 export default function CameraScanButton({ onScan, label, className = '' }: Props) {
   const [open, setOpen] = useState(false);
   const [error, setError] = useState('');
-  const [supported, setSupported] = useState(true);
+  const [scanning, setScanning] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
-  const streamRef = useRef<MediaStream | null>(null);
-  const rafRef = useRef<number | null>(null);
+  const stopScanRef = useRef<(() => void) | null>(null);
+  const handledRef = useRef(false);
 
   const stop = useCallback(() => {
-    if (rafRef.current) cancelAnimationFrame(rafRef.current);
-    rafRef.current = null;
-    streamRef.current?.getTracks().forEach((t) => t.stop());
-    streamRef.current = null;
+    stopScanRef.current?.();
+    stopScanRef.current = null;
+    setScanning(false);
   }, []);
 
   const close = useCallback(() => {
     stop();
     setOpen(false);
     setError('');
+    handledRef.current = false;
   }, [stop]);
 
   useEffect(() => {
     if (!open) return;
 
     let cancelled = false;
-    const hasDetector = typeof window !== 'undefined' && 'BarcodeDetector' in window;
-    setSupported(hasDetector);
+    handledRef.current = false;
 
     (async () => {
+      await new Promise((r) => requestAnimationFrame(r));
+      const video = videoRef.current;
+      if (!video || cancelled) return;
+
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: 'environment' },
-          audio: false,
+        setScanning(true);
+        const stopScan = await startCameraBarcodeScan(video, (code) => {
+          if (cancelled || handledRef.current) return;
+          handledRef.current = true;
+          onScan(code);
+          close();
         });
         if (cancelled) {
-          stream.getTracks().forEach((t) => t.stop());
+          stopScan();
           return;
         }
-        streamRef.current = stream;
-        const video = videoRef.current;
-        if (!video) return;
-        video.srcObject = stream;
-        await video.play().catch(() => {});
-
-        if (!hasDetector) return; // kamera ko'rinadi, lekin avtomatik o'qishsiz
-
-        const detector = new window.BarcodeDetector!({
-          formats: ['ean_13', 'ean_8', 'code_128', 'code_39', 'upc_a', 'upc_e', 'qr_code', 'itf'],
-        });
-
-        const tick = async () => {
-          if (cancelled || !videoRef.current) return;
-          try {
-            const codes = await detector.detect(videoRef.current);
-            if (codes.length > 0 && codes[0].rawValue) {
-              onScan(codes[0].rawValue.trim());
-              close();
-              return;
-            }
-          } catch {
-            /* kadr o'qilmadi — davom etamiz */
-          }
-          rafRef.current = requestAnimationFrame(tick);
-        };
-        rafRef.current = requestAnimationFrame(tick);
+        stopScanRef.current = stopScan;
       } catch {
-        if (!cancelled) setError('Kameraga ruxsat berilmadi yoki kamera topilmadi.');
+        if (!cancelled) {
+          setError('Kameraga ruxsat bering yoki boshqa brauzerda urinib ko\'ring.');
+          setScanning(false);
+        }
       }
     })();
 
@@ -125,14 +93,11 @@ export default function CameraScanButton({ onScan, label, className = '' }: Prop
               </button>
             </div>
             <div className="scan-video-wrap">
-              <video ref={videoRef} playsInline muted className="scan-video" />
+              <video ref={videoRef} playsInline muted autoPlay className="scan-video" />
               <div className="scan-frame" />
             </div>
-            {!supported && (
-              <p className="scan-hint scan-hint--warn">
-                Bu brauzer avtomatik o&apos;qishni qo&apos;llab-quvvatlamaydi. Kodni qo&apos;lda kiriting yoki
-                Chrome (Android) dan foydalaning.
-              </p>
+            {scanning && !error && (
+              <p className="scan-hint">Kod avtomatik o&apos;qiladi — Safari, Chrome, Firefox va mobil brauzerlarda ishlaydi.</p>
             )}
             {error && <p className="scan-hint scan-hint--warn">{error}</p>}
           </div>

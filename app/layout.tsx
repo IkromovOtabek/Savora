@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next';
 import './globals.css';
 import Toaster from '@/components/ui/Toaster';
 import PWARegister from '@/components/PWARegister';
+import VisitTracker from '@/components/analytics/VisitTracker';
 
 export const metadata: Metadata = {
   title: 'Savora — Do\'koningiz uchun zamonaviy savdo va nasiya tizimi',
@@ -38,6 +39,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body>
         {children}
+        <VisitTracker />
         <Toaster />
         <PWARegister />
       </body>

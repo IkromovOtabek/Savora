@@ -1495,6 +1495,13 @@ img { max-width: 100%; display: block; }
 .u-modal-head h3 { margin: 0; font-size: 1.05rem; font-weight: 800; }
 .u-modal form { padding: 18px 20px; display: flex; flex-direction: column; gap: 12px; }
 .u-modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 6px; }
+.signup-prompt-body { padding: 18px 20px 20px; display: flex; flex-direction: column; gap: 14px; }
+.signup-prompt-body p { margin: 0; color: var(--ink-2); line-height: 1.55; font-size: .95rem; }
+.signup-prompt-list { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 8px; font-size: .88rem; color: var(--ink-2); }
+.signup-prompt-list li { display: flex; align-items: center; gap: 8px; }
+.signup-prompt-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 4px; }
+.signup-prompt-modal { max-width: 440px; }
+.visitor-table .cell-main { font-size: .88rem; }
 
 /* Logout: desktopda sidebar pastida, mobilda (sidebar yashiringanda) headerda */
 .logout-mobile-only { display: none; }

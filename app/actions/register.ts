@@ -78,6 +78,17 @@ export async function registerAction(_prev: State, formData: FormData): Promise<
     };
     await session.save();
     await setRouteCookies('tenant', createdSlug);
+
+    const visitorId = String(formData.get('visitorId') || '').trim();
+    const visitSessionId = String(formData.get('visitSessionId') || '').trim();
+    const { markVisitSignedUp } = await import('@/lib/visitAnalytics');
+    await markVisitSignedUp({
+      visitorId: visitorId || undefined,
+      sessionId: visitSessionId || undefined,
+      organizationId: String(org._id),
+      organizationSlug: createdSlug,
+    });
+
     redirect('/app?welcome=1');
   } catch (err) {
     if (err && typeof err === 'object' && 'digest' in err) throw err;

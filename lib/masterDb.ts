@@ -5,6 +5,7 @@ import { superAdminSchema, ISuperAdmin } from './models/master/SuperAdmin';
 import { platformSettingsSchema, IPlatformSettings } from './models/master/PlatformSettings';
 import { reviewSchema, IReview } from './models/master/Review';
 import { paymentRequestSchema, IPaymentRequest } from './models/master/PaymentRequest';
+import { siteVisitSchema, ISiteVisit } from './models/master/SiteVisit';
 
 /** Master DB modellari (Organization, SuperAdmin, Review) */
 export async function getMasterModels() {
@@ -24,5 +25,8 @@ export async function getMasterModels() {
   const PaymentRequest =
     (conn.models.PaymentRequest as Model<IPaymentRequest>) ||
     conn.model<IPaymentRequest>('PaymentRequest', paymentRequestSchema);
-  return { conn, Organization, SuperAdmin, PlatformSettings, Review, PaymentRequest };
+  const SiteVisit =
+    (conn.models.SiteVisit as Model<ISiteVisit>) ||
+    conn.model<ISiteVisit>('SiteVisit', siteVisitSchema);
+  return { conn, Organization, SuperAdmin, PlatformSettings, Review, PaymentRequest, SiteVisit };
 }

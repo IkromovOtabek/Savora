@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useActionState, useState } from 'react';
+import { useActionState, useEffect, useState } from 'react';
 import { registerAction } from '@/app/actions/register';
 import { normalizeSlug } from '@/lib/slug';
 import { BUSINESS_TYPES } from '@/lib/businessTypes';
@@ -20,6 +20,13 @@ export default function RegisterForm({ plans }: { plans: PlanPreset[] }) {
   const [step, setStep] = useState<1 | 2>(1);
   const [stepError, setStepError] = useState<string | null>(null);
   const [plan, setPlan] = useState<string>('pro');
+  const [visitorId, setVisitorId] = useState('');
+  const [visitSessionId, setVisitSessionId] = useState('');
+
+  useEffect(() => {
+    setVisitorId(localStorage.getItem('sv_vid') || '');
+    setVisitSessionId(sessionStorage.getItem('sv_sid') || '');
+  }, []);
 
   // 1-qadam maydonlarini tekshirib, 2-qadamga o'tish
   function goToStep2(e: React.MouseEvent<HTMLButtonElement>) {
@@ -66,6 +73,8 @@ export default function RegisterForm({ plans }: { plans: PlanPreset[] }) {
         {stepError && step === 1 && <div className="auth-alert auth-alert--error">{stepError}</div>}
 
         <form action={formAction} className="auth-form">
+          <input type="hidden" name="visitorId" value={visitorId} />
+          <input type="hidden" name="visitSessionId" value={visitSessionId} />
           {/* ====== 1-QADAM: ma'lumot (2-qadamda yashiriladi, lekin DOM'da qoladi) ====== */}
           <div style={{ display: step === 1 ? 'block' : 'none' }}>
             <div className="auth-field">

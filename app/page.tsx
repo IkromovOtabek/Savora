@@ -192,16 +192,6 @@ export default async function LandingPage() {
         </div>
       </section>
 
-      {/* STATS */}
-      <section className="section section--soft">
-        <div className="container stats">
-          <div className="stat"><div className="n">500+</div><div className="t">Faol do'konlar</div></div>
-          <div className="stat"><div className="n">2M+</div><div className="t">Yozuvlar</div></div>
-          <div className="stat"><div className="n">99.9%</div><div className="t">Ish vaqti</div></div>
-          <div className="stat"><div className="n">24/7</div><div className="t">Qo'llab-quvvatlash</div></div>
-        </div>
-      </section>
-
       {/* DEMO — real ko'rinishdagi panel skrinshotlari */}
       <ProductShowcase />
 
