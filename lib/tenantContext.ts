@@ -17,7 +17,7 @@ export async function getTenantSlug(): Promise<string> {
   const fromHeader = h.get('x-tenant-slug') || '';
   if (fromHeader) return fromHeader;
 
-  const user = await getSession().then((s) => s.user);
+  const user = await getSession('tenant').then((s) => s.user);
   if (user?.organizationId) {
     const { Organization } = await getMasterModels();
     const org = await Organization.findById(user.organizationId).select('slug').lean();
@@ -37,7 +37,7 @@ export async function resolveTenant(): Promise<(IOrganization & { _id: string })
     return { ...org, _id: String(org._id) };
   }
 
-  const user = await getSession().then((s) => s.user);
+  const user = await getSession('tenant').then((s) => s.user);
   if (user?.organizationId) {
     const org = await Organization.findById(user.organizationId).lean<IOrganization & { _id: unknown }>();
     if (!org) return null;

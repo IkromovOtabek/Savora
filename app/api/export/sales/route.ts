@@ -1,7 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getIronSession } from 'iron-session';
-import { cookies } from 'next/headers';
-import { SessionData, sessionOptions } from '@/lib/session';
+import { getSession } from '@/lib/session';
 import { getMasterModels } from '@/lib/masterDb';
 import { getTenantModels } from '@/lib/tenantDb';
 import { isFeatureEnabled } from '@/lib/features';
@@ -13,7 +11,7 @@ function csvEscape(v: string | number) {
 }
 
 export async function GET() {
-  const session = await getIronSession<SessionData>(await cookies(), sessionOptions);
+  const session = await getSession('tenant');
   const user = session.user;
   if (!user?.dbName || !user.organizationId) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });

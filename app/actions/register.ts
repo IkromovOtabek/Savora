@@ -67,7 +67,7 @@ export async function registerAction(_prev: State, formData: FormData): Promise<
     const tenantUser = await User.findOne({ username: adminUsername, role: 'admin' }).exec();
     if (!tenantUser) return { error: 'Admin yaratildi, lekin avtomatik kirish muvaffaqiyatsiz.' };
 
-    const session = await getSession();
+    const session = await getSession('tenant');
     session.user = {
       id: String(tenantUser._id),
       username: tenantUser.username,

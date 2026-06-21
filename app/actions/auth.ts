@@ -60,7 +60,7 @@ export async function loginAction(_prev: State, formData: FormData): Promise<Sta
         return { error: "Login yoki parol noto'g'ri." };
       }
       clearRateLimit(rlKey);
-      const session = await getSession();
+      const session = await getSession('super');
       session.user = { id: String(sa._id), username: sa.username, role: 'super_admin', tokenVersion: sa.tokenVersion ?? 0 };
       await session.save();
       await setRouteCookies('super');
@@ -78,7 +78,7 @@ export async function loginAction(_prev: State, formData: FormData): Promise<Sta
         return { error: "Login yoki parol noto'g'ri." };
       }
       clearRateLimit(rlKey);
-      const session = await getSession();
+      const session = await getSession('tenant');
       session.user = {
         id: String(user._id),
         username: user.username,

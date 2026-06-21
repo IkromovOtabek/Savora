@@ -34,7 +34,7 @@ export async function getCurrentUser(): Promise<SessionUser | null> {
 
 /** Platforma egasi (super admin) bo'lishini talab qiladi */
 export async function requireSuperAdmin(): Promise<SessionUser> {
-  const session = await getSession();
+  const session = await getSession('super');
   const u = session.user;
   if (!u || u.role !== 'super_admin') redirect(superLoginUrl());
   if (!(await verifyTokenVersion(u))) redirect(superLoginUrl());
@@ -43,7 +43,7 @@ export async function requireSuperAdmin(): Promise<SessionUser> {
 
 /** Do'kon foydalanuvchisi (admin yoki user) + do'kon faolligini talab qiladi */
 export async function requireOrgUser(): Promise<SessionUser> {
-  const session = await getSession();
+  const session = await getSession('tenant');
   const u = session.user;
   if (!u || (u.role !== 'admin' && u.role !== 'user') || !u.dbName || !u.organizationId) {
     const org = await resolveTenant();

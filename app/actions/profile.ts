@@ -33,7 +33,7 @@ export async function changePasswordAction(_prev: State, formData: FormData): Pr
   dbUser.tokenVersion = (dbUser.tokenVersion ?? 0) + 1;
   await dbUser.save();
 
-  const session = await getSession();
+  const session = await getSession('tenant');
   if (session.user) {
     session.user.tokenVersion = dbUser.tokenVersion;
     await session.save();
