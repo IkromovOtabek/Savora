@@ -16,7 +16,7 @@ export function daysUntilExpiry(expiresAt: Date): number {
 export function shouldShowExpiryWarning(org: Pick<IOrganization, 'status' | 'expiresAt'>): boolean {
   if (org.status !== 'active' || !isOrganizationActive(org)) return false;
   const days = daysUntilExpiry(org.expiresAt);
-  return days >= 0 && days <= 2;
+  return days >= 0 && days <= 3;
 }
 
 export function expiryWarningText(org: { name: string; expiresAt: Date }, monthlyPayment?: number): string {

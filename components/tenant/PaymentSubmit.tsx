@@ -78,7 +78,7 @@ export default function PaymentSubmit({ account, monthlyPrice, requests }: Props
   const pending = requests.find((r) => r.status === 'pending');
 
   return (
-    <div className="panel" style={{ marginTop: 20 }}>
+    <div className="panel" id="obuna-tolovi" style={{ marginTop: 20, scrollMarginTop: 80 }}>
       <div className="panel-head"><h2>Obuna to&apos;lovi</h2></div>
       <div className="detail-body" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
         {!hasAccount ? (

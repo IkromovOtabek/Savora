@@ -53,7 +53,7 @@ export default async function ProfilePage() {
       </div>
 
       {/* Obuna/sinov bildirishnomalari faqat shu yerda (Kabinet) ko'rsatiladi */}
-      <ExpiryBanner org={org} />
+      <ExpiryBanner org={org} showPayButton={isAdmin} />
 
       <ProfileForms
         username={user.username}
