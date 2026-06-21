@@ -13,7 +13,8 @@ export default async function UsersPage() {
     User.find().sort({ createdAt: 1 }).lean(),
   ]);
 
-  const activeBranches = branches.filter((b) => b.active).length;
+  // Asosiy ombor (isMain) filial emas — sanoqqa kirmaydi
+  const activeBranches = branches.filter((b) => b.active && !b.isMain).length;
   const branchById = new Map(branches.map((b) => [String(b._id), b]));
 
   // Barcha foydalanuvchilar: admin + filial loginlari (bitta jadvalda)

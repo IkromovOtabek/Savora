@@ -17,7 +17,8 @@ export async function createFilialAction(_prev: State, formData: FormData): Prom
 
   const fullOrg = user.organizationId ? await getOrgWithPlan(user.organizationId) : null;
   const maxFilial = fullOrg?.plan.maxFilial ?? 1;
-  const activeCount = await Branch.countDocuments({ active: true });
+  // Asosiy ombor (isMain) filial sifatida sanalmaydi
+  const activeCount = await Branch.countDocuments({ active: true, isMain: { $ne: true } });
   if (activeCount >= maxFilial) {
     return { error: `Tarif bo'yicha maksimum ${maxFilial} ta filial.` };
   }

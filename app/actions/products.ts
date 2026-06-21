@@ -11,6 +11,7 @@ import { parseQtyField, resolveStatusAfterSale } from '@/lib/productQuantity';
 import { resolveWarehouseBranchId } from '@/lib/warehouseBranch';
 import { recordAudit } from '@/lib/audit';
 import { markOnboardingStep } from '@/lib/onboarding';
+import { ensureMainBranchId } from '@/lib/mainBranch';
 
 type State = { error?: string; success?: string } | null;
 // Mahsulot holati formada: omborda (o'z filialida) yoki sotilgan.
@@ -125,16 +126,15 @@ export async function createProductAction(_prev: State, formData: FormData): Pro
   if (purchasePrice === null) return { error: 'Kelish narxi noto\'g\'ri.' };
   if (salePrice === null) return { error: 'Sotuv narxi noto\'g\'ri.' };
 
-  // Mahsulot qaysi filialga tegishli: filial-login → o'z filiali; admin → tanlangan filial
+  // Mahsulot joriy profilga qo'shiladi (tanlovsiz):
+  //  - filial-login → o'z filiali
+  //  - admin (biznes egasi) → o'zining "Asosiy ombori" (isMain), keyin "Filialga berish" orqali o'tkaziladi
   const targetBranchId =
     user.role === 'user' && user.branchId
       ? user.branchId
-      : String(formData.get('branchId') || '');
-  if (!targetBranchId || !Types.ObjectId.isValid(targetBranchId)) {
-    return { error: 'Filial tanlanishi shart.' };
-  }
+      : await ensureMainBranchId(Branch);
   const branch = await Branch.findOne({ _id: targetBranchId, active: true }).lean();
-  if (!branch) return { error: 'Tanlangan filial topilmadi yoki faol emas.' };
+  if (!branch) return { error: 'Ombor topilmadi yoki faol emas.' };
 
   const dup = await Product.findOne({ imei }).lean();
   if (dup) return { error: 'Bu IMEI allaqachon ro\'yxatda.' };

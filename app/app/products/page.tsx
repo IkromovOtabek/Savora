@@ -32,6 +32,8 @@ export default async function ProductsPage({
 
   const branches = await Branch.find({ active: true }).sort({ name: 1 }).lean();
   const branchMap = Object.fromEntries(branches.map((b) => [String(b._id), b.name]));
+  // "Filialga berish" maqsadi — faqat filiallar (asosiy ombor emas)
+  const filialBranches = branches.filter((b) => !b.isMain).map((b) => ({ id: String(b._id), name: b.name }));
 
   const filter: Record<string, unknown> = {};
   const q = (sp.q ?? '').trim();
@@ -154,7 +156,7 @@ export default async function ProductsPage({
                           available={p.trackQuantity ? Math.max(0, (p.quantity ?? 0) - (p.soldQuantity ?? 0)) : 1}
                           salePrice={p.salePrice ?? 0}
                           richSale={richSale}
-                          branches={branches.map((b) => ({ id: String(b._id), name: b.name }))}
+                          branches={filialBranches}
                         />
                       </td>
                     </tr>

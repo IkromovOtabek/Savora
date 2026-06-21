@@ -79,31 +79,21 @@ export default function ProductForm({
       {state?.error && <div className="auth-alert auth-alert--error" style={{ margin: '16px 24px 0' }}>{state.error}</div>}
       {state?.success && <div className="auth-alert auth-alert--info" style={{ margin: '16px 24px 0' }}>{state.success}</div>}
 
-      {branches.length === 0 ? (
+      {branches.length === 0 && !isAdmin ? (
         <div className="panel-empty">
-          <p>Avval filial qo&apos;shing.</p>
-          <Link href="/app/users#filial" className="btn btn-primary btn-with-icon">
-            Foydalanuvchilar
-            <Icon name="arrowRight" size={16} />
-            Filial
-          </Link>
+          <p>Filial topilmadi. Administrator bilan bog&apos;laning.</p>
         </div>
       ) : (
         <form action={formAction} className="form-grid">
           {mode === 'edit' && initial && <input type="hidden" name="productId" value={initial.id} />}
 
-          {/* Filial tanlovi — admin yangi mahsulot qaysi filialga tegishli ekanini tanlaydi.
-              Filial-login uchun avtomatik o'z filiali (server sessiyadan oladi). */}
-          {mode === 'create' && isAdmin && (
-            <div className="auth-field">
-              <label htmlFor="branchId">Filial *</label>
-              <select id="branchId" name="branchId" required disabled={isPending} defaultValue={currentBranchId || branches[0]?.id}>
-                {branches.map((b) => (
-                  <option key={b.id} value={b.id}>{b.name}</option>
-                ))}
-              </select>
-              <span className="field-hint">Mahsulot shu filial omboriga qo&apos;shiladi</span>
-            </div>
+          {/* Filial tanlovi YO'Q — mahsulot joriy profilga qo'shiladi (admin → asosiy ombor,
+              filial → o'z filiali). Boshqa filialga "Filialga berish" orqali o'tkaziladi. */}
+          {mode === 'create' && (
+            <p className="field-hint" style={{ marginTop: -4 }}>
+              Mahsulot {isAdmin ? 'asosiy omboringizga' : 'shu filial omboriga'} qo&apos;shiladi.
+              {isAdmin ? ' Filialga ulashish uchun ro\'yxatda "Filialga berish" tugmasidan foydalaning.' : ''}
+            </p>
           )}
 
           {mode === 'edit' && initial?.productId && (
