@@ -50,6 +50,30 @@ function fmtDate(d: string) {
   return new Date(d).toLocaleDateString('uz-UZ', { day: '2-digit', month: '2-digit', year: 'numeric' });
 }
 
+function ReceiptThumb({ url }: { url: string }) {
+  const [failed, setFailed] = useState(false);
+
+  if (failed || !url) {
+    return (
+      <div className="pay-receipt pay-receipt--missing">
+        <Icon name="box" size={28} />
+        <span>Chek fayli topilmadi</span>
+        {url && (
+          <a href={url} target="_blank" rel="noopener noreferrer" className="cell-link" style={{ fontSize: '.78rem' }}>
+            Havolani ochish
+          </a>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <a href={url} target="_blank" rel="noopener noreferrer" className="pay-receipt">
+      <img src={url} alt="Chek" onError={() => setFailed(true)} />
+    </a>
+  );
+}
+
 export default function PaymentReview({ requests, account }: { requests: ReqRow[]; account: Account }) {
   const router = useRouter();
   const [busy, setBusy] = useState<string | null>(null);
@@ -120,9 +144,7 @@ export default function PaymentReview({ requests, account }: { requests: ReqRow[
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14, padding: 20 }}>
             {pending.map((r) => (
               <div key={r.id} className="pay-card">
-                <a href={r.receiptUrl} target="_blank" rel="noopener noreferrer" className="pay-receipt">
-                  <img src={r.receiptUrl} alt="Chek" />
-                </a>
+                <ReceiptThumb url={r.receiptUrl} />
                 <div className="pay-body">
                   <div className="pay-top">
                     <strong>{r.orgName}</strong>

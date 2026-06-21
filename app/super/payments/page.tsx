@@ -1,5 +1,6 @@
 import { requireSuperAdmin } from '@/lib/auth';
 import { getMasterModels } from '@/lib/masterDb';
+import { resolvePublicFileUrl } from '@/lib/storage';
 import PaymentReview from '@/components/super/PaymentReview';
 
 export const metadata = { title: 'To\'lovlar — Super Admin' };
@@ -20,7 +21,7 @@ export default async function SuperPaymentsPage() {
     amount: r.amount,
     paidAt: (r.paidAt ?? new Date()).toString(),
     months: r.months,
-    receiptUrl: r.receiptUrl,
+    receiptUrl: resolvePublicFileUrl(r.receiptUrl),
     note: r.note,
     status: r.status,
     flags: r.flags ?? [],

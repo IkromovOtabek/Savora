@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { submitPaymentRequestAction } from '@/app/actions/payments';
+import { resolvePublicFileUrl } from '@/lib/fileUrl';
 import { toast } from '@/lib/toast';
 import Icon from '@/components/icons/Icon';
 
@@ -51,7 +52,7 @@ export default function PaymentSubmit({ account, monthlyPrice, requests }: Props
       const res = await fetch('/api/upload?purpose=receipt', { method: 'POST', body: fd });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Yuklashda xatolik');
-      setReceiptUrl(data.url);
+      setReceiptUrl(resolvePublicFileUrl(data.url));
       toast('Chek yuklandi', 'success');
     } catch (err) {
       toast(err instanceof Error ? err.message : 'Yuklashda xatolik', 'error');

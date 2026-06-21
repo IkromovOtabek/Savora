@@ -1,6 +1,10 @@
 import { randomUUID } from 'crypto';
 import { mkdir, writeFile, unlink } from 'fs/promises';
 import path from 'path';
+import { resolvePublicFileUrl, localUploadKeyFromUrl, mimeFromUploadKey } from './fileUrl';
+
+// Server kod uchun re-export (client kod to'g'ridan-to'g'ri '@/lib/fileUrl' dan oladi)
+export { resolvePublicFileUrl, localUploadKeyFromUrl, mimeFromUploadKey };
 
 /**
  * Fayl saqlash qatlami.
@@ -43,7 +47,7 @@ async function getS3() {
 }
 
 export interface SavedFile {
-  /** Brauzerда ko'rsatiladigan to'liq URL (R2) yoki nisbiy yo'l (lokal) */
+  /** Brauzerda ko'rsatiladigan URL (R2 to'liq, lokal — /api/uploads/...) */
   url: string;
   /** Keyin o'chirish uchun ichki kalit (R2 key yoki lokal yo'l) */
   key: string;
@@ -80,7 +84,7 @@ export async function saveFile(
   const dir = path.join(process.cwd(), 'public', 'uploads', safeFolder);
   await mkdir(dir, { recursive: true });
   await writeFile(path.join(dir, filename), file.buffer);
-  return { url: `/uploads/${key}`, key: `local:${key}` };
+  return { url: `/api/uploads/${key}`, key: `local:${key}` };
 }
 
 /**
@@ -101,9 +105,11 @@ export async function deleteFile(urlOrKey: string): Promise<void> {
   // Lokal fayl
   const rel = urlOrKey.startsWith('local:')
     ? urlOrKey.slice('local:'.length)
-    : urlOrKey.startsWith('/uploads/')
-      ? urlOrKey.slice('/uploads/'.length)
-      : null;
+    : urlOrKey.startsWith('/api/uploads/')
+      ? urlOrKey.slice('/api/uploads/'.length)
+      : urlOrKey.startsWith('/uploads/')
+        ? urlOrKey.slice('/uploads/'.length)
+        : localUploadKeyFromUrl(urlOrKey);
   if (rel) {
     await unlink(path.join(process.cwd(), 'public', 'uploads', rel)).catch(() => {});
   }
