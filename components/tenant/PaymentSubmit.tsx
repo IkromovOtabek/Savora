@@ -6,6 +6,7 @@ import { submitPaymentRequestAction } from '@/app/actions/payments';
 import { resolvePublicFileUrl } from '@/lib/fileUrl';
 import { toast } from '@/lib/toast';
 import Icon from '@/components/icons/Icon';
+import PriceInput from '@/components/ui/PriceInput';
 
 interface OwnRequest {
   id: string;
@@ -114,7 +115,7 @@ export default function PaymentSubmit({ account, monthlyPrice, requests }: Props
                   </div>
                   <div className="auth-field">
                     <label>To&apos;lov summasi *</label>
-                    <input name="amount" type="number" min={0} step={1000} required defaultValue={amount} disabled={busy} />
+                    <PriceInput key={months} name="amount" required defaultValue={amount} disabled={busy} />
                   </div>
                 </div>
                 <div className="auth-field">

@@ -22,6 +22,7 @@ export async function registerAction(_prev: State, formData: FormData): Promise<
 
   const name = String(formData.get('name') || '');
   const slug = normalizeSlug(String(formData.get('slug') || ''));
+  const adminUsername = String(formData.get('adminUsername') || '').trim().toLowerCase().replace(/[^a-z0-9_]/g, '');
   const ownerName = String(formData.get('ownerName') || '');
   const phone = String(formData.get('phone') || '');
   const businessType = parseBusinessType(String(formData.get('businessType') || 'general'));
@@ -35,6 +36,9 @@ export async function registerAction(_prev: State, formData: FormData): Promise<
     | 'free' | 'starter' | 'pro' | 'business';
   const isFree = planTier === 'free';
 
+  if (adminUsername.length < 3) {
+    return { error: 'Login kamida 3 ta belgidan iborat bo\'lsin (lotin harf, raqam, _).' };
+  }
   if (!adminPassword || adminPassword.length < 6) {
     return { error: 'Parol kamida 6 ta belgi.' };
   }
@@ -43,9 +47,10 @@ export async function registerAction(_prev: State, formData: FormData): Promise<
   }
 
   try {
-    const { orgId, slug: createdSlug, adminUsername } = await createOrganization({
+    const { orgId, slug: createdSlug, adminUsername: createdUsername } = await createOrganization({
       name,
       slug,
+      adminUsername,
       ownerName,
       phone,
       businessType,
@@ -64,7 +69,7 @@ export async function registerAction(_prev: State, formData: FormData): Promise<
     if (!org) return { error: 'Do\'kon yaratildi, lekin kirishda xatolik.' };
 
     const { User } = await getTenantModels(org.dbName);
-    const tenantUser = await User.findOne({ username: adminUsername, role: 'admin' }).exec();
+    const tenantUser = await User.findOne({ username: createdUsername, role: 'admin' }).exec();
     if (!tenantUser) return { error: 'Admin yaratildi, lekin avtomatik kirish muvaffaqiyatsiz.' };
 
     const session = await getSession('tenant');

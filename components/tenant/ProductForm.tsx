@@ -9,6 +9,7 @@ import BackLink from '@/components/ui/BackLink';
 import BarcodeInputField from '@/components/ui/BarcodeInputField';
 import Icon from '@/components/icons/Icon';
 import ImageUploadField from '@/components/ui/ImageUploadField';
+import PriceInput from '@/components/ui/PriceInput';
 
 interface BranchOption { id: string; name: string }
 
@@ -141,11 +142,11 @@ export default function ProductForm({
           <div className="form-row">
             <div className="auth-field">
               <label htmlFor="purchasePrice">Kelish narxi *</label>
-              <input id="purchasePrice" name="purchasePrice" type="number" min={0} step={1000} required defaultValue={initial?.purchasePrice} disabled={isPending} />
+              <PriceInput id="purchasePrice" name="purchasePrice" required defaultValue={initial?.purchasePrice} disabled={isPending} />
             </div>
             <div className="auth-field">
               <label htmlFor="salePrice">Sotuv narxi</label>
-              <input id="salePrice" name="salePrice" type="number" min={0} step={1000} defaultValue={initial?.salePrice} disabled={isPending} placeholder="Ixtiyoriy" />
+              <PriceInput id="salePrice" name="salePrice" defaultValue={initial?.salePrice} disabled={isPending} placeholder="Ixtiyoriy" />
             </div>
           </div>
 

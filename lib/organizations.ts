@@ -6,7 +6,7 @@ import { defaultFeaturesForPlan } from './features';
 import { parseBusinessType, BusinessType } from './businessTypes';
 import { getPlanPreset, parsePlanTier, PlanTier } from './plans';
 import { normalizeSlug, tenantDbName, validateSlug } from './slug';
-import { generateTempPassword, loginFromFullName, loginFromSlug } from './credentials';
+import { generateTempPassword } from './credentials';
 
 function generateReferralCode(slug: string): string {
   const base = slug.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 4).padEnd(4, 'X');
@@ -62,13 +62,12 @@ export async function createOrganization(input: CreateOrganizationInput): Promis
   const slugErr = validateSlug(slug);
   if (slugErr) throw new Error(slugErr);
 
-  if (!adminUsername) {
-    adminUsername = input.ownerName?.trim()
-      ? loginFromFullName(input.ownerName)
-      : loginFromSlug(slug);
+  // Login majburiy — egasi o'zi tanlaydi (avtomatik/tasodifiy login yo'q)
+  adminUsername = adminUsername.replace(/[^a-z0-9_]/g, '');
+  if (!adminUsername || adminUsername.length < 3) {
+    throw new Error('Admin login kamida 3 ta belgidan iborat bo\'lishi kerak (lotin harf, raqam, _).');
   }
   if (!adminPassword) adminPassword = generateTempPassword();
-  if (adminUsername.length < 3) throw new Error('Admin login kamida 3 ta belgidan iborat bo\'lishi kerak.');
   if (adminPassword.length < 6) throw new Error('Parol kamida 6 ta belgidan iborat bo\'lishi kerak.');
 
   const tier = parsePlanTier(input.planTier);

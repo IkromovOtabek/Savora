@@ -10,6 +10,7 @@ import { BANKS } from '@/lib/banks';
 import { fmtMoney } from '@/lib/format';
 import BackLink from '@/components/ui/BackLink';
 import ImageUploadField from '@/components/ui/ImageUploadField';
+import PriceInput from '@/components/ui/PriceInput';
 
 interface ProductOption {
   id: string;
@@ -205,7 +206,7 @@ export default function SaleForm({ isPhoneShop, products, mediaEnabled, features
             </div>
             <div className="auth-field">
               <label htmlFor="totalAmount">Jami summa *</label>
-              <input id="totalAmount" name="totalAmount" type="number" min={0} step={1000} required value={totalAmount} onChange={(e) => setTotalAmount(e.target.value)} disabled={isPending || !picked} />
+              <PriceInput id="totalAmount" name="totalAmount" required value={totalAmount} onValueChange={setTotalAmount} disabled={isPending || !picked} />
             </div>
           </div>
 
@@ -228,7 +229,7 @@ export default function SaleForm({ isPhoneShop, products, mediaEnabled, features
               )}
               <div className="auth-field">
                 <label htmlFor="paidAmount">{paymentType === 'installment' ? 'Boshlang\'ich to\'lov' : 'Hozir to\'langan'}</label>
-                <input id="paidAmount" name="paidAmount" type="number" min={0} step={1000} defaultValue={0} disabled={isPending || !picked} />
+                <PriceInput id="paidAmount" name="paidAmount" defaultValue={0} disabled={isPending || !picked} />
               </div>
               {paymentType === 'installment' && (
                 <div className="auth-field">

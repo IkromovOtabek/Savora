@@ -3,6 +3,7 @@ import { IOrganization } from './models/master/Organization';
 import { OrgFeatures } from './featureKeys';
 import { BusinessType } from './businessTypes';
 import { getPlanPreset, parsePlanTier, PlanTier } from './plans';
+import { defaultFeaturesForPlan } from './features';
 
 export type OrgStatus = IOrganization['status'];
 
@@ -39,6 +40,7 @@ export async function updateOrganization(orgId: string, input: UpdateOrganizatio
 
   if (input.planTier !== undefined) {
     const tier = parsePlanTier(input.planTier);
+    const tierChanged = tier !== org.plan.tier;
     const preset =
       tier === 'custom'
         ? getPlanPreset('custom')
@@ -51,6 +53,12 @@ export async function updateOrganization(orgId: string, input: UpdateOrganizatio
     if (input.maxUsers === undefined) org.plan.maxUsers = preset.maxUsers;
     if (input.monthlyPayment === undefined) org.plan.monthlyPayment = preset.monthlyPrice;
     if (tier !== 'custom') org.plan.agreementNote = undefined;
+    // Tarif o'zgarsa — modullar yangi tarif standartiga o'tadi (alohida features berilmagan bo'lsa).
+    // Aks holda do'kon eski modullar bilan qolib ketardi ("tarif o'zgarmadi" muammosi).
+    if (tierChanged && input.features === undefined) {
+      org.features = defaultFeaturesForPlan(tier);
+      org.markModified('features');
+    }
   }
 
   if (input.maxFilial !== undefined) org.plan.maxFilial = Math.max(1, input.maxFilial);

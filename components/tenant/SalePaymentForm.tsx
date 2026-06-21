@@ -4,6 +4,7 @@ import { useActionState } from 'react';
 import { useToastOnState } from '@/lib/useToastOnState';
 import { addSalePaymentAction } from '@/app/actions/sales';
 import { fmtMoney } from '@/lib/format';
+import PriceInput from '@/components/ui/PriceInput';
 
 export default function SalePaymentForm({ saleId, remaining }: { saleId: string; remaining: number }) {
   const [state, formAction, isPending] = useActionState(addSalePaymentAction, null);
@@ -20,7 +21,7 @@ export default function SalePaymentForm({ saleId, remaining }: { saleId: string;
         <div className="form-row">
           <div className="auth-field">
             <label htmlFor="amount">Summa *</label>
-            <input id="amount" name="amount" type="number" min={1} max={remaining} step={1000} required disabled={isPending} />
+            <PriceInput id="amount" name="amount" required disabled={isPending} placeholder={String(remaining)} />
           </div>
           <div className="auth-field">
             <label htmlFor="note">Izoh</label>

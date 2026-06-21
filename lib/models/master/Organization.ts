@@ -40,6 +40,14 @@ export interface IOrganization {
   notifyExpiryOn?: string;
   /** Telegram chat ID (do'kon admini ulagan bo'lsa) */
   telegramChatId?: string;
+  /** Do'kon ichidagi loginlar nusxasi (super admin ko'rishi uchun) — manba tenant DB */
+  users?: {
+    username: string;
+    name?: string;
+    role?: 'admin' | 'user';
+    branchId?: string;
+    createdAt?: Date;
+  }[];
   createdAt?: Date;
   updatedAt?: Date;
 }
@@ -97,6 +105,19 @@ export const organizationSchema = new Schema<IOrganization>(
     },
     notifyExpiryOn: { type: String },
     telegramChatId: { type: String },
+    users: {
+      type: [
+        {
+          _id: false,
+          username: { type: String },
+          name: { type: String },
+          role: { type: String, enum: ['admin', 'user'] },
+          branchId: { type: String },
+          createdAt: { type: Date },
+        },
+      ],
+      default: [],
+    },
   },
   { timestamps: true, collection: 'organizations' }
 );

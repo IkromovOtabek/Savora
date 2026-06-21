@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { getOrgWithPlan, getTenantAdminSession } from '@/lib/tenantSession';
 import { markOnboardingStep } from '@/lib/onboarding';
 import { recordAudit } from '@/lib/audit';
+import { addOrgUser, updateOrgUserByBranch, removeOrgUserByBranch } from '@/lib/orgUsers';
 
 type State = { error?: string; success?: string } | null;
 
@@ -49,6 +50,7 @@ export async function createFilialAction(_prev: State, formData: FormData): Prom
     });
     await u.save();
     await markOnboardingStep(user.organizationId, 'branchCreated');
+    await addOrgUser(user.organizationId, { username, name, role: 'user', branchId: String(branch._id) });
     await recordAudit(user, {
       action: 'branch.create',
       entity: 'branch',
@@ -101,6 +103,8 @@ export async function updateFilialAction(_prev: State, formData: FormData): Prom
     await u.save();
   }
 
+  await updateOrgUserByBranch(user.organizationId, branchId, { name, username: u?.username });
+
   await recordAudit(user, {
     action: newPassword && newPassword.length >= 6 ? 'branch.reset_password' : 'branch.update',
     entity: 'branch',
@@ -135,6 +139,7 @@ export async function deleteFilialAction(_prev: State, formData: FormData): Prom
 
   const branch = await Branch.findByIdAndDelete(branchId).lean();
   await User.deleteOne({ branchId, role: 'user' });
+  await removeOrgUserByBranch(user.organizationId, branchId);
   await recordAudit(user, {
     action: 'branch.delete',
     entity: 'branch',

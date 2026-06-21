@@ -6,6 +6,7 @@ import { PLAN_PRESETS } from '@/lib/plans';
 import { BUSINESS_TYPES } from '@/lib/businessTypes';
 import { formatPasswordHash } from '@/lib/credentials';
 import { IconBadge } from '@/components/icons/Icon';
+import PriceInput from '@/components/ui/PriceInput';
 
 interface Props {
   orgId: string;
@@ -144,7 +145,7 @@ export default function OrgEditForm({ orgId, initial }: Props) {
             </div>
             <div className="auth-field">
               <label htmlFor="monthlyPayment">Oylik to&apos;lov (so&apos;m)</label>
-              <input id="monthlyPayment" name="monthlyPayment" type="number" min={0} defaultValue={initial.monthlyPayment} disabled={isPending} />
+              <PriceInput id="monthlyPayment" name="monthlyPayment" defaultValue={initial.monthlyPayment} disabled={isPending} />
             </div>
           </div>
 

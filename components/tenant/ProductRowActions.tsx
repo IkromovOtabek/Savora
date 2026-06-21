@@ -8,6 +8,7 @@ import { transferProductAction } from '@/app/actions/transfer';
 import { toast } from '@/lib/toast';
 import Icon from '@/components/icons/Icon';
 import ReviewModal from '@/components/tenant/ReviewModal';
+import PriceInput from '@/components/ui/PriceInput';
 
 interface Props {
   productId: string;
@@ -250,11 +251,11 @@ function QtyStep({
       {showPrice && (
         <>
           <label className="row-action-qty-label">Sotilgan narx (so&apos;m)</label>
-          <input
-            type="number" min={0} step={1000} value={price} autoFocus
-            onChange={(e) => setPrice?.(e.target.value)}
+          <PriceInput
+            value={String(price ?? '')}
+            onValueChange={(raw) => setPrice?.(raw)}
             placeholder="Masalan: 4 500 000"
-            className="row-action-qty-input" style={{ textAlign: 'left' }}
+            className="row-action-qty-input"
           />
         </>
       )}

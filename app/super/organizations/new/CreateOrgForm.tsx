@@ -7,6 +7,7 @@ import { normalizeSlug } from '@/lib/slug';
 import { PLAN_PRESETS } from '@/lib/plans';
 import { BUSINESS_TYPES } from '@/lib/businessTypes';
 import Icon from '@/components/icons/Icon';
+import PriceInput from '@/components/ui/PriceInput';
 
 export default function CreateOrgForm() {
   const [state, formAction, isPending] = useActionState(createOrganizationAction, null);
@@ -82,7 +83,7 @@ export default function CreateOrgForm() {
             </div>
             <div className="auth-field">
               <label htmlFor="monthlyPayment">Oylik (so&apos;m)</label>
-              <input id="monthlyPayment" name="monthlyPayment" type="number" min={0} defaultValue={PLAN_PRESETS.pro.monthlyPrice} disabled={isPending} />
+              <PriceInput id="monthlyPayment" name="monthlyPayment" defaultValue={PLAN_PRESETS.pro.monthlyPrice} disabled={isPending} />
             </div>
           </div>
           {planTier === 'custom' && (

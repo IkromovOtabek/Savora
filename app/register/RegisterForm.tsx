@@ -35,10 +35,12 @@ export default function RegisterForm({ plans }: { plans: PlanPreset[] }) {
     const fd = new FormData(form);
     const name = String(fd.get('name') || '').trim();
     const slug = String(fd.get('slug') || '').trim();
+    const login = String(fd.get('adminUsername') || '').trim();
     const pw = String(fd.get('adminPassword') || '');
     const cpw = String(fd.get('confirmPassword') || '');
     if (!name) return setStepError('Do\'kon nomini kiriting.');
     if (!slug) return setStepError('Do\'kon manzilini kiriting.');
+    if (login.length < 3) return setStepError('Login kamida 3 ta belgidan iborat bo\'lsin.');
     if (pw.length < 6) return setStepError('Parol kamida 6 ta belgi.');
     if (pw !== cpw) return setStepError('Parollar mos kelmadi.');
     setStepError(null);
@@ -93,6 +95,20 @@ export default function RegisterForm({ plans }: { plans: PlanPreset[] }) {
                 onBlur={(e) => { e.target.value = normalizeSlug(e.target.value); }}
               />
               <span className="field-hint">{PATH_ROUTING ? `Sizning manzilingiz: ${APP_HOST}/t/smartphone` : `Sizning manzilingiz: smartphone.${ROOT}`}</span>
+            </div>
+
+            <div className="auth-field">
+              <label htmlFor="adminUsername">Login (foydalanuvchi nomi) *</label>
+              <input
+                id="adminUsername"
+                name="adminUsername"
+                type="text"
+                disabled={isPending}
+                placeholder="masalan: smartadmin"
+                autoComplete="username"
+                onBlur={(e) => { e.target.value = e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ''); }}
+              />
+              <span className="field-hint">Tizimga kirishda ishlatasiz. Faqat lotin harf, raqam, _ (kamida 3 belgi).</span>
             </div>
 
             <div className="auth-field">

@@ -4,6 +4,7 @@ import { useActionState } from 'react';
 import { updatePlatformPlansAction } from '@/app/actions/plans';
 import { PlanPreset } from '@/lib/plans';
 import { fmtPlanPrice } from '@/lib/plans';
+import PriceInput from '@/components/ui/PriceInput';
 
 interface Props {
   presets: Record<'starter' | 'pro' | 'business', PlanPreset>;
@@ -49,7 +50,7 @@ export default function PlansSettingsForm({ presets }: Props) {
                 </div>
                 <div className="auth-field">
                   <label htmlFor={`${tier}_monthlyPrice`}>Oylik to&apos;lov</label>
-                  <input id={`${tier}_monthlyPrice`} name={`${tier}_monthlyPrice`} type="number" min={0} defaultValue={p.monthlyPrice} disabled={isPending} />
+                  <PriceInput id={`${tier}_monthlyPrice`} name={`${tier}_monthlyPrice`} defaultValue={p.monthlyPrice} disabled={isPending} />
                   <span className="field-hint">{fmtPlanPrice(p.monthlyPrice)} so&apos;m/oy</span>
                 </div>
               </div>
