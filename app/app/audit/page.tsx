@@ -2,7 +2,7 @@ import { getTenantAdminSession } from '@/lib/tenantSession';
 import { fmtDateTime } from '@/lib/format';
 import type { AuditEntity } from '@/lib/models/tenant/AuditLog';
 
-export const metadata = { title: 'Audit jurnali — Savora' };
+export const metadata = { title: 'Amallar — Savora' };
 
 const ENTITY_LABELS: Record<AuditEntity, string> = {
   product: 'Mahsulot',
@@ -51,7 +51,7 @@ export default async function AuditPage({
     <>
       <div className="dash-head">
         <div>
-          <h1 className="dash-hello">Audit jurnali</h1>
+          <h1 className="dash-hello">Amallar</h1>
           <p className="dash-sub">
             Kim, qachon, nima qildi · Bugun: {todayCount} ta amal · Oxirgi {logs.length} yozuv
           </p>

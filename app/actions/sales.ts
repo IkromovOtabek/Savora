@@ -26,31 +26,207 @@ function parsePaymentType(v: string): PaymentType {
   return 'cash';
 }
 
-export async function lookupProductByImei(imei: string) {
-  const { user, Product, Branch } = await getTenantSession();
-  const normalized = normalizeImei(imei);
-  if (!normalized) return null;
+export type ScannedProduct = {
+  id: string;
+  productId: string;
+  name: string;
+  imei: string;
+  barcode?: string;
+  brand: string;
+  deviceModel: string;
+  salePrice: number;
+  purchasePrice: number;
+  branchId: string;
+  branchName: string;
+  trackQuantity: boolean;
+  available: number;
+};
 
-  // Filial login — faqat o'z filiali mahsulotini topadi
-  const product = await Product.findOne({ ...branchFilter(user), imei: normalized, status: 'in_stock' }).lean();
-  if (!product) return null;
-  const available = getStockQty(product);
-
-  const branch = await Branch.findById(product.branchId).lean();
+function toScannedProduct(
+  product: {
+    _id: unknown;
+    productId?: string;
+    name: string;
+    imei: string;
+    barcode?: string;
+    brand?: string;
+    deviceModel?: string;
+    salePrice: number;
+    purchasePrice: number;
+    branchId: unknown;
+    trackQuantity?: boolean;
+    quantity: number;
+    soldQuantity: number;
+    status: string;
+  },
+  branchName: string,
+): ScannedProduct {
   return {
     id: String(product._id),
     productId: product.productId ?? String(product._id).slice(-8).toUpperCase(),
     name: product.name,
     imei: product.imei,
+    barcode: product.barcode,
     brand: product.brand ?? '',
     deviceModel: product.deviceModel ?? '',
     salePrice: product.salePrice,
     purchasePrice: product.purchasePrice,
     branchId: String(product.branchId),
-    branchName: branch?.name ?? '—',
+    branchName,
     trackQuantity: product.trackQuantity ?? false,
-    available,
+    available: getStockQty({
+      trackQuantity: product.trackQuantity ?? false,
+      quantity: product.quantity,
+      soldQuantity: product.soldQuantity,
+      status: product.status as 'in_stock' | 'sold',
+    }),
   };
+}
+
+export async function lookupProductByImei(imei: string): Promise<ScannedProduct | null> {
+  const { user, Product, Branch } = await getTenantSession();
+  const normalized = normalizeImei(imei);
+  if (!normalized) return null;
+
+  const product = await Product.findOne({ ...branchFilter(user), imei: normalized, status: 'in_stock' }).lean();
+  if (!product) return null;
+
+  const branch = await Branch.findById(product.branchId).lean();
+  return toScannedProduct(product, branch?.name ?? '—');
+}
+
+/** Shtrix, IMEI yoki mahsulot kodi bo'yicha qidiruv (skaner pistalet uchun) */
+export async function lookupProductByScan(code: string): Promise<ScannedProduct | null> {
+  const { user, Product, Branch } = await getTenantSession();
+  const trimmed = code.trim();
+  if (!trimmed) return null;
+
+  const qNoSpace = trimmed.replace(/\s/g, '');
+  const upper = qNoSpace.toUpperCase();
+
+  const product = await Product.findOne({
+    ...branchFilter(user),
+    status: 'in_stock',
+    $or: [
+      { barcode: trimmed },
+      { barcode: qNoSpace },
+      { imei: upper },
+      { productId: upper },
+    ],
+  }).lean();
+  if (!product) return null;
+
+  const branch = await Branch.findById(product.branchId).lean();
+  return toScannedProduct(product, branch?.name ?? '—');
+}
+
+export type QuickSaleLine = { productId: string; qty: number; salePrice?: number };
+
+/** Tez sotuv — bir nechta mahsulotni naqd sotish */
+export async function quickSaleBatchAction(items: QuickSaleLine[]): Promise<State> {
+  const { user, Product, Sale, features } = await getTenantSession();
+  if (!features.sales) return featureDisabledError('sales');
+  if (!items.length) return { error: 'Sotish uchun mahsulot tanlanmagan.' };
+
+  const scope = branchFilter(user);
+  let soldCount = 0;
+  let soldTotal = 0;
+
+  try {
+    for (const item of items) {
+      if (!item.productId || !Types.ObjectId.isValid(item.productId)) {
+        return { error: 'Mahsulot identifikatori noto\'g\'ri.' };
+      }
+
+      const product = await Product.findOne({ _id: item.productId, ...scope });
+      if (!product) return { error: 'Mahsulot topilmadi yoki ruxsat yo\'q.' };
+      if (product.status !== 'in_stock') {
+        return { error: `"${product.name}" omborda emas yoki allaqachon sotilgan.` };
+      }
+
+      const qty = product.trackQuantity ? parseQtyField(String(item.qty || 1)) : 1;
+      if (product.trackQuantity) {
+        const available = product.quantity - product.soldQuantity;
+        if (qty > available) return { error: `"${product.name}" uchun omborda faqat ${available} ta qoldi.` };
+        if (qty < 1) return { error: 'Sotiladigan son noto\'g\'ri.' };
+      }
+
+      if (item.salePrice != null && item.salePrice > 0) {
+        product.salePrice = item.salePrice;
+      }
+      if (!product.salePrice || product.salePrice <= 0) {
+        return { error: `"${product.name}" uchun sotuv narxini kiriting.` };
+      }
+
+      let saleQty = 1;
+      if (product.trackQuantity) {
+        saleQty = qty;
+        product.soldQuantity += saleQty;
+        product.status = resolveStatusAfterSale(product.trackQuantity, product.quantity, product.soldQuantity);
+      } else {
+        saleQty = 1;
+        product.status = 'sold';
+      }
+
+      product.soldPaymentType = 'cash';
+      product.soldBankName = undefined;
+
+      const now = new Date();
+      if (product.status === 'sold') product.soldAt = now;
+      if (!Array.isArray(product.history)) product.history = [];
+      const lineTotal = product.salePrice * saleQty;
+      product.history.push({
+        action: 'sold',
+        detail: `${saleQty} ta · ${lineTotal.toLocaleString('uz-UZ')} so'm`,
+        by: user.username,
+        at: now,
+      });
+
+      await product.save();
+
+      const saleNo = await generateSaleNo(Sale);
+      await Sale.create({
+        saleNo,
+        productId: product._id,
+        productSnapshot: {
+          name: product.name,
+          imei: product.imei,
+          brand: product.brand,
+          deviceModel: product.deviceModel,
+          purchasePrice: product.purchasePrice,
+          saleQuantity: saleQty,
+        },
+        branchId: product.branchId,
+        paymentType: 'cash',
+        totalAmount: lineTotal,
+        paidAmount: lineTotal,
+        remainingAmount: 0,
+        status: 'paid',
+        payments: [{ amount: lineTotal, paidAt: now, recordedBy: user.username }],
+        soldBy: user.username,
+      });
+
+      await recordAudit(user, {
+        action: 'sale.quick',
+        entity: 'sale',
+        entityId: String(product._id),
+        summary: `Tez sotuv: ${product.name} · ${saleQty} ta · ${lineTotal.toLocaleString('uz-UZ')} so'm`,
+        meta: { saleQty, totalAmount: lineTotal },
+      });
+
+      soldCount += saleQty;
+      soldTotal += lineTotal;
+    }
+
+    await markOnboardingStep(user.organizationId, 'saleMade');
+    revalidatePath('/app');
+    revalidatePath('/app/products');
+    revalidatePath('/app/sales');
+    return { success: `${soldCount} ta sotildi · ${soldTotal.toLocaleString('uz-UZ')} so'm` };
+  } catch (err) {
+    logError('quickSaleBatchAction failed', err, { user: user.username, dbName: user.dbName });
+    return { error: 'Sotishda xatolik yuz berdi.' };
+  }
 }
 
 export async function createSaleAction(_prev: State, formData: FormData): Promise<State> {

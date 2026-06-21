@@ -1,11 +1,9 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import Icon from '@/components/icons/Icon';
 import CameraScanButton from '@/components/ui/CameraScanButton';
 
 const SCAN_GAP_MS = 80;
-const HID_FILTERS: HIDDeviceFilter[] = [{ usagePage: 0x008c }];
 
 function decodeHidReport(data: DataView): string {
   let out = '';
@@ -18,11 +16,17 @@ function decodeHidReport(data: DataView): string {
 
 interface Props {
   id: string;
-  name: string;
+  name?: string;
   defaultValue?: string;
   disabled?: boolean;
   placeholder?: string;
   className?: string;
+  /** Skaner pistalet yoki kamera skanerlanganda chaqiriladi */
+  onScan?: (code: string) => void;
+  /** Skanerlangach input tozalansin */
+  clearOnScan?: boolean;
+  /** Modal ochilganda pistalet rejimi yoqilsin */
+  defaultScanActive?: boolean;
 }
 
 export default function BarcodeInputField({
@@ -32,6 +36,9 @@ export default function BarcodeInputField({
   disabled,
   placeholder = "Skaner yoki qo'lda",
   className = '',
+  onScan,
+  clearOnScan = false,
+  defaultScanActive = false,
 }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
   const bufferRef = useRef('');
@@ -39,16 +46,21 @@ export default function BarcodeInputField({
   const hidRef = useRef<HIDDevice | null>(null);
 
   const [value, setValue] = useState(defaultValue);
-  const [scanActive, setScanActive] = useState(false);
-  const [hidConnected, setHidConnected] = useState(false);
+  const [scanActive, setScanActive] = useState(defaultScanActive);
   const [hidSupported] = useState(() => typeof navigator !== 'undefined' && 'hid' in navigator);
 
   const applyScan = useCallback((code: string) => {
     const cleaned = code.trim();
     if (!cleaned) return;
-    setValue(cleaned);
-    if (inputRef.current) inputRef.current.value = cleaned;
-  }, []);
+    if (clearOnScan) {
+      setValue('');
+      if (inputRef.current) inputRef.current.value = '';
+    } else {
+      setValue(cleaned);
+      if (inputRef.current) inputRef.current.value = cleaned;
+    }
+    onScan?.(cleaned);
+  }, [clearOnScan, onScan]);
 
   const onHidReport = useCallback(
     (e: HIDInputReportEvent) => {
@@ -70,7 +82,6 @@ export default function BarcodeInputField({
           hidRef.current = existing;
           if (!existing.opened) await existing.open();
           existing.addEventListener('inputreport', onHidReport);
-          setHidConnected(true);
         }
       } catch {
         /* klaviatura rejimi */
@@ -82,6 +93,12 @@ export default function BarcodeInputField({
       hidRef.current?.removeEventListener('inputreport', onHidReport);
     };
   }, [hidSupported, onHidReport]);
+
+  useEffect(() => {
+    if (!defaultScanActive || disabled) return;
+    setScanActive(true);
+    inputRef.current?.focus();
+  }, [defaultScanActive, disabled]);
 
   useEffect(() => {
     if (!scanActive || disabled) return;
@@ -115,34 +132,6 @@ export default function BarcodeInputField({
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [scanActive, disabled, applyScan]);
 
-  async function toggleScanner() {
-    if (disabled) return;
-
-    if (scanActive) {
-      setScanActive(false);
-      return;
-    }
-
-    setScanActive(true);
-    inputRef.current?.focus();
-
-    if (!hidSupported || hidConnected) return;
-
-    try {
-      const device = await navigator.hid!.requestDevice({ filters: HID_FILTERS });
-      if (!device) return;
-
-      hidRef.current = device;
-      if (!device.opened) await device.open();
-      device.addEventListener('inputreport', onHidReport);
-      setHidConnected(true);
-    } catch {
-      /* USB skaner tanlanmadi — klaviatura (pistalet) rejimi ishlaydi */
-    }
-  }
-
-  const pistolActive = scanActive;
-
   return (
     <div className={`barcode-field ${className}`.trim()}>
       <div className={`barcode-input-wrap${scanActive ? ' barcode-input-wrap--active' : ''}`}>
@@ -153,29 +142,21 @@ export default function BarcodeInputField({
           type="text"
           value={value}
           onChange={(e) => setValue(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && value.trim()) {
+              e.preventDefault();
+              applyScan(value);
+            }
+          }}
           disabled={disabled}
           placeholder={placeholder}
           autoComplete="off"
           spellCheck={false}
         />
-        <button
-          type="button"
-          className={`barcode-scan-btn${scanActive ? ' barcode-scan-btn--active' : ''}`}
-          onClick={toggleScanner}
-          disabled={disabled}
-          title={scanActive ? 'Skaner rejimini o\'chirish' : 'Shtrix skaner pistalet'}
-          aria-pressed={scanActive}
-        >
-          <Icon name="search" size={16} />
-        </button>
         {!disabled && <CameraScanButton onScan={applyScan} label="" />}
       </div>
-      {pistolActive ? (
+      {scanActive && (
         <span className="barcode-scan-status barcode-scan-status--ok">Pistalet faol</span>
-      ) : (
-        <span className="barcode-scan-status barcode-scan-status--warn">
-          Pistaletni kompyuterga ulang va o&apos;ngdagi tugmani bosing
-        </span>
       )}
     </div>
   );

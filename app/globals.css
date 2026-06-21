@@ -494,6 +494,38 @@ img { max-width: 100%; display: block; }
   .data-table th, .data-table td { padding: 10px 12px; }
   .dr-menu { width: 170px; }
 }
+
+/* Mobilda jadvallar KARTA ko'rinishiga aylanadi — o'ng/chap scroll yo'q.
+   data-label bo'lgan kataklar sarlavhani chap tomonda ko'rsatadi. */
+@media (max-width: 700px) {
+  .table-wrap { overflow-x: visible; }
+  .data-table, .data-table tbody, .data-table tr, .data-table td { display: block; width: 100%; }
+  .data-table thead { display: none; }
+  .data-table tr {
+    border: 1px solid var(--border); border-radius: 12px; background: var(--surface);
+    margin-bottom: 10px; padding: 4px 2px; overflow: hidden;
+  }
+  .data-table tbody tr:hover { background: var(--surface); }
+  .data-table td {
+    border-bottom: 0 !important; padding: 8px 14px;
+    display: flex; justify-content: space-between; align-items: center; gap: 14px;
+    text-align: right; min-height: 0;
+  }
+  .data-table td::before {
+    content: attr(data-label);
+    font-size: .68rem; text-transform: uppercase; letter-spacing: .04em;
+    color: var(--ink-3); font-weight: 800; text-align: left; flex-shrink: 0;
+  }
+  .data-table td:first-child {
+    font-weight: 800; background: var(--bg-soft);
+    border-bottom: 1px solid var(--border) !important;
+  }
+  /* So'nggi katakdan keyin ortiqcha bo'shliq/devor bo'lmasin */
+  .data-table td:last-child { padding-bottom: 10px; }
+  /* Sotildi jadvali maxsus qoidalarini mobil stack uchun moslash */
+  .data-table--sold { table-layout: auto; }
+  .data-table--sold td { height: auto; padding: 8px 14px; font-size: .85rem; }
+}
 .data-table th, .data-table td { padding: 14px 20px; text-align: left; border-bottom: 1px solid var(--border); }
 .data-table th { font-size: .78rem; text-transform: uppercase; letter-spacing: .05em; color: var(--ink-3); font-weight: 700; background: var(--bg-soft); }
 .data-table tbody tr:hover { background: var(--bg-soft); }
@@ -872,6 +904,18 @@ img { max-width: 100%; display: block; }
 .quick-action:focus-visible { border-color: var(--brand); box-shadow: 0 0 0 3px rgba(79, 70, 229, .18); }
 .quick-action:active { background: var(--brand-soft); }
 .quick-action small { display: block; font-weight: 600; color: var(--ink-3); margin-top: 4px; font-size: .78rem; }
+.quick-action--accent { border-color: var(--brand); background: var(--brand-soft); color: var(--brand); }
+.quick-action--accent:hover { background: var(--brand); color: #fff; }
+.quick-action--accent:hover small { color: rgba(255,255,255,.85); }
+
+.quick-sale-body { padding: 18px 20px; display: flex; flex-direction: column; gap: 14px; max-height: min(80vh, 640px); overflow: auto; }
+.quick-sale-empty { text-align: center; padding: 28px 16px; color: var(--ink-3); display: flex; flex-direction: column; align-items: center; gap: 10px; }
+.quick-sale-hint { margin: 0; font-size: .85rem; color: var(--ink-3); font-weight: 600; }
+.quick-sale-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; padding-top: 4px; border-top: 1px solid var(--border); }
+.quick-sale-total { font-size: .95rem; color: var(--ink-2); }
+.quick-sale-total strong { font-size: 1.15rem; color: var(--ink-1); margin-left: 8px; }
+.quick-sale-qty { display: inline-flex; align-items: center; gap: 6px; }
+.quick-sale-price-input { width: 120px; padding: 6px 8px; border: 1px solid var(--border); border-radius: var(--r-sm); font: inherit; }
 
 .receipt-wrap { max-width: 420px; margin: 0 auto; }
 .receipt-actions { display: flex; justify-content: space-between; margin-bottom: 16px; }
@@ -1173,7 +1217,119 @@ img { max-width: 100%; display: block; }
 .qty-btn:disabled { opacity: .4; cursor: not-allowed; }
 
 /* ── Sotildi jadvali (boy ko'rinish) ──────────────── */
-.data-table--sold th, .data-table--sold td { white-space: nowrap; }
+.sold-table-wrap { overflow-x: visible; }
+.data-table--sold {
+  table-layout: fixed;
+  width: 100%;
+}
+.data-table--sold th,
+.data-table--sold td {
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  vertical-align: middle;
+  padding: 12px 8px;
+  font-size: .82rem;
+  line-height: 1.35;
+}
+.data-table--sold tbody td {
+  height: 1px; /* qator bo'yicha balandlik — matn markazda tekis */
+}
+.data-table--sold th {
+  font-size: .68rem;
+  line-height: 1.25;
+  padding: 12px 8px;
+  vertical-align: middle;
+}
+.sold-cell-stack {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
+}
+.data-table--sold .source-chip,
+.data-table--sold .badge-status,
+.data-table--sold .imei-code {
+  vertical-align: middle;
+}
+.sold-col--num { width: 2.5rem; }
+.sold-col--status { width: 5.5rem; }
+.sold-col--source { width: 8%; }
+.sold-col--model { width: 14%; }
+.sold-col--color { width: 5rem; }
+.sold-col--imei { width: 11%; }
+.sold-col--price { width: 10%; }
+.sold-col--type { width: 6.5rem; }
+.sold-col--note { width: 10%; }
+.sold-col--date { width: 6.5rem; }
+.sold-col--actions { width: 8.5rem; }
+.data-table--sold .imei-code {
+  display: inline-block;
+  max-width: 100%;
+  word-break: break-all;
+  font-size: .74rem;
+  line-height: 1.3;
+}
+.data-table--sold .source-chip {
+  display: inline-flex;
+  max-width: 100%;
+  white-space: normal;
+  text-align: center;
+  line-height: 1.25;
+  font-size: .74rem;
+  padding: 3px 8px;
+}
+.data-table--sold .cell-actions {
+  white-space: normal;
+}
+.data-table--sold .cell-actions .row-actions {
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+}
+.data-table--sold .btn-sm {
+  padding: 6px 10px;
+  font-size: .78rem;
+}
+
+@media (max-width: 1100px) {
+  .data-table--sold thead { display: none; }
+  .data-table--sold tbody tr {
+    display: block;
+    margin-bottom: 12px;
+    padding: 14px;
+    border: 1px solid var(--border);
+    border-radius: var(--r);
+    background: var(--surface);
+  }
+  .data-table--sold tbody tr:hover { background: var(--surface); }
+  .data-table--sold td {
+    display: grid;
+    grid-template-columns: minmax(88px, 34%) 1fr;
+    gap: 4px 12px;
+    padding: 7px 0;
+    border-bottom: none;
+  }
+  .data-table--sold td::before {
+    content: attr(data-label);
+    font-size: .72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .03em;
+    color: var(--ink-3);
+  }
+  .data-table--sold td.cell-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding-top: 10px;
+    margin-top: 6px;
+    border-top: 1px solid var(--border);
+  }
+  .data-table--sold td.cell-actions::before { display: none; }
+}
+
 .source-chip { display: inline-flex; align-items: center; padding: 3px 10px; border-radius: var(--r-pill); background: var(--brand-soft); color: var(--brand); font-size: .8rem; font-weight: 700; }
 .icon-btn--danger:hover { background: rgba(220,38,38,.1); color: #dc2626; border-color: #fca5a5; }
 .dark .icon-btn--danger:hover { background: rgba(220,38,38,.18); color: #fca5a5; }
@@ -1266,6 +1422,8 @@ img { max-width: 100%; display: block; }
 }
 .scan-hint { margin: 0; padding: 12px 16px; font-size: .8rem; line-height: 1.5; }
 .scan-hint--warn { color: #b45309; background: #fffbeb; }
+.scan-video-wrap--photo .scan-frame { display: none; }
+.scan-capture-actions { display: flex; justify-content: center; padding: 14px 16px; border-top: 1px solid var(--border, #e5e7eb); }
 
 /* ===== Signup — qadam ko'rsatkichi + tarif tanlash ===== */
 .reg-steps { display: flex; align-items: center; gap: 10px; margin: 4px 0 18px; }
@@ -1332,6 +1490,7 @@ img { max-width: 100%; display: block; }
 
 .u-modal-overlay { position: fixed; inset: 0; z-index: 1000; background: rgba(0,0,0,.5); display: flex; align-items: center; justify-content: center; padding: 16px; }
 .u-modal { background: var(--surface); border-radius: 16px; width: 100%; max-width: 460px; box-shadow: 0 20px 60px rgba(0,0,0,.3); overflow: hidden; }
+.u-modal--wide { max-width: 720px; }
 .u-modal-head { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px; border-bottom: 1px solid var(--border); }
 .u-modal-head h3 { margin: 0; font-size: 1.05rem; font-weight: 800; }
 .u-modal form { padding: 18px 20px; display: flex; flex-direction: column; gap: 12px; }
@@ -1368,3 +1527,12 @@ img { max-width: 100%; display: block; }
 .pay-account-card { display: flex; flex-direction: column; gap: 2px; background: var(--bg-soft); border: 1px dashed var(--border); border-radius: 10px; padding: 12px 14px; margin: 6px 0; }
 .pay-account-card strong { font-size: 1.1rem; letter-spacing: 1px; font-variant-numeric: tabular-nums; }
 @media (max-width: 560px) { .pay-card { flex-direction: column; } .pay-receipt { width: 100%; height: 160px; } }
+
+/* ===== Modul bloklangan sahifa (app/app/locked) ===== */
+.locked-wrap { display: flex; justify-content: center; padding: 40px 16px; }
+.locked-card { max-width: 460px; text-align: center; background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 36px 28px; }
+.locked-icon { width: 72px; height: 72px; margin: 0 auto 18px; border-radius: 50%; background: var(--bg-soft); color: var(--brand); display: flex; align-items: center; justify-content: center; }
+.locked-card h1 { font-size: 1.3rem; font-weight: 850; margin: 0 0 10px; }
+.locked-card p { color: var(--ink-2); line-height: 1.55; margin: 0 0 10px; }
+.locked-sub { font-size: .9rem; color: var(--ink-3); }
+.locked-actions { display: flex; gap: 10px; justify-content: center; margin-top: 18px; flex-wrap: wrap; }

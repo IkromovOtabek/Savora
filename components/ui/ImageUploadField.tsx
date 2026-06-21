@@ -2,6 +2,7 @@
 
 import { useRef, useState } from 'react';
 import Icon from '@/components/icons/Icon';
+import CameraCaptureModal from '@/components/ui/CameraCaptureModal';
 
 interface Props {
   name?: string;
@@ -13,8 +14,8 @@ export default function ImageUploadField({ name = 'photoUrl', defaultValue = '',
   const [url, setUrl] = useState(defaultValue);
   const [error, setError] = useState('');
   const [uploading, setUploading] = useState(false);
+  const [cameraOpen, setCameraOpen] = useState(false);
   const galleryRef = useRef<HTMLInputElement>(null);
-  const cameraRef = useRef<HTMLInputElement>(null);
 
   async function upload(file: File) {
     setError('');
@@ -57,18 +58,22 @@ export default function ImageUploadField({ name = 'photoUrl', defaultValue = '',
       )}
       {!disabled && (
         <div className="image-upload-actions">
-          <button type="button" className="btn btn-ghost btn-sm btn-with-icon" disabled={uploading} onClick={() => cameraRef.current?.click()}>
+          <button type="button" className="btn btn-ghost btn-sm btn-with-icon" disabled={uploading} onClick={() => setCameraOpen(true)}>
             <Icon name="camera" size={16} />
             Kamera
           </button>
           <button type="button" className="btn btn-ghost btn-sm btn-with-icon" disabled={uploading} onClick={() => galleryRef.current?.click()}>
             <Icon name="box" size={16} />
-            Galereya
+            Rasm
           </button>
         </div>
       )}
-      <input ref={cameraRef} type="file" accept="image/*" capture="environment" className="sr-only" onChange={onPick} />
       <input ref={galleryRef} type="file" accept="image/*" className="sr-only" onChange={onPick} />
+      <CameraCaptureModal
+        open={cameraOpen}
+        onClose={() => setCameraOpen(false)}
+        onCapture={(file) => void upload(file)}
+      />
       {uploading && <p className="field-hint">Yuklanmoqda...</p>}
       {error && <p className="field-hint" style={{ color: '#dc2626' }}>{error}</p>}
     </div>

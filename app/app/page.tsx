@@ -6,6 +6,7 @@ import { fmtDateTime, fmtMoney } from '@/lib/format';
 import Icon from '@/components/icons/Icon';
 import OnboardingChecklist from '@/components/tenant/OnboardingChecklist';
 import PlanLimitsBanner from '@/components/tenant/PlanLimitsBanner';
+import QuickSaleTrigger from '@/components/tenant/QuickSaleTrigger';
 
 export const metadata = { title: 'Boshqaruv — Savora' };
 
@@ -69,12 +70,7 @@ export default async function TenantDashboard({
       )}
 
       <div className="quick-actions">
-        {features.sales && (
-          <Link href="/app/sales/new" className="quick-action btn-with-icon">
-            <Icon name="cart" size={22} />
-            <span>Sotuv<small>Yangi sotuv</small></span>
-          </Link>
-        )}
+        {features.sales && <QuickSaleTrigger />}
         {features.products && (
           <Link href="/app/products/new" className="quick-action btn-with-icon">
             <Icon name="box" size={22} />

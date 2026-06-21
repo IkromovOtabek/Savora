@@ -25,11 +25,11 @@ const NAV_ICONS: Record<string, IconName> = {
   '/app/audit': 'clipboard',
 };
 
-const LINKS: { href: string; label: string; feature?: FeatureKey; adminOnly?: boolean; imeiOnly?: boolean; exact?: boolean }[] = [
+const LINKS: { href: string; label: string; feature?: FeatureKey; adminOnly?: boolean; branchOnly?: boolean; imeiOnly?: boolean; exact?: boolean }[] = [
+  { href: '/app', label: 'Asosiy Sahifa', exact: true, branchOnly: true },
   { href: '/app/products', label: 'Ombor', feature: 'products' },
   { href: '/app/sales', label: 'Sotildi', feature: 'sales' },
-  { href: '/app/debts', label: 'Qarzdorlik', feature: 'sales' },
-  { href: '/app/transferred', label: 'Filialga berildi' },
+  { href: '/app/transferred', label: 'Filialga berildi', feature: 'transferred' },
   { href: '/app/kassa', label: 'Naxt kassa', feature: 'kassa' },
   { href: '/app/kirim-chiqim', label: 'Kirim-Chiqim', feature: 'kirimChiqim', adminOnly: true },
   { href: '/app/kredit-kassa', label: 'Kredit kassa', feature: 'creditKassa', adminOnly: true },
@@ -37,7 +37,8 @@ const LINKS: { href: string; label: string; feature?: FeatureKey; adminOnly?: bo
   { href: '/app/imei', label: 'IMEI qidirish', imeiOnly: true },
   { href: '/app/monitoring', label: 'Hisobot', feature: 'monitoring' },
   { href: '/app/users', label: 'Filiallar', feature: 'users', adminOnly: true },
-  { href: '/app/audit', label: 'Audit jurnali', adminOnly: true },
+  { href: '/app/audit', label: 'Amallar', feature: 'audit', adminOnly: true },
+  { href: '/app/debts', label: 'Qarzdorlik', feature: 'sales' },
   { href: '/app/profile', label: 'Kabinet' },
 ];
 
@@ -100,6 +101,7 @@ export default function TenantNav({
 
   const visible = LINKS.filter((l) => {
     if (l.adminOnly && !isAdmin) return false;
+    if (l.branchOnly && isAdmin) return false;
     if (l.feature && !features[l.feature]) return false;
     if (l.imeiOnly && (!showImei || !features.products)) return false;
     return true;

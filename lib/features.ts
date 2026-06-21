@@ -122,6 +122,23 @@ export const TENANT_MODULES: Record<FeatureKey, FeatureModule> = {
     category: 'boshqaruv',
     defaultByPlan: { free: false, starter: false, pro: true, business: true, custom: true },
   },
+  transferred: {
+    key: 'transferred',
+    label: 'Filialga berildi',
+    description: 'Filiallar aro berilgan mahsulotlar ro\'yxati',
+    route: '/app/transferred',
+    category: 'ombor',
+    defaultByPlan: { ...ALL_PLANS },
+  },
+  audit: {
+    key: 'audit',
+    label: 'Amallar',
+    description: 'Xodimlar amallari tarixi (kim, qachon, nima qildi)',
+    route: '/app/audit',
+    category: 'boshqaruv',
+    adminOnly: true,
+    defaultByPlan: { ...ALL_PLANS },
+  },
 };
 
 const CATEGORY_LABELS: Record<FeatureModule['category'], string> = {

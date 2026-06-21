@@ -91,6 +91,7 @@ export async function requireFeature(key: FeatureKey): Promise<{
   features: OrgFeatures;
 }> {
   const ctx = await requireOrgWithFeatures();
-  if (!ctx.features[key]) redirect('/app?module=disabled');
+  // Tarifga kirmagan modul — link orqali kirilsa ham bloklab, modul nomini ko'rsatamiz
+  if (!ctx.features[key]) redirect(`/app/locked?m=${key}`);
   return ctx;
 }

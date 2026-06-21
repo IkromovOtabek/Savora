@@ -83,6 +83,8 @@ export const organizationSchema = new Schema<IOrganization>(
       variant: { type: Boolean },
       creditKassa: { type: Boolean },
       kirimChiqim: { type: Boolean },
+      transferred: { type: Boolean },
+      audit: { type: Boolean },
     },
     referralCode: { type: String, unique: true, sparse: true, uppercase: true, trim: true },
     referredBy: { type: String, trim: true },

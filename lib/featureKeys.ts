@@ -11,6 +11,8 @@ export const FEATURE_KEYS = [
   'users',
   'export',
   'mediaUpload',
+  'transferred',
+  'audit',
 ] as const;
 
 export type FeatureKey = (typeof FEATURE_KEYS)[number];
