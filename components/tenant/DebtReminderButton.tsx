@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { toast } from '@/lib/toast';
 
 interface Props {
@@ -26,16 +26,49 @@ function normalizePhone(raw?: string): string | null {
 
 export default function DebtReminderButton({ phone, text }: Props) {
   const [open, setOpen] = useState(false);
+  const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
+  const btnRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
   const num = normalizePhone(phone);
   const enc = encodeURIComponent(text);
 
+  function toggle() {
+    if (open) { setOpen(false); return; }
+    const r = btnRef.current?.getBoundingClientRect();
+    if (r) {
+      const menuW = 190;
+      const left = Math.min(r.right - menuW, window.innerWidth - menuW - 8);
+      setPos({ top: r.bottom + 6, left: Math.max(8, left) });
+    }
+    setOpen(true);
+  }
+
+  // Tashqariga bosish / scroll / resize — yopish
+  useEffect(() => {
+    if (!open) return;
+    const onDoc = (e: MouseEvent) => {
+      const t = e.target as Node;
+      if (btnRef.current?.contains(t) || menuRef.current?.contains(t)) return;
+      setOpen(false);
+    };
+    const onScroll = () => setOpen(false);
+    document.addEventListener('mousedown', onDoc);
+    window.addEventListener('scroll', onScroll, true);
+    window.addEventListener('resize', onScroll);
+    return () => {
+      document.removeEventListener('mousedown', onDoc);
+      window.removeEventListener('scroll', onScroll, true);
+      window.removeEventListener('resize', onScroll);
+    };
+  }, [open]);
+
   return (
     <div className="dr-wrap">
-      <button type="button" className="btn btn-ghost btn-sm" onClick={() => setOpen((v) => !v)}>
+      <button ref={btnRef} type="button" className="btn btn-ghost btn-sm" onClick={toggle}>
         🔔 Eslatma
       </button>
-      {open && (
-        <div className="dr-menu" onMouseLeave={() => setOpen(false)}>
+      {open && pos && (
+        <div className="dr-menu" ref={menuRef} style={{ position: 'fixed', top: pos.top, left: pos.left }}>
           {num ? (
             <>
               <a className="dr-item" href={`https://wa.me/${num}?text=${enc}`} target="_blank" rel="noopener noreferrer" onClick={() => setOpen(false)}>
