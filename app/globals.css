@@ -405,6 +405,13 @@ img { max-width: 100%; display: block; }
 .logout-icon-btn svg { transform: scaleX(-1); }
 .dark .logout-icon-btn:hover { background: rgba(220, 38, 38, .12); border-color: rgba(220, 38, 38, .3); color: #f87171; }
 
+/* ── Muddati tugagan do'kon — to'lov devori ──── */
+.tenant-expired-wrap { min-height: 100vh; background: var(--bg-soft); }
+.tenant-top--expired { display: flex; align-items: center; justify-content: space-between; padding: 0 20px; height: 60px; background: var(--surface); border-bottom: 1px solid var(--border); }
+.tenant-expired-wrap .tenant-top-center { font-weight: 800; }
+.tenant-expired-wrap .tenant-top-actions { display: flex; align-items: center; gap: 10px; }
+.tenant-expired-wrap .dash-main { margin: 0 auto; padding: 32px 16px; }
+
 /* ── Til almashtirgich (UZ/RU) ───────────────── */
 .lang-switch { display: inline-flex; align-items: center; border: 1px solid var(--border); border-radius: var(--r-pill); overflow: hidden; min-width: 64px; min-height: 30px; }
 .lang-opt { padding: 5px 11px; font-size: .8rem; font-weight: 800; color: var(--ink-3); background: transparent; border: none; cursor: pointer; transition: background .15s, color .15s; }
@@ -1586,3 +1593,30 @@ img { max-width: 100%; display: block; }
 .limit-banner-main strong { color: #3730a3; font-size: .95rem; }
 .dark .limit-banner-main strong { color: #c7d2fe; }
 .limit-banner-sub { font-size: .82rem; color: var(--ink-2); margin-top: 2px; line-height: 1.45; }
+
+/* ===== Super Admin Asosiy sahifa (dashboard) ===== */
+.super-substats { display: grid; grid-template-columns: repeat(6, 1fr); gap: 12px; margin-bottom: 24px; }
+.super-substat { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-sm, 12px); padding: 12px 14px; }
+.super-substat span { display: block; font-size: .74rem; color: var(--ink-3); font-weight: 700; margin-bottom: 4px; }
+.super-substat strong { font-size: 1.3rem; font-weight: 850; }
+.super-substat .online-num { color: #10b981; }
+@media (max-width: 900px) { .super-substats { grid-template-columns: repeat(3, 1fr); } }
+@media (max-width: 520px) { .super-substats { grid-template-columns: repeat(2, 1fr); } }
+
+.super-dash-grid { display: grid; grid-template-columns: 1.4fr 1fr; gap: 20px; }
+@media (max-width: 900px) { .super-dash-grid { grid-template-columns: 1fr; } }
+
+.dash-chart { display: flex; align-items: flex-end; gap: 10px; padding: 20px 24px; height: 200px; }
+.dash-bar-col { flex: 1; display: flex; flex-direction: column; align-items: center; height: 100%; justify-content: flex-end; gap: 6px; }
+.dash-bar-track { width: 100%; flex: 1; display: flex; align-items: flex-end; }
+.dash-bar { width: 70%; margin: 0 auto; background: linear-gradient(180deg, #6366f1, #818cf8); border-radius: 6px 6px 0 0; min-height: 3px; transition: height .4s; }
+.dash-bar-val { font-size: .8rem; font-weight: 800; }
+.dash-bar-label { font-size: .68rem; color: var(--ink-3); }
+
+.dist-bar-track { height: 8px; background: var(--bg-soft); border-radius: 999px; overflow: hidden; }
+.dist-bar { height: 100%; background: linear-gradient(90deg, #6366f1, #a855f7); border-radius: 999px; }
+
+.quick-actions { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; padding: 16px 24px; }
+.quick-action { display: flex; align-items: center; gap: 8px; padding: 14px 16px; border: 1px solid var(--border); border-radius: 12px; background: var(--bg-soft); font-weight: 700; font-size: .9rem; color: var(--ink-1); transition: .15s; }
+.quick-action:hover { border-color: var(--brand); color: var(--brand); }
+@media (max-width: 700px) { .quick-actions { grid-template-columns: 1fr 1fr; } }

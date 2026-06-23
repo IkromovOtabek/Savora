@@ -5,7 +5,6 @@ import { getSession } from '@/lib/session';
 import { getMasterModels } from '@/lib/masterDb';
 import { getAppZone, getTenantSlug, resolveTenant } from '@/lib/tenantContext';
 import { getTenantModels } from '@/lib/tenantDb';
-import { isOrganizationActive } from '@/lib/models/master/Organization';
 import { clearRouteCookies, setRouteCookies } from '@/lib/routeCookies';
 import { rootUrl } from '@/lib/urls';
 import { generateTempPassword } from '@/lib/credentials';

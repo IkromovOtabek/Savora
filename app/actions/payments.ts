@@ -17,11 +17,12 @@ function parseAmount(v: string): number | null {
 
 /** Do'kon admini — to'lov so'rovi yuboradi (chek yuklab) */
 export async function submitPaymentRequestAction(_prev: State, formData: FormData): Promise<State> {
-  const { user, org } = await getTenantAdminSession();
+  // Muddati tugagan do'kon ham to'lov yubora olishi shart
+  const { user, org } = await getTenantAdminSession({ allowExpired: true });
 
   const amount = parseAmount(String(formData.get('amount') || ''));
   const paidAtRaw = String(formData.get('paidAt') || '').trim();
-  const months = String(formData.get('months') || '1') === '12' ? 12 : 1;
+  const months = Math.min(24, Math.max(1, parseInt(String(formData.get('months') || '1'), 10) || 1));
   const receiptUrl = String(formData.get('receiptUrl') || '').trim();
   const note = String(formData.get('note') || '').trim();
 

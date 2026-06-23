@@ -2,6 +2,7 @@ import type { IconName } from '@/components/icons/Icon';
 
 /** Super Admin — asosiy menyu (haqiqiy sahifalar, takrorsiz) */
 export const SUPER_NAV = [
+  { href: '/super/dashboard', label: 'Asosiy sahifa', icon: 'home' as IconName },
   { href: '/super', label: 'Bizneslar', icon: 'building' as IconName, exact: true },
   { href: '/super/metrics', label: 'Metrikalar', icon: 'chart' as IconName },
   { href: '/super/visitors', label: 'Tashriflar', icon: 'chart' as IconName },

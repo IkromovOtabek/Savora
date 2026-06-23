@@ -67,8 +67,8 @@ export async function requireOrgUser(opts?: { allowExpired?: boolean }): Promise
 }
 
 /** Do'kon egasi (kichik admin) bo'lishini talab qiladi */
-export async function requireOrgAdmin(): Promise<SessionUser> {
-  const u = await requireOrgUser();
+export async function requireOrgAdmin(opts?: { allowExpired?: boolean }): Promise<SessionUser> {
+  const u = await requireOrgUser(opts);
   if (u.role !== 'admin') redirect('/app');
   return u;
 }

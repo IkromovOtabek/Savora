@@ -13,8 +13,8 @@ export async function getTenantSession(opts?: { allowExpired?: boolean }) {
 }
 
 /** Admin huquqi + tenant modellari + modullar */
-export async function getTenantAdminSession() {
-  const user = await requireOrgAdmin();
+export async function getTenantAdminSession(opts?: { allowExpired?: boolean }) {
+  const user = await requireOrgAdmin(opts);
   const org = await resolveTenant();
   if (!org) throw new Error('Do\'kon topilmadi.');
   const features = resolveOrgFeatures(org);
