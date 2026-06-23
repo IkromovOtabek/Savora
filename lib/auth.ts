@@ -42,7 +42,7 @@ export async function requireSuperAdmin(): Promise<SessionUser> {
 }
 
 /** Do'kon foydalanuvchisi (admin yoki user) + do'kon faolligini talab qiladi */
-export async function requireOrgUser(): Promise<SessionUser> {
+export async function requireOrgUser(opts?: { allowExpired?: boolean }): Promise<SessionUser> {
   const session = await getSession('tenant');
   const u = session.user;
   if (!u || (u.role !== 'admin' && u.role !== 'user') || !u.dbName || !u.organizationId) {
@@ -54,8 +54,14 @@ export async function requireOrgUser(): Promise<SessionUser> {
     redirect(org ? tenantLoginUrl(org.slug) : superLoginUrl());
   }
   const org = await OrganizationById(u.organizationId);
-  if (!org || !isOrganizationActive(org)) {
-    redirect(tenantLoginUrl(org?.slug ?? 'login', '?blocked=1'));
+  if (!org) redirect(tenantLoginUrl('login', '?blocked=1'));
+  // Super admin to'xtatgan (suspended) — qattiq blok, login'ga qaytadi
+  if (org.status === 'suspended') {
+    redirect(tenantLoginUrl(org.slug, '?blocked=1'));
+  }
+  // Muddati tugagan — login bo'ladi, lekin faqat to'lov sahifasiga kiradi
+  if (!isOrganizationActive(org) && !opts?.allowExpired) {
+    redirect('/app/expired');
   }
   return u;
 }
@@ -73,12 +79,12 @@ async function OrganizationById(id: string): Promise<IOrganization | null> {
 }
 
 /** Faol do'kon + yoqilgan modullar */
-export async function requireOrgWithFeatures(): Promise<{
+export async function requireOrgWithFeatures(opts?: { allowExpired?: boolean }): Promise<{
   user: SessionUser;
   org: IOrganization & { _id: string };
   features: OrgFeatures;
 }> {
-  const user = await requireOrgUser();
+  const user = await requireOrgUser(opts);
   const org = await resolveTenant();
   if (!org) redirect(superLoginUrl());
   return { user, org, features: resolveOrgFeatures(org) };

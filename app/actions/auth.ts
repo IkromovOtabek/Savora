@@ -70,7 +70,8 @@ export async function loginAction(_prev: State, formData: FormData): Promise<Sta
         ? await resolveTenantOrg(tenantSlug)
         : await resolveTenant();
       if (!org) return { error: "Do'kon topilmadi." };
-      if (!isOrganizationActive(org)) return { error: "Do'kon obunasi to'xtatilgan yoki muddati tugagan." };
+      // Suspended — qattiq blok. Muddati tugagan — kiradi, lekin to'lov sahifasiga tushadi.
+      if (org.status === 'suspended') return { error: "Do'kon to'xtatilgan. Platforma egasiga murojaat qiling." };
 
       const { User } = await getTenantModels(org.dbName);
       const user = await User.findOne({ username }).exec();

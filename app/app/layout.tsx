@@ -8,10 +8,27 @@ import ThemeToggle from '@/components/ThemeToggle';
 import SearchParamToast from '@/components/ui/SearchParamToast';
 import { Suspense } from 'react';
 import BrandMark from '@/components/BrandMark';
+import { isOrganizationActive } from '@/lib/models/master/Organization';
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
-  const { user, org, features } = await getTenantSession();
+  const { user, org, features } = await getTenantSession({ allowExpired: true });
   const showImei = isImeiEnabled(org);
+
+  // Muddati tugagan — sidebarsiz, faqat to'lov devori (children = /app/expired)
+  if (!isOrganizationActive(org)) {
+    return (
+      <div className="tenant-expired-wrap">
+        <header className="tenant-top tenant-top--expired">
+          <div className="tenant-top-center">{org.name}</div>
+          <div className="tenant-top-actions">
+            <ThemeToggle />
+            <LogoutButton iconOnly />
+          </div>
+        </header>
+        <main className="tenant-main">{children}</main>
+      </div>
+    );
+  }
 
   return (
     <div className="tenant-wrap">

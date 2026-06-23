@@ -3,6 +3,7 @@ import type { IconName } from '@/components/icons/Icon';
 /** Super Admin — asosiy menyu (haqiqiy sahifalar, takrorsiz) */
 export const SUPER_NAV = [
   { href: '/super', label: 'Bizneslar', icon: 'building' as IconName, exact: true },
+  { href: '/super/metrics', label: 'Metrikalar', icon: 'chart' as IconName },
   { href: '/super/visitors', label: 'Tashriflar', icon: 'chart' as IconName },
   { href: '/super/payments', label: 'To\'lovlar', icon: 'wallet' as IconName },
   { href: '/super/plans', label: 'Tariflar', icon: 'plans' as IconName },

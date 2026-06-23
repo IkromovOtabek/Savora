@@ -2,9 +2,11 @@ import Link from 'next/link';
 import { getTenantSession } from '@/lib/tenantSession';
 import { branchFilter } from '@/lib/branchScope';
 import { isImeiEnabled } from '@/lib/features';
+import { resolveOrgPlan } from '@/lib/plans';
 import { PRODUCT_STATUS_LABELS, ProductStatus } from '@/lib/models/tenant/Product';
 import ProductSearch from '@/components/tenant/ProductSearch';
 import ProductRowActions from '@/components/tenant/ProductRowActions';
+import LimitBanner from '@/components/tenant/LimitBanner';
 // import ProductImportForm from '@/components/tenant/ProductImportForm'; // CSV Import vaqtincha yashirilgan
 
 export const metadata = { title: 'Ombor — Savora' };
@@ -61,6 +63,11 @@ export default async function ProductsPage({
 
   const totalPages = Math.ceil(total / PAGE_SIZE);
 
+  // Yumshoq mahsulot chegarasi — faqat admin uchun (org bo'yicha umumiy son)
+  const isAdmin = user.role === 'admin';
+  const maxProducts = resolveOrgPlan(org).maxProducts ?? 0;
+  const orgProductCount = isAdmin ? await Product.countDocuments({}) : 0;
+
   function pageUrl(p: number) {
     const params = new URLSearchParams();
     if (q) params.set('q', q);
@@ -73,6 +80,7 @@ export default async function ProductsPage({
 
   return (
     <>
+      {isAdmin && <LimitBanner label="Mahsulotlar" current={orgProductCount} max={maxProducts} />}
       <div className="dash-head">
         <div>
           <h1 className="dash-hello">Ombor</h1>

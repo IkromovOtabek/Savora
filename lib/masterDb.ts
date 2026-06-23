@@ -6,6 +6,7 @@ import { platformSettingsSchema, IPlatformSettings } from './models/master/Platf
 import { reviewSchema, IReview } from './models/master/Review';
 import { paymentRequestSchema, IPaymentRequest } from './models/master/PaymentRequest';
 import { siteVisitSchema, ISiteVisit } from './models/master/SiteVisit';
+import { imeiBlacklistSchema, IImeiBlacklist } from './models/master/ImeiBlacklist';
 
 /** Master DB modellari (Organization, SuperAdmin, Review) */
 export async function getMasterModels() {
@@ -28,5 +29,8 @@ export async function getMasterModels() {
   const SiteVisit =
     (conn.models.SiteVisit as Model<ISiteVisit>) ||
     conn.model<ISiteVisit>('SiteVisit', siteVisitSchema);
-  return { conn, Organization, SuperAdmin, PlatformSettings, Review, PaymentRequest, SiteVisit };
+  const ImeiBlacklist =
+    (conn.models.ImeiBlacklist as Model<IImeiBlacklist>) ||
+    conn.model<IImeiBlacklist>('ImeiBlacklist', imeiBlacklistSchema);
+  return { conn, Organization, SuperAdmin, PlatformSettings, Review, PaymentRequest, SiteVisit, ImeiBlacklist };
 }

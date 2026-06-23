@@ -35,8 +35,6 @@ export default function FilialManager({
   const [modal, setModal] = useState<null | { type: 'create' } | { type: 'edit'; row: Row }>(null);
   const [busy, setBusy] = useState(false);
 
-  const canAdd = activeBranchCount < maxFilial;
-
   async function run(action: (fd: FormData) => Promise<ActResult>, form: HTMLFormElement) {
     setBusy(true);
     const res = await action(new FormData(form));
@@ -70,8 +68,6 @@ export default function FilialManager({
             <button
               className="btn btn-primary btn-sm btn-with-icon"
               onClick={() => setModal({ type: 'create' })}
-              disabled={!canAdd}
-              title={canAdd ? '' : 'Tarif limiti to\'ldi'}
             >
               <Icon name="plus" size={16} /> Yangi
             </button>
@@ -136,11 +132,6 @@ export default function FilialManager({
           </table>
         </div>
 
-        {!canAdd && (
-          <p className="field-hint" style={{ padding: '0 24px 16px' }}>
-            Tarif bo&apos;yicha filial limiti to&apos;ldi ({activeBranchCount}/{maxFilial}). Ko&apos;proq filial uchun tarifni yangilang.
-          </p>
-        )}
       </div>
 
       {/* ===== Modal: yangi filial ===== */}

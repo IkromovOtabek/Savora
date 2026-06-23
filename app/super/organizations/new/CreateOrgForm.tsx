@@ -59,7 +59,19 @@ export default function CreateOrgForm() {
 
         <div className="form-section">
           <h3>2. Admin kirish</h3>
-          <p className="field-hint">Login avtomatik yaratiladi (ism yoki slug + raqam). Egasi birinchi kirishda parolni o&apos;zi belgilaydi.</p>
+          <div className="auth-field">
+            <label htmlFor="adminUsername">Login *</label>
+            <input
+              id="adminUsername"
+              name="adminUsername"
+              type="text"
+              required
+              disabled={isPending}
+              placeholder="masalan: dokon1admin"
+              onBlur={(e) => { e.target.value = e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ''); }}
+            />
+            <span className="field-hint">Lotin harf, raqam, _ (kamida 3 belgi). Egasi birinchi kirishda parolni o&apos;zi belgilaydi.</span>
+          </div>
         </div>
 
         <div className="form-section">

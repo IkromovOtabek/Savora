@@ -405,6 +405,20 @@ img { max-width: 100%; display: block; }
 .logout-icon-btn svg { transform: scaleX(-1); }
 .dark .logout-icon-btn:hover { background: rgba(220, 38, 38, .12); border-color: rgba(220, 38, 38, .3); color: #f87171; }
 
+/* ── Til almashtirgich (UZ/RU) ───────────────── */
+.lang-switch { display: inline-flex; align-items: center; border: 1px solid var(--border); border-radius: var(--r-pill); overflow: hidden; min-width: 64px; min-height: 30px; }
+.lang-opt { padding: 5px 11px; font-size: .8rem; font-weight: 800; color: var(--ink-3); background: transparent; border: none; cursor: pointer; transition: background .15s, color .15s; }
+.lang-opt:hover { color: var(--brand); }
+.lang-opt--active { background: var(--brand); color: #fff; }
+
+/* ── IMEI qora ro'yxat ogohlantirishi ────────── */
+.imei-blacklist-alert { border: 1.5px solid #fecaca; }
+.imei-blacklist-alert .panel-head { background: #fef2f2; border-bottom-color: #fecaca; }
+.imei-blacklist-alert .panel-head h2 { color: #b91c1c; }
+.dark .imei-blacklist-alert { border-color: rgba(220, 38, 38, .35); }
+.dark .imei-blacklist-alert .panel-head { background: rgba(220, 38, 38, .12); border-bottom-color: rgba(220, 38, 38, .3); }
+.dark .imei-blacklist-alert .panel-head h2 { color: #f87171; }
+
 /* ── Qarzdorlik nazorati ─────────────────────── */
 .row-overdue { background: rgba(220, 38, 38, .05); }
 .row-overdue:hover { background: rgba(220, 38, 38, .09) !important; }
@@ -560,8 +574,19 @@ img { max-width: 100%; display: block; }
   .form-row { grid-template-columns: 1fr; }
   .dash-nav { display: none; }
 }
+@media (max-width: 600px) {
+  /* Sahifa sarlavhasi: tugma pastga tushib, to'liq kenglik */
+  .dash-head { flex-direction: column; align-items: stretch; gap: 14px; }
+  .dash-head .btn { width: 100%; justify-content: center; }
+  .dash-hello { font-size: 1.3rem; }
+  .dash-main { padding: 24px 16px; }
+  .panel-head { padding: 16px 16px; }
+  .panel-head h2 { font-size: 1.02rem; }
+  .filter-chips { gap: 8px; }
+}
 @media (max-width: 480px) {
   .dash-stats { grid-template-columns: 1fr; }
+  .shot-chart { padding: 16px 8px 12px; gap: 6px; }
 }
 
 /* ============================================================
@@ -1548,3 +1573,16 @@ img { max-width: 100%; display: block; }
 .locked-card p { color: var(--ink-2); line-height: 1.55; margin: 0 0 10px; }
 .locked-sub { font-size: .9rem; color: var(--ink-3); }
 .locked-actions { display: flex; gap: 10px; justify-content: center; margin-top: 18px; flex-wrap: wrap; }
+
+/* ===== Yumshoq tarif chegarasi (LimitBanner) ===== */
+.limit-banner {
+  display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap;
+  background: #eef2ff; border: 1.5px solid #c7d2fe; border-radius: 12px;
+  padding: 14px 18px; margin-bottom: 16px;
+}
+.dark .limit-banner { background: rgba(99,102,241,.12); border-color: rgba(99,102,241,.35); }
+.limit-banner-main { display: flex; align-items: flex-start; gap: 12px; min-width: 0; }
+.limit-banner-icon { color: var(--brand); flex-shrink: 0; margin-top: 1px; }
+.limit-banner-main strong { color: #3730a3; font-size: .95rem; }
+.dark .limit-banner-main strong { color: #c7d2fe; }
+.limit-banner-sub { font-size: .82rem; color: var(--ink-2); margin-top: 2px; line-height: 1.45; }

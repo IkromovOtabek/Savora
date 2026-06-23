@@ -107,11 +107,12 @@ export default function PaymentSubmit({ account, monthlyPrice, requests }: Props
               <form onSubmit={submit} className="form-grid">
                 <div className="form-row">
                   <div className="auth-field">
-                    <label>Muddat</label>
-                    <select value={months} onChange={(e) => setMonths(Number(e.target.value))} disabled={busy}>
-                      <option value={1}>1 oy</option>
-                      <option value={12}>1 yil (12 oy)</option>
-                    </select>
+                    <label>Necha oyga? *</label>
+                    <input
+                      type="number" min={1} max={24} value={months} disabled={busy}
+                      onChange={(e) => setMonths(Math.min(24, Math.max(1, parseInt(e.target.value, 10) || 1)))}
+                    />
+                    <span className="field-hint">{monthlyPrice > 0 ? `${months} oy × ${fmtSum(monthlyPrice)}` : '1–24 oy'}</span>
                   </div>
                   <div className="auth-field">
                     <label>To&apos;lov summasi *</label>

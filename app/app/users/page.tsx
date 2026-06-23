@@ -1,5 +1,6 @@
 import { getTenantAdminSession, getOrgWithPlan } from '@/lib/tenantSession';
 import FilialManager from '@/components/tenant/FilialManager';
+import LimitBanner from '@/components/tenant/LimitBanner';
 
 export const metadata = { title: 'Foydalanuvchilar — Savora' };
 
@@ -36,6 +37,9 @@ export default async function UsersPage() {
   });
 
   return (
-    <FilialManager rows={rows} maxFilial={maxFilial} activeBranchCount={activeBranches} />
+    <>
+      <LimitBanner label="Filiallar" current={activeBranches} max={maxFilial} />
+      <FilialManager rows={rows} maxFilial={maxFilial} activeBranchCount={activeBranches} />
+    </>
   );
 }

@@ -3,19 +3,26 @@
 import { useState, useTransition } from 'react';
 import Link from 'next/link';
 import { bulkImeiLookup } from '@/app/actions/transfer';
+import { checkImeiBlacklistAction } from '@/app/actions/imeiBlacklist';
+import type { BlacklistHit } from '@/lib/imeiBlacklist';
 import { PRODUCT_STATUS_LABELS, ProductStatus } from '@/lib/models/tenant/Product';
 import { fmtMoney } from '@/lib/format';
 
 export default function ImeiBulkSearch() {
   const [text, setText] = useState('');
   const [result, setResult] = useState<Awaited<ReturnType<typeof bulkImeiLookup>> | null>(null);
+  const [blacklist, setBlacklist] = useState<BlacklistHit[]>([]);
   const [pending, start] = useTransition();
 
   function search() {
     const imeis = text.split(/[\n,;\s]+/).filter(Boolean);
     start(async () => {
-      const r = await bulkImeiLookup(imeis);
+      const [r, bl] = await Promise.all([
+        bulkImeiLookup(imeis),
+        checkImeiBlacklistAction(imeis),
+      ]);
       setResult(r);
+      setBlacklist(bl);
     });
   }
 
@@ -33,6 +40,28 @@ export default function ImeiBulkSearch() {
           </button>
         </div>
       </div>
+
+      {blacklist.length > 0 && (
+        <div className="panel imei-blacklist-alert" style={{ marginTop: 20 }}>
+          <div className="panel-head"><h2>⚠️ Qora ro&apos;yxat ogohlantirishi ({blacklist.length})</h2></div>
+          <div className="table-wrap">
+            <table className="data-table">
+              <thead><tr><th>IMEI</th><th>Sabab</th><th>Do&apos;kon</th><th>Mijoz</th><th>Izoh</th></tr></thead>
+              <tbody>
+                {blacklist.map((b) => (
+                  <tr key={b.imei} className="row-overdue">
+                    <td><code className="imei-code">{b.imei}</code></td>
+                    <td><span className="badge-status badge-status--expired">{b.reasonLabel}</span></td>
+                    <td>{b.orgName}</td>
+                    <td>{b.customerName || '—'}{b.customerPhone ? ` · ${b.customerPhone}` : ''}</td>
+                    <td>{b.note || '—'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
       {result && (
         <div className="panel" style={{ marginTop: 20 }}>

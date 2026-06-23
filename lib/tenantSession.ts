@@ -6,8 +6,8 @@ import { IOrganization } from './models/master/Organization';
 import { OrgFeatures, resolveOrgFeatures } from './features';
 
 /** Joriy do'kon foydalanuvchisi + tenant modellari + modullar */
-export async function getTenantSession() {
-  const { user, org, features } = await requireOrgWithFeatures();
+export async function getTenantSession(opts?: { allowExpired?: boolean }) {
+  const { user, org, features } = await requireOrgWithFeatures(opts);
   const models = await getTenantModels(user.dbName!);
   return { user, org, features, ...models };
 }

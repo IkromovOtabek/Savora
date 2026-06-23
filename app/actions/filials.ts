@@ -1,7 +1,7 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { getOrgWithPlan, getTenantAdminSession } from '@/lib/tenantSession';
+import { getTenantAdminSession } from '@/lib/tenantSession';
 import { markOnboardingStep } from '@/lib/onboarding';
 import { recordAudit } from '@/lib/audit';
 import { addOrgUser, updateOrgUserByBranch, removeOrgUserByBranch } from '@/lib/orgUsers';
@@ -16,13 +16,8 @@ function normalizeLogin(v: string): string {
 export async function createFilialAction(_prev: State, formData: FormData): Promise<State> {
   const { user, User, Branch } = await getTenantAdminSession();
 
-  const fullOrg = user.organizationId ? await getOrgWithPlan(user.organizationId) : null;
-  const maxFilial = fullOrg?.plan.maxFilial ?? 1;
-  // Asosiy ombor (isMain) filial sifatida sanalmaydi
-  const activeCount = await Branch.countDocuments({ active: true, isMain: { $ne: true } });
-  if (activeCount >= maxFilial) {
-    return { error: `Tarif bo'yicha maksimum ${maxFilial} ta filial.` };
-  }
+  // Yumshoq chegara: filial qo'shish bloklanmaydi. Limitdan oshsa — sahifada
+  // "tarifni yangilang" yo'naltiruvchi karta ko'rsatiladi (client tiqilib qolmaydi).
 
   const name = String(formData.get('name') || '').trim();
   const address = String(formData.get('address') || '').trim();
