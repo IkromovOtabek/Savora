@@ -99,16 +99,16 @@ export default async function AuditPage({
               <tbody>
                 {logs.map((l) => (
                   <tr key={String(l._id)}>
-                    <td><div className="cell-sub">{fmtDateTime(l.at)}</div></td>
-                    <td>
+                    <td data-label="Sana / Vaqt"><div className="cell-sub">{fmtDateTime(l.at)}</div></td>
+                    <td data-label="Bo'lim">
                       <span className="badge-status badge-status--active">{ENTITY_LABELS[l.entity] ?? l.entity}</span>
                     </td>
-                    <td>
+                    <td data-label="Amal">
                       <div className="cell-main" style={isDanger(l.action) ? { color: 'var(--danger, #dc2626)' } : undefined}>
                         {l.summary}
                       </div>
                     </td>
-                    <td>
+                    <td data-label="Kim">
                       <div className="cell-main">{l.by}</div>
                       <div className="cell-sub">{l.byRole === 'admin' ? 'Admin' : 'Xodim'}</div>
                     </td>

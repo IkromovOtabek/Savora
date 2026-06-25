@@ -113,18 +113,18 @@ export default async function DebtsPage({
                   });
                   return (
                     <tr key={String(s._id)} className={info.state === 'overdue' ? 'row-overdue' : ''}>
-                      <td className="cell-main">{name}</td>
-                      <td>{phone || '—'}</td>
-                      <td>
+                      <td className="cell-main" data-label="Mijoz">{name}</td>
+                      <td data-label="Telefon">{phone || '—'}</td>
+                      <td data-label="Mahsulot">
                         <Link href={`/app/sales/${s._id}`} className="cell-link">{s.productSnapshot.name}</Link>
                       </td>
-                      <td className="cell-main">{fmtMoney(s.remainingAmount)} so&apos;m</td>
-                      <td>
+                      <td className="cell-main" data-label="Qoldiq">{fmtMoney(s.remainingAmount)} so&apos;m</td>
+                      <td data-label="Muddat">
                         {s.dueDate ? fmtDate(s.dueDate) : '—'}
                         <div className={`cell-sub${info.state === 'overdue' ? ' cell-sub--danger' : ''}`}>{info.label}</div>
                       </td>
-                      <td><span className={`badge-status ${meta.cls}`}>{meta.label}</span></td>
-                      <td className="cell-actions">
+                      <td data-label="Holat"><span className={`badge-status ${meta.cls}`}>{meta.label}</span></td>
+                      <td className="cell-actions" data-label="">
                         <div className="row-actions">
                           <Link href={`/app/sales/${s._id}`} className="btn btn-ghost btn-sm">To&apos;lov</Link>
                           <DebtReminderButton phone={phone} text={text} />

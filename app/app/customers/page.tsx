@@ -88,10 +88,10 @@ export default async function CustomersPage({
                 <tbody>
                   {customers.map((c) => (
                     <tr key={String(c._id)}>
-                      <td className="cell-main">{c.fullName}</td>
-                      <td>{c.phone}</td>
-                      <td className="cell-sub">{c.address || '—'}</td>
-                      <td>
+                      <td className="cell-main" data-label="Ism">{c.fullName}</td>
+                      <td data-label="Telefon">{c.phone}</td>
+                      <td className="cell-sub" data-label="Manzil">{c.address || '—'}</td>
+                      <td data-label="">
                         <Link href={`/app/customers/${c._id}`} className="btn btn-ghost btn-sm">Tahrirlash</Link>
                       </td>
                     </tr>

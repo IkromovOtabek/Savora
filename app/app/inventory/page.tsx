@@ -69,10 +69,10 @@ export default async function InventoryPage() {
                 <tbody>
                   {items.slice(0, 20).map((p) => (
                     <tr key={String(p._id)}>
-                      <td><Link href={`/app/products/${p._id}`} className="cell-link">{p.name}</Link></td>
-                      <td><code className="imei-code">{p.barcode || p.imei}</code></td>
-                      <td>{fmtMoney(p.salePrice)}</td>
-                      <td>{PRODUCT_STATUS_LABELS[p.status]}</td>
+                      <td data-label="Mahsulot"><Link href={`/app/products/${p._id}`} className="cell-link">{p.name}</Link></td>
+                      <td data-label="Kod"><code className="imei-code">{p.barcode || p.imei}</code></td>
+                      <td data-label="Narx">{fmtMoney(p.salePrice)}</td>
+                      <td data-label="Holat">{PRODUCT_STATUS_LABELS[p.status]}</td>
                     </tr>
                   ))}
                 </tbody>

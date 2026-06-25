@@ -89,13 +89,13 @@ export default async function KassaBranchPage({
               <tbody>
                 {rows.map((r, i) => (
                   <tr key={`${r.saleId}-${i}`}>
-                    <td>{fmtDateTime(r.paidAt)}</td>
-                    <td>
+                    <td data-label="Vaqt">{fmtDateTime(r.paidAt)}</td>
+                    <td data-label="Sotuv">
                       <Link href={`/app/sales/${r.saleId}`} className="cell-link cell-main">{r.saleNo}</Link>
                       <div className="cell-sub">{r.productName}</div>
                     </td>
-                    <td>{r.customerName}</td>
-                    <td><strong>{fmtMoney(r.amount)}</strong></td>
+                    <td data-label="Mijoz">{r.customerName}</td>
+                    <td data-label="Summa"><strong>{fmtMoney(r.amount)}</strong></td>
                   </tr>
                 ))}
               </tbody>

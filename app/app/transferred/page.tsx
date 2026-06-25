@@ -49,18 +49,18 @@ export default async function TransferredPage() {
               <tbody>
                 {transfers.map((t) => (
                   <tr key={String(t._id)}>
-                    <td>
+                    <td data-label="№ / Sana">
                       <div className="cell-main">{t.transferNo}</div>
                       <div className="cell-sub">{fmtDateTime(t.createdAt!)}</div>
                     </td>
-                    <td>
+                    <td data-label="Mahsulot">
                       <Link href={`/app/products/${t.productId}`} className="cell-link cell-main">{t.productSnapshot.name}</Link>
                       <code className="imei-code">{t.productSnapshot.imei}</code>
                     </td>
-                    <td><strong>{t.quantity}</strong> dona</td>
-                    <td>{t.fromBranchName ?? '—'}</td>
-                    <td><span className="badge-status badge-status--active">{t.toBranchName}</span></td>
-                    <td>{t.transferredBy}</td>
+                    <td data-label="Soni"><strong>{t.quantity}</strong> dona</td>
+                    <td data-label="Qayerdan">{t.fromBranchName ?? '—'}</td>
+                    <td data-label="Qayerga"><span className="badge-status badge-status--active">{t.toBranchName}</span></td>
+                    <td data-label="Kim">{t.transferredBy}</td>
                   </tr>
                 ))}
               </tbody>

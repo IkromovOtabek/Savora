@@ -133,19 +133,19 @@ export default async function ProductsPage({
                 <tbody>
                   {products.map((p) => (
                     <tr key={String(p._id)}>
-                      <td><code>{p.productId ?? String(p._id).slice(-8).toUpperCase()}</code></td>
-                      <td>
+                      <td data-label="ID"><code>{p.productId ?? String(p._id).slice(-8).toUpperCase()}</code></td>
+                      <td data-label="Mahsulot">
                         <Link href={`/app/products/${p._id}`} className="cell-link cell-main">{p.name}</Link>
                         <div className="cell-sub">Qo&apos;shildi: {fmtDate(p.createdAt) ?? '—'}</div>
                       </td>
-                      {showImei && <td><code className="imei-code">{p.imei}</code></td>}
-                      <td>{branchMap[String(p.branchId)] ?? '—'}</td>
-                      <td>
+                      {showImei && <td data-label="IMEI"><code className="imei-code">{p.imei}</code></td>}
+                      <td data-label="Filial">{branchMap[String(p.branchId)] ?? '—'}</td>
+                      <td data-label="Son">
                         {p.trackQuantity
                           ? `${Math.max(0, (p.quantity ?? 0) - (p.soldQuantity ?? 0))}/${p.quantity ?? 0}`
                           : '1'}
                       </td>
-                      <td>
+                      <td data-label="Holat">
                         <span className={`badge-status badge-status--${p.status === 'in_stock' ? 'active' : p.status === 'sold' ? 'expired' : 'suspended'}`}>
                           {PRODUCT_STATUS_LABELS[p.status as ProductStatus]}
                         </span>
@@ -153,9 +153,9 @@ export default async function ProductsPage({
                           <div className="cell-sub">Sotildi: {fmtDate(p.soldAt)}</div>
                         )}
                       </td>
-                      <td>{fmtMoney(p.purchasePrice)}</td>
-                      <td>{fmtMoney(p.salePrice)}</td>
-                      <td className="cell-actions">
+                      <td data-label="Kelish">{fmtMoney(p.purchasePrice)}</td>
+                      <td data-label="Sotuv">{fmtMoney(p.salePrice)}</td>
+                      <td className="cell-actions" data-label="">
                         <ProductRowActions
                           productId={String(p._id)}
                           status={p.status}

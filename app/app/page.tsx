@@ -123,13 +123,13 @@ export default async function TenantDashboard({
               <tbody>
                 {recentSales.map((s) => (
                   <tr key={String(s._id)}>
-                    <td>
+                    <td data-label="Sotuv">
                       <Link href={`/app/sales/${s._id}`} className="cell-link cell-main">{s.saleNo}</Link>
                       <div className="cell-sub">{PAYMENT_TYPE_LABELS[s.paymentType as PaymentType]}</div>
                     </td>
-                    <td>{s.customerSnapshot?.fullName ?? '—'}</td>
-                    <td>{fmtMoney(s.totalAmount)}</td>
-                    <td>
+                    <td data-label="Mijoz">{s.customerSnapshot?.fullName ?? '—'}</td>
+                    <td data-label="Summa">{fmtMoney(s.totalAmount)}</td>
+                    <td data-label="Holat">
                       <span className={`badge-status badge-status--${s.status === 'paid' ? 'active' : 'suspended'}`}>
                         {SALE_STATUS_LABELS[s.status as SaleStatus]}
                       </span>

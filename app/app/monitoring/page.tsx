@@ -155,13 +155,13 @@ export default async function MonitoringPage({
                 const saleRow = branchStats.find((s) => s.name === b.name);
                 return (
                   <tr key={b.branchId}>
-                    <td>{b.name}</td>
-                    <td>{b.kirimQty}</td>
-                    <td>{b.chiqimQty}</td>
-                    <td>{fmtMoney(b.kirimSum)}</td>
-                    <td>{fmtMoney(b.chiqimSum)}</td>
-                    <td>{fmtMoney(b.profit)}</td>
-                    <td>{saleRow?.salesCount ?? 0}</td>
+                    <td data-label="Filial">{b.name}</td>
+                    <td data-label="Sotuv (ta)">{b.kirimQty}</td>
+                    <td data-label="Kirim (ta)">{b.chiqimQty}</td>
+                    <td data-label="Sotuv summa">{fmtMoney(b.kirimSum)}</td>
+                    <td data-label="Xarid summa">{fmtMoney(b.chiqimSum)}</td>
+                    <td data-label="Foyda">{fmtMoney(b.profit)}</td>
+                    <td data-label="Tranzaksiya">{saleRow?.salesCount ?? 0}</td>
                   </tr>
                 );
               })}
@@ -185,7 +185,7 @@ export default async function MonitoringPage({
               <thead><tr><th>Filial</th><th>Sotuv</th><th>Aylanma</th><th>Foyda</th></tr></thead>
               <tbody>
                 {branchStats.map((b) => (
-                  <tr key={b.name}><td>{b.name}</td><td>{b.salesCount}</td><td>{fmtMoney(b.revenue)}</td><td>{fmtMoney(b.profit)}</td></tr>
+                  <tr key={b.name}><td data-label="Filial">{b.name}</td><td data-label="Sotuv">{b.salesCount}</td><td data-label="Aylanma">{fmtMoney(b.revenue)}</td><td data-label="Foyda">{fmtMoney(b.profit)}</td></tr>
                 ))}
               </tbody>
             </table>
