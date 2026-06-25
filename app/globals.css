@@ -1620,3 +1620,21 @@ img { max-width: 100%; display: block; }
 .quick-action { display: flex; align-items: center; gap: 8px; padding: 14px 16px; border: 1px solid var(--border); border-radius: 12px; background: var(--bg-soft); font-weight: 700; font-size: .9rem; color: var(--ink-1); transition: .15s; }
 .quick-action:hover { border-color: var(--brand); color: var(--brand); }
 @media (max-width: 700px) { .quick-actions { grid-template-columns: 1fr 1fr; } }
+
+/* ===== Tashriflar (visitors) jadvali ===== */
+.v-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--ink-3); }
+.v-dot--on { background: #f59e0b; }
+.v-online-tag { color: #10b981; font-weight: 700; font-size: .85rem; }
+.v-status { display: inline-flex; align-items: center; gap: 6px; font-weight: 700; font-size: .85rem; }
+.v-status--online { color: #10b981; }
+.v-status--online .v-dot { background: #10b981; }
+.v-status--idle { color: #f59e0b; }
+.v-status--idle .v-dot { background: #f59e0b; }
+.v-status--left { color: var(--ink-3); }
+.v-status--left .v-dot { background: var(--ink-3); }
+.v-pages { display: inline-flex; min-width: 26px; justify-content: center; padding: 2px 8px; border-radius: 8px; background: rgba(99,102,241,.15); color: var(--brand); font-weight: 800; font-size: .82rem; }
+.v-num { display: inline-flex; min-width: 28px; justify-content: center; padding: 3px 9px; border-radius: 8px; font-weight: 800; font-size: .82rem; }
+.v-num--visit { background: rgba(99,102,241,.15); color: #818cf8; }
+.v-num--signup { background: rgba(16,185,129,.15); color: #34d399; }
+.v-num--login { background: rgba(245,158,11,.15); color: #fbbf24; }
+.v-14-table tbody tr:hover { background: var(--bg-soft); }
