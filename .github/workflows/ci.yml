@@ -9,6 +9,9 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
     env:
       # Build/test uchun soxta qiymatlar (haqiqiy sirlar deploy serverda)
       SESSION_SECRET: ci-dummy-session-secret-32-characters-long
@@ -21,6 +24,7 @@ jobs:
         with:
           node-version: 20
           cache: npm
+          cache-dependency-path: web/package-lock.json
       - run: npm ci
       - name: Type check
         run: npm run typecheck
