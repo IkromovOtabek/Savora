@@ -1638,3 +1638,119 @@ img { max-width: 100%; display: block; }
 .v-num--signup { background: rgba(16,185,129,.15); color: #34d399; }
 .v-num--login { background: rgba(245,158,11,.15); color: #fbbf24; }
 .v-14-table tbody tr:hover { background: var(--bg-soft); }
+
+/* ════════════════════════════════════════════════════════════
+   AURORA MODERN — marketing sahifa UI yangilanishi (2026)
+   Mavjud tuzilma saqlanadi; bu blok vizualni zamonaviylashtiradi.
+   ════════════════════════════════════════════════════════════ */
+
+@keyframes aurora-move {
+  0%   { transform: translate(0, 0) scale(1); }
+  50%  { transform: translate(40px, -30px) scale(1.15); }
+  100% { transform: translate(0, 0) scale(1); }
+}
+@keyframes hero-rise { from { opacity: 0; transform: translateY(24px); } to { opacity: 1; transform: none; } }
+@keyframes floaty { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
+
+/* ── HERO: to'q aurora ── */
+.hero {
+  background: radial-gradient(140% 120% at 50% -20%, #1b1340 0%, #0b1020 55%, #080b16 100%) !important;
+  padding: 110px 0 120px !important;
+  isolation: isolate;
+}
+.hero::before, .hero::after {
+  content: ""; position: absolute; border-radius: 50%; filter: blur(70px); z-index: -1; opacity: .55;
+  animation: aurora-move 14s ease-in-out infinite;
+}
+.hero::before { width: 540px; height: 540px; top: -120px; left: -80px;
+  background: radial-gradient(circle, #6366f1, transparent 65%); }
+.hero::after { width: 520px; height: 520px; top: -60px; right: -100px;
+  background: radial-gradient(circle, #a855f7, transparent 65%); animation-delay: -5s; animation-duration: 18s; }
+
+.hero > .container > div:first-child { animation: hero-rise .7s ease both; }
+.hero h1 { color: #f4f5fb !important; font-size: 3.6rem !important; }
+.hero h1 .grad {
+  background: linear-gradient(100deg, #818cf8, #c084fc 55%, #f0abfc) !important;
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+}
+.hero-sub { color: #aab2c8 !important; }
+.hero-trust { color: #8b93ab !important; }
+.hero-trust .trust-check { color: #34d399 !important; }
+.hero .badge {
+  background: rgba(255,255,255,.06) !important; color: #c7d2fe !important;
+  border: 1px solid rgba(255,255,255,.12) !important; backdrop-filter: blur(8px);
+}
+
+/* Hero CTA — glow */
+.hero-cta .btn-primary {
+  background: linear-gradient(100deg, #6366f1, #a855f7) !important; border: 0 !important;
+  box-shadow: 0 10px 30px rgba(124,58,237,.45) !important;
+}
+.hero-cta .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 16px 40px rgba(124,58,237,.55) !important; }
+.hero-cta .btn-ghost {
+  background: rgba(255,255,255,.05) !important; color: #e5e7f5 !important;
+  border: 1px solid rgba(255,255,255,.16) !important;
+}
+.hero-cta .btn-ghost:hover { background: rgba(255,255,255,.1) !important; }
+
+/* Hero mockup — glass + suzish */
+.hero-visual .mock {
+  background: rgba(20,24,42,.7) !important; border: 1px solid rgba(255,255,255,.1) !important;
+  box-shadow: 0 30px 70px rgba(0,0,0,.5) !important; backdrop-filter: blur(12px);
+}
+.hero-visual .mock-top { background: rgba(255,255,255,.04) !important; border-bottom-color: rgba(255,255,255,.08) !important; }
+.hero-visual .mock-kpi { background: rgba(255,255,255,.04) !important; border-color: rgba(255,255,255,.08) !important; }
+.hero-visual .mock-kpi .lbl { color: #8b93ab !important; }
+.hero-visual .mock-kpi .val { color: #f4f5fb !important; }
+.hero-visual .mock-kpi .val.up { color: #34d399 !important; }
+.hero-visual .mock-bars { border-color: rgba(255,255,255,.08) !important; }
+.hero-visual .float-card {
+  background: rgba(28,32,54,.85) !important; border: 1px solid rgba(255,255,255,.12) !important;
+  color: #f4f5fb !important; box-shadow: 0 16px 40px rgba(0,0,0,.4) !important; backdrop-filter: blur(10px);
+  animation: floaty 5s ease-in-out infinite;
+}
+.hero-visual .float-2 { animation-delay: -2.5s; }
+
+/* ── Bo'lim sarlavhalari — gradient eyebrow ── */
+.head .eyebrow {
+  background: linear-gradient(100deg, #6366f1, #a855f7); -webkit-background-clip: text; background-clip: text; color: transparent;
+}
+
+/* ── Feature / step kartalar — ko'tarilish + gradient hoshiya ── */
+.feature, .step, .plan {
+  transition: transform .25s cubic-bezier(.4,0,.2,1), box-shadow .25s, border-color .25s !important;
+}
+.feature:hover, .step:hover {
+  transform: translateY(-6px); border-color: transparent !important;
+  box-shadow: 0 18px 44px rgba(99,102,241,.16) !important;
+}
+.feature::after {
+  content: ""; position: absolute; inset: 0; border-radius: inherit; padding: 1px; pointer-events: none; opacity: 0;
+  background: linear-gradient(120deg, #6366f1, #a855f7); -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor; mask-composite: exclude; transition: opacity .25s;
+}
+.feature { position: relative; }
+.feature:hover::after { opacity: 1; }
+.feature .ic { box-shadow: 0 8px 22px rgba(99,102,241,.3); }
+
+/* ── Pricing — ommabop tarif yorqin ── */
+.plan { backdrop-filter: blur(4px); }
+.plan:hover { transform: translateY(-6px); box-shadow: 0 18px 44px rgba(99,102,241,.18) !important; }
+.plan--featured, .plan.featured, .plan--popular {
+  border-color: var(--brand) !important; box-shadow: 0 0 0 1px var(--brand), 0 20px 50px rgba(124,58,237,.22) !important;
+}
+
+/* ── CTA band — aurora ── */
+.cta-band {
+  background: linear-gradient(110deg, #4f46e5 0%, #7c3aed 50%, #a855f7 100%) !important;
+  position: relative; overflow: hidden; box-shadow: 0 24px 60px rgba(124,58,237,.4) !important;
+}
+.cta-band::before {
+  content: ""; position: absolute; width: 420px; height: 420px; border-radius: 50%; top: -160px; right: -80px;
+  background: radial-gradient(circle, rgba(255,255,255,.18), transparent 60%);
+}
+
+/* ── Primary tugmalar — umumiy nozik glow ── */
+.section .btn-primary, .cta-band .btn-primary { box-shadow: 0 8px 24px rgba(124,58,237,.28); }
+
+@media (max-width: 640px) { .hero h1 { font-size: 2.5rem !important; } .hero { padding: 80px 0 90px !important; } }
