@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { sendTelegramTo } from '@/lib/telegram';
+import { sendTelegramTo, sendTelegramWebApp } from '@/lib/telegram';
 import { getMasterModels } from '@/lib/masterDb';
+
+const APP_BASE = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+const MINI_APP_URL = `${APP_BASE}/tg`;
 
 /** Telegram webhook — kelgan xabarlarga echo javob (bot sozlangan bo'lsa) */
 export async function GET() {
@@ -27,6 +30,30 @@ async function handleLink(chatIdRaw: number | string, orgId: string): Promise<st
   }
 }
 
+/** Shaxsiy hisobni bog'laydi: /start lu_<code> (Mini App uchun) */
+async function handleUserLink(telegramUserId: string, code: string): Promise<string> {
+  try {
+    const { TelegramAccount } = await getMasterModels();
+    const acc = await TelegramAccount.findOne({ code }).exec();
+    if (!acc || (acc.codeExpiresAt && acc.codeExpiresAt.getTime() < Date.now())) {
+      return '⛔️ Havola eskirgan. Kabinetdan "Telegram hisobini bog\'lash" tugmasini qaytadan bosing.';
+    }
+    // Bu Telegram boshqa userga bog'langan bo'lsa — ko'chiramiz (oxirgi bog'lanish g'olib)
+    await TelegramAccount.updateMany(
+      { telegramUserId, _id: { $ne: acc._id } },
+      { $unset: { telegramUserId: '' } }
+    );
+    acc.telegramUserId = telegramUserId;
+    acc.linkedAt = new Date();
+    acc.code = undefined;
+    acc.codeExpiresAt = undefined;
+    await acc.save();
+    return `✅ "${acc.username}" hisobi bog'landi.\n\nQuyidagi tugma orqali Savora ilovasini oching.`;
+  } catch {
+    return 'Bog\'lashda xatolik. Birozdan keyin qayta urinib ko\'ring.';
+  }
+}
+
 export async function POST(req: NextRequest) {
   const token = process.env.TELEGRAM_BOT_TOKEN;
   if (!token) return NextResponse.json({ ok: true, skipped: true });
@@ -34,6 +61,7 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
     const chatId = body?.message?.chat?.id;
+    const fromId = body?.message?.from?.id;
     const text: string = body?.message?.text ?? '';
 
     if (chatId && text.startsWith('/start')) {
@@ -42,10 +70,16 @@ export async function POST(req: NextRequest) {
         const orgId = param.slice('link_'.length);
         const reply = await handleLink(chatId, orgId);
         await sendTelegramTo(String(chatId), reply);
+      } else if (param.startsWith('lu_') && fromId) {
+        const code = param.slice('lu_'.length);
+        const reply = await handleUserLink(String(fromId), code);
+        await sendTelegramWebApp(String(chatId), reply, '🚀 Savora’ni ochish', MINI_APP_URL);
       } else {
-        await sendTelegramTo(
+        await sendTelegramWebApp(
           String(chatId),
-          'Savora bot ishlayapti. Do\'koningizni ulash uchun panel → Kabinet → "Telegram ulash" tugmasidan foydalaning.'
+          'Savora — do\'kon boshqaruv tizimi. Ilovani ochish uchun quyidagi tugmani bosing.\n\nAgar "hisob bog\'lanmagan" chiqsa: panel → Kabinet → "Telegram hisobini bog\'lash".',
+          '🚀 Savora’ni ochish',
+          MINI_APP_URL
         );
       }
     }

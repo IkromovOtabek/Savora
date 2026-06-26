@@ -3,8 +3,10 @@ import { getMasterModels } from '@/lib/masterDb';
 import { resolveOrgPlan } from '@/lib/plans';
 import ProfileForms from '@/components/tenant/ProfileForms';
 import TelegramConnect from '@/components/tenant/TelegramConnect';
+import TelegramAppLink from '@/components/tenant/TelegramAppLink';
 import PaymentSubmit from '@/components/tenant/PaymentSubmit';
 import ExpiryBanner from '@/components/ExpiryBanner';
+import { getTelegramLinkStatus } from '@/app/actions/telegramLink';
 
 export const metadata = { title: 'Kabinet — Savora' };
 
@@ -13,6 +15,7 @@ export default async function ProfilePage() {
   const dbUser = await User.findById(user.id).lean();
 
   const isAdmin = user.role === 'admin';
+  const { linked: tgLinked } = await getTelegramLinkStatus();
 
   // To'lov bo'limi (faqat admin): rekvizitlar + o'z so'rovlari
   let payAccount = { paymentCardNumber: '', paymentCardHolder: '', paymentNote: '' };
@@ -64,6 +67,8 @@ export default async function ProfilePage() {
       {isAdmin && (
         <PaymentSubmit account={payAccount} monthlyPrice={monthlyPrice} requests={ownRequests} />
       )}
+
+      <TelegramAppLink linked={tgLinked} />
 
       {isAdmin && (
         <TelegramConnect orgId={org._id} connected={!!org.telegramChatId} />

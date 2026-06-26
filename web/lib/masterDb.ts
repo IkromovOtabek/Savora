@@ -7,6 +7,7 @@ import { reviewSchema, IReview } from './models/master/Review';
 import { paymentRequestSchema, IPaymentRequest } from './models/master/PaymentRequest';
 import { siteVisitSchema, ISiteVisit } from './models/master/SiteVisit';
 import { imeiBlacklistSchema, IImeiBlacklist } from './models/master/ImeiBlacklist';
+import { telegramAccountSchema, ITelegramAccount } from './models/master/TelegramAccount';
 
 /** Master DB modellari (Organization, SuperAdmin, Review) */
 export async function getMasterModels() {
@@ -32,5 +33,8 @@ export async function getMasterModels() {
   const ImeiBlacklist =
     (conn.models.ImeiBlacklist as Model<IImeiBlacklist>) ||
     conn.model<IImeiBlacklist>('ImeiBlacklist', imeiBlacklistSchema);
-  return { conn, Organization, SuperAdmin, PlatformSettings, Review, PaymentRequest, SiteVisit, ImeiBlacklist };
+  const TelegramAccount =
+    (conn.models.TelegramAccount as Model<ITelegramAccount>) ||
+    conn.model<ITelegramAccount>('TelegramAccount', telegramAccountSchema);
+  return { conn, Organization, SuperAdmin, PlatformSettings, Review, PaymentRequest, SiteVisit, ImeiBlacklist, TelegramAccount };
 }
