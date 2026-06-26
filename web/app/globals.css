@@ -994,6 +994,29 @@ img { max-width: 100%; display: block; }
 .tenant-drawer-overlay { display: none; }
 .tenant-drawer { display: none; }
 
+/* ── Pastki tab panel (Mini App / mobil) ─────────────── */
+.tenant-tabbar { display: none; }
+@media (max-width: 900px) {
+  .tenant-tabbar {
+    display: flex; position: fixed; left: 0; right: 0; bottom: 0; z-index: 150;
+    background: var(--surface); border-top: 1px solid var(--border);
+    padding: 6px 2px calc(6px + env(safe-area-inset-bottom, 0px));
+    box-shadow: 0 -4px 16px rgba(0,0,0,.06); justify-content: space-around;
+  }
+  .tenant-tabbar-link {
+    flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; align-items: center;
+    gap: 3px; padding: 6px 2px; text-decoration: none; color: var(--ink-3);
+    font-size: .64rem; font-weight: 700; transition: color .15s;
+  }
+  .tenant-tabbar-link span {
+    max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .tenant-tabbar-link--active { color: var(--brand); }
+  .tenant-tabbar-link:active { transform: scale(.94); }
+  /* tab panel ortidan kontent ko'rinishi uchun joy */
+  .tenant-main { padding-bottom: 78px; }
+}
+
 @media (max-width: 900px) {
   .form-row-3 { grid-template-columns: 1fr; }
   .portal-grid { grid-template-columns: 1fr; }

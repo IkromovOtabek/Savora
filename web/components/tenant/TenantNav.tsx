@@ -42,6 +42,14 @@ const LINKS: { href: string; label: string; feature?: FeatureKey; adminOnly?: bo
   { href: '/app/profile', label: 'Kabinet' },
 ];
 
+// Pastki tab bar — eng muhim havolalar tartibi (rolga qarab) + qisqa yorliqlar
+const TAB_ORDER = ['/app', '/app/products', '/app/sales', '/app/debts', '/app/monitoring', '/app/users', '/app/transferred', '/app/kassa', '/app/kirim-chiqim'];
+const TAB_LABELS: Record<string, string> = {
+  '/app': 'Asosiy', '/app/products': 'Ombor', '/app/sales': 'Sotildi', '/app/debts': 'Qarzdorlik',
+  '/app/monitoring': 'Hisobot', '/app/users': 'Filiallar', '/app/transferred': 'Berildi',
+  '/app/kassa': 'Kassa', '/app/kirim-chiqim': 'Kirim', '/app/profile': 'Kabinet',
+};
+
 function NavLinks({
   visible,
   pathname,
@@ -83,8 +91,8 @@ export default function TenantNav({
   isAdmin: boolean;
   features: OrgFeatures;
   showImei: boolean;
-  /** 'sidebar' — desktop ro'yxat; 'mobile' — header burger + drawer */
-  variant?: 'sidebar' | 'mobile';
+  /** 'sidebar' — desktop ro'yxat; 'mobile' — header burger + drawer; 'tabbar' — pastki tab panel */
+  variant?: 'sidebar' | 'mobile' | 'tabbar';
 }) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
@@ -113,6 +121,35 @@ export default function TenantNav({
       <div className="tenant-nav-desktop">
         <NavLinks visible={visible} pathname={pathname} />
       </div>
+    );
+  }
+
+  // Tabbar — pastki doimiy panel (faqat mobil). Kabinet doim oxirgi.
+  if (variant === 'tabbar') {
+    const profile = visible.find((l) => l.href === '/app/profile');
+    const main = visible
+      .filter((l) => TAB_ORDER.includes(l.href))
+      .sort((a, b) => TAB_ORDER.indexOf(a.href) - TAB_ORDER.indexOf(b.href))
+      .slice(0, 4);
+    const tabs = [...main, ...(profile ? [profile] : [])];
+    return (
+      <nav className="tenant-tabbar">
+        {tabs.map((link) => {
+          const active = link.exact
+            ? pathname === link.href
+            : pathname === link.href || pathname.startsWith(`${link.href}/`);
+          return (
+            <Link
+              key={link.href}
+              href={link.href}
+              className={`tenant-tabbar-link${active ? ' tenant-tabbar-link--active' : ''}`}
+            >
+              <Icon name={NAV_ICONS[link.href] ?? 'home'} size={21} />
+              <span>{TAB_LABELS[link.href] ?? link.label}</span>
+            </Link>
+          );
+        })}
+      </nav>
     );
   }
 

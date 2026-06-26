@@ -66,6 +66,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           <Suspense fallback={null}><SearchParamToast /></Suspense>
           {children}
         </main>
+        {/* Pastki tab panel — faqat mobil (CSS bilan) */}
+        <TenantNav variant="tabbar" isAdmin={user.role === 'admin'} features={features} showImei={showImei} />
       </div>
     </div>
   );
