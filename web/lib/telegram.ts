@@ -51,3 +51,39 @@ export async function sendTelegramWebApp(
     return false;
   }
 }
+
+/**
+ * Doimiy pastki menyu (reply keyboard): "Savora'ni ochish" (web_app) + "Boshlash".
+ * Bot ochilganda foydalanuvchi shu tugmalardan foydalanadi.
+ */
+export async function sendTelegramReplyMenu(
+  chatId: string,
+  text: string,
+  webAppUrl: string
+): Promise<boolean> {
+  const token = process.env.TELEGRAM_BOT_TOKEN;
+  if (!token || !chatId) return false;
+
+  try {
+    const res = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        chat_id: chatId,
+        text,
+        parse_mode: 'HTML',
+        reply_markup: {
+          keyboard: [
+            [{ text: '🚀 Savora’ni ochish', web_app: { url: webAppUrl } }],
+            [{ text: 'Boshlash' }],
+          ],
+          resize_keyboard: true,
+          is_persistent: true,
+        },
+      }),
+    });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}

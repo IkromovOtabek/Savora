@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Icon from '@/components/icons/Icon';
-import { startCameraBarcodeScan } from '@/lib/barcodeCameraScan';
+import { startCameraBarcodeScan, scanBarcodeFromImageFile } from '@/lib/barcodeCameraScan';
 
 interface Props {
   onScan: (code: string) => void;
@@ -16,7 +16,9 @@ export default function CameraScanButton({ onScan, label, className = '' }: Prop
   const [open, setOpen] = useState(false);
   const [error, setError] = useState('');
   const [scanning, setScanning] = useState(false);
+  const [photoBusy, setPhotoBusy] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
   const stopScanRef = useRef<(() => void) | null>(null);
   const handledRef = useRef(false);
 
@@ -59,7 +61,7 @@ export default function CameraScanButton({ onScan, label, className = '' }: Prop
         stopScanRef.current = stopScan;
       } catch {
         if (!cancelled) {
-          setError('Kameraga ruxsat bering yoki boshqa brauzerda urinib ko\'ring.');
+          setError('Jonli kamera ochilmadi — pastdagi “Rasmga olib o‘qish” tugmasidan foydalaning.');
           setScanning(false);
         }
       }
@@ -70,6 +72,27 @@ export default function CameraScanButton({ onScan, label, className = '' }: Prop
       stop();
     };
   }, [open, onScan, close, stop]);
+
+  // Fallback: kamera bilan foto olib, rasmdan kod o'qish (har platformada ishlaydi)
+  const onPhoto = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    setPhotoBusy(true);
+    setError('');
+    try {
+      const code = await scanBarcodeFromImageFile(file);
+      if (code) {
+        handledRef.current = true;
+        onScan(code);
+        close();
+      } else {
+        setError('Kod topilmadi — yorug‘ joyda, kodni to‘ldirib qayta suratga oling.');
+      }
+    } finally {
+      setPhotoBusy(false);
+    }
+  }, [onScan, close]);
 
   return (
     <>
@@ -97,9 +120,28 @@ export default function CameraScanButton({ onScan, label, className = '' }: Prop
               <div className="scan-frame" />
             </div>
             {scanning && !error && (
-              <p className="scan-hint">Kod avtomatik o&apos;qiladi — Safari, Chrome, Firefox va mobil brauzerlarda ishlaydi.</p>
+              <p className="scan-hint">Kod avtomatik o&apos;qiladi. Ishlamasa — “Rasmga olib o‘qish”.</p>
             )}
             {error && <p className="scan-hint scan-hint--warn">{error}</p>}
+            <div className="scan-actions">
+              <button
+                type="button"
+                className="btn btn-primary btn-sm btn-with-icon"
+                onClick={() => fileRef.current?.click()}
+                disabled={photoBusy}
+              >
+                <Icon name="camera" size={16} />
+                {photoBusy ? 'O‘qilmoqda…' : 'Rasmga olib o‘qish'}
+              </button>
+              <input
+                ref={fileRef}
+                type="file"
+                accept="image/*"
+                capture="environment"
+                onChange={onPhoto}
+                style={{ display: 'none' }}
+              />
+            </div>
           </div>
         </div>
       )}

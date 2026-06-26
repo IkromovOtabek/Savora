@@ -4,6 +4,7 @@ import { getMasterModels } from '@/lib/masterDb';
 import { getTenantModels } from '@/lib/tenantDb';
 import { getSession } from '@/lib/session';
 import { setRouteCookies } from '@/lib/routeCookies';
+import { cookies } from 'next/headers';
 
 /**
  * Telegram Mini App kirish: client initData yuboradi → tekshiramiz →
@@ -58,6 +59,11 @@ export async function POST(req: Request) {
   };
   await session.save();
   await setRouteCookies('tenant', org.slug);
+
+  // Mini App belgisi — layout shu cookie bo'yicha soat/ortiqcha elementlarni yashiradi
+  (await cookies()).set('savora_tgapp', '1', {
+    path: '/', httpOnly: true, sameSite: 'lax', maxAge: 8 * 60 * 60,
+  });
 
   return NextResponse.json({ ok: true, next: '/app' });
 }

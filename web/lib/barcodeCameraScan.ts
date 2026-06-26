@@ -84,6 +84,43 @@ async function startZxingScan(video: HTMLVideoElement, onCode: (code: string) =>
   };
 }
 
+/**
+ * Bitta rasmdan (kamera bilan olingan foto yoki galereya) shtrix/QR o'qiydi.
+ * Jonli kamera (getUserMedia) bloklangan platformalarda (masalan Telegram iOS
+ * WebView) ishonchli fallback — barcha qurilmada ishlaydi.
+ * Kod topilmasa null qaytaradi.
+ */
+export async function scanBarcodeFromImageFile(file: File): Promise<string | null> {
+  const url = URL.createObjectURL(file);
+  try {
+    // 1) Tezkor yo'l — BarcodeDetector (Android Chrome)
+    if (typeof window !== 'undefined' && 'BarcodeDetector' in window) {
+      try {
+        const bitmap = await createImageBitmap(file);
+        const detector = new window.BarcodeDetector!({
+          formats: ['ean_13', 'ean_8', 'code_128', 'code_39', 'upc_a', 'upc_e', 'qr_code', 'itf', 'codabar'],
+        });
+        const codes = await detector.detect(bitmap as unknown as CanvasImageSource);
+        const v = codes[0]?.rawValue?.trim();
+        if (v) return v;
+      } catch {
+        /* ZXing ga o'tamiz */
+      }
+    }
+    // 2) Universal yo'l — ZXing rasmdan o'qish
+    try {
+      const { BrowserMultiFormatReader } = await import('@zxing/browser');
+      const reader = new BrowserMultiFormatReader();
+      const result = await reader.decodeFromImageUrl(url);
+      return result?.getText()?.trim() || null;
+    } catch {
+      return null;
+    }
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+}
+
 /** Kamerani ishga tushiradi; kod topilganda `onCode` chaqiriladi. */
 export async function startCameraBarcodeScan(
   video: HTMLVideoElement,

@@ -1450,6 +1450,7 @@ img { max-width: 100%; display: block; }
 .scan-hint--warn { color: #b45309; background: #fffbeb; }
 .scan-video-wrap--photo .scan-frame { display: none; }
 .scan-capture-actions { display: flex; justify-content: center; padding: 14px 16px; border-top: 1px solid var(--border, #e5e7eb); }
+.scan-actions { display: flex; justify-content: center; padding: 0 16px 16px; }
 
 /* ===== Signup — qadam ko'rsatkichi + tarif tanlash ===== */
 .reg-steps { display: flex; align-items: center; gap: 10px; margin: 4px 0 18px; }

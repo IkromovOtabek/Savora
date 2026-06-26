@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { sendTelegramTo, sendTelegramWebApp } from '@/lib/telegram';
+import { sendTelegramTo, sendTelegramWebApp, sendTelegramReplyMenu } from '@/lib/telegram';
 import { getMasterModels } from '@/lib/masterDb';
 
 const APP_BASE = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
@@ -64,6 +64,9 @@ export async function POST(req: NextRequest) {
     const fromId = body?.message?.from?.id;
     const text: string = body?.message?.text ?? '';
 
+    const WELCOME =
+      'Savora — do\'kon boshqaruv tizimi. Ilovani ochish uchun <b>“🚀 Savora’ni ochish”</b> tugmasini bosing.\n\nAgar "hisob bog\'lanmagan" chiqsa: panel → Kabinet → "Telegram hisobini bog\'lash".';
+
     if (chatId && text.startsWith('/start')) {
       const param = text.slice('/start'.length).trim();
       if (param.startsWith('link_')) {
@@ -75,13 +78,11 @@ export async function POST(req: NextRequest) {
         const reply = await handleUserLink(String(fromId), code);
         await sendTelegramWebApp(String(chatId), reply, '🚀 Savora’ni ochish', MINI_APP_URL);
       } else {
-        await sendTelegramWebApp(
-          String(chatId),
-          'Savora — do\'kon boshqaruv tizimi. Ilovani ochish uchun quyidagi tugmani bosing.\n\nAgar "hisob bog\'lanmagan" chiqsa: panel → Kabinet → "Telegram hisobini bog\'lash".',
-          '🚀 Savora’ni ochish',
-          MINI_APP_URL
-        );
+        // Boshlang'ich /start — doimiy menyu (Savora'ni ochish + Boshlash)
+        await sendTelegramReplyMenu(String(chatId), WELCOME, MINI_APP_URL);
       }
+    } else if (chatId && text.trim() === 'Boshlash') {
+      await sendTelegramReplyMenu(String(chatId), WELCOME, MINI_APP_URL);
     }
   } catch {
     /* ignore */
