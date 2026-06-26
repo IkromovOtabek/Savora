@@ -963,7 +963,7 @@ img { max-width: 100%; display: block; }
 .receipt-total { font-size: 1rem; margin-top: 8px; }
 .receipt-foot { text-align: center; margin-top: 12px; font-size: .82rem; }
 @media print {
-  .tenant-side, .tenant-top, .receipt-actions, .notify-banner, .no-print { display: none !important; }
+  .tenant-side, .tenant-top, .tenant-tabbar, .receipt-actions, .notify-banner, .no-print { display: none !important; }
   .tenant-body { margin: 0; }
   .tenant-main { padding: 0; }
   /* Termal printer (80mm rulon) */
@@ -1014,7 +1014,7 @@ img { max-width: 100%; display: block; }
   .tenant-tabbar-link--active { color: var(--brand); }
   .tenant-tabbar-link:active { transform: scale(.94); }
   /* tab panel ortidan kontent ko'rinishi uchun joy */
-  .tenant-main { padding-bottom: 78px; }
+  .tenant-main { padding-bottom: calc(80px + env(safe-area-inset-bottom, 0px)); }
 }
 
 @media (max-width: 900px) {
@@ -1026,7 +1026,7 @@ img { max-width: 100%; display: block; }
 @media (max-width: 900px) {
   .tenant-side { display: none; }
   .tenant-body { width: 100%; }
-  .tenant-main { padding: 16px; }
+  .tenant-main { padding: 16px 16px calc(80px + env(safe-area-inset-bottom, 0px)); }
   .tenant-top { padding: 0 16px; }
   .two-col { grid-template-columns: 1fr; }
   .detail-grid { grid-template-columns: 1fr; }
@@ -1745,7 +1745,7 @@ img { max-width: 100%; display: block; }
 .cell-main, .cell-sub, .imei-code { overflow-wrap: anywhere; word-break: break-word; }
 
 @media (max-width: 420px) {
-  .tenant-main { padding: 12px; }
+  .tenant-main { padding: 12px 12px calc(80px + env(safe-area-inset-bottom, 0px)); }
   .tenant-top { padding: 0 12px; }
   .dash-hello, .dash-head--simple .dash-hello { font-size: 1.18rem; }
   .dash-sub { font-size: .88rem; }
