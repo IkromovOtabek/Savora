@@ -412,12 +412,6 @@ img { max-width: 100%; display: block; }
 .tenant-expired-wrap .tenant-top-actions { display: flex; align-items: center; gap: 10px; }
 .tenant-expired-wrap .dash-main { margin: 0 auto; padding: 32px 16px; }
 
-/* ── Til almashtirgich (UZ/RU) ───────────────── */
-.lang-switch { display: inline-flex; align-items: center; border: 1px solid var(--border); border-radius: var(--r-pill); overflow: hidden; min-width: 64px; min-height: 30px; }
-.lang-opt { padding: 5px 11px; font-size: .8rem; font-weight: 800; color: var(--ink-3); background: transparent; border: none; cursor: pointer; transition: background .15s, color .15s; }
-.lang-opt:hover { color: var(--brand); }
-.lang-opt--active { background: var(--brand); color: #fff; }
-
 /* ── IMEI qora ro'yxat ogohlantirishi ────────── */
 .imei-blacklist-alert { border: 1.5px solid #fecaca; }
 .imei-blacklist-alert .panel-head { background: #fef2f2; border-bottom-color: #fecaca; }

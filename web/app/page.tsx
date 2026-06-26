@@ -11,8 +11,6 @@ import ProductShowcase from '@/components/landing/ProductShowcase';
 import Faq from '@/components/landing/Faq';
 import Icon from '@/components/icons/Icon';
 import ThemeToggle from '@/components/ThemeToggle';
-import LanguageSwitcher from '@/components/LanguageSwitcher';
-import { getDict } from '@/lib/i18n';
 
 const ICONS = {
   box: <path d="M3 7l9-4 9 4v10l-9 4-9-4V7z M3 7l9 4 9-4 M12 11v10" />,
@@ -86,7 +84,6 @@ export default async function LandingPage() {
     redirect(user ? '/app' : '/login');
   }
 
-  const d = await getDict();
   const reviews = await getLatestReviews(6);
   const presets = await getEffectivePlanPresets();
   const plans = PLANS_STATIC.map(({ tier, featured }) => {
@@ -112,22 +109,21 @@ export default async function LandingPage() {
             Savora
           </div>
           <nav className="nav-links">
-            <a href="#demo">{d.nav.demo}</a>
-            <a href="#features">{d.nav.features}</a>
-            <a href="#pricing">{d.nav.pricing}</a>
-            <a href="#faq">{d.nav.faq}</a>
-            <a href="/login">{d.nav.login}</a>
+            <a href="#demo">Demo</a>
+            <a href="#features">Imkoniyatlar</a>
+            <a href="#pricing">Tariflar</a>
+            <a href="#faq">Savollar</a>
+            <a href="/login">Kirish</a>
           </nav>
           <div className="nav-cta">
-            <LanguageSwitcher />
             <ThemeToggle />
             <Link href="/login" className="btn btn-ghost btn-with-icon">
               <Icon name="login" size={16} />
-              {d.nav.login}
+              Kirish
             </Link>
             <Link href={LOCALHOST_LINKS.register} className="btn btn-primary btn-with-icon">
               <Icon name="signup" size={16} />
-              {d.nav.signup}
+              Ro&apos;yxatdan o&apos;tish
             </Link>
           </div>
         </div>
@@ -137,23 +133,23 @@ export default async function LandingPage() {
       <section className="hero">
         <div className="container hero-grid">
           <div>
-            <span className="badge"><span className="badge-dot" /> {d.hero.badge}</span>
-            <h1>{d.hero.title1} <span className="grad">{d.hero.titleAccent}</span> {d.hero.title2}</h1>
-            <p className="hero-sub">{d.hero.sub}</p>
+            <span className="badge"><span className="badge-dot" /> 7 kun bepul sinov — karta talab qilinmaydi</span>
+            <h1>Do&apos;koningizni <span className="grad">bitta tizimdan</span> boshqaring</h1>
+            <p className="hero-sub">Savora — ombor, sotuv, nasiya, kassa, filiallar va xodimlarni bir joyda. Zamonaviy, tez va ishonchli. O&apos;zbekiston do&apos;konlari uchun maxsus yaratilgan.</p>
             <div className="hero-cta">
               <Link href={LOCALHOST_LINKS.register} className="btn btn-primary btn-lg btn-with-icon">
                 <Icon name="signup" size={20} />
-                {d.hero.ctaPrimary}
+                Ro&apos;yxatdan o&apos;tish — bepul boshlash
               </Link>
               <a href="/login" className="btn btn-ghost btn-lg btn-with-icon">
                 <Icon name="login" size={20} />
-                {d.hero.ctaSecondary}
+                Kirish
               </a>
             </div>
             <div className="hero-trust">
-              <span className="btn-with-icon"><Icon name="check" size={16} className="trust-check" /> {d.hero.trust1}</span>
-              <span className="btn-with-icon"><Icon name="check" size={16} className="trust-check" /> {d.hero.trust2}</span>
-              <span className="btn-with-icon"><Icon name="check" size={16} className="trust-check" /> {d.hero.trust3}</span>
+              <span className="btn-with-icon"><Icon name="check" size={16} className="trust-check" /> Kredit karta kerak emas</span>
+              <span className="btn-with-icon"><Icon name="check" size={16} className="trust-check" /> 5 daqiqada sozlash</span>
+              <span className="btn-with-icon"><Icon name="check" size={16} className="trust-check" /> Istalgan vaqt bekor qilish</span>
             </div>
           </div>
 
