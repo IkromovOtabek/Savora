@@ -534,13 +534,9 @@ img { max-width: 100%; display: block; }
   }
   /* Yorliqsiz katak (amallar) — yorliq chizig'i ko'rinmasin */
   .data-table td[data-label=""]::before { display: none; }
-  /* Birinchi katak — sarlavha sifatida ajralib tursin */
-  .data-table td:first-child {
-    background: var(--bg-soft);
-    border-bottom: 1px solid var(--border) !important;
-    padding-top: 10px; padding-bottom: 10px;
-  }
-  .data-table td:first-child, .data-table td:first-child .cell-main { font-weight: 800; }
+  /* Birinchi katak — sarlavha sifatida (fon/burchakli qutisiz, toza) */
+  .data-table td:first-child { padding-top: 12px; }
+  .data-table td:first-child, .data-table td:first-child .cell-main { font-weight: 800; font-size: .98rem; }
   .data-table td:last-child { padding-bottom: 12px; }
   /* Amal tugmalari to'liq enlikda, chapга */
   .data-table td.cell-actions { align-items: stretch; }
@@ -1798,3 +1794,52 @@ img { max-width: 100%; display: block; }
   .sold-card-new--debt { color: #dc2626; }
   .sold-card .row-actions { display: flex; gap: 8px; align-items: center; }
 }
+
+/* ── Telegram Mini App login (zamonaviy karta) ──────────────── */
+.tg-login-bg {
+  min-height: 100vh; display: flex; align-items: center; justify-content: center;
+  padding: 22px; background: linear-gradient(165deg, #6366F1 0%, #7C3AED 100%);
+}
+.dark .tg-login-bg { background: linear-gradient(165deg, #0B1220 0%, #221A47 100%); }
+.tg-login-card {
+  width: 100%; max-width: 384px; border-radius: 22px; padding: 26px 22px 22px;
+  background: rgba(255,255,255,.13); -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px);
+  border: 1px solid rgba(255,255,255,.22); box-shadow: 0 24px 60px rgba(0,0,0,.28);
+}
+.dark .tg-login-card { background: rgba(255,255,255,.05); border-color: rgba(255,255,255,.1); }
+.tg-login-icon {
+  width: 66px; height: 66px; border-radius: 50%; margin: 4px auto 14px;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(255,255,255,.2); color: #fff; border: 1px solid rgba(255,255,255,.25);
+}
+.tg-login-title { text-align: center; color: #fff; font-size: 1.5rem; font-weight: 800; letter-spacing: -.02em; }
+.tg-login-sub { text-align: center; color: rgba(255,255,255,.78); font-size: .9rem; margin: 4px 0 20px; }
+.tg-login-label { display: block; color: rgba(255,255,255,.85); font-size: .82rem; font-weight: 600; margin: 12px 0 6px; }
+.tg-login-iw { position: relative; }
+.tg-login-iw .tg-ic { position: absolute; left: 13px; top: 50%; transform: translateY(-50%); color: rgba(255,255,255,.6); display: flex; }
+.tg-login-input {
+  width: 100%; padding: 13px 14px 13px 42px; border-radius: 12px;
+  background: rgba(255,255,255,.15); border: 1px solid rgba(255,255,255,.2);
+  color: #fff; font-size: .98rem; outline: none; transition: border-color .15s, background .15s;
+}
+.tg-login-input::placeholder { color: rgba(255,255,255,.55); }
+.tg-login-input:focus { border-color: rgba(255,255,255,.55); background: rgba(255,255,255,.22); }
+.tg-eye { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; color: rgba(255,255,255,.65); display: flex; padding: 6px; }
+.tg-login-btn {
+  width: 100%; margin-top: 18px; padding: 14px; border-radius: 12px; border: none; cursor: pointer;
+  background: #4338CA; color: #fff; font-size: 1rem; font-weight: 700; transition: background .15s, transform .1s;
+}
+.tg-login-btn:hover { background: #3730A3; }
+.tg-login-btn:active { transform: scale(.99); }
+.tg-login-btn:disabled { opacity: .6; cursor: default; }
+.tg-login-tg {
+  width: 100%; margin-top: 10px; padding: 13px; border-radius: 12px; border: none; cursor: pointer;
+  background: #0EA5E9; color: #fff; font-weight: 700; display: flex; align-items: center; justify-content: center; gap: 8px;
+}
+.tg-login-tg:hover { background: #0284C7; }
+.tg-login-tg:disabled { opacity: .6; cursor: default; }
+.tg-login-divider { text-align: center; color: rgba(255,255,255,.45); font-size: .64rem; letter-spacing: .14em; margin: 18px 0 4px; text-transform: uppercase; }
+.tg-login-foot { text-align: center; color: rgba(255,255,255,.78); font-size: .85rem; margin-top: 18px; }
+.tg-login-foot b { color: #fff; font-weight: 700; }
+.tg-login-meta { display: flex; justify-content: center; gap: 16px; color: rgba(255,255,255,.55); font-size: .72rem; margin-top: 16px; flex-wrap: wrap; }
+.tg-login-err { background: rgba(220,38,38,.92); color: #fff; border-radius: 10px; padding: 10px 12px; font-size: .85rem; font-weight: 600; margin-bottom: 12px; text-align: center; }

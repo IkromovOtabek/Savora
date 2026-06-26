@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Icon from '@/components/icons/Icon';
 
 interface TgWebApp {
   initData: string;
@@ -37,8 +38,23 @@ export default function TgEntry() {
   const [slug, setSlug] = useState('');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [showPass, setShowPass] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [tgBusy, setTgBusy] = useState(false);
   const [error, setError] = useState('');
+
+  async function tryTelegram(data: string): Promise<boolean> {
+    if (!data) return false;
+    try {
+      const res = await fetch('/api/tg/auth', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ initData: data }),
+      });
+      const j = await res.json().catch(() => ({}));
+      if (j.ok && j.next) { window.location.replace(j.next); return true; }
+    } catch { /* ignore */ }
+    return false;
+  }
 
   // Avto-kirish (Telegram bog'langan bo'lsa)
   useEffect(() => {
@@ -47,19 +63,8 @@ export default function TgEntry() {
       const data = await getInitData();
       if (cancelled) return;
       setInitData(data);
-      if (data) {
-        try {
-          const res = await fetch('/api/tg/auth', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ initData: data }),
-          });
-          const j = await res.json().catch(() => ({}));
-          if (cancelled) return;
-          if (j.ok && j.next) { window.location.replace(j.next); return; }
-        } catch { /* login formaga o'tamiz */ }
-      }
-      if (!cancelled) setPhase('login');
+      const ok = await tryTelegram(data);
+      if (!cancelled && !ok) setPhase('login');
     })();
     return () => { cancelled = true; };
   }, []);
@@ -71,8 +76,7 @@ export default function TgEntry() {
     setError('');
     try {
       const res = await fetch('/api/tg/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ initData, slug, username, password }),
       });
       const j = await res.json().catch(() => ({}));
@@ -85,44 +89,79 @@ export default function TgEntry() {
     }
   }
 
+  async function onTelegram() {
+    setTgBusy(true);
+    setError('');
+    const ok = await tryTelegram(initData);
+    if (!ok) {
+      setError('Telegram hisobi bog\'lanmagan — quyida login/parol bilan kiring.');
+      setTgBusy(false);
+    }
+  }
+
   if (phase === 'loading') {
     return (
-      <div style={{ minHeight: '70vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24, textAlign: 'center' }}>
-        <div>
+      <div className="tg-login-bg">
+        <div style={{ textAlign: 'center' }}>
           <style>{'@keyframes tgspin{to{transform:rotate(360deg)}}'}</style>
-          <div style={{ width: 36, height: 36, margin: '0 auto 16px', border: '3px solid var(--border)', borderTopColor: 'var(--brand)', borderRadius: '50%', animation: 'tgspin .7s linear infinite' }} />
-          <p style={{ color: 'var(--ink-2)' }}>Kirilmoqda…</p>
+          <div style={{ width: 40, height: 40, margin: '0 auto', border: '3px solid rgba(255,255,255,.3)', borderTopColor: '#fff', borderRadius: '50%', animation: 'tgspin .7s linear infinite' }} />
         </div>
       </div>
     );
   }
 
   return (
-    <div className="auth-wrap" style={{ minHeight: '90vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
-      <form className="auth-card" onSubmit={onSubmit} style={{ width: '100%', maxWidth: 380 }}>
-        <h1 className="auth-title" style={{ textAlign: 'center' }}>Savora&apos;ga kirish</h1>
-        <p className="dash-sub" style={{ textAlign: 'center', marginBottom: 18 }}>
-          Do&apos;kon ma&apos;lumotlaringiz bilan kiring — Telegram avtomatik bog&apos;lanadi.
-        </p>
+    <div className="tg-login-bg">
+      <form className="tg-login-card" onSubmit={onSubmit}>
+        <div className="tg-login-icon"><Icon name="store" size={30} /></div>
+        <div className="tg-login-title">Savora</div>
+        <div className="tg-login-sub">Tizimga kirish</div>
 
-        {error && <div className="auth-alert auth-alert--error" style={{ marginTop: 0, marginBottom: 14 }}>{error}</div>}
+        {error && <div className="tg-login-err">{error}</div>}
 
-        <div className="auth-field">
-          <label htmlFor="tg-slug">Do&apos;kon manzili</label>
-          <input id="tg-slug" value={slug} onChange={(e) => setSlug(e.target.value)} placeholder="masalan: diamed" autoCapitalize="none" autoCorrect="off" />
-        </div>
-        <div className="auth-field">
-          <label htmlFor="tg-user">Login</label>
-          <input id="tg-user" value={username} onChange={(e) => setUsername(e.target.value)} placeholder="login" autoCapitalize="none" autoCorrect="off" />
-        </div>
-        <div className="auth-field">
-          <label htmlFor="tg-pass">Parol</label>
-          <input id="tg-pass" type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="parol" />
+        <label className="tg-login-label" htmlFor="tg-slug">Do&apos;kon manzili</label>
+        <div className="tg-login-iw">
+          <span className="tg-ic"><Icon name="building" size={17} /></span>
+          <input id="tg-slug" className="tg-login-input" value={slug} onChange={(e) => setSlug(e.target.value)}
+            placeholder="masalan: diamed" autoCapitalize="none" autoCorrect="off" />
         </div>
 
-        <button type="submit" className="btn btn-primary" disabled={busy} style={{ width: '100%', marginTop: 8 }}>
-          {busy ? 'Kirilmoqda…' : 'Kirish'}
+        <label className="tg-login-label" htmlFor="tg-user">Login</label>
+        <div className="tg-login-iw">
+          <span className="tg-ic"><Icon name="user" size={17} /></span>
+          <input id="tg-user" className="tg-login-input" value={username} onChange={(e) => setUsername(e.target.value)}
+            placeholder="Foydalanuvchi nomi yoki tel" autoCapitalize="none" autoCorrect="off" />
+        </div>
+
+        <label className="tg-login-label" htmlFor="tg-pass">Parol</label>
+        <div className="tg-login-iw">
+          <span className="tg-ic"><Icon name="shield" size={17} /></span>
+          <input id="tg-pass" className="tg-login-input" type={showPass ? 'text' : 'password'}
+            value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" />
+          <button type="button" className="tg-eye" onClick={() => setShowPass((v) => !v)} aria-label="Parolni ko'rsatish">
+            <Icon name={showPass ? 'eyeOff' : 'eye'} size={18} />
+          </button>
+        </div>
+
+        <button type="submit" className="tg-login-btn" disabled={busy}>
+          {busy ? 'Kirilmoqda…' : 'Kirish →'}
         </button>
+
+        <div className="tg-login-divider">Xavfsiz ulanish</div>
+
+        <button type="button" className="tg-login-tg" onClick={onTelegram} disabled={tgBusy}>
+          <Icon name="send" size={17} />
+          {tgBusy ? 'Tekshirilmoqda…' : 'Telegram orqali kirish'}
+        </button>
+
+        <div className="tg-login-foot">
+          Yangi foydalanuvchimisiz?<br />
+          <b>Ro&apos;yxatdan o&apos;tish uchun murojaat qiling</b>
+        </div>
+        <div className="tg-login-meta">
+          <span><Icon name="shield" size={12} /> End-to-end shifrlangan</span>
+          <span><Icon name="phone" size={12} /> Savora</span>
+        </div>
       </form>
     </div>
   );
