@@ -746,7 +746,7 @@ img { max-width: 100%; display: block; }
   .tenant-side { width: 100%; border-right: none; border-bottom: 1px solid var(--border); }
   .tenant-side-head { height: auto; min-height: 64px; padding: 12px 16px; flex-wrap: wrap; }
   .tenant-nav { padding: 12px 16px 8px; }
-  .tenant-top-center { position: static; transform: none; max-width: 100%; order: -1; width: 100%; text-align: center; margin-bottom: 8px; }
+  .tenant-top-center { position: static; transform: none; max-width: 100%; order: 1; width: 100%; text-align: center; margin-top: 8px; font-size: 1.1rem; }
   .tenant-top { flex-wrap: wrap; justify-content: space-between; height: auto; padding: 12px 16px 16px; }
   .tenant-top-left { order: 0; width: auto; }
   .tenant-top-actions { order: 1; margin-left: auto; }
@@ -1027,7 +1027,7 @@ img { max-width: 100%; display: block; }
   .tenant-side { display: none; }
   .tenant-body { width: 100%; }
   .tenant-main { padding: 16px 16px calc(80px + env(safe-area-inset-bottom, 0px)); }
-  .tenant-top { padding: 0 16px; }
+  .tenant-top { padding: 10px 16px 12px; }
   .two-col { grid-template-columns: 1fr; }
   .detail-grid { grid-template-columns: 1fr; }
   .dash-head { flex-direction: column; align-items: flex-start; gap: 12px; }
@@ -1746,7 +1746,7 @@ img { max-width: 100%; display: block; }
 
 @media (max-width: 420px) {
   .tenant-main { padding: 12px 12px calc(80px + env(safe-area-inset-bottom, 0px)); }
-  .tenant-top { padding: 0 12px; }
+  .tenant-top { padding: 10px 12px 12px; }
   .dash-hello, .dash-head--simple .dash-hello { font-size: 1.18rem; }
   .dash-sub { font-size: .88rem; }
   .dash-stat { padding: 14px 14px; }
