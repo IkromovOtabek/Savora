@@ -63,9 +63,23 @@ async function startNativeScan(video: HTMLVideoElement, onCode: (code: string) =
   };
 }
 
+/** ZXing uchun ishonchli hint'lar — TRY_HARDER + keng tarqalgan formatlar */
+async function buildZxingHints() {
+  const { DecodeHintType, BarcodeFormat } = await import('@zxing/library');
+  const hints = new Map<number, unknown>();
+  hints.set(DecodeHintType.TRY_HARDER, true);
+  hints.set(DecodeHintType.POSSIBLE_FORMATS, [
+    BarcodeFormat.EAN_13, BarcodeFormat.EAN_8, BarcodeFormat.UPC_A, BarcodeFormat.UPC_E,
+    BarcodeFormat.CODE_128, BarcodeFormat.CODE_39, BarcodeFormat.ITF, BarcodeFormat.CODABAR,
+    BarcodeFormat.QR_CODE, BarcodeFormat.DATA_MATRIX,
+  ]);
+  return hints;
+}
+
 async function startZxingScan(video: HTMLVideoElement, onCode: (code: string) => void): Promise<ScanStop> {
   const { BrowserMultiFormatReader } = await import('@zxing/browser');
-  const reader = new BrowserMultiFormatReader();
+  const hints = await buildZxingHints();
+  const reader = new BrowserMultiFormatReader(hints as never);
   let stopped = false;
 
   const controls = await reader.decodeFromConstraints(VIDEO_CONSTRAINTS, video, (result) => {
@@ -107,10 +121,11 @@ export async function scanBarcodeFromImageFile(file: File): Promise<string | nul
         /* ZXing ga o'tamiz */
       }
     }
-    // 2) Universal yo'l — ZXing rasmdan o'qish
+    // 2) Universal yo'l — ZXing rasmdan o'qish (TRY_HARDER + ko'p formatli)
     try {
       const { BrowserMultiFormatReader } = await import('@zxing/browser');
-      const reader = new BrowserMultiFormatReader();
+      const hints = await buildZxingHints();
+      const reader = new BrowserMultiFormatReader(hints as never);
       const result = await reader.decodeFromImageUrl(url);
       return result?.getText()?.trim() || null;
     } catch {

@@ -3,19 +3,15 @@ import { getTenantSession } from '@/lib/tenantSession';
 import { isImeiEnabled } from '@/lib/features';
 import LogoutButton from '@/components/LogoutButton';
 import TenantNav from '@/components/tenant/TenantNav';
-import TenantClock from '@/components/tenant/TenantClock';
 import ThemeToggle from '@/components/ThemeToggle';
 import SearchParamToast from '@/components/ui/SearchParamToast';
 import { Suspense } from 'react';
-import { cookies } from 'next/headers';
 import BrandMark from '@/components/BrandMark';
 import { isOrganizationActive } from '@/lib/models/master/Organization';
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const { user, org, features } = await getTenantSession({ allowExpired: true });
   const showImei = isImeiEnabled(org);
-  // Telegram Mini App ichida ochilgan bo'lsa — headerdagi soat ko'rsatilmaydi
-  const inTelegram = (await cookies()).get('savora_tgapp')?.value === '1';
 
   // Muddati tugagan — sidebarsiz, faqat to'lov devori (children = /app/expired)
   if (!isOrganizationActive(org)) {
@@ -58,7 +54,6 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         <header className="tenant-top">
           <div className="tenant-top-left">
             <TenantNav variant="mobile" isAdmin={user.role === 'admin'} features={features} showImei={showImei} />
-            {!inTelegram && <TenantClock />}
           </div>
           <div className="tenant-top-center">{org.name}</div>
           <div className="tenant-top-actions">

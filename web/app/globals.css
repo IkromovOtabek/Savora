@@ -517,29 +517,37 @@ img { max-width: 100%; display: block; }
   .data-table, .data-table tbody, .data-table tr, .data-table td { display: block; width: 100%; }
   .data-table thead { display: none; }
   .data-table tr {
-    border: 1px solid var(--border); border-radius: 12px; background: var(--surface);
-    margin-bottom: 10px; padding: 4px 2px; overflow: hidden;
+    border: 1px solid var(--border); border-radius: 14px; background: var(--surface);
+    margin-bottom: 12px; padding: 6px 4px; overflow: hidden; box-shadow: var(--shadow-sm);
   }
   .data-table tbody tr:hover { background: var(--surface); }
+  /* Toza ko'rinish: yorliq tepada (kichik, kulrang), qiymat pastda — hammasi chapга tekis */
   .data-table td {
-    border-bottom: 0 !important; padding: 8px 14px;
-    display: flex; justify-content: space-between; align-items: center; gap: 14px;
-    text-align: right; min-height: 0;
+    border-bottom: 0 !important; padding: 7px 16px;
+    display: flex; flex-direction: column; align-items: flex-start; gap: 2px;
+    text-align: left; min-height: 0; width: 100%;
   }
   .data-table td::before {
     content: attr(data-label);
-    font-size: .68rem; text-transform: uppercase; letter-spacing: .04em;
-    color: var(--ink-3); font-weight: 800; text-align: left; flex-shrink: 0;
+    font-size: .66rem; text-transform: uppercase; letter-spacing: .05em;
+    color: var(--ink-3); font-weight: 700;
   }
+  /* Yorliqsiz katak (amallar) — yorliq chizig'i ko'rinmasin */
+  .data-table td[data-label=""]::before { display: none; }
+  /* Birinchi katak — sarlavha sifatida ajralib tursin */
   .data-table td:first-child {
-    font-weight: 800; background: var(--bg-soft);
+    background: var(--bg-soft);
     border-bottom: 1px solid var(--border) !important;
+    padding-top: 10px; padding-bottom: 10px;
   }
-  /* So'nggi katakdan keyin ortiqcha bo'shliq/devor bo'lmasin */
-  .data-table td:last-child { padding-bottom: 10px; }
+  .data-table td:first-child, .data-table td:first-child .cell-main { font-weight: 800; }
+  .data-table td:last-child { padding-bottom: 12px; }
+  /* Amal tugmalari to'liq enlikda, chapга */
+  .data-table td.cell-actions { align-items: stretch; }
+  .data-table td.cell-actions .row-actions { width: 100%; flex-wrap: wrap; gap: 8px; }
   /* Sotildi jadvali maxsus qoidalarini mobil stack uchun moslash */
   .data-table--sold { table-layout: auto; }
-  .data-table--sold td { height: auto; padding: 8px 14px; font-size: .85rem; }
+  .data-table--sold td { height: auto; padding: 7px 16px; font-size: .9rem; }
 }
 .data-table th, .data-table td { padding: 14px 20px; text-align: left; border-bottom: 1px solid var(--border); }
 .data-table th { font-size: .78rem; text-transform: uppercase; letter-spacing: .05em; color: var(--ink-3); font-weight: 700; background: var(--bg-soft); }

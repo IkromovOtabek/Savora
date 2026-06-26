@@ -126,12 +126,13 @@ export default function CameraScanButton({ onScan, label, className = '' }: Prop
             <div className="scan-actions">
               <button
                 type="button"
-                className="btn btn-primary btn-sm btn-with-icon"
+                className="btn btn-primary btn-with-icon"
                 onClick={() => fileRef.current?.click()}
                 disabled={photoBusy}
+                style={{ width: '100%', justifyContent: 'center' }}
               >
-                <Icon name="camera" size={16} />
-                {photoBusy ? 'O‘qilmoqda…' : 'Rasmga olib o‘qish'}
+                <Icon name="camera" size={18} />
+                {photoBusy ? 'O‘qilmoqda…' : 'Kamera bilan suratga olib o‘qish'}
               </button>
               <input
                 ref={fileRef}
