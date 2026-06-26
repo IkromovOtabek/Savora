@@ -31,6 +31,33 @@ export default async function SalesPage({
   const productMap = Object.fromEntries(products.map((p) => [String(p._id), p]));
   const branchMap = Object.fromEntries(branches.map((b) => [String(b._id), b.name]));
 
+  // Jadval va mobil kartalar uchun bir marta hisoblangan qatorlar
+  const rows = sales.map((s, i) => {
+    const prod = productMap[String(s.productId)];
+    const qty = s.productSnapshot.saleQuantity ?? 1;
+    const unit = qty > 0 ? Math.round(s.totalAmount / qty) : s.totalAmount;
+    const cancelled = s.status === 'cancelled';
+    const isDebt = s.status === 'partial' || s.paymentType === 'installment' || s.paymentType === 'debt';
+    return {
+      id: String(s._id),
+      no: i + 1,
+      saleNo: s.saleNo,
+      productId: String(s.productId),
+      name: prod?.deviceModel || prod?.name || s.productSnapshot.name,
+      color: prod?.color || '—',
+      qty,
+      source: branchMap[String(s.branchId)] ?? '—',
+      imei: s.productSnapshot.imei,
+      purchase: s.productSnapshot.purchasePrice ?? prod?.purchasePrice ?? 0,
+      unit,
+      typeLabel: PAYMENT_TYPE_LABELS[s.paymentType as PaymentType],
+      note: prod?.notes || s.notes || '—',
+      date: fmtDate(s.createdAt!),
+      cancelled,
+      isDebt,
+    };
+  });
+
   const todayStart = new Date();
   todayStart.setHours(0, 0, 0, 0);
   const todaySales = await Sale.countDocuments({ ...scope, createdAt: { $gte: todayStart }, status: { $ne: 'cancelled' } });
@@ -97,52 +124,82 @@ export default async function SalesPage({
                 </tr>
               </thead>
               <tbody>
-                {sales.map((s, i) => {
-                  const prod = productMap[String(s.productId)];
-                  const source = branchMap[String(s.branchId)] ?? '—';
-                  const qty = s.productSnapshot.saleQuantity ?? 1;
-                  const unit = qty > 0 ? Math.round(s.totalAmount / qty) : s.totalAmount;
-                  const purchase = s.productSnapshot.purchasePrice ?? prod?.purchasePrice ?? 0;
-                  const cancelled = s.status === 'cancelled';
-                  return (
-                    <tr key={String(s._id)} className={cancelled ? 'row-cancelled' : ''}>
-                      <td data-label="№">{i + 1}</td>
-                      <td data-label="Status">
-                        <span className={`badge-status badge-status--${cancelled ? 'expired' : 'active'}`}>
-                          {cancelled ? 'Bekor' : 'Sotildi'}
-                        </span>
-                      </td>
-                      <td data-label="Manba"><span className="source-chip">{source}</span></td>
-                      <td data-label="Model">
-                        <div className="sold-cell-stack">
-                          <Link href={`/app/products/${s.productId}`} className="cell-link cell-main">
-                            {prod?.deviceModel || prod?.name || s.productSnapshot.name}
-                          </Link>
-                          {qty > 1 && <div className="cell-sub">Soni: {qty} ta</div>}
-                        </div>
-                      </td>
-                      <td data-label="Rang">{prod?.color || '—'}</td>
-                      <td data-label="IMEI"><code className="imei-code">{s.productSnapshot.imei}</code></td>
-                      <td data-label="Narx">
-                        <div className="sold-cell-stack">
-                          <div className="cell-sub">Olingan: {fmtMoney(purchase)}</div>
-                          <div className="cell-main">Sotilgan: {fmtMoney(unit)}</div>
-                        </div>
-                      </td>
-                      <td data-label="Yo&apos;nalish">{PAYMENT_TYPE_LABELS[s.paymentType as PaymentType]}</td>
-                      <td data-label="Izoh">{prod?.notes || s.notes || '—'}</td>
-                      <td data-label="Sana">{fmtDate(s.createdAt!)}</td>
-                      <td className="cell-actions">
-                        <div className="row-actions">
-                          <Link href={`/app/sales/${s._id}`} className="btn btn-ghost btn-sm">Batafsil</Link>
-                          {!cancelled && <SaleRowDelete saleId={String(s._id)} saleNo={s.saleNo} />}
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
+                {rows.map((r) => (
+                  <tr key={r.id} className={r.cancelled ? 'row-cancelled' : ''}>
+                    <td data-label="№">{r.no}</td>
+                    <td data-label="Status">
+                      <span className={`badge-status badge-status--${r.cancelled ? 'expired' : 'active'}`}>
+                        {r.cancelled ? 'Bekor' : 'Sotildi'}
+                      </span>
+                    </td>
+                    <td data-label="Manba"><span className="source-chip">{r.source}</span></td>
+                    <td data-label="Model">
+                      <div className="sold-cell-stack">
+                        <Link href={`/app/products/${r.productId}`} className="cell-link cell-main">{r.name}</Link>
+                        {r.qty > 1 && <div className="cell-sub">Soni: {r.qty} ta</div>}
+                      </div>
+                    </td>
+                    <td data-label="Rang">{r.color}</td>
+                    <td data-label="IMEI"><code className="imei-code">{r.imei}</code></td>
+                    <td data-label="Narx">
+                      <div className="sold-cell-stack">
+                        <div className="cell-sub">Olingan: {fmtMoney(r.purchase)}</div>
+                        <div className="cell-main">Sotilgan: {fmtMoney(r.unit)}</div>
+                      </div>
+                    </td>
+                    <td data-label="Yo&apos;nalish">{r.typeLabel}</td>
+                    <td data-label="Izoh">{r.note}</td>
+                    <td data-label="Sana">{r.date}</td>
+                    <td className="cell-actions">
+                      <div className="row-actions">
+                        <Link href={`/app/sales/${r.id}`} className="btn btn-ghost btn-sm">Batafsil</Link>
+                        {!r.cancelled && <SaleRowDelete saleId={r.id} saleNo={r.saleNo} />}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
               </tbody>
             </table>
+          </div>
+        )}
+
+        {/* Mobil — toza kartalar (jadval o'rniga) */}
+        {sales.length > 0 && (
+          <div className="sold-cards">
+            {rows.map((r) => (
+              <div key={r.id} className={`sold-card${r.cancelled ? ' sold-card--cancelled' : ''}`}>
+                <div className="sold-card-top">
+                  <span className="sold-card-no">#{r.no}</span>
+                  <span className={`badge-status badge-status--${r.cancelled ? 'expired' : 'active'}`}>
+                    {r.cancelled ? 'Bekor' : 'Sotildi'}
+                  </span>
+                  <span className="sold-card-date">{r.date}</span>
+                </div>
+                <Link href={`/app/products/${r.productId}`} className="sold-card-name">{r.name}</Link>
+                <div className="sold-card-meta">Soni: {r.qty} ta · Rang: {r.color}</div>
+                <div className="sold-card-grid">
+                  <div className="sold-card-field">
+                    <span className="sold-card-l">Manba</span>
+                    <span className="source-chip">{r.source}</span>
+                  </div>
+                  <div className="sold-card-field">
+                    <span className="sold-card-l">IMEI</span>
+                    <code className="imei-code">{r.imei}</code>
+                  </div>
+                </div>
+                <div className="sold-card-foot">
+                  <div className="sold-card-price">
+                    <span className="sold-card-l">Narx ({r.typeLabel})</span>
+                    <span className="sold-card-old">Olingan: {fmtMoney(r.purchase)}</span>
+                    <span className={`sold-card-new${r.isDebt ? ' sold-card-new--debt' : ''}`}>{fmtMoney(r.unit)} so&apos;m</span>
+                  </div>
+                  <div className="row-actions">
+                    <Link href={`/app/sales/${r.id}`} className="btn btn-ghost btn-sm">Batafsil</Link>
+                    {!r.cancelled && <SaleRowDelete saleId={r.id} saleNo={r.saleNo} />}
+                  </div>
+                </div>
+              </div>
+            ))}
           </div>
         )}
       </div>

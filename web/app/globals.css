@@ -1768,3 +1768,33 @@ img { max-width: 100%; display: block; }
   .quick-actions > .quick-action { flex-basis: 100%; }
   .dash-stat-n { font-size: 1.25rem; }
 }
+
+/* ── Sotildi — mobil toza kartalar (jadval o'rniga) ───────── */
+.sold-cards { display: none; }
+@media (max-width: 900px) {
+  .sold-table-wrap { display: none; }
+  .sold-cards { display: flex; flex-direction: column; gap: 12px; padding: 14px; }
+  .sold-card {
+    border: 1px solid var(--border); border-radius: 14px; background: var(--surface);
+    box-shadow: var(--shadow-sm); padding: 14px 16px; display: flex; flex-direction: column; gap: 8px;
+  }
+  .sold-card--cancelled { opacity: .6; }
+  .sold-card-top { display: flex; align-items: center; gap: 8px; }
+  .sold-card-no { font-weight: 800; color: var(--ink-3); font-size: .85rem; }
+  .sold-card-date { margin-left: auto; font-size: .8rem; color: var(--ink-3); }
+  .sold-card-name { font-size: 1.02rem; font-weight: 800; color: var(--brand); text-decoration: none; line-height: 1.25; }
+  .sold-card-meta { font-size: .82rem; color: var(--ink-3); margin-top: -2px; }
+  .sold-card-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding-top: 2px; }
+  .sold-card-field { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+  .sold-card-l { font-size: .64rem; text-transform: uppercase; letter-spacing: .05em; color: var(--ink-3); font-weight: 700; }
+  .sold-card-field .source-chip { align-self: flex-start; }
+  .sold-card-foot {
+    display: flex; align-items: flex-end; justify-content: space-between; gap: 10px;
+    border-top: 1px solid var(--border); padding-top: 10px; margin-top: 2px; flex-wrap: wrap;
+  }
+  .sold-card-price { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+  .sold-card-old { font-size: .8rem; color: var(--ink-3); text-decoration: line-through; }
+  .sold-card-new { font-size: 1.05rem; font-weight: 800; color: var(--ink-1); }
+  .sold-card-new--debt { color: #dc2626; }
+  .sold-card .row-actions { display: flex; gap: 8px; align-items: center; }
+}
