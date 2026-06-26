@@ -742,8 +742,8 @@ img { max-width: 100%; display: block; }
   .tenant-side { width: 100%; border-right: none; border-bottom: 1px solid var(--border); }
   .tenant-side-head { height: auto; min-height: 64px; padding: 12px 16px; flex-wrap: wrap; }
   .tenant-nav { padding: 12px 16px 8px; }
-  .tenant-top-center { position: static; transform: none; max-width: 100%; order: 1; width: 100%; text-align: center; margin-top: 8px; font-size: 1.1rem; }
-  .tenant-top { flex-wrap: wrap; justify-content: space-between; height: auto; padding: 12px 16px 16px; }
+  .tenant-top-center { position: absolute; left: 50%; transform: translateX(-50%); order: 0; width: auto; max-width: 46vw; margin: 0; text-align: center; font-size: 1.05rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .tenant-top { flex-wrap: nowrap; justify-content: space-between; align-items: center; height: auto; padding: 12px 16px; }
   .tenant-top-left { order: 0; width: auto; }
   .tenant-top-actions { order: 1; margin-left: auto; }
   .two-col { grid-template-columns: 1fr; }
