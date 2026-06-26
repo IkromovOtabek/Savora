@@ -1704,3 +1704,36 @@ img { max-width: 100%; display: block; }
 }
 
 @media (max-width: 640px) { .hero h1 { font-size: 2.4rem; } .hero { padding: 72px 0 84px; } }
+
+/* ── Mini App / kichik telefon ekrani sayqali ───────────────────
+   Telegram WebView va tor telefonlar uchun (gorizontal scrollsiz). */
+.tenant-body { overflow-x: hidden; }
+.tenant-main { min-width: 0; }
+.tenant-main img, .tenant-main video, .tenant-main canvas { max-width: 100%; height: auto; }
+/* uzun kod/IMEI/raqamlar konteynerdan toshmasin */
+.cell-main, .cell-sub, .imei-code { overflow-wrap: anywhere; word-break: break-word; }
+
+@media (max-width: 420px) {
+  .tenant-main { padding: 12px; }
+  .tenant-top { padding: 0 12px; }
+  .dash-hello, .dash-head--simple .dash-hello { font-size: 1.18rem; }
+  .dash-sub { font-size: .88rem; }
+  .dash-stat { padding: 14px 14px; }
+  .dash-stat-n { font-size: 1.35rem; }
+  .panel-head { padding: 13px 14px; }
+  .panel-head h2 { font-size: 1rem; }
+  .form-grid { padding: 16px; gap: 16px; }
+  /* dashboard tezkor amal kartalari — 2 ustun, teng */
+  .quick-actions { gap: 8px; }
+  .quick-actions > .quick-action { flex: 1 1 calc(50% - 4px); min-width: 0; }
+  /* modal'lar deyarli to'liq enlik */
+  .u-modal-overlay, .scan-overlay { padding: 8px; }
+  .u-modal, .scan-modal { max-width: 100%; }
+  /* tugmalar tor ekranda sig'sin */
+  .row-actions { flex-wrap: wrap; }
+}
+
+@media (max-width: 340px) {
+  .quick-actions > .quick-action { flex-basis: 100%; }
+  .dash-stat-n { font-size: 1.25rem; }
+}
