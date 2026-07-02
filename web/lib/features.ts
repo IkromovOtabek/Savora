@@ -139,6 +139,15 @@ export const TENANT_MODULES: Record<FeatureKey, FeatureModule> = {
     adminOnly: true,
     defaultByPlan: { ...ALL_PLANS },
   },
+  daftar: {
+    key: 'daftar',
+    label: 'Daftar',
+    description: 'Shaxsiy qarz daftari — qarz oldi-berdi, muddat eslatmasi (SMS + Telegram)',
+    route: '/app/daftar',
+    category: 'boshqaruv',
+    // Faqat Super Admin yoqsa ishlaydi — barcha tarifda default OFF
+    defaultByPlan: { free: false, starter: false, pro: false, business: false, custom: false },
+  },
 };
 
 const CATEGORY_LABELS: Record<FeatureModule['category'], string> = {

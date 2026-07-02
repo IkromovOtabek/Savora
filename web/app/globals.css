@@ -1843,3 +1843,29 @@ img { max-width: 100%; display: block; }
 .tg-login-foot b { color: #fff; font-weight: 700; }
 .tg-login-meta { display: flex; justify-content: center; gap: 16px; color: rgba(255,255,255,.55); font-size: .72rem; margin-top: 16px; flex-wrap: wrap; }
 .tg-login-err { background: rgba(220,38,38,.92); color: #fff; border-radius: 10px; padding: 10px 12px; font-size: .85rem; font-weight: 600; margin-bottom: 12px; text-align: center; }
+
+/* ── Daftar (qarz oldi-berdi) ─────────────────────────── */
+.daftar-type { display: flex; gap: 8px; }
+.daftar-type-btn {
+  flex: 1; padding: 11px; border-radius: 10px; border: 1.5px solid var(--border);
+  background: var(--bg-soft); color: var(--ink-2); font-weight: 700; font-size: .92rem; cursor: pointer; transition: .15s;
+}
+.daftar-type-btn--active { border-color: var(--brand); background: var(--brand-soft); color: var(--brand); }
+.daftar-list { display: flex; flex-direction: column; gap: 12px; padding: 14px; }
+.daftar-card {
+  border: 1px solid var(--border); border-radius: 14px; background: var(--surface);
+  box-shadow: var(--shadow-sm); padding: 14px 16px; display: flex; flex-direction: column; gap: 8px;
+}
+.daftar-card--done { opacity: .6; }
+.daftar-card-top { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.daftar-amount { margin-left: auto; font-weight: 800; font-size: 1.02rem; color: var(--ink-1); }
+.daftar-tag { font-size: .72rem; font-weight: 700; color: var(--ink-3); background: var(--bg-soft); border-radius: 999px; padding: 3px 10px; }
+.daftar-tag--over { color: #b91c1c; background: #fef2f2; }
+.daftar-tag--done { color: #047857; background: #ecfdf5; }
+.dark .daftar-tag--over { color: #fca5a5; background: rgba(220,38,38,.12); }
+.dark .daftar-tag--done { color: #6ee7b7; background: rgba(16,185,129,.12); }
+.daftar-person { font-weight: 700; font-size: .96rem; }
+.daftar-person a { color: var(--brand); text-decoration: none; }
+.daftar-meta { font-size: .82rem; color: var(--ink-3); }
+.daftar-card-foot { display: flex; gap: 8px; border-top: 1px solid var(--border); padding-top: 10px; }
+.daftar-del { color: #b91c1c; }

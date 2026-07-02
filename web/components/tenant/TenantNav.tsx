@@ -23,6 +23,7 @@ const NAV_ICONS: Record<string, IconName> = {
   '/app/branches': 'building',
   '/app/transferred': 'repeat',
   '/app/audit': 'clipboard',
+  '/app/daftar': 'history',
 };
 
 const LINKS: { href: string; label: string; feature?: FeatureKey; adminOnly?: boolean; branchOnly?: boolean; imeiOnly?: boolean; exact?: boolean }[] = [
@@ -39,6 +40,7 @@ const LINKS: { href: string; label: string; feature?: FeatureKey; adminOnly?: bo
   { href: '/app/users', label: 'Filiallar', feature: 'users', adminOnly: true },
   { href: '/app/audit', label: 'Amallar', feature: 'audit', adminOnly: true },
   { href: '/app/debts', label: 'Qarzdorlik', feature: 'sales' },
+  { href: '/app/daftar', label: 'Daftar', feature: 'daftar' },
   { href: '/app/profile', label: 'Kabinet' },
 ];
 
