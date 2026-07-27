@@ -37,8 +37,12 @@ export interface ISale {
   paidAmount: number;
   remainingAmount: number;
   installmentMonths?: number;
+  /** Nasiya boshlang'ich to'lovi (sotuv paytida) — oy jadvali shu asosda hisoblanadi */
+  downPayment?: number;
   dueDate?: Date;
   status: SaleStatus;
+  /** Nasiya muddat o'tgan eslatmasi oxirgi yuborilgan sana (kunlik dedup uchun) */
+  lastInstallmentNotifiedAt?: Date;
   payments: ISalePayment[];
   soldBy: string;
   notes?: string;
@@ -71,7 +75,9 @@ export const saleSchema = new Schema<ISale>(
     paidAmount: { type: Number, required: true, min: 0, default: 0 },
     remainingAmount: { type: Number, required: true, min: 0, default: 0 },
     installmentMonths: { type: Number, min: 1, max: 60 },
+    downPayment: { type: Number, min: 0 },
     dueDate: { type: Date },
+    lastInstallmentNotifiedAt: { type: Date },
     status: { type: String, enum: ['paid', 'partial', 'cancelled'], default: 'paid' },
     payments: [{
       amount: { type: Number, required: true, min: 0 },

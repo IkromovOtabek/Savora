@@ -7,6 +7,7 @@ import { parseBusinessType, BusinessType } from './businessTypes';
 import { getPlanPreset, parsePlanTier, PlanTier } from './plans';
 import { normalizeSlug, tenantDbName, validateSlug } from './slug';
 import { generateTempPassword } from './credentials';
+import { reserveUsername, isUsernameAvailable, UsernameTakenError } from './userDirectory';
 
 function generateReferralCode(slug: string): string {
   const base = slug.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 4).padEnd(4, 'X');
@@ -69,6 +70,12 @@ export async function createOrganization(input: CreateOrganizationInput): Promis
   }
   if (!adminPassword) adminPassword = generateTempPassword();
   if (adminPassword.length < 6) throw new Error('Parol kamida 6 ta belgidan iborat bo\'lishi kerak.');
+
+  // Global login band emasligini oldindan tekshiramiz (og'ir ish qilishdan oldin).
+  // Asosiy kafolat baribir quyidagi reserveUsername (unique indeks).
+  if (!(await isUsernameAvailable(adminUsername))) {
+    throw new Error('Bu login boshqa do\'konda band. Boshqa login tanlang.');
+  }
 
   const tier = parsePlanTier(input.planTier);
   const preset =
@@ -160,6 +167,21 @@ export async function createOrganization(input: CreateOrganizationInput): Promis
   } catch {
     await Organization.findByIdAndDelete(org._id);
     throw new Error('Admin yaratishda xatolik. Qayta urinib ko\'ring.');
+  }
+
+  // Global registrga yozamiz (slug'siz login uchun). Poyga tufayli band bo'lsa —
+  // do'kon va adminni bekor qilamiz, tozalab tashlaymiz.
+  try {
+    await reserveUsername({
+      username: adminUsername,
+      organizationId: String(org._id),
+      dbName,
+      role: 'admin',
+    });
+  } catch (err) {
+    await Organization.findByIdAndDelete(org._id);
+    if (err instanceof UsernameTakenError) throw err;
+    throw new Error('Login registriga yozishda xatolik. Qayta urinib ko\'ring.');
   }
 
   return { orgId: String(org._id), slug, adminUsername };

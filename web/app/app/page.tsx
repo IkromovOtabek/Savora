@@ -7,6 +7,8 @@ import Icon from '@/components/icons/Icon';
 import OnboardingChecklist from '@/components/tenant/OnboardingChecklist';
 import PlanLimitsBanner from '@/components/tenant/PlanLimitsBanner';
 import QuickSaleTrigger from '@/components/tenant/QuickSaleTrigger';
+import InstallmentAlert, { OverdueInstallment } from '@/components/tenant/InstallmentAlert';
+import { computeInstallmentPlan } from '@/lib/installment';
 
 export const metadata = { title: 'Boshqaruv — Savora' };
 
@@ -42,6 +44,26 @@ export default async function TenantDashboard({
   const todayRevenue = todayRevenueAgg[0]?.total ?? 0;
   const debtTotal = debtAgg[0]?.total ?? 0;
 
+  // Web xabarnoma — muddati o'tib to'lanmagan nasiya oylari
+  const overdueInstallments: OverdueInstallment[] = [];
+  if (features.variant || features.nasiya) {
+    const now = new Date();
+    const insts = await Sale.find({ ...scope, paymentType: 'installment', status: 'partial', remainingAmount: { $gt: 0 } }).limit(200).lean();
+    for (const s of insts) {
+      const plan = computeInstallmentPlan(s, now);
+      if (!plan || plan.overdueCount === 0) continue;
+      const overdue = plan.schedule.filter((m) => !m.paid && new Date(m.dueDate).getTime() <= now.getTime());
+      overdueInstallments.push({
+        saleId: String(s._id),
+        product: s.productSnapshot.name,
+        customer: s.customerSnapshot?.fullName ?? null,
+        months: overdue.length,
+        sum: overdue.reduce((a, m) => a + m.amount, 0),
+        dueDate: overdue[0].dueDate,
+      });
+    }
+  }
+
   return (
     <>
       <div className="dash-head dash-head--simple">
@@ -56,6 +78,8 @@ export default async function TenantDashboard({
           Do&apos;koningiz yaratildi! Siz admin sifatida tizimga kirdingiz — bepul tarifda ishlayapsiz.
         </div>
       )}
+
+      <InstallmentAlert items={overdueInstallments} />
 
       <OnboardingChecklist org={org} features={features} />
 

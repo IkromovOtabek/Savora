@@ -525,8 +525,10 @@ img { max-width: 100%; display: block; }
   .data-table td {
     border-bottom: 0 !important; padding: 7px 16px;
     display: flex; flex-direction: column; align-items: flex-start; gap: 2px;
-    text-align: left; min-height: 0; width: 100%;
+    text-align: left; min-height: 0; width: 100%; white-space: normal;
   }
+  /* Mobil karta ko'rinishida nom ustuni min-kenglik shart emas */
+  .data-table td:first-child { min-width: 0; }
   .data-table td::before {
     content: attr(data-label);
     font-size: .66rem; text-transform: uppercase; letter-spacing: .05em;
@@ -546,6 +548,10 @@ img { max-width: 100%; display: block; }
   .data-table--sold td { height: auto; padding: 7px 16px; font-size: .9rem; }
 }
 .data-table th, .data-table td { padding: 14px 20px; text-align: left; border-bottom: 1px solid var(--border); }
+/* Kataklar siqilib matn/raqamlar ustma-ust chiqmasin — bir qatorda turadi.
+   Sig'masa .table-wrap gorizontal scroll beradi. Nom ustuni (birinchi) o'raladi. */
+.data-table th, .data-table td { white-space: nowrap; vertical-align: middle; }
+.data-table td:first-child { white-space: normal; min-width: 160px; }
 .data-table th { font-size: .78rem; text-transform: uppercase; letter-spacing: .05em; color: var(--ink-3); font-weight: 700; background: var(--bg-soft); }
 .data-table tbody tr:hover { background: var(--bg-soft); }
 .cell-main { font-weight: 700; }
@@ -643,6 +649,123 @@ img { max-width: 100%; display: block; }
 .tenant-nav-link:focus { outline: none; background: transparent; }
 .tenant-nav-link:focus-visible { box-shadow: inset 0 0 0 2px rgba(79, 70, 229, .35); }
 .tenant-nav-link--active:focus { background: var(--brand-soft); }
+/* Ikonka+yozuv doim chapdan boshlansin — .btn-with-icon markazlashini bekor qiladi,
+   shunda badge'li (Qarzdorlik/Nasiya) va badge'siz qatorlar bir tekis turadi */
+.tenant-nav-link.btn-with-icon { justify-content: flex-start; }
+/* Qarzdorlik kabi bo'limlar oldidagi qizil son (badge) */
+.tenant-nav-badge {
+  margin-left: auto;
+  min-width: 18px; height: 18px; padding: 0 5px;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: #dc2626; color: #fff;
+  font-size: .68rem; font-weight: 700; line-height: 1; border-radius: 999px;
+}
+.tenant-tabbar-icon { position: relative; display: inline-flex; }
+.tenant-tabbar-dot {
+  position: absolute; top: -6px; right: -10px;
+  min-width: 16px; height: 16px; padding: 0 4px;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: #dc2626; color: #fff;
+  font-size: .6rem; font-weight: 700; line-height: 1; border-radius: 999px;
+}
+/* Nasiya (variant) ro'yxat filtr kartalari (Hammasi / Tugatilgan / Qarzdor) */
+.nf-tabs { display: flex; gap: 12px; flex-wrap: wrap; }
+.nf-tab {
+  display: flex; flex-direction: column; gap: 4px;
+  padding: 13px 18px; border: 1px solid var(--border); border-radius: 14px;
+  background: var(--surface); min-width: 168px; text-decoration: none;
+  transition: border-color .15s, box-shadow .15s;
+}
+.nf-tab:hover { border-color: var(--brand); }
+.nf-tab--active { border-color: var(--brand); box-shadow: 0 0 0 3px var(--brand-soft); }
+.nf-tab-title { font-size: 1rem; font-weight: 800; color: var(--ink-1); }
+.nf-tab-meta { font-size: .82rem; color: var(--ink-2); }
+.nf-tab-meta b { color: var(--ink-1); font-weight: 800; }
+.nf-green { color: #059669; }
+.nf-amber { color: #d97706; }
+
+/* Nasiya (variant) oylik to'lov kartalari — sotuv detali sahifasi */
+.installment-months {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 12px; padding: 0 20px 20px;
+}
+.installment-month {
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-sm);
+  padding: 12px 14px; display: flex; flex-direction: column; gap: 8px; align-items: flex-start;
+}
+/* Oy holati bo'yicha ramka rangi */
+.installment-month--paid { border-color: rgba(5, 150, 105, .35); background: rgba(5, 150, 105, .05); }
+.installment-month--overdue { border-color: rgba(220, 38, 38, .4); background: rgba(220, 38, 38, .05); }
+.installment-month--upcoming { border-color: rgba(217, 119, 6, .35); background: rgba(217, 119, 6, .04); }
+.installment-month--partial { border-color: rgba(37, 99, 235, .4); background: rgba(37, 99, 235, .05); }
+.installment-month-l {
+  font-size: .72rem; font-weight: 700; letter-spacing: .04em;
+  text-transform: uppercase; color: var(--ink-3);
+}
+.installment-month-v { font-size: .95rem; font-weight: 800; color: var(--ink-1); }
+.installment-month-due { font-size: .72rem; color: var(--ink-3); }
+.installment-badge {
+  font-size: .68rem; font-weight: 700; padding: 3px 9px;
+  border-radius: 999px; background: var(--bg-soft); color: var(--ink-2);
+}
+/* Oy holati yorliqlari: to'landi (yashil) / muddat kelmagan (sariq) / to'lanmagan (qizil) */
+.inst-state--paid { background: rgba(5, 150, 105, .14); color: #059669; }
+.inst-state--upcoming { background: rgba(217, 119, 6, .14); color: #b45309; }
+.inst-state--overdue { background: rgba(220, 38, 38, .12); color: #dc2626; }
+.inst-state--partial { background: rgba(37, 99, 235, .12); color: #2563eb; }
+
+/* Web xabarnoma — muddati o'tgan nasiya to'lovlari (dashboard) */
+.inst-alert {
+  background: rgba(220, 38, 38, .05); border: 1px solid rgba(220, 38, 38, .25);
+  border-radius: var(--r); padding: 16px 18px; margin-bottom: 20px;
+}
+.inst-alert-head { display: flex; align-items: center; gap: 8px; color: #dc2626; margin-bottom: 10px; }
+.inst-alert-head strong { font-size: .95rem; }
+.inst-alert-list { display: flex; flex-direction: column; gap: 6px; }
+.inst-alert-row {
+  display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+  padding: 8px 12px; border-radius: var(--r-sm); background: var(--surface);
+  border: 1px solid var(--border); text-decoration: none;
+}
+.inst-alert-row:hover { border-color: rgba(220, 38, 38, .35); }
+.inst-alert-name { font-weight: 700; color: var(--ink-1); }
+.inst-alert-meta { color: #dc2626; font-weight: 600; font-size: .88rem; }
+.inst-alert-more { display: inline-block; margin-top: 10px; color: var(--brand); font-weight: 600; font-size: .88rem; }
+/* Bosiladigan oy kataki (nasiya to'lovi) */
+.installment-month--clickable {
+  cursor: pointer; width: 100%; font: inherit; text-align: left;
+  transition: border-color .15s, box-shadow .15s, transform .08s;
+}
+.installment-month--clickable:hover { border-color: var(--brand); box-shadow: var(--shadow-sm); }
+.installment-month--clickable:active { transform: translateY(1px); }
+.installment-month--clickable:focus-visible { outline: none; border-color: var(--brand); box-shadow: 0 0 0 3px rgba(79, 70, 229, .18); }
+
+/* Oy to'lovi modali */
+.inst-modal { padding: 0; max-width: 420px; overflow: hidden; }
+.inst-modal-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 20px 22px; border-bottom: 1px solid var(--border);
+}
+.inst-modal-head h3 { font-size: 1.2rem; font-weight: 850; letter-spacing: -.01em; }
+.inst-modal-close {
+  background: var(--bg-soft); border: none; cursor: pointer; color: var(--ink-2);
+  width: 34px; height: 34px; border-radius: var(--r-sm); font-size: 1rem; line-height: 1;
+}
+.inst-modal-close:hover { color: var(--ink-1); background: var(--border); }
+.inst-modal-rows { padding: 6px 22px; }
+.inst-modal-row {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 16px 2px; border-bottom: 1px solid var(--border);
+}
+.inst-modal-row span { color: var(--ink-2); font-size: 1rem; }
+.inst-modal-row strong { font-size: 1.15rem; font-weight: 850; color: var(--ink-1); }
+.inst-modal-actions { display: flex; flex-direction: column; gap: 10px; padding: 16px 22px 22px; }
+.inst-modal-actions form { width: 100%; }
+.inst-btn-full { width: 100%; justify-content: center; }
+.inst-modal-partial { padding: 14px 22px 22px; display: flex; flex-direction: column; gap: 8px; }
+.inst-modal-partial label { font-size: .85rem; font-weight: 700; color: var(--ink-2); }
+.inst-partial-actions { display: flex; gap: 10px; margin-top: 6px; }
+.inst-partial-actions .btn { flex: 1; justify-content: center; }
 
 .tenant-body { flex: 1; display: flex; flex-direction: column; min-width: 0; background: var(--bg-soft); }
 .tenant-top {

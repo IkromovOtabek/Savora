@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { toast } from '@/lib/toast';
+import Icon from '@/components/icons/Icon';
 
 interface Props {
   phone?: string;
@@ -64,8 +65,8 @@ export default function DebtReminderButton({ phone, text }: Props) {
 
   return (
     <div className="dr-wrap">
-      <button ref={btnRef} type="button" className="btn btn-ghost btn-sm" onClick={toggle}>
-        🔔 Eslatma
+      <button ref={btnRef} type="button" className="btn btn-ghost btn-sm btn-with-icon" onClick={toggle}>
+        <Icon name="bell" size={14} /> Eslatma
       </button>
       {open && pos && (
         <div className="dr-menu" ref={menuRef} style={{ position: 'fixed', top: pos.top, left: pos.left }}>

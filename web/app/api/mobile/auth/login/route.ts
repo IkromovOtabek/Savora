@@ -5,6 +5,7 @@ import { isOrganizationActive } from '@/lib/models/master/Organization';
 import { createMobileToken } from '@/lib/mobileAuth';
 import { hitRateLimit } from '@/lib/rateLimit';
 import { normalizeSlug } from '@/lib/slug';
+import { lookupUser } from '@/lib/userDirectory';
 
 export async function POST(req: Request) {
   let body: { slug?: string; username?: string; password?: string };
@@ -17,19 +18,26 @@ export async function POST(req: Request) {
   const slug = normalizeSlug(String(body.slug || ''));
   const username = String(body.username || '').trim().toLowerCase();
   const password = String(body.password || '');
-  if (!slug || !username || !password) {
-    return NextResponse.json({ error: 'Do\'kon manzili, login va parol shart.' }, { status: 400 });
+  if (!username || !password) {
+    return NextResponse.json({ error: 'Login va parol shart.' }, { status: 400 });
   }
 
   // Brute-force himoyasi
-  const rl = hitRateLimit(`mobile:${slug}:${username}`);
+  const rl = hitRateLimit(`mobile:${slug || '-'}:${username}`);
   if (!rl.ok) {
     return NextResponse.json({ error: 'Juda ko\'p urinish. Birozdan so\'ng urinib ko\'ring.' }, { status: 429 });
   }
 
+  // Slug'siz kirish — username global registrdan do'konni topadi; slug berilsa undan
   const { Organization } = await getMasterModels();
-  const org = await Organization.findOne({ slug }).lean();
-  if (!org) return NextResponse.json({ error: 'Do\'kon topilmadi.' }, { status: 404 });
+  const org = slug
+    ? await Organization.findOne({ slug }).lean()
+    : await (async () => {
+        const dir = await lookupUser(username);
+        return dir ? Organization.findById(dir.organizationId).lean() : null;
+      })();
+  // Do'kon topilmasa ham login/parol xatosi — mavjudlikni oshkor qilmaymiz
+  if (!org) return NextResponse.json({ error: 'Login yoki parol noto\'g\'ri.' }, { status: 401 });
   if (org.status === 'suspended') {
     return NextResponse.json({ error: 'Do\'kon to\'xtatilgan.' }, { status: 403 });
   }

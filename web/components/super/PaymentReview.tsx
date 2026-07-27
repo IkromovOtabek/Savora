@@ -44,7 +44,8 @@ const STATUS_LABEL: Record<string, string> = {
 };
 
 function fmtSum(n: number) {
-  return new Intl.NumberFormat('uz-UZ').format(n) + ' so\'m';
+  // Deterministik (server=client) — hydration mosligini buzmaslik uchun Intl ishlatilmaydi
+  return Math.round(n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, String.fromCharCode(0xA0)) + ' so\'m';
 }
 function fmtDate(d: string) {
   return new Date(d).toLocaleDateString('uz-UZ', { day: '2-digit', month: '2-digit', year: 'numeric' });
@@ -165,8 +166,8 @@ export default function PaymentReview({ requests, account }: { requests: ReqRow[
                     </div>
                   )}
                   <div className="pay-actions">
-                    <button className="btn btn-primary btn-sm" disabled={busy === r.id} onClick={() => approve(r.id)}>
-                      ✓ Tasdiqlash
+                    <button className="btn btn-primary btn-sm btn-with-icon" disabled={busy === r.id} onClick={() => approve(r.id)}>
+                      <Icon name="check" size={14} /> Tasdiqlash
                     </button>
                     <button className="btn btn-ghost btn-sm" disabled={busy === r.id} onClick={() => reject(r.id)}>
                       Rad etish

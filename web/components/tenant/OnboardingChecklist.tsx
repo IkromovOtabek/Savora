@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { IOrganization, isOnboardingComplete, onboardingProgress } from '@/lib/models/master/Organization';
+import Icon from '@/components/icons/Icon';
 
 interface Props {
   org: Pick<IOrganization, 'onboarding' | 'plan'>;
@@ -47,7 +48,7 @@ export default function OnboardingChecklist({ org, features }: Props) {
       <div className="onboarding-steps">
         {steps.map((s, i) => (
           <div key={i} className={`onboarding-step${s.done ? ' onboarding-step--done' : ''}`}>
-            <div className="onboarding-check">{s.done ? '✓' : i + 1}</div>
+            <div className="onboarding-check">{s.done ? <Icon name="check" size={14} /> : i + 1}</div>
             <div className="onboarding-step-body">
               <div className="onboarding-step-label">{s.label}</div>
               <div className="onboarding-step-hint">{s.hint}</div>

@@ -49,7 +49,12 @@ export default async function ProductsPage({
     ];
   }
   if (sp.branch) filter.branchId = sp.branch;
-  if (sp.status && sp.status in PRODUCT_STATUS_LABELS) filter.status = sp.status;
+  // Ombor faqat QOLDIQ mahsulotlarni ko'rsatadi — sotilganlar bu yerda emas, "Sotildi" sahifasida.
+  if (sp.status && sp.status !== 'sold' && sp.status in PRODUCT_STATUS_LABELS) {
+    filter.status = sp.status;
+  } else {
+    filter.status = { $ne: 'sold' };
+  }
   // Filial login — faqat o'z filiali mahsulotlari (admin tanlovini ham bekor qiladi)
   Object.assign(filter, branchFilter(user));
 
@@ -66,7 +71,7 @@ export default async function ProductsPage({
   // Yumshoq mahsulot chegarasi — faqat admin uchun (org bo'yicha umumiy son)
   const isAdmin = user.role === 'admin';
   const maxProducts = resolveOrgPlan(org).maxProducts ?? 0;
-  const orgProductCount = isAdmin ? await Product.countDocuments({}) : 0;
+  const orgProductCount = isAdmin ? await Product.countDocuments({ status: { $ne: 'sold' } }) : 0;
 
   function pageUrl(p: number) {
     const params = new URLSearchParams();

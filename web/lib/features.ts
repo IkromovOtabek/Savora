@@ -148,6 +148,14 @@ export const TENANT_MODULES: Record<FeatureKey, FeatureModule> = {
     // Faqat Super Admin yoqsa ishlaydi — barcha tarifda default OFF
     defaultByPlan: { free: false, starter: false, pro: false, business: false, custom: false },
   },
+  nasiya: {
+    key: 'nasiya',
+    label: 'Nasiya',
+    description: 'Bo\'lib to\'lash sotuvlari — summa, oy soni, mijoz va izoh',
+    route: '/app/nasiya',
+    category: 'savdo',
+    defaultByPlan: { free: false, starter: false, pro: true, business: true, custom: true },
+  },
 };
 
 const CATEGORY_LABELS: Record<FeatureModule['category'], string> = {

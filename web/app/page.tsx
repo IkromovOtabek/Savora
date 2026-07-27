@@ -250,8 +250,8 @@ export default async function LandingPage() {
             {COMPARE.map((c) => (
               <div key={c.f} className="compare-row">
                 <div className="compare-feat">{c.f}</div>
-                <div className="compare-col compare-old"><span className="compare-x">✕</span></div>
-                <div className="compare-col compare-new"><span className="compare-ck">✓</span></div>
+                <div className="compare-col compare-old"><span className="compare-x"><Icon name="close" size={16} /></span></div>
+                <div className="compare-col compare-new"><span className="compare-ck"><Icon name="check" size={16} /></span></div>
               </div>
             ))}
           </div>

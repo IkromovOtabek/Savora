@@ -54,9 +54,12 @@ export default function ProductSearch({ branches, initial }: Props) {
           <label htmlFor="status">Holat</label>
           <select id="status" name="status" defaultValue={initial.status}>
             <option value="">Barchasi</option>
-            {(Object.keys(PRODUCT_STATUS_LABELS) as ProductStatus[]).map((s) => (
-              <option key={s} value={s}>{PRODUCT_STATUS_LABELS[s]}</option>
-            ))}
+            {/* "Sotilgan" — Ombor faqat qoldiqni ko'rsatgani uchun ro'yxatda yo'q */}
+            {(Object.keys(PRODUCT_STATUS_LABELS) as ProductStatus[])
+              .filter((s) => s !== 'sold')
+              .map((s) => (
+                <option key={s} value={s}>{PRODUCT_STATUS_LABELS[s]}</option>
+              ))}
           </select>
         </div>
         <div className="search-bar-actions" style={{ display: 'flex', gap: 8 }}>

@@ -10,12 +10,26 @@
     "splash": {
       "backgroundColor": "#4F46E5"
     },
-    "ios": { "supportsTablet": true, "bundleIdentifier": "uz.savora.app" },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "uz.savora.app"
+    },
     "android": {
       "package": "uz.savora.app",
-      "adaptiveIcon": { "backgroundColor": "#4F46E5" }
+      "adaptiveIcon": {
+        "backgroundColor": "#4F46E5"
+      }
     },
-    "plugins": ["expo-router", "expo-secure-store"],
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      "expo-asset",
+      "expo-font",
+      [
+        "expo-camera",
+        { "cameraPermission": "Shtrix kodni skaner qilish uchun kameradan foydalaniladi." }
+      ]
+    ],
     "extra": {
       "apiUrl": "https://savora.uz"
     }

@@ -1,3 +1,5 @@
+'use client';
+
 /** Kamera orqali shtrix/QR o'qish — BarcodeDetector yoki ZXing fallback */
 
 export type ScanStop = () => void;

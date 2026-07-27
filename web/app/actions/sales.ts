@@ -274,8 +274,8 @@ export async function createSaleAction(_prev: State, formData: FormData): Promis
   let paidAmount = paymentType === 'cash' ? totalAmount : (paidAmountRaw ?? 0);
   if (paidAmount > totalAmount) return { error: 'To\'langan summa jami summadan oshmasligi kerak.' };
 
-  if (paymentType === 'installment' && !features.variant) {
-    return { error: 'Variant (nasiya) moduli yoqilmagan.' };
+  if (paymentType === 'installment' && !features.variant && !features.nasiya) {
+    return { error: 'Nasiya (bo\'lib to\'lash) moduli yoqilmagan.' };
   }
   if (paymentType === 'bank_credit' && !features.creditKassa) {
     return { error: 'Kredit kassa moduli yoqilmagan.' };
@@ -345,6 +345,8 @@ export async function createSaleAction(_prev: State, formData: FormData): Promis
       paidAmount,
       remainingAmount,
       installmentMonths,
+      // Nasiya boshlang'ich to'lovi = sotuv paytidagi paidAmount (oy jadvali shu asosda)
+      downPayment: paymentType === 'installment' ? paidAmount : undefined,
       dueDate,
       status,
       payments,

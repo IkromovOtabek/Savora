@@ -4,6 +4,7 @@ import { branchFilter } from '@/lib/branchScope';
 import { fmtDate, fmtMoney } from '@/lib/format';
 import { computeDebtInfo, DEBT_STATE_META, buildReminderText, DebtState } from '@/lib/debts';
 import DebtReminderButton from '@/components/tenant/DebtReminderButton';
+import Icon from '@/components/icons/Icon';
 
 export const metadata = { title: 'Qarzdorlik — Savora' };
 
@@ -82,7 +83,8 @@ export default async function DebtsPage({
       <div className="panel" style={{ marginTop: 20 }}>
         {filtered.length === 0 ? (
           <div className="panel-empty">
-            <p>Qarzdor topilmadi. 🎉</p>
+            <Icon name="check" size={32} />
+            <p>Qarzdor topilmadi.</p>
           </div>
         ) : (
           <div className="table-wrap">

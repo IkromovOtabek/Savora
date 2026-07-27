@@ -30,7 +30,8 @@ const STATUS: Record<string, { label: string; cls: string }> = {
 };
 
 function fmtSum(n: number) {
-  return new Intl.NumberFormat('uz-UZ').format(n) + ' so\'m';
+  // Deterministik (server=client) — hydration mosligini buzmaslik uchun Intl ishlatilmaydi
+  return Math.round(n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, String.fromCharCode(0xA0)) + ' so\'m';
 }
 
 export default function PaymentSubmit({ account, monthlyPrice, requests }: Props) {

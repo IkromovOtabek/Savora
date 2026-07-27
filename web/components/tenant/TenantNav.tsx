@@ -24,6 +24,7 @@ const NAV_ICONS: Record<string, IconName> = {
   '/app/transferred': 'repeat',
   '/app/audit': 'clipboard',
   '/app/daftar': 'history',
+  '/app/nasiya': 'clock',
 };
 
 const LINKS: { href: string; label: string; feature?: FeatureKey; adminOnly?: boolean; branchOnly?: boolean; imeiOnly?: boolean; exact?: boolean }[] = [
@@ -40,6 +41,7 @@ const LINKS: { href: string; label: string; feature?: FeatureKey; adminOnly?: bo
   { href: '/app/users', label: 'Filiallar', feature: 'users', adminOnly: true },
   { href: '/app/audit', label: 'Amallar', feature: 'audit', adminOnly: true },
   { href: '/app/debts', label: 'Qarzdorlik', feature: 'sales' },
+  { href: '/app/nasiya', label: 'Nasiya', feature: 'nasiya' },
   { href: '/app/daftar', label: 'Daftar', feature: 'daftar' },
   { href: '/app/profile', label: 'Kabinet' },
 ];
@@ -55,10 +57,12 @@ const TAB_LABELS: Record<string, string> = {
 function NavLinks({
   visible,
   pathname,
+  badges,
   onClose,
 }: {
   visible: typeof LINKS;
   pathname: string;
+  badges?: Record<string, number>;
   onClose?: () => void;
 }) {
   return (
@@ -68,6 +72,7 @@ function NavLinks({
           ? pathname === link.href
           : pathname === link.href || pathname.startsWith(`${link.href}/`);
         const icon = NAV_ICONS[link.href] ?? 'home';
+        const count = badges?.[link.href] ?? 0;
         return (
           <Link
             key={link.href}
@@ -77,6 +82,7 @@ function NavLinks({
           >
             <Icon name={icon} size={16} />
             {link.label}
+            {count > 0 && <span className="tenant-nav-badge" aria-label={`${count} ta`}>{count > 99 ? '99+' : count}</span>}
           </Link>
         );
       })}
@@ -88,11 +94,14 @@ export default function TenantNav({
   isAdmin,
   features,
   showImei,
+  badges,
   variant = 'sidebar',
 }: {
   isAdmin: boolean;
   features: OrgFeatures;
   showImei: boolean;
+  /** Havola oldida ko'rsatiladigan qizil son (masalan Qarzdorlik soni). href -> son */
+  badges?: Record<string, number>;
   /** 'sidebar' — desktop ro'yxat; 'mobile' — header burger + drawer; 'tabbar' — pastki tab panel */
   variant?: 'sidebar' | 'mobile' | 'tabbar';
 }) {
@@ -121,7 +130,7 @@ export default function TenantNav({
   if (variant === 'sidebar') {
     return (
       <div className="tenant-nav-desktop">
-        <NavLinks visible={visible} pathname={pathname} />
+        <NavLinks visible={visible} pathname={pathname} badges={badges} />
       </div>
     );
   }
@@ -140,13 +149,17 @@ export default function TenantNav({
           const active = link.exact
             ? pathname === link.href
             : pathname === link.href || pathname.startsWith(`${link.href}/`);
+          const count = badges?.[link.href] ?? 0;
           return (
             <Link
               key={link.href}
               href={link.href}
               className={`tenant-tabbar-link${active ? ' tenant-tabbar-link--active' : ''}`}
             >
-              <Icon name={NAV_ICONS[link.href] ?? 'home'} size={21} />
+              <span className="tenant-tabbar-icon">
+                <Icon name={NAV_ICONS[link.href] ?? 'home'} size={21} />
+                {count > 0 && <span className="tenant-tabbar-dot" aria-label={`${count} ta`}>{count > 99 ? '99+' : count}</span>}
+              </span>
               <span>{TAB_LABELS[link.href] ?? link.label}</span>
             </Link>
           );
@@ -176,7 +189,7 @@ export default function TenantNav({
                 <Icon name="close" size={20} />
               </button>
             </div>
-            <NavLinks visible={visible} pathname={pathname} onClose={() => setOpen(false)} />
+            <NavLinks visible={visible} pathname={pathname} badges={badges} onClose={() => setOpen(false)} />
           </div>
         </>
       )}

@@ -8,6 +8,7 @@ const nextConfig = {
   reactStrictMode: true,
   serverExternalPackages: ['mongoose', 'bcryptjs'],
   outputFileTracingRoot: path.join(__dirname),
+  transpilePackages: ['@zxing/browser', '@zxing/library'],
 };
 
 export default nextConfig;

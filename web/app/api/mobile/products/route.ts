@@ -15,7 +15,8 @@ export async function GET(req: Request) {
   const page = Math.max(1, parseInt(url.searchParams.get('page') || '1', 10) || 1);
   const limit = 30;
 
-  const filter: Record<string, unknown> = { ...branchFilter(user) };
+  // Ombor faqat qoldiq — sotilganlar bu yerda emas ("Sotildi" da)
+  const filter: Record<string, unknown> = { ...branchFilter(user), status: { $ne: 'sold' } };
   if (q) {
     const qn = q.replace(/\s/g, '');
     filter.$or = [
@@ -46,4 +47,47 @@ export async function GET(req: Request) {
       available: p.trackQuantity ? Math.max(0, (p.quantity ?? 0) - (p.soldQuantity ?? 0)) : (p.status === 'in_stock' ? 1 : 0),
     })),
   });
+}
+
+/** Yangi mahsulot qo'shish (mobil). Filial-login o'z filialiga, admin asosiy omborga. */
+export async function POST(req: Request) {
+  const user = await verifyMobileToken(req);
+  if (!user || !user.dbName) {
+    return NextResponse.json({ error: 'Avtorizatsiya kerak.' }, { status: 401 });
+  }
+  let body: { name?: string; code?: string; barcode?: string; brand?: string; purchasePrice?: number; salePrice?: number; notes?: string };
+  try { body = await req.json(); } catch { return NextResponse.json({ error: 'Noto\'g\'ri so\'rov.' }, { status: 400 }); }
+
+  const name = String(body.name || '').trim();
+  const salePrice = Number(body.salePrice) || 0;
+  const purchasePrice = Number(body.purchasePrice) || 0;
+  const code = String(body.code || '').trim().toUpperCase().replace(/\s/g, '');
+  const barcode = String(body.barcode || '').trim();
+  if (!name) return NextResponse.json({ error: 'Nom kiritilishi shart.' }, { status: 400 });
+  if (salePrice <= 0) return NextResponse.json({ error: 'Sotuv narxi noto\'g\'ri.' }, { status: 400 });
+
+  const { Product, Branch } = await getTenantModels(user.dbName);
+
+  let branchId = user.branchId;
+  if (!branchId) {
+    const main = (await Branch.findOne({ isMain: true }).lean()) ?? (await Branch.findOne({}).lean());
+    if (!main) return NextResponse.json({ error: 'Avval filial oching.' }, { status: 400 });
+    branchId = String(main._id);
+  }
+
+  // Kod/IMEI berilmasa avtomatik yaratamiz (unique bo'lishi shart)
+  const imei = code || `SVR-${Date.now().toString(36).toUpperCase()}`;
+  const dup = await Product.findOne({ imei }).lean();
+  if (dup) return NextResponse.json({ error: 'Bu kod/IMEI allaqachon mavjud.' }, { status: 409 });
+
+  const p = await Product.create({
+    name, imei, barcode: barcode || undefined,
+    brand: String(body.brand || '').trim() || undefined,
+    purchasePrice, salePrice, branchId, status: 'in_stock',
+    notes: String(body.notes || '').trim() || undefined,
+    createdBy: user.username,
+    history: [{ action: 'created', detail: 'Mobil ilova orqali qo\'shildi', by: user.username, at: new Date() }],
+  });
+
+  return NextResponse.json({ id: String(p._id), name: p.name }, { status: 201 });
 }

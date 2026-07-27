@@ -10,6 +10,7 @@ import { rootUrl } from '@/lib/urls';
 import { generateTempPassword } from '@/lib/credentials';
 import { sendTelegramTo, sendTelegram } from '@/lib/telegram';
 import { hitRateLimit, clearRateLimit } from '@/lib/rateLimit';
+import { lookupUser, reserveUsername } from '@/lib/userDirectory';
 
 type State = { error?: string } | null;
 type ResetState = { error?: string; success?: string } | null;
@@ -64,11 +65,20 @@ export async function loginAction(_prev: State, formData: FormData): Promise<Sta
       await session.save();
       await setRouteCookies('super');
       redirect('/super');
-    } else if (zone === 'tenant') {
-      const org = tenantSlug
-        ? await resolveTenantOrg(tenantSlug)
-        : await resolveTenant();
-      if (!org) return { error: "Do'kon topilmadi." };
+    } else {
+      // Do'kon foydalanuvchisi — slug'siz kirish: username orqali qaysi do'kon ekanini topamiz.
+      // Tartib: 1) global registr (asosiy yo'l), 2) slug (subdomen/legacy zaxira), 3) header zonasi.
+      const { Organization } = await getMasterModels();
+      const dir = await lookupUser(username);
+      const org = dir
+        ? await Organization.findById(dir.organizationId).lean()
+        : tenantSlug
+          ? await resolveTenantOrg(tenantSlug)
+          : headerZone === 'tenant'
+            ? await resolveTenant()
+            : null;
+      // Do'kon topilmasa ham "login yoki parol noto'g'ri" — mavjudlikni oshkor qilmaymiz.
+      if (!org) return { error: "Login yoki parol noto'g'ri." };
       // Suspended — qattiq blok. Muddati tugagan — kiradi, lekin to'lov sahifasiga tushadi.
       if (org.status === 'suspended') return { error: "Do'kon to'xtatilgan. Platforma egasiga murojaat qiling." };
 
@@ -78,6 +88,21 @@ export async function loginAction(_prev: State, formData: FormData): Promise<Sta
         return { error: "Login yoki parol noto'g'ri." };
       }
       clearRateLimit(rlKey);
+      // Self-heal: registrda bo'lmagan (migratsiyadan oldingi) login birinchi muvaffaqiyatli
+      // kirishda avtomatik qo'shiladi. Boshqa do'konda band bo'lsa — e'tiborsiz.
+      if (!dir) {
+        try {
+          await reserveUsername({
+            username: user.username,
+            organizationId: String(org._id),
+            dbName: org.dbName,
+            role: user.role,
+            branchId: user.branchId ? String(user.branchId) : undefined,
+          });
+        } catch {
+          /* takror username — registr o'zgarmaydi, sessiya baribir ochiladi */
+        }
+      }
       const session = await getSession('tenant');
       session.user = {
         id: String(user._id),
@@ -92,8 +117,6 @@ export async function loginAction(_prev: State, formData: FormData): Promise<Sta
       await setRouteCookies('tenant', org.slug);
       if (user.mustChangePassword) redirect('/app/profile?setup=1');
       redirect('/app');
-    } else {
-      return { error: "Kirish: /super/login (Super Admin) yoki /t/dokon-slug/login (do'kon)." };
     }
   } catch (err: unknown) {
     if (err && typeof err === 'object' && 'digest' in err) throw err;
@@ -122,8 +145,15 @@ export async function requestPasswordResetAction(_prev: ResetState, formData: Fo
   if (!username) return { error: 'Login kiritilishi shart.' };
 
   try {
-    const org = tenantSlug ? await resolveTenantOrg(tenantSlug) : await resolveTenant();
-    if (!org) return { error: 'Do\'kon topilmadi.' };
+    // Slug'siz: username orqali do'konni topamiz (registr), so'ng slug/header zaxira.
+    const dir = await lookupUser(username);
+    const { Organization } = await getMasterModels();
+    const org = dir
+      ? await Organization.findById(dir.organizationId).lean()
+      : tenantSlug
+        ? await resolveTenantOrg(tenantSlug)
+        : await resolveTenant();
+    if (!org) return { success: generic };
 
     const { User } = await getTenantModels(org.dbName);
     const user = await User.findOne({ username, active: true }).exec();

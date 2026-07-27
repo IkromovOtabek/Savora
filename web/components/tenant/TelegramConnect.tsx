@@ -28,8 +28,9 @@ export default function TelegramConnect({ orgId, connected }: Props) {
       </div>
       <div className="detail-body" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
         {connected ? (
-          <div className="auth-alert auth-alert--info" style={{ margin: 0 }}>
-            ✅ Telegram ulangan. Obuna eslatmalari va parolni tiklash kodlari shu yerga keladi.
+          <div className="auth-alert auth-alert--info" style={{ margin: 0, display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+            <Icon name="check" size={16} />
+            <span>Telegram ulangan. Obuna eslatmalari va parolni tiklash kodlari shu yerga keladi.</span>
           </div>
         ) : (
           <p className="dash-sub" style={{ margin: 0 }}>

@@ -1,5 +1,5 @@
 /* Savora PWA service worker — sodda, xavfsiz offline qatlam. */
-const CACHE = 'savora-v1';
+const CACHE = 'savora-v2';
 const OFFLINE_URL = '/offline.html';
 const PRECACHE = [OFFLINE_URL, '/icon-512.svg', '/manifest.webmanifest'];
 
@@ -32,8 +32,14 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Statik fayllar (_next/static, rasm, shrift) — cache-first
-  if (url.pathname.startsWith('/_next/static') || /\.(?:js|css|woff2?|png|jpg|jpeg|svg|webp|ico)$/.test(url.pathname)) {
+  // Next.js build chunklari — faqat tarmoq (kesh deploy'dan keyin webpack xatosiga olib keladi)
+  if (url.pathname.startsWith('/_next/')) {
+    event.respondWith(fetch(req));
+    return;
+  }
+
+  // Rasm, shrift, ikonka — cache-first (hashsiz, kam o'zgaradi)
+  if (/\.(?:woff2?|png|jpg|jpeg|svg|webp|ico)$/.test(url.pathname)) {
     event.respondWith(
       caches.match(req).then((cached) => {
         if (cached) return cached;

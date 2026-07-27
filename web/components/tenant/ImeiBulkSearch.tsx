@@ -4,6 +4,7 @@ import { useState, useTransition } from 'react';
 import Link from 'next/link';
 import { bulkImeiLookup } from '@/app/actions/transfer';
 import { checkImeiBlacklistAction } from '@/app/actions/imeiBlacklist';
+import Icon from '@/components/icons/Icon';
 import type { BlacklistHit } from '@/lib/imeiBlacklist';
 import { PRODUCT_STATUS_LABELS, ProductStatus } from '@/lib/models/tenant/Product';
 import { fmtMoney } from '@/lib/format';
@@ -43,7 +44,7 @@ export default function ImeiBulkSearch() {
 
       {blacklist.length > 0 && (
         <div className="panel imei-blacklist-alert" style={{ marginTop: 20 }}>
-          <div className="panel-head"><h2>⚠️ Qora ro&apos;yxat ogohlantirishi ({blacklist.length})</h2></div>
+          <div className="panel-head"><h2 style={{ display: 'flex', alignItems: 'center', gap: 8 }}><Icon name="alert" size={18} /> Qora ro&apos;yxat ogohlantirishi ({blacklist.length})</h2></div>
           <div className="table-wrap">
             <table className="data-table">
               <thead><tr><th>IMEI</th><th>Sabab</th><th>Do&apos;kon</th><th>Mijoz</th><th>Izoh</th></tr></thead>

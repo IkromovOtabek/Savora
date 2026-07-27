@@ -2,6 +2,7 @@
 
 import { useActionState, useEffect, useState } from 'react';
 import { submitReviewAction } from '@/app/actions/reviews';
+import Icon from '@/components/icons/Icon';
 
 interface Props {
   open: boolean;
@@ -32,11 +33,11 @@ export default function ReviewModal({ open, onClose, saleId, branchName }: Props
   return (
     <div className="rv-overlay" onClick={onClose}>
       <div className="rv-modal" onClick={(e) => e.stopPropagation()}>
-        <button type="button" className="rv-close" onClick={onClose} aria-label="Yopish">✕</button>
+        <button type="button" className="rv-close" onClick={onClose} aria-label="Yopish"><Icon name="close" size={16} /></button>
 
         {state?.success ? (
           <div className="rv-done">
-            <div className="rv-done-ic">✓</div>
+            <div className="rv-done-ic"><Icon name="check" size={32} /></div>
             <h3>{state.success}</h3>
             <p>Fikringiz bizga muhim.</p>
           </div>

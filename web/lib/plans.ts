@@ -33,8 +33,8 @@ export const DEFAULT_PLAN_PRESETS: Record<Exclude<PlanTier, 'custom'>, PlanPrese
     maxFilial: 1,
     maxUsers: 3,
     maxProducts: 500,
-    monthlyPrice: 99_000,
-    yearlyPrice: 79_000,
+    monthlyPrice: 249_000,
+    yearlyPrice: 199_000,
     marketingFeatures: ['1 filial', '3 xodim', '500 mahsulot', 'Ombor + Sotuv', 'Kassa', 'Mijozlar'],
   },
   pro: {
@@ -44,8 +44,8 @@ export const DEFAULT_PLAN_PRESETS: Record<Exclude<PlanTier, 'custom'>, PlanPrese
     maxFilial: 5,
     maxUsers: 15,
     maxProducts: 5000,
-    monthlyPrice: 249_000,
-    yearlyPrice: 199_000,
+    monthlyPrice: 649_000,
+    yearlyPrice: 519_000,
     marketingFeatures: ['5 filial', '15 xodim', '5000 mahsulot', 'Barcha modullar', 'Hisobot', 'CSV export'],
   },
   business: {
@@ -55,8 +55,8 @@ export const DEFAULT_PLAN_PRESETS: Record<Exclude<PlanTier, 'custom'>, PlanPrese
     maxFilial: 999,
     maxUsers: 999,
     maxProducts: 999_999,
-    monthlyPrice: 499_000,
-    yearlyPrice: 399_000,
+    monthlyPrice: 1_290_000,
+    yearlyPrice: 1_030_000,
     marketingFeatures: ['Cheksiz filial', 'Cheksiz xodim', 'Cheksiz mahsulot', 'Barcha imkoniyatlar', 'Shaxsiy yordam'],
   },
 };
@@ -90,7 +90,8 @@ export function parsePlanTier(v: string): PlanTier {
 
 export function fmtPlanPrice(n: number): string {
   if (n === 0) return 'Bepul';
-  return new Intl.NumberFormat('uz-UZ').format(n) + ' so\'m';
+  // Deterministik (server=client) — client komponentlarda hydration mosligi uchun
+  return Math.round(n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, String.fromCharCode(0xA0)) + ' so\'m';
 }
 
 export function yearlyDiscount(preset: PlanPreset): number {

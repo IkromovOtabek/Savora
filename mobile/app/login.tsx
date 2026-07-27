@@ -10,19 +10,18 @@ import { colors } from '@/lib/theme';
 export default function LoginScreen() {
   const router = useRouter();
   const { login } = useAuth();
-  const [slug, setSlug] = useState('');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [busy, setBusy] = useState(false);
 
   async function onSubmit() {
-    if (!slug || !username || !password) {
-      Alert.alert('Maydonlar', 'Do\'kon manzili, login va parolni kiriting.');
+    if (!username || !password) {
+      Alert.alert('Maydonlar', 'Login va parolni kiriting.');
       return;
     }
     setBusy(true);
     try {
-      await login(slug.trim(), username.trim(), password);
+      await login(username.trim(), password);
       router.replace('/(tabs)');
     } catch (e) {
       Alert.alert('Kirish xatosi', e instanceof Error ? e.message : 'Xatolik');
@@ -37,11 +36,7 @@ export default function LoginScreen() {
         <View style={s.wrap}>
           <View style={s.logo}><Text style={s.logoText}>S</Text></View>
           <Text style={s.title}>Savora</Text>
-          <Text style={s.subtitle}>Do'kon tizimiga kirish</Text>
-
-          <Text style={s.label}>Do'kon manzili</Text>
-          <TextInput style={s.input} value={slug} onChangeText={setSlug} placeholder="masalan: dokon1"
-            autoCapitalize="none" autoCorrect={false} placeholderTextColor={colors.textFaint} />
+          <Text style={s.subtitle}>Tizimga kirish</Text>
 
           <Text style={s.label}>Login</Text>
           <TextInput style={s.input} value={username} onChangeText={setUsername} placeholder="login"
@@ -49,11 +44,13 @@ export default function LoginScreen() {
 
           <Text style={s.label}>Parol</Text>
           <TextInput style={s.input} value={password} onChangeText={setPassword} placeholder="parol"
-            secureTextEntry placeholderTextColor={colors.textFaint} />
+            secureTextEntry placeholderTextColor={colors.textFaint} onSubmitEditing={onSubmit} />
 
           <TouchableOpacity style={[s.btn, busy && s.btnDisabled]} onPress={onSubmit} disabled={busy} activeOpacity={0.85}>
             {busy ? <ActivityIndicator color="#fff" /> : <Text style={s.btnText}>Kirish</Text>}
           </TouchableOpacity>
+
+          <Text style={s.foot}>Login va parolni do'kon egasi yoki platforma beradi.</Text>
         </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -73,4 +70,5 @@ const s = StyleSheet.create({
   btn: { backgroundColor: colors.brand, borderRadius: 12, paddingVertical: 15, alignItems: 'center', marginTop: 26 },
   btnDisabled: { opacity: 0.6 },
   btnText: { color: '#fff', fontSize: 16, fontWeight: '700' },
+  foot: { fontSize: 12.5, color: colors.textFaint, textAlign: 'center', marginTop: 20 },
 });

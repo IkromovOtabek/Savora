@@ -1,5 +1,5 @@
 import { Schema, Types } from 'mongoose';
-import { OrgFeatures } from '../../featureKeys';
+import { FEATURE_KEYS, FeatureKey, OrgFeatures } from '../../featureKeys';
 import { BusinessType } from '../../businessTypes';
 
 export interface IOrganization {
@@ -52,6 +52,19 @@ export interface IOrganization {
   updatedAt?: Date;
 }
 
+// Modul (feature) bayroqlari — YAGONA MANBA: FEATURE_KEYS.
+// Sxema shu ro'yxatdan generatsiya qilinadi, shuning uchun yangi modul qo'shilsa
+// avtomatik qamrab olinadi va qo'lda unutib qo'yish (schema "drift") mumkin emas.
+// Ilgari bu blok qo'lda yozilgani uchun `daftar` tushib qolib, Super Admin yoqsa ham
+// Mongoose strict rejimi uni jimgina o'chirib tashlar edi.
+const featureFlags = FEATURE_KEYS.reduce(
+  (acc, key) => {
+    acc[key] = { type: Boolean };
+    return acc;
+  },
+  {} as Record<FeatureKey, { type: BooleanConstructor }>,
+);
+
 export const organizationSchema = new Schema<IOrganization>(
   {
     name: { type: String, required: true, trim: true },
@@ -78,22 +91,7 @@ export const organizationSchema = new Schema<IOrganization>(
       agreementNote: { type: String, trim: true },
       isTrial: { type: Boolean, default: false },
     },
-    features: {
-      sales: { type: Boolean },
-      kassa: { type: Boolean },
-      monitoring: { type: Boolean },
-      products: { type: Boolean },
-      users: { type: Boolean },
-      export: { type: Boolean },
-      customers: { type: Boolean },
-      inventory: { type: Boolean },
-      mediaUpload: { type: Boolean },
-      variant: { type: Boolean },
-      creditKassa: { type: Boolean },
-      kirimChiqim: { type: Boolean },
-      transferred: { type: Boolean },
-      audit: { type: Boolean },
-    },
+    features: featureFlags,
     referralCode: { type: String, unique: true, sparse: true, uppercase: true, trim: true },
     referredBy: { type: String, trim: true },
     referralBonusMonths: { type: Number, default: 0 },

@@ -53,17 +53,16 @@ export default async function LoginPage({
       }
     }
   } else {
-    // Asosiy sayt — biznes egasi/xodim uchun to'g'ridan-to'g'ri kirish:
-    // do'kon manzili + login + parol bitta sahifada.
-    title = 'Do\'kon tizimiga kirish';
-    subtitle = 'Do\'kon manzili, login va parolingizni kiriting';
+    // Asosiy sayt — biznes egasi/xodim login + parol bilan to'g'ridan-to'g'ri kiradi.
+    // Qaysi do'kon ekani username orqali aniqlanadi (global registr) — manzil (slug) so'ralmaydi.
+    title = 'Tizimga kirish';
+    subtitle = 'Login va parolingizni kiriting';
     canLogin = true;
   }
 
   const tenantSlug = zone === 'tenant' ? await getTenantSlug() : '';
-  const needSlug = zone === 'root';
   const forgotUrl = canLogin && zone === 'tenant' && tenantSlug ? tenantForgotUrl(tenantSlug) : undefined;
-  // root zonada ham tenant sifatida autentifikatsiya qilinadi (slug formada kiritiladi)
+  // root zonada ham tenant sifatida autentifikatsiya qilinadi (do'kon username orqali topiladi)
   const loginZone: 'super' | 'tenant' | undefined =
     canLogin && zone === 'super' ? 'super' : canLogin ? 'tenant' : undefined;
 
@@ -79,7 +78,6 @@ export default async function LoginPage({
       defaultUsername={sp?.u ? decodeURIComponent(sp.u) : undefined}
       loginZone={loginZone}
       tenantSlug={tenantSlug || undefined}
-      needSlug={needSlug}
       forgotUrl={forgotUrl}
     />
   );

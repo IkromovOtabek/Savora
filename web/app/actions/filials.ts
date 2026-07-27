@@ -5,6 +5,7 @@ import { getTenantAdminSession } from '@/lib/tenantSession';
 import { markOnboardingStep } from '@/lib/onboarding';
 import { recordAudit } from '@/lib/audit';
 import { addOrgUser, updateOrgUserByBranch, removeOrgUserByBranch } from '@/lib/orgUsers';
+import { reserveUsername, releaseUsername, isUsernameAvailable, UsernameTakenError } from '@/lib/userDirectory';
 
 type State = { error?: string; success?: string } | null;
 
@@ -14,7 +15,7 @@ function normalizeLogin(v: string): string {
 
 /** Filial yaratish — filial + uning login/paroli birga yaratiladi */
 export async function createFilialAction(_prev: State, formData: FormData): Promise<State> {
-  const { user, User, Branch } = await getTenantAdminSession();
+  const { user, User, Branch, org } = await getTenantAdminSession();
 
   // Yumshoq chegara: filial qo'shish bloklanmaydi. Limitdan oshsa — sahifada
   // "tarifni yangilang" yo'naltiruvchi karta ko'rsatiladi (client tiqilib qolmaydi).
@@ -31,6 +32,8 @@ export async function createFilialAction(_prev: State, formData: FormData): Prom
 
   const dup = await User.findOne({ username }).lean();
   if (dup) return { error: 'Bu login allaqachon band.' };
+  // Global (butun platforma bo'yicha) band emasligini tekshiramiz — slug'siz login uchun shart.
+  if (!(await isUsernameAvailable(username))) return { error: 'Bu login boshqa do\'konda band.' };
 
   try {
     const branch = await Branch.create({ name, address: address || undefined, phone: phone || undefined, active: true });
@@ -44,6 +47,20 @@ export async function createFilialAction(_prev: State, formData: FormData): Prom
       mustChangePassword: false,
     });
     await u.save();
+    // Global registrga yozamiz. Poyga tufayli band bo'lsa — filial va loginni bekor qilamiz.
+    try {
+      await reserveUsername({
+        username,
+        organizationId: String(org._id),
+        dbName: org.dbName,
+        role: 'user',
+        branchId: String(branch._id),
+      });
+    } catch (e) {
+      await User.deleteOne({ _id: u._id });
+      await Branch.findByIdAndDelete(branch._id);
+      return { error: e instanceof UsernameTakenError ? e.message : 'Filial yaratishda xatolik.' };
+    }
     await markOnboardingStep(user.organizationId, 'branchCreated');
     await addOrgUser(user.organizationId, { username, name, role: 'user', branchId: String(branch._id) });
     await recordAudit(user, {
@@ -133,7 +150,10 @@ export async function deleteFilialAction(_prev: State, formData: FormData): Prom
   }
 
   const branch = await Branch.findByIdAndDelete(branchId).lean();
+  // Loginni global registrdan ham olib tashlaymiz (o'chirishdan oldin username'ni olamiz).
+  const delUser = await User.findOne({ branchId, role: 'user' }).lean();
   await User.deleteOne({ branchId, role: 'user' });
+  if (delUser?.username) await releaseUsername(delUser.username);
   await removeOrgUserByBranch(user.organizationId, branchId);
   await recordAudit(user, {
     action: 'branch.delete',

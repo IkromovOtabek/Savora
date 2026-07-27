@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { checkPlanLimits, resolveOrgPlan } from '@/lib/plans';
 import { IOrganization } from '@/lib/models/master/Organization';
+import Icon from '@/components/icons/Icon';
 
 interface Props {
   org: Pick<IOrganization, 'plan'>;
@@ -20,7 +21,7 @@ export default function PlanLimitsBanner({ org, current }: Props) {
 
   return (
     <div className="plan-limit-banner">
-      <span className="plan-limit-icon">⚠️</span>
+      <span className="plan-limit-icon"><Icon name="alert" size={18} /></span>
       <div className="plan-limit-body">
         <strong>Limit yaqinlashmoqda:</strong> {warnings.join(' · ')}
       </div>

@@ -6,6 +6,8 @@ import { getTenantSession } from '@/lib/tenantSession';
 import { PAYMENT_TYPE_LABELS, SALE_STATUS_LABELS } from '@/lib/models/tenant/Sale';
 import { fmtDate, fmtDateTime, fmtMoney } from '@/lib/format';
 import { computeDebtInfo } from '@/lib/debts';
+import { computeInstallmentPlan } from '@/lib/installment';
+import InstallmentPlan from '@/components/tenant/InstallmentPlan';
 import SalePaymentForm from '@/components/tenant/SalePaymentForm';
 import CancelSaleButton from '@/components/tenant/CancelSaleButton';
 import SaleReviewTrigger from '@/components/tenant/SaleReviewTrigger';
@@ -30,6 +32,9 @@ export default async function SaleDetailPage({
   const isAdmin = user?.role === 'admin';
   const canPay = sale.status === 'partial';
   const canCancel = isAdmin && sale.status !== 'cancelled';
+
+  // Nasiya (variant) sotuvi bo'lsa — oylik to'lov jadvali
+  const plan = sale.paymentType === 'installment' ? computeInstallmentPlan(sale) : null;
 
   return (
     <>
@@ -100,6 +105,8 @@ export default async function SaleDetailPage({
         </div>
       </div>
 
+      {plan && <InstallmentPlan plan={plan} saleId={String(sale._id)} canPay={canPay} />}
+
       {sale.payments.length > 0 && (
         <div className="panel" style={{ marginTop: 20 }}>
           <div className="panel-head"><h2>To&apos;lovlar tarixi</h2></div>
@@ -123,7 +130,8 @@ export default async function SaleDetailPage({
         </div>
       )}
 
-      {canPay && <SalePaymentForm saleId={String(sale._id)} remaining={sale.remainingAmount} />}
+      {/* Nasiya sotuvida to'lov oy kataklariga bosib qo'shiladi; boshqa qarzlarda esa forma orqali */}
+      {canPay && !plan && <SalePaymentForm saleId={String(sale._id)} remaining={sale.remainingAmount} />}
       {canCancel && <CancelSaleButton saleId={String(sale._id)} saleNo={sale.saleNo} />}
     </>
   );

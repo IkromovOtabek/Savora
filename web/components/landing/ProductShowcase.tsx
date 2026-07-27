@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Icon from '@/components/icons/Icon';
 
 type TabKey = 'ombor' | 'sotuv' | 'kassa' | 'monitoring';
 
@@ -91,7 +92,7 @@ export default function ProductShowcase() {
           <Frame url="dokon1.savora.uz/app/inventory">
             <div className="shot-toolbar">
               <div className="shot-title">Ombor — 1 248 mahsulot</div>
-              <div className="shot-search">🔎 IMEI yoki nom bo&apos;yicha qidirish…</div>
+              <div className="shot-search" style={{ display: 'flex', alignItems: 'center', gap: 6 }}><Icon name="search" size={14} /> IMEI yoki nom bo&apos;yicha qidirish…</div>
             </div>
             <table className="shot-table">
               <thead><tr><th>Mahsulot</th><th>IMEI</th><th>Narx (so&apos;m)</th><th>Holat</th></tr></thead>
@@ -153,7 +154,7 @@ export default function ProductShowcase() {
           <Frame url="dokon1.savora.uz/app/monitoring">
             <div className="shot-toolbar">
               <div className="shot-title">Oylik foyda dinamikasi</div>
-              <div className="shot-pill shot-pill--ok">Foyda: +24% ↑</div>
+              <div className="shot-pill shot-pill--ok" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>Foyda: +24% <Icon name="trendingUp" size={13} /></div>
             </div>
             <div className="shot-kpis">
               <div className="shot-kpi"><div className="shot-kpi-l">Kirim</div><div className="shot-kpi-v">218 400 000</div></div>

@@ -34,8 +34,9 @@ export default function TelegramAppLink({ linked }: { linked: boolean }) {
       </div>
       <div className="detail-body" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
         {linked ? (
-          <div className="auth-alert auth-alert--info" style={{ margin: 0 }}>
-            ✅ Telegram hisobingiz bog&apos;langan. Botni ochib <b>“Savora’ni ochish”</b> tugmasi orqali ilovaga to&apos;g&apos;ridan-to&apos;g&apos;ri kirishingiz mumkin.
+          <div className="auth-alert auth-alert--info" style={{ margin: 0, display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+            <Icon name="check" size={16} />
+            <span>Telegram hisobingiz bog&apos;langan. Botni ochib <b>“Savora’ni ochish”</b> tugmasi orqali ilovaga to&apos;g&apos;ridan-to&apos;g&apos;ri kirishingiz mumkin.</span>
           </div>
         ) : (
           <p className="dash-sub" style={{ margin: 0 }}>

@@ -20,7 +20,7 @@ export async function clearToken(): Promise<void> {
 }
 
 interface ApiOptions {
-  method?: 'GET' | 'POST';
+  method?: 'GET' | 'POST' | 'PATCH' | 'PUT' | 'DELETE';
   body?: unknown;
   auth?: boolean;
 }

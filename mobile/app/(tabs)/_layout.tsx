@@ -16,6 +16,9 @@ export default function TabsLayout() {
   }
   if (!me) return <Redirect href="/login" />;
 
+  const f = me.features ?? {};
+  const nasiyaOn = !!(f.variant || f.nasiya);
+
   return (
     <Tabs
       screenOptions={{
@@ -28,6 +31,8 @@ export default function TabsLayout() {
     >
       <Tabs.Screen name="index" options={{ title: 'Asosiy', tabBarIcon: ({ color, size }) => <Ionicons name="home-outline" color={color} size={size} /> }} />
       <Tabs.Screen name="products" options={{ title: 'Ombor', tabBarIcon: ({ color, size }) => <Ionicons name="cube-outline" color={color} size={size} /> }} />
+      <Tabs.Screen name="sales" options={{ title: 'Sotuvlar', tabBarIcon: ({ color, size }) => <Ionicons name="cart-outline" color={color} size={size} /> }} />
+      <Tabs.Screen name="nasiya" options={{ title: 'Nasiya', href: nasiyaOn ? undefined : null, tabBarIcon: ({ color, size }) => <Ionicons name="time-outline" color={color} size={size} /> }} />
       <Tabs.Screen name="profile" options={{ title: 'Kabinet', tabBarIcon: ({ color, size }) => <Ionicons name="person-outline" color={color} size={size} /> }} />
     </Tabs>
   );

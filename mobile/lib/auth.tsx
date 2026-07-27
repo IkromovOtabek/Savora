@@ -1,16 +1,28 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { api, setToken, clearToken, getToken } from './api';
 
+export interface Terms {
+  item: string;    // "Mahsulot" / "Taom" / "Dori" ...
+  items: string;   // "Ombor" / "Menyu" / "Dorixona"
+  addItem: string; // "Mahsulot qo'shish" ...
+  codeLabel: string;
+  hasImei: boolean;
+}
+
 export interface MeResponse {
   user: { id: string; username: string; role: 'admin' | 'user'; isAdmin: boolean };
-  org: { name: string; slug: string; active: boolean; daysLeft: number; isTrial: boolean };
+  org: { name: string; slug: string; active: boolean; daysLeft: number; isTrial: boolean; businessType: string; businessTypeLabel: string };
+  terms: Terms;
   features: Record<string, boolean>;
 }
+
+/** Standart atamalar — me hali yuklanmagan bo'lsa. */
+export const DEFAULT_TERMS: Terms = { item: 'Mahsulot', items: 'Ombor', addItem: 'Mahsulot qo\'shish', codeLabel: 'Kod / shtrix', hasImei: false };
 
 interface AuthState {
   loading: boolean;
   me: MeResponse | null;
-  login: (slug: string, username: string, password: string) => Promise<void>;
+  login: (username: string, password: string, slug?: string) => Promise<void>;
   logout: () => Promise<void>;
   refresh: () => Promise<void>;
 }
@@ -37,7 +49,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     (async () => { await refresh(); setLoading(false); })();
   }, [refresh]);
 
-  const login = useCallback(async (slug: string, username: string, password: string) => {
+  const login = useCallback(async (username: string, password: string, slug = '') => {
+    // Slug'siz kirish — username global registrdan do'konni topadi (slug ixtiyoriy)
     const res = await api<{ token: string }>('/api/mobile/auth/login', {
       method: 'POST', auth: false, body: { slug, username, password },
     });
