@@ -18,13 +18,15 @@ interface Props {
   trackQuantity?: boolean;
   available?: number;
   salePrice?: number;
-  richSale?: boolean;
+  /** Nasiya (variant/nasiya) va Kredit (creditKassa) modullari yoqilganmi */
+  canInstallment?: boolean;
+  canCredit?: boolean;
 }
 
-type View = 'menu' | 'sellQty' | 'branches' | 'branchQty';
+type View = 'menu' | 'sellType' | 'sellQty' | 'branches' | 'branchQty';
 
 export default function ProductRowActions({
-  productId, status, branches, currentBranchId, trackQuantity = false, available = 1, salePrice = 0, richSale = false,
+  productId, status, branches, currentBranchId, trackQuantity = false, available = 1, salePrice = 0, canInstallment = false, canCredit = false,
 }: Props) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -147,16 +149,37 @@ export default function ProductRowActions({
               {view === 'menu' && (
                 <>
                   <button type="button" className="row-action-item" disabled={busy}
-                    onClick={() => {
-                      if (richSale) { setOpen(false); router.push(`/app/sales/new?productId=${productId}`); return; }
-                      (needQty || needPrice) ? (setQty(1), setView('sellQty')) : doSell();
-                    }}>
+                    onClick={() => setView('sellType')}>
                     <Icon name="cart" size={15} /> Sotildi
                   </button>
                   <button type="button" className="row-action-item" disabled={busy}
                     onClick={() => setView('branches')}>
                     <Icon name="repeat" size={15} /> Boshqa filialga berildi
                   </button>
+                </>
+              )}
+
+              {view === 'sellType' && (
+                <>
+                  <button type="button" className="row-action-back" onClick={() => setView('menu')}>
+                    <Icon name="arrowLeft" size={14} /> Orqaga
+                  </button>
+                  <button type="button" className="row-action-item" disabled={busy}
+                    onClick={() => { (needQty || needPrice) ? (setQty(1), setView('sellQty')) : doSell(); }}>
+                    <Icon name="wallet" size={15} /> Naxt
+                  </button>
+                  {canInstallment && (
+                    <button type="button" className="row-action-item" disabled={busy}
+                      onClick={() => { setOpen(false); router.push(`/app/sales/new?productId=${productId}&payment=installment`); }}>
+                      <Icon name="clock" size={15} /> Nasiya
+                    </button>
+                  )}
+                  {canCredit && (
+                    <button type="button" className="row-action-item" disabled={busy}
+                      onClick={() => { setOpen(false); router.push(`/app/sales/new?productId=${productId}&payment=bank_credit`); }}>
+                      <Icon name="wallet" size={15} /> Kredit
+                    </button>
+                  )}
                 </>
               )}
 

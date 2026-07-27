@@ -35,9 +35,11 @@ interface Props {
   features: OrgFeatures;
   creditBanks: string[];
   preselectId?: string;
+  /** Ombor menyusidan tanlangan to'lov turi (cash/installment/bank_credit) */
+  preselectPayment?: string;
 }
 
-export default function SaleForm({ isPhoneShop, products, mediaEnabled, features, creditBanks, preselectId }: Props) {
+export default function SaleForm({ isPhoneShop, products, mediaEnabled, features, creditBanks, preselectId, preselectPayment }: Props) {
   const [state, formAction, isPending] = useActionState(createSaleAction, null);
   useToastOnState(state);
   const preselected = preselectId ? products.find((p) => p.id === preselectId) : undefined;
@@ -62,7 +64,12 @@ export default function SaleForm({ isPhoneShop, products, mediaEnabled, features
   } : null);
   const [lookupError, setLookupError] = useState('');
   const [searching, startSearch] = useTransition();
-  const [paymentType, setPaymentType] = useState<PaymentType>('cash');
+  const initialPayment: PaymentType =
+    preselectPayment === 'installment' && (features.variant || features.nasiya) ? 'installment'
+    : preselectPayment === 'bank_credit' && features.creditKassa ? 'bank_credit'
+    : preselectPayment === 'debt' ? 'debt'
+    : 'cash';
+  const [paymentType, setPaymentType] = useState<PaymentType>(initialPayment);
   const [totalAmount, setTotalAmount] = useState(preselected ? String(preselected.salePrice) : '');
   const [saleQty, setSaleQty] = useState('1');
 

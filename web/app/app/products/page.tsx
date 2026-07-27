@@ -30,7 +30,8 @@ export default async function ProductsPage({
   const sp = await searchParams;
   const { user, Product, Branch, org, features } = await getTenantSession();
   const showImei = isImeiEnabled(org);
-  const richSale = !!(features.variant || features.creditKassa);
+  const canInstallment = !!(features.variant || features.nasiya);
+  const canCredit = !!features.creditKassa;
 
   const branches = await Branch.find({ active: true }).sort({ name: 1 }).lean();
   const branchMap = Object.fromEntries(branches.map((b) => [String(b._id), b.name]));
@@ -168,7 +169,8 @@ export default async function ProductsPage({
                           trackQuantity={p.trackQuantity ?? false}
                           available={p.trackQuantity ? Math.max(0, (p.quantity ?? 0) - (p.soldQuantity ?? 0)) : 1}
                           salePrice={p.salePrice ?? 0}
-                          richSale={richSale}
+                          canInstallment={canInstallment}
+                          canCredit={canCredit}
                           branches={filialBranches}
                         />
                       </td>

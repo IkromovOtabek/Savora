@@ -9,7 +9,7 @@ export const metadata = { title: 'Yangi sotuv — Savora' };
 export default async function NewSalePage({
   searchParams,
 }: {
-  searchParams: Promise<{ productId?: string }>;
+  searchParams: Promise<{ productId?: string; payment?: string }>;
 }) {
   const sp = await searchParams;
   const { user, Product, Branch, CreditBank, org, features } = await getTenantSession();
@@ -30,6 +30,7 @@ export default async function NewSalePage({
       features={features}
       creditBanks={creditBanks}
       preselectId={sp.productId}
+      preselectPayment={sp.payment}
       products={inStock.map((p) => ({
         id: String(p._id),
         name: p.name,
