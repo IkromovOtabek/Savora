@@ -27,4 +27,27 @@ export function tenantDbName(slug: string): string {
   return `biznes_${slug}`;
 }
 
+/**
+ * Foydalanuvchi istagan manzilni oladi va AVTOMATIK unikal slug qaytaradi.
+ * Band yoki reserved bo'lsa — `-2`, `-3` ... qo'shadi. Bo'sh/qisqa bo'lsa — "dokon".
+ * Shunday qilib "manzil band" xatosi chiqmaydi, lekin tenant bazalari (biznes_<slug>) aralashmaydi.
+ * `isTaken` — DB tekshiruvi (chaqiruvchi beradi; slug.ts DB'ga bog'lanmaydi).
+ */
+export async function ensureUniqueSlug(
+  rawInput: string,
+  isTaken: (slug: string) => Promise<boolean>,
+): Promise<string> {
+  let base = normalizeSlug(rawInput);
+  if (base.length < 3) base = base ? `dokon-${base}` : 'dokon';
+  base = base.slice(0, 26); // suffiks (-NN) uchun joy qoldiramiz
+  let slug = base;
+  let n = 1;
+  // Xavfsizlik uchun cheksiz sikldan qochamiz (juda kam ehtimol)
+  while ((RESERVED_SLUGS.has(slug) || (await isTaken(slug))) && n < 1000) {
+    n += 1;
+    slug = `${base}-${n}`;
+  }
+  return slug;
+}
+
 export { tenantLoginUrl, tenantAppUrl as orgPublicUrl };

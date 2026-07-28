@@ -5,7 +5,7 @@ import { IOrganization, isOrganizationActive } from './models/master/Organizatio
 import { defaultFeaturesForPlan } from './features';
 import { parseBusinessType, BusinessType } from './businessTypes';
 import { getPlanPreset, parsePlanTier, PlanTier } from './plans';
-import { normalizeSlug, tenantDbName, validateSlug } from './slug';
+import { tenantDbName, ensureUniqueSlug } from './slug';
 import { generateTempPassword } from './credentials';
 import { reserveUsername, isUsernameAvailable, UsernameTakenError } from './userDirectory';
 
@@ -55,13 +55,10 @@ export interface CreateOrganizationInput {
 
 export async function createOrganization(input: CreateOrganizationInput): Promise<{ orgId: string; slug: string; adminUsername: string }> {
   const name = input.name.trim();
-  const slug = normalizeSlug(input.slug);
   let adminUsername = (input.adminUsername || '').trim().toLowerCase();
   let adminPassword = input.adminPassword || '';
 
   if (!name) throw new Error('Do\'kon nomi kiritilishi shart.');
-  const slugErr = validateSlug(slug);
-  if (slugErr) throw new Error(slugErr);
 
   // Login majburiy — egasi o'zi tanlaydi (avtomatik/tasodifiy login yo'q)
   adminUsername = adminUsername.replace(/[^a-z0-9_]/g, '');
@@ -97,11 +94,14 @@ export async function createOrganization(input: CreateOrganizationInput): Promis
       ? new Date(Date.now() + 100 * 365 * 24 * 60 * 60 * 1000)
       : new Date(Date.now() + (input.trialDays ?? 30) * 24 * 60 * 60 * 1000));
 
-  const dbName = tenantDbName(slug);
   const { Organization } = await getMasterModels();
-
-  const existing = await Organization.findOne({ $or: [{ slug }, { dbName }] }).lean();
-  if (existing) throw new Error('Bu manzil allaqachon band. Boshqa manzil tanlang.');
+  // Foydalanuvchi istagan manzil — band bo'lsa avtomatik unikal qilinadi (xato chiqmaydi).
+  // Slug tenant bazasini (biznes_<slug>) belgilagani uchun unikal bo'lishi SHART.
+  const slug = await ensureUniqueSlug(
+    input.slug,
+    async (s) => !!(await Organization.findOne({ $or: [{ slug: s }, { dbName: tenantDbName(s) }] }).lean()),
+  );
+  const dbName = tenantDbName(slug);
 
   // Referral bonus tekshirish
   let referralBonusMonths = 0;
