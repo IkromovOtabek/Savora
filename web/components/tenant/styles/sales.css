@@ -1,0 +1,594 @@
+/* ============================================================
+   SAVDO — sotuvlar ro'yxati, sotuv detali, yangi sotuv (POS),
+   chek, filialga berilganlar. Prefiks: sl-
+   Faqat global tokenlar (globals.css) ishlatiladi.
+   ============================================================ */
+
+/* ── Umumiy ─────────────────────────────────────────────── */
+.sl-num { font-variant-numeric: tabular-nums; }
+.sl-card {
+  background: var(--surface);
+  border-radius: var(--r-xl);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+}
+.sl-card-head {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  padding: 14px 18px 10px;
+}
+.sl-card-head h2 { font-size: 17px; font-weight: 600; letter-spacing: -.02em; margin: 0; }
+.sl-card-head small { font-size: 13px; color: var(--ink-3); font-weight: 500; }
+.sl-card-body { padding: 4px 18px 18px; }
+.sl-caps { font-size: 12px; font-weight: 600; color: var(--ink-3); letter-spacing: .02em; text-transform: uppercase; }
+
+/* To'lov turi pill'lari */
+.sl-pill {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 2px 9px; border-radius: var(--r-pill);
+  font-size: 12px; font-weight: 600; white-space: nowrap; line-height: 1.6;
+  background: var(--fill); color: var(--ink-2);
+}
+.sl-pill--cash { background: var(--accent-soft); color: var(--accent); }
+.sl-pill--debt { background: var(--warn-soft); color: var(--warn); }
+.sl-pill--installment { background: var(--gold-soft); color: var(--warn); }
+.sl-pill--bank_credit { background: var(--brand-soft); color: var(--brand); }
+.sl-pill--paid { background: var(--accent-soft); color: var(--accent); }
+.sl-pill--partial { background: var(--warn-soft); color: var(--warn); }
+.sl-pill--cancelled { background: var(--danger-soft); color: var(--danger); }
+.sl-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; flex: none; }
+
+/* Avatar */
+.sl-av {
+  width: 40px; height: 40px; border-radius: 50%; flex: none;
+  display: grid; place-items: center;
+  font-size: 14px; font-weight: 700; letter-spacing: -.02em;
+  color: var(--brand); background: var(--brand-soft);
+}
+.sl-av--cash { color: var(--accent); background: var(--accent-soft); }
+.sl-av--debt { color: var(--warn); background: var(--warn-soft); }
+.sl-av--installment { color: var(--warn); background: var(--gold-soft); }
+.sl-av--cancelled { color: var(--ink-3); background: var(--fill); }
+
+/* Bo'sh holat */
+.sl-empty {
+  display: flex; flex-direction: column; align-items: center; text-align: center; gap: 10px;
+  padding: 48px 24px;
+}
+.sl-empty-ic {
+  width: 64px; height: 64px; border-radius: 20px; display: grid; place-items: center;
+  color: var(--brand); background: var(--brand-soft); margin-bottom: 4px;
+}
+.sl-empty h3 { font-size: 17px; font-weight: 600; margin: 0; }
+.sl-empty p { color: var(--ink-3); font-size: 14px; max-width: 340px; margin: 0 0 6px; }
+
+/* ── Sotuvlar ro'yxati ──────────────────────────────────── */
+.sl-stats {
+  display: grid; grid-template-columns: 1.3fr 1fr 1fr 1fr; gap: 12px;
+  margin-bottom: 16px;
+}
+.sl-stat {
+  background: var(--surface); border-radius: var(--r-lg); box-shadow: var(--shadow-sm);
+  padding: 14px 16px; display: grid; gap: 4px; min-width: 0;
+}
+.sl-stat-l { display: flex; align-items: center; gap: 7px; font-size: 13px; font-weight: 600; color: var(--ink-2); }
+.sl-stat-l svg { color: var(--brand); }
+.sl-stat-v { font-size: 24px; font-weight: 700; letter-spacing: -.03em; font-variant-numeric: tabular-nums; color: var(--ink-1); line-height: 1.2; overflow-wrap: anywhere; }
+.sl-stat-v small { font-size: 13px; font-weight: 500; color: var(--ink-3); letter-spacing: 0; }
+.sl-stat-d { font-size: 13px; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+.sl-stat--hero { background: var(--grad-brand); color: var(--on-brand); box-shadow: var(--shadow-brand); }
+.sl-stat--hero .sl-stat-l, .sl-stat--hero .sl-stat-l svg, .sl-stat--hero .sl-stat-v,
+.sl-stat--hero .sl-stat-v small, .sl-stat--hero .sl-stat-d { color: var(--on-brand); }
+.sl-stat--hero .sl-stat-d, .sl-stat--hero .sl-stat-v small { opacity: .82; }
+.sl-stat--gold .sl-stat-l svg { color: var(--gold); }
+.sl-stat--gold .sl-stat-v { color: var(--warn); }
+
+.sl-toolbar {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between;
+  gap: 10px 16px; margin-bottom: 14px;
+}
+.sl-seg {
+  display: inline-flex; gap: 2px; padding: 2px; border-radius: 10px; background: var(--fill);
+  max-width: 100%; overflow-x: auto; scrollbar-width: none;
+}
+.sl-seg::-webkit-scrollbar { display: none; }
+.sl-seg-btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  min-height: 34px; padding: 6px 14px; border-radius: 8px; border: 0;
+  font-size: 14px; font-weight: 500; color: var(--ink-1); text-decoration: none; white-space: nowrap;
+  background: transparent; cursor: pointer; transition: background-color .15s;
+}
+.sl-seg-btn:hover { background: var(--fill-2); }
+.sl-seg-btn:active { opacity: .6; }
+.sl-seg-btn:focus-visible { outline: 3px solid var(--brand-ring); outline-offset: 0; }
+.sl-seg-btn[aria-current="page"], .sl-seg-btn.is-on {
+  background: var(--surface); font-weight: 600;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, .12), 0 0 0 .5px rgba(0, 0, 0, .04);
+}
+
+.sl-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.sl-chip {
+  display: inline-flex; align-items: center; gap: 7px;
+  min-height: 34px; padding: 6px 12px 6px 14px; border-radius: var(--r-pill);
+  font-size: 14px; font-weight: 500; color: var(--ink-1); text-decoration: none;
+  background: var(--fill-2); box-shadow: inset 0 0 0 1px var(--sep); transition: background-color .15s;
+}
+.sl-chip:hover { background: var(--fill); }
+.sl-chip:active { opacity: .6; }
+.sl-chip:focus-visible { outline: 3px solid var(--brand-ring); outline-offset: 1px; }
+.sl-chip b {
+  min-width: 22px; padding: 0 6px; border-radius: var(--r-pill); text-align: center;
+  font-size: 12px; font-weight: 600; line-height: 20px; font-variant-numeric: tabular-nums;
+  background: var(--fill); color: var(--ink-2);
+}
+.sl-chip[aria-current="page"] { background: var(--brand-fill); color: var(--on-brand); box-shadow: none; }
+.sl-chip[aria-current="page"] b { background: rgba(255, 255, 255, .22); color: var(--on-brand); }
+.sl-chip--export { color: var(--brand); }
+
+.sl-list { list-style: none; margin: 0; padding: 0; }
+.sl-row {
+  position: relative; display: grid; align-items: center;
+  grid-template-columns: 40px minmax(0, 1fr) auto auto;
+  gap: 4px 14px; padding: 12px 18px; transition: background-color .12s;
+}
+.sl-row + .sl-row::before {
+  content: ""; position: absolute; top: 0; left: 72px; right: 0; height: .5px; background: var(--sep);
+}
+.sl-row:hover { background: var(--fill-2); }
+.sl-row-main { min-width: 0; display: grid; gap: 2px; }
+.sl-row-title {
+  font-size: 15px; font-weight: 600; color: var(--ink-1); text-decoration: none;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.sl-row-title::after { content: ""; position: absolute; inset: 0; z-index: 0; }
+.sl-row-title:focus-visible { outline: none; }
+.sl-row:has(.sl-row-title:focus-visible) { box-shadow: inset 0 0 0 3px var(--brand-ring); }
+.sl-row-sub, .sl-row-meta {
+  font-size: 13px; color: var(--ink-3); display: flex; flex-wrap: wrap; align-items: center; gap: 2px 10px;
+  min-width: 0;
+}
+.sl-row-sub code { font-family: var(--font-mono); font-size: 12px; color: var(--ink-2); }
+.sl-row-meta span { white-space: nowrap; }
+.sl-row-note { overflow: hidden; text-overflow: ellipsis; max-width: 260px; }
+.sl-row-pay { display: grid; justify-items: end; gap: 4px; }
+.sl-row-amt { text-align: right; display: grid; gap: 1px; min-width: 120px; }
+.sl-row-amt strong { font-size: 16px; font-weight: 700; letter-spacing: -.02em; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.sl-row-amt span { font-size: 12px; color: var(--ink-3); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.sl-row-amt .sl-rem { color: var(--warn); font-weight: 600; }
+.sl-row-act { position: relative; z-index: 1; display: flex; gap: 4px; align-items: center; }
+.sl-row--cancelled .sl-row-title { color: var(--ink-3); text-decoration: line-through; }
+.sl-row--cancelled .sl-row-amt strong { color: var(--ink-3); }
+.sl-row .sl-row-act .icon-btn { width: 36px; height: 36px; }
+
+.sl-foot-note { font-size: 13px; color: var(--ink-3); text-align: center; padding: 12px 18px 16px; border-top: .5px solid var(--sep); }
+
+@media (max-width: 1000px) {
+  .sl-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 700px) {
+  .sl-stats { gap: 10px; }
+  .sl-stat { padding: 12px 14px; }
+  .sl-stat-v { font-size: 20px; }
+  .sl-stat--hero { grid-column: 1 / -1; }
+  .sl-toolbar { flex-direction: column; align-items: stretch; }
+  .sl-seg { width: 100%; }
+  .sl-seg-btn { flex: 1; min-height: 40px; }
+  .sl-chips { flex-wrap: nowrap; overflow-x: auto; margin: 0 -16px; padding: 0 16px 2px; scrollbar-width: none; }
+  .sl-chips::-webkit-scrollbar { display: none; }
+  .sl-chip { flex: none; min-height: 40px; }
+
+  /* Mobil — har sotuv alohida karta */
+  .sl-list-card { background: transparent; box-shadow: none; overflow: visible; }
+  .sl-list { display: grid; gap: 10px; }
+  .sl-row {
+    grid-template-columns: 40px minmax(0, 1fr) auto;
+    grid-template-areas: "av main act" "pay pay pay";
+    background: var(--surface); border-radius: var(--r-lg); box-shadow: var(--shadow-sm);
+    padding: 14px;
+  }
+  .sl-row:hover { background: var(--surface); }
+  .sl-row + .sl-row::before { display: none; }
+  .sl-row .sl-av { grid-area: av; }
+  .sl-row-main { grid-area: main; }
+  .sl-row-act { grid-area: act; align-self: start; }
+  .sl-row-pay {
+    grid-area: pay; grid-auto-flow: column; justify-content: space-between; align-items: center;
+    padding-top: 10px; margin-top: 6px; border-top: .5px solid var(--sep);
+  }
+  .sl-row-amt { min-width: 0; }
+  .sl-row-title { white-space: normal; }
+  .sl-row .sl-row-act .icon-btn { width: 44px; height: 44px; }
+  .sl-foot-note { border-top: 0; }
+}
+
+/* ── Sotuv detali ───────────────────────────────────────── */
+.sl-detail { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 16px; align-items: start; }
+.sl-detail-main, .sl-detail-side { display: grid; gap: 16px; min-width: 0; }
+.sl-head-pills { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+
+.sl-hero {
+  position: relative; overflow: hidden; border-radius: var(--r-xl);
+  padding: 22px 22px 20px; background: var(--grad-brand); color: var(--on-brand);
+  box-shadow: var(--shadow-brand); display: grid; gap: 18px;
+}
+.sl-hero--installment { background: linear-gradient(160deg, #3a68c4 0%, #1f4fa8 62%, #8a6411 140%); }
+.sl-hero--cancelled { background: var(--surface); color: var(--ink-1); box-shadow: var(--shadow-sm); }
+.sl-hero-top { display: flex; align-items: center; gap: 20px; }
+.sl-hero-sum { min-width: 0; flex: 1; display: grid; gap: 2px; }
+.sl-hero-l { font-size: 13px; font-weight: 600; opacity: .82; }
+.sl-hero-v { font-size: 34px; font-weight: 700; letter-spacing: -.035em; line-height: 1.1; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.sl-hero-v small { font-size: 15px; font-weight: 500; opacity: .8; letter-spacing: 0; }
+.sl-hero-sub { font-size: 14px; opacity: .85; }
+.sl-ring { flex: none; width: 92px; height: 92px; position: relative; }
+.sl-ring svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+.sl-ring-track { stroke: rgba(255, 255, 255, .22); }
+.sl-ring-fill { stroke: var(--on-brand); stroke-linecap: round; transition: stroke-dashoffset .6s ease; }
+.sl-ring-txt { position: absolute; inset: 0; display: grid; place-items: center; text-align: center; line-height: 1.05; }
+.sl-ring-txt b { font-size: 20px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.sl-ring-txt small { display: block; font-size: 11px; opacity: .8; font-weight: 500; }
+.sl-hero--cancelled .sl-ring-track { stroke: var(--fill); }
+.sl-hero--cancelled .sl-ring-fill { stroke: var(--ink-3); }
+.sl-hero-grid {
+  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1px;
+  border-radius: var(--r-lg); overflow: hidden; background: rgba(255, 255, 255, .16);
+}
+.sl-hero-cell { padding: 11px 14px; background: rgba(255, 255, 255, .1); display: grid; gap: 2px; min-width: 0; }
+.sl-hero-cell span { font-size: 12px; opacity: .8; font-weight: 500; }
+.sl-hero-cell strong { font-size: 16px; font-weight: 700; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.sl-hero--cancelled .sl-hero-grid { background: var(--sep); }
+.sl-hero--cancelled .sl-hero-cell { background: var(--fill-2); }
+
+.sl-kv { list-style: none; margin: 0; padding: 0; }
+.sl-kv li {
+  position: relative; display: flex; justify-content: space-between; align-items: center; gap: 12px;
+  min-height: 44px; padding: 8px 18px; font-size: 15px;
+}
+.sl-kv li + li::before { content: ""; position: absolute; top: 0; left: 18px; right: 0; height: .5px; background: var(--sep); }
+.sl-kv li > span:first-child { color: var(--ink-3); flex: none; }
+.sl-kv li > :last-child { text-align: right; min-width: 0; overflow-wrap: anywhere; font-weight: 500; }
+.sl-kv code { font-family: var(--font-mono); font-size: 13px; }
+.sl-kv a { color: var(--brand); text-decoration: none; font-weight: 600; }
+.sl-kv a:hover { text-decoration: underline; }
+.sl-danger-txt { color: var(--danger) !important; }
+
+.sl-person { display: flex; align-items: center; gap: 12px; padding: 4px 18px 14px; }
+.sl-person .sl-av { width: 48px; height: 48px; font-size: 17px; }
+.sl-person b { display: block; font-size: 16px; font-weight: 600; }
+.sl-person a, .sl-person small { font-size: 14px; color: var(--brand); text-decoration: none; font-variant-numeric: tabular-nums; }
+.sl-person small { color: var(--ink-3); }
+
+/* To'lovlar tarixi */
+.sl-pays { list-style: none; margin: 0; padding: 0 0 6px; }
+.sl-pay {
+  position: relative; display: grid; grid-template-columns: 36px minmax(0, 1fr) auto; gap: 12px;
+  align-items: center; padding: 10px 18px;
+}
+.sl-pay + .sl-pay::before { content: ""; position: absolute; top: 0; left: 66px; right: 0; height: .5px; background: var(--sep); }
+.sl-pay-ic { width: 36px; height: 36px; border-radius: 50%; display: grid; place-items: center; color: var(--accent); background: var(--accent-soft); }
+.sl-pay-main { min-width: 0; display: grid; gap: 1px; }
+.sl-pay-main b { font-size: 15px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sl-pay-main span { font-size: 13px; color: var(--ink-3); }
+.sl-pay-amt { font-size: 15px; font-weight: 700; color: var(--accent); font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+/* Nasiya rejasi */
+.sl-plan-stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; padding: 0 18px 14px; }
+.sl-plan-stat { padding: 10px 12px; border-radius: var(--r); background: var(--fill-2); display: grid; gap: 2px; min-width: 0; }
+.sl-plan-stat span { font-size: 12px; color: var(--ink-3); font-weight: 500; }
+.sl-plan-stat strong { font-size: 15px; font-weight: 700; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.sl-plan-stat--gold { background: var(--gold-soft); }
+.sl-plan-stat--gold strong { color: var(--warn); }
+.sl-plan-stat--danger { background: var(--danger-soft); }
+.sl-plan-stat--danger strong { color: var(--danger); }
+.sl-plan-bar { margin: 0 18px 14px; height: 8px; border-radius: var(--r-pill); background: var(--fill); overflow: hidden; display: flex; }
+.sl-plan-bar i { display: block; height: 100%; background: var(--accent); }
+.sl-plan-bar i + i { background: var(--gold); }
+
+.sl-tl { list-style: none; margin: 0; padding: 4px 18px 16px; }
+.sl-tl-item { position: relative; display: grid; grid-template-columns: 28px minmax(0, 1fr); gap: 12px; }
+.sl-tl-item::before {
+  content: ""; position: absolute; left: 13px; top: 30px; bottom: -4px; width: 2px; border-radius: 2px;
+  background: var(--sep);
+}
+.sl-tl-item:last-child::before { display: none; }
+.sl-tl-item--paid::before { background: color-mix(in srgb, var(--accent) 45%, transparent); }
+.sl-tl-dot {
+  width: 28px; height: 28px; border-radius: 50%; margin-top: 8px; display: grid; place-items: center;
+  font-size: 12px; font-weight: 700; font-variant-numeric: tabular-nums;
+  background: var(--surface); color: var(--ink-3); box-shadow: inset 0 0 0 2px var(--sep);
+}
+.sl-tl-item--paid .sl-tl-dot { background: var(--accent-fill); color: var(--on-brand); box-shadow: none; }
+.sl-tl-item--partial .sl-tl-dot { color: var(--brand); box-shadow: inset 0 0 0 2px var(--brand); }
+.sl-tl-item--overdue .sl-tl-dot { background: var(--danger-fill); color: var(--on-brand); box-shadow: none; }
+.sl-tl-item--upcoming .sl-tl-dot { color: var(--warn); box-shadow: inset 0 0 0 2px var(--gold); }
+.sl-tl-body {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 4px 12px;
+  margin: 4px 0; padding: 10px 12px; border-radius: var(--r); text-align: left;
+  font: inherit; color: inherit; background: transparent; border: 0; width: 100%;
+}
+button.sl-tl-body { cursor: pointer; transition: background-color .12s; min-height: 52px; }
+button.sl-tl-body:hover { background: var(--fill-2); }
+button.sl-tl-body:active { opacity: .6; }
+button.sl-tl-body:focus-visible { outline: 3px solid var(--brand-ring); outline-offset: 0; }
+.sl-tl-item--overdue .sl-tl-body { background: var(--danger-soft); }
+.sl-tl-t { display: grid; gap: 1px; min-width: 0; }
+.sl-tl-t b { font-size: 15px; font-weight: 600; }
+.sl-tl-t span { font-size: 13px; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+.sl-tl-r { display: grid; justify-items: end; gap: 3px; }
+.sl-tl-r strong { font-size: 15px; font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.sl-tl-mini { height: 4px; border-radius: 4px; background: var(--fill); overflow: hidden; grid-column: 1 / -1; }
+.sl-tl-mini i { display: block; height: 100%; background: var(--brand); }
+.sl-tl-cta { font-size: 12px; font-weight: 600; color: var(--brand); }
+
+/* To'lov qabul qilish formasi */
+.sl-payform { display: grid; gap: 12px; padding: 4px 18px 18px; }
+.sl-payform-quick { display: flex; flex-wrap: wrap; gap: 8px; }
+.sl-quick {
+  min-height: 36px; padding: 6px 12px; border-radius: var(--r-pill); border: 0; cursor: pointer;
+  font: inherit; font-size: 13px; font-weight: 600; font-variant-numeric: tabular-nums;
+  background: var(--brand-soft); color: var(--brand);
+}
+.sl-quick:active { opacity: .6; }
+.sl-quick:focus-visible { outline: 3px solid var(--brand-ring); outline-offset: 1px; }
+.sl-remain-box {
+  display: flex; justify-content: space-between; align-items: baseline; gap: 10px;
+  padding: 12px 14px; border-radius: var(--r); background: var(--warn-soft);
+}
+.sl-remain-box span { font-size: 13px; color: var(--warn); font-weight: 600; }
+.sl-remain-box strong { font-size: 18px; color: var(--warn); font-variant-numeric: tabular-nums; }
+
+/* Bekor qilish */
+.sl-cancel { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--danger) 30%, transparent); }
+.sl-cancel .sl-card-head h2 { color: var(--danger); }
+.sl-cancel p { font-size: 14px; color: var(--ink-2); margin: 0 0 12px; }
+
+@media (max-width: 1000px) {
+  .sl-detail { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 700px) {
+  .sl-hero { padding: 18px 16px 16px; }
+  .sl-hero-v { font-size: 28px; }
+  .sl-ring { width: 76px; height: 76px; }
+  .sl-ring-txt b { font-size: 17px; }
+  .sl-hero-grid { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .sl-hero-cell:last-child:nth-child(odd) { grid-column: 1 / -1; }
+  .sl-plan-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .sl-tl { padding-inline: 12px; }
+  .sl-head-actions { display: grid !important; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); }
+  .sl-head-actions .btn { min-height: 44px; }
+}
+
+/* ── Yangi sotuv (POS) ──────────────────────────────────── */
+.sl-pos { display: grid; grid-template-columns: minmax(0, 1fr) 380px; gap: 16px; align-items: start; }
+.sl-pos-left { display: grid; gap: 16px; min-width: 0; }
+.sl-pos-right {
+  position: sticky; top: 72px; display: grid; gap: 12px; min-width: 0;
+  max-height: calc(100vh - 88px); overflow-y: auto; overscroll-behavior: contain;
+  margin: -4px; padding: 4px; scrollbar-width: thin;
+}
+.sl-step { display: inline-grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; font-size: 13px; font-weight: 700; background: var(--brand-soft); color: var(--brand); margin-right: 8px; }
+.sl-pos .sl-card-head h2 { display: flex; align-items: center; }
+.sl-fields { display: grid; gap: 14px; padding: 4px 18px 18px; }
+.sl-fields-2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+.sl-fields .auth-field { margin: 0; }
+
+.sl-search { position: relative; }
+.sl-search svg { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--ink-3); pointer-events: none; }
+.sl-search input { padding-left: 38px !important; width: 100%; }
+.sl-imei-row { display: flex; gap: 8px; align-items: flex-end; }
+.sl-imei-row .auth-field { flex: 1; min-width: 0; }
+.sl-imei-row .btn { min-height: 44px; flex: none; }
+
+.sl-picker {
+  list-style: none; margin: 0; padding: 0; max-height: 360px; overflow-y: auto;
+  border-radius: var(--r-lg); box-shadow: inset 0 0 0 1px var(--sep);
+  overscroll-behavior: contain;
+}
+.sl-pick {
+  position: relative; display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 2px 12px;
+  width: 100%; min-height: 52px; padding: 9px 14px; border: 0; background: transparent; text-align: left;
+  font: inherit; color: inherit; cursor: pointer; transition: background-color .12s;
+}
+.sl-picker li + li .sl-pick::before { content: ""; position: absolute; top: 0; left: 14px; right: 0; height: .5px; background: var(--sep); }
+.sl-pick:hover { background: var(--fill-2); }
+.sl-pick:active { opacity: .6; }
+.sl-pick:focus-visible { outline: 3px solid var(--brand-ring); outline-offset: -3px; }
+.sl-pick b { font-size: 15px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sl-pick span { font-size: 13px; color: var(--ink-3); }
+.sl-pick strong { font-size: 15px; font-variant-numeric: tabular-nums; white-space: nowrap; grid-row: 1 / span 2; grid-column: 2; }
+.sl-pick[aria-pressed="true"] { background: var(--brand-soft); }
+.sl-pick[aria-pressed="true"] b { color: var(--brand); }
+.sl-pick:disabled { cursor: not-allowed; opacity: .5; }
+.sl-picker-more { padding: 10px 14px; font-size: 13px; color: var(--ink-3); text-align: center; }
+
+.sl-picked {
+  display: grid; grid-template-columns: 44px minmax(0, 1fr); gap: 12px; align-items: center;
+  padding: 12px 14px; border-radius: var(--r-lg); background: var(--accent-soft);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 30%, transparent);
+}
+.sl-picked-ic { width: 44px; height: 44px; border-radius: 12px; display: grid; place-items: center; color: var(--on-brand); background: var(--accent-fill); }
+.sl-picked b { display: block; font-size: 16px; font-weight: 700; overflow-wrap: anywhere; }
+.sl-picked-meta { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 13px; color: var(--ink-2); margin-top: 2px; }
+.sl-picked-meta code { font-family: var(--font-mono); font-size: 12px; }
+
+.sl-qty { display: inline-flex; align-items: center; gap: 0; border-radius: var(--r); background: var(--fill-2); box-shadow: inset 0 0 0 1px var(--sep); overflow: hidden; }
+.sl-qty button {
+  width: 44px; height: 44px; border: 0; background: transparent; font-size: 20px; font-weight: 500; color: var(--brand); cursor: pointer;
+}
+.sl-qty button:disabled { color: var(--ink-3); opacity: .5; cursor: not-allowed; }
+.sl-qty button:active:not(:disabled) { background: var(--fill); }
+.sl-qty input {
+  width: 64px !important; height: 44px !important; border: 0 !important; border-radius: 0 !important; background: transparent !important; box-shadow: none !important;
+  text-align: center; font-size: 16px; font-weight: 600; font-variant-numeric: tabular-nums; padding: 0 !important; min-height: 0 !important;
+}
+
+/* To'lov turi segmenti (radio) */
+.sl-payseg {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(70px, 1fr)); gap: 2px;
+  padding: 2px; border-radius: 11px; background: var(--fill); border: 0; margin: 0; min-width: 0;
+}
+.sl-payseg legend { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+.sl-payseg label {
+  position: relative; display: grid; place-items: center; min-height: 40px; padding: 6px 8px; border-radius: 9px;
+  font-size: 13px; font-weight: 500; text-align: center; line-height: 1.2; cursor: pointer; color: var(--ink-1);
+  transition: background-color .15s;
+}
+.sl-payseg input { position: absolute; opacity: 0; inset: 0; margin: 0; cursor: pointer; }
+.sl-payseg label:has(input:checked) {
+  background: var(--surface); font-weight: 600;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, .12), 0 0 0 .5px rgba(0, 0, 0, .04);
+}
+.sl-payseg label:has(input:focus-visible) { outline: 3px solid var(--brand-ring); outline-offset: 0; }
+.sl-payseg label:has(input:disabled) { cursor: not-allowed; opacity: .5; }
+
+.sl-summary-total { display: grid; gap: 2px; padding: 4px 18px 6px; }
+.sl-summary-total span { font-size: 13px; color: var(--ink-3); font-weight: 500; }
+.sl-summary-total strong { font-size: 32px; font-weight: 700; letter-spacing: -.035em; font-variant-numeric: tabular-nums; line-height: 1.15; overflow-wrap: anywhere; }
+.sl-summary-total strong small { font-size: 15px; font-weight: 500; color: var(--ink-3); letter-spacing: 0; }
+
+.sl-preview {
+  display: grid; gap: 8px; padding: 14px; border-radius: var(--r-lg);
+  background: var(--gold-soft); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--gold) 35%, transparent);
+}
+.sl-preview--debt { background: var(--warn-soft); box-shadow: none; }
+.sl-preview--bank { background: var(--brand-soft); box-shadow: none; }
+.sl-preview-row { display: flex; justify-content: space-between; gap: 10px; font-size: 14px; color: var(--ink-2); }
+.sl-preview-row strong { color: var(--ink-1); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.sl-preview-big { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.sl-preview-big span { font-size: 13px; font-weight: 600; color: var(--warn); }
+.sl-preview-big strong { font-size: 22px; font-weight: 700; letter-spacing: -.02em; color: var(--warn); font-variant-numeric: tabular-nums; }
+.sl-preview--bank .sl-preview-big span, .sl-preview--bank .sl-preview-big strong { color: var(--brand); }
+.sl-preview-warn { font-size: 13px; color: var(--danger); font-weight: 500; }
+.sl-submit { min-height: 52px; font-size: 17px; border-radius: 14px; width: 100%; }
+
+@media (max-width: 1000px) {
+  .sl-pos { grid-template-columns: minmax(0, 1fr); }
+  .sl-pos-right { position: static; max-height: none; overflow: visible; }
+}
+@media (max-width: 700px) {
+  .sl-fields-2 { grid-template-columns: minmax(0, 1fr); }
+  .sl-picker { max-height: 300px; }
+  .sl-summary-total strong { font-size: 28px; }
+}
+
+/* ── Tez sotuv modali ───────────────────────────────────── */
+.sl-cart { list-style: none; margin: 0; padding: 0; border-radius: var(--r-lg); box-shadow: inset 0 0 0 1px var(--sep); overflow: hidden; }
+.sl-cart-line { position: relative; display: grid; grid-template-columns: minmax(0, 1fr) auto auto 44px; gap: 8px 12px; align-items: center; padding: 10px 6px 10px 14px; }
+.sl-cart-line + .sl-cart-line::before { content: ""; position: absolute; top: 0; left: 14px; right: 0; height: .5px; background: var(--sep); }
+.sl-cart-name { min-width: 0; display: grid; gap: 1px; }
+.sl-cart-name b { font-size: 15px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sl-cart-name span { font-size: 12px; color: var(--ink-3); overflow-wrap: anywhere; }
+.sl-cart-name code { font-family: var(--font-mono); }
+.sl-cart-sum { font-size: 15px; font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; text-align: right; min-width: 90px; }
+.sl-cart-sum small { display: block; font-size: 12px; color: var(--ink-3); font-weight: 500; }
+.sl-cart .sl-qty button { width: 36px; height: 36px; font-size: 18px; }
+.sl-cart .sl-qty span { min-width: 28px; text-align: center; font-weight: 600; font-variant-numeric: tabular-nums; }
+.sl-cart .quick-sale-price-input { width: 110px; }
+.sl-cart-empty { display: grid; justify-items: center; gap: 8px; padding: 32px 16px; text-align: center; color: var(--ink-3); border-radius: var(--r-lg); background: var(--fill-2); }
+.sl-cart-empty svg { color: var(--brand); }
+.sl-cart-total { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.sl-cart-total span { font-size: 14px; color: var(--ink-3); font-weight: 500; }
+.sl-cart-total strong { font-size: 26px; font-weight: 700; letter-spacing: -.03em; font-variant-numeric: tabular-nums; }
+@media (max-width: 600px) {
+  .sl-cart-line { grid-template-columns: minmax(0, 1fr) 44px; }
+  .sl-cart-name { grid-column: 1; }
+  .sl-cart-line > .sl-cart-del { grid-column: 2; grid-row: 1; }
+  .sl-cart-line > .sl-cart-ctl { grid-column: 1; display: flex; align-items: center; gap: 10px; }
+  .sl-cart-line > .sl-cart-sum { grid-column: 2; grid-row: 2; text-align: right; min-width: 0; }
+  .sl-cart .sl-qty button { width: 44px; height: 44px; }
+}
+
+/* ── Muddati o'tgan nasiya ogohlantirishi (dashboard) ───── */
+.sl-alert { border-radius: var(--r-xl); background: var(--surface); box-shadow: var(--shadow-sm), inset 0 0 0 1px color-mix(in srgb, var(--danger) 25%, transparent); overflow: hidden; margin-bottom: 20px; }
+.sl-alert-head { display: flex; align-items: center; gap: 10px; padding: 14px 18px; background: var(--danger-soft); color: var(--danger); }
+.sl-alert-head strong { font-size: 15px; font-weight: 600; flex: 1; }
+.sl-alert-head b { min-width: 26px; padding: 0 8px; line-height: 24px; border-radius: var(--r-pill); text-align: center; font-size: 13px; background: var(--danger-fill); color: var(--on-brand); font-variant-numeric: tabular-nums; }
+.sl-alert-row { position: relative; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 12px; align-items: center; padding: 11px 18px; min-height: 52px; text-decoration: none; color: inherit; }
+.sl-alert-row + .sl-alert-row::before { content: ""; position: absolute; top: 0; left: 18px; right: 0; height: .5px; background: var(--sep); }
+.sl-alert-row:hover { background: var(--fill-2); }
+.sl-alert-row:active { opacity: .6; }
+.sl-alert-row:focus-visible { outline: 3px solid var(--brand-ring); outline-offset: -3px; }
+.sl-alert-name { font-weight: 600; color: var(--ink-1); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sl-alert-sub { font-size: 13px; color: var(--ink-3); grid-column: 1; font-variant-numeric: tabular-nums; }
+.sl-alert-sum { grid-column: 2; grid-row: 1 / span 2; text-align: right; font-weight: 700; color: var(--danger); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.sl-alert-sum small { display: block; font-size: 12px; font-weight: 500; color: var(--ink-3); }
+.sl-alert-more { display: flex; align-items: center; justify-content: center; gap: 6px; min-height: 44px; border-top: .5px solid var(--sep); color: var(--brand); font-weight: 600; font-size: 14px; text-decoration: none; }
+.sl-alert-more:hover { background: var(--fill-2); }
+
+/* ── Filialga berildi ───────────────────────────────────── */
+.sl-tr-stats { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.sl-tr { grid-template-columns: 40px minmax(0, 1fr) auto; }
+.sl-tr-route { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; font-size: 13px; }
+.sl-tr-route span { color: var(--ink-2); }
+.sl-tr-route svg { color: var(--ink-3); flex: none; }
+.sl-tr-route b { color: var(--brand); font-weight: 600; }
+.sl-tr-qty { text-align: right; display: grid; gap: 1px; }
+.sl-tr-qty strong { font-size: 18px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.sl-tr-qty span { font-size: 12px; color: var(--ink-3); white-space: nowrap; }
+.sl-day { padding: 14px 18px 6px; font-size: 13px; font-weight: 600; color: var(--ink-3); }
+.sl-day:first-child { padding-top: 10px; }
+@media (max-width: 700px) {
+  .sl-tr-stats { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .sl-tr-stats .sl-stat--hero { grid-column: auto; }
+  .sl-tr-stats .sl-stat-v { font-size: 18px; }
+  .sl-tr { grid-template-columns: 40px minmax(0, 1fr) auto; grid-template-areas: none; }
+  .sl-tr .sl-av, .sl-tr .sl-row-main { grid-area: auto; }
+  .sl-day { padding: 12px 4px 0; }
+}
+
+/* Transfer formasi (mahsulot sahifasida) */
+.sl-transfer { max-width: 640px; margin-top: 16px; }
+.sl-transfer form { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end; padding: 4px 18px 18px; }
+.sl-transfer .auth-field { flex: 1; min-width: 200px; margin: 0; }
+.sl-transfer .btn { min-height: 44px; }
+.sl-transfer .auth-alert { flex-basis: 100%; }
+
+/* ── Chek ───────────────────────────────────────────────── */
+.sl-receipt-wrap { --sl-rw: 80mm; display: grid; justify-items: center; gap: 16px; padding-bottom: 24px; }
+.sl-receipt-bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; width: 100%; max-width: 520px; }
+.sl-receipt-tools { display: flex; align-items: center; gap: 8px; }
+.sl-receipt-paper {
+  width: min(100%, calc(var(--sl-rw) + 48px)); background: var(--bg); color: var(--ink-1);
+  padding: 26px 22px 22px; border-radius: 4px 4px 0 0; box-shadow: var(--shadow);
+  font-size: 13px; line-height: 1.45; font-variant-numeric: tabular-nums; position: relative;
+  -webkit-mask: radial-gradient(circle 6px at 50% 100%, #0000 98%, #000) 0 0 / 14px 100% repeat-x;
+  mask: radial-gradient(circle 6px at 50% 100%, #0000 98%, #000) 0 0 / 14px 100% repeat-x;
+  padding-bottom: 30px;
+}
+.sl-rc-head { text-align: center; display: grid; justify-items: center; gap: 2px; }
+.sl-rc-mark { width: 40px; height: 40px; border-radius: 12px; display: grid; place-items: center; background: var(--brand-fill); color: var(--on-brand); font-weight: 700; font-size: 18px; margin-bottom: 6px; }
+.sl-rc-head strong { font-size: 17px; font-weight: 700; letter-spacing: -.02em; }
+.sl-rc-head span { font-size: 12px; color: var(--ink-3); }
+.sl-rc-title { margin-top: 8px; font-size: 11px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; color: var(--ink-2); }
+.sl-rc-cut { border: 0; border-top: 1.5px dashed var(--sep); margin: 14px 0; }
+.sl-rc-meta { display: grid; grid-template-columns: auto 1fr; gap: 3px 12px; font-size: 12px; }
+.sl-rc-meta dt { color: var(--ink-3); }
+.sl-rc-meta dd { margin: 0; text-align: right; font-weight: 500; overflow-wrap: anywhere; }
+.sl-rc-item { display: grid; gap: 2px; }
+.sl-rc-item-top { display: flex; justify-content: space-between; gap: 10px; align-items: baseline; }
+.sl-rc-item-top b { font-size: 14px; font-weight: 600; overflow-wrap: anywhere; }
+.sl-rc-item-top strong { white-space: nowrap; }
+.sl-rc-item small { font-size: 11px; color: var(--ink-3); font-family: var(--font-mono); overflow-wrap: anywhere; }
+.sl-rc-line { display: flex; justify-content: space-between; gap: 10px; margin: 4px 0; }
+.sl-rc-line span:first-child { color: var(--ink-3); }
+.sl-rc-line span:last-child { text-align: right; overflow-wrap: anywhere; }
+.sl-rc-total { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; padding: 10px 0 4px; }
+.sl-rc-total span { font-size: 12px; font-weight: 700; letter-spacing: .1em; }
+.sl-rc-total strong { font-size: 22px; font-weight: 800; letter-spacing: -.02em; }
+.sl-rc-rem span:last-child { font-weight: 700; }
+.sl-rc-foot { text-align: center; display: grid; gap: 2px; font-size: 12px; color: var(--ink-3); }
+.sl-rc-foot b { font-size: 14px; color: var(--ink-1); }
+.sl-rc-code { font-family: var(--font-mono); font-size: 11px; letter-spacing: .12em; color: var(--ink-3); }
+
+@media print {
+  .sl-receipt-bar, .no-print { display: none !important; }
+  .sl-receipt-wrap { display: block; padding: 0; }
+  .sl-receipt-paper {
+    width: auto; max-width: none; padding: 0; margin: 0; box-shadow: none; border-radius: 0;
+    background: #fff; color: #000; font-size: 11px; -webkit-mask: none; mask: none;
+    font-family: var(--font-mono);
+  }
+  .sl-receipt-paper * { color: #000 !important; }
+  .sl-rc-mark { background: none; color: #000; box-shadow: inset 0 0 0 1.5px #000; width: 30px; height: 30px; font-size: 14px; border-radius: 8px; }
+  .sl-rc-cut { border-top: 1px dashed #000; margin: 8px 0; }
+  .sl-rc-total strong { font-size: 16px; }
+  .sl-rc-head strong { font-size: 14px; }
+}

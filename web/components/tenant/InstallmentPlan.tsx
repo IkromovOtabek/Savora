@@ -2,7 +2,7 @@ import { fmtMoney } from '@/lib/format';
 import { InstallmentPlan as Plan } from '@/lib/installment';
 import InstallmentMonths from './InstallmentMonths';
 
-/** Nasiya (variant) to'lov jadvali — sotuv detali sahifasida ko'rsatiladi. */
+/** Nasiya to'lov jadvali — sotuv detali sahifasida ko'rsatiladi. */
 export default function InstallmentPlan({
   plan,
   saleId,
@@ -12,35 +12,40 @@ export default function InstallmentPlan({
   saleId: string;
   canPay: boolean;
 }) {
-  return (
-    <div className="panel" style={{ marginTop: 20 }}>
-      <div className="panel-head"><h2>Variant to&apos;lovlar</h2></div>
+  const financed = Math.max(0, plan.total - plan.down);
+  const paidMonthly = Math.max(0, plan.paid - plan.down);
+  const downPct = plan.total > 0 ? (plan.down / plan.total) * 100 : 0;
+  const monthlyPct = plan.total > 0 ? (Math.min(paidMonthly, financed) / plan.total) * 100 : 0;
 
-      <div className="dash-stats" style={{ padding: '18px 20px' }}>
-        <div className="dash-stat">
-          <div className="dash-stat-n">{fmtMoney(plan.total)} UZS</div>
-          <div className="dash-stat-l">Sotilgan narx</div>
+  return (
+    <section className="sl-card" aria-labelledby="sl-plan-h">
+      <div className="sl-card-head">
+        <h2 id="sl-plan-h">Nasiya jadvali</h2>
+        <small>{plan.monthsPaid} / {plan.months} oy to&apos;langan</small>
+      </div>
+
+      <div className="sl-plan-stats">
+        <div className="sl-plan-stat">
+          <span>Boshlang&apos;ich</span>
+          <strong>{fmtMoney(plan.down)}</strong>
         </div>
-        <div className="dash-stat">
-          <div className="dash-stat-n">{fmtMoney(plan.down)} UZS</div>
-          <div className="dash-stat-l">Boshlang&apos;ich</div>
+        <div className="sl-plan-stat sl-plan-stat--gold">
+          <span>Oylik to&apos;lov</span>
+          <strong>{fmtMoney(plan.monthly)}</strong>
         </div>
-        <div className="dash-stat dash-stat--warn">
-          <div className="dash-stat-n">{fmtMoney(plan.remaining)} UZS</div>
-          <div className="dash-stat-l">Jami qolgan</div>
+        <div className="sl-plan-stat">
+          <span>Jami to&apos;langan</span>
+          <strong>{fmtMoney(plan.paid)}</strong>
         </div>
-        <div className="dash-stat">
-          <div className="dash-stat-n" style={{ color: '#2563eb' }}>{fmtMoney(plan.monthly)} UZS</div>
-          <div className="dash-stat-l">Oylik to&apos;lov</div>
+        <div className={`sl-plan-stat${plan.overdueCount > 0 ? ' sl-plan-stat--danger' : ''}`}>
+          <span>{plan.overdueCount > 0 ? `Qoldiq · ${plan.overdueCount} oy kechikkan` : 'Qoldiq'}</span>
+          <strong>{fmtMoney(plan.remaining)}</strong>
         </div>
-        <div className="dash-stat dash-stat--ok">
-          <div className="dash-stat-n">{plan.monthsPaid} / {plan.months} oy</div>
-          <div className="dash-stat-l">To&apos;langan</div>
-        </div>
-        <div className="dash-stat">
-          <div className="dash-stat-n" style={{ color: '#dc2626' }}>{fmtMoney(plan.remaining)} UZS</div>
-          <div className="dash-stat-l">Qolgan summa</div>
-        </div>
+      </div>
+
+      <div className="sl-plan-bar" role="img" aria-label={`Boshlang'ich ${Math.round(downPct)}%, oylik to'lovlar ${Math.round(monthlyPct)}%`}>
+        <i style={{ width: `${downPct}%` }} />
+        <i style={{ width: `${monthlyPct}%` }} />
       </div>
 
       <InstallmentMonths
@@ -49,6 +54,6 @@ export default function InstallmentPlan({
         remaining={plan.remaining}
         canPay={canPay}
       />
-    </div>
+    </section>
   );
 }

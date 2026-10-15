@@ -23,7 +23,7 @@ export default function SaleRowDelete({ saleId, saleNo }: { saleId: string; sale
   }
 
   return (
-    <button type="button" className="icon-btn icon-btn--danger" title="Bekor qilish" onClick={onDelete} disabled={busy}>
+    <button type="button" className="icon-btn icon-btn--danger" title="Bekor qilish" aria-label={`${saleNo} sotuvini bekor qilish`} onClick={onDelete} disabled={busy}>
       <Icon name="trash" size={16} />
     </button>
   );

@@ -9,7 +9,7 @@ import PriceInput from '@/components/ui/PriceInput';
 import Icon from '@/components/icons/Icon';
 
 /**
- * Nasiya oy kataklari — bosilganda to'lov modali ochiladi (To'liq / Qisman).
+ * Nasiya oylari (vertikal timeline) — bosilganda to'lov modali ochiladi (To'liq / Qisman).
  * To'lov bir xil `addSalePaymentAction` orqali qo'shiladi (alohida to'lov formasi yo'q).
  */
 export default function InstallmentMonths({
@@ -56,55 +56,73 @@ export default function InstallmentMonths({
 
   return (
     <>
-      <div className="installment-months">
+      <ol className="sl-tl" aria-label="Oylik to'lovlar">
         {schedule.map((m) => {
           const clickable = canPay && !m.paid;
           const meta = INSTALLMENT_STATE_META[m.state];
-          const cls =
-            `installment-month installment-month--${m.state}` +
-            (clickable ? ' installment-month--clickable' : '');
+          const pct = m.amount > 0 ? Math.min(100, Math.round((m.paidAmount / m.amount) * 100)) : 0;
           const inner = (
             <>
-              <span className="installment-month-l">{m.month}-oy</span>
-              <span className="installment-month-v">{fmtMoney(m.amount)} UZS</span>
-              {m.state === 'partial'
-                ? <span className="installment-month-due">To&apos;landi: {fmtMoney(m.paidAmount)} / {fmtMoney(m.amount)}</span>
-                : <span className="installment-month-due">{fmtDate(m.dueDate)}</span>}
-              <span className={`installment-badge ${meta.cls}`}>{meta.label}</span>
+              <span className="sl-tl-t">
+                <b>{m.month}-oy</b>
+                <span>
+                  {fmtDate(m.dueDate)}
+                  {m.state === 'partial' ? ` · to'landi ${fmtMoney(m.paidAmount)}` : ''}
+                </span>
+              </span>
+              <span className="sl-tl-r">
+                <strong>{fmtMoney(m.amount)}</strong>
+                {clickable
+                  ? <span className="sl-tl-cta">To&apos;lash →</span>
+                  : <span className={`sl-pill ${meta.cls}`}>{meta.label}</span>}
+              </span>
+              {m.state === 'partial' && <span className="sl-tl-mini" aria-hidden><i style={{ width: `${pct}%` }} /></span>}
             </>
           );
-          return clickable ? (
-            <button key={m.month} type="button" className={cls} onClick={() => { setOpenMonth(m); setPartial(false); }}>
-              {inner}
-            </button>
-          ) : (
-            <div key={m.month} className={cls}>{inner}</div>
+          return (
+            <li key={m.month} className={`sl-tl-item sl-tl-item--${m.state}`}>
+              <span className="sl-tl-dot" aria-hidden>
+                {m.paid ? <Icon name="check" size={14} strokeWidth={3} /> : m.month}
+              </span>
+              {clickable ? (
+                <button
+                  type="button"
+                  className="sl-tl-body"
+                  onClick={() => { setOpenMonth(m); setPartial(false); }}
+                  aria-label={`${m.month}-oy, ${fmtMoney(m.amount)} so'm, ${meta.label} — to'lash`}
+                >
+                  {inner}
+                </button>
+              ) : (
+                <div className="sl-tl-body">{inner}</div>
+              )}
+            </li>
           );
         })}
-      </div>
+      </ol>
 
       {openMonth && (
         <div className="rv-overlay" onClick={close}>
-          <div className="rv-modal inst-modal" onClick={(e) => e.stopPropagation()}>
+          <div className="rv-modal inst-modal" role="dialog" aria-modal="true" aria-labelledby="inst-modal-title" onClick={(e) => e.stopPropagation()}>
             <div className="inst-modal-head">
-              <h3>{openMonth.month}-oy to&apos;lovi</h3>
+              <h3 id="inst-modal-title">{openMonth.month}-oy to&apos;lovi</h3>
               <button type="button" className="inst-modal-close" onClick={close} aria-label="Yopish"><Icon name="close" size={16} /></button>
             </div>
 
             <div className="inst-modal-rows">
               <div className="inst-modal-row">
                 <span>Oylik to&apos;lov</span>
-                <strong>{fmtMoney(openMonth.amount)} UZS</strong>
+                <strong>{fmtMoney(openMonth.amount)} so&apos;m</strong>
               </div>
               {openMonth.paidAmount > 0 && (
                 <div className="inst-modal-row">
                   <span>Shu oyga to&apos;langan</span>
-                  <strong style={{ color: '#059669' }}>{fmtMoney(openMonth.paidAmount)} UZS</strong>
+                  <strong style={{ color: 'var(--accent)' }}>{fmtMoney(openMonth.paidAmount)} so&apos;m</strong>
                 </div>
               )}
               <div className="inst-modal-row">
                 <span>Qolgan summa</span>
-                <strong style={{ color: '#dc2626' }}>{fmtMoney(remaining)} UZS</strong>
+                <strong style={{ color: 'var(--danger)' }}>{fmtMoney(remaining)} so&apos;m</strong>
               </div>
             </div>
 
@@ -117,7 +135,7 @@ export default function InstallmentMonths({
                   <input type="hidden" name="amount" value={fullAmount} />
                   <input type="hidden" name="note" value={`${openMonth.month}-oy to'lovi`} />
                   <button type="submit" className="btn btn-primary inst-btn-full" disabled={isPending}>
-                    {isPending ? '...' : `To'liq — ${fmtMoney(fullAmount)} UZS`}
+                    {isPending ? '...' : `To'liq — ${fmtMoney(fullAmount)} so'm`}
                   </button>
                 </form>
                 <button

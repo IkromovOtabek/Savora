@@ -32,7 +32,7 @@ export default function ReviewModal({ open, onClose, saleId, branchName }: Props
 
   return (
     <div className="rv-overlay" onClick={onClose}>
-      <div className="rv-modal" onClick={(e) => e.stopPropagation()}>
+      <div className="rv-modal" role="dialog" aria-modal="true" aria-label="Xizmatni baholash" onClick={(e) => e.stopPropagation()}>
         <button type="button" className="rv-close" onClick={onClose} aria-label="Yopish"><Icon name="close" size={16} /></button>
 
         {state?.success ? (

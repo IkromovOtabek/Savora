@@ -1,7 +1,8 @@
 import Link from 'next/link';
 import { getTenantSession } from '@/lib/tenantSession';
 import { isBranchScoped } from '@/lib/branchScope';
-import { fmtDateTime } from '@/lib/format';
+import { fmtDate, fmtDateTime } from '@/lib/format';
+import Icon from '@/components/icons/Icon';
 
 export const metadata = { title: 'Filialga berildi — Savora' };
 
@@ -16,56 +17,89 @@ export default async function TransferredPage() {
   todayStart.setHours(0, 0, 0, 0);
   const todayCount = transfers.filter((t) => new Date(t.createdAt!) >= todayStart).length;
   const totalQty = transfers.reduce((s, t) => s + (t.quantity ?? 0), 0);
+  const branchCount = new Set(transfers.map((t) => t.toBranchName)).size;
+
+  // Kun bo'yicha guruhlash (ro'yxat allaqachon sana bo'yicha tartiblangan)
+  const todayKey = fmtDate(new Date());
+  const groups: { day: string; items: typeof transfers }[] = [];
+  for (const t of transfers) {
+    const day = fmtDate(t.createdAt!);
+    const last = groups[groups.length - 1];
+    if (last && last.day === day) last.items.push(t);
+    else groups.push({ day, items: [t] });
+  }
 
   return (
     <>
-      <div className="dash-head">
+      <div className="t-page-head">
         <div>
-          <h1 className="dash-hello">Filialga berildi</h1>
-          <p className="dash-sub">Bugun: {todayCount} ta · Jami berilgan: {totalQty} dona</p>
+          <h1 className="t-page-title">Filialga berildi</h1>
+          <p className="t-page-sub">Bugun: <strong>{todayCount} ta</strong> · Jami berilgan: <strong>{totalQty} dona</strong></p>
         </div>
-        <Link href="/app/products" className="btn btn-ghost">Omborga o&apos;tish</Link>
+        <div className="t-page-actions">
+          <Link href="/app/products" className="btn btn-ghost btn-with-icon">
+            <Icon name="box" size={16} />
+            Omborga o&apos;tish
+          </Link>
+        </div>
       </div>
 
-      <div className="panel" style={{ marginTop: 20 }}>
+      <section className="sl-stats sl-tr-stats" aria-label="Xulosa">
+        <div className="sl-stat sl-stat--hero">
+          <span className="sl-stat-l"><Icon name="repeat" size={16} />Bugun</span>
+          <span className="sl-stat-v">{todayCount} <small>ta</small></span>
+        </div>
+        <div className="sl-stat">
+          <span className="sl-stat-l"><Icon name="box" size={16} />Jami dona</span>
+          <span className="sl-stat-v">{totalQty}</span>
+        </div>
+        <div className="sl-stat">
+          <span className="sl-stat-l"><Icon name="store" size={16} />Filiallar</span>
+          <span className="sl-stat-v">{branchCount}</span>
+        </div>
+      </section>
+
+      <div className="sl-card sl-list-card">
         {transfers.length === 0 ? (
-          <div className="panel-empty">
-            <p>Hali filialga berilgan mahsulot yo&apos;q.</p>
+          <div className="sl-empty">
+            <div className="sl-empty-ic"><Icon name="repeat" size={30} /></div>
+            <h3>Hali filialga berilgan mahsulot yo&apos;q</h3>
+            <p>Ombordagi mahsulot sahifasidan uni boshqa filialga ko&apos;chirishingiz mumkin.</p>
             <Link href="/app/products" className="btn btn-primary">Omborga o&apos;tish</Link>
           </div>
         ) : (
-          <div className="table-wrap">
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th>№ / Sana</th>
-                  <th>Mahsulot</th>
-                  <th>Soni</th>
-                  <th>Qayerdan</th>
-                  <th>Qayerga</th>
-                  <th>Kim</th>
-                </tr>
-              </thead>
-              <tbody>
-                {transfers.map((t) => (
-                  <tr key={String(t._id)}>
-                    <td data-label="№ / Sana">
-                      <div className="cell-main">{t.transferNo}</div>
-                      <div className="cell-sub">{fmtDateTime(t.createdAt!)}</div>
-                    </td>
-                    <td data-label="Mahsulot">
-                      <Link href={`/app/products/${t.productId}`} className="cell-link cell-main">{t.productSnapshot.name}</Link>
-                      <code className="imei-code">{t.productSnapshot.imei}</code>
-                    </td>
-                    <td data-label="Soni"><strong>{t.quantity}</strong> dona</td>
-                    <td data-label="Qayerdan">{t.fromBranchName ?? '—'}</td>
-                    <td data-label="Qayerga"><span className="badge-status badge-status--active">{t.toBranchName}</span></td>
-                    <td data-label="Kim">{t.transferredBy}</td>
-                  </tr>
+          groups.map((g) => (
+            <div key={g.day}>
+              <h2 className="sl-day">{g.day === todayKey ? 'Bugun' : g.day} · {g.items.length} ta</h2>
+              <ul className="sl-list">
+                {g.items.map((t) => (
+                  <li key={String(t._id)} className="sl-row sl-tr">
+                    <span className="sl-av" aria-hidden><Icon name="box" size={18} /></span>
+                    <div className="sl-row-main">
+                      <Link href={`/app/products/${t.productId}`} className="sl-row-title">{t.productSnapshot.name}</Link>
+                      <div className="sl-row-sub">
+                        <span>{t.transferNo}</span>
+                        {t.productSnapshot.imei && <code>{t.productSnapshot.imei}</code>}
+                      </div>
+                      <div className="sl-row-meta">
+                        <span className="sl-tr-route">
+                          <span>{t.fromBranchName ?? '—'}</span>
+                          <Icon name="arrowRight" size={14} />
+                          <b>{t.toBranchName}</b>
+                        </span>
+                        <span>{t.transferredBy}</span>
+                        <span>{fmtDateTime(t.createdAt!).split(', ')[1]}</span>
+                      </div>
+                    </div>
+                    <div className="sl-tr-qty">
+                      <strong>{t.quantity}</strong>
+                      <span>dona</span>
+                    </div>
+                  </li>
                 ))}
-              </tbody>
-            </table>
-          </div>
+              </ul>
+            </div>
+          ))
         )}
       </div>
     </>
