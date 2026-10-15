@@ -81,11 +81,10 @@ export default function ImeiBlacklistManager({ rows }: { rows: OwnBlacklistRow[]
         </div>
         <div className="st-group st-bl-list">
           {rows.length === 0 ? (
-            <div className="st-empty">
-              <span className="st-empty-ic"><Icon name="shield" size={24} /></span>
-              <h3>Hozircha bo&apos;sh</h3>
-              <p>Qarzdor yoki shubhali IMEI ni qo&apos;shsangiz, boshqa do&apos;konlar ham ogohlantiriladi.</p>
-            </div>
+            <div className="ux-empty">
+              <span className="ux-empty-ic"><Icon name="shield" size={24} /></span>
+              <b>Hozircha bo&apos;sh</b>
+              <p>Qarzdor yoki shubhali IMEI ni qo&apos;shsangiz, boshqa do&apos;konlar ham ogohlantiriladi.</p>            </div>
           ) : (
             rows.map((r) => (
               <div key={r.id} className="st-card">

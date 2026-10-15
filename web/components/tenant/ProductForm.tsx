@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useActionState, useState } from 'react';
+import { useActionState, useEffect, useState } from 'react';
 import { useToastOnState } from '@/lib/useToastOnState';
 import { createProductAction, updateProductAction } from '@/app/actions/products';
 import { ProductStatus, SoldPaymentType } from '@/lib/models/tenant/Product';
@@ -15,6 +15,14 @@ import { fmtMoney } from '@/lib/format';
 interface BranchOption { id: string; name: string }
 
 export type LocationStatus = 'warehouse' | 'sold';
+
+/** Forma bo'limlari — yuqoridagi "qadam" navigatsiyasi uchun */
+const FORM_SECTIONS = [
+  { id: 'st-sec-main', label: 'Asosiy' },
+  { id: 'st-sec-price', label: 'Narx' },
+  { id: 'st-sec-stock', label: 'Ombor' },
+  { id: 'st-sec-extra', label: 'Qo\'shimcha' },
+] as const;
 
 interface Props {
   mode: 'create' | 'edit';
@@ -96,18 +104,34 @@ export default function ProductForm({
 
   const isCreate = mode === 'create';
 
+  // Bo'lim navigatsiyasi — uzun formada "qadam" hissi: ko'rinib turgan bo'lim belgilanadi
+  const [activeSec, setActiveSec] = useState<string>(FORM_SECTIONS[0].id);
+  useEffect(() => {
+    if (typeof IntersectionObserver === 'undefined') return;
+    const els = FORM_SECTIONS.map((s) => document.getElementById(s.id)).filter((el): el is HTMLElement => !!el);
+    const io = new IntersectionObserver(
+      (entries) => {
+        const vis = entries.filter((e) => e.isIntersecting).sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top);
+        if (vis[0]) setActiveSec(vis[0].target.id);
+      },
+      { rootMargin: '-25% 0px -55% 0px' },
+    );
+    els.forEach((el) => io.observe(el));
+    return () => io.disconnect();
+  }, []);
+
   return (
-    <div className={`st-form-page${isCreate ? '' : ' st-form-page--edit'}`} id="st-edit">
+    <div className={`st-form-page${isCreate ? ' st-form-page--create' : ' st-form-page--edit'}`} id="st-edit">
       {isCreate ? (
         <div className="st-form-head">
+          <BackLink href="/app/products" className="btn btn-plain btn-sm st-form-back">Ombor</BackLink>
           <div>
-            <h2>Yangi mahsulot</h2>
+            <h1>Yangi mahsulot</h1>
             <p>
               Mahsulot {isAdmin ? 'asosiy omboringizga' : 'shu filial omboriga'} qo&apos;shiladi.
-              {isAdmin ? ' Filialga ulashish uchun ro\'yxatda "Filialga berish" tugmasidan foydalaning.' : ''}
+              {isAdmin ? ' Filialga keyin ro\'yxatdagi "Filialga berish" orqali o\'tkaziladi.' : ''}
             </p>
           </div>
-          <BackLink href="/app/products" className="btn btn-ghost btn-sm">Orqaga</BackLink>
         </div>
       ) : (
         <div className="st-ghead"><span>Tahrirlash</span></div>
@@ -122,6 +146,14 @@ export default function ProductForm({
           <p>Filial topilmadi. Administrator bilan bog&apos;laning.</p>
         </div>
       ) : (
+        <>
+        <nav className="st-fnav ux-scrollx" aria-label="Forma bo'limlari">
+          {FORM_SECTIONS.map((s, i) => (
+            <a key={s.id} href={`#${s.id}`} aria-current={activeSec === s.id ? 'step' : undefined}>
+              <span className="st-fnav-n" aria-hidden="true">{i + 1}</span>{s.label}
+            </a>
+          ))}
+        </nav>
         <form action={formAction} className="st-form">
           {mode === 'edit' && initial && <input type="hidden" name="productId" value={initial.id} />}
 
@@ -129,7 +161,7 @@ export default function ProductForm({
               filial → o'z filiali). Boshqa filialga "Filialga berish" orqali o'tkaziladi. */}
 
           {/* ---- Asosiy ---- */}
-          <section aria-labelledby="st-f-main">
+          <section id="st-sec-main" className="st-fsec" aria-labelledby="st-f-main">
             <div className="st-ghead st-ghead--form">
               <span id="st-f-main"><span className="st-fgroup-ic" aria-hidden="true"><Icon name="box" size={13} /></span>Asosiy</span>
             </div>
@@ -180,7 +212,7 @@ export default function ProductForm({
           </section>
 
           {/* ---- Narx ---- */}
-          <section aria-labelledby="st-f-price">
+          <section id="st-sec-price" className="st-fsec" aria-labelledby="st-f-price">
             <div className="st-ghead st-ghead--form">
               <span id="st-f-price"><span className="st-fgroup-ic" aria-hidden="true"><Icon name="wallet" size={13} /></span>Narx</span>
             </div>
@@ -199,34 +231,38 @@ export default function ProductForm({
                   </div>
                 </div>
 
-                {showProfit && (
-                  saleNum > 0 && purchaseNum > 0 ? (
-                    <div className="st-profit" aria-live="polite">
-                      <div className="st-profit-cell">
-                        <div className="st-profit-l">Foyda</div>
-                        <div className={`st-profit-v ${profit >= 0 ? 'st-profit-v--ok' : 'st-profit-v--bad'}`}>
-                          {profit > 0 ? '+' : ''}{fmt(profit)}
+                {/* Jonli foyda kartasi — doim joyida (sakramaydi), narxlar kiritilgach to'ladi */}
+                {showProfit && (() => {
+                  const ready = saleNum > 0 && purchaseNum > 0;
+                  const tone = !ready ? 'gray' : profit >= 0 ? 'green' : 'red';
+                  return (
+                    <div className={`st-profit st-profit--${tone}`} aria-live="polite">
+                      <span className={`ux-clay ux-clay--${tone}`} aria-hidden="true">
+                        <Icon name={ready && profit < 0 ? 'alert' : 'trendingUp'} size={20} />
+                      </span>
+                      <div className="st-profit-main">
+                        <div className="st-profit-l">Foyda (1 dona)</div>
+                        <div className={`st-profit-v${ready ? (profit >= 0 ? ' st-profit-v--ok' : ' st-profit-v--bad') : ''}`}>
+                          {ready ? <>{profit > 0 ? '+' : ''}{fmt(profit)} <small>so&apos;m</small></> : '—'}
                         </div>
                       </div>
-                      <div className="st-profit-cell">
-                        <div className="st-profit-l">Marja</div>
-                        <div className={`st-profit-v ${profit >= 0 ? '' : 'st-profit-v--bad'}`}>{pct(margin)}</div>
-                      </div>
-                      <div className="st-profit-cell">
-                        <div className="st-profit-l">Ustama</div>
-                        <div className={`st-profit-v ${profit >= 0 ? '' : 'st-profit-v--bad'}`}>{pct(markup)}</div>
-                      </div>
+                      {ready ? (
+                        <dl className="st-profit-side">
+                          <div><dt>Marja</dt><dd className={profit < 0 ? 'st-profit-v--bad' : ''}>{pct(margin)}</dd></div>
+                          <div><dt>Ustama</dt><dd className={profit < 0 ? 'st-profit-v--bad' : ''}>{pct(markup)}</dd></div>
+                        </dl>
+                      ) : (
+                        <p className="st-profit-hint">Ikkala narxni kiriting — foyda va marja shu yerda ko&apos;rinadi.</p>
+                      )}
                     </div>
-                  ) : (
-                    <p className="st-profit-hint">Ikkala narxni kiriting — foyda va marja shu yerda ko&apos;rinadi.</p>
-                  )
-                )}
+                  );
+                })()}
               </div>
             </div>
           </section>
 
           {/* ---- Ombor ---- */}
-          <section aria-labelledby="st-f-stock">
+          <section id="st-sec-stock" className="st-fsec" aria-labelledby="st-f-stock">
             <div className="st-ghead st-ghead--form">
               <span id="st-f-stock"><span className="st-fgroup-ic" aria-hidden="true"><Icon name="building" size={13} /></span>Ombor</span>
             </div>
@@ -374,7 +410,7 @@ export default function ProductForm({
           </section>
 
           {/* ---- Qo'shimcha ---- */}
-          <section aria-labelledby="st-f-extra">
+          <section id="st-sec-extra" className="st-fsec" aria-labelledby="st-f-extra">
             <div className="st-ghead st-ghead--form">
               <span id="st-f-extra"><span className="st-fgroup-ic" aria-hidden="true"><Icon name="edit" size={13} /></span>Qo&apos;shimcha</span>
             </div>
@@ -400,6 +436,7 @@ export default function ProductForm({
             </button>
           </div>
         </form>
+        </>
       )}
     </div>
   );

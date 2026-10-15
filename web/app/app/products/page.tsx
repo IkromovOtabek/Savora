@@ -1,6 +1,7 @@
 import Link from 'next/link';
+import type { CSSProperties } from 'react';
 import { getTenantSession } from '@/lib/tenantSession';
-import { branchFilter } from '@/lib/branchScope';
+import { branchFilter, isBranchScoped } from '@/lib/branchScope';
 import { searchPattern } from '@/lib/security';
 import { isImeiEnabled } from '@/lib/features';
 import { resolveOrgPlan } from '@/lib/plans';
@@ -10,6 +11,7 @@ import ProductRowActions from '@/components/tenant/ProductRowActions';
 import LimitBanner from '@/components/tenant/LimitBanner';
 import { loadUserPermissions } from '@/lib/permissionGuard';
 import Icon from '@/components/icons/Icon';
+import MoreMenu from '@/components/ui/MoreMenu';
 // import ProductImportForm from '@/components/tenant/ProductImportForm'; // CSV Import vaqtincha yashirilgan
 
 export const metadata = { title: 'Ombor — Savora' };
@@ -113,10 +115,20 @@ export default async function ProductsPage({
   const pageInBranches = products.filter((p) => !mainBranchIds.has(String(p.branchId))).length;
   const perPageNote = totalPages > 1;
 
+  // Filial login — filial tanlovi va "Filiallarda" ko'rsatkichi ma'nosiz (faqat o'z filiali)
+  const scoped = isBranchScoped(user);
+  const canCreate = perms.has('product.create');
+  const canExport = !!features.export && perms.has('export.data');
+  const hasFilter = !!(q || activeStatus || sp.branch);
+  // Bo'sh omborda nol kartalar o'rniga darhol bo'sh holat ko'rinadi
+  const showStats = total > 0 || hasFilter;
+  // Izoh endi kartaning title'ida (sichqoncha) va ekran o'quvchisi uchun sr-only matnda
+  const pageHint = perPageNote ? `Shu sahifadagi ${products.length} ta mahsulot bo'yicha` : undefined;
+
   return (
     <>
       {isAdmin && <LimitBanner label="Mahsulotlar" current={orgProductCount} max={maxProducts} />}
-      <div className="t-page-head">
+      <div className="t-page-head st-head">
         <div>
           <h1 className="t-page-title">Ombor</h1>
           <p className="t-page-sub">
@@ -125,59 +137,71 @@ export default async function ProductsPage({
           </p>
         </div>
         <div className="t-page-actions">
-          {perms.has('product.create') && (
-            <Link href="/app/products/new" className="btn btn-primary btn-with-icon">
+          {canCreate && (
+            <Link href="/app/products/new" className="btn btn-primary btn-with-icon ux-hide-mobile">
               <Icon name="plus" size={18} /> Mahsulot qo&apos;shish
             </Link>
           )}
-          {features.export && perms.has('export.data') && (
-            <a href="/api/export/products" className="btn btn-ghost btn-with-icon">
-              <Icon name="download" size={18} /> CSV yuklab olish
-            </a>
-          )}
+          <MoreMenu label="Ombor amallari">
+            <Link href="/app/inventory"><Icon name="clipboard" size={18} /> Inventarizatsiya</Link>
+            {canExport && (
+              <a href="/api/export/products"><Icon name="download" size={18} /> CSV yuklab olish</a>
+            )}
+          </MoreMenu>
         </div>
       </div>
 
       {sp?.created === '1' && <div className="auth-alert auth-alert--info st-alert" role="status">Mahsulot qo&apos;shildi.</div>}
       {sp?.deleted === '1' && <div className="auth-alert auth-alert--info st-alert" role="status">Mahsulot o&apos;chirildi.</div>}
 
-      <section className="st-stats" aria-label="Ombor xulosasi">
-        <div className="st-stat">
-          <div className="st-stat-l"><span className="st-stat-ic"><Icon name="box" size={15} /></span>Jami</div>
-          <div className="st-stat-v">{fmtMoney(total)} <small>ta</small></div>
-        </div>
-        <div className="st-stat st-stat--ok">
-          <div className="st-stat-l"><span className="st-stat-ic"><Icon name="check" size={15} /></span>Omborda</div>
-          <div className="st-stat-v">{pageInStock}{perPageNote && <small> / {products.length}</small>}</div>
-        </div>
-        <div className="st-stat st-stat--warn">
-          <div className="st-stat-l"><span className="st-stat-ic"><Icon name="alert" size={15} /></span>Kam qolgan</div>
-          <div className="st-stat-v">{pageLow}</div>
-        </div>
-        <div className="st-stat st-stat--gold">
-          <div className="st-stat-l"><span className="st-stat-ic"><Icon name="building" size={15} /></span>Filialga berilgan</div>
-          <div className="st-stat-v">{pageInBranches}</div>
-        </div>
-      </section>
-      <p className="st-stats-note">
-        {perPageNote
-          ? `"Jami" — barcha natijalar; qolganlari shu sahifadagi ${products.length} ta mahsulot bo'yicha.`
-          : `"Kam qolgan" — qoldig'i ${LOW_STOCK} ta yoki undan kam (son bilan hisoblanadigan) mahsulotlar.`}
-      </p>
+      {showStats && (
+        <section
+          className="ux-strip st-strip"
+          style={{ '--ux-cols': scoped ? 3 : 4 } as CSSProperties}
+          aria-label="Ombor xulosasi"
+        >
+          <div className="ux-stat">
+            <div className="ux-stat-l"><span className="ux-clay st-clay-sm" aria-hidden="true"><Icon name="box" size={15} /></span>Jami</div>
+            <div className="ux-stat-v">{fmtMoney(total)}<small>ta</small></div>
+          </div>
+          <div className="ux-stat" title={pageHint}>
+            <div className="ux-stat-l"><span className="ux-clay ux-clay--green st-clay-sm" aria-hidden="true"><Icon name="check" size={15} /></span>Omborda</div>
+            <div className="ux-stat-v">{pageInStock}{perPageNote && <small>/ {products.length}</small>}</div>
+            {pageHint && <span className="sr-only">{pageHint}</span>}
+          </div>
+          <div
+            className="ux-stat"
+            title={`Qoldig'i ${LOW_STOCK} ta yoki undan kam (son bilan hisoblanadigan) mahsulotlar${pageHint ? `. ${pageHint}` : ''}`}
+          >
+            <div className="ux-stat-l">
+              <span className={`ux-clay ${pageLow > 0 ? 'ux-clay--gold' : 'ux-clay--gray'} st-clay-sm`} aria-hidden="true"><Icon name="alert" size={15} /></span>
+              Kam qolgan
+              <span className="st-info" aria-hidden="true">i</span>
+            </div>
+            <div className="ux-stat-v">{pageLow}</div>
+            <span className="sr-only">Qoldig&apos;i {LOW_STOCK} ta yoki undan kam mahsulotlar. {pageHint}</span>
+          </div>
+          {!scoped && (
+            <div className="ux-stat" title={pageHint}>
+              <div className="ux-stat-l"><span className="ux-clay ux-clay--gold st-clay-sm" aria-hidden="true"><Icon name="building" size={15} /></span>Filiallarda</div>
+              <div className="ux-stat-v">{pageInBranches}</div>
+              {pageHint && <span className="sr-only">{pageHint}</span>}
+            </div>
+          )}
+        </section>
+      )}
 
       <ProductSearch
-        branches={branches.map((b) => ({ id: String(b._id), name: b.name }))}
+        branches={scoped ? [] : branches.map((b) => ({ id: String(b._id), name: b.name }))}
         initial={{ q: sp.q ?? '', branch: sp.branch ?? '', status: activeStatus }}
-      />
-
-      <nav className="st-chips" aria-label="Holat bo'yicha filtr">
+      >
         <Link href={statusUrl('')} className="st-chip" aria-current={activeStatus === '' ? 'page' : undefined}>Barchasi</Link>
         {statusChips.map((s) => (
           <Link key={s} href={statusUrl(s)} className="st-chip" aria-current={activeStatus === s ? 'page' : undefined}>
             {PRODUCT_STATUS_LABELS[s]}
           </Link>
         ))}
-      </nav>
+      </ProductSearch>
 
       {/* CSV Import vaqtincha yashirilgan
       <ProductImportForm branches={branches.map((b) => ({ id: String(b._id), name: b.name }))} />
@@ -185,15 +209,19 @@ export default async function ProductsPage({
 
       <div className="st-group st-list-wrap">
         {products.length === 0 ? (
-          <div className="st-empty">
-            <span className="st-empty-ic"><Icon name={q ? 'search' : 'box'} size={26} /></span>
-            <h3>{q ? 'Hech narsa topilmadi' : 'Mahsulot topilmadi'}</h3>
+          <div className="ux-empty">
+            <span className="ux-empty-ic"><Icon name={q ? 'search' : 'box'} size={26} /></span>
+            <b>{q ? 'Hech narsa topilmadi' : hasFilter ? 'Mahsulot topilmadi' : 'Ombor hozircha bo\'sh'}</b>
             <p>
               {q
                 ? `"${q}" bo'yicha mahsulot yo'q. Shtrix-kod, IMEI yoki nomni tekshirib ko'ring.`
-                : 'Tanlangan filtr bo\'yicha omborda mahsulot yo\'q.'}
+                : hasFilter
+                  ? 'Tanlangan filtr bo\'yicha omborda mahsulot yo\'q.'
+                  : 'Birinchi mahsulotni qo\'shing — u shu yerda ko\'rinadi.'}
             </p>
-            {!q && perms.has('product.create') && (
+            {hasFilter ? (
+              <Link href="/app/products" className="btn btn-tinted">Filtrni tozalash</Link>
+            ) : canCreate && (
               <Link href="/app/products/new" className="btn btn-primary btn-with-icon">
                 <Icon name="plus" size={18} /> Mahsulot qo&apos;shish
               </Link>
@@ -214,6 +242,8 @@ export default async function ProductsPage({
                 const avail = availableOf(p);
                 const code = p.productId ?? String(p._id).slice(-8).toUpperCase();
                 const branchName = branchMap[String(p.branchId)] ?? '—';
+                // Ikkinchi kod (IMEI yoki shtrix) — mobilda ichki kod o'rniga shu ko'rinadi
+                const secCode = showImei ? p.imei || '' : p.barcode && p.barcode !== code ? p.barcode : '';
                 const qtyCls = p.trackQuantity
                   ? avail === 0 ? ' st-qty--zero' : avail <= LOW_STOCK ? ' st-qty--low' : ''
                   : '';
@@ -237,11 +267,10 @@ export default async function ProductsPage({
                     <div className="st-row-main">
                       <Link href={`/app/products/${p._id}`} className="st-row-name">{p.name}</Link>
                       <div className="st-row-meta">
-                        <code className="st-mono">{code}</code>
-                        {showImei && p.imei && <code className="st-mono st-dotsep">{p.imei}</code>}
-                        {!showImei && p.barcode && p.barcode !== code && <code className="st-mono st-dotsep">{p.barcode}</code>}
-                        <span className="st-row-meta-branch st-dotsep">{branchName}</span>
-                        <span className="st-dotsep">{fmtDate(p.createdAt) ?? '—'}</span>
+                        <code className={`st-mono${secCode ? ' st-meta-code' : ''}`}>{code}</code>
+                        {secCode && <code className="st-mono st-dotsep st-meta-sec">{secCode}</code>}
+                        {!scoped && <span className="st-row-meta-branch st-dotsep">{branchName}</span>}
+                        <span className="st-dotsep st-meta-date">{fmtDate(p.createdAt) ?? '—'}</span>
                       </div>
                     </div>
                     <div className="st-row-branch">
@@ -263,6 +292,7 @@ export default async function ProductsPage({
                     <div className="st-row-actions">
                       <ProductRowActions
                         productId={String(p._id)}
+                        productName={p.name}
                         status={p.status}
                         currentBranchId={String(p.branchId)}
                         trackQuantity={p.trackQuantity ?? false}
@@ -294,6 +324,12 @@ export default async function ProductsPage({
           </>
         )}
       </div>
+
+      {canCreate && (
+        <Link href="/app/products/new" className="ux-fab" aria-label="Mahsulot qo'shish">
+          <Icon name="plus" size={20} /> Mahsulot
+        </Link>
+      )}
     </>
   );
 }

@@ -12,6 +12,8 @@ import PriceInput from '@/components/ui/PriceInput';
 
 interface Props {
   productId: string;
+  /** Ekran o'quvchisi uchun: "Samsung A54 — amallar" */
+  productName?: string;
   status: string;
   branches: { id: string; name: string }[];
   currentBranchId: string;
@@ -31,7 +33,7 @@ interface Props {
 type View = 'menu' | 'sellType' | 'sellQty' | 'branches' | 'branchQty';
 
 export default function ProductRowActions({
-  productId, status, branches, currentBranchId, trackQuantity = false, available = 1, salePrice = 0, canInstallment = false, canCredit = false,
+  productId, productName, status, branches, currentBranchId, trackQuantity = false, available = 1, salePrice = 0, canInstallment = false, canCredit = false,
   canSell = true, canTransfer = true, variant = 'row',
 }: Props) {
   const router = useRouter();
@@ -146,14 +148,24 @@ export default function ProductRowActions({
             ref={btnRef}
             type="button"
             className={variant === 'bar' ? 'btn btn-primary btn-with-icon' : 'icon-btn'}
-            title="Holatni o'zgartirish"
-            aria-label={variant === 'bar' ? undefined : "Holatni o'zgartirish"}
+            title="Sotish yoki filialga berish"
+            aria-label={variant === 'bar' ? undefined : `${productName ? `${productName}: ` : ''}sotish yoki filialga berish`}
             aria-expanded={open}
             onClick={() => (open ? setOpen(false) : openMenu())}
             disabled={busy}
           >
-            <Icon name={variant === 'bar' ? 'cart' : 'repeat'} size={variant === 'bar' ? 18 : 16} />
-            {variant === 'bar' && <span>Sotish / Filialga berish</span>}
+            {variant === 'bar' ? (
+              <>
+                <Icon name="cart" size={18} />
+                <span>Sotish / Filialga berish</span>
+              </>
+            ) : (
+              <>
+                {/* Mobilda bitta "⋯" tugma (qator o'zi tahrirga olib boradi), kompyuterda aniq ikonka */}
+                <span className="ux-hide-mobile" style={{ display: 'contents' }}><Icon name="repeat" size={16} /></span>
+                <span className="ux-only-mobile" style={{ display: 'contents' }}><Icon name="dots" size={18} /></span>
+              </>
+            )}
           </button>
 
           {open && pos && (
@@ -254,7 +266,12 @@ export default function ProductRowActions({
       )}
 
       {variant === 'row' && (
-        <Link href={`/app/products/${productId}`} className="icon-btn" title="Tahrirlash" aria-label="Tahrirlash">
+        <Link
+          href={`/app/products/${productId}`}
+          className="icon-btn ux-hide-mobile"
+          title="Tahrirlash"
+          aria-label={`${productName ? `${productName}: ` : ''}tahrirlash`}
+        >
           <Icon name="edit" size={16} />
         </Link>
       )}
