@@ -1,12 +1,14 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { toast } from '@/lib/toast';
 import Icon from '@/components/icons/Icon';
 
 interface Props {
   phone?: string;
   text: string;
+  /** Muddati o'tgan / yaqin qarzlar uchun ko'zga tashlanadigan (to'ldirilgan) tugma */
+  prominent?: boolean;
 }
 
 /** Telefon raqamni xalqaro formatga keltiradi (O'zbekiston) */
@@ -25,11 +27,12 @@ function normalizePhone(raw?: string): string | null {
   return d.length >= 11 ? d : null;
 }
 
-export default function DebtReminderButton({ phone, text }: Props) {
+export default function DebtReminderButton({ phone, text, prominent }: Props) {
   const [open, setOpen] = useState(false);
   const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
   const btnRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
+  const menuId = useId();
   const num = normalizePhone(phone);
   const enc = encodeURIComponent(text);
 
@@ -37,14 +40,17 @@ export default function DebtReminderButton({ phone, text }: Props) {
     if (open) { setOpen(false); return; }
     const r = btnRef.current?.getBoundingClientRect();
     if (r) {
-      const menuW = 190;
+      const menuW = 210;
+      const menuH = 200;
       const left = Math.min(r.right - menuW, window.innerWidth - menuW - 8);
-      setPos({ top: r.bottom + 6, left: Math.max(8, left) });
+      // Pastda joy yetmasa — tugma ustida ochiladi
+      const top = r.bottom + 6 + menuH > window.innerHeight ? Math.max(8, r.top - menuH - 6) : r.bottom + 6;
+      setPos({ top, left: Math.max(8, left) });
     }
     setOpen(true);
   }
 
-  // Tashqariga bosish / scroll / resize — yopish
+  // Tashqariga bosish / scroll / resize / Escape — yopish
   useEffect(() => {
     if (!open) return;
     const onDoc = (e: MouseEvent) => {
@@ -53,41 +59,56 @@ export default function DebtReminderButton({ phone, text }: Props) {
       setOpen(false);
     };
     const onScroll = () => setOpen(false);
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') { setOpen(false); btnRef.current?.focus(); }
+    };
     document.addEventListener('mousedown', onDoc);
+    document.addEventListener('keydown', onKey);
     window.addEventListener('scroll', onScroll, true);
     window.addEventListener('resize', onScroll);
+    menuRef.current?.querySelector<HTMLElement>('a, button')?.focus();
     return () => {
       document.removeEventListener('mousedown', onDoc);
+      document.removeEventListener('keydown', onKey);
       window.removeEventListener('scroll', onScroll, true);
       window.removeEventListener('resize', onScroll);
     };
   }, [open]);
 
   return (
-    <div className="dr-wrap">
-      <button ref={btnRef} type="button" className="btn btn-ghost btn-sm btn-with-icon" onClick={toggle}>
+    <div className="dr-wrap cl-remind-wrap">
+      <button
+        ref={btnRef}
+        type="button"
+        className={`btn btn-sm btn-with-icon cl-remind${prominent ? ' cl-remind--hot' : ''}`}
+        onClick={toggle}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        aria-controls={open ? menuId : undefined}
+      >
         <Icon name="bell" size={14} /> Eslatma
       </button>
       {open && pos && (
-        <div className="dr-menu" ref={menuRef} style={{ position: 'fixed', top: pos.top, left: pos.left }}>
+        <div id={menuId} role="menu" className="dr-menu cl-menu" ref={menuRef} style={{ position: 'fixed', top: pos.top, left: pos.left }}>
           {num ? (
             <>
-              <a className="dr-item" href={`https://wa.me/${num}?text=${enc}`} target="_blank" rel="noopener noreferrer" onClick={() => setOpen(false)}>
-                WhatsApp orqali
+              <a role="menuitem" className="dr-item cl-menu-item" href={`https://wa.me/${num}?text=${enc}`} target="_blank" rel="noopener noreferrer" onClick={() => setOpen(false)}>
+                <Icon name="send" size={15} /> WhatsApp orqali
               </a>
-              <a className="dr-item" href={`https://t.me/+${num}`} target="_blank" rel="noopener noreferrer" onClick={() => setOpen(false)}>
-                Telegram orqali
+              <a role="menuitem" className="dr-item cl-menu-item" href={`https://t.me/+${num}`} target="_blank" rel="noopener noreferrer" onClick={() => setOpen(false)}>
+                <Icon name="send" size={15} /> Telegram orqali
               </a>
-              <a className="dr-item" href={`sms:+${num}?body=${enc}`} onClick={() => setOpen(false)}>
-                SMS orqali
+              <a role="menuitem" className="dr-item cl-menu-item" href={`sms:+${num}?body=${enc}`} onClick={() => setOpen(false)}>
+                <Icon name="phone" size={15} /> SMS orqali
               </a>
             </>
           ) : (
-            <div className="dr-empty">Telefon raqami yo&apos;q</div>
+            <div className="dr-empty cl-menu-empty">Telefon raqami yo&apos;q</div>
           )}
           <button
             type="button"
-            className="dr-item"
+            role="menuitem"
+            className="dr-item cl-menu-item"
             onClick={() => {
               navigator.clipboard?.writeText(text).then(
                 () => toast('Matn nusxalandi', 'success'),
@@ -96,7 +117,7 @@ export default function DebtReminderButton({ phone, text }: Props) {
               setOpen(false);
             }}
           >
-            Matnni nusxalash
+            <Icon name="clipboard" size={15} /> Matnni nusxalash
           </button>
         </div>
       )}
