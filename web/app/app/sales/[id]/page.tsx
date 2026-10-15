@@ -11,6 +11,7 @@ import InstallmentPlan from '@/components/tenant/InstallmentPlan';
 import SalePaymentForm from '@/components/tenant/SalePaymentForm';
 import CancelSaleButton from '@/components/tenant/CancelSaleButton';
 import SaleReviewTrigger from '@/components/tenant/SaleReviewTrigger';
+import Tilt from '@/components/ui/Tilt';
 import { Types } from 'mongoose';
 import { branchFilter } from '@/lib/branchScope';
 import { loadUserPermissions } from '@/lib/permissionGuard';
@@ -82,12 +83,6 @@ export default async function SaleDetailPage({
               Chek
             </Link>
           )}
-          {canCancel && (
-            <a href="#bekor" className="btn btn-danger btn-with-icon">
-              <Icon name="close" size={16} />
-              Bekor qilish
-            </a>
-          )}
         </div>
       </div>
 
@@ -100,45 +95,47 @@ export default async function SaleDetailPage({
 
       <div className="sl-detail">
         <div className="sl-detail-main">
-          <section className={`sl-hero${heroCls}`} aria-label="To'lov holati">
-            <div className="sl-hero-top">
-              <div className="sl-hero-sum">
-                <span className="sl-hero-l">Jami summa</span>
-                <span className="sl-hero-v">{fmtMoney(sale.totalAmount)} <small>so&apos;m</small></span>
-                <span className="sl-hero-sub">
-                  {qty > 1 ? `${qty} × ${fmtMoney(Math.round(sale.totalAmount / qty))} so'm` : sale.productSnapshot.name}
-                </span>
+          <Tilt stack className={`sl-hero${heroCls}`} max={5}>
+            <div className="sl-hero-in" role="group" aria-label="To'lov holati">
+              <div className="sl-hero-top">
+                <div className="sl-hero-sum">
+                  <span className="sl-hero-l">Jami summa</span>
+                  <span className="sl-hero-v ux-z">{fmtMoney(sale.totalAmount)} <small>so&apos;m</small></span>
+                  <span className="sl-hero-sub">
+                    {qty > 1 ? `${qty} × ${fmtMoney(Math.round(sale.totalAmount / qty))} so'm` : sale.productSnapshot.name}
+                  </span>
+                </div>
+                <div className="sl-ring ux-z" role="img" aria-label={`${pct}% to'langan`}>
+                  <svg viewBox="0 0 100 100">
+                    <circle className="sl-ring-track" cx="50" cy="50" r={RING_R} fill="none" strokeWidth="9" />
+                    <circle
+                      className="sl-ring-fill"
+                      cx="50" cy="50" r={RING_R} fill="none" strokeWidth="9"
+                      strokeDasharray={RING_C}
+                      strokeDashoffset={RING_C * (1 - pct / 100)}
+                    />
+                  </svg>
+                  <span className="sl-ring-txt"><span><b>{pct}%</b><small>to&apos;langan</small></span></span>
+                </div>
               </div>
-              <div className="sl-ring" role="img" aria-label={`${pct}% to'langan`}>
-                <svg viewBox="0 0 100 100">
-                  <circle className="sl-ring-track" cx="50" cy="50" r={RING_R} fill="none" strokeWidth="9" />
-                  <circle
-                    className="sl-ring-fill"
-                    cx="50" cy="50" r={RING_R} fill="none" strokeWidth="9"
-                    strokeDasharray={RING_C}
-                    strokeDashoffset={RING_C * (1 - pct / 100)}
-                  />
-                </svg>
-                <span className="sl-ring-txt"><span><b>{pct}%</b><small>to&apos;langan</small></span></span>
+              <div className="sl-hero-grid">
+                <div className="sl-hero-cell">
+                  <span>To&apos;langan</span>
+                  <strong>{fmtMoney(sale.paidAmount)}</strong>
+                </div>
+                <div className="sl-hero-cell">
+                  <span>Qoldiq</span>
+                  <strong>{fmtMoney(sale.remainingAmount)}</strong>
+                </div>
+                <div className="sl-hero-cell">
+                  <span>{plan ? 'Oylik to\'lov' : 'Muddat'}</span>
+                  <strong>
+                    {plan ? fmtMoney(plan.monthly) : sale.dueDate ? fmtDate(sale.dueDate) : '—'}
+                  </strong>
+                </div>
               </div>
             </div>
-            <div className="sl-hero-grid">
-              <div className="sl-hero-cell">
-                <span>To&apos;langan</span>
-                <strong>{fmtMoney(sale.paidAmount)}</strong>
-              </div>
-              <div className="sl-hero-cell">
-                <span>Qoldiq</span>
-                <strong>{fmtMoney(sale.remainingAmount)}</strong>
-              </div>
-              <div className="sl-hero-cell">
-                <span>{plan ? 'Oylik to\'lov' : 'Muddat'}</span>
-                <strong>
-                  {plan ? fmtMoney(plan.monthly) : sale.dueDate ? fmtDate(sale.dueDate) : '—'}
-                </strong>
-              </div>
-            </div>
-          </section>
+          </Tilt>
 
           {plan && (
             <div id="tolov">

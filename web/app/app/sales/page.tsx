@@ -3,8 +3,9 @@ import { getTenantSession } from '@/lib/tenantSession';
 import { branchFilter, branchAggMatch } from '@/lib/branchScope';
 import { PAYMENT_TYPE_LABELS, SALE_STATUS_LABELS, PaymentType, SaleStatus } from '@/lib/models/tenant/Sale';
 import { fmtDate, fmtMoney } from '@/lib/format';
-import SaleRowDelete from '@/components/tenant/SaleRowDelete';
 import Icon from '@/components/icons/Icon';
+import MoreMenu from '@/components/ui/MoreMenu';
+import Tilt from '@/components/ui/Tilt';
 import { loadUserPermissions } from '@/lib/permissionGuard';
 
 export const metadata = { title: 'Sotuvlar — Savora' };
@@ -17,11 +18,12 @@ const TYPE_SHORT: Record<PaymentType, string> = {
   bank_credit: 'Bank krediti',
 };
 
-const STATUS_SEG: { key?: SaleStatus; label: string }[] = [
+/** `short` — mobilda segment kesilmasligi uchun qisqa yorliq */
+const STATUS_SEG: { key?: SaleStatus; label: string; short?: string }[] = [
   { label: 'Barchasi' },
   { key: 'paid', label: "To'langan" },
   { key: 'partial', label: 'Qarzdor' },
-  { key: 'cancelled', label: 'Bekor qilingan' },
+  { key: 'cancelled', label: 'Bekor qilingan', short: 'Bekor' },
 ];
 
 function initials(name: string): string {
@@ -42,7 +44,6 @@ export default async function SalesPage({
 
   const perms = await loadUserPermissions(user);
   const canViewCost = perms.has('product.viewCost');
-  const canCancel = perms.has('sale.cancel');
   const scope = branchFilter(user);
   const filter: Record<string, unknown> = { ...scope };
   if (sp.status && sp.status in SALE_STATUS_LABELS) filter.status = sp.status;
@@ -138,51 +139,58 @@ export default async function SalesPage({
     return s ? `/app/sales?${s}` : '/app/sales';
   };
   const filtered = !!(activeStatus || activeType);
+  const canExport = features.export && perms.has('export.data');
 
   return (
     <>
       <div className="t-page-head">
         <div>
           <h1 className="t-page-title">Sotuvlar</h1>
-          <p className="t-page-sub">
+          <p className="t-page-sub ux-hide-mobile">
             Bugun: <strong>{todaySales} ta</strong> · Qarzdorlik: <strong>{fmtMoney(debtTotal[0]?.total ?? 0)} so&apos;m</strong>
           </p>
         </div>
-        <div className="t-page-actions">
-          {features.export && perms.has('export.data') && (
-            <a href="/api/export/sales" className="btn btn-ghost btn-with-icon">
-              <Icon name="download" size={16} />
-              CSV yuklab olish
-            </a>
-          )}
-          <Link href="/app/sales/new" className="btn btn-primary btn-with-icon">
+        <div className="t-page-actions sl-list-actions">
+          <Link href="/app/sales/new" className="btn btn-primary btn-with-icon ux-hide-mobile">
             <Icon name="plus" size={16} />
             Yangi sotuv
           </Link>
+          {canExport && (
+            <MoreMenu label="Sotuvlar bo'yicha boshqa amallar">
+              <a href="/api/export/sales">
+                <Icon name="download" size={18} />
+                CSV yuklab olish
+              </a>
+            </MoreMenu>
+          )}
         </div>
       </div>
 
-      <section className="sl-stats" aria-label="Sotuvlar xulosasi">
-        <div className="sl-stat sl-stat--hero">
+      <section className="ux-strip sl-strip" aria-label="Sotuvlar xulosasi">
+        <Tilt className="sl-stat sl-stat--hero" max={5}>
           <span className="sl-stat-l"><Icon name="trendingUp" size={16} />Bugun</span>
-          <span className="sl-stat-v">{fmtMoney(today.sum)} <small>so&apos;m</small></span>
+          <span className="sl-stat-v ux-z">{fmtMoney(today.sum)} <small>so&apos;m</small></span>
           <span className="sl-stat-d">{todaySales} ta sotuv</span>
-        </div>
+        </Tilt>
         <div className="sl-stat">
-          <span className="sl-stat-l"><Icon name="chart" size={16} />So&apos;nggi 7 kun</span>
+          <span className="sl-stat-l"><span className="ux-clay sl-clay" aria-hidden><Icon name="chart" size={16} /></span>So&apos;nggi 7 kun</span>
           <span className="sl-stat-v">{fmtMoney(week.sum)} <small>so&apos;m</small></span>
           <span className="sl-stat-d">{week.n} ta sotuv</span>
         </div>
         <div className="sl-stat">
-          <span className="sl-stat-l"><Icon name="cart" size={16} />Jami</span>
+          <span className="sl-stat-l"><span className="ux-clay ux-clay--green sl-clay" aria-hidden><Icon name="cart" size={16} /></span>Jami</span>
           <span className="sl-stat-v">{fmtMoney(all.sum)} <small>so&apos;m</small></span>
           <span className="sl-stat-d">{all.n} ta sotuv</span>
         </div>
-        <div className="sl-stat sl-stat--gold">
-          <span className="sl-stat-l"><Icon name="wallet" size={16} />Qarzdorlik</span>
+        <Link
+          href={href('partial', activeType)}
+          className="sl-stat sl-stat--gold sl-stat--link"
+          aria-label={`Qarzdorlik: ${fmtMoney(debtTotal[0]?.total ?? 0)} so'm — qarzdor sotuvlarni ko'rsatish`}
+        >
+          <span className="sl-stat-l"><span className="ux-clay ux-clay--gold sl-clay" aria-hidden><Icon name="wallet" size={16} /></span>Qarzdorlik</span>
           <span className="sl-stat-v">{fmtMoney(debtTotal[0]?.total ?? 0)} <small>so&apos;m</small></span>
           <span className="sl-stat-d">Qoldiq to&apos;lovlar</span>
-        </div>
+        </Link>
       </section>
 
       <div className="sl-toolbar">
@@ -194,11 +202,16 @@ export default async function SalesPage({
               className="sl-seg-btn"
               aria-current={activeStatus === s.key ? 'page' : undefined}
             >
-              {s.label}
+              {s.short ? (
+                <>
+                  <span className="ux-hide-mobile">{s.label}</span>
+                  <span className="ux-only-mobile">{s.short}</span>
+                </>
+              ) : s.label}
             </Link>
           ))}
         </nav>
-        <nav className="sl-chips" aria-label="To'lov turi bo'yicha filtr">
+        <nav className="sl-chips ux-scrollx" aria-label="To'lov turi bo'yicha filtr">
           <Link href={href(activeStatus)} className="sl-chip" aria-current={!activeType ? 'page' : undefined}>
             Barcha turlar <b>{all.n}</b>
           </Link>
@@ -212,9 +225,9 @@ export default async function SalesPage({
 
       <div className="sl-card sl-list-card">
         {rows.length === 0 ? (
-          <div className="sl-empty">
-            <div className="sl-empty-ic"><Icon name="cart" size={30} /></div>
-            <h3>{filtered ? 'Bu filtr bo\'yicha sotuv yo\'q' : 'Hali sotuv yo\'q'}</h3>
+          <div className="ux-empty sl-empty">
+            <div className="ux-empty-ic"><Icon name="cart" size={28} /></div>
+            <b>{filtered ? 'Bu filtr bo\'yicha sotuv yo\'q' : 'Hali sotuv yo\'q'}</b>
             <p>{filtered ? 'Boshqa holat yoki to\'lov turini tanlab ko\'ring.' : 'Birinchi sotuvni rasmiylashtiring — u shu yerda paydo bo\'ladi.'}</p>
             {filtered ? (
               <Link href="/app/sales" className="btn btn-ghost">Filtrni tozalash</Link>
@@ -229,44 +242,50 @@ export default async function SalesPage({
                 <li key={r.id} className={`sl-row${r.cancelled ? ' sl-row--cancelled' : ''}`}>
                   <span className={`sl-av sl-av--${r.cancelled ? 'cancelled' : r.type}`} aria-hidden>{r.avatar}</span>
                   <div className="sl-row-main">
-                    <Link href={`/app/sales/${r.id}`} className="sl-row-title">
-                      {r.name}{r.qty > 1 ? ` × ${r.qty}` : ''}
-                    </Link>
-                    <div className="sl-row-sub">
-                      <span>{r.saleNo}</span>
-                      {r.imei && <code>{r.imei}</code>}
-                      {r.color && <span>{r.color}</span>}
+                    <div className="sl-row-top">
+                      <Link href={`/app/sales/${r.id}`} className="sl-row-title">
+                        {r.name}{r.qty > 1 ? ` × ${r.qty}` : ''}
+                      </Link>
+                      <span className={`sl-pill sl-pill--${r.cancelled ? 'cancelled' : r.type}`}>
+                        {r.cancelled ? 'Bekor qilingan' : TYPE_SHORT[r.type]}
+                      </span>
                     </div>
+                    {/* Asosiy 2-qator: mijoz · sana. Qolgani (raqam, filial, IMEI, rang) faqat keng ekranda */}
                     <div className="sl-row-meta">
-                      {r.customer && <span>{r.customer}</span>}
-                      <span>{r.source}</span>
+                      <span className="sl-row-who">{r.customer || r.saleNo}</span>
                       <span>{r.date}</span>
-                      {r.note && <span className="sl-row-note" title={r.note}>{r.note}</span>}
+                      {r.customer && <span className="sl-row-x">{r.saleNo}</span>}
+                      <span className="sl-row-x">{r.source}</span>
+                      {r.imei && <code className="sl-row-x">{r.imei}</code>}
+                      {r.color && <span className="sl-row-x">{r.color}</span>}
+                      {r.note && <span className="sl-row-x sl-row-note" title={r.note}>{r.note}</span>}
                     </div>
                   </div>
-                  <div className="sl-row-pay">
-                    <span className={`sl-pill sl-pill--${r.cancelled ? 'cancelled' : r.type}`}>
-                      {r.cancelled ? 'Bekor qilingan' : TYPE_SHORT[r.type]}
-                    </span>
-                    <div className="sl-row-amt">
-                      <strong>{fmtMoney(r.total)} so&apos;m</strong>
-                      {r.qty > 1 && <span>{r.qty} × {fmtMoney(r.unit)}</span>}
-                      {canViewCost && <span>Olingan: {fmtMoney(r.purchase)}</span>}
-                      {!r.cancelled && r.remaining > 0 && <span className="sl-rem">Qoldiq: {fmtMoney(r.remaining)}</span>}
-                    </div>
-                  </div>
-                  <div className="sl-row-act">
-                    {canCancel && !r.cancelled && <SaleRowDelete saleId={r.id} saleNo={r.saleNo} />}
+                  <div className="sl-row-amt">
+                    <strong>{fmtMoney(r.total)} <small>so&apos;m</small></strong>
+                    {!r.cancelled && r.remaining > 0 ? (
+                      <span className="sl-rem">Qoldiq {fmtMoney(r.remaining)}</span>
+                    ) : r.qty > 1 ? (
+                      <span>{r.qty} × {fmtMoney(r.unit)}</span>
+                    ) : null}
+                    {canViewCost && <span className="sl-row-x">Olingan: {fmtMoney(r.purchase)}</span>}
                   </div>
                 </li>
               ))}
             </ul>
             {rows.length >= 200 && (
-              <p className="sl-foot-note">Oxirgi 200 ta sotuv ko&apos;rsatilmoqda. To&apos;liq ro&apos;yxat uchun CSV yuklab oling.</p>
+              <p className="sl-foot-note">
+                Oxirgi 200 ta sotuv ko&apos;rsatilmoqda.{canExport ? ' To\'liq ro\'yxat uchun CSV yuklab oling (⋯ menyusi).' : ''}
+              </p>
             )}
           </>
         )}
       </div>
+
+      <Link href="/app/sales/new" className="ux-fab">
+        <Icon name="plus" size={20} />
+        Yangi sotuv
+      </Link>
     </>
   );
 }
