@@ -1,6 +1,10 @@
 import Link from 'next/link';
 import { getTenantSession } from '@/lib/tenantSession';
 import { searchPattern } from '@/lib/security';
+import { fmtDate } from '@/lib/format';
+import Icon from '@/components/icons/Icon';
+import { Avatar, EmptyState } from '@/components/tenant/ClientsUi';
+import '@/components/tenant/styles/clients.css';
 
 export const metadata = { title: 'Mijozlar — Savora' };
 
@@ -44,79 +48,71 @@ export default async function CustomersPage({
   }
 
   return (
-    <>
+    <div className="cl-page">
       <div className="t-page-head">
         <div>
           <h1 className="t-page-title">Mijozlar</h1>
           <p className="t-page-sub">
-            {total} ta mijoz
+            <strong>{total} ta</strong> mijoz
             {totalPages > 1 ? ` · ${page}-sahifa` : ''}
           </p>
         </div>
-        <Link href="/app/customers/new" className="btn btn-primary">+ Mijoz</Link>
+        <div className="t-page-actions">
+          <Link href="/app/customers/new" className="btn btn-primary btn-with-icon"><Icon name="plus" size={16} /> Mijoz</Link>
+        </div>
       </div>
 
-      {sp?.created === '1' && (
-        <div className="auth-alert auth-alert--info" style={{ marginBottom: 16 }}>Mijoz qo&apos;shildi.</div>
-      )}
-
-      <form method="get" className="search-bar panel" style={{ padding: '12px 16px', marginBottom: 16 }}>
-        <div className="imei-search-row">
-          <input
-            name="q"
-            type="search"
-            defaultValue={q}
-            placeholder="Ism yoki telefon raqami..."
-            className="search-input"
-            style={{ flex: 1 }}
-          />
-          <button type="submit" className="btn btn-primary btn-sm">Qidirish</button>
-          {q && <Link href="/app/customers" className="btn btn-ghost btn-sm">Tozalash</Link>}
-        </div>
+      <form method="get" className="cl-search" role="search">
+        <label htmlFor="cl-q" className="cl-search-field">
+          <Icon name="search" size={17} />
+          <span className="sr-only">Mijozni qidirish</span>
+          <input id="cl-q" name="q" type="search" defaultValue={q} placeholder="Ism yoki telefon raqami…" autoComplete="off" />
+        </label>
+        <button type="submit" className="btn btn-primary">Qidirish</button>
+        {q && <Link href="/app/customers" className="btn btn-ghost">Tozalash</Link>}
       </form>
 
-      <div className="panel">
-        {customers.length === 0 ? (
-          <div className="panel-empty">
-            <p>{q ? `"${q}" bo'yicha mijoz topilmadi.` : 'Hozircha mijoz yo\'q.'}</p>
-            {!q && <Link href="/app/customers/new" className="btn btn-primary">Birinchi mijoz</Link>}
-          </div>
-        ) : (
-          <>
-            <div className="table-wrap">
-              <table className="data-table data-table--simple">
-                <thead>
-                  <tr><th>Ism</th><th>Telefon</th><th>Manzil</th><th></th></tr>
-                </thead>
-                <tbody>
-                  {customers.map((c) => (
-                    <tr key={String(c._id)}>
-                      <td className="cell-main" data-label="Ism">{c.fullName}</td>
-                      <td data-label="Telefon">{c.phone}</td>
-                      <td className="cell-sub" data-label="Manzil">{c.address || '—'}</td>
-                      <td data-label="">
-                        <Link href={`/app/customers/${c._id}`} className="btn btn-ghost btn-sm">Tahrirlash</Link>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+      {customers.length === 0 ? (
+        <div className="cl-card">
+          {q ? (
+            <EmptyState icon="search" title="Mijoz topilmadi" text={`"${q}" bo‘yicha natija yo‘q. Boshqa ism yoki raqam bilan urinib ko‘ring.`} action={{ href: '/app/customers', label: 'Qidiruvni tozalash' }} />
+          ) : (
+            <EmptyState icon="users" title="Hozircha mijoz yo‘q" text="Mijozlarni qo‘shsangiz, nasiya va qarzni ular nomiga yuritish oson bo‘ladi." action={{ href: '/app/customers/new', label: 'Birinchi mijoz' }} />
+          )}
+        </div>
+      ) : (
+        <>
+          <ul className="cl-cgrid" aria-label="Mijozlar ro'yxati">
+            {customers.map((c) => (
+              <li key={String(c._id)}>
+                <Link href={`/app/customers/${c._id}`} className="cl-ccard">
+                  <Avatar name={c.fullName} photoUrl={c.photoUrl} />
+                  <span className="cl-ccard-body">
+                    <b className="cl-row-name">{c.fullName}</b>
+                    <small className="cl-row-sub t-num">{c.phone}</small>
+                    <small className="cl-ccard-meta">
+                      {c.address ? <><Icon name="map" size={12} /> {c.address}</> : c.createdAt ? `Qo‘shilgan: ${fmtDate(c.createdAt)}` : ''}
+                    </small>
+                  </span>
+                  <Icon name="chevron" size={16} className="cl-chev" />
+                </Link>
+              </li>
+            ))}
+          </ul>
 
-            {totalPages > 1 && (
-              <div className="pagination">
-                {page > 1 && (
-                  <Link href={pageUrl(page - 1)} className="btn btn-ghost btn-sm">← Oldingi</Link>
-                )}
-                <span className="pagination-info">{page} / {totalPages}</span>
-                {page < totalPages && (
-                  <Link href={pageUrl(page + 1)} className="btn btn-ghost btn-sm">Keyingi →</Link>
-                )}
-              </div>
-            )}
-          </>
-        )}
-      </div>
-    </>
+          {totalPages > 1 && (
+            <nav className="cl-pager" aria-label="Sahifalar">
+              {page > 1 ? (
+                <Link href={pageUrl(page - 1)} className="btn btn-ghost btn-with-icon"><Icon name="arrowLeft" size={15} /> Oldingi</Link>
+              ) : <span />}
+              <span className="t-num">{page} / {totalPages}</span>
+              {page < totalPages ? (
+                <Link href={pageUrl(page + 1)} className="btn btn-ghost btn-with-icon">Keyingi <Icon name="arrowRight" size={15} /></Link>
+              ) : <span />}
+            </nav>
+          )}
+        </>
+      )}
+    </div>
   );
 }
