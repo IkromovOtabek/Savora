@@ -10,6 +10,7 @@ import BarcodeInputField from '@/components/ui/BarcodeInputField';
 import Icon from '@/components/icons/Icon';
 import ImageUploadField from '@/components/ui/ImageUploadField';
 import PriceInput from '@/components/ui/PriceInput';
+import { fmtMoney } from '@/lib/format';
 
 interface BranchOption { id: string; name: string }
 
@@ -89,7 +90,8 @@ export default function ProductForm({
   const profit = saleNum - purchaseNum;
   const margin = saleNum > 0 ? (profit / saleNum) * 100 : 0;
   const markup = purchaseNum > 0 ? (profit / purchaseNum) * 100 : 0;
-  const fmt = (n: number) => new Intl.NumberFormat('uz-UZ').format(Math.round(n));
+  // Deterministik format — Intl('uz-UZ') server va brauzerda farq qilib, hydration xatosi berardi
+  const fmt = fmtMoney;
   const pct = (n: number) => `${n > 0 ? '+' : ''}${n.toFixed(1)}%`;
 
   const isCreate = mode === 'create';

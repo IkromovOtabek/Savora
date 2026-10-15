@@ -9,6 +9,7 @@ import {
 } from '@/app/actions/payments';
 import { toast } from '@/lib/toast';
 import Icon from '@/components/icons/Icon';
+import { fmtDate as fmtDateStable } from '@/lib/format';
 
 interface ReqRow {
   id: string;
@@ -48,7 +49,7 @@ function fmtSum(n: number) {
   return Math.round(n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, String.fromCharCode(0xA0)) + ' so\'m';
 }
 function fmtDate(d: string) {
-  return new Date(d).toLocaleDateString('uz-UZ', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  return fmtDateStable(d);
 }
 
 function ReceiptThumb({ url }: { url: string }) {

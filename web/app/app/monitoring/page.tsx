@@ -177,7 +177,7 @@ export default async function MonitoringPage({
             <span className="fn-hero-label">Aylanma</span>
             <span className="fn-hero-chip"><Icon name="chart" size={14} /> {monthLabel}</span>
           </div>
-          <div className="fn-hero-value fn-num">{fmtMoney(monthStats.revenue)}<span className="fn-cur">UZS</span></div>
+          <div className="fn-hero-value fn-num">{fmtMoney(monthStats.revenue)}<span className="fn-cur">so&apos;m</span></div>
           <div className="fn-hero-grid">
             <div className="fn-hero-stat">
               <span className="fn-hero-stat-l">Tranzaksiyalar</span>
@@ -229,7 +229,7 @@ export default async function MonitoringPage({
         <section className="fn-panel" aria-labelledby="mon-pay">
           <div className="fn-panel-head">
             <h2 id="mon-pay">To&apos;lov turi</h2>
-            <small>{fmtMoney(paymentTotal)} UZS</small>
+            <small>{fmtMoney(paymentTotal)} so'm</small>
           </div>
           <div className="fn-panel-body">
             <div className="fn-mix" aria-hidden="true">

@@ -80,7 +80,7 @@ export default async function KassaBranchPage({
             <Icon name="clock" size={14} /> {label === today ? 'Bugun' : fmtDate(start)}
           </span>
         </div>
-        <div className="fn-hero-value fn-num">{fmtMoney(total)}<span className="fn-cur">UZS</span></div>
+        <div className="fn-hero-value fn-num">{fmtMoney(total)}<span className="fn-cur">so&apos;m</span></div>
         <div className="fn-hero-grid">
           <div className="fn-hero-stat">
             <span className="fn-hero-stat-l">To&apos;lovlar soni</span>

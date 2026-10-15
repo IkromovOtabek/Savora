@@ -26,7 +26,7 @@ function BranchPass({ c }: { c: KassaCard }) {
       </div>
       <div>
         <div className="fn-pass-label">Kassadagi qoldiq</div>
-        <div className="fn-pass-value fn-num">{fmtMoney(c.qolgan)}<span className="fn-cur">UZS</span></div>
+        <div className="fn-pass-value fn-num">{fmtMoney(c.qolgan)}<span className="fn-cur">so&apos;m</span></div>
       </div>
       <div className="fn-split" aria-hidden="true">
         <i className="fn-split-in" style={{ width: `${pct(c.naxtSotuv - c.adminOlgan, c.naxtSotuv)}%` }} />
@@ -50,7 +50,7 @@ export default function NaxtKassaCards({ total, cards }: { total: KassaCard; car
         </div>
         <div>
           <div className="fn-hero-stat-l">Kassadagi qoldiq</div>
-          <div className="fn-hero-value fn-num">{fmtMoney(total.qolgan)}<span className="fn-cur">UZS</span></div>
+          <div className="fn-hero-value fn-num">{fmtMoney(total.qolgan)}<span className="fn-cur">so&apos;m</span></div>
         </div>
         <div className="fn-hero-grid">
           <div className="fn-hero-stat">

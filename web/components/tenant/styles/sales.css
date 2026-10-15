@@ -422,12 +422,12 @@ button.sl-tl-body:focus-visible { outline: 3px solid var(--brand-ring); outline-
 
 /* To'lov turi segmenti (radio) */
 .sl-payseg {
-  display: grid; grid-template-columns: repeat(auto-fit, minmax(70px, 1fr)); gap: 2px;
+  display: flex; flex-wrap: wrap; gap: 2px;
   padding: 2px; border-radius: 11px; background: var(--fill); border: 0; margin: 0; min-width: 0;
 }
 .sl-payseg legend { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
 .sl-payseg label {
-  position: relative; display: grid; place-items: center; min-height: 40px; padding: 6px 8px; border-radius: 9px;
+  position: relative; display: grid; place-items: center; flex: 1 1 auto; white-space: nowrap; min-height: 40px; padding: 6px 10px; border-radius: 9px;
   font-size: 13px; font-weight: 500; text-align: center; line-height: 1.2; cursor: pointer; color: var(--ink-1);
   transition: background-color .15s;
 }

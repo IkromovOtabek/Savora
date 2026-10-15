@@ -4,7 +4,6 @@ import { useActionState, useState } from 'react';
 import { updateOrganizationAction } from '@/app/actions/orgSettings';
 import { PLAN_PRESETS } from '@/lib/plans';
 import { BUSINESS_TYPES } from '@/lib/businessTypes';
-import { formatPasswordHash } from '@/lib/credentials';
 import PriceInput from '@/components/ui/PriceInput';
 import { Alert, Sq } from './ui';
 
@@ -25,6 +24,7 @@ interface Props {
     monthlyPayment: number;
     agreementNote: string;
     adminUsername: string;
+    /** 'set' — parol o'rnatilgan; xeshning o'zi client'ga uzatilmaydi */
     passwordHash: string;
   };
 }
@@ -62,9 +62,7 @@ export default function OrgEditForm({ orgId, initial }: Props) {
           <div className="sa-cell sa-cell--ic">
             <Sq icon="shield" tone="g" />
             <span className="sa-cell-t"><b>Parol (shifrlangan)</b></span>
-            <code className="sa-code" style={{ maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={formatPasswordHash(initial.passwordHash)}>
-              {formatPasswordHash(initial.passwordHash)}
-            </code>
+            <code className="sa-code">{initial.passwordHash ? '••••••••' : 'o\'rnatilmagan'}</code>
           </div>
         </div>
         <div className="sa-gfoot">Faqat ko&apos;rish — parol bazada bcrypt bilan shifrlangan. Egasi profildan o&apos;zgartiradi.</div>

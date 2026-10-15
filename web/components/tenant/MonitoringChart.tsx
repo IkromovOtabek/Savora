@@ -47,10 +47,10 @@ export default function MonitoringChart({ rows }: { rows: BranchMonthFlow[] }) {
               </div>
               <div className="fn-bars">
                 {bars(r).map((b) => (
-                  <div key={b.key} className="fn-bar-track" title={`${b.label}: ${fmtMoney(b.value)} UZS`}>
+                  <div key={b.key} className="fn-bar-track" title={`${b.label}: ${fmtMoney(b.value)} so'm`}>
                     <span className={`fn-bar ${b.cls}`} style={{ width: w(b.value) }} />
                     <span className="fn-tip" aria-hidden="true">{b.label}: {fmtMoney(b.value)}</span>
-                    <span className="sr-only">{b.label}: {fmtMoney(b.value)} UZS</span>
+                    <span className="sr-only">{b.label}: {fmtMoney(b.value)} so'm</span>
                   </div>
                 ))}
               </div>

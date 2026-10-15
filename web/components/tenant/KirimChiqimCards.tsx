@@ -42,7 +42,7 @@ export function FlowSplit({
           <span className="fn-flow-ico fn-flow-ico--in"><Icon name="box" size={15} /></span>
           {kirimLabel}
         </span>
-        <span className="fn-flow-value fn-num">{fmtMoney(kirimValue)}<span className="fn-cur">UZS</span></span>
+        <span className="fn-flow-value fn-num">{fmtMoney(kirimValue)}<span className="fn-cur">so&apos;m</span></span>
         <span className="fn-flow-sub">{kirimCount} ta mahsulot · tannarx bo&apos;yicha</span>
       </div>
       <div className="fn-flow-side">
@@ -50,12 +50,12 @@ export function FlowSplit({
           <span className="fn-flow-ico fn-flow-ico--out"><Icon name="cart" size={15} /></span>
           {chiqimLabel}
         </span>
-        <span className="fn-flow-value fn-num fn-in">{fmtMoney(chiqimValue)}<span className="fn-cur">UZS</span></span>
+        <span className="fn-flow-value fn-num fn-in">{fmtMoney(chiqimValue)}<span className="fn-cur">so&apos;m</span></span>
         <span className="fn-flow-sub">{chiqimCount} ta sotilgan · sotuv tushumi</span>
       </div>
       <div className="fn-flow-net">
         <span>Foyda (sotuv − tannarx)</span>
-        <strong className={foyda >= 0 ? 'fn-in' : 'fn-out'}>{fmtMoney(foyda)} UZS</strong>
+        <strong className={foyda >= 0 ? 'fn-in' : 'fn-out'}>{fmtMoney(foyda)} so'm</strong>
       </div>
     </section>
   );

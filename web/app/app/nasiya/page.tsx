@@ -9,7 +9,7 @@ import ScrollIntoViewMobile from '@/components/tenant/ScrollIntoViewMobile';
 import { Avatar, EmptyState, Pill, Progress, Ring, type PillTone } from '@/components/tenant/ClientsUi';
 import '@/components/tenant/styles/clients.css';
 
-export const metadata = { title: 'Variant (Nasiya) — Savora' };
+export const metadata = { title: 'Nasiya — Savora' };
 
 const DAY = 24 * 60 * 60 * 1000;
 
@@ -125,7 +125,7 @@ export default async function NasiyaPage({
     <div className="cl-page">
       <div className="t-page-head">
         <div>
-          <h1 className="t-page-title">Variant (Nasiya)</h1>
+          <h1 className="t-page-title">Nasiya</h1>
           <p className="t-page-sub">Bo&apos;lib to&apos;lash savdolari · <strong>{rows.length} ta</strong> · {fmtMoney(sumTotal)} so&apos;m</p>
         </div>
         <div className="t-page-actions">

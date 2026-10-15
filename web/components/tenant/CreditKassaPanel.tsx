@@ -39,7 +39,7 @@ export default function CreditKassaPanel({
         </div>
         <div>
           <div className="fn-hero-stat-l">Bankdagi qoldiq</div>
-          <div className="fn-hero-value fn-num">{fmtMoney(totals.balance)}<span className="fn-cur">UZS</span></div>
+          <div className="fn-hero-value fn-num">{fmtMoney(totals.balance)}<span className="fn-cur">so&apos;m</span></div>
         </div>
         <div className="fn-hero-grid">
           <div className="fn-hero-stat">
@@ -66,7 +66,7 @@ export default function CreditKassaPanel({
               {!b.active && <span className="fn-bank-chip">O&apos;chirilgan</span>}
             </div>
             <div className="fn-bank-label">Bankdagi qoldiq</div>
-            <div className="fn-bank-value fn-num">{fmtMoney(b.balance)}<span className="fn-cur">UZS</span></div>
+            <div className="fn-bank-value fn-num">{fmtMoney(b.balance)}<span className="fn-cur">so&apos;m</span></div>
             <div className="fn-bank-foot">
               <span className="fn-bank-count fn-num">{b.salesCount} ta sotuv</span>
               {!b.active && (

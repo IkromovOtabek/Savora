@@ -52,7 +52,7 @@ export const TENANT_MODULES: Record<FeatureKey, FeatureModule> = {
   },
   variant: {
     key: 'variant',
-    label: 'Variant',
+    label: 'Nasiya sotuvi',
     description: 'Bo\'lib to\'lash (nasiya) sotuvda',
     route: '/app/sales/new',
     category: 'savdo',

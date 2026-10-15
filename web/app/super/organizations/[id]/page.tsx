@@ -72,7 +72,8 @@ export default async function OrgDetailPage({
                 monthlyPayment: org.plan.monthlyPayment ?? plan.monthlyPayment,
                 agreementNote: org.plan.agreementNote ?? '',
                 adminUsername: credentials.username,
-                passwordHash: credentials.passwordHash,
+                // Xesh brauzerga yuborilmaydi — faqat o'rnatilganmi yoki yo'qligi
+                passwordHash: credentials.passwordHash ? 'set' : '',
               }}
             />
           </CollapsibleCard>
