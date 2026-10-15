@@ -2,8 +2,8 @@
 
 import { useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { PRODUCT_STATUS_LABELS, ProductStatus } from '@/lib/models/tenant/Product';
 import CameraScanButton from '@/components/ui/CameraScanButton';
+import Icon from '@/components/icons/Icon';
 
 interface Props {
   branches: { id: string; name: string }[];
@@ -35,38 +35,34 @@ export default function ProductSearch({ branches, initial }: Props) {
   }
 
   return (
-    <form onSubmit={onSubmit} className="search-bar panel" style={{ padding: '16px 20px' }}>
-      <div className="search-bar-grid">
-        <div className="auth-field" style={{ margin: 0 }}>
-          <label htmlFor="q">Qidiruv (shtrix, IMEI, nom)</label>
-          <input ref={qRef} id="q" name="q" type="search" defaultValue={initial.q} placeholder="Shtrix, IMEI yoki nom..." />
-        </div>
-        <div className="auth-field" style={{ margin: 0 }}>
-          <label htmlFor="branch">Filial</label>
-          <select id="branch" name="branch" defaultValue={initial.branch}>
-            <option value="">Barchasi</option>
-            {branches.map((b) => (
-              <option key={b.id} value={b.id}>{b.name}</option>
-            ))}
-          </select>
-        </div>
-        <div className="auth-field" style={{ margin: 0 }}>
-          <label htmlFor="status">Holat</label>
-          <select id="status" name="status" defaultValue={initial.status}>
-            <option value="">Barchasi</option>
-            {/* "Sotilgan" — Ombor faqat qoldiqni ko'rsatgani uchun ro'yxatda yo'q */}
-            {(Object.keys(PRODUCT_STATUS_LABELS) as ProductStatus[])
-              .filter((s) => s !== 'sold')
-              .map((s) => (
-                <option key={s} value={s}>{PRODUCT_STATUS_LABELS[s]}</option>
-              ))}
-          </select>
-        </div>
-        <div className="search-bar-actions" style={{ display: 'flex', gap: 8 }}>
-          <CameraScanButton onScan={onScan} label="Skaner" />
-          <button type="submit" className="btn btn-primary btn-sm">Qidirish</button>
-        </div>
+    <form onSubmit={onSubmit} className="st-search" role="search" aria-label="Mahsulot qidiruvi">
+      {/* Holat chiplar orqali tanlanadi (sahifada) — qidiruvda saqlanib qoladi */}
+      <input type="hidden" name="status" value={initial.status} />
+      <div className="st-search-field">
+        <Icon name="search" size={18} />
+        <label htmlFor="q" className="sr-only">Qidiruv (shtrix, IMEI, nom)</label>
+        <input
+          ref={qRef}
+          id="q"
+          name="q"
+          type="search"
+          defaultValue={initial.q}
+          placeholder="Shtrix-kod, IMEI yoki nom…"
+          autoComplete="off"
+          enterKeyHint="search"
+        />
+        <CameraScanButton onScan={onScan} label="Skaner" />
       </div>
+      <div>
+        <label htmlFor="branch" className="sr-only">Filial</label>
+        <select id="branch" name="branch" defaultValue={initial.branch}>
+          <option value="">Barcha filiallar</option>
+          {branches.map((b) => (
+            <option key={b.id} value={b.id}>{b.name}</option>
+          ))}
+        </select>
+      </div>
+      <button type="submit" className="btn btn-primary st-search-submit">Qidirish</button>
     </form>
   );
 }

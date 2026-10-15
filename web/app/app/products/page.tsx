@@ -9,6 +9,7 @@ import ProductSearch from '@/components/tenant/ProductSearch';
 import ProductRowActions from '@/components/tenant/ProductRowActions';
 import LimitBanner from '@/components/tenant/LimitBanner';
 import { loadUserPermissions } from '@/lib/permissionGuard';
+import Icon from '@/components/icons/Icon';
 // import ProductImportForm from '@/components/tenant/ProductImportForm'; // CSV Import vaqtincha yashirilgan
 
 export const metadata = { title: 'Ombor — Savora' };
@@ -90,6 +91,28 @@ export default async function ProductsPage({
     return `/app/products${s ? `?${s}` : ''}`;
   }
 
+  // Holat chiplari — qidiruv va filial saqlanadi, sahifa 1 ga qaytadi
+  function statusUrl(status: string) {
+    const params = new URLSearchParams();
+    if (q) params.set('q', q);
+    if (sp.branch) params.set('branch', sp.branch);
+    if (status) params.set('status', status);
+    const s = params.toString();
+    return `/app/products${s ? `?${s}` : ''}`;
+  }
+  const activeStatus = sp.status && sp.status !== 'sold' && sp.status in PRODUCT_STATUS_LABELS ? sp.status : '';
+  const statusChips = (Object.keys(PRODUCT_STATUS_LABELS) as ProductStatus[]).filter((s) => s !== 'sold');
+
+  // Xulosa — faqat shu sahifada yuklangan mahsulotlardan (qo'shimcha so'rovsiz)
+  const mainBranchIds = new Set(branches.filter((b) => b.isMain).map((b) => String(b._id)));
+  const availableOf = (p: (typeof products)[number]) =>
+    p.trackQuantity ? Math.max(0, (p.quantity ?? 0) - (p.soldQuantity ?? 0)) : 1;
+  const LOW_STOCK = 2;
+  const pageInStock = products.filter((p) => p.status === 'in_stock').length;
+  const pageLow = products.filter((p) => p.trackQuantity && availableOf(p) <= LOW_STOCK).length;
+  const pageInBranches = products.filter((p) => !mainBranchIds.has(String(p.branchId))).length;
+  const perPageNote = totalPages > 1;
+
   return (
     <>
       {isAdmin && <LimitBanner label="Mahsulotlar" current={orgProductCount} max={maxProducts} />}
@@ -97,107 +120,176 @@ export default async function ProductsPage({
         <div>
           <h1 className="t-page-title">Ombor</h1>
           <p className="t-page-sub">
-            {total} ta mahsulot
+            Qoldiqdagi mahsulotlar
             {totalPages > 1 ? ` · ${page}-sahifa (${totalPages} ta)` : ''}
           </p>
         </div>
         <div className="t-page-actions">
-          {perms.has('product.create') && <Link href="/app/products/new" className="btn btn-primary">+ Mahsulot qo&apos;shish</Link>}
-          {features.export && perms.has('export.data') && <a href="/api/export/products" className="btn btn-ghost">CSV yuklab olish</a>}
+          {perms.has('product.create') && (
+            <Link href="/app/products/new" className="btn btn-primary btn-with-icon">
+              <Icon name="plus" size={18} /> Mahsulot qo&apos;shish
+            </Link>
+          )}
+          {features.export && perms.has('export.data') && (
+            <a href="/api/export/products" className="btn btn-ghost btn-with-icon">
+              <Icon name="download" size={18} /> CSV yuklab olish
+            </a>
+          )}
         </div>
       </div>
 
-      {sp?.created === '1' && <div className="auth-alert auth-alert--info" style={{ marginBottom: 16 }}>Mahsulot qo&apos;shildi.</div>}
-      {sp?.deleted === '1' && <div className="auth-alert auth-alert--info" style={{ marginBottom: 16 }}>Mahsulot o&apos;chirildi.</div>}
+      {sp?.created === '1' && <div className="auth-alert auth-alert--info st-alert" role="status">Mahsulot qo&apos;shildi.</div>}
+      {sp?.deleted === '1' && <div className="auth-alert auth-alert--info st-alert" role="status">Mahsulot o&apos;chirildi.</div>}
+
+      <section className="st-stats" aria-label="Ombor xulosasi">
+        <div className="st-stat">
+          <div className="st-stat-l"><span className="st-stat-ic"><Icon name="box" size={15} /></span>Jami</div>
+          <div className="st-stat-v">{fmtMoney(total)} <small>ta</small></div>
+        </div>
+        <div className="st-stat st-stat--ok">
+          <div className="st-stat-l"><span className="st-stat-ic"><Icon name="check" size={15} /></span>Omborda</div>
+          <div className="st-stat-v">{pageInStock}{perPageNote && <small> / {products.length}</small>}</div>
+        </div>
+        <div className="st-stat st-stat--warn">
+          <div className="st-stat-l"><span className="st-stat-ic"><Icon name="alert" size={15} /></span>Kam qolgan</div>
+          <div className="st-stat-v">{pageLow}</div>
+        </div>
+        <div className="st-stat st-stat--gold">
+          <div className="st-stat-l"><span className="st-stat-ic"><Icon name="building" size={15} /></span>Filialga berilgan</div>
+          <div className="st-stat-v">{pageInBranches}</div>
+        </div>
+      </section>
+      <p className="st-stats-note">
+        {perPageNote
+          ? `"Jami" — barcha natijalar; qolganlari shu sahifadagi ${products.length} ta mahsulot bo'yicha.`
+          : `"Kam qolgan" — qoldig'i ${LOW_STOCK} ta yoki undan kam (son bilan hisoblanadigan) mahsulotlar.`}
+      </p>
 
       <ProductSearch
         branches={branches.map((b) => ({ id: String(b._id), name: b.name }))}
-        initial={{ q: sp.q ?? '', branch: sp.branch ?? '', status: sp.status ?? '' }}
+        initial={{ q: sp.q ?? '', branch: sp.branch ?? '', status: activeStatus }}
       />
+
+      <nav className="st-chips" aria-label="Holat bo'yicha filtr">
+        <Link href={statusUrl('')} className="st-chip" aria-current={activeStatus === '' ? 'page' : undefined}>Barchasi</Link>
+        {statusChips.map((s) => (
+          <Link key={s} href={statusUrl(s)} className="st-chip" aria-current={activeStatus === s ? 'page' : undefined}>
+            {PRODUCT_STATUS_LABELS[s]}
+          </Link>
+        ))}
+      </nav>
 
       {/* CSV Import vaqtincha yashirilgan
       <ProductImportForm branches={branches.map((b) => ({ id: String(b._id), name: b.name }))} />
       */}
 
-      <div className="panel" style={{ marginTop: 20 }}>
+      <div className="st-group st-list-wrap">
         {products.length === 0 ? (
-          <div className="panel-empty">
-            <p>{q ? `"${q}" bo'yicha mahsulot topilmadi.` : 'Mahsulot topilmadi.'}</p>
-            {!q && perms.has('product.create') && <Link href="/app/products/new" className="btn btn-primary">Mahsulot qo&apos;shish</Link>}
+          <div className="st-empty">
+            <span className="st-empty-ic"><Icon name={q ? 'search' : 'box'} size={26} /></span>
+            <h3>{q ? 'Hech narsa topilmadi' : 'Mahsulot topilmadi'}</h3>
+            <p>
+              {q
+                ? `"${q}" bo'yicha mahsulot yo'q. Shtrix-kod, IMEI yoki nomni tekshirib ko'ring.`
+                : 'Tanlangan filtr bo\'yicha omborda mahsulot yo\'q.'}
+            </p>
+            {!q && perms.has('product.create') && (
+              <Link href="/app/products/new" className="btn btn-primary btn-with-icon">
+                <Icon name="plus" size={18} /> Mahsulot qo&apos;shish
+              </Link>
+            )}
           </div>
         ) : (
           <>
-            <div className="table-wrap">
-              <table className="data-table">
-                <thead>
-                  <tr>
-                    <th>ID</th>
-                    <th>Mahsulot</th>
-                    {showImei && <th>IMEI</th>}
-                    <th>Filial</th>
-                    <th>Son</th>
-                    <th>Holat</th>
-                    {canViewCost && <th>Kelish</th>}
-                    <th>Sotuv</th>
-                    <th></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {products.map((p) => (
-                    <tr key={String(p._id)}>
-                      <td data-label="ID"><code>{p.productId ?? String(p._id).slice(-8).toUpperCase()}</code></td>
-                      <td data-label="Mahsulot">
-                        <Link href={`/app/products/${p._id}`} className="cell-link cell-main">{p.name}</Link>
-                        <div className="cell-sub">Qo&apos;shildi: {fmtDate(p.createdAt) ?? '—'}</div>
-                      </td>
-                      {showImei && <td data-label="IMEI"><code className="imei-code">{p.imei}</code></td>}
-                      <td data-label="Filial">{branchMap[String(p.branchId)] ?? '—'}</td>
-                      <td data-label="Son">
-                        {p.trackQuantity
-                          ? `${Math.max(0, (p.quantity ?? 0) - (p.soldQuantity ?? 0))}/${p.quantity ?? 0}`
-                          : '1'}
-                      </td>
-                      <td data-label="Holat">
-                        <span className={`badge-status badge-status--${p.status === 'in_stock' ? 'active' : p.status === 'sold' ? 'expired' : 'suspended'}`}>
+            <div className="st-list-head" aria-hidden="true">
+              <span />
+              <span>Mahsulot</span>
+              <span>Filial</span>
+              <span>Son · holat</span>
+              <span className="r">Narx</span>
+              <span />
+            </div>
+            <ul className="st-list">
+              {products.map((p) => {
+                const avail = availableOf(p);
+                const code = p.productId ?? String(p._id).slice(-8).toUpperCase();
+                const branchName = branchMap[String(p.branchId)] ?? '—';
+                const qtyCls = p.trackQuantity
+                  ? avail === 0 ? ' st-qty--zero' : avail <= LOW_STOCK ? ' st-qty--low' : ''
+                  : '';
+                const qtyPill = p.trackQuantity ? (
+                  <span className={`st-qty${qtyCls}`} title="Qoldiq / umumiy">
+                    {avail}<small>/{p.quantity ?? 0}</small>
+                  </span>
+                ) : (
+                  <span className="st-qty">1 <small>dona</small></span>
+                );
+                return (
+                  <li key={String(p._id)} className="st-row">
+                    <span className="st-thumb" aria-hidden="true">
+                      {p.photoUrl ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={p.photoUrl} alt="" loading="lazy" />
+                      ) : (
+                        <span className="st-thumb-letter">{(p.name ?? '').trim().charAt(0).toUpperCase() || '?'}</span>
+                      )}
+                    </span>
+                    <div className="st-row-main">
+                      <Link href={`/app/products/${p._id}`} className="st-row-name">{p.name}</Link>
+                      <div className="st-row-meta">
+                        <code className="st-mono">{code}</code>
+                        {showImei && p.imei && <code className="st-mono st-dotsep">{p.imei}</code>}
+                        {!showImei && p.barcode && p.barcode !== code && <code className="st-mono st-dotsep">{p.barcode}</code>}
+                        <span className="st-row-meta-branch st-dotsep">{branchName}</span>
+                        <span className="st-dotsep">{fmtDate(p.createdAt) ?? '—'}</span>
+                      </div>
+                    </div>
+                    <div className="st-row-branch">
+                      <Icon name="building" size={14} />
+                      <span>{branchName}</span>
+                    </div>
+                    <div className="st-row-status">
+                      {qtyPill}
+                      {p.status !== 'in_stock' && (
+                        <span className={`st-pill st-pill--${p.status}`}>
                           {PRODUCT_STATUS_LABELS[p.status as ProductStatus]}
                         </span>
-                        {p.status === 'sold' && p.soldAt && (
-                          <div className="cell-sub">Sotildi: {fmtDate(p.soldAt)}</div>
-                        )}
-                      </td>
-                      {canViewCost && <td data-label="Kelish">{fmtMoney(p.purchasePrice)}</td>}
-                      <td data-label="Sotuv">{fmtMoney(p.salePrice)}</td>
-                      <td className="cell-actions" data-label="">
-                        <ProductRowActions
-                          productId={String(p._id)}
-                          status={p.status}
-                          currentBranchId={String(p.branchId)}
-                          trackQuantity={p.trackQuantity ?? false}
-                          available={p.trackQuantity ? Math.max(0, (p.quantity ?? 0) - (p.soldQuantity ?? 0)) : 1}
-                          salePrice={p.salePrice ?? 0}
-                          canInstallment={canInstallment}
-                          canCredit={canCredit}
-                          canSell={features.sales && perms.has('sale.create')}
-                          canTransfer={perms.has('transfer.create')}
-                          branches={filialBranches}
-                        />
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                      )}
+                    </div>
+                    <div className="st-row-price r">
+                      {p.salePrice > 0 ? <b>{fmtMoney(p.salePrice)}</b> : <b className="st-noprice">Narx yo&apos;q</b>}
+                      {canViewCost && <small>Kelish: {fmtMoney(p.purchasePrice)}</small>}
+                    </div>
+                    <div className="st-row-actions">
+                      <ProductRowActions
+                        productId={String(p._id)}
+                        status={p.status}
+                        currentBranchId={String(p.branchId)}
+                        trackQuantity={p.trackQuantity ?? false}
+                        available={avail}
+                        salePrice={p.salePrice ?? 0}
+                        canInstallment={canInstallment}
+                        canCredit={canCredit}
+                        canSell={features.sales && perms.has('sale.create')}
+                        canTransfer={perms.has('transfer.create')}
+                        branches={filialBranches}
+                      />
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
 
             {totalPages > 1 && (
-              <div className="pagination">
+              <nav className="st-pager" aria-label="Sahifalar">
                 {page > 1 && (
                   <Link href={pageUrl(page - 1)} className="btn btn-ghost btn-sm">← Oldingi</Link>
                 )}
-                <span className="pagination-info">{page} / {totalPages}</span>
+                <span className="st-pager-info">{page} / {totalPages}</span>
                 {page < totalPages && (
                   <Link href={pageUrl(page + 1)} className="btn btn-ghost btn-sm">Keyingi →</Link>
                 )}
-              </div>
+              </nav>
             )}
           </>
         )}

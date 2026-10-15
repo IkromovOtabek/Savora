@@ -24,13 +24,15 @@ interface Props {
   /** Huquqlar: sotish ("sale.create") va filialga berish ("transfer.create") */
   canSell?: boolean;
   canTransfer?: boolean;
+  /** "bar" — mahsulot sahifasidagi katta tugma (tahrirlash havolasisiz) */
+  variant?: 'row' | 'bar';
 }
 
 type View = 'menu' | 'sellType' | 'sellQty' | 'branches' | 'branchQty';
 
 export default function ProductRowActions({
   productId, status, branches, currentBranchId, trackQuantity = false, available = 1, salePrice = 0, canInstallment = false, canCredit = false,
-  canSell = true, canTransfer = true,
+  canSell = true, canTransfer = true, variant = 'row',
 }: Props) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -40,7 +42,7 @@ export default function ProductRowActions({
   const [qty, setQty] = useState(1);
   const [price, setPrice] = useState('');
   const [branch, setBranch] = useState<{ id: string; name: string } | null>(null);
-  const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
+  const [pos, setPos] = useState<{ top?: number; bottom?: number; left: number } | null>(null);
   const [reviewOpen, setReviewOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const btnRef = useRef<HTMLButtonElement>(null);
@@ -53,7 +55,12 @@ export default function ProductRowActions({
 
   function openMenu() {
     const r = btnRef.current?.getBoundingClientRect();
-    if (r) setPos({ top: r.bottom + 6, left: Math.max(8, r.right - 240) });
+    if (r) {
+      const left = Math.max(8, Math.min(r.right - 240, window.innerWidth - 248));
+      // Pastda joy kam bo'lsa (masalan, mobil sticky panel) — menyu tugma ustida ochiladi
+      if (window.innerHeight - r.bottom < 320 && r.top > 320) setPos({ bottom: window.innerHeight - r.top + 6, left });
+      else setPos({ top: r.bottom + 6, left });
+    }
     setOpen(true);
     setView('menu');
     setErr(null);
@@ -138,16 +145,19 @@ export default function ProductRowActions({
           <button
             ref={btnRef}
             type="button"
-            className="icon-btn"
+            className={variant === 'bar' ? 'btn btn-primary btn-with-icon' : 'icon-btn'}
             title="Holatni o'zgartirish"
+            aria-label={variant === 'bar' ? undefined : "Holatni o'zgartirish"}
+            aria-expanded={open}
             onClick={() => (open ? setOpen(false) : openMenu())}
             disabled={busy}
           >
-            <Icon name="repeat" size={16} />
+            <Icon name={variant === 'bar' ? 'cart' : 'repeat'} size={variant === 'bar' ? 18 : 16} />
+            {variant === 'bar' && <span>Sotish / Filialga berish</span>}
           </button>
 
           {open && pos && (
-            <div className="row-action-menu" ref={menuRef} style={{ position: 'fixed', top: pos.top, left: pos.left }}>
+            <div className="row-action-menu" ref={menuRef} style={{ position: 'fixed', top: pos.top, bottom: pos.bottom, left: pos.left }}>
               {err && <div className="row-action-err">{err}</div>}
 
               {view === 'menu' && (
@@ -175,7 +185,7 @@ export default function ProductRowActions({
                   </button>
                   <button type="button" className="row-action-item" disabled={busy}
                     onClick={() => { (needQty || needPrice) ? (setQty(1), setView('sellQty')) : doSell(); }}>
-                    <Icon name="wallet" size={15} /> Naxt
+                    <Icon name="wallet" size={15} /> Naqd
                   </button>
                   {canInstallment && (
                     <button type="button" className="row-action-item" disabled={busy}
@@ -243,9 +253,11 @@ export default function ProductRowActions({
         </div>
       )}
 
-      <Link href={`/app/products/${productId}`} className="icon-btn" title="Tahrirlash">
-        <Icon name="edit" size={16} />
-      </Link>
+      {variant === 'row' && (
+        <Link href={`/app/products/${productId}`} className="icon-btn" title="Tahrirlash" aria-label="Tahrirlash">
+          <Icon name="edit" size={16} />
+        </Link>
+      )}
 
       <ReviewModal open={reviewOpen} onClose={closeReview} />
     </div>

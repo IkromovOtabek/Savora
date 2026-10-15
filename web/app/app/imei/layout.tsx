@@ -2,6 +2,7 @@ import { requireOrgAdmin } from '@/lib/auth';
 import { requireFeature } from '@/lib/auth';
 import { isImeiEnabled } from '@/lib/features';
 import { redirect } from 'next/navigation';
+import '@/components/tenant/styles/stock.css';
 
 export default async function ImeiLayout({ children }: { children: React.ReactNode }) {
   await requireOrgAdmin();

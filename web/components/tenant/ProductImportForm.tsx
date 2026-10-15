@@ -11,7 +11,7 @@ export default function ProductImportForm({
   const [state, action, pending] = useActionState(importProductsAction, null);
 
   return (
-    <div className="panel" style={{ marginTop: 20 }}>
+    <div className="panel" style={{ marginTop: 20, borderRadius: "var(--r-lg)" }}>
       <div className="panel-head">
         <h2>CSV import</h2>
         <a href="/api/export/products" className="btn btn-ghost btn-sm">Namuna export</a>
