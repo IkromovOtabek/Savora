@@ -14,6 +14,8 @@ export interface MeResponse {
   org: { name: string; slug: string; active: boolean; daysLeft: number; isTrial: boolean; businessType: string; businessTypeLabel: string };
   terms: Terms;
   features: Record<string, boolean>;
+  /** Xodim huquqlari (server: lib/permissions.ts). Eski server javobida bo'lmasligi mumkin. */
+  permissions?: string[];
 }
 
 /** Standart atamalar — me hali yuklanmagan bo'lsa. */
@@ -84,4 +86,14 @@ export function useAuth(): AuthState {
   const ctx = useContext(AuthContext);
   if (!ctx) throw new Error('useAuth AuthProvider ichida bo\'lishi kerak');
   return ctx;
+}
+
+/** Huquq tekshiruvi — tugmalarni yashirish uchun. Asosiy himoya serverda. */
+export function useCan(): (key: string) => boolean {
+  const { me } = useAuth();
+  return (key: string) => {
+    if (!me) return false;
+    if (me.user.isAdmin) return true;
+    return me.permissions ? me.permissions.includes(key) : true;
+  };
 }

@@ -1,7 +1,7 @@
 import { useCallback, useRef } from 'react';
 import { View } from 'react-native';
 import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
-import { useAuth } from '@/lib/auth';
+import { useAuth, useCan } from '@/lib/auth';
 import { useResource } from '@/lib/hooks';
 import { useTheme, MONO } from '@/lib/theme';
 import { fmtMoney, fmtDate } from '@/lib/format';
@@ -12,7 +12,7 @@ import {
 interface Detail {
   id: string; name: string; brand: string | null; deviceModel: string | null;
   imei: string; barcode: string | null; color: string | null;
-  purchasePrice: number; salePrice: number; profit: number; status: string;
+  purchasePrice: number; salePrice: number; profit: number; status: string; costHidden?: boolean;
   trackQuantity: boolean; quantity: number; soldQuantity: number; available: number;
   branch: string | null; notes: string | null; createdAt: string;
   history: { action: string; detail: string | null; by: string | null; at: string }[];
@@ -34,6 +34,7 @@ export default function ProductDetail() {
   const { c } = useTheme();
   const terms = me?.terms;
   const f = me?.features ?? {};
+  const can = useCan();
   const res = useResource<Detail>(id ? `/api/mobile/products/${id}` : null);
   const first = useRef(true);
   useFocusEffect(useCallback(() => { if (first.current) { first.current = false; return; } res.reloadSilently(); }, [res.reloadSilently]));
@@ -57,8 +58,8 @@ export default function ProductDetail() {
       onRefresh={res.refresh}
       footer={canSell ? (
         <View style={{ flexDirection: 'row', gap: 10 }}>
-          <Button title="Sotish" icon="cart" size="lg" style={{ flex: 1 }} onPress={() => router.push(sellHref as never)} />
-          {f.transferred ? <Button title="Berish" icon="swap-horizontal" variant="tinted" size="lg" style={{ flex: 1 }} onPress={() => router.push(transferHref as never)} /> : null}
+          {can('sale.create') ? <Button title="Sotish" icon="cart" size="lg" style={{ flex: 1 }} onPress={() => router.push(sellHref as never)} /> : null}
+          {f.transferred && can('transfer.create') ? <Button title="Berish" icon="swap-horizontal" variant="tinted" size="lg" style={{ flex: 1 }} onPress={() => router.push(transferHref as never)} /> : null}
         </View>
       ) : undefined}
     >
@@ -73,8 +74,8 @@ export default function ProductDetail() {
 
       <Group header="Narx">
         <Cell title="Sotuv narxi" value={fmtMoney(p.salePrice, { suffix: true })} valueStrong />
-        <Cell title="Kelish narxi" value={fmtMoney(p.purchasePrice, { suffix: true })} />
-        <Cell title="Foyda" value={fmtMoney(p.profit, { suffix: true })} valueColor={p.profit >= 0 ? c.ok : c.bad} />
+        {!p.costHidden ? <Cell title="Kelish narxi" value={fmtMoney(p.purchasePrice, { suffix: true })} /> : null}
+        {!p.costHidden ? <Cell title="Foyda" value={fmtMoney(p.profit, { suffix: true })} valueColor={p.profit >= 0 ? c.ok : c.bad} /> : null}
       </Group>
 
       <Group header="Ma'lumot">

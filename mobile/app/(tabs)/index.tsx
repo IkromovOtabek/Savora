@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
-import { useAuth } from '@/lib/auth';
+import { useAuth, useCan } from '@/lib/auth';
 import { api, errMsg } from '@/lib/api';
 import { useTheme, tabular } from '@/lib/theme';
 import { fmtMoney, fmtCompact, fmtEyebrow, greeting, isOverdue, isToday, payLabel } from '@/lib/format';
@@ -20,6 +20,7 @@ export default function Home() {
   const router = useRouter();
   const { c } = useTheme();
   const f = me?.features ?? {};
+  const can = useCan();
   const isAdmin = !!me?.user.isAdmin;
   const nasiyaOn = !!(f.variant || f.nasiya);
 
@@ -133,7 +134,7 @@ export default function Home() {
       <Group header="Tezkor amallar">
         {nasiyaOn ? <Cell icon="receipt" iconColor={c.sq.b} title="Barcha sotuvlar" chevron onPress={() => router.push('/(tabs)/sales')} /> : null}
         <Cell icon="alert-circle" iconColor={c.sq.r} title="Qarzdorlar" value={sum && sum.debtTotal > 0 ? fmtCompact(sum.debtTotal) : undefined} chevron onPress={() => router.push('/(tabs)/sales?type=debt')} />
-        {f.transferred ? <Cell icon="swap-horizontal" iconColor={c.sq.g} title="Filialga berish" chevron onPress={() => router.push('/transfer')} /> : null}
+        {f.transferred && can('transfer.create') ? <Cell icon="swap-horizontal" iconColor={c.sq.g} title="Filialga berish" chevron onPress={() => router.push('/transfer')} /> : null}
         {f.kirimChiqim && isAdmin ? <Cell icon="cash" iconColor={c.sq.o} title="Kirim-chiqim" chevron onPress={() => router.push('/kirim-chiqim')} /> : null}
         {f.users && isAdmin ? <Cell icon="business" iconColor={c.sq.b} title="Filiallar" chevron onPress={() => router.push('/branches')} /> : null}
       </Group>

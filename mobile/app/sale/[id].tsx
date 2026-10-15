@@ -3,6 +3,7 @@ import { View, Text, Modal, Alert, Linking, KeyboardAvoidingView, Platform, Scro
 import { useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { api, errMsg } from '@/lib/api';
+import { useCan } from '@/lib/auth';
 import { useResource } from '@/lib/hooks';
 import { useTheme, tabular, MONO } from '@/lib/theme';
 import { fmtMoney, fmtDate, fmtDayMonth, payLabel, digits, grouped } from '@/lib/format';
@@ -35,6 +36,7 @@ const STATUS: Record<string, { label: string; tone: Tone }> = {
 export default function SaleDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { c } = useTheme();
+  const can = useCan();
   const res = useResource<Sale>(id ? `/api/mobile/sales/${id}` : null);
   const first = useRef(true);
   useFocusEffect(useCallback(() => { if (first.current) { first.current = false; return; } res.reloadSilently(); }, [res.reloadSilently]));
@@ -47,7 +49,7 @@ export default function SaleDetail() {
   if (!s) return <Screen header={<NavBar backLabel={backLabel} />}><ErrorState message={res.error} onRetry={res.retry} /></Screen>;
 
   const pct = s.totalAmount > 0 ? s.paidAmount / s.totalAmount : 0;
-  const canPay = s.remainingAmount > 0 && s.status !== 'cancelled';
+  const canPay = s.remainingAmount > 0 && s.status !== 'cancelled' && can('payment.accept');
   const nextMonth = s.plan?.schedule.find((m) => !m.paid);
   const nextDue = nextMonth ? Math.min(Math.max(0, nextMonth.amount - nextMonth.paidAmount), s.remainingAmount) : s.remainingAmount;
   const st = STATUS[s.status] ?? { label: s.status, tone: 'mut' as Tone };

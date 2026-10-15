@@ -1,7 +1,7 @@
 import { useCallback, useRef, useState } from 'react';
 import { View, FlatList, RefreshControl, ActivityIndicator } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
-import { useAuth } from '@/lib/auth';
+import { useAuth, useCan } from '@/lib/auth';
 import { useDebounced, usePaged } from '@/lib/hooks';
 import { useTheme } from '@/lib/theme';
 import { fmtMoney } from '@/lib/format';
@@ -18,6 +18,7 @@ interface Product {
 export default function Products() {
   const router = useRouter();
   const { me } = useAuth();
+  const can = useCan();
   const { c } = useTheme();
   const L = useLayout();
   const t = me?.terms;
@@ -39,7 +40,7 @@ export default function Products() {
         actions={
           <>
             <IconButton icon="barcode-outline" label="Skaner" onPress={() => router.push('/scan')} />
-            <IconButton icon="add" label={t?.addItem ?? 'Mahsulot qo\'shish'} onPress={() => router.push('/product-new')} />
+            {can('product.create') ? <IconButton icon="add" label={t?.addItem ?? 'Mahsulot qo\'shish'} onPress={() => router.push('/product-new')} /> : null}
           </>
         }
       />
