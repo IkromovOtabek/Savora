@@ -2,30 +2,34 @@
 
 import { useTransition } from 'react';
 import { deleteProductAction } from '@/app/actions/products';
+import Icon from '@/components/icons/Icon';
 
 export default function DeleteProductButton({ productId, productName }: { productId: string; productName: string }) {
   const [pending, start] = useTransition();
 
   return (
-    <div className="panel" style={{ padding: 20 }}>
-      <h3 style={{ fontSize: '.95rem', fontWeight: 800, marginBottom: 8 }}>Xavfli zona</h3>
-      <p style={{ color: 'var(--ink-2)', fontSize: '.88rem', marginBottom: 12 }}>
-        &quot;{productName}&quot; mahsulotini butunlay o&apos;chirish.
-      </p>
-      <button
-        type="button"
-        className="btn btn-ghost"
-        disabled={pending}
-        style={{ color: '#b91c1c', borderColor: '#fecaca' }}
-        onClick={() => {
-          if (!confirm(`"${productName}" o'chirilsinmi?`)) return;
-          const fd = new FormData();
-          fd.set('productId', productId);
-          start(() => deleteProductAction(fd));
-        }}
-      >
-        {pending ? 'O\'chirilmoqda...' : 'Mahsulotni o\'chirish'}
-      </button>
-    </div>
+    <section className="st-section" aria-labelledby="st-danger-title">
+      <div className="st-ghead"><span id="st-danger-title">Xavfli zona</span></div>
+      <div className="st-group st-danger">
+        <div>
+          <h3>Mahsulotni o&apos;chirish</h3>
+          <p>&quot;{productName}&quot; butunlay o&apos;chiriladi. Sotuv tarixi bo&apos;lsa, o&apos;chirib bo&apos;lmaydi.</p>
+        </div>
+        <button
+          type="button"
+          className="btn btn-danger btn-with-icon"
+          disabled={pending}
+          onClick={() => {
+            if (!confirm(`"${productName}" o'chirilsinmi?`)) return;
+            const fd = new FormData();
+            fd.set('productId', productId);
+            start(() => deleteProductAction(fd));
+          }}
+        >
+          <Icon name="trash" size={17} />
+          {pending ? 'O\'chirilmoqda...' : 'O\'chirish'}
+        </button>
+      </div>
+    </section>
   );
 }

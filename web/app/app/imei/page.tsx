@@ -1,4 +1,4 @@
-import Link from 'next/link';
+import Icon from '@/components/icons/Icon';
 import ImeiBulkSearch from '@/components/tenant/ImeiBulkSearch';
 import ImeiBlacklistManager, { OwnBlacklistRow } from '@/components/tenant/ImeiBlacklistManager';
 import { getTenantSession } from '@/lib/tenantSession';
@@ -35,12 +35,16 @@ export default async function ImeiPage() {
 
   return (
     <>
-      <div className="dash-head">
+      <div className="t-page-head">
         <div>
-          <h1 className="dash-hello">IMEI qidiruv</h1>
-          <p className="dash-sub">Bir nechta IMEI ni tekshiring — qora ro&apos;yxat ogohlantirishi bilan</p>
+          <h1 className="t-page-title">IMEI qidiruv</h1>
+          <p className="t-page-sub">Bir nechta IMEI ni tekshiring — qora ro&apos;yxat ogohlantirishi bilan</p>
         </div>
-        <Link href="/api/export/products" className="btn btn-ghost">Ombor CSV</Link>
+        <div className="t-page-actions">
+          <a href="/api/export/products" className="btn btn-ghost btn-with-icon">
+            <Icon name="download" size={18} /> Ombor CSV
+          </a>
+        </div>
       </div>
       <ImeiBulkSearch />
       {isAdmin && <ImeiBlacklistManager rows={rows} />}

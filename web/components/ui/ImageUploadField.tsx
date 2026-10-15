@@ -75,7 +75,7 @@ export default function ImageUploadField({ name = 'photoUrl', defaultValue = '',
         onCapture={(file) => void upload(file)}
       />
       {uploading && <p className="field-hint">Yuklanmoqda...</p>}
-      {error && <p className="field-hint" style={{ color: '#dc2626' }}>{error}</p>}
+      {error && <p className="field-hint" style={{ color: 'var(--danger)' }} role="alert">{error}</p>}
     </div>
   );
 }

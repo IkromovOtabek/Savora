@@ -101,6 +101,7 @@ export default function CameraScanButton({ onScan, label, className = '' }: Prop
         className={`btn btn-ghost btn-sm btn-with-icon ${className}`.trim()}
         onClick={() => setOpen(true)}
         title="Kamera bilan skanerlash"
+        aria-label={label ? undefined : "Kamera bilan skanerlash"}
       >
         <Icon name="search" size={16} />
         {label ?? 'Kamera'}
