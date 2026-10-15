@@ -80,6 +80,15 @@ export default function PaymentSubmit({ account, monthlyPrice, requests }: Props
     router.refresh();
   }
 
+  async function copyCard() {
+    try {
+      await navigator.clipboard.writeText(account.paymentCardNumber.replace(/\s+/g, ''));
+      toast('Karta raqami nusxalandi', 'success');
+    } catch {
+      toast('Nusxa olib bo\'lmadi — raqamni qo\'lda yozing', 'error');
+    }
+  }
+
   const pending = requests.find((r) => r.status === 'pending');
 
   return (
@@ -95,9 +104,17 @@ export default function PaymentSubmit({ account, monthlyPrice, requests }: Props
             <div className="pay-account">
               <div className="cell-sub">Quyidagi hisobga o&apos;tkazing:</div>
               <div className="fn-paycard" style={{ margin: '8px 0' }}>
-                <small>Karta raqami</small>
+                <div className="fn-paycard-top">
+                  <small>Karta raqami</small>
+                  <span className="fn-emv" aria-hidden="true" />
+                </div>
                 <strong>{account.paymentCardNumber}</strong>
-                {account.paymentCardHolder && <span>{account.paymentCardHolder}</span>}
+                <div className="fn-paycard-foot">
+                  {account.paymentCardHolder && <span>{account.paymentCardHolder}</span>}
+                  <button type="button" className="fn-paycard-copy" onClick={copyCard}>
+                    <Icon name="clipboard" size={15} /> Nusxa olish
+                  </button>
+                </div>
               </div>
               {account.paymentNote && <div className="cell-sub">{account.paymentNote}</div>}
             </div>

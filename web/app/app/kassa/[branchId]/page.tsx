@@ -8,6 +8,7 @@ import { fmtDate, fmtDateTime, fmtMoney } from '@/lib/format';
 import KassaDateFilter from '@/components/tenant/KassaDateFilter';
 import BackLink from '@/components/ui/BackLink';
 import Icon from '@/components/icons/Icon';
+import Tilt from '@/components/ui/Tilt';
 import '@/components/tenant/styles/finance.css';
 
 export async function generateMetadata({ params }: { params: Promise<{ branchId: string }> }) {
@@ -64,23 +65,22 @@ export default async function KassaBranchPage({
           <h1 className="t-page-title">{branch.name}</h1>
           <p className="t-page-sub">Naqd to&apos;lovlar · {fmtDate(start)}</p>
         </div>
-        <div className="t-page-actions">
-          <Link href="/app/sales/new" className="btn btn-primary btn-with-icon">
-            <Icon name="plus" size={18} /> Sotuv
-          </Link>
-        </div>
       </div>
+      {/* Kompyuterda yuqori paneldagi "Yangi sotuv" yetarli; telefonda — pastki o'ng tugma */}
+      <Link href="/app/sales/new" className="ux-fab">
+        <Icon name="plus" size={20} /> Sotuv
+      </Link>
 
       <KassaDateFilter initialDate={label} basePath={`/app/kassa/${branchId}`} today={today} />
 
-      <section className="fn-hero" aria-label="Kunlik naqd tushum">
+      <Tilt stack as="section" className="fn-hero">
         <div className="fn-hero-top">
           <span className="fn-hero-label">Kunlik naqd tushum</span>
           <span className="fn-hero-chip">
             <Icon name="clock" size={14} /> {label === today ? 'Bugun' : fmtDate(start)}
           </span>
         </div>
-        <div className="fn-hero-value fn-num">{fmtMoney(total)}<span className="fn-cur">so&apos;m</span></div>
+        <div className="fn-hero-value fn-num ux-z">{fmtMoney(total)}<span className="fn-cur">so&apos;m</span></div>
         <div className="fn-hero-grid">
           <div className="fn-hero-stat">
             <span className="fn-hero-stat-l">To&apos;lovlar soni</span>
@@ -91,7 +91,7 @@ export default async function KassaBranchPage({
             <span className="fn-hero-stat-v fn-num">{fmtMoney(avg)}</span>
           </div>
         </div>
-      </section>
+      </Tilt>
 
       <section className="fn-panel" aria-labelledby="kassa-tl">
         <div className="fn-panel-head">
@@ -99,10 +99,11 @@ export default async function KassaBranchPage({
           <small>{rows.length} ta to&apos;lov</small>
         </div>
         {timeline.length === 0 ? (
-          <div className="fn-empty">
-            <span className="fn-empty-icon"><Icon name="wallet" size={26} /></span>
-            <strong>Bu kunda naqd tushum yo&apos;q</strong>
+          <div className="ux-empty">
+            <span className="ux-empty-ic"><Icon name="wallet" size={26} /></span>
+            <b>Bu kunda naqd tushum yo&apos;q</b>
             <p>Boshqa sanani tanlang yoki yangi sotuv qo&apos;shing.</p>
+            <Link href="/app/sales/new" className="btn btn-tinted btn-sm">Sotuv qo&apos;shish</Link>
           </div>
         ) : (
           <ol className="fn-timeline">

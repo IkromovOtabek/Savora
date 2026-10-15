@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import Icon from '@/components/icons/Icon';
+import { monthLabel } from '@/components/ui/MonthNav';
 import '@/components/tenant/styles/finance.css';
 
 /** YYYY-MM-DD ga `days` kun qo'shadi (UTC — server/client bir xil natija) */
@@ -11,6 +12,13 @@ function shiftDay(date: string, days: number): string {
   if (Number.isNaN(d.getTime())) return date;
   d.setUTCDate(d.getUTCDate() + days);
   return d.toISOString().slice(0, 10);
+}
+
+/** "2026-10-16" → "16-oktabr, 2026" (brauzer tiliga bog'liq emas — ruscha chiqmaydi) */
+function dayLabel(date: string): string {
+  const [y, m, d] = date.split('-');
+  if (!y || !m || !d) return date;
+  return `${Number(d)}-${monthLabel(`${y}-${m}`)}`;
 }
 
 export default function KassaDateFilter({
@@ -30,6 +38,7 @@ export default function KassaDateFilter({
   const next = shiftDay(initialDate, 1);
   const canNext = today ? next <= today : true;
   const href = (d: string) => `${basePath}?date=${d}`;
+  const isOther = initialDate !== todayStr && initialDate !== yesterday;
 
   return (
     <nav className="fn-datebar" aria-label="Sana tanlash">
@@ -62,19 +71,29 @@ export default function KassaDateFilter({
         )}
       </div>
 
-      <form
-        className="fn-date-form"
-        onSubmit={(e) => {
-          e.preventDefault();
-          const fd = new FormData(e.currentTarget);
-          const date = String(fd.get('date') || '');
-          router.push(`${basePath}?date=${date}`);
-        }}
-      >
-        <label htmlFor="date">Sana</label>
-        <input key={initialDate} id="date" name="date" type="date" defaultValue={initialDate} max={today} required />
-        <button type="submit" className="btn btn-tinted btn-sm">Ko&apos;rish</button>
-      </form>
+      {/* Ikkilamchi: istalgan sana. Ko'rinadigan matn — o'zbekcha; brauzer kalendari ustidagi ko'rinmas input orqali ochiladi */}
+      <label className={`fn-datepick${isOther ? ' fn-datepick--on' : ''}`}>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <rect x="3" y="5" width="18" height="16" rx="3" /><path d="M3 10h18M8 3v4M16 3v4" />
+        </svg>
+        <span className="fn-datepick-text">{dayLabel(initialDate)}</span>
+        <span className="sr-only">Boshqa sanani tanlash, tanlangan: {dayLabel(initialDate)}</span>
+        <input
+          key={initialDate}
+          type="date"
+          defaultValue={initialDate}
+          max={today}
+          onClick={(e) => {
+            // Chrome/Edge: input bosilganda kalendarni darhol ochish
+            try { e.currentTarget.showPicker?.(); } catch { /* qo'llab-quvvatlanmasa — brauzerning o'zi ochadi */ }
+          }}
+          onChange={(e) => {
+            const v = e.currentTarget.value;
+            // klaviaturada yil yozilayotganda oraliq qiymatlar ("0002-…") bilan sakramaslik uchun
+            if (/^\d{4}-\d{2}-\d{2}$/.test(v) && v >= '2000-01-01' && v !== initialDate && (!today || v <= today)) router.push(href(v));
+          }}
+        />
+      </label>
     </nav>
   );
 }

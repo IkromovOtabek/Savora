@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { fmtMoney } from '@/lib/format';
 import Icon from '@/components/icons/Icon';
+import Tilt from '@/components/ui/Tilt';
 import '@/components/tenant/styles/finance.css';
 
 export interface BranchFlowCard {
@@ -36,28 +37,29 @@ export function FlowSplit({
   chiqimLabel?: string;
 }) {
   return (
-    <section className="fn-flow" aria-label="Kirim va chiqim">
+    /* 3D-lite: sahifaning asosiy ob'ekti — engil egiladi, ikonkalar hajmli */
+    <Tilt as="section" max={3} className="fn-flow">
       <div className="fn-flow-side">
         <span className="fn-flow-label">
-          <span className="fn-flow-ico fn-flow-ico--in"><Icon name="box" size={15} /></span>
+          <span className="ux-clay" aria-hidden="true"><Icon name="box" size={15} /></span>
           {kirimLabel}
         </span>
-        <span className="fn-flow-value fn-num">{fmtMoney(kirimValue)}<span className="fn-cur">so&apos;m</span></span>
-        <span className="fn-flow-sub">{kirimCount} ta mahsulot · tannarx bo&apos;yicha</span>
+        <span className="fn-flow-value fn-num ux-z">{fmtMoney(kirimValue)}<span className="fn-cur">so&apos;m</span></span>
+        <span className="fn-flow-sub">{kirimCount} ta · tannarx bo&apos;yicha</span>
       </div>
       <div className="fn-flow-side">
         <span className="fn-flow-label">
-          <span className="fn-flow-ico fn-flow-ico--out"><Icon name="cart" size={15} /></span>
+          <span className="ux-clay ux-clay--green" aria-hidden="true"><Icon name="cart" size={15} /></span>
           {chiqimLabel}
         </span>
-        <span className="fn-flow-value fn-num fn-in">{fmtMoney(chiqimValue)}<span className="fn-cur">so&apos;m</span></span>
-        <span className="fn-flow-sub">{chiqimCount} ta sotilgan · sotuv tushumi</span>
+        <span className="fn-flow-value fn-num fn-in ux-z">{fmtMoney(chiqimValue)}<span className="fn-cur">so&apos;m</span></span>
+        <span className="fn-flow-sub">{chiqimCount} ta · sotuv tushumi</span>
       </div>
       <div className="fn-flow-net">
         <span>Foyda (sotuv − tannarx)</span>
-        <strong className={foyda >= 0 ? 'fn-in' : 'fn-out'}>{fmtMoney(foyda)} so'm</strong>
+        <strong className={foyda >= 0 ? 'fn-in' : 'fn-out'}>{fmtMoney(foyda)} so&apos;m</strong>
       </div>
-    </section>
+    </Tilt>
   );
 }
 
@@ -77,6 +79,8 @@ export default function KirimChiqimCards({ total, cards }: { total: BranchFlowCa
 
   return (
     <div className="fn-page">
+      <FlowSplit {...total} />
+
       <form className="fn-search" onSubmit={onSearch} role="search">
         <Icon name="search" size={18} />
         <label htmlFor="kc-imei" className="sr-only">
@@ -93,8 +97,6 @@ export default function KirimChiqimCards({ total, cards }: { total: BranchFlowCa
         {q.trim() && <button type="submit" className="btn btn-tinted btn-sm">Izlash</button>}
       </form>
 
-      <FlowSplit {...total} />
-
       <h2 className="fn-section-title">
         <span>Filiallar</span>
         <span><Link href="/app/kirim-chiqim/all" className="cell-link">Barcha filiallar batafsil</Link></span>
@@ -102,9 +104,9 @@ export default function KirimChiqimCards({ total, cards }: { total: BranchFlowCa
 
       <div className="fn-panel">
         {ranked.length === 0 ? (
-          <div className="fn-empty">
-            <span className="fn-empty-icon"><Icon name="store" size={26} /></span>
-            <strong>Faol filial yo&apos;q</strong>
+          <div className="ux-empty">
+            <span className="ux-empty-ic"><Icon name="store" size={26} /></span>
+            <b>Faol filial yo&apos;q</b>
             <p>Kirim-chiqim filiallar bo&apos;yicha hisoblanadi.</p>
           </div>
         ) : (

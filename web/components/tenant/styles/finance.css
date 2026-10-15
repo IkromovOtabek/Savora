@@ -17,16 +17,28 @@
 
 /* ── Hamyon (hero) karta ─────────────────────────────────── */
 .fn-hero {
-  position: relative; overflow: hidden; isolation: isolate;
+  position: relative; isolation: isolate;
   border-radius: var(--r-xl); padding: 22px 22px 20px;
-  background: var(--grad-brand); color: var(--on-brand);
+  /* yorug'lik dog'i fonning o'zida — ::before/::after Tilt "stack" qatlamlari uchun bo'sh qoladi */
+  background:
+    radial-gradient(circle at 100% 100%, rgba(255, 255, 255, .18), rgba(255, 255, 255, 0) 45%),
+    var(--grad-brand);
+  color: var(--on-brand);
   box-shadow: var(--shadow-brand);
   display: flex; flex-direction: column; gap: 14px;
 }
-.fn-hero::after {
-  content: ""; position: absolute; z-index: -1; inset: auto -60px -90px auto;
-  width: 260px; height: 260px; border-radius: 50%;
-  background: radial-gradient(circle, rgba(255, 255, 255, .18), rgba(255, 255, 255, 0) 70%);
+/* 3D to'plam (Tilt stack): orqa qatlamlar pastga chiqadi — ostida joy qoldiramiz */
+.fn-hero.ux-d3--stack { margin-bottom: 18px; }
+/* hamyon kartasidagi "chip" bezagi */
+.fn-emv {
+  width: 34px; height: 26px; border-radius: 6px; flex: none;
+  background: linear-gradient(135deg, #f6d77a, #c99a2e);
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, .12), inset 0 1px 0 rgba(255, 255, 255, .5);
+  position: relative;
+}
+.fn-emv::before {
+  content: ""; position: absolute; inset: 6px 9px; border-radius: 3px;
+  border: 1px solid rgba(80, 55, 0, .35);
 }
 .fn-hero-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .fn-hero-label { font-size: 13px; font-weight: 600; opacity: .82; text-transform: uppercase; letter-spacing: .05em; }
@@ -35,7 +47,8 @@
   background: rgba(255, 255, 255, .16); font-size: 12px; font-weight: 600; white-space: nowrap;
 }
 .fn-hero-value { font-size: clamp(30px, 5vw, 42px); font-weight: 700; line-height: 1.05; }
-.fn-hero-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 8px; }
+/* barcha ko'rsatkichlar bitta qatorda, teng ustunlarda — yetim plitka qolmaydi */
+.fn-hero-grid { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 8px; }
 .fn-hero-stat { background: rgba(255, 255, 255, .13); border-radius: var(--r); padding: 10px 12px; min-width: 0; }
 .fn-hero-stat-l { display: block; font-size: 12px; font-weight: 500; opacity: .82; }
 .fn-hero-stat-v { display: block; font-size: 17px; font-weight: 700; margin-top: 2px; overflow-wrap: anywhere; }
@@ -48,7 +61,25 @@
 .fn-hero-link:focus-visible, .fn-hero a:focus-visible { outline: 2px solid var(--on-brand); outline-offset: 2px; }
 
 /* ── Filial / bank kartalari (Wallet pass) ───────────────── */
-.fn-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 14px; }
+/* auto-fit: kartalar qatorni to'liq to'ldiradi (bo'sh "teshik" qolmaydi), qatorda ko'pi bilan 3 ta */
+.fn-grid {
+  display: grid; gap: 14px; align-items: stretch;
+  grid-template-columns: repeat(auto-fit, minmax(max(260px, calc((100% - 28px) / 3)), 1fr));
+}
+.fn-grid > * { min-width: 0; }
+
+/* Hamyon sahifasi: chapda hamyon (asosiy ob'ekt), o'ngda filial/bank kartalari */
+.fn-wallet { display: grid; grid-template-columns: minmax(320px, 420px) minmax(0, 1fr); gap: 20px; align-items: start; }
+.fn-wallet-side { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.fn-wallet-side .fn-section-title { margin: 2px 4px 0; }
+.fn-wallet .fn-grid { grid-template-columns: repeat(auto-fit, minmax(max(240px, calc((100% - 14px) / 2)), 1fr)); }
+.fn-wallet .fn-hero { position: sticky; top: 76px; }
+/* toq sondagi oxirgi karta yolg'iz qolmasin — qatorni to'liq egallaydi */
+.fn-wallet .fn-grid > :last-child:nth-child(odd) { grid-column: 1 / -1; }
+@media (max-width: 1000px) {
+  .fn-wallet { grid-template-columns: minmax(0, 1fr); }
+  .fn-wallet .fn-hero { position: relative; top: auto; }
+}
 .fn-pass {
   position: relative; display: flex; flex-direction: column; gap: 12px;
   background: var(--surface); border-radius: var(--r-lg); padding: 16px;
@@ -112,13 +143,6 @@ a.fn-pass:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; 
 .fn-pill:active { opacity: .6; }
 .fn-pill:focus-visible { outline: 2px solid var(--brand); outline-offset: 1px; }
 .fn-pill--on { background: var(--surface); font-weight: 600; box-shadow: 0 3px 8px rgba(0, 0, 0, .12), 0 0 0 .5px rgba(0, 0, 0, .04); }
-.fn-date-form { display: flex; align-items: center; gap: 8px; margin-left: auto; }
-.fn-date-form label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
-.fn-date-form input {
-  min-height: 40px; padding: 6px 10px; border: 0; border-radius: 10px; background: var(--fill-2);
-  color: var(--ink-1); font: inherit; font-size: 15px; font-variant-numeric: tabular-nums;
-}
-.fn-date-form input:focus-visible { outline: none; box-shadow: 0 0 0 4px var(--brand-ring); }
 
 /* ── Kunlik vaqt chizig'i (kassa batafsil) ───────────────── */
 .fn-panel { background: var(--surface); border-radius: var(--r-lg); box-shadow: var(--shadow-sm); overflow: hidden; }
@@ -162,6 +186,9 @@ a.fn-tl-title:focus-visible { outline: 2px solid var(--brand); outline-offset: 2
 .fn-flow-ico { width: 26px; height: 26px; border-radius: 8px; display: grid; place-items: center; flex: none; }
 .fn-flow-ico--in { background: var(--brand-soft); color: var(--brand); }
 .fn-flow-ico--out { background: var(--accent-soft); color: var(--accent); }
+.fn-flow .ux-clay { width: 30px; height: 30px; border-radius: 9px; }
+.fn-flow .ux-clay svg { width: 15px; height: 15px; }
+.fn-flow.ux-d3 { border-radius: var(--r-xl); }
 .fn-flow-value { font-size: clamp(22px, 3.4vw, 30px); font-weight: 700; line-height: 1.15; overflow-wrap: anywhere; }
 .fn-flow-sub { font-size: 13px; color: var(--ink-3); font-variant-numeric: tabular-nums; }
 .fn-flow-net {
@@ -213,23 +240,29 @@ a.fn-tl-title:focus-visible { outline: 2px solid var(--brand); outline-offset: 2
 .fn-table td.fn-right, .fn-table th.fn-right { text-align: right; font-variant-numeric: tabular-nums; }
 
 /* ── Kredit kassa: bank kartalari ────────────────────────── */
+/* Wallet pass: rang --bank o'zgaruvchisida; yorug'lik dog'i fonda (overflow kesmaydi — ⋯ menyu chiqa oladi) */
 .fn-bank {
-  position: relative; overflow: hidden; isolation: isolate; border-radius: var(--r-xl); padding: 18px;
-  min-height: 176px; display: flex; flex-direction: column; gap: 10px; color: var(--on-brand);
-  background: linear-gradient(150deg, #3a68c4, #1f4fa8); box-shadow: var(--shadow);
+  --bank: linear-gradient(150deg, #3a68c4, #1f4fa8);
+  position: relative; isolation: isolate; border-radius: var(--r-xl); padding: 18px;
+  min-height: 188px; display: flex; flex-direction: column; gap: 10px; color: var(--on-brand);
+  background:
+    radial-gradient(circle at 100% 0, rgba(255, 255, 255, .24), rgba(255, 255, 255, 0) 42%),
+    repeating-linear-gradient(115deg, rgba(255, 255, 255, .035) 0 2px, transparent 2px 9px),
+    var(--bank);
 }
-.fn-bank::after {
-  content: ""; position: absolute; z-index: -1; right: -40px; top: -40px; width: 160px; height: 160px; border-radius: 50%;
-  background: radial-gradient(circle, rgba(255, 255, 255, .2), rgba(255, 255, 255, 0) 70%);
-}
-.fn-bank--1 { background: linear-gradient(150deg, #2c8a62, #13603f); }
-.fn-bank--2 { background: linear-gradient(150deg, #e0a526, #b07a0c); }
-.fn-bank--3 { background: linear-gradient(150deg, #5a5fd0, #353a9e); }
-.fn-bank--4 { background: linear-gradient(150deg, #d0574d, #9b2c24); }
-.fn-bank--5 { background: linear-gradient(150deg, #3f4a63, #1e2638); }
-.fn-bank--off { filter: grayscale(.85); opacity: .7; }
-.fn-bank-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-.fn-bank-name { font-size: 17px; font-weight: 700; letter-spacing: -.01em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fn-bank:focus-within, .fn-bank:has(.ux-more-menu) { z-index: 5; }
+.fn-bank--1 { --bank: linear-gradient(150deg, #2c8a62, #13603f); }
+.fn-bank--2 { --bank: linear-gradient(150deg, #9a6a08, #6b4703); }
+.fn-bank--3 { --bank: linear-gradient(150deg, #5a5fd0, #353a9e); }
+.fn-bank--4 { --bank: linear-gradient(150deg, #d0574d, #9b2c24); }
+.fn-bank--5 { --bank: linear-gradient(150deg, #3f4a63, #1e2638); }
+.fn-bank--off { filter: grayscale(.85); opacity: .75; }
+.fn-bank-head { display: flex; align-items: center; gap: 10px; }
+.fn-bank .ux-more-btn { width: 36px; height: 36px; background: rgba(255, 255, 255, .2); color: var(--on-brand); }
+.fn-bank .ux-more-btn:focus-visible { outline: 2px solid var(--on-brand); outline-offset: 2px; }
+.fn-bank .ux-more-menu form { display: block; }
+.fn-bank .ux-more-menu button { width: 100%; }
+.fn-bank-name { flex: 1; min-width: 0; margin: 0; font-size: 17px; font-weight: 700; letter-spacing: -.01em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .fn-bank-chip { font-size: 11px; font-weight: 700; padding: 3px 8px; border-radius: var(--r-pill); background: rgba(255, 255, 255, .22); text-transform: uppercase; letter-spacing: .04em; }
 .fn-bank-label { font-size: 12px; opacity: .82; font-weight: 500; margin-top: auto; }
 .fn-bank-value { font-size: 26px; font-weight: 700; line-height: 1.1; overflow-wrap: anywhere; }
@@ -264,28 +297,26 @@ a.fn-tl-title:focus-visible { outline: 2px solid var(--brand); outline-offset: 2
 .fn-add-actions .btn { flex: 1; }
 
 /* ── Hisobot (monitoring) ────────────────────────────────── */
-.fn-bento { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
-.fn-bento .fn-hero { grid-column: span 2; grid-row: span 2; }
+/* chapda aylanma (3D hamyon), o'ngda 2×2 KPI; mobilda KPI bitta gorizontal lentada (ux-strip) */
+.fn-bento { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px; align-items: stretch; }
+.fn-bento-tiles.ux-strip { --ux-cols: 2; }
 .fn-tile {
   background: var(--surface); border-radius: var(--r-lg); padding: 14px 16px; box-shadow: var(--shadow-sm);
   display: flex; flex-direction: column; gap: 6px; min-width: 0;
 }
-.fn-tile-head { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 500; color: var(--ink-3); }
-.fn-tile-ico { width: 28px; height: 28px; border-radius: 8px; display: grid; place-items: center; flex: none; }
-.fn-tile-ico--brand { background: var(--brand-soft); color: var(--brand); }
-.fn-tile-ico--in { background: var(--accent-soft); color: var(--accent); }
-.fn-tile-ico--gold { background: var(--gold-soft); color: var(--gold); }
-.fn-tile-ico--out { background: var(--danger-soft); color: var(--danger); }
+.fn-tile-head { display: flex; align-items: center; gap: 10px; font-size: 13px; font-weight: 600; color: var(--ink-2); }
+.fn-tile .ux-clay { width: 32px; height: 32px; border-radius: 10px; }
+.fn-tile .ux-clay svg { width: 16px; height: 16px; }
 .fn-tile-v { font-size: 24px; font-weight: 700; line-height: 1.15; font-variant-numeric: tabular-nums; letter-spacing: -.02em; overflow-wrap: anywhere; }
 .fn-tile-s { font-size: 12px; color: var(--ink-3); }
 
 .fn-two { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: 16px; align-items: start; }
 
-/* Grafik — filiallar reytingi */
-.fn-chart-legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: 12px; color: var(--ink-3); }
+/* Grafik — filiallar reytingi: har filialga BITTA izometrik ustun (tannarx + foyda = sotuv summa) */
+.fn-chart-legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: 12.5px; color: var(--ink-2); }
 .fn-chart-legend span { display: inline-flex; align-items: center; gap: 6px; }
 .fn-chart-legend i { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
-.fn-chart { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 14px; }
+.fn-chart { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 18px; }
 .fn-chart-row { display: grid; grid-template-columns: 26px minmax(0, 1fr); gap: 10px; align-items: start; }
 .fn-chart-rank {
   width: 26px; height: 26px; border-radius: 8px; display: grid; place-items: center; font-size: 13px; font-weight: 700;
@@ -296,25 +327,37 @@ a.fn-tl-title:focus-visible { outline: 2px solid var(--brand); outline-offset: 2
 .fn-chart-top { display: flex; justify-content: space-between; gap: 10px; align-items: baseline; }
 .fn-chart-name { font-weight: 600; font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .fn-chart-total { font-weight: 700; font-size: 14px; font-variant-numeric: tabular-nums; white-space: nowrap; }
-.fn-bars { display: flex; flex-direction: column; gap: 4px; }
-.fn-bar-track { position: relative; height: 10px; border-radius: var(--r-pill); background: var(--fill-2); }
-.fn-bar {
-  position: relative; display: block; height: 100%; min-width: 4px; border-radius: var(--r-pill);
-  transform-origin: left center; animation: fn-grow .6s cubic-bezier(.2, .8, .2, 1) both;
-}
-.fn-bar--rev { background: linear-gradient(90deg, #3a68c4, #1f4fa8); }
-.fn-bar--cost { background: var(--gold); }
-.fn-bar--profit { background: var(--accent); }
-.fn-bar-track:hover .fn-tip, .fn-bar-track:focus-within .fn-tip { opacity: 1; transform: translate(-50%, -4px); }
-.fn-tip {
-  position: absolute; left: 50%; bottom: 100%; z-index: 3; pointer-events: none; opacity: 0;
-  transform: translate(-50%, 2px); transition: opacity .15s, transform .15s;
-  background: var(--ink-1); color: var(--bg); font-size: 12px; font-weight: 600; white-space: nowrap;
-  padding: 5px 9px; border-radius: 8px; box-shadow: var(--shadow); font-variant-numeric: tabular-nums;
-}
 .fn-chart-meta { display: flex; gap: 12px; flex-wrap: wrap; font-size: 12px; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+
+.fn-dot-cost { background: linear-gradient(180deg, #3a68c4, #1f4fa8); }
+.fn-dot-profit { background: linear-gradient(180deg, #2fae74, #147045); }
+
+/* Izometrik ustun: old yuz + ust yuz (skewX) + o'ng yon yuz (skewY). Sahifadagi yagona 3D grafik. */
+.fn-iso { --d: 7px; position: relative; height: 18px; margin: var(--d) var(--d) 2px 0; background: var(--fill-2); }
+.fn-iso::before, .fn-iso-seg::before {
+  content: ""; position: absolute; left: 0; right: 0; bottom: 100%; height: var(--d);
+  transform-origin: left bottom; transform: skewX(-45deg);
+}
+.fn-iso::after, .fn-iso-seg:last-child::after {
+  content: ""; position: absolute; left: 100%; top: 0; width: var(--d); height: 100%;
+  transform-origin: left top; transform: skewY(-45deg);
+}
+.fn-iso::before { background: var(--fill); }
+.fn-iso::after { background: var(--sep); }
+.fn-iso-bar {
+  position: absolute; inset: 0 auto 0 0; display: flex; z-index: 1;
+  transform-origin: left center; animation: fn-grow .7s cubic-bezier(.2, .8, .2, 1) both;
+  filter: drop-shadow(0 6px 5px rgba(13, 21, 38, .2));
+}
+.fn-iso-seg { position: relative; height: 100%; min-width: 3px; }
+.fn-iso-seg--cost { background: linear-gradient(180deg, #3a68c4, #1f4fa8); }
+.fn-iso-seg--cost::before { background: #7598de; }
+.fn-iso-seg--cost::after { background: #163a82; }
+.fn-iso-seg--profit { background: linear-gradient(180deg, #2fae74, #147045); }
+.fn-iso-seg--profit::before { background: #74d3a6; }
+.fn-iso-seg--profit::after { background: #0e5534; }
 @keyframes fn-grow { from { transform: scaleX(0); } to { transform: scaleX(1); } }
-@media (prefers-reduced-motion: reduce) { .fn-bar { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .fn-iso-bar { animation: none; } }
 
 /* To'lov turi taqsimoti */
 .fn-mix { display: flex; height: 12px; border-radius: var(--r-pill); overflow: hidden; background: var(--fill); gap: 2px; }
@@ -339,25 +382,61 @@ a.fn-tl-title:focus-visible { outline: 2px solid var(--brand); outline-offset: 2
 .fn-paycard small { font-size: 12px; opacity: .82; }
 .fn-paycard strong { font-family: var(--font-mono); font-size: 20px; letter-spacing: 2px; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
 .fn-paycard span { font-size: 14px; font-weight: 600; opacity: .92; text-transform: uppercase; letter-spacing: .04em; }
+.fn-paycard { max-width: 420px; gap: 8px; box-shadow: var(--shadow-brand); }
+.fn-paycard-top, .fn-paycard-foot { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.fn-paycard-foot { flex-wrap: wrap; }
+.fn-paycard-copy {
+  display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 6px 12px; margin-left: auto;
+  border: 0; border-radius: var(--r-pill); background: rgba(255, 255, 255, .2); color: var(--on-brand);
+  font: inherit; font-size: 13px; font-weight: 600; cursor: pointer;
+}
+.fn-paycard-copy:active { opacity: .6; }
+.fn-paycard-copy:focus-visible { outline: 2px solid var(--on-brand); outline-offset: 2px; }
+.fn-paycard span.fn-emv { opacity: 1; }
+
+/* ── Sana tanlagich: o'zbekcha yorliq + yashirin native input (ikkilamchi) ── */
+.fn-datepick {
+  position: relative; display: inline-flex; align-items: center; gap: 8px; min-height: 40px;
+  padding: 0 12px; margin-left: auto; border-radius: 10px; background: var(--fill-2);
+  color: var(--ink-1); font-size: 14px; font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+.fn-datepick--on { background: var(--brand-soft); color: var(--brand); }
+.fn-datepick svg { flex: none; color: var(--ink-2); }
+.fn-datepick--on svg { color: var(--brand); }
+.fn-datepick:focus-within { box-shadow: 0 0 0 4px var(--brand-ring); }
+/* native input butun tugma ustida, ko'rinmas: bosilganda brauzer kalendari ochiladi, matni (ruscha) ko'rinmaydi */
+.fn-datepick input {
+  position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; padding: 0; border: 0;
+  opacity: 0; cursor: pointer; font-size: 16px; color-scheme: light dark;
+}
+.fn-datepick input::-webkit-calendar-picker-indicator { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; cursor: pointer; }
+
+/* Hisobot sarlavhasi: oy navigatsiyasi + ⋯ */
+.fn-head-tools { display: flex; align-items: center; gap: 8px; flex-wrap: nowrap; }
 
 /* ── Moslashuvchanlik ────────────────────────────────────── */
 @media (max-width: 1000px) {
-  .fn-bento { grid-template-columns: repeat(2, 1fr); }
-  .fn-bento .fn-hero { grid-row: auto; }
+  .fn-bento { grid-template-columns: minmax(0, 1fr); }
   .fn-two { grid-template-columns: 1fr; }
 }
 @media (max-width: 700px) {
   .fn-page { gap: 16px; }
   .fn-hero { padding: 18px 16px 16px; border-radius: var(--r-lg); }
-  .fn-grid { grid-template-columns: 1fr; }
-  .fn-flow { grid-template-columns: 1fr; }
-  .fn-flow-side { padding: 14px 16px; }
-  .fn-datebar { padding: 6px; }
-  .fn-date-form { margin-left: 0; width: 100%; }
-  .fn-date-form input { flex: 1; min-height: 44px; }
-  .fn-date-form .btn { min-height: 44px; }
-  .fn-pills { width: 100%; }
+  .fn-hero-stat { padding: 9px 10px; }
+  .fn-hero-stat-v { font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; overflow-wrap: normal; }
+  .fn-hero-stat-l { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .fn-grid, .fn-wallet .fn-grid { grid-template-columns: minmax(0, 1fr); }
+  /* kirim/chiqim mobilda ham yonma-yon — bitta ekranga sig'adi */
+  .fn-flow-side { padding: 14px; }
+  .fn-flow-value { font-size: 19px; }
+  .fn-flow-sub { font-size: 12px; }
+  .fn-flow-net { padding: 12px 14px; }
+  .fn-flow-net strong { font-size: 19px; }
+  .fn-datebar { padding: 6px; flex-wrap: nowrap; }
+  .fn-pills { flex: 1; min-width: 0; }
   .fn-pill { flex: 1; min-height: 44px; padding: 6px 8px; }
+  .fn-datepick { min-height: 44px; min-width: 44px; padding: 0 12px; justify-content: center; }
+  .fn-datepick-text { display: none; }
   .fn-seg { max-width: none; }
   .fn-seg-btn { min-height: 44px; }
   .fn-tl-item { grid-template-columns: 44px 18px 1fr; padding: 10px 14px; }
@@ -366,9 +445,8 @@ a.fn-tl-title:focus-visible { outline: 2px solid var(--brand); outline-offset: 2
   .fn-rank-link { grid-template-columns: 38px 1fr 16px; padding: 12px 14px; }
   .fn-rank-end { grid-column: 2; grid-row: 2; text-align: left; flex-direction: row; align-items: baseline; gap: 6px; }
   .fn-bank-btn { min-height: 44px; min-width: 44px; }
+  .fn-bank .ux-more-btn { width: 44px; height: 44px; }
   .fn-tile-v { font-size: 20px; }
-}
-@media (max-width: 420px) {
-  .fn-bento { grid-template-columns: 1fr 1fr; gap: 10px; }
-  .fn-tile { padding: 12px; }
+  .fn-head-tools { justify-content: space-between; }
+  .fn-head-tools .ux-month { flex: 1; justify-content: space-between; }
 }
