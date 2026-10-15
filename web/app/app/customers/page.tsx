@@ -57,10 +57,11 @@ export default async function CustomersPage({
             {totalPages > 1 ? ` · ${page}-sahifa` : ''}
           </p>
         </div>
-        <div className="t-page-actions">
+        <div className="t-page-actions ux-hide-mobile">
           <Link href="/app/customers/new" className="btn btn-primary btn-with-icon"><Icon name="plus" size={16} /> Mijoz</Link>
         </div>
       </div>
+      <Link href="/app/customers/new" className="ux-fab" aria-label="Yangi mijoz qo'shish"><Icon name="plus" size={18} /> Mijoz</Link>
 
       <form method="get" className="cl-search" role="search">
         <label htmlFor="cl-q" className="cl-search-field">

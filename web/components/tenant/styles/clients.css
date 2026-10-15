@@ -79,53 +79,51 @@
 .cl-empty p { margin: 0; max-width: 360px; font-size: 14px; line-height: 1.5; color: var(--ink-3); }
 .cl-empty .btn { margin-top: 10px; }
 
-/* ---------- Statistik kartalar (hero / bento) ---------- */
-.cl-stat {
-  display: flex; flex-direction: column; gap: 4px;
-  padding: 14px 16px;
-  border-radius: var(--r-lg);
-  background: var(--surface);
-  box-shadow: var(--shadow-sm);
-  color: inherit; text-decoration: none; min-width: 0;
-  transition: opacity .12s, box-shadow .15s;
-}
-a.cl-stat:hover { box-shadow: var(--shadow); }
-a.cl-stat:active { opacity: .6; }
-a.cl-stat:focus-visible { outline: 3px solid var(--brand-ring); outline-offset: 2px; }
-.cl-stat-l { display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; color: var(--ink-3); }
-.cl-stat-v { font-size: 22px; font-weight: 700; letter-spacing: -.03em; line-height: 1.2; color: var(--ink-1); overflow-wrap: anywhere; }
-.cl-stat-v small { font-size: 13px; font-weight: 600; color: var(--ink-3); letter-spacing: 0; }
-.cl-stat-s { font-size: 12px; color: var(--ink-3); }
-.cl-stat--gold .cl-stat-l, .cl-stat--gold .cl-stat-v { color: var(--warn); }
-.cl-stat--gold .cl-stat-l svg { color: var(--gold); }
-.cl-stat--bad .cl-stat-l, .cl-stat--bad .cl-stat-v { color: var(--danger); }
-.cl-stat--warn .cl-stat-l, .cl-stat--warn .cl-stat-v { color: var(--warn); }
-.cl-stat--ok .cl-stat-l, .cl-stat--ok .cl-stat-v { color: var(--accent); }
-
-/* Nasiya portfeli */
-.cl-hero {
-  display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1.6fr); gap: 14px;
-  padding: 16px;
-  border-radius: var(--r-xl);
-  background: var(--surface);
-  box-shadow: var(--shadow-sm);
-}
-.cl-hero-main { display: flex; align-items: center; gap: 16px; min-width: 0; padding: 4px; }
-.cl-hero-txt { display: grid; gap: 2px; min-width: 0; }
-.cl-hero-v { font-size: 30px; font-weight: 700; letter-spacing: -.035em; line-height: 1.15; color: var(--ink-1); overflow-wrap: anywhere; }
-.cl-hero-v small { font-size: 15px; font-weight: 600; color: var(--warn); letter-spacing: 0; }
 .cl-hero-s { font-size: 13px; color: var(--ink-3); }
-.cl-hero-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
-.cl-hero-stats .cl-stat { background: var(--fill-2); box-shadow: none; }
-.cl-hero-stats a.cl-stat:hover { background: var(--fill); box-shadow: none; }
 
-.cl-bento { display: grid; grid-template-columns: 1.5fr repeat(3, minmax(0, 1fr)); gap: 12px; }
-.cl-stat--hero { background: var(--grad-brand); color: var(--on-brand); }
-.cl-stat--hero .cl-stat-l, .cl-stat--hero .cl-stat-s, .cl-stat--hero .cl-stat-v small { color: color-mix(in srgb, var(--on-brand) 78%, transparent); }
-.cl-stat--hero .cl-stat-v { color: var(--on-brand); font-size: 28px; }
+/* ---------- Xulosa: 3D portfel kartasi + ixcham KPI lentasi ---------- */
+.cl-sum { display: grid; grid-template-columns: minmax(300px, 1fr) minmax(0, 1.75fr); gap: 14px; align-items: stretch; min-width: 0; }
+/* Asosiy "ob'ekt" (Tilt stack) — to'q ko'k, oltin halqa */
+.cl-port {
+  display: flex; align-items: center; gap: 16px; min-width: 0;
+  padding: 18px 20px;
+  background: linear-gradient(150deg, #24418a 0%, #142a60 55%, #0d1d45 100%);
+  color: #fff;
+  overflow: visible;
+}
+.cl-port-txt { display: grid; gap: 3px; min-width: 0; }
+.cl-port-l { font-size: 12px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: rgba(255, 255, 255, .72); }
+.cl-port-v { font-size: 30px; font-weight: 700; letter-spacing: -.035em; line-height: 1.15; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cl-port-v small { font-size: 15px; font-weight: 600; letter-spacing: 0; color: #f3c04d; }
+.cl-port-s { font-size: 13px; color: rgba(255, 255, 255, .72); }
+.cl-port .cl-ring-track { stroke: rgba(255, 255, 255, .14); }
+.cl-port .cl-ring-bar { stroke: #f3c04d; filter: drop-shadow(0 0 6px rgba(243, 192, 77, .55)); }
+.cl-port .cl-ring b { color: #fff; }
+.cl-port--debt { background: linear-gradient(150deg, #3a68c4 0%, #1f4fa8 55%, #163d86 100%); }
+.cl-port-ic { width: 48px; height: 48px; border-radius: 14px; }
+
+/* KPI kartalari (ux-stat ustiga): chapda hajmli ikonka */
+.cl-kpis { min-width: 0; }
+.cl-kpi {
+  grid-template-columns: auto minmax(0, 1fr); align-items: center; align-content: center; gap: 12px;
+  color: inherit; text-decoration: none;
+  transition: box-shadow .15s, opacity .12s;
+}
+.cl-kpi-t { display: grid; gap: 2px; min-width: 0; }
+.cl-kpi .ux-stat-v { font-size: 20px; }
+a.cl-kpi:hover { box-shadow: var(--shadow); }
+a.cl-kpi:active { opacity: .6; }
+a.cl-kpi:focus-visible { outline: 3px solid var(--brand-ring); outline-offset: 2px; }
+a.cl-kpi[aria-current="page"] { box-shadow: inset 0 0 0 2px var(--brand), var(--shadow-sm); }
+.cl-kpi--bad .ux-stat-v { color: var(--danger); }
+.cl-kpi--gold .ux-stat-v { color: var(--warn); }
+.cl-kpi--ok .ux-stat-v { color: var(--accent); }
 
 /* ---------- Segment (Link'lar) va chiplar ---------- */
-.cl-filters { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; }
+/* Bitta qator: segment + chiplar; joy yetmasa gorizontal aylanadi (ux-scrollx) */
+.cl-filterbar { align-items: center; gap: 12px; }
+.cl-filterbar .cl-seg { max-width: none; overflow: visible; }
+.cl-filterbar .cl-chips { flex-wrap: nowrap; }
 .cl-seg {
   display: inline-flex; gap: 2px; padding: 2px;
   border-radius: 11px; background: var(--fill);
@@ -198,6 +196,14 @@ a.cl-stat:focus-visible { outline: 3px solid var(--brand-ring); outline-offset: 
 .cl-row-sub a { color: var(--brand); }
 .cl-row-next { font-size: 12px; color: var(--ink-3); }
 .cl-row--late .cl-row-amt { color: var(--danger); }
+/* Holat chizig'i (chap chet): kechikkan — qizil, bugun — oltin, tugagan — yashil */
+.cl-row { position: relative; }
+.cl-row--late::before, .cl-row--today::before, .cl-row--paid::before {
+  content: ""; position: absolute; left: 0; top: 10px; bottom: 10px; width: 3px; border-radius: 0 3px 3px 0;
+  background: var(--danger);
+}
+.cl-row--today::before { background: var(--gold); }
+.cl-row--paid::before { background: var(--accent); opacity: .7; }
 
 /* Detail panel */
 .cl-detail { padding: 20px; display: grid; gap: 18px; }
@@ -245,18 +251,31 @@ a.cl-stat:focus-visible { outline: 3px solid var(--brand-ring); outline-offset: 
 .cl-group-ic--warn { background: var(--warn-soft); color: var(--warn); }
 .cl-group-ic--ok { background: var(--accent-soft); color: var(--accent); }
 
+.cl-group-ic--mut { background: var(--fill); color: var(--ink-3); }
+
 .cl-debts { list-style: none; margin: 0; padding: 0; overflow: hidden; }
+/* Qator: chapda muhimlik rang chizig'i (--cl-urg) */
 .cl-debt {
-  display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto; align-items: center; gap: 14px;
-  padding: 12px 16px;
+  --cl-urg: var(--ink-3);
+  position: relative;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  grid-template-areas: "av main amt act" "av main date act";
+  align-items: center; gap: 2px 14px;
+  padding: 12px 16px 12px 18px;
 }
+.cl-debt::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: var(--cl-urg); }
+.cl-debt--overdue { --cl-urg: var(--danger); }
+.cl-debt--due_soon { --cl-urg: var(--gold); }
+.cl-debt--on_track { --cl-urg: var(--accent); }
+.cl-debt--no_date { --cl-urg: var(--fill-3, var(--sep)); }
+.cl-debt--overdue { background: color-mix(in srgb, var(--danger-soft) 35%, transparent); }
 .cl-debt + .cl-debt { box-shadow: inset 0 .5px 0 var(--sep); }
-.cl-group--overdue .cl-debt { box-shadow: inset 3px 0 0 var(--danger); }
-.cl-group--overdue .cl-debt + .cl-debt { box-shadow: inset 3px 0 0 var(--danger), inset 0 .5px 0 var(--sep); }
-.cl-debt-main { display: grid; gap: 2px; min-width: 0; }
-.cl-debt-due { display: grid; justify-items: end; gap: 4px; }
-.cl-debt-date { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--ink-3); }
-.cl-debt-act { display: flex; gap: 6px; align-items: center; }
+.cl-debt > .cl-av { grid-area: av; }
+.cl-debt-main { grid-area: main; display: grid; gap: 2px; min-width: 0; }
+.cl-debt-amt { grid-area: amt; justify-self: end; }
+.cl-debt-date { grid-area: date; justify-self: end; display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--ink-3); }
+.cl-debt-act { grid-area: act; display: flex; gap: 6px; align-items: center; margin-left: 4px; }
 
 /* Eslatma tugmasi + menyu */
 .cl-remind { background: var(--brand-soft); color: var(--brand); }
@@ -347,7 +366,9 @@ a.cl-stat:focus-visible { outline: 3px solid var(--brand-ring); outline-offset: 
 .cl-form-bar { display: flex; justify-content: flex-end; }
 
 /* ---------- Daftar ---------- */
-.cl-daftar-top { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+.cl-daftar-top { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; align-items: stretch; }
+.cl-balance-box { display: grid; min-width: 0; }
+.cl-balance { align-content: start; }
 .cl-balance { padding: 20px; display: grid; gap: 4px; }
 .cl-balance-v { font-size: 34px; font-weight: 700; letter-spacing: -.035em; line-height: 1.15; overflow-wrap: anywhere; }
 .cl-balance-v small { font-size: 15px; font-weight: 600; color: var(--ink-3); letter-spacing: 0; }
@@ -407,6 +428,36 @@ a.cl-stat:focus-visible { outline: 3px solid var(--brand-ring); outline-offset: 
 .cl-lentry-act form { margin: 0; }
 .cl-del { color: var(--danger); min-width: 34px; padding-inline: 8px; }
 .cl-del:hover:not(:disabled) { background: var(--danger-soft); }
+/* Ikki bosqichli o'chirish tasdig'i */
+.cl-del-confirm { display: inline-flex; align-items: center; gap: 2px; margin: 0; animation: cl-pop .14s ease-out; }
+/* Tasdiq paytida "Qaytdi" yashirinadi — tor ekranda joy yetsin, tasodifan bosilmasin */
+.cl-lentry-act:has(.cl-del-confirm) > form:not(.cl-del-confirm) { display: none; }
+.cl-del-yes { background: var(--danger); color: #fff; }
+.cl-del-yes:hover:not(:disabled) { background: color-mix(in srgb, var(--danger) 88%, #000); }
+.cl-del-yes:focus-visible { outline: 3px solid color-mix(in srgb, var(--danger) 40%, transparent); outline-offset: 2px; }
+.cl-del-no { min-width: 34px; padding-inline: 8px; color: var(--ink-2); }
+
+/* Qaytarish muddatini tez tanlash */
+.cl-dquick { display: flex; flex-wrap: wrap; gap: 6px; margin-top: -4px; }
+.cl-dquick-btn {
+  min-height: 32px; padding: 4px 12px; border: 0; border-radius: var(--r-pill);
+  background: var(--fill-2); color: var(--ink-1); font: inherit; font-size: 13px; font-weight: 500; cursor: pointer;
+}
+.cl-dquick-btn:hover { background: var(--fill); }
+.cl-dquick-btn:active { opacity: .55; }
+.cl-dquick-btn:focus-visible { outline: 3px solid var(--brand-ring); outline-offset: 1px; }
+.cl-dquick-btn[aria-pressed="true"] { background: var(--brand-fill); color: var(--on-brand); }
+#d-form { scroll-margin-top: 76px; }
+
+.cl-flash {
+  margin: 0; display: flex; align-items: center; gap: 8px;
+  padding: 10px 14px; border-radius: var(--r-lg);
+  background: var(--accent-soft); color: var(--accent); font-size: 14px; font-weight: 600;
+}
+
+/* Daftar: mobil almashtirgich (desktopda ikki ustun ko'rinadi) */
+.cl-ledger-wrap { display: grid; gap: 10px; min-width: 0; }
+.cl-lt-in, .cl-lswitch { display: none; }
 
 .cl-closed > summary {
   display: flex; align-items: center; gap: 8px; cursor: pointer; list-style: none;
@@ -420,41 +471,68 @@ a.cl-stat:focus-visible { outline: 3px solid var(--brand-ring); outline-offset: 
 
 /* ---------- Moslashuv ---------- */
 @media (max-width: 1100px) {
-  .cl-hero { grid-template-columns: minmax(0, 1fr); }
-  .cl-bento { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .cl-bento .cl-stat--hero { grid-column: 1 / -1; }
+  .cl-sum { grid-template-columns: minmax(0, 1fr); }
   .cl-md { grid-template-columns: minmax(280px, 340px) minmax(0, 1fr); }
   .cl-kv { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .cl-debt { grid-template-columns: auto minmax(0, 1fr) auto; }
-  .cl-debt-act { grid-column: 2 / -1; justify-content: flex-end; }
 }
 
 @media (max-width: 900px) {
+  /* FAB oxirgi qatorni yopmasin */
+  .cl-page:has(> .ux-fab) { padding-bottom: 76px; }
   /* Master-detail: bitta ustun — tanlanganda faqat tafsilot */
   .cl-md { grid-template-columns: minmax(0, 1fr); }
   .cl-md-detail { position: static; display: none; }
   .cl-md--sel .cl-md-detail { display: block; }
   .cl-md--sel .cl-md-list { display: none; }
   .cl-detail-back { display: inline-flex; }
-  .cl-daftar-top, .cl-ledger, .cl-profile { grid-template-columns: minmax(0, 1fr); }
+  .cl-ledger, .cl-profile { grid-template-columns: minmax(0, 1fr); }
   .cl-pcard { position: static; }
+
+  /* Daftar: balans → ro'yxat → forma (FAB formaga olib boradi) */
+  .cl-daftar-top { display: contents; }
+  .cl-closed { order: 1; }
+  #d-form { order: 2; }
+
+  /* "Men berdim / Men oldim" almashtirgichi */
+  .cl-lt-in { display: block; position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+  .cl-lswitch { display: grid; grid-template-columns: 1fr 1fr; gap: 2px; padding: 2px; border-radius: 11px; background: var(--fill); }
+  .cl-lswitch label {
+    display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+    min-height: 44px; border-radius: 9px; font-size: 15px; font-weight: 500; color: var(--ink-1); cursor: pointer;
+  }
+  .cl-lswitch label span { font-size: 12px; font-weight: 600; color: var(--ink-3); }
+  .cl-lswitch label:active { opacity: .55; }
+  #lt-given:checked ~ .cl-lswitch .cl-lswitch-given,
+  #lt-taken:checked ~ .cl-lswitch .cl-lswitch-taken {
+    background: var(--surface); font-weight: 600;
+    box-shadow: 0 3px 8px rgba(0, 0, 0, .12), 0 0 0 .5px rgba(0, 0, 0, .04);
+  }
+  #lt-given:checked ~ .cl-lswitch .cl-lswitch-given { color: var(--accent); }
+  #lt-taken:checked ~ .cl-lswitch .cl-lswitch-taken { color: var(--warn); }
+  #lt-given:focus-visible ~ .cl-lswitch .cl-lswitch-given,
+  #lt-taken:focus-visible ~ .cl-lswitch .cl-lswitch-taken { outline: 3px solid var(--brand-ring); outline-offset: -1px; }
+  #lt-given:checked ~ .cl-ledger .cl-lcol--taken,
+  #lt-taken:checked ~ .cl-ledger .cl-lcol--given { display: none; }
+  .cl-ledger .cl-lcol-h { display: none; }
 }
 
 @media (max-width: 700px) {
   .cl-page { gap: 14px; }
-  .cl-hero { padding: 12px; }
-  .cl-hero-main { gap: 12px; }
-  .cl-hero-v { font-size: 26px; }
-  .cl-hero-stats { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
-  .cl-hero-stats .cl-stat { padding: 10px; }
-  .cl-hero-stats .cl-stat-v { font-size: 16px; }
-  .cl-stat-l { font-size: 12px; }
-  .cl-stat-l svg { display: none; }
-  .cl-filters { display: grid; gap: 10px; }
-  .cl-seg { display: flex; width: 100%; }
-  .cl-seg a { flex: 1; justify-content: center; min-height: 40px; padding: 6px 10px; }
-  .cl-chips { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; margin: 0 -16px; padding: 2px 16px; }
-  .cl-chips::-webkit-scrollbar { display: none; }
+  .cl-sum { gap: 10px; }
+  .cl-port { padding: 14px 16px; gap: 14px; }
+  .cl-port .cl-ring { width: 72px !important; height: 72px !important; }
+  .cl-port .cl-ring svg { width: 100%; height: 100%; }
+  .cl-port .cl-ring b { font-size: 16px; }
+  .cl-port-v { font-size: 26px; }
+  .cl-port-s { font-size: 12.5px; }
+  .cl-port-ic { width: 44px; height: 44px; }
+  /* ux-strip scroll-snap birinchi kartani chetga yopishtirmasin */
+  .cl-kpis { scroll-padding-inline: 16px; }
+  .cl-kpi { padding: 12px 14px; gap: 10px; }
+  .cl-kpi .ux-stat-v { font-size: 18px; }
+  /* Filtr qatori ekran chetigacha aylanadi */
+  .cl-filterbar { margin-inline: -16px; padding-left: 16px; }
+  .cl-seg a { min-height: 40px; padding: 6px 12px; }
   .cl-chip { min-height: 40px; }
   .cl-row { padding: 12px; }
   .cl-detail { padding: 16px; }
@@ -462,10 +540,23 @@ a.cl-stat:focus-visible { outline: 3px solid var(--brand-ring); outline-offset: 
   .cl-detail-sum { flex-direction: column; align-items: stretch; }
   .cl-detail-sum .cl-ring { align-self: center; }
   .cl-sched-row .cl-pill { min-width: 0; }
-  .cl-debt { grid-template-columns: auto minmax(0, 1fr); gap: 8px 12px; padding: 12px; }
-  .cl-debt-due { grid-column: 2; justify-items: start; }
-  .cl-debt-act { grid-column: 1 / -1; display: grid; grid-template-columns: 1fr 1fr; }
-  .cl-debt-act .btn, .cl-remind-wrap, .cl-remind-wrap .btn { width: 100%; }
+  /* Qarz qatori: 1-qator ism + summa, 2-qator muddat + amallar (ixcham) */
+  .cl-debt {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-template-areas: "av main amt" "av date act";
+    gap: 8px 12px; padding: 12px 12px 12px 16px; align-items: start;
+  }
+  .cl-debt-amt { align-self: center; }
+  .cl-debt-amt small { display: none; }
+  /* 2-qator: pill chapda, amallar o'ngda — bir katakni bo'lishadi, ism ustuni toraymaydi */
+  .cl-debt-date, .cl-debt-act { grid-area: auto; grid-row: 2; grid-column: 2 / 4; }
+  .cl-debt-act { justify-self: end; }
+  .cl-debt-date { justify-self: start; flex-wrap: wrap; gap: 4px 8px; align-self: center; }
+  /* Mobilda pill ("12 kun o'tdi") yetarli — aniq sana sotuv sahifasida */
+  .cl-debt-date > .t-num { display: none; }
+  .cl-debt-act { margin-left: 0; gap: 4px; }
+  .cl-debt-pay { display: none; }
+  .cl-debt-act > .btn { min-width: 44px; padding-inline: 10px; }
   .cl-group-h small { display: none; }
   .cl-search .btn { padding-inline: 14px; }
   .cl-cgrid { grid-template-columns: minmax(0, 1fr); gap: 8px; }
@@ -476,15 +567,16 @@ a.cl-stat:focus-visible { outline: 3px solid var(--brand-ring); outline-offset: 
   .cl-lentry-side { width: 100%; display: flex; justify-content: space-between; align-items: center; padding-left: 52px; }
   /* Teginish nishoni ≥44px */
   .cl-page .btn-sm, .cl-remind, .cl-dseg-btn, .cl-menu-item { min-height: 44px; }
-  .cl-del { min-width: 44px; }
+  .cl-del, .cl-del-no { min-width: 44px; }
+  .cl-dquick-btn { min-height: 40px; padding-inline: 14px; }
 }
 
 @media (max-width: 380px) {
-  .cl-hero-stats { grid-template-columns: minmax(0, 1fr); }
   .cl-ptotals { grid-template-columns: minmax(0, 1fr); }
   .cl-balance-split { grid-template-columns: minmax(0, 1fr); }
+  .cl-port-v { font-size: 23px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .cl-ring-bar, .cl-menu { transition: none; animation: none; }
+  .cl-ring-bar, .cl-menu, .cl-del-confirm { transition: none; animation: none; }
 }

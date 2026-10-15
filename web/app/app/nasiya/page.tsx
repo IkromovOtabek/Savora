@@ -5,7 +5,9 @@ import { fmtMoney, fmtDate } from '@/lib/format';
 import { computeInstallmentPlan, INSTALLMENT_STATE_META } from '@/lib/installment';
 import type { ISale } from '@/lib/models/tenant/Sale';
 import Icon from '@/components/icons/Icon';
+import type { CSSProperties } from 'react';
 import ScrollIntoViewMobile from '@/components/tenant/ScrollIntoViewMobile';
+import Tilt from '@/components/ui/Tilt';
 import { Avatar, EmptyState, Pill, Progress, Ring, type PillTone } from '@/components/tenant/ClientsUi';
 import '@/components/tenant/styles/clients.css';
 
@@ -128,41 +130,56 @@ export default async function NasiyaPage({
           <h1 className="t-page-title">Nasiya</h1>
           <p className="t-page-sub">Bo&apos;lib to&apos;lash savdolari · <strong>{rows.length} ta</strong> · {fmtMoney(sumTotal)} so&apos;m</p>
         </div>
-        <div className="t-page-actions">
-          <Link href="/app/sales/new" className="btn btn-primary btn-with-icon"><Icon name="plus" size={16} /> Yangi sotuv</Link>
+        <div className="t-page-actions ux-hide-mobile">
+          <Link href="/app/sales/new?payment=installment" className="btn btn-primary btn-with-icon"><Icon name="plus" size={16} /> Nasiya sotuv</Link>
         </div>
       </div>
+      <Link href="/app/sales/new?payment=installment" className="ux-fab" aria-label="Yangi nasiya sotuv">
+        <Icon name="plus" size={18} /> Nasiya
+      </Link>
 
-      {/* Portfel xulosasi */}
-      <section className="cl-hero" aria-label="Nasiya portfeli">
-        <div className="cl-hero-main">
-          <Ring value={sumTotal > 0 ? sumPaidAll / sumTotal : 0} size={96} />
-          <div className="cl-hero-txt">
-            <span className="cl-eyebrow">Jami qoldiq</span>
-            <span className="cl-hero-v t-num">{fmtMoney(sumDebtRemaining)} <small>so&apos;m</small></span>
-            <span className="cl-hero-s">{debtRows.length} ta faol shartnoma · undirilgan {fmtMoney(sumPaidAll)} so&apos;m</span>
+      {/* Portfel xulosasi: 3D asosiy karta + ixcham lenta */}
+      <section className="cl-sum" aria-label="Nasiya portfeli">
+        <Tilt stack className="cl-port">
+          <Ring value={sumTotal > 0 ? sumPaidAll / sumTotal : 0} size={88} />
+          <div className="cl-port-txt">
+            <span className="cl-port-l">Jami qoldiq</span>
+            <span className="cl-port-v t-num ux-z">{fmtMoney(sumDebtRemaining)} <small>so&apos;m</small></span>
+            <span className="cl-port-s">
+              {debtRows.length} ta faol shartnoma · undirilgan <span className="t-num">{fmtMoney(sumPaidAll)}</span> so&apos;m
+            </span>
           </div>
-        </div>
-        <div className="cl-hero-stats">
-          <Link href={href({ f: 'today' })} className="cl-stat cl-stat--gold">
-            <span className="cl-stat-l"><Icon name="clock" size={15} /> Bugun kutilmoqda</span>
-            <span className="cl-stat-v t-num">{fmtMoney(sumToday)}</span>
-            <span className="cl-stat-s">{todayRows.length} ta mijoz</span>
+        </Tilt>
+        <div className="ux-strip cl-kpis" style={{ '--ux-cols': 3 } as CSSProperties}>
+          <Link href={href({ f: 'today' })} className="ux-stat cl-kpi cl-kpi--gold" aria-current={f === 'today' ? 'page' : undefined}>
+            <span className="ux-clay ux-clay--gold" aria-hidden="true"><Icon name="clock" size={20} /></span>
+            <span className="cl-kpi-t">
+              <span className="ux-stat-l">Bugun kutilmoqda</span>
+              <span className="ux-stat-v t-num">{fmtMoney(sumToday)}</span>
+              <span className="ux-stat-s">{todayRows.length} ta mijoz</span>
+            </span>
           </Link>
-          <Link href={href({ f: 'debt' })} className="cl-stat cl-stat--bad">
-            <span className="cl-stat-l"><Icon name="alert" size={15} /> Kechikkan</span>
-            <span className="cl-stat-v t-num">{fmtMoney(sumLate)}</span>
-            <span className="cl-stat-s">{lateRows.length} ta mijoz</span>
+          <Link href={href({ f: 'debt' })} className="ux-stat cl-kpi cl-kpi--bad" aria-current={f === 'debt' ? 'page' : undefined}>
+            <span className="ux-clay ux-clay--red" aria-hidden="true"><Icon name="alert" size={20} /></span>
+            <span className="cl-kpi-t">
+              <span className="ux-stat-l">Kechikkan</span>
+              <span className="ux-stat-v t-num">{fmtMoney(sumLate)}</span>
+              <span className="ux-stat-s">{lateRows.length} ta mijoz</span>
+            </span>
           </Link>
-          <Link href={href({ f: 'paid' })} className="cl-stat cl-stat--ok">
-            <span className="cl-stat-l"><Icon name="check" size={15} /> Tugatilgan</span>
-            <span className="cl-stat-v t-num">{paidRows.length} ta</span>
-            <span className="cl-stat-s">{fmtMoney(sumPaidTotal)} so&apos;m</span>
+          <Link href={href({ f: 'paid' })} className="ux-stat cl-kpi cl-kpi--ok" aria-current={f === 'paid' ? 'page' : undefined}>
+            <span className="ux-clay ux-clay--green" aria-hidden="true"><Icon name="check" size={20} /></span>
+            <span className="cl-kpi-t">
+              <span className="ux-stat-l">Tugatilgan</span>
+              <span className="ux-stat-v t-num">{paidRows.length} ta</span>
+              <span className="ux-stat-s t-num">{fmtMoney(sumPaidTotal)} so&apos;m</span>
+            </span>
           </Link>
         </div>
       </section>
 
-      <div className="cl-filters">
+      {/* Holat segmenti va kechikish chiplari — bitta aylanuvchi qator (kesilmaydi) */}
+      <div className="cl-filterbar ux-scrollx">
         <nav className="cl-seg" aria-label="Holat bo'yicha filtr">
           {SEG.map((s) => {
             const active = (f ?? undefined) === s.key || (!s.key && !['paid', 'debt', 'today'].includes(f ?? ''));
@@ -173,20 +190,23 @@ export default async function NasiyaPage({
             );
           })}
         </nav>
-        <div className="cl-chips" role="group" aria-label="Kechikish muddati">
-          <span className="cl-chips-l">Kechikish:</span>
-          {bucketStats.map((bk) => (
-            <Link
-              key={bk.key}
-              href={href({ f, b: b === bk.key ? undefined : bk.key })}
-              className={`cl-chip cl-chip--b${bk.key}${b === bk.key ? ' cl-chip--active' : ''}`}
-              aria-pressed={b === bk.key}
-            >
-              {bk.label} <b className="t-num">{bk.count}</b>
-              {bk.sum > 0 && <small className="t-num">{fmtMoney(bk.sum)}</small>}
-            </Link>
-          ))}
-        </div>
+        {/* Kechikkan shartnoma bo'lmasa — nol chiplar shovqin qilmasin */}
+        {(lateRows.length > 0 || b) && (
+          <div className="cl-chips" role="group" aria-label="Kechikish muddati">
+            <span className="cl-chips-l">Kechikish:</span>
+            {bucketStats.map((bk) => (
+              <Link
+                key={bk.key}
+                href={href({ f, b: b === bk.key ? undefined : bk.key })}
+                className={`cl-chip cl-chip--b${bk.key}${b === bk.key ? ' cl-chip--active' : ''}`}
+                aria-pressed={b === bk.key}
+              >
+                {bk.label} <b className="t-num">{bk.count}</b>
+                {bk.sum > 0 && <small className="t-num">{fmtMoney(bk.sum)}</small>}
+              </Link>
+            ))}
+          </div>
+        )}
       </div>
 
       <div className={`cl-md${selected ? ' cl-md--sel' : ''}`}>
@@ -197,7 +217,7 @@ export default async function NasiyaPage({
                 icon="clock"
                 title="Nasiya savdosi topilmadi"
                 text={f || b ? 'Tanlangan filtr bo‘yicha shartnoma yo‘q.' : 'Bo‘lib to‘lash sotuvi qilinganda shu yerda ko‘rinadi.'}
-                action={f || b ? { href: '/app/nasiya', label: 'Filtrni tozalash' } : { href: '/app/sales/new', label: 'Yangi sotuv' }}
+                action={f || b ? { href: '/app/nasiya', label: 'Filtrni tozalash' } : { href: '/app/sales/new?payment=installment', label: 'Nasiya sotuv' }}
               />
             </div>
           ) : (
@@ -210,7 +230,7 @@ export default async function NasiyaPage({
                   <li key={id}>
                     <Link
                       href={href({ f, b, id })}
-                      className={`cl-row${r.lateDays > 0 ? ' cl-row--late' : ''}`}
+                      className={`cl-row${r.lateDays > 0 ? ' cl-row--late' : r.isPaid ? ' cl-row--paid' : r.todaySum > 0 ? ' cl-row--today' : ''}`}
                       aria-current={selected && String(selected.s._id) === id ? 'true' : undefined}
                       scroll={false}
                     >
