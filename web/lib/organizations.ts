@@ -47,6 +47,7 @@ export interface CreateOrganizationInput {
   agreementNote?: string;
   mustChangePassword?: boolean;
   referredBy?: string;
+  termsAcceptedAt?: Date;
   billingCycle?: 'monthly' | 'yearly';
   /** Sinov rejimi — muddati tugagach to'lov talab qilinadi */
   isTrial?: boolean;
@@ -141,6 +142,7 @@ export async function createOrganization(input: CreateOrganizationInput): Promis
     // override'lari uchun — shunda tarif/biznes turi o'zgarsa modullar ham to'g'ri o'zgaradi.
     referralCode,
     referredBy: input.referredBy?.toUpperCase() || undefined,
+    termsAcceptedAt: input.termsAcceptedAt,
     referralBonusMonths,
     onboarding: { branchCreated: false, productAdded: false, saleMade: false, profileCompleted: false },
   });

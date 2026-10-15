@@ -28,6 +28,8 @@ export interface IOrganization {
   /** Referral tizim */
   referralCode?: string;
   referredBy?: string;
+  /** Ro'yxatdan o'tishda oferta va maxfiylik siyosatiga rozilik vaqti (aksept dalili) */
+  termsAcceptedAt?: Date;
   referralBonusMonths?: number;
   /** Onboarding: birinchi qadamlar bajarilganmi */
   onboarding?: {
@@ -94,6 +96,7 @@ export const organizationSchema = new Schema<IOrganization>(
     features: featureFlags,
     referralCode: { type: String, unique: true, sparse: true, uppercase: true, trim: true },
     referredBy: { type: String, trim: true },
+    termsAcceptedAt: { type: Date },
     referralBonusMonths: { type: Number, default: 0 },
     onboarding: {
       branchCreated: { type: Boolean, default: false },

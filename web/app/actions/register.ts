@@ -39,6 +39,11 @@ export async function registerAction(_prev: State, formData: FormData): Promise<
     | 'free' | 'starter' | 'pro' | 'business';
   const isFree = planTier === 'free';
 
+  // Oferta va maxfiylik siyosatiga rozilik (aksept) — majburiy
+  if (formData.get('acceptTerms') !== '1') {
+    return { error: 'Davom etish uchun oferta va maxfiylik siyosatiga rozilik bildiring.' };
+  }
+
   if (adminUsername.length < 3) {
     return { error: 'Login kamida 3 ta belgidan iborat bo\'lsin (lotin harf, raqam, _).' };
   }
@@ -72,6 +77,7 @@ export async function registerAction(_prev: State, formData: FormData): Promise<
       trialDays: isFree ? undefined : TRIAL_DAYS,
       mustChangePassword: false,
       referredBy,
+      termsAcceptedAt: new Date(),
     });
 
     const { Organization } = await getMasterModels();

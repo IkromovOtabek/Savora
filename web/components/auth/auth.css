@@ -289,3 +289,8 @@ a.au-cell:active { opacity: .6; }
   .au-row--split > div + div { padding-left: 0; border-left: 0; border-top: .5px solid var(--sep, var(--border)); padding-top: 8px; margin-top: 8px; }
   .au-title { font-size: 26px; }
 }
+
+/* Oferta / maxfiylik roziligi (ro'yxatdan o'tish, 2-qadam) */
+.au-consent { display: flex; gap: 10px; align-items: flex-start; font-size: 14px; color: var(--ink-2); line-height: 1.45; margin: 4px 0 2px; cursor: pointer; }
+.au-consent input { width: 20px; height: 20px; margin: 1px 0 0; flex: none; accent-color: var(--brand); }
+.au-consent a { color: var(--brand); font-weight: 600; }

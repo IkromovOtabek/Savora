@@ -222,6 +222,14 @@ export default function RegisterForm({ plans }: { plans: PlanPreset[] }) {
               : `14 kun bepul sinov. Sinovdan keyin tarif to'lovi orqali davom etadi. Modullar tarif va «${BUSINESS_TYPES[bizType].label}» yo'nalishiga qarab avtomatik yoqiladi.`}
           </p>
 
+          <label className="au-consent" htmlFor="acceptTerms">
+            <input id="acceptTerms" name="acceptTerms" type="checkbox" value="1" required disabled={isPending} />
+            <span>
+              <a href="/terms" target="_blank" rel="noopener">Ommaviy oferta</a> shartlariga va{' '}
+              <a href="/privacy" target="_blank" rel="noopener">maxfiylik siyosatiga</a> roziman.
+            </span>
+          </label>
+
           <div className="au-actions">
             <button type="button" className="au-btn au-btn--gray" onClick={() => setStep(1)} disabled={isPending}>
               <Icon name="arrowLeft" size={18} /> Orqaga
