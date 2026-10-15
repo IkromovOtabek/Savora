@@ -3,6 +3,7 @@ import { getTenantSession } from '@/lib/tenantSession';
 import Icon from '@/components/icons/Icon';
 import { isBranchScoped } from '@/lib/branchScope';
 import NaxtKassaCards, { KassaCard } from '@/components/tenant/NaxtKassaCards';
+import '@/components/tenant/styles/finance.css';
 
 export const metadata = { title: 'Naqd kassa — Savora' };
 
@@ -42,7 +43,8 @@ export default async function KassaPage() {
   const naxtSotuvTotal = cards.reduce((s, c) => s + c.naxtSotuv, 0);
   const total: KassaCard = {
     id: 'all',
-    name: 'JAMI (BARCHA FILIALLAR)',
+    // Filial login bitta filialni ko'radi — "barcha filiallar" deyish noto'g'ri
+    name: isBranchScoped(user) ? 'Filialingiz kassasi' : 'Jami — barcha filiallar',
     naxtSotuv: naxtSotuvTotal,
     adminOlgan: adminTotal,
     qolgan: naxtSotuvTotal - adminTotal,
@@ -57,13 +59,12 @@ export default async function KassaPage() {
             {isBranchScoped(user) ? 'Filialingiz' : `${branches.length} ta filial`} bo&apos;yicha naqd tushum va qoldiq
           </p>
         </div>
-        <div className="t-page-actions">
-          <Link href="/app/sales/new" className="btn btn-primary btn-with-icon">
-            <Icon name="plus" size={18} /> Sotuv
-          </Link>
-        </div>
       </div>
       <NaxtKassaCards total={total} cards={cards} />
+      {/* Kompyuterda yuqori paneldagi "Yangi sotuv" yetarli; telefonda — pastki o'ng tugma */}
+      <Link href="/app/sales/new" className="ux-fab">
+        <Icon name="plus" size={20} /> Sotuv
+      </Link>
     </>
   );
 }

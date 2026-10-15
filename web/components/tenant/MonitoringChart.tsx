@@ -1,67 +1,72 @@
+import Link from 'next/link';
 import { fmtMoney } from '@/lib/format';
 import type { BranchMonthFlow } from '@/lib/inventoryFlow';
 import Icon from '@/components/icons/Icon';
 import '@/components/tenant/styles/finance.css';
 
 /**
- * Filiallar reytingi — sotuv summasi bo'yicha tartiblangan gorizontal ustunlar.
- * Barcha ustunlar bir xil o'lchovda (so'm): sotuv, xarid (omborga kirgan), foyda.
- * Avval dona va so'm bitta shkalada aralashib, dona ustunlari ko'rinmay qolardi.
+ * Filiallar reytingi — har filialga BITTA izometrik (3D) ustun.
+ * Ustun uzunligi = sotuv summasi; ichida ikki bo'lak: sotilgan mahsulot tannarxi + foyda.
+ * (Sotuv = tannarx + foyda.) Omborga kirgan xarid — boshqa o'lchov, shuning uchun matnda.
  */
 export default function MonitoringChart({ rows }: { rows: BranchMonthFlow[] }) {
-  if (rows.length === 0) {
+  const ranked = [...rows].sort((a, b) => b.kirimSum - a.kirimSum);
+  const hasSales = ranked.some((r) => r.kirimSum > 0);
+
+  if (!hasSales) {
     return (
-      <div className="fn-empty">
-        <span className="fn-empty-icon"><Icon name="chart" size={26} /></span>
-        <strong>Bu oy uchun ma&apos;lumot yo&apos;q</strong>
-        <p>Boshqa oyni tanlab ko&apos;ring.</p>
+      <div className="ux-empty">
+        <span className="ux-empty-ic"><Icon name="chart" size={26} /></span>
+        <b>Bu oyda sotuv yo&apos;q</b>
+        <p>Sotuv qo&apos;shilgach, filiallar shu yerda sotuv summasi bo&apos;yicha saflanadi.</p>
+        <Link href="/app/sales/new" className="btn btn-tinted btn-sm">Sotuv qo&apos;shish</Link>
       </div>
     );
   }
 
-  const ranked = [...rows].sort((a, b) => b.kirimSum - a.kirimSum);
-  const maxVal = Math.max(1, ...ranked.flatMap((r) => [r.kirimSum, r.chiqimSum, r.profit]));
-  const w = (v: number) => `${(Math.max(0, v) / maxVal) * 100}%`;
-
-  const bars = (r: BranchMonthFlow) => [
-    { key: 'rev', cls: 'fn-bar--rev', label: 'Sotuv summa', value: r.kirimSum },
-    { key: 'cost', cls: 'fn-bar--cost', label: 'Xarid summa', value: r.chiqimSum },
-    { key: 'profit', cls: 'fn-bar--profit', label: 'Foyda', value: r.profit },
-  ];
+  const maxVal = Math.max(1, ...ranked.map((r) => r.kirimSum));
+  const pct = (v: number) => `${(Math.max(0, v) / maxVal) * 100}%`;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
       <div className="fn-chart-legend" aria-hidden="true">
-        <span><i className="fn-bar--rev" /> Sotuv summa</span>
-        <span><i className="fn-bar--cost" /> Xarid summa (omborga kirgan)</span>
-        <span><i className="fn-bar--profit" /> Foyda</span>
+        <span><i className="fn-dot-cost" /> Tannarx</span>
+        <span><i className="fn-dot-profit" /> Foyda</span>
+        <span>= Sotuv summa</span>
       </div>
       <ol className="fn-chart">
-        {ranked.map((r, i) => (
-          <li key={r.branchId} className="fn-chart-row">
-            <span className="fn-chart-rank" aria-label={`${i + 1}-o'rin`}>{i + 1}</span>
-            <div className="fn-chart-main">
-              <div className="fn-chart-top">
-                <span className="fn-chart-name">{r.name}</span>
-                <span className="fn-chart-total">{fmtMoney(r.kirimSum)}</span>
+        {ranked.map((r, i) => {
+          const profit = Math.max(0, r.profit);
+          const cost = Math.max(0, r.kirimSum - profit);
+          const desc = `Sotuv ${fmtMoney(r.kirimSum)} so'm: tannarx ${fmtMoney(cost)}, foyda ${fmtMoney(r.profit)}`;
+          return (
+            <li key={r.branchId} className="fn-chart-row">
+              <span className="fn-chart-rank" aria-label={`${i + 1}-o'rin`}>{i + 1}</span>
+              <div className="fn-chart-main">
+                <div className="fn-chart-top">
+                  <span className="fn-chart-name">{r.name}</span>
+                  <span className="fn-chart-total">{fmtMoney(r.kirimSum)}</span>
+                </div>
+                <div className="fn-iso" title={desc} aria-hidden="true">
+                  {r.kirimSum > 0 && (
+                    <div className="fn-iso-bar" style={{ width: pct(r.kirimSum) }}>
+                      {cost > 0 && <span className="fn-iso-seg fn-iso-seg--cost" style={{ flex: `${cost} 1 0` }} />}
+                      {profit > 0 && <span className="fn-iso-seg fn-iso-seg--profit" style={{ flex: `${profit} 1 0` }} />}
+                    </div>
+                  )}
+                </div>
+                <span className="sr-only">{desc}</span>
+                <div className="fn-chart-meta">
+                  <span>{r.kirimQty} ta sotildi</span>
+                  <span className={r.profit >= 0 ? 'fn-in' : 'fn-out'}>
+                    {r.profit >= 0 ? 'Foyda' : 'Zarar'}: {fmtMoney(Math.abs(r.profit))}
+                  </span>
+                  {r.chiqimQty > 0 && <span>Omborga kirdi: {r.chiqimQty} ta</span>}
+                </div>
               </div>
-              <div className="fn-bars">
-                {bars(r).map((b) => (
-                  <div key={b.key} className="fn-bar-track" title={`${b.label}: ${fmtMoney(b.value)} so'm`}>
-                    <span className={`fn-bar ${b.cls}`} style={{ width: w(b.value) }} />
-                    <span className="fn-tip" aria-hidden="true">{b.label}: {fmtMoney(b.value)}</span>
-                    <span className="sr-only">{b.label}: {fmtMoney(b.value)} so'm</span>
-                  </div>
-                ))}
-              </div>
-              <div className="fn-chart-meta">
-                <span>Sotildi: {r.kirimQty} ta</span>
-                <span>Omborga kirdi: {r.chiqimQty} ta</span>
-                <span className={r.profit >= 0 ? 'fn-in' : 'fn-out'}>Foyda: {fmtMoney(r.profit)}</span>
-              </div>
-            </div>
-          </li>
-        ))}
+            </li>
+          );
+        })}
       </ol>
     </div>
   );

@@ -1,4 +1,3 @@
-import Link from 'next/link';
 import { getTenantSession } from '@/lib/tenantSession';
 import { userCan } from '@/lib/permissionGuard';
 import { branchFilter, isBranchScoped } from '@/lib/branchScope';
@@ -8,6 +7,9 @@ import { fmtMoney } from '@/lib/format';
 import MonitoringChart from '@/components/tenant/MonitoringChart';
 import type { BranchMonthFlow } from '@/lib/inventoryFlow';
 import Icon from '@/components/icons/Icon';
+import Tilt from '@/components/ui/Tilt';
+import MoreMenu from '@/components/ui/MoreMenu';
+import MonthNav, { monthLabel as ymLabel } from '@/components/ui/MonthNav';
 import '@/components/tenant/styles/finance.css';
 
 export const metadata = { title: 'Hisobot — Savora' };
@@ -109,15 +111,14 @@ export default async function MonitoringPage({
   const monthIncomingSum = branchFlows.reduce((s, r) => s + r.chiqimSum, 0);
   const monthProfit = branchFlows.reduce((s, r) => s + r.profit, 0);
 
-  const monthLabel = start.toLocaleDateString('uz-UZ', { month: 'long', year: 'numeric' });
   const ym = (yy: number, mm: number) => {
     const d = new Date(yy, mm - 1, 1);
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
   };
   const curMonth = ym(y, m);
   const nowMonth = ym(now.getFullYear(), now.getMonth() + 1);
-  const prevMonth = ym(y, m - 1);
-  const nextMonth = ym(y, m + 1);
+  // Brauzer/Node tiliga bog'liq bo'lmagan o'zbekcha yorliq ("oktabr, 2026")
+  const monthLabel = ymLabel(curMonth);
 
   const paymentTotal = Object.values(byPayment).reduce((s, v) => s + v, 0);
   const paymentTypes = Object.keys(PAYMENT_TYPE_LABELS) as PaymentType[];
@@ -128,56 +129,26 @@ export default async function MonitoringPage({
       <div className="t-page-head" style={{ marginBottom: 0 }}>
         <div>
           <h1 className="t-page-title">Hisobot</h1>
-          <p className="t-page-sub">Oylik hisobot — {monthLabel}</p>
+          <p className="t-page-sub">Oylik sotuv, foyda va to&apos;lov turlari</p>
         </div>
-        {canExport && (
-          <div className="t-page-actions">
-            <Link href="/api/export/sales" className="btn btn-ghost btn-with-icon">
-              <Icon name="download" size={16} /> Sotuvlar — CSV yuklab olish
-            </Link>
-            <Link href="/api/export/products" className="btn btn-ghost btn-with-icon">
-              <Icon name="download" size={16} /> Ombor — CSV yuklab olish
-            </Link>
-          </div>
-        )}
-      </div>
-
-      <nav className="fn-datebar" aria-label="Oy tanlash">
-        <div className="fn-pills">
-          <Link href={`/app/monitoring?month=${prevMonth}`} className="fn-pill" aria-label="Oldingi oy">
-            <Icon name="chevron" size={18} className="fn-l" />
-          </Link>
-          <Link
-            href={`/app/monitoring?month=${nowMonth}`}
-            className={`fn-pill${curMonth === nowMonth ? ' fn-pill--on' : ''}`}
-            aria-current={curMonth === nowMonth ? 'date' : undefined}
-          >
-            Shu oy
-          </Link>
-          {nextMonth <= nowMonth ? (
-            <Link href={`/app/monitoring?month=${nextMonth}`} className="fn-pill" aria-label="Keyingi oy">
-              <Icon name="chevron" size={18} className="fn-r" />
-            </Link>
-          ) : (
-            <span className="fn-pill" aria-hidden="true" style={{ opacity: 0.35 }}>
-              <Icon name="chevron" size={18} className="fn-r" />
-            </span>
+        <div className="fn-head-tools">
+          <MonthNav value={curMonth} current={nowMonth} href={(v) => `/app/monitoring?month=${v}`} />
+          {canExport && (
+            <MoreMenu label="Yuklab olish">
+              <a href="/api/export/sales"><Icon name="download" size={18} /> Sotuvlar — CSV</a>
+              <a href="/api/export/products"><Icon name="download" size={18} /> Ombor — CSV</a>
+            </MoreMenu>
           )}
         </div>
-        <form method="get" className="fn-date-form">
-          <label htmlFor="month">Oy</label>
-          <input id="month" name="month" type="month" defaultValue={curMonth} max={nowMonth} />
-          <button type="submit" className="btn btn-tinted btn-sm">Ko&apos;rish</button>
-        </form>
-      </nav>
+      </div>
 
       <section className="fn-bento" aria-label="Oy ko'rsatkichlari">
-        <div className="fn-hero">
+        <Tilt stack className="fn-hero">
           <div className="fn-hero-top">
             <span className="fn-hero-label">Aylanma</span>
             <span className="fn-hero-chip"><Icon name="chart" size={14} /> {monthLabel}</span>
           </div>
-          <div className="fn-hero-value fn-num">{fmtMoney(monthStats.revenue)}<span className="fn-cur">so&apos;m</span></div>
+          <div className="fn-hero-value fn-num ux-z">{fmtMoney(monthStats.revenue)}<span className="fn-cur">so&apos;m</span></div>
           <div className="fn-hero-grid">
             <div className="fn-hero-stat">
               <span className="fn-hero-stat-l">Tranzaksiyalar</span>
@@ -192,26 +163,28 @@ export default async function MonitoringPage({
               <span className="fn-hero-stat-v fn-num">{fmtMoney(monthStats.debt)}</span>
             </div>
           </div>
-        </div>
-        <div className="fn-tile">
-          <span className="fn-tile-head"><span className="fn-tile-ico fn-tile-ico--in"><Icon name="sparkles" size={15} /></span> Foyda</span>
-          <span className={`fn-tile-v ${monthProfit >= 0 ? 'fn-in' : 'fn-out'}`}>{fmtMoney(monthProfit)}</span>
-          <span className="fn-tile-s">Sotuv − tannarx</span>
-        </div>
-        <div className="fn-tile">
-          <span className="fn-tile-head"><span className="fn-tile-ico fn-tile-ico--brand"><Icon name="cart" size={15} /></span> Sotilgan</span>
-          <span className="fn-tile-v">{monthSoldQty} ta</span>
-          <span className="fn-tile-s">Sotuvlardagi mahsulot soni</span>
-        </div>
-        <div className="fn-tile">
-          <span className="fn-tile-head"><span className="fn-tile-ico fn-tile-ico--gold"><Icon name="box" size={15} /></span> Omborga kirgan</span>
-          <span className="fn-tile-v">{monthIncomingQty} ta</span>
-          <span className="fn-tile-s">Shu oyda qo&apos;shilgan mahsulotlar</span>
-        </div>
-        <div className="fn-tile">
-          <span className="fn-tile-head"><span className="fn-tile-ico fn-tile-ico--out"><Icon name="wallet" size={15} /></span> Xarid summa</span>
-          <span className="fn-tile-v">{fmtMoney(monthIncomingSum)}</span>
-          <span className="fn-tile-s">Omborga kirgan mahsulot tannarxi</span>
+        </Tilt>
+        <div className="ux-strip fn-bento-tiles">
+          <div className="fn-tile">
+            <span className="fn-tile-head"><span className="ux-clay ux-clay--green"><Icon name="sparkles" size={15} /></span> Foyda</span>
+            <span className={`fn-tile-v ${monthProfit >= 0 ? 'fn-in' : 'fn-out'}`}>{fmtMoney(monthProfit)}</span>
+            <span className="fn-tile-s">Sotuv − tannarx</span>
+          </div>
+          <div className="fn-tile">
+            <span className="fn-tile-head"><span className="ux-clay"><Icon name="cart" size={15} /></span> Sotilgan</span>
+            <span className="fn-tile-v">{monthSoldQty} ta</span>
+            <span className="fn-tile-s">Sotuvlardagi mahsulot soni</span>
+          </div>
+          <div className="fn-tile">
+            <span className="fn-tile-head"><span className="ux-clay ux-clay--gold"><Icon name="box" size={15} /></span> Omborga kirgan</span>
+            <span className="fn-tile-v">{monthIncomingQty} ta</span>
+            <span className="fn-tile-s">Shu oyda qo&apos;shilgan mahsulotlar</span>
+          </div>
+          <div className="fn-tile">
+            <span className="fn-tile-head"><span className="ux-clay ux-clay--red"><Icon name="wallet" size={15} /></span> Xarid summa</span>
+            <span className="fn-tile-v">{fmtMoney(monthIncomingSum)}</span>
+            <span className="fn-tile-s">Omborga kirgan mahsulot tannarxi</span>
+          </div>
         </div>
       </section>
 
@@ -229,7 +202,7 @@ export default async function MonitoringPage({
         <section className="fn-panel" aria-labelledby="mon-pay">
           <div className="fn-panel-head">
             <h2 id="mon-pay">To&apos;lov turi</h2>
-            <small>{fmtMoney(paymentTotal)} so'm</small>
+            <small>{fmtMoney(paymentTotal)} so&apos;m</small>
           </div>
           <div className="fn-panel-body">
             <div className="fn-mix" aria-hidden="true">
@@ -257,9 +230,10 @@ export default async function MonitoringPage({
           <small>{branchFlows.length} ta filial</small>
         </div>
         {branchFlows.length === 0 ? (
-          <div className="fn-empty">
-            <span className="fn-empty-icon"><Icon name="store" size={26} /></span>
-            <strong>Faol filial yo&apos;q</strong>
+          <div className="ux-empty">
+            <span className="ux-empty-ic"><Icon name="store" size={26} /></span>
+            <b>Faol filial yo&apos;q</b>
+            <p>Hisobot filiallar bo&apos;yicha yuritiladi.</p>
           </div>
         ) : (
           <div className="table-wrap">
