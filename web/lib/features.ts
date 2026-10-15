@@ -160,6 +160,22 @@ export const TENANT_MODULES: Record<FeatureKey, FeatureModule> = {
     category: 'savdo',
     defaultByPlan: { free: false, starter: false, pro: true, business: true, custom: true },
   },
+  ai: {
+    key: 'ai',
+    label: 'AI yordamchi',
+    description: 'Savdo, ombor va nasiya bo\'yicha avtomatik tahlil, tavsiya va topshiriqlar',
+    route: '/app/ai',
+    category: 'hisobot',
+    defaultByPlan: { free: false, starter: false, pro: true, business: true, custom: true },
+  },
+  tasks: {
+    key: 'tasks',
+    label: 'Topshiriqlar',
+    description: 'Jamoa uchun topshiriqlar: kim, qachongacha, holati',
+    route: '/app/tasks',
+    category: 'boshqaruv',
+    defaultByPlan: { free: false, starter: true, pro: true, business: true, custom: true },
+  },
 };
 
 const CATEGORY_LABELS: Record<FeatureModule['category'], string> = {

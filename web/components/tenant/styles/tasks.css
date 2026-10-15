@@ -1,0 +1,96 @@
+/* ============================================================
+   TOPSHIRIQLAR (/app/tasks). Prefiks: `tk-`.
+   Desktop — kanban (3 ustun); mobil — holat segmenti + ro'yxat, ux-fab.
+   Faqat global tokenlar.
+   ============================================================ */
+
+.tk-page { display: grid; gap: 16px; min-width: 0; }
+.tk-page > .t-page-head { margin-bottom: 0; }
+
+/* Segment (Link) — Mening / Filial / Hammasi */
+.tk-seg {
+  display: inline-flex; gap: 2px; padding: 2px; justify-self: start;
+  border-radius: 11px; background: var(--fill);
+  max-width: 100%; overflow-x: auto; scrollbar-width: none;
+}
+.tk-seg::-webkit-scrollbar { display: none; }
+.tk-seg a {
+  display: inline-flex; align-items: center; gap: 6px; min-height: 34px; padding: 6px 14px; border-radius: 9px;
+  font-size: 14px; font-weight: 500; color: var(--ink-1); text-decoration: none; white-space: nowrap;
+}
+.tk-seg a span { font-size: 12px; color: var(--ink-3); font-weight: 600; font-variant-numeric: tabular-nums; }
+.tk-seg a:active { opacity: .55; }
+.tk-seg a:focus-visible { outline: 3px solid var(--brand-ring); outline-offset: -1px; }
+.tk-seg a[aria-current="page"] { background: var(--surface); font-weight: 600; box-shadow: 0 3px 8px rgba(0, 0, 0, .12), 0 0 0 .5px rgba(0, 0, 0, .04); }
+.tk-seg a[aria-current="page"] span { color: var(--brand); }
+.tk-seg--status { display: flex; width: 100%; margin-bottom: 12px; }
+.tk-seg--status a { flex: 1; justify-content: center; }
+
+.tk-layout { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 18px; align-items: start; }
+.tk-layout--one { grid-template-columns: minmax(0, 1fr); }
+.tk-main { min-width: 0; }
+.tk-side { position: sticky; top: 76px; min-width: 0; }
+
+/* Kanban */
+.tk-board { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; align-items: start; }
+.tk-col { background: var(--fill-2); border-radius: var(--r-lg); padding: 10px; min-width: 0; }
+.tk-col-h {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  margin: 2px 4px 10px; font-size: 13px; font-weight: 600; color: var(--ink-2); text-transform: uppercase; letter-spacing: .03em;
+}
+.tk-col-h span { font-size: 12px; padding: 1px 8px; border-radius: var(--r-pill); background: var(--surface); color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.tk-col--doing .tk-col-h span { color: var(--brand); }
+.tk-col--done .tk-col-h span { color: var(--accent); }
+.tk-col-empty { margin: 0; padding: 18px 8px; text-align: center; font-size: 13.5px; color: var(--ink-3); }
+
+.tk-cards { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.tk-card {
+  display: grid; gap: 8px; padding: 12px 14px; border-radius: var(--r-lg);
+  background: var(--surface); box-shadow: var(--shadow-sm); min-width: 0;
+  border-left: 3px solid transparent;
+}
+.tk-card--late { border-left-color: var(--danger); background: linear-gradient(90deg, var(--danger-soft), transparent 40%), var(--surface); }
+.tk-card--done .tk-card-t { color: var(--ink-3); text-decoration: line-through; text-decoration-thickness: 1px; }
+.tk-card-h { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+.tk-card-t { font-size: 15px; font-weight: 600; color: var(--ink-1); line-height: 1.35; overflow-wrap: anywhere; }
+.tk-card-h .ux-more-btn { width: 32px; height: 32px; border-radius: 10px; margin: -4px -6px 0 0; background: transparent; }
+.tk-card-d { margin: 0; font-size: 13.5px; line-height: 1.5; color: var(--ink-2); overflow-wrap: anywhere; }
+
+.tk-pills { display: flex; flex-wrap: wrap; gap: 5px; }
+.tk-pill { display: inline-flex; align-items: center; gap: 3px; padding: 1px 8px; border-radius: var(--r-pill); font-size: 11.5px; font-weight: 700; white-space: nowrap; }
+.tk-pill--bad { background: var(--danger-soft); color: var(--danger); }
+.tk-pill--warn { background: var(--warn-soft); color: var(--warn); }
+.tk-pill--mut { background: var(--fill); color: var(--ink-2); }
+.tk-pill--ai { background: var(--brand-soft); color: var(--brand); }
+
+.tk-meta { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 12.5px; color: var(--ink-3); }
+.tk-meta span { display: inline-flex; align-items: center; gap: 4px; min-width: 0; }
+.tk-late { color: var(--danger); font-weight: 600; }
+
+.tk-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.tk-assign { position: relative; }
+.tk-assign summary { list-style: none; cursor: pointer; }
+.tk-assign summary::-webkit-details-marker { display: none; }
+.tk-assign-f { display: flex; gap: 6px; align-items: center; margin-top: 6px; flex-wrap: wrap; }
+.tk-assign-f select {
+  min-height: 34px; padding: 4px 10px; border-radius: var(--r-sm); border: 1px solid transparent;
+  background: var(--fill-2); color: var(--ink-1); font-size: 14px; max-width: 100%;
+}
+
+/* Yaratish formasi */
+.tk-form { display: grid; gap: 12px; padding: 16px; scroll-margin-top: 80px; }
+.tk-form-h { margin: 0; font-size: 17px; font-weight: 600; letter-spacing: -.02em; }
+.tk-form .auth-alert { margin-top: 0; }
+.tk-form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+
+@media (max-width: 1100px) {
+  .tk-layout { grid-template-columns: minmax(0, 1fr); }
+  .tk-side { position: static; }
+}
+@media (max-width: 900px) {
+  .tk-seg:not(.tk-seg--status) { display: flex; justify-self: stretch; }
+  .tk-seg:not(.tk-seg--status) a { flex: 1; justify-content: center; }
+}
+@media (max-width: 520px) {
+  .tk-form-grid { grid-template-columns: minmax(0, 1fr); }
+}

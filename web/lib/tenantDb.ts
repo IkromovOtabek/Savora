@@ -10,8 +10,10 @@ import { cashFlowSchema, ICashFlow } from './models/tenant/CashFlow';
 import { transferSchema, ITransfer } from './models/tenant/Transfer';
 import { auditLogSchema, IAuditLog } from './models/tenant/AuditLog';
 import { ledgerEntrySchema, ILedgerEntry } from './models/tenant/LedgerEntry';
+import { taskSchema, ITask } from './models/tenant/Task';
+import { aiReportSchema, IAiReport } from './models/tenant/AiReport';
 
-const TENANT_MODELS_VERSION = 7;
+const TENANT_MODELS_VERSION = 8;
 
 type TenantModelsMap = Map<string, ReturnType<typeof registerModels>>;
 const globalForTenant = global as unknown as { _savdoproTenantCache?: TenantModelsMap };
@@ -40,7 +42,10 @@ function registerModels(conn: import('mongoose').Connection) {
     (conn.models.AuditLog as Model<IAuditLog>) || conn.model<IAuditLog>('AuditLog', auditLogSchema);
   const LedgerEntry =
     (conn.models.LedgerEntry as Model<ILedgerEntry>) || conn.model<ILedgerEntry>('LedgerEntry', ledgerEntrySchema);
-  return { conn, User, Branch, Product, Customer, Sale, CreditBank, CashFlow, Transfer, AuditLog, LedgerEntry };
+  const Task = (conn.models.Task as Model<ITask>) || conn.model<ITask>('Task', taskSchema);
+  const AiReport =
+    (conn.models.AiReport as Model<IAiReport>) || conn.model<IAiReport>('AiReport', aiReportSchema);
+  return { conn, User, Branch, Product, Customer, Sale, CreditBank, CashFlow, Transfer, AuditLog, LedgerEntry, Task, AiReport };
 }
 
 /**

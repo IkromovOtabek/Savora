@@ -31,6 +31,8 @@ export const PERMISSION_KEYS = [
   'audit.view',
   'daftar.manage',
   'users.manage',
+  'ai.view',
+  'tasks.manage',
 ] as const;
 
 export type PermissionKey = (typeof PERMISSION_KEYS)[number];
@@ -68,6 +70,10 @@ export const PERMISSIONS: Record<PermissionKey, PermissionDef> = {
   'audit.view': { key: 'audit.view', label: 'Amallar tarixi', description: 'Xodimlar amallari jurnali', group: 'boshqaruv', feature: 'audit', adminOnly: true },
   'daftar.manage': { key: 'daftar.manage', label: 'Daftar', description: 'Shaxsiy qarz daftari yozuvlari', group: 'moliya', feature: 'daftar' },
   'users.manage': { key: 'users.manage', label: 'Filial va loginlar', description: 'Filial ochish, parol, huquqlarni boshqarish', group: 'boshqaruv', feature: 'users', adminOnly: true },
+  // AI tahlil — butun biznes ko'rsatkichlari; filialga faqat egasi bersa (standartda o'chiq)
+  'ai.view': { key: 'ai.view', label: 'AI yordamchi', description: 'AI tahlil va tavsiyalarni ko\'rish, qayta tahlil qilish', group: 'boshqaruv', feature: 'ai' },
+  // Ko'rish va o'z/filial topshirig'ini bajarish — huquqsiz ham; bu huquq yaratish/biriktirish/o'chirish uchun
+  'tasks.manage': { key: 'tasks.manage', label: 'Topshiriqlarni boshqarish', description: 'Topshiriq yaratish, biriktirish va o\'chirish', group: 'boshqaruv', feature: 'tasks' },
 };
 
 export const PERMISSION_GROUP_LABELS: Record<PermissionGroup, string> = {

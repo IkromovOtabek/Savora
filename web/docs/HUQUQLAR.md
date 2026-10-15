@@ -48,7 +48,10 @@ Bo'lim ko'rinishi uchun **ikkalasi ham** kerak: modul yoqiq **va** foydalanuvchi
 | Restoran / kafe | `restaurant` | − | − | − | · | + | − | + |
 | Xizmat markazi | `service` | − | − | − | · | − | − | · |
 
-Tarif ruxsatlari: Nasiya, Variant, Kredit kassa, Inventar, Hisobot, Eksport, Rasm — **Pro+**.
+Barcha biznes turlari presetida `ai` va `tasks` ham `+` (yo'nalishdan qat'i nazar foydali) — tarif ruxsat bersa yoqiladi.
+
+Tarif ruxsatlari: Nasiya, Variant, Kredit kassa, Inventar, Hisobot, Eksport, Rasm, **AI yordamchi** (`ai`) — **Pro+**.
+**Topshiriqlar** (`tasks`) — barcha pullik tariflar (**Starter+**), bepulda o'chiq.
 Daftar — standart o'chiq, lekin preset **Starter+** da yoqa oladi. Bepul tarifda preset faqat o'chira oladi.
 
 Boshqa farqlar (`lib/businessTypes.ts` → `TERMS`): bo'lim nomi va birlik ("Menyu/Taom", "Dorixona/Dori",
@@ -79,6 +82,16 @@ Saqlash: tenant `User.permissions?: string[]`. Bo'sh (`undefined`) → rol stand
 | `audit.view` | Amallar tarixi | ✓ | faqat egasi | `/app/audit` |
 | `daftar.manage` | Daftar | ✓ | ✓ | daftar action'lari, `/app/daftar` |
 | `users.manage` | Filial va loginlar | ✓ | faqat egasi | `/app/users`, mobil POST /branches |
+| `ai.view` | AI yordamchi | ✓ | — (egasi bera oladi) | `/app/ai` layout, rerunAiAnalysis, createTaskFromAi, mobil GET /ai, dashboard "AI tavsiya" |
+| `tasks.manage` | Topshiriqlarni boshqarish | ✓ | — (egasi bera oladi) | createTask, createTaskFromAi, assignTask, deleteTask |
+
+**Topshiriqlar — ko'rish va bajarish huquqsiz:** `tasks` moduli yoqiq bo'lsa, har bir login o'z doirasidagi
+topshiriqlarni ko'radi va holatini o'zgartiradi (updateTaskStatus, mobil PATCH /tasks/[id]).
+Doira (`lib/tasks.ts → taskScope`): egasi — hammasi; filial login — o'z filiali + o'ziga biriktirilganlar.
+`tasks.manage` berilgan filial login faqat o'z filialida va o'z filiali xodimlariga topshiriq yarata oladi.
+
+**AI yordamchi doirasi:** egasi — barcha filiallar bo'yicha tahlil; `ai.view` berilgan filial login — faqat
+o'z filiali bo'yicha (alohida kesh). Batafsil: `docs/AI.md`.
 
 Kelish narxi huquqsiz: tahrir formasida maydon ko'rinmaydi va server eski qiymatni saqlaydi;
 yangi mahsulot qo'shishda kiritiladi (kirim hujjati). Mobil javobda `purchasePrice: 0`, `costHidden: true`.
@@ -89,5 +102,7 @@ yangi mahsulot qo'shishda kiritiladi (kirim hujjati). Mobil javobda `purchasePri
 - **Super Admin:** `/super/organizations/[id]` → "Modullar" (preset tugmasi + manba belgisi) va
   "Huquqlar" (loginlar × huquqlar matritsasi, saqlash va standartga qaytarish).
 - **Mobil:** `GET /api/mobile/me` → `features` (o'zgarmagan) + yangi `permissions` massivi.
+  Topshiriqlar: `GET /api/mobile/tasks?f=mine|branch|all&s=todo|doing|done`, `PATCH /api/mobile/tasks/[id]` `{ status }`.
+  AI: `GET /api/mobile/ai` — faqat keshdagi oxirgi hisobot (yangi tahlil boshlamaydi).
 
 Huquqlar sessiyada saqlanmaydi — har so'rovda tenant bazadan o'qiladi, o'zgarish darhol kuchga kiradi.

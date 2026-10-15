@@ -1,0 +1,133 @@
+/* ============================================================
+   AI YORDAMCHI (/app/ai) va dashboard "AI tavsiya" kartasi. Prefiks: `ai-`.
+   Faqat global tokenlar; hex faqat gradient ichida. Qorong'i tema — .dark.
+   ============================================================ */
+
+.ai-page { display: grid; gap: 22px; min-width: 0; }
+.ai-page > .t-page-head { margin-bottom: 0; }
+
+/* ---------- Yuqori: hero + KPI ---------- */
+.ai-top { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); gap: 14px; align-items: stretch; }
+.ai-hero {
+  display: grid; align-content: start; gap: 8px;
+  min-height: 210px; padding: 20px 22px 18px; margin-bottom: 18px;
+  color: #fff;
+  background:
+    radial-gradient(120% 90% at 100% 0%, rgba(255, 255, 255, .18), transparent 55%),
+    linear-gradient(145deg, #4a5fd6 0%, #2a46a8 50%, #1a2c72 100%);
+}
+.ai-hero--bad {
+  background:
+    radial-gradient(120% 90% at 100% 0%, rgba(255, 255, 255, .16), transparent 55%),
+    linear-gradient(145deg, #d0574c 0%, #a8342a 52%, #6f1f19 100%);
+}
+.ai-hero--ok {
+  background:
+    radial-gradient(120% 90% at 100% 0%, rgba(255, 255, 255, .16), transparent 55%),
+    linear-gradient(145deg, #2f9e6a 0%, #1c7a4e 52%, #10502f 100%);
+}
+.dark .ai-hero { filter: saturate(.92) brightness(.92); }
+
+.ai-hero-row { display: flex; align-items: center; gap: 9px; position: relative; z-index: 1; }
+.ai-hero-ic {
+  width: 32px; height: 32px; border-radius: 10px; display: grid; place-items: center;
+  background: rgba(255, 255, 255, .16);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .3), 0 4px 10px -4px rgba(0, 0, 0, .35);
+}
+.ai-hero-l { font-size: 14px; font-weight: 600; color: rgba(255, 255, 255, .88); flex: 1; min-width: 0; }
+.ai-badge {
+  padding: 3px 10px; border-radius: var(--r-pill); font-size: 12px; font-weight: 700; white-space: nowrap;
+  background: rgba(255, 255, 255, .92); color: #2a46a8;
+}
+.ai-badge--rules { background: rgba(255, 255, 255, .2); color: #fff; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .35); }
+
+.ai-hero-health {
+  display: flex; align-items: center; gap: 10px; margin-top: 2px;
+  font-size: clamp(30px, 3.6vw, 40px); font-weight: 750; letter-spacing: -.035em; line-height: 1.05;
+  text-shadow: 0 2px 12px rgba(0, 0, 0, .18);
+}
+.ai-dot { width: 14px; height: 14px; border-radius: 50%; flex: none; box-shadow: 0 0 0 4px rgba(255, 255, 255, .22); }
+.ai-dot--ok { background: #5fe0a2; }
+.ai-dot--warn { background: #ffd166; }
+.ai-dot--bad { background: #ffb4ac; }
+.ai-hero-sum { margin: 0; font-size: 15px; line-height: 1.5; color: rgba(255, 255, 255, .92); max-width: 62ch; position: relative; z-index: 1; }
+.ai-hero-foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 12px; margin-top: 4px; position: relative; z-index: 3; }
+.ai-hero-meta { font-size: 12.5px; color: rgba(255, 255, 255, .78); font-variant-numeric: tabular-nums; }
+.ai-hero-note { margin: 0; font-size: 12.5px; color: rgba(255, 255, 255, .8); position: relative; z-index: 1; }
+.ai-rerun { color: #2a46a8; }
+
+.ai-kpis.ux-strip { --ux-cols: 2; gap: 10px; margin-bottom: 18px; }
+.ai-kpi { display: flex; align-items: center; gap: 12px; padding: 12px 14px; }
+.ai-kpi-t { display: grid; gap: 1px; flex: 1; min-width: 0; }
+.ai-kpi .ux-stat-v { font-size: 20px; }
+.ai-kpi .ux-stat-s { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* ---------- Kuzatuvlar ---------- */
+.ai-insights { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px; }
+.ai-insight { display: grid; gap: 6px; align-content: start; padding: 14px 16px; }
+.ai-insight-t { font-size: 13px; font-weight: 600; color: var(--ink-3); }
+.ai-insight-m { font-size: 20px; font-weight: 700; letter-spacing: -.02em; color: var(--ink-1); overflow-wrap: anywhere; }
+.ai-insight p { margin: 0; font-size: 14px; line-height: 1.5; color: var(--ink-2); }
+
+/* ---------- Tavsiyalar va topshiriqlar ---------- */
+.ai-cols { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 18px; align-items: start; }
+.ai-recs, .ai-tasks { list-style: none; margin: 0; padding: 0; overflow: hidden; }
+.ai-rec, .ai-task { position: relative; padding: 14px 16px; }
+.ai-rec + .ai-rec::before, .ai-task + .ai-task::before {
+  content: ""; position: absolute; top: 0; left: 16px; right: 0; height: 1px;
+  background: var(--sep); transform: scaleY(.5); transform-origin: top;
+}
+.ai-rec-h { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+.ai-rec-h b, .ai-task-main b { font-size: 15px; font-weight: 600; color: var(--ink-1); line-height: 1.35; }
+.ai-rec p, .ai-task-main p { margin: 4px 0 0; font-size: 14px; line-height: 1.5; color: var(--ink-2); }
+.ai-rec-impact { display: inline-flex; align-items: center; gap: 5px; margin-top: 6px; font-size: 12.5px; font-weight: 600; color: var(--accent); }
+
+.ai-pill { flex: none; padding: 2px 9px; border-radius: var(--r-pill); font-size: 12px; font-weight: 700; white-space: nowrap; }
+.ai-pill--bad { background: var(--danger-soft); color: var(--danger); }
+.ai-pill--warn { background: var(--warn-soft); color: var(--warn); }
+.ai-pill--mut { background: var(--fill); color: var(--ink-2); }
+
+.ai-task { display: flex; align-items: flex-start; gap: 12px; }
+.ai-task-main { flex: 1; min-width: 0; }
+.ai-task-main small { display: block; margin-top: 6px; font-size: 12.5px; color: var(--ink-3); }
+.ai-task form, .ai-task > a { flex: none; }
+
+.ai-privacy { display: flex; align-items: flex-start; gap: 8px; margin: 0; padding: 0 4px; font-size: 12.5px; line-height: 1.5; color: var(--ink-3); }
+.ai-privacy .ui-icon { flex: none; margin-top: 2px; }
+
+/* ---------- Yuklanish ---------- */
+.ai-skel { display: grid; gap: 14px; }
+.ai-skel-hero { height: 210px; }
+.ai-skel-t { display: flex; align-items: center; gap: 8px; margin: 0; font-size: 14px; color: var(--ink-3); }
+.ai-skel-row { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.ai-skel-row > * { height: 110px; }
+.ai-spin { animation: ai-spin 1s linear infinite; }
+@keyframes ai-spin { to { transform: rotate(360deg); } }
+
+/* ---------- Dashboard: "AI tavsiya" kartasi ---------- */
+.ai-dash { display: flex; align-items: flex-start; gap: 12px; padding: 14px 16px; color: inherit; text-decoration: none; }
+.ai-dash:hover { box-shadow: var(--shadow); }
+.ai-dash-ic {
+  width: 40px; height: 40px; border-radius: 12px; flex: none; display: grid; place-items: center; color: #fff;
+  background: linear-gradient(145deg, #5b70e0, #2a46a8);
+  box-shadow: inset 0 2px 1px rgba(255, 255, 255, .4), inset 0 -3px 4px rgba(0, 0, 0, .18), 0 6px 12px -4px rgba(42, 70, 168, .45);
+}
+.ai-dash-t { flex: 1; min-width: 0; display: grid; gap: 3px; }
+.ai-dash-t small { font-size: 12px; font-weight: 600; color: var(--ink-3); text-transform: uppercase; letter-spacing: .03em; }
+.ai-dash-t b { font-size: 15px; font-weight: 600; color: var(--ink-1); line-height: 1.35; }
+.ai-dash-t span { font-size: 13.5px; color: var(--ink-2); line-height: 1.45; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+
+@media (max-width: 1100px) {
+  .ai-top { grid-template-columns: minmax(0, 1fr); }
+  .ai-kpis.ux-strip { --ux-cols: 4; }
+}
+@media (max-width: 900px) {
+  .ai-cols { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 700px) {
+  .ai-hero { padding: 18px 16px 16px; min-height: 0; }
+  .ai-hero-sum { font-size: 14.5px; }
+  .ai-task { flex-direction: column; }
+  .ai-skel-row { grid-template-columns: minmax(0, 1fr); }
+}
+@media (prefers-reduced-motion: reduce) { .ai-spin { animation: none; } }
