@@ -6,6 +6,8 @@ import { computeDebtInfo, buildReminderText, DebtState } from '@/lib/debts';
 import DebtReminderButton from '@/components/tenant/DebtReminderButton';
 import Icon, { type IconName } from '@/components/icons/Icon';
 import { Avatar, EmptyState, Pill, type PillTone } from '@/components/tenant/ClientsUi';
+import Tilt from '@/components/ui/Tilt';
+import type { CSSProperties } from 'react';
 import '@/components/tenant/styles/clients.css';
 
 export const metadata = { title: 'Qarzdorlik — Savora' };
@@ -74,44 +76,57 @@ export default async function DebtsPage({
           <h1 className="t-page-title">Qarzdorlik nazorati</h1>
           <p className="t-page-sub">Muddati o&apos;tgan va yaqinlashayotgan to&apos;lovlarni kuzating</p>
         </div>
-        <div className="t-page-actions">
-          <Link href="/app/sales/new" className="btn btn-primary btn-with-icon"><Icon name="plus" size={16} /> Yangi sotuv</Link>
-        </div>
       </div>
 
-      <section className="cl-bento" aria-label="Qarzdorlik xulosasi">
-        <div className="cl-stat cl-stat--hero">
-          <span className="cl-stat-l"><Icon name="wallet" size={15} /> Jami qarzdorlik</span>
-          <span className="cl-stat-v t-num">{fmtMoney(totalDebt)} <small>so&apos;m</small></span>
-          <span className="cl-stat-s">{rows.length} ta qarzdor sotuv</span>
+      <section className="cl-sum" aria-label="Qarzdorlik xulosasi">
+        <Tilt stack className="cl-port cl-port--debt">
+          <span className="ux-clay ux-clay--gold cl-port-ic" aria-hidden="true"><Icon name="wallet" size={20} /></span>
+          <div className="cl-port-txt">
+            <span className="cl-port-l">Jami qarzdorlik</span>
+            <span className="cl-port-v t-num ux-z">{fmtMoney(totalDebt)} <small>so&apos;m</small></span>
+            <span className="cl-port-s">{rows.length} ta qarzdor sotuv</span>
+          </div>
+        </Tilt>
+        <div className="ux-strip cl-kpis" style={{ '--ux-cols': 3 } as CSSProperties}>
+          <Link href="/app/debts?f=overdue" className="ux-stat cl-kpi cl-kpi--bad" aria-current={f === 'overdue' ? 'page' : undefined}>
+            <span className="ux-clay ux-clay--red" aria-hidden="true"><Icon name="alert" size={20} /></span>
+            <span className="cl-kpi-t">
+              <span className="ux-stat-l">Muddati o&apos;tgan</span>
+              <span className="ux-stat-v t-num">{fmtMoney(overdueSum)}</span>
+              <span className="ux-stat-s">{overdue.length} ta mijoz</span>
+            </span>
+          </Link>
+          <Link href="/app/debts?f=due_soon" className="ux-stat cl-kpi cl-kpi--gold" aria-current={f === 'due_soon' ? 'page' : undefined}>
+            <span className="ux-clay ux-clay--gold" aria-hidden="true"><Icon name="clock" size={20} /></span>
+            <span className="cl-kpi-t">
+              <span className="ux-stat-l">Yaqin (≤7 kun)</span>
+              <span className="ux-stat-v t-num">{fmtMoney(dueSoonSum)}</span>
+              <span className="ux-stat-s">{dueSoon.length} ta mijoz</span>
+            </span>
+          </Link>
+          <Link href="/app/debts?f=no_date" className="ux-stat cl-kpi" aria-current={f === 'no_date' ? 'page' : undefined}>
+            <span className="ux-clay ux-clay--gray" aria-hidden="true"><Icon name="history" size={20} /></span>
+            <span className="cl-kpi-t">
+              <span className="ux-stat-l">Muddatsiz</span>
+              <span className="ux-stat-v t-num">{noDate.length} ta</span>
+              <span className="ux-stat-s">Muddat belgilang</span>
+            </span>
+          </Link>
         </div>
-        <Link href="/app/debts?f=overdue" className="cl-stat cl-stat--bad">
-          <span className="cl-stat-l"><Icon name="alert" size={15} /> Muddati o&apos;tgan</span>
-          <span className="cl-stat-v t-num">{fmtMoney(overdueSum)}</span>
-          <span className="cl-stat-s">{overdue.length} ta mijoz</span>
-        </Link>
-        <Link href="/app/debts?f=due_soon" className="cl-stat cl-stat--warn">
-          <span className="cl-stat-l"><Icon name="clock" size={15} /> Muddati yaqin (≤7 kun)</span>
-          <span className="cl-stat-v t-num">{fmtMoney(dueSoonSum)}</span>
-          <span className="cl-stat-s">{dueSoon.length} ta mijoz</span>
-        </Link>
-        <Link href="/app/debts?f=no_date" className="cl-stat">
-          <span className="cl-stat-l"><Icon name="history" size={15} /> Muddatsiz</span>
-          <span className="cl-stat-v t-num">{noDate.length} ta</span>
-          <span className="cl-stat-s">Muddat belgilang</span>
-        </Link>
       </section>
 
-      <nav className="cl-seg" aria-label="Holat bo'yicha filtr">
-        {CHIPS.map((c) => {
-          const active = c.key ? f === c.key : !isKnown;
-          return (
-            <Link key={c.label} href={c.key ? `/app/debts?f=${c.key}` : '/app/debts'} aria-current={active ? 'page' : undefined}>
-              {c.label} <span className="t-num">{c.count}</span>
-            </Link>
-          );
-        })}
-      </nav>
+      <div className="cl-filterbar ux-scrollx">
+        <nav className="cl-seg" aria-label="Holat bo'yicha filtr">
+          {CHIPS.map((c) => {
+            const active = c.key ? f === c.key : !isKnown;
+            return (
+              <Link key={c.label} href={c.key ? `/app/debts?f=${c.key}` : '/app/debts'} aria-current={active ? 'page' : undefined}>
+                {c.label} <span className="t-num">{c.count}</span>
+              </Link>
+            );
+          })}
+        </nav>
+      </div>
 
       {groups.length === 0 ? (
         <div className="cl-card">
@@ -146,7 +161,7 @@ export default async function DebtsPage({
                   overdue: info.state === 'overdue',
                 });
                 return (
-                  <li key={String(s._id)} className="cl-debt">
+                  <li key={String(s._id)} className={`cl-debt cl-debt--${g.state}`}>
                     <Avatar name={s.customerSnapshot?.fullName} />
                     <div className="cl-debt-main">
                       <b className="cl-row-name">{name}</b>
@@ -156,17 +171,15 @@ export default async function DebtsPage({
                         <Link href={`/app/sales/${s._id}`} className="cell-link">{s.productSnapshot.name}</Link>
                       </small>
                     </div>
-                    <div className="cl-debt-due">
-                      <b className="cl-row-amt t-num">{fmtMoney(s.remainingAmount)} <small>so&apos;m</small></b>
-                      <span className="cl-debt-date">
-                        {s.dueDate && <span className="t-num">{fmtDate(s.dueDate)}</span>}
-                        <Pill tone={g.tone}>{info.label}</Pill>
-                      </span>
-                    </div>
+                    <b className="cl-debt-amt cl-row-amt t-num">{fmtMoney(s.remainingAmount)} <small>so&apos;m</small></b>
+                    <span className="cl-debt-date">
+                      <Pill tone={g.tone}>{info.label}</Pill>
+                      {s.dueDate && <span className="t-num">{fmtDate(s.dueDate)}</span>}
+                    </span>
                     <div className="cl-debt-act">
                       <DebtReminderButton phone={phone} text={text} prominent={info.state === 'overdue' || info.state === 'due_soon'} />
-                      <Link href={`/app/sales/${s._id}`} className="btn btn-ghost btn-sm btn-with-icon">
-                        <Icon name="wallet" size={14} /> To&apos;lov
+                      <Link href={`/app/sales/${s._id}`} className="btn btn-ghost btn-sm btn-with-icon" aria-label={`${name}: to'lov qabul qilish`}>
+                        <Icon name="wallet" size={14} /> <span className="cl-debt-pay">To&apos;lov</span>
                       </Link>
                     </div>
                   </li>
