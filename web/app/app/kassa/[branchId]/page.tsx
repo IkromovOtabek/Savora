@@ -4,12 +4,14 @@ import { Types } from 'mongoose';
 import { getTenantSession } from '@/lib/tenantSession';
 import { isBranchScoped } from '@/lib/branchScope';
 import { dayRange, extractKassaPayments } from '@/lib/kassa';
-import { fmtDateTime, fmtMoney } from '@/lib/format';
+import { fmtDate, fmtDateTime, fmtMoney } from '@/lib/format';
 import KassaDateFilter from '@/components/tenant/KassaDateFilter';
 import BackLink from '@/components/ui/BackLink';
+import Icon from '@/components/icons/Icon';
+import '@/components/tenant/styles/finance.css';
 
 export async function generateMetadata({ params }: { params: Promise<{ branchId: string }> }) {
-  return { title: 'Naxt kassa — batafsil — Savora' };
+  return { title: 'Naqd kassa — batafsil — Savora' };
 }
 
 export default async function KassaBranchPage({
@@ -44,70 +46,80 @@ export default async function KassaBranchPage({
   const rows = allRows.filter((r) => r.paymentType === 'cash');
   const total = rows.reduce((s, r) => s + r.amount, 0);
 
+  const today = new Date().toISOString().slice(0, 10);
+  // Vaqt chizig'i — kun ichida xronologik tartibda
+  const timeline = [...rows].sort((a, b) => new Date(a.paidAt).getTime() - new Date(b.paidAt).getTime());
+  const avg = rows.length > 0 ? Math.round(total / rows.length) : 0;
+  const hhmm = (d: Date | string) => fmtDateTime(d).slice(-5);
+
   return (
-    <>
-      <div className="dash-head">
+    <div className="fn-page">
+      <div className="t-page-head" style={{ marginBottom: 0 }}>
         <div>
           <div style={{ marginBottom: 8 }}>
-            <BackLink href="/app/kassa" className="btn btn-ghost btn-sm">
-              Orqaga
+            <BackLink href="/app/kassa" className="btn btn-plain btn-sm">
+              Naqd kassa
             </BackLink>
           </div>
-          <h1 className="dash-hello">{branch.name}</h1>
-          <p className="dash-sub">Naqd to&apos;lovlar · {label}</p>
+          <h1 className="t-page-title">{branch.name}</h1>
+          <p className="t-page-sub">Naqd to&apos;lovlar · {fmtDate(start)}</p>
         </div>
-        <Link href="/app/sales/new" className="btn btn-primary">+ Sotuv</Link>
-      </div>
-
-      <KassaDateFilter initialDate={label} basePath={`/app/kassa/${branchId}`} />
-
-      <div className="dash-stats" style={{ marginBottom: 20 }}>
-        <div className="dash-stat dash-stat--ok">
-          <div className="dash-stat-n">{fmtMoney(total)}</div>
-          <div className="dash-stat-l">Kunlik naqd tushum</div>
-        </div>
-        <div className="dash-stat">
-          <div className="dash-stat-n">{rows.length}</div>
-          <div className="dash-stat-l">To&apos;lovlar soni</div>
+        <div className="t-page-actions">
+          <Link href="/app/sales/new" className="btn btn-primary btn-with-icon">
+            <Icon name="plus" size={18} /> Sotuv
+          </Link>
         </div>
       </div>
 
-      <div className="panel">
-        <div className="panel-head">
-          <h2>Naqd to&apos;lovlar ({rows.length})</h2>
+      <KassaDateFilter initialDate={label} basePath={`/app/kassa/${branchId}`} today={today} />
+
+      <section className="fn-hero" aria-label="Kunlik naqd tushum">
+        <div className="fn-hero-top">
+          <span className="fn-hero-label">Kunlik naqd tushum</span>
+          <span className="fn-hero-chip">
+            <Icon name="clock" size={14} /> {label === today ? 'Bugun' : fmtDate(start)}
+          </span>
         </div>
-        {rows.length === 0 ? (
-          <div className="panel-empty">
-            <p>Bu kunda naqd tushum yo&apos;q.</p>
+        <div className="fn-hero-value fn-num">{fmtMoney(total)}<span className="fn-cur">UZS</span></div>
+        <div className="fn-hero-grid">
+          <div className="fn-hero-stat">
+            <span className="fn-hero-stat-l">To&apos;lovlar soni</span>
+            <span className="fn-hero-stat-v fn-num">{rows.length} ta</span>
+          </div>
+          <div className="fn-hero-stat">
+            <span className="fn-hero-stat-l">O&apos;rtacha to&apos;lov</span>
+            <span className="fn-hero-stat-v fn-num">{fmtMoney(avg)}</span>
+          </div>
+        </div>
+      </section>
+
+      <section className="fn-panel" aria-labelledby="kassa-tl">
+        <div className="fn-panel-head">
+          <h2 id="kassa-tl">Kun davomida</h2>
+          <small>{rows.length} ta to&apos;lov</small>
+        </div>
+        {timeline.length === 0 ? (
+          <div className="fn-empty">
+            <span className="fn-empty-icon"><Icon name="wallet" size={26} /></span>
+            <strong>Bu kunda naqd tushum yo&apos;q</strong>
+            <p>Boshqa sanani tanlang yoki yangi sotuv qo&apos;shing.</p>
           </div>
         ) : (
-          <div className="table-wrap">
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th>Vaqt</th>
-                  <th>Sotuv</th>
-                  <th>Mijoz</th>
-                  <th>Summa</th>
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map((r, i) => (
-                  <tr key={`${r.saleId}-${i}`}>
-                    <td data-label="Vaqt">{fmtDateTime(r.paidAt)}</td>
-                    <td data-label="Sotuv">
-                      <Link href={`/app/sales/${r.saleId}`} className="cell-link cell-main">{r.saleNo}</Link>
-                      <div className="cell-sub">{r.productName}</div>
-                    </td>
-                    <td data-label="Mijoz">{r.customerName}</td>
-                    <td data-label="Summa"><strong>{fmtMoney(r.amount)}</strong></td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <ol className="fn-timeline">
+            {timeline.map((r, i) => (
+              <li key={`${r.saleId}-${i}`} className="fn-tl-item">
+                <time className="fn-tl-time" dateTime={new Date(r.paidAt).toISOString()}>{hhmm(r.paidAt)}</time>
+                <span className="fn-tl-dot" aria-hidden="true" />
+                <div className="fn-tl-main">
+                  <Link href={`/app/sales/${r.saleId}`} className="fn-tl-title">{r.saleNo}</Link>
+                  <span className="fn-tl-sub">{r.productName} · {r.customerName}</span>
+                </div>
+                <span className="fn-tl-amount">+{fmtMoney(r.amount)}</span>
+              </li>
+            ))}
+          </ol>
         )}
-      </div>
-    </>
+      </section>
+    </div>
   );
 }

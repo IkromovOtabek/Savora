@@ -7,6 +7,8 @@ import { PAYMENT_TYPE_LABELS, PaymentType } from '@/lib/models/tenant/Sale';
 import { fmtMoney } from '@/lib/format';
 import MonitoringChart from '@/components/tenant/MonitoringChart';
 import type { BranchMonthFlow } from '@/lib/inventoryFlow';
+import Icon from '@/components/icons/Icon';
+import '@/components/tenant/styles/finance.css';
 
 export const metadata = { title: 'Hisobot — Savora' };
 
@@ -100,111 +102,199 @@ export default async function MonitoringPage({
     byPayment[s.paymentType] = (byPayment[s.paymentType] ?? 0) + s.totalAmount;
   }
 
-  const monthKirim = branchFlows.reduce((s, r) => s + r.kirimQty, 0);
-  const monthChiqim = branchFlows.reduce((s, r) => s + r.chiqimQty, 0);
+  // Nomlash: BranchMonthFlow.kirim* = sotuvdan pul kirishi (sotilgan dona/summa),
+  // chiqim* = omborga kirgan mahsulot uchun pul ketishi (dona/xarid summa).
+  const monthSoldQty = branchFlows.reduce((s, r) => s + r.kirimQty, 0);
+  const monthIncomingQty = branchFlows.reduce((s, r) => s + r.chiqimQty, 0);
+  const monthIncomingSum = branchFlows.reduce((s, r) => s + r.chiqimSum, 0);
   const monthProfit = branchFlows.reduce((s, r) => s + r.profit, 0);
 
   const monthLabel = start.toLocaleDateString('uz-UZ', { month: 'long', year: 'numeric' });
+  const ym = (yy: number, mm: number) => {
+    const d = new Date(yy, mm - 1, 1);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+  };
+  const curMonth = ym(y, m);
+  const nowMonth = ym(now.getFullYear(), now.getMonth() + 1);
+  const prevMonth = ym(y, m - 1);
+  const nextMonth = ym(y, m + 1);
+
+  const paymentTotal = Object.values(byPayment).reduce((s, v) => s + v, 0);
+  const paymentTypes = Object.keys(PAYMENT_TYPE_LABELS) as PaymentType[];
+  const share = (v: number) => (paymentTotal > 0 ? (v / paymentTotal) * 100 : 0);
 
   return (
-    <>
-      <div className="t-page-head">
+    <div className="fn-page">
+      <div className="t-page-head" style={{ marginBottom: 0 }}>
         <div>
           <h1 className="t-page-title">Hisobot</h1>
           <p className="t-page-sub">Oylik hisobot — {monthLabel}</p>
         </div>
-        <div className="t-page-actions">
-          {canExport && <Link href="/api/export/sales" className="btn btn-ghost">Sotuvlar CSV</Link>}
-          {canExport && <Link href="/api/export/products" className="btn btn-ghost">Ombor CSV</Link>}
-        </div>
-      </div>
-
-      <form method="get" className="search-bar panel" style={{ padding: '16px 20px', marginBottom: 20 }}>
-        <div className="imei-search-row">
-          <div className="auth-field" style={{ flex: 1, margin: 0, maxWidth: 220 }}>
-            <label htmlFor="month">Oy</label>
-            <input id="month" name="month" type="month" defaultValue={`${y}-${String(m).padStart(2, '0')}`} />
+        {canExport && (
+          <div className="t-page-actions">
+            <Link href="/api/export/sales" className="btn btn-ghost btn-with-icon">
+              <Icon name="download" size={16} /> Sotuvlar — CSV yuklab olish
+            </Link>
+            <Link href="/api/export/products" className="btn btn-ghost btn-with-icon">
+              <Icon name="download" size={16} /> Ombor — CSV yuklab olish
+            </Link>
           </div>
-          <button type="submit" className="btn btn-primary btn-sm">Ko&apos;rish</button>
-        </div>
-      </form>
-
-      <div className="dash-stats">
-        <div className="dash-stat dash-stat--ok"><div className="dash-stat-n">{monthKirim} ta</div><div className="dash-stat-l">Sotuv (dona)</div></div>
-        <div className="dash-stat"><div className="dash-stat-n">{monthChiqim} ta</div><div className="dash-stat-l">Omborga kirgan</div></div>
-        <div className="dash-stat dash-stat--ok"><div className="dash-stat-n">{fmtMoney(monthProfit)}</div><div className="dash-stat-l">Foyda</div></div>
-        <div className="dash-stat"><div className="dash-stat-n">{monthStats.salesCount}</div><div className="dash-stat-l">Tranzaksiyalar</div></div>
-        <div className="dash-stat dash-stat--ok"><div className="dash-stat-n">{fmtMoney(monthStats.revenue)}</div><div className="dash-stat-l">Aylanma</div></div>
+        )}
       </div>
 
-      <div className="panel" style={{ marginBottom: 20 }}>
-        <div className="panel-head"><h2>Filiallar bo&apos;yicha jadval</h2></div>
-        <div className="table-wrap">
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>Filial</th>
-                <th>Sotuv (ta)</th>
-                <th>Kirim (ta)</th>
-                <th>Sotuv summa</th>
-                <th>Xarid summa</th>
-                <th>Foyda</th>
-                <th>Tranzaksiya</th>
-              </tr>
-            </thead>
-            <tbody>
-              {branchFlows.map((b) => {
-                const saleRow = branchStats.find((s) => s.name === b.name);
-                return (
-                  <tr key={b.branchId}>
-                    <td data-label="Filial">{b.name}</td>
-                    <td data-label="Sotuv (ta)">{b.kirimQty}</td>
-                    <td data-label="Kirim (ta)">{b.chiqimQty}</td>
-                    <td data-label="Sotuv summa">{fmtMoney(b.kirimSum)}</td>
-                    <td data-label="Xarid summa">{fmtMoney(b.chiqimSum)}</td>
-                    <td data-label="Foyda">{fmtMoney(b.profit)}</td>
-                    <td data-label="Tranzaksiya">{saleRow?.salesCount ?? 0}</td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+      <nav className="fn-datebar" aria-label="Oy tanlash">
+        <div className="fn-pills">
+          <Link href={`/app/monitoring?month=${prevMonth}`} className="fn-pill" aria-label="Oldingi oy">
+            <Icon name="chevron" size={18} className="fn-l" />
+          </Link>
+          <Link
+            href={`/app/monitoring?month=${nowMonth}`}
+            className={`fn-pill${curMonth === nowMonth ? ' fn-pill--on' : ''}`}
+            aria-current={curMonth === nowMonth ? 'date' : undefined}
+          >
+            Shu oy
+          </Link>
+          {nextMonth <= nowMonth ? (
+            <Link href={`/app/monitoring?month=${nextMonth}`} className="fn-pill" aria-label="Keyingi oy">
+              <Icon name="chevron" size={18} className="fn-r" />
+            </Link>
+          ) : (
+            <span className="fn-pill" aria-hidden="true" style={{ opacity: 0.35 }}>
+              <Icon name="chevron" size={18} className="fn-r" />
+            </span>
+          )}
         </div>
+        <form method="get" className="fn-date-form">
+          <label htmlFor="month">Oy</label>
+          <input id="month" name="month" type="month" defaultValue={curMonth} max={nowMonth} />
+          <button type="submit" className="btn btn-tinted btn-sm">Ko&apos;rish</button>
+        </form>
+      </nav>
+
+      <section className="fn-bento" aria-label="Oy ko'rsatkichlari">
+        <div className="fn-hero">
+          <div className="fn-hero-top">
+            <span className="fn-hero-label">Aylanma</span>
+            <span className="fn-hero-chip"><Icon name="chart" size={14} /> {monthLabel}</span>
+          </div>
+          <div className="fn-hero-value fn-num">{fmtMoney(monthStats.revenue)}<span className="fn-cur">UZS</span></div>
+          <div className="fn-hero-grid">
+            <div className="fn-hero-stat">
+              <span className="fn-hero-stat-l">Tranzaksiyalar</span>
+              <span className="fn-hero-stat-v fn-num">{monthStats.salesCount} ta</span>
+            </div>
+            <div className="fn-hero-stat">
+              <span className="fn-hero-stat-l">To&apos;langan</span>
+              <span className="fn-hero-stat-v fn-num">{fmtMoney(monthStats.paid)}</span>
+            </div>
+            <div className="fn-hero-stat">
+              <span className="fn-hero-stat-l">Qoldiq (qarz)</span>
+              <span className="fn-hero-stat-v fn-num">{fmtMoney(monthStats.debt)}</span>
+            </div>
+          </div>
+        </div>
+        <div className="fn-tile">
+          <span className="fn-tile-head"><span className="fn-tile-ico fn-tile-ico--in"><Icon name="sparkles" size={15} /></span> Foyda</span>
+          <span className={`fn-tile-v ${monthProfit >= 0 ? 'fn-in' : 'fn-out'}`}>{fmtMoney(monthProfit)}</span>
+          <span className="fn-tile-s">Sotuv − tannarx</span>
+        </div>
+        <div className="fn-tile">
+          <span className="fn-tile-head"><span className="fn-tile-ico fn-tile-ico--brand"><Icon name="cart" size={15} /></span> Sotilgan</span>
+          <span className="fn-tile-v">{monthSoldQty} ta</span>
+          <span className="fn-tile-s">Sotuvlardagi mahsulot soni</span>
+        </div>
+        <div className="fn-tile">
+          <span className="fn-tile-head"><span className="fn-tile-ico fn-tile-ico--gold"><Icon name="box" size={15} /></span> Omborga kirgan</span>
+          <span className="fn-tile-v">{monthIncomingQty} ta</span>
+          <span className="fn-tile-s">Shu oyda qo&apos;shilgan mahsulotlar</span>
+        </div>
+        <div className="fn-tile">
+          <span className="fn-tile-head"><span className="fn-tile-ico fn-tile-ico--out"><Icon name="wallet" size={15} /></span> Xarid summa</span>
+          <span className="fn-tile-v">{fmtMoney(monthIncomingSum)}</span>
+          <span className="fn-tile-s">Omborga kirgan mahsulot tannarxi</span>
+        </div>
+      </section>
+
+      <div className="fn-two">
+        <section className="fn-panel" aria-labelledby="mon-rank">
+          <div className="fn-panel-head">
+            <h2 id="mon-rank">Filiallar reytingi</h2>
+            <small>Sotuv summasi bo&apos;yicha</small>
+          </div>
+          <div className="fn-panel-body">
+            <MonitoringChart rows={branchFlows} />
+          </div>
+        </section>
+
+        <section className="fn-panel" aria-labelledby="mon-pay">
+          <div className="fn-panel-head">
+            <h2 id="mon-pay">To&apos;lov turi</h2>
+            <small>{fmtMoney(paymentTotal)} UZS</small>
+          </div>
+          <div className="fn-panel-body">
+            <div className="fn-mix" aria-hidden="true">
+              {paymentTypes.map((t) =>
+                (byPayment[t] ?? 0) > 0 ? <i key={t} className={`fn-c-${t}`} style={{ width: `${share(byPayment[t])}%` }} /> : null,
+              )}
+            </div>
+            <ul className="fn-mix-list">
+              {paymentTypes.map((t) => (
+                <li key={t} className="fn-mix-row">
+                  <i className={`fn-c-${t}`} aria-hidden="true" />
+                  <span>{PAYMENT_TYPE_LABELS[t]}</span>
+                  <strong>{fmtMoney(byPayment[t] ?? 0)}</strong>
+                  <small>{Math.round(share(byPayment[t] ?? 0))}%</small>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </section>
       </div>
 
-      <div className="panel" style={{ marginBottom: 20 }}>
-        <div className="panel-head"><h2>Filiallar — grafik</h2></div>
-        <div style={{ padding: '20px 24px' }}>
-          <MonitoringChart rows={branchFlows} />
+      <section className="fn-panel" aria-labelledby="mon-table">
+        <div className="fn-panel-head">
+          <h2 id="mon-table">Filiallar bo&apos;yicha jadval</h2>
+          <small>{branchFlows.length} ta filial</small>
         </div>
-      </div>
-
-      <div className="two-col">
-        <div className="panel">
-          <div className="panel-head"><h2>Sotuv bo&apos;yicha filiallar</h2></div>
+        {branchFlows.length === 0 ? (
+          <div className="fn-empty">
+            <span className="fn-empty-icon"><Icon name="store" size={26} /></span>
+            <strong>Faol filial yo&apos;q</strong>
+          </div>
+        ) : (
           <div className="table-wrap">
-            <table className="data-table">
-              <thead><tr><th>Filial</th><th>Sotuv</th><th>Aylanma</th><th>Foyda</th></tr></thead>
+            <table className="data-table fn-table">
+              <thead>
+                <tr>
+                  <th>Filial</th>
+                  <th className="fn-right">Sotilgan (ta)</th>
+                  <th className="fn-right">Omborga kirgan (ta)</th>
+                  <th className="fn-right">Sotuv summa</th>
+                  <th className="fn-right">Xarid summa</th>
+                  <th className="fn-right">Foyda</th>
+                  <th className="fn-right">Tranzaksiya</th>
+                </tr>
+              </thead>
               <tbody>
-                {branchStats.map((b) => (
-                  <tr key={b.name}><td data-label="Filial">{b.name}</td><td data-label="Sotuv">{b.salesCount}</td><td data-label="Aylanma">{fmtMoney(b.revenue)}</td><td data-label="Foyda">{fmtMoney(b.profit)}</td></tr>
-                ))}
+                {branchFlows.map((b) => {
+                  const saleRow = branchStats.find((s) => s.name === b.name);
+                  return (
+                    <tr key={b.branchId}>
+                      <td data-label="Filial"><span className="cell-main">{b.name}</span></td>
+                      <td data-label="Sotilgan (ta)" className="fn-right">{b.kirimQty}</td>
+                      <td data-label="Omborga kirgan (ta)" className="fn-right">{b.chiqimQty}</td>
+                      <td data-label="Sotuv summa" className="fn-right">{fmtMoney(b.kirimSum)}</td>
+                      <td data-label="Xarid summa" className="fn-right">{fmtMoney(b.chiqimSum)}</td>
+                      <td data-label="Foyda" className={`fn-right ${b.profit >= 0 ? 'fn-in' : 'fn-out'}`}><strong>{fmtMoney(b.profit)}</strong></td>
+                      <td data-label="Tranzaksiya" className="fn-right">{saleRow?.salesCount ?? 0}</td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
-        </div>
-        <div className="panel">
-          <div className="panel-head"><h2>To&apos;lov turi</h2></div>
-          <div className="detail-body" style={{ padding: '20px 24px' }}>
-            {(Object.keys(PAYMENT_TYPE_LABELS) as PaymentType[]).map((t) => (
-              <div key={t} className="detail-row">
-                <span className="detail-l">{PAYMENT_TYPE_LABELS[t]}</span>
-                <strong>{fmtMoney(byPayment[t] ?? 0)}</strong>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-    </>
+        )}
+      </section>
+    </div>
   );
 }

@@ -54,6 +54,12 @@ export default async function KirimChiqimPage() {
 
   return (
     <>
+      <div className="t-page-head">
+        <div>
+          <h1 className="t-page-title">Kirim-chiqim</h1>
+          <p className="t-page-sub">Ombordagi mahsulotlar qiymati va sotuvlar — {branches.length} ta filial</p>
+        </div>
+      </div>
       <KirimChiqimCards total={total} cards={cards} />
     </>
   );
