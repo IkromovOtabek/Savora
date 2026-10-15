@@ -633,3 +633,13 @@ a.st-card:focus-visible { outline: 3px solid var(--brand-ring); outline-offset: 
 @media (prefers-reduced-motion: reduce) {
   .st-fnav a, .st-profit { transition: none; }
 }
+
+/* Mobil: 4 ta ixcham ko'rsatkich gorizontal lenta o'rniga 2×2 setka — hammasi birinchi ekranda ko'rinadi.
+   (Lenta varianti Chrome mobilda sahifa layoutini kengaytirib, pastki FAB'ni ekrandan chiqarib yuborardi.) */
+@media (max-width: 700px) {
+  .st-strip.ux-strip {
+    display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px;
+    overflow: visible; margin-inline: 0; padding: 0; contain: none; max-width: 100%; scroll-snap-type: none;
+  }
+  .st-strip.ux-strip > * { flex: none; }
+}
