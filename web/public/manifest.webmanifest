@@ -1,22 +1,29 @@
 {
+  "id": "/app",
   "name": "Savora — Savdo va nasiya tizimi",
   "short_name": "Savora",
   "description": "Ombor, kassa, nasiya va shartnomani bitta joydan boshqaring.",
-  "start_url": "/app",
+  "start_url": "/app?source=pwa",
   "scope": "/",
   "display": "standalone",
-  "orientation": "portrait",
+  "display_override": ["standalone", "minimal-ui"],
+  "orientation": "any",
   "background_color": "#05080F",
   "theme_color": "#1F4FA8",
   "lang": "uz",
   "dir": "ltr",
   "categories": ["business", "productivity", "finance"],
+  "prefer_related_applications": false,
   "icons": [
-    {
-      "src": "/icon-512.svg",
-      "sizes": "any",
-      "type": "image/svg+xml",
-      "purpose": "any maskable"
-    }
+    { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
+    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-512.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "maskable" },
+    { "src": "/icons/maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    { "name": "Yangi sotuv", "short_name": "Sotuv", "url": "/app/sales/new", "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png" }] },
+    { "name": "Nasiya", "short_name": "Nasiya", "url": "/app/nasiya", "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png" }] },
+    { "name": "Ombor", "short_name": "Ombor", "url": "/app/products", "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png" }] }
   ]
 }

@@ -1,0 +1,26 @@
+# Image'ga kirmasligi kerak: bog'liqliklar (konteynerda qayta o'rnatiladi), build, sirlar
+node_modules
+.next
+out
+coverage
+backups
+public/uploads
+*.log
+.DS_Store
+.git
+.github
+.vscode
+.idea
+
+# Sirlar — HECH QACHON image ichiga emas (runtime'da env_file bilan beriladi).
+# NEXT_PUBLIC_* qiymatlar Dockerfile ARG orqali uzatiladi.
+.env
+.env.*
+!.env.example
+
+# Hujjat/test — runtime'ga kerak emas
+docs
+tests
+*.md
+Dockerfile
+docker-compose*.yml

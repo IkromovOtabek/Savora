@@ -1,10 +1,15 @@
 /* Savora PWA service worker — sodda, xavfsiz offline qatlam. */
-const CACHE = 'savora-v2';
+const CACHE = 'savora-v3';
 const OFFLINE_URL = '/offline.html';
-const PRECACHE = [OFFLINE_URL, '/icon-512.svg', '/manifest.webmanifest'];
+const PRECACHE = [OFFLINE_URL, '/icon.svg', '/icon-512.svg', '/icons/icon-192.png', '/manifest.webmanifest'];
 
 self.addEventListener('install', (event) => {
-  event.waitUntil(caches.open(CACHE).then((c) => c.addAll(PRECACHE)).then(() => self.skipWaiting()));
+  // Bitta fayl yuklanmasa ham SW o'rnatilaversin (addAll — hammasi yoki hech narsa)
+  event.waitUntil(
+    caches.open(CACHE)
+      .then((c) => Promise.all(PRECACHE.map((u) => c.add(u).catch(() => {}))))
+      .then(() => self.skipWaiting())
+  );
 });
 
 self.addEventListener('activate', (event) => {
@@ -44,10 +49,13 @@ self.addEventListener('fetch', (event) => {
       caches.match(req).then((cached) => {
         if (cached) return cached;
         return fetch(req).then((res) => {
-          const copy = res.clone();
-          caches.open(CACHE).then((c) => c.put(req, copy)).catch(() => {});
+          // Faqat muvaffaqiyatli javob keshlanadi (404/500 abadiy qolib ketmasin)
+          if (res.ok && res.type === 'basic') {
+            const copy = res.clone();
+            caches.open(CACHE).then((c) => c.put(req, copy)).catch(() => {});
+          }
           return res;
-        }).catch(() => cached);
+        }).catch(() => cached || Response.error());
       })
     );
   }
