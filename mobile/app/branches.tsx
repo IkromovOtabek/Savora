@@ -1,95 +1,91 @@
-import { useCallback, useState } from 'react';
+import { useState } from 'react';
+import { View, Alert } from 'react-native';
+import { api, errMsg } from '@/lib/api';
+import { useResource } from '@/lib/hooks';
+import { useTheme } from '@/lib/theme';
+import { fmtPhoneLocal, phoneLocal, phoneE164 } from '@/lib/format';
 import {
-  View, Text, TextInput, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Alert, KeyboardAvoidingView, Platform,
-} from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter, useFocusEffect } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
-import { api } from '@/lib/api';
-import { colors, tiles } from '@/lib/theme';
+  Screen, NavBar, LargeTitle, Group, Cell, Field, Button, Pill, Loading, ErrorState, InlineError, EmptyState,
+} from '@/components/ui';
 
 interface B { id: string; name: string; address: string | null; isMain: boolean }
 
 export default function Branches() {
-  const router = useRouter();
-  const [items, setItems] = useState<B[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { c } = useTheme();
+  const res = useResource<{ items: B[] }>('/api/mobile/branches');
   const [open, setOpen] = useState(false);
   const [name, setName] = useState('');
   const [address, setAddress] = useState('');
+  const [phone, setPhone] = useState('');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [busy, setBusy] = useState(false);
+  const [tried, setTried] = useState(false);
 
-  const load = useCallback(async () => {
-    try { setItems((await api<{ items: B[] }>('/api/mobile/branches')).items); } catch { /* ignore */ } finally { setLoading(false); }
-  }, []);
-  useFocusEffect(useCallback(() => { load(); }, [load]));
+  const err = {
+    name: !name.trim() ? 'Filial nomini kiriting' : null,
+    username: username.trim().length < 3 ? 'Login kamida 3 belgi' : null,
+    password: password.length < 6 ? 'Parol kamida 6 belgi' : null,
+    phone: phone && phoneLocal(phone).length !== 9 ? 'Telefon 9 ta raqam' : null,
+  };
 
   async function create() {
-    if (!name.trim()) { Alert.alert('Nom', 'Filial nomini kiriting.'); return; }
-    if (username.trim().length < 3) { Alert.alert('Login', 'Login kamida 3 belgi.'); return; }
-    if (password.length < 6) { Alert.alert('Parol', 'Parol kamida 6 belgi.'); return; }
+    setTried(true);
+    if (Object.values(err).some(Boolean)) return;
     setBusy(true);
     try {
-      await api('/api/mobile/branches', { method: 'POST', body: { name: name.trim(), address: address.trim(), username: username.trim(), password } });
+      await api('/api/mobile/branches', {
+        method: 'POST',
+        body: { name: name.trim(), address: address.trim(), phone: phone ? phoneE164(phone) : '', username: username.trim(), password },
+      });
       Alert.alert('Qo\'shildi', `${name.trim()} filiali va logini yaratildi.`);
-      setOpen(false); setName(''); setAddress(''); setUsername(''); setPassword('');
-      await load();
-    } catch (e) { Alert.alert('Xatolik', e instanceof Error ? e.message : 'Xatolik'); }
+      setOpen(false); setName(''); setAddress(''); setPhone(''); setUsername(''); setPassword(''); setTried(false);
+      res.reloadSilently();
+    } catch (e) { Alert.alert('Xatolik', errMsg(e)); }
     finally { setBusy(false); }
   }
 
+  const items = res.data?.items ?? [];
   return (
-    <SafeAreaView style={s.safe} edges={['top']}>
-      <View style={s.bar}>
-        <TouchableOpacity onPress={() => router.back()} hitSlop={10}><Ionicons name="chevron-back" size={26} color={colors.text} /></TouchableOpacity>
-        <Text style={s.barTitle}>Filiallar</Text>
-        <TouchableOpacity onPress={() => setOpen((o) => !o)} hitSlop={10}><Ionicons name={open ? 'close' : 'add'} size={26} color={colors.brand} /></TouchableOpacity>
-      </View>
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
-        <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 32 }} keyboardShouldPersistTaps="handled">
-          {open && (
-            <View style={s.form}>
-              <Text style={s.formTitle}>Yangi filial</Text>
-              <TextInput style={s.input} value={name} onChangeText={setName} placeholder="Filial nomi" placeholderTextColor={colors.textFaint} />
-              <TextInput style={s.input} value={address} onChangeText={setAddress} placeholder="Manzil (ixtiyoriy)" placeholderTextColor={colors.textFaint} />
-              <TextInput style={s.input} value={username} onChangeText={setUsername} placeholder="Login" autoCapitalize="none" placeholderTextColor={colors.textFaint} />
-              <TextInput style={s.input} value={password} onChangeText={setPassword} placeholder="Parol (kamida 6)" secureTextEntry placeholderTextColor={colors.textFaint} />
-              <TouchableOpacity style={[s.createBtn, busy && { opacity: 0.6 }]} onPress={create} disabled={busy} activeOpacity={0.85}>
-                {busy ? <ActivityIndicator color="#fff" /> : <Text style={s.createT}>Yaratish</Text>}
-              </TouchableOpacity>
-            </View>
-          )}
+    <Screen
+      keyboard
+      header={<NavBar right={<Button title={open ? 'Yopish' : 'Qo\'shish'} variant="plain" icon={open ? undefined : 'add'} onPress={() => setOpen((o) => !o)} />} />}
+      refreshing={res.refreshing}
+      onRefresh={res.refresh}
+    >
+      <LargeTitle title="Filiallar" subtitle={res.data ? `${items.length} ta` : undefined} />
 
-          {loading ? <ActivityIndicator color={colors.brand} style={{ marginTop: 30 }} /> : items.map((b) => (
-            <View key={b.id} style={s.row}>
-              <View style={[s.icon, { backgroundColor: b.isMain ? tiles.indigo.bg : tiles.slate.bg }]}>
-                <Ionicons name="business" size={18} color={b.isMain ? colors.brand : colors.textMuted} />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={s.name}>{b.name}{b.isMain ? ' · asosiy' : ''}</Text>
-                {b.address ? <Text style={s.addr}>{b.address}</Text> : null}
-              </View>
-            </View>
-          ))}
-        </ScrollView>
-      </KeyboardAvoidingView>
-    </SafeAreaView>
+      {open ? (
+        <View style={{ gap: 12 }}>
+          <Field label="Filial nomi" value={name} onChangeText={setName} placeholder="Masalan: Chilonzor" error={tried ? err.name : null} />
+          <Field label="Manzil (ixtiyoriy)" value={address} onChangeText={setAddress} placeholder="Ko'cha, uy" />
+          <Field label="Telefon (ixtiyoriy)" prefix="+998" value={fmtPhoneLocal(phone)} onChangeText={(v) => setPhone(phoneLocal(v))} placeholder="90 123 45 67" keyboardType="phone-pad" maxLength={12} error={tried ? err.phone : null} />
+          <Field label="Login" value={username} onChangeText={setUsername} placeholder="filial login" autoCapitalize="none" error={tried ? err.username : null} />
+          <Field label="Parol" value={password} onChangeText={setPassword} placeholder="kamida 6 belgi" secureTextEntry error={tried ? err.password : null} />
+          <Button title="Filial yaratish" full loading={busy} onPress={create} />
+        </View>
+      ) : null}
+
+      {res.loading && !res.data ? <Loading />
+        : !res.data ? <ErrorState message={res.error} onRetry={res.retry} />
+        : items.length === 0 ? <EmptyState icon="business-outline" title="Filial yo'q" actionTitle="Filial qo'shish" onAction={() => setOpen(true)} />
+        : (
+          <>
+            {res.error ? <InlineError message={res.error} onRetry={res.refresh} /> : null}
+            <Group>
+              {items.map((b) => (
+                <Cell
+                  key={b.id}
+                  icon="business"
+                  iconColor={b.isMain ? c.sq.b : c.sq.g}
+                  title={b.name}
+                  subtitle={b.address ?? undefined}
+                  right={b.isMain ? <Pill label="Asosiy" tone="br" /> : undefined}
+                />
+              ))}
+            </Group>
+          </>
+        )}
+    </Screen>
   );
 }
-
-const s = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.bg },
-  bar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 14, paddingVertical: 10 },
-  barTitle: { fontSize: 17, fontWeight: '700', color: colors.text },
-  form: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: 16, padding: 14, marginBottom: 18, gap: 10 },
-  formTitle: { fontSize: 15, fontWeight: '800', color: colors.text, marginBottom: 2 },
-  input: { backgroundColor: colors.bg, borderWidth: 1, borderColor: colors.border, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12, fontSize: 15.5, color: colors.text },
-  createBtn: { backgroundColor: colors.brand, borderRadius: 12, paddingVertical: 13, alignItems: 'center', marginTop: 2 },
-  createT: { color: '#fff', fontSize: 15, fontWeight: '700' },
-  row: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: 14, padding: 14, marginBottom: 10 },
-  icon: { width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
-  name: { fontSize: 15, fontWeight: '700', color: colors.text },
-  addr: { fontSize: 12.5, color: colors.textMuted, marginTop: 2 },
-});

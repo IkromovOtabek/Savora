@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
-import { api, setToken, clearToken, getToken } from './api';
+import { api, setToken, clearToken, getToken, setUnauthorizedHandler, ApiError, errMsg } from './api';
 
 export interface Terms {
   item: string;    // "Mahsulot" / "Taom" / "Dori" ...
@@ -22,6 +22,8 @@ export const DEFAULT_TERMS: Terms = { item: 'Mahsulot', items: 'Ombor', addItem:
 interface AuthState {
   loading: boolean;
   me: MeResponse | null;
+  /** Token bor, lekin profil yuklanmadi (tarmoq xatosi) — chiqarib yubormaymiz. */
+  error: string | null;
   login: (username: string, password: string, slug?: string) => Promise<void>;
   logout: () => Promise<void>;
   refresh: () => Promise<void>;
@@ -32,21 +34,29 @@ const AuthContext = createContext<AuthState | null>(null);
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [me, setMe] = useState<MeResponse | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
     const token = await getToken();
-    if (!token) { setMe(null); return; }
+    if (!token) { setMe(null); setError(null); return; }
     try {
       const data = await api<MeResponse>('/api/mobile/me');
-      setMe(data);
-    } catch {
-      await clearToken();
-      setMe(null);
+      setMe(data); setError(null);
+    } catch (e) {
+      if (e instanceof ApiError && (e.status === 401 || e.status === 404)) {
+        await clearToken();
+        setMe(null); setError(null);
+      } else {
+        // Tarmoq xatosi — tokenni saqlab qolamiz, foydalanuvchi qayta urinadi
+        setError(errMsg(e));
+      }
     }
   }, []);
 
   useEffect(() => {
+    setUnauthorizedHandler(() => { setMe(null); setError(null); });
     (async () => { await refresh(); setLoading(false); })();
+    return () => setUnauthorizedHandler(null);
   }, [refresh]);
 
   const login = useCallback(async (username: string, password: string, slug = '') => {
@@ -60,11 +70,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const logout = useCallback(async () => {
     await clearToken();
-    setMe(null);
+    setMe(null); setError(null);
   }, []);
 
   return (
-    <AuthContext.Provider value={{ loading, me, login, logout, refresh }}>
+    <AuthContext.Provider value={{ loading, me, error, login, logout, refresh }}>
       {children}
     </AuthContext.Provider>
   );

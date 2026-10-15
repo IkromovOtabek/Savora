@@ -1,21 +1,26 @@
-import { useState } from 'react';
-import {
-  View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, ActivityIndicator, Alert,
-} from 'react-native';
+import { useRef, useState } from 'react';
+import { View, Text, StyleSheet, ScrollView, KeyboardAvoidingView, Platform, Alert, Pressable, type TextInput } from 'react-native';
 import { useRouter } from 'expo-router';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '@/lib/auth';
-import { colors } from '@/lib/theme';
+import { errMsg } from '@/lib/api';
+import { useTheme } from '@/lib/theme';
+import { Field, Button } from '@/components/ui';
 
 export default function LoginScreen() {
   const router = useRouter();
   const { login } = useAuth();
+  const { c } = useTheme();
+  const insets = useSafeAreaInsets();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [showPass, setShowPass] = useState(false);
   const [busy, setBusy] = useState(false);
+  const passRef = useRef<TextInput>(null);
 
   async function onSubmit() {
-    if (!username || !password) {
+    if (!username.trim() || !password) {
       Alert.alert('Maydonlar', 'Login va parolni kiriting.');
       return;
     }
@@ -24,51 +29,70 @@ export default function LoginScreen() {
       await login(username.trim(), password);
       router.replace('/(tabs)');
     } catch (e) {
-      Alert.alert('Kirish xatosi', e instanceof Error ? e.message : 'Xatolik');
+      Alert.alert('Kirib bo\'lmadi', errMsg(e));
     } finally {
       setBusy(false);
     }
   }
 
   return (
-    <SafeAreaView style={s.safe}>
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={s.flex}>
-        <View style={s.wrap}>
-          <View style={s.logo}><Text style={s.logoText}>S</Text></View>
-          <Text style={s.title}>Savora</Text>
-          <Text style={s.subtitle}>Tizimga kirish</Text>
+    <View style={{ flex: 1, backgroundColor: c.bg }}>
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
+        <ScrollView
+          contentContainerStyle={[s.scroll, { paddingTop: insets.top + 24, paddingBottom: insets.bottom + 24 }]}
+          keyboardShouldPersistTaps="handled"
+        >
+          <View style={s.wrap}>
+            <View style={[s.logo, { backgroundColor: c.tint }]}><Text style={s.logoText}>S</Text></View>
+            <Text style={[s.title, { color: c.ink }]}>Savora</Text>
+            <Text style={[s.subtitle, { color: c.ink3 }]}>Hisobingizga kiring</Text>
 
-          <Text style={s.label}>Login</Text>
-          <TextInput style={s.input} value={username} onChangeText={setUsername} placeholder="login"
-            autoCapitalize="none" autoCorrect={false} placeholderTextColor={colors.textFaint} />
+            <View style={{ gap: 14 }}>
+              <Field
+                label="Login"
+                value={username}
+                onChangeText={setUsername}
+                placeholder="login"
+                autoCapitalize="none"
+                textContentType="username"
+                autoComplete="username"
+                returnKeyType="next"
+                onSubmitEditing={() => passRef.current?.focus()}
+              />
+              <Field
+                ref={passRef}
+                label="Parol"
+                value={password}
+                onChangeText={setPassword}
+                placeholder="parol"
+                secureTextEntry={!showPass}
+                textContentType="password"
+                autoComplete="password"
+                returnKeyType="go"
+                onSubmitEditing={onSubmit}
+                right={
+                  <Pressable onPress={() => setShowPass((v) => !v)} hitSlop={12} accessibilityLabel={showPass ? 'Parolni yashirish' : 'Parolni ko\'rsatish'}>
+                    <Ionicons name={showPass ? 'eye-off-outline' : 'eye-outline'} size={20} color={c.ink3} />
+                  </Pressable>
+                }
+              />
+              <Button title="Kirish" size="lg" full loading={busy} onPress={onSubmit} style={{ marginTop: 8 }} />
+            </View>
 
-          <Text style={s.label}>Parol</Text>
-          <TextInput style={s.input} value={password} onChangeText={setPassword} placeholder="parol"
-            secureTextEntry placeholderTextColor={colors.textFaint} onSubmitEditing={onSubmit} />
-
-          <TouchableOpacity style={[s.btn, busy && s.btnDisabled]} onPress={onSubmit} disabled={busy} activeOpacity={0.85}>
-            {busy ? <ActivityIndicator color="#fff" /> : <Text style={s.btnText}>Kirish</Text>}
-          </TouchableOpacity>
-
-          <Text style={s.foot}>Login va parolni do'kon egasi yoki platforma beradi.</Text>
-        </View>
+            <Text style={[s.foot, { color: c.ink3 }]}>Login va parolni do&apos;kon egasi yoki platforma beradi.</Text>
+          </View>
+        </ScrollView>
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </View>
   );
 }
 
 const s = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.bg },
-  flex: { flex: 1 },
-  wrap: { flex: 1, justifyContent: 'center', paddingHorizontal: 28 },
-  logo: { width: 64, height: 64, borderRadius: 18, backgroundColor: colors.brand, alignSelf: 'center', alignItems: 'center', justifyContent: 'center' },
-  logoText: { color: '#fff', fontSize: 32, fontWeight: '800' },
-  title: { fontSize: 26, fontWeight: '800', color: colors.text, textAlign: 'center', marginTop: 14 },
-  subtitle: { fontSize: 15, color: colors.textMuted, textAlign: 'center', marginBottom: 28 },
-  label: { fontSize: 13, fontWeight: '600', color: colors.textMuted, marginBottom: 6, marginTop: 14 },
-  input: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 13, fontSize: 16, color: colors.text },
-  btn: { backgroundColor: colors.brand, borderRadius: 12, paddingVertical: 15, alignItems: 'center', marginTop: 26 },
-  btnDisabled: { opacity: 0.6 },
-  btnText: { color: '#fff', fontSize: 16, fontWeight: '700' },
-  foot: { fontSize: 12.5, color: colors.textFaint, textAlign: 'center', marginTop: 20 },
+  scroll: { flexGrow: 1, justifyContent: 'center', paddingHorizontal: 24 },
+  wrap: { width: '100%', maxWidth: 420, alignSelf: 'center' },
+  logo: { width: 72, height: 72, borderRadius: 18, alignSelf: 'center', alignItems: 'center', justifyContent: 'center' },
+  logoText: { color: '#fff', fontSize: 34, fontWeight: '700' },
+  title: { fontSize: 32, fontWeight: '700', letterSpacing: -0.8, textAlign: 'center', marginTop: 16 },
+  subtitle: { fontSize: 15, textAlign: 'center', marginTop: 4, marginBottom: 28 },
+  foot: { fontSize: 13, textAlign: 'center', marginTop: 22, lineHeight: 18 },
 });

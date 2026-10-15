@@ -1,21 +1,17 @@
 import { useState } from 'react';
-import {
-  View, Text, TextInput, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Alert, KeyboardAvoidingView, Platform,
-} from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { View, Alert } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
-import { api } from '@/lib/api';
+import { api, errMsg } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
-import { colors } from '@/lib/theme';
-
-const digits = (v: string) => v.replace(/\D/g, '');
-const grouped = (v: string) => digits(v).replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+import { digits, grouped, fmtMoney } from '@/lib/format';
+import { Screen, NavBar, LargeTitle, Field, Button, Group, Cell } from '@/components/ui';
+import { useTheme } from '@/lib/theme';
 
 export default function ProductNew() {
   const router = useRouter();
   const { code } = useLocalSearchParams<{ code?: string }>();
   const { me } = useAuth();
+  const { c } = useTheme();
   const t = me?.terms;
 
   const [name, setName] = useState('');
@@ -23,11 +19,17 @@ export default function ProductNew() {
   const [buy, setBuy] = useState('');
   const [sell, setSell] = useState('');
   const [brand, setBrand] = useState('');
+  const [notes, setNotes] = useState('');
   const [busy, setBusy] = useState(false);
+  const [touched, setTouched] = useState(false);
+
+  const nameErr = touched && !name.trim() ? 'Nomini kiriting' : null;
+  const sellErr = touched && !Number(digits(sell)) ? 'Sotuv narxini kiriting' : null;
+  const profit = (Number(digits(sell)) || 0) - (Number(digits(buy)) || 0);
 
   async function onSave() {
-    if (!name.trim()) { Alert.alert('Nom', `${t?.item ?? 'Mahsulot'} nomini kiriting.`); return; }
-    if (!digits(sell)) { Alert.alert('Narx', 'Sotuv narxini kiriting.'); return; }
+    setTouched(true);
+    if (!name.trim() || !Number(digits(sell))) return;
     setBusy(true);
     try {
       await api('/api/mobile/products', {
@@ -38,58 +40,48 @@ export default function ProductNew() {
           purchasePrice: Number(digits(buy)) || 0,
           salePrice: Number(digits(sell)) || 0,
           brand: brand.trim(),
+          notes: notes.trim(),
         },
       });
       Alert.alert('Saqlandi', `${t?.item ?? 'Mahsulot'} qo'shildi.`);
       router.back();
     } catch (e) {
-      Alert.alert('Xatolik', e instanceof Error ? e.message : 'Saqlashda xatolik');
+      Alert.alert('Xatolik', errMsg(e, 'Saqlashda xatolik'));
     } finally { setBusy(false); }
   }
 
   return (
-    <SafeAreaView style={s.safe} edges={['top']}>
-      <View style={s.bar}>
-        <TouchableOpacity onPress={() => router.back()} hitSlop={10}><Ionicons name="chevron-back" size={26} color={colors.text} /></TouchableOpacity>
-        <Text style={s.barTitle}>{t?.addItem ?? 'Mahsulot qo\'shish'}</Text>
-        <View style={{ width: 26 }} />
+    <Screen
+      keyboard
+      header={<NavBar backLabel={t?.items ?? 'Ombor'} />}
+      footer={<Button title="Saqlash" size="lg" full loading={busy} onPress={onSave} />}
+    >
+      <LargeTitle size="medium" title={t?.addItem ?? 'Mahsulot qo\'shish'} />
+
+      <Field label={`${t?.item ?? 'Mahsulot'} nomi`} value={name} onChangeText={setName} placeholder="Nomi" autoFocus error={nameErr} returnKeyType="next" />
+      <Field
+        label={t?.codeLabel ?? 'Kod / shtrix'}
+        value={codeVal}
+        onChangeText={setCodeVal}
+        placeholder="Bo'sh qoldirsangiz avtomatik"
+        autoCapitalize="characters"
+        hint="Kod takrorlanmasligi kerak"
+      />
+      <View style={{ flexDirection: 'row', gap: 12 }}>
+        <View style={{ flex: 1 }}>
+          <Field label="Kelish narxi" value={grouped(buy)} onChangeText={(v) => setBuy(digits(v))} placeholder="0" keyboardType="numeric" />
+        </View>
+        <View style={{ flex: 1 }}>
+          <Field label="Sotuv narxi" value={grouped(sell)} onChangeText={(v) => setSell(digits(v))} placeholder="0" keyboardType="numeric" error={sellErr} />
+        </View>
       </View>
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
-        <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 32 }} keyboardShouldPersistTaps="handled">
-          <Field label={`${t?.item ?? 'Mahsulot'} nomi`} value={name} onChangeText={setName} placeholder="Nomi" autoFocus />
-          <Field label={t?.codeLabel ?? 'Kod / shtrix'} value={codeVal} onChangeText={setCodeVal} placeholder="Bo'sh qoldirsangiz avtomatik" autoCapitalize="characters" />
-          <View style={s.rowFields}>
-            <View style={{ flex: 1 }}><Field label="Kelish narxi" value={grouped(buy)} onChangeText={(v) => setBuy(digits(v))} placeholder="0" keyboardType="numeric" /></View>
-            <View style={{ flex: 1 }}><Field label="Sotuv narxi" value={grouped(sell)} onChangeText={(v) => setSell(digits(v))} placeholder="0" keyboardType="numeric" /></View>
-          </View>
-          <Field label="Brend (ixtiyoriy)" value={brand} onChangeText={setBrand} placeholder="Masalan: Apple" />
-
-          <TouchableOpacity style={[s.save, busy && { opacity: 0.6 }]} onPress={onSave} disabled={busy} activeOpacity={0.85}>
-            {busy ? <ActivityIndicator color="#fff" /> : <Text style={s.saveT}>Saqlash</Text>}
-          </TouchableOpacity>
-        </ScrollView>
-      </KeyboardAvoidingView>
-    </SafeAreaView>
+      {Number(digits(sell)) > 0 ? (
+        <Group>
+          <Cell icon="trending-up" iconColor={profit >= 0 ? c.sq.o : c.sq.r} title="Foyda" value={fmtMoney(profit, { suffix: true })} valueColor={profit >= 0 ? c.ok : c.bad} />
+        </Group>
+      ) : null}
+      <Field label="Brend (ixtiyoriy)" value={brand} onChangeText={setBrand} placeholder="Masalan: Samsung" />
+      <Field label="Izoh (ixtiyoriy)" value={notes} onChangeText={setNotes} placeholder="Rangi, holati..." multiline style={{ minHeight: 70, textAlignVertical: 'top' }} />
+    </Screen>
   );
 }
-
-function Field(props: React.ComponentProps<typeof TextInput> & { label: string }) {
-  const { label, style, ...rest } = props;
-  return (
-    <View style={{ marginBottom: 14 }}>
-      <Text style={s.label}>{label}</Text>
-      <TextInput style={s.input} placeholderTextColor={colors.textFaint} autoCorrect={false} {...rest} />
-    </View>
-  );
-}
-
-const s = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.bg },
-  bar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 14, paddingVertical: 10 },
-  barTitle: { fontSize: 17, fontWeight: '700', color: colors.text },
-  label: { fontSize: 13, fontWeight: '600', color: colors.textMuted, marginBottom: 6 },
-  input: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12, fontSize: 16, color: colors.text },
-  rowFields: { flexDirection: 'row', gap: 12 },
-  save: { backgroundColor: colors.brand, borderRadius: 12, paddingVertical: 15, alignItems: 'center', marginTop: 12 },
-  saveT: { color: '#fff', fontSize: 16, fontWeight: '700' },
-});

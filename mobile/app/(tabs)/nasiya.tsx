@@ -1,100 +1,113 @@
-import { useCallback, useState } from 'react';
-import { View, Text, StyleSheet, FlatList, RefreshControl, ActivityIndicator, TouchableOpacity } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useCallback, useMemo, useRef, useState } from 'react';
+import { View, FlatList, RefreshControl, ActivityIndicator } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
-import { api } from '@/lib/api';
-import { colors, tiles, fmtSum, fmtDate } from '@/lib/theme';
+import { useDebounced, usePaged } from '@/lib/hooks';
+import { useTheme } from '@/lib/theme';
+import { fmtMoney, fmtCompact, isOverdue, isToday, digits } from '@/lib/format';
+import {
+  Screen, useLayout, LargeTitle, SearchField, SegmentedControl, Cell, Avatar, AmountColumn, Pill, ProgressBar, Button,
+  listCellStyle, Loading, EmptyState, ErrorState, InlineError, IconButton, type Tone,
+} from '@/components/ui';
 
 interface Sale {
-  id: string; product: string; customer: string | null;
-  totalAmount: number; remainingAmount: number; installmentMonths: number | null;
+  id: string; saleNo: string; product: string; customer: string | null; phone: string | null;
+  totalAmount: number; paidAmount: number; remainingAmount: number; installmentMonths: number | null;
   dueDate: string | null; status: string;
 }
+type Seg = 'all' | 'today' | 'late';
 
-function stateOf(s: Sale): { label: string; c: { bg: string; fg: string } } {
-  if (s.status === 'paid' || s.remainingAmount === 0) return { label: 'To\'landi', c: tiles.green };
-  if (s.dueDate && new Date(s.dueDate).getTime() < Date.now()) return { label: 'Muddat o\'tgan', c: tiles.red };
-  return { label: 'Faol', c: tiles.amber };
+function stateOf(s: Sale): { label: string; tone: Tone } {
+  if (s.status === 'paid' || s.remainingAmount <= 0) return { label: 'To\'landi', tone: 'ok' };
+  if (isOverdue(s.dueDate)) return { label: 'Kechikkan', tone: 'bad' };
+  if (isToday(s.dueDate)) return { label: 'Bugun', tone: 'warn' };
+  return { label: 'Faol', tone: 'br' };
 }
 
 export default function Nasiya() {
   const router = useRouter();
-  const [items, setItems] = useState<Sale[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
+  const { c } = useTheme();
+  const L = useLayout();
+  const [q, setQ] = useState('');
+  const [seg, setSeg] = useState<Seg>('all');
+  const dq = useDebounced(q.trim().toLowerCase(), 300);
 
-  const load = useCallback(async () => {
-    try {
-      const r = await api<{ items: Sale[] }>('/api/mobile/sales?type=installment');
-      setItems(r.items);
-    } catch { /* ignore */ }
-    finally { setLoading(false); setRefreshing(false); }
-  }, []);
+  const list = usePaged<Sale>('/api/mobile/sales?type=installment');
+  const first = useRef(true);
+  useFocusEffect(useCallback(() => { if (first.current) { first.current = false; return; } list.reloadSilently(); }, [list.reloadSilently]));
 
-  useFocusEffect(useCallback(() => { setLoading(true); load(); }, [load]));
+  // API sotuvlarni qidirishni qo'llamaydi — yuklangan sahifalar ichida filtrlaymiz
+  const shown = useMemo(() => {
+    const qd = digits(dq);
+    return list.items.filter((x) => {
+      if (seg === 'today' && !(x.remainingAmount > 0 && isToday(x.dueDate))) return false;
+      if (seg === 'late' && !(x.remainingAmount > 0 && isOverdue(x.dueDate))) return false;
+      if (!dq) return true;
+      const hay = `${x.customer ?? ''} ${x.product} ${x.saleNo}`.toLowerCase();
+      return hay.includes(dq) || (qd.length >= 3 && digits(x.phone ?? '').includes(qd));
+    });
+  }, [list.items, seg, dq]);
 
-  const totalRemaining = items.reduce((a, x) => a + x.remainingAmount, 0);
+  const remainingSum = list.items.reduce((a, x) => a + (x.remainingAmount || 0), 0);
+  const filtered = !!dq || seg !== 'all';
 
-  return (
-    <SafeAreaView style={s.safe} edges={['top']}>
-      <View style={s.header}>
-        <Text style={s.title}>Nasiya</Text>
-        <Text style={s.sub}>Jami qoldiq: {fmtSum(totalRemaining)} so'm</Text>
-      </View>
-      {loading ? (
-        <ActivityIndicator color={colors.brand} style={{ marginTop: 40 }} />
-      ) : (
-        <FlatList
-          data={items}
-          keyExtractor={(i) => i.id}
-          contentContainerStyle={{ padding: 16, paddingTop: 6 }}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} tintColor={colors.brand} />}
-          ListEmptyComponent={<Text style={s.empty}>Nasiya savdosi yo'q</Text>}
-          renderItem={({ item }) => {
-            const st = stateOf(item);
-            return (
-              <TouchableOpacity style={s.row} activeOpacity={0.7} onPress={() => router.push(`/sale/${item.id}`)}>
-                <View style={s.rowTop}>
-                  <Text style={s.name} numberOfLines={1}>{item.product}</Text>
-                  <View style={[s.badge, { backgroundColor: st.c.bg }]}><Text style={[s.badgeT, { color: st.c.fg }]}>{st.label}</Text></View>
-                </View>
-                <Text style={s.sub2}>{item.customer ?? '—'}{item.installmentMonths ? ` · ${item.installmentMonths} oy` : ''}</Text>
-                <View style={s.rowBot}>
-                  <Meta label="Summa" value={fmtSum(item.totalAmount)} />
-                  <Meta label="Qoldiq" value={fmtSum(item.remainingAmount)} danger />
-                  <Meta label="Muddat" value={fmtDate(item.dueDate)} />
-                </View>
-              </TouchableOpacity>
-            );
-          }}
-        />
-      )}
-    </SafeAreaView>
-  );
-}
-
-function Meta({ label, value, danger }: { label: string; value: string; danger?: boolean }) {
-  return (
-    <View>
-      <Text style={s.metaL}>{label}</Text>
-      <Text style={[s.metaV, danger && { color: tiles.red.fg }]}>{value}</Text>
+  const header = (
+    <View style={{ gap: 12, paddingBottom: 14 }}>
+      <LargeTitle
+        title="Nasiya"
+        subtitle={list.loading ? ' ' : `${fmtMoney(list.total)} ta${!list.hasMore ? ` · ${fmtCompact(remainingSum)} so'm qoldiq` : ''}`}
+        actions={<IconButton icon="add" label="Yangi nasiya" onPress={() => router.push('/sale-new?pay=installment')} />}
+      />
+      <SearchField value={q} onChangeText={setQ} placeholder="Ism, telefon yoki №" />
+      <SegmentedControl
+        options={[{ key: 'all', label: 'Hammasi' }, { key: 'today', label: 'Bugun' }, { key: 'late', label: 'Kechikkan' }]}
+        value={seg}
+        onChange={setSeg}
+      />
+      {list.error && list.items.length > 0 ? <InlineError message={list.error} onRetry={list.refresh} /> : null}
     </View>
   );
-}
 
-const s = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.bg },
-  header: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 6 },
-  title: { fontSize: 22, fontWeight: '800', color: colors.text },
-  sub: { fontSize: 13, color: colors.textMuted, marginTop: 2 },
-  empty: { color: colors.textMuted, textAlign: 'center', marginTop: 40 },
-  row: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: 14, padding: 14, marginBottom: 10 },
-  rowTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
-  name: { flex: 1, fontSize: 15, fontWeight: '700', color: colors.text },
-  sub2: { fontSize: 12.5, color: colors.textMuted, marginTop: 3 },
-  rowBot: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 12 },
-  metaL: { fontSize: 11, color: colors.textFaint, marginBottom: 2 },
-  metaV: { fontSize: 13.5, fontWeight: '700', color: colors.text },
-  badge: { paddingVertical: 2, paddingHorizontal: 9, borderRadius: 20 },
-  badgeT: { fontSize: 11.5, fontWeight: '700' },
-});
+  return (
+    <Screen scroll={false}>
+      <FlatList
+        data={list.loading ? [] : shown}
+        keyExtractor={(i) => i.id}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
+        contentContainerStyle={[L.content, { paddingTop: 8, paddingBottom: L.bottom }]}
+        ListHeaderComponent={header}
+        refreshControl={<RefreshControl refreshing={list.refreshing} onRefresh={list.refresh} tintColor={c.tint} colors={[c.tint]} />}
+        onEndReached={list.loadMore}
+        onEndReachedThreshold={0.5}
+        ListEmptyComponent={
+          list.loading ? <Loading />
+            : list.error ? <ErrorState message={list.error} onRetry={list.retry} />
+            : filtered ? <EmptyState icon="search" title="Topilmadi" message={list.hasMore ? 'Yuklangan ro\'yxatda mos yozuv yo\'q.' : 'Boshqa so\'z bilan qidirib ko\'ring.'} />
+            : <EmptyState icon="time-outline" title="Nasiya savdosi yo'q" message="Nasiya sotuvlari shu yerda ko'rinadi." actionTitle="Nasiyaga sotish" onAction={() => router.push('/sale-new?pay=installment')} />
+        }
+        ListFooterComponent={
+          list.loadingMore ? <ActivityIndicator color={c.tint} style={{ marginVertical: 16 }} />
+            : filtered && list.hasMore ? <Button title="Ko'proq yuklash" variant="plain" onPress={list.loadMore} style={{ alignSelf: 'center', marginTop: 8 }} />
+            : null
+        }
+        renderItem={({ item, index }) => {
+          const st = stateOf(item);
+          const pct = item.totalAmount > 0 ? item.paidAmount / item.totalAmount : 0;
+          return (
+            <Cell
+              sep={index > 0}
+              style={listCellStyle(c, index, shown.length)}
+              left={<Avatar name={item.customer ?? item.product} />}
+              title={item.customer ?? item.product}
+              subtitle={[item.installmentMonths ? `${item.installmentMonths} oy` : null, item.product].filter(Boolean).join(' · ')}
+              right={<AmountColumn amount={fmtMoney(item.remainingAmount)} color={st.tone === 'bad' ? c.bad : undefined}><Pill label={st.label} tone={st.tone} /></AmountColumn>}
+              onPress={() => router.push(`/sale/${item.id}`)}
+            >
+              <ProgressBar value={pct} tone={st.tone === 'bad' ? 'bad' : st.tone === 'ok' ? 'ok' : 'br'} style={{ marginTop: 7 }} />
+            </Cell>
+          );
+        }}
+      />
+    </Screen>
+  );
+}
