@@ -89,21 +89,23 @@ export type RunOutcome =
 export async function runAnalysis(
   models: TenantModels,
   user: ReportUser,
-  opts: { businessType?: string } = {},
+  opts: { businessType?: string; useAi?: boolean } = {},
 ): Promise<RunOutcome> {
+  const useAi = opts.useAi !== false;
   const snapshot = await buildSnapshot(models, user, { businessType: opts.businessType });
   const hash = snapshotHash(snapshot);
   const latest = await getLatestReport(models, user, { todayOnly: true });
 
-  if (latest && latest.snapshotHash === hash && (latest.source === 'ai' || !aiConfigured())) {
+  if (latest && latest.snapshotHash === hash && (latest.source === 'ai' || !aiConfigured() || !useAi)) {
     return { status: 'cached', report: latest };
   }
 
-  if (!(await consumeDailySlot(models.conn))) {
+  // Qoidalar tahlili bepul — kunlik AI limitini faqat haqiqiy AI chaqiruvi sarflaydi
+  if (useAi && aiConfigured() && !(await consumeDailySlot(models.conn))) {
     return { status: 'limited', report: latest };
   }
 
-  const analysis = await analyzeSnapshot(snapshot);
+  const analysis = await analyzeSnapshot(snapshot, { useAi });
   const created = await models.AiReport.create({
     day: dayKey(),
     scopeKey: scopeKeyOf(user),
@@ -126,7 +128,7 @@ export async function getOrCreateTodayReport(
 ): Promise<{ report: AiReportDoc | null; limited: boolean }> {
   const today = await getLatestReport(models, user, { todayOnly: true });
   if (today) return { report: today, limited: false };
-  const out = await runAnalysis(models, user, opts);
+  const out = await runAnalysis(models, user, { ...opts, useAi: false });
   if (out.status === 'limited') {
     return { report: out.report ?? (await getLatestReport(models, user)), limited: true };
   }
@@ -137,6 +139,7 @@ export async function getOrCreateTodayReport(
 export function fallbackReasonLabel(reason?: string): string | null {
   if (!reason) return null;
   if (reason === 'no_key') return 'AI kaliti sozlanmagan — qoidalar asosida tahlil.';
+  if (reason === 'auto') return 'Tezkor tahlil (qoidalar asosida). Chuqur AI tahlil uchun «Qayta tahlil»ni bosing.';
   if (reason === 'timeout') return 'AI 30 soniyada javob bermadi — qoidalar asosida tahlil.';
   if (reason === 'refusal') return 'AI so\'rovni rad etdi — qoidalar asosida tahlil.';
   return 'AI vaqtincha ishlamadi — qoidalar asosida tahlil.';

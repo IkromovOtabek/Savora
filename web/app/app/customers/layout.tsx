@@ -1,5 +1,9 @@
-import { redirect } from 'next/navigation';
+import { requireFeature } from '@/lib/auth';
+import { requirePermission } from '@/lib/permissionGuard';
 
-export default function CustomersLayout() {
-  redirect('/app');
+/** Mijozlar bo'limi — sotuv moduli va "Mijozlar" huquqi bo'lganlarga ochiq. */
+export default async function CustomersLayout({ children }: { children: React.ReactNode }) {
+  await requireFeature('sales');
+  await requirePermission('customers.manage');
+  return children;
 }

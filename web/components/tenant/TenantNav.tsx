@@ -62,6 +62,7 @@ const GROUPS: NavGroup[] = [
     links: [
       { href: '/app/nasiya', label: 'Nasiya', feature: 'nasiya' },
       { href: '/app/debts', label: 'Qarzdorlik', feature: 'sales' },
+      { href: '/app/customers', label: 'Mijozlar', feature: 'sales', permission: 'customers.manage' },
       { href: '/app/daftar', label: 'Daftar', feature: 'daftar', permission: 'daftar.manage' },
     ],
   },

@@ -162,7 +162,11 @@ export interface AnalysisResult {
 }
 
 /** AI (kalit bo'lsa) → xato bo'lsa qoidalar. Natija shakli doim bir xil. */
-export async function analyzeSnapshot(snapshot: AiSnapshot): Promise<AnalysisResult> {
+export async function analyzeSnapshot(snapshot: AiSnapshot, opts: { useAi?: boolean } = {}): Promise<AnalysisResult> {
+  if (opts.useAi === false) {
+    // Sahifa ochilganda — bepul qoidalar tahlili; pullik AI faqat "Qayta tahlil" tugmasi bilan
+    return { source: 'rules', model: 'rules', result: ruleBasedAnalysis(snapshot), fallbackReason: aiConfigured() ? 'auto' : 'no_key' };
+  }
   if (aiConfigured()) {
     const out = await callClaude(snapshot);
     if (out.ok) return { source: 'ai', model: out.model, result: out.result };
