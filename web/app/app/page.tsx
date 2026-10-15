@@ -9,8 +9,10 @@ import PlanLimitsBanner from '@/components/tenant/PlanLimitsBanner';
 import QuickSaleTrigger from '@/components/tenant/QuickSaleTrigger';
 import InstallmentAlert, { OverdueInstallment } from '@/components/tenant/InstallmentAlert';
 import { computeInstallmentPlan } from '@/lib/installment';
-import { dayBoundaries, toDayPoints } from '@/lib/weekBuckets';
+import { dayBoundaries, toDayPoints, smoothPath } from '@/lib/weekBuckets';
 import WeekChart from '@/components/tenant/WeekChart';
+import Tilt from '@/components/ui/Tilt';
+import type { IconName } from '@/components/icons/Icon';
 import { loadUserPermissions } from '@/lib/permissionGuard';
 import { BUSINESS_TYPES, parseBusinessType } from '@/lib/businessTypes';
 
@@ -58,6 +60,7 @@ export default async function TenantDashboard({
   ]);
   const week = toDayPoints(weekBounds, weekAgg);
   const weekHasData = week.some((d) => d.total > 0);
+  const weekTotal = week.reduce((a, d) => a + d.total, 0);
   const yesterday = week[week.length - 2]?.total ?? 0;
   const revenueDelta = yesterday > 0 ? Math.round(((todayRevenueAgg[0]?.total ?? 0) / yesterday - 1) * 100) : null;
 
@@ -87,6 +90,10 @@ export default async function TenantDashboard({
   const now = new Date();
   const dateLabel = `${now.getDate()}-${UZ_MONTHS[now.getMonth()]}, ${UZ_WEEKDAYS[now.getDay()]}`;
   const showSaleCta = features.sales && perms.has('sale.create');
+  const canAddProduct = features.products && perms.has('product.create');
+  const canKassa = features.kassa && perms.has('kassa.view');
+  const canReports = features.monitoring && perms.has('reports.view');
+  const quickCount = [showSaleCta, canAddProduct, canKassa, canReports].filter(Boolean).length;
 
   return (
     <div className="t-dash">
@@ -119,54 +126,100 @@ export default async function TenantDashboard({
         )}
       </div>
 
-      <div className="t-kpis">
-        <div className="t-kpi">
-          <div className="t-kpi-l t-kpi-l--ok"><Icon name="wallet" size={16} />Bugungi tushum</div>
-          <div className="t-kpi-v t-num">{fmtMoney(todayRevenue)} <small>so&apos;m</small></div>
-          {revenueDelta !== null && (
-            <div className={`t-kpi-d ${revenueDelta >= 0 ? 't-up' : 't-down'}`}>
-              {revenueDelta >= 0 ? '▲' : '▼'} {Math.abs(revenueDelta)}% kechagiga nisbatan
-            </div>
+      {/* Asosiy ob'ekt — bugungi tushum (3D), yonida ixcham ko'rsatkichlar */}
+      <div className="t-top">
+        <Tilt stack className="t-hero" as="section">
+          <div className="t-hero-l">
+            <span className="t-hero-ic" aria-hidden="true"><Icon name="wallet" size={18} /></span>
+            Bugungi tushum
+          </div>
+          <div className="t-hero-v t-num ux-z">{fmtMoney(todayRevenue)}<small>so&apos;m</small></div>
+          <div className="t-hero-foot">
+            {revenueDelta !== null ? (
+              <span className={`t-hero-delta ${revenueDelta >= 0 ? 'is-up' : 'is-down'}`}>
+                <span aria-hidden="true">{revenueDelta >= 0 ? '▲' : '▼'}</span> {Math.abs(revenueDelta)}%
+                <span className="t-hero-delta-l"> kechagiga nisbatan</span>
+              </span>
+            ) : (
+              <span className="t-hero-note">{todayRevenue > 0 ? "Kecha tushum bo'lmagan" : "Bugun hali tushum yo'q"}</span>
+            )}
+            {features.sales && <span className="t-hero-note">7 kun: <b className="t-num">{fmtMoney(weekTotal)}</b> so&apos;m</span>}
+          </div>
+          {features.sales && weekHasData && <HeroSpark values={week.map((d) => d.total)} />}
+        </Tilt>
+
+        <div className="t-stats ux-strip">
+          <StatCard
+            href={features.sales ? '/app/sales' : undefined}
+            icon="cart"
+            tone=""
+            label="Sotuvlar"
+            value={String(todaySalesCount)}
+            unit="ta"
+            sub="bugungi sotuvlar"
+          />
+          <StatCard
+            href={features.sales ? '/app/debts' : undefined}
+            icon="clock"
+            tone="gold"
+            label="Qarz va nasiya"
+            value={fmtMoney(debtTotal)}
+            unit="so'm"
+            sub="jami qoldiq"
+          />
+          <StatCard
+            href={features.products ? '/app/products' : undefined}
+            icon="box"
+            tone="gray"
+            label="Omborda"
+            value={String(inStock)}
+            unit="ta"
+            sub="sotuvga tayyor mahsulot"
+          />
+        </div>
+      </div>
+
+      {quickCount > 0 && (
+        <nav className="t-qa-row" aria-label="Tezkor amallar" data-n={quickCount} style={{ '--qa-n': quickCount } as React.CSSProperties}>
+          {showSaleCta && <QuickSaleTrigger />}
+          {canAddProduct && (
+            <Link href="/app/products/new" className="t-qa">
+              <span className="t-qa-ic"><Icon name="box" size={20} /></span>
+              <span className="t-qa-t">Mahsulot<small>Omborga qo&apos;shish</small></span>
+            </Link>
           )}
-        </div>
-        <div className="t-kpi">
-          <div className="t-kpi-l t-kpi-l--brand"><Icon name="cart" size={16} />Sotuvlar soni</div>
-          <div className="t-kpi-v t-num">{todaySalesCount} <small>ta bugun</small></div>
-        </div>
-        <div className="t-kpi">
-          <div className="t-kpi-l t-kpi-l--gold"><Icon name="clock" size={16} />Qarz va nasiya qoldig&apos;i</div>
-          <div className="t-kpi-v t-num">{fmtMoney(debtTotal)} <small>so&apos;m</small></div>
-        </div>
-        <div className="t-kpi">
-          <div className="t-kpi-l t-kpi-l--muted"><Icon name="box" size={16} />Omborda</div>
-          <div className="t-kpi-v t-num">{inStock} <small>ta mahsulot</small></div>
-        </div>
-      </div>
+          {canKassa && (
+            <Link href="/app/kassa" className="t-qa">
+              <span className="t-qa-ic"><Icon name="wallet" size={20} /></span>
+              <span className="t-qa-t">Kassa<small>Kunlik hisob</small></span>
+            </Link>
+          )}
+          {canReports && (
+            <Link href="/app/monitoring" className="t-qa">
+              <span className="t-qa-ic"><Icon name="chart" size={20} /></span>
+              <span className="t-qa-t">Hisobot<small>Oylik tahlil</small></span>
+            </Link>
+          )}
+        </nav>
+      )}
 
-      <div className="t-quick">
-        {showSaleCta && <QuickSaleTrigger />}
-        {features.products && perms.has('product.create') && (
-          <Link href="/app/products/new" className="quick-action btn-with-icon">
-            <Icon name="box" size={22} />
-            <span>Mahsulot<small>Omborga qo&apos;shish</small></span>
-          </Link>
-        )}
-        {features.kassa && perms.has('kassa.view') && (
-          <Link href="/app/kassa" className="quick-action btn-with-icon">
-            <Icon name="wallet" size={22} />
-            <span>Kassa<small>Bugungi tushum</small></span>
-          </Link>
-        )}
-      </div>
-
-      <div className={`t-dash-grid${features.sales && weekHasData ? '' : ' t-dash-grid--one'}`}>
-        {features.sales && weekHasData && (
-          <section className="t-card" aria-labelledby="t-week-h">
+      <div className={`t-dash-grid${features.sales ? '' : ' t-dash-grid--one'}`}>
+        {features.sales && (
+          <section className="t-card t-week" aria-labelledby="t-week-h">
             <div className="t-card-head">
               <h2 id="t-week-h">Haftalik tushum</h2>
-              <span className="t-card-meta t-num">{fmtMoney(week.reduce((a, d) => a + d.total, 0))} so&apos;m</span>
+              {weekHasData && <span className="t-card-meta t-num">{fmtMoney(weekTotal)} so&apos;m</span>}
             </div>
-            <WeekChart points={week} />
+            {weekHasData ? (
+              <WeekChart points={week} />
+            ) : (
+              <div className="ux-empty t-week-empty">
+                <span className="ux-empty-ic" aria-hidden="true"><Icon name="chart" size={26} /></span>
+                <b>Bu hafta hali tushum yo&apos;q</b>
+                <p>Birinchi sotuvdan so&apos;ng bu yerda kunlik tushum grafigi paydo bo&apos;ladi.</p>
+                {showSaleCta && <Link href="/app/sales/new" className="t-btn t-btn--filled">Sotuv qilish</Link>}
+              </div>
+            )}
           </section>
         )}
 
@@ -209,3 +262,47 @@ export default async function TenantDashboard({
 
 const UZ_MONTHS = ['yanvar', 'fevral', 'mart', 'aprel', 'may', 'iyun', 'iyul', 'avgust', 'sentabr', 'oktabr', 'noyabr', 'dekabr'];
 const UZ_WEEKDAYS = ['yakshanba', 'dushanba', 'seshanba', 'chorshanba', 'payshanba', 'juma', 'shanba'];
+
+/** Ixcham ko'rsatkich kartasi (tekis, 3D emas — faqat hajmli ikonka). Havola bo'lsa butun karta bosiladi. */
+function StatCard({
+  href, icon, tone, label, value, unit, sub,
+}: { href?: string; icon: IconName; tone: '' | 'gold' | 'green' | 'red' | 'gray'; label: string; value: string; unit: string; sub: string }) {
+  const body = (
+    <>
+      <span className={`ux-clay${tone ? ` ux-clay--${tone}` : ''}`} aria-hidden="true"><Icon name={icon} size={20} /></span>
+      <span className="t-stat-t">
+        <span className="ux-stat-l">{label}</span>
+        <span className="ux-stat-v">{value}<small>{unit}</small></span>
+        <span className="ux-stat-s">{sub}</span>
+      </span>
+      {href && <Icon name="chevron" size={16} className="t-stat-go" />}
+    </>
+  );
+  return href
+    ? <Link href={href} className="ux-stat t-stat">{body}</Link>
+    : <div className="ux-stat t-stat">{body}</div>;
+}
+
+/** Hero kartadagi 7 kunlik mini-chiziq (faqat bezak — qiymatlar grafikda va matnda bor). */
+function HeroSpark({ values }: { values: number[] }) {
+  const W = 220;
+  const H = 56;
+  const max = Math.max(...values, 1);
+  const pts = values.map((v, i) => [4 + (i * (W - 8)) / (values.length - 1), 6 + (H - 12) * (1 - v / max)] as [number, number]);
+  const line = smoothPath(pts);
+  const [lx, ly] = pts[pts.length - 1];
+  return (
+    <svg className="t-hero-spark" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="xMaxYMax meet" aria-hidden="true" focusable="false">
+      <defs>
+        <linearGradient id="t-spark-a" x1="0" x2="0" y1="0" y2="1">
+          <stop offset="0" stopColor="#fff" stopOpacity=".38" />
+          <stop offset="1" stopColor="#fff" stopOpacity="0" />
+        </linearGradient>
+      </defs>
+      <path d={`${line} L${W - 4},${H} L4,${H} Z`} fill="url(#t-spark-a)" />
+      <path d={line} className="t-hero-spark-l" />
+      <circle cx={lx} cy={ly} r={4} className="t-hero-spark-d" />
+    </svg>
+  );
+}
+

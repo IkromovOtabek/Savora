@@ -35,6 +35,30 @@
 }
 .t-num { font-variant-numeric: tabular-nums; }
 
+/* Klaviatura: "kontentga o'tish" havolasi va yagona fokus halqasi (nol spesifiklik — sahifa uslublari ustun) */
+.t-skip {
+  position: fixed;
+  top: 8px;
+  left: 8px;
+  z-index: 100;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: var(--brand-fill, var(--brand));
+  color: var(--t-on-brand);
+  font-weight: 600;
+  text-decoration: none;
+  transform: translateY(-160%);
+  transition: transform .15s;
+}
+.t-skip:focus { transform: none; }
+:where(.t-shell, .t-expired) :where(a, button, summary, [tabindex]):focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+}
+.t-main:focus { outline: none; }
+/* Langar havolalar sticky toolbar ostida qolmasin */
+.t-main [id] { scroll-margin-top: 72px; }
+
 /* ---------- Sidebar ---------- */
 .t-side {
   position: sticky;
@@ -153,6 +177,7 @@
 .t-toolbar-brand { display: none; color: inherit; flex: none; }
 .t-toolbar-brand--show { display: inline-flex; }
 .t-toolbar-title {
+  display: grid;
   font-size: 15px;
   font-weight: 600;
   letter-spacing: -.01em;
@@ -161,6 +186,18 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
+/* Sahifa sarlavhasi aylanib ketganda toolbar'da sahifa nomi (ToolbarTitle) */
+.t-tt-org, .t-tt-page {
+  grid-area: 1 / 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: opacity .2s ease, transform .25s cubic-bezier(.2, .9, .3, 1);
+}
+.t-tt-page { opacity: 0; transform: translateY(8px); pointer-events: none; }
+.t-tt-page.is-in { opacity: 1; transform: none; }
+.t-tt-org.is-out { opacity: 0; transform: translateY(-8px); }
+@media (prefers-reduced-motion: reduce) { .t-tt-org, .t-tt-page { transition: none; } }
 .t-search {
   margin-left: auto;
   width: min(300px, 32vw);
@@ -271,6 +308,10 @@
   .t-search { width: auto; flex: 1; max-width: 260px; }
   .t-search kbd { display: none; }
   .t-main { padding: 18px 16px calc(var(--t-tabbar-h) + 28px + env(safe-area-inset-bottom, 0px)); }
+  /* FAB oxirgi qatorni yopmasin */
+  .t-main--fab { padding-bottom: calc(var(--t-tabbar-h) + 96px + env(safe-area-inset-bottom, 0px)); }
+  /* Sahifaning o'z asosiy amali (FAB) bo'lsa — umumiy «Yangi sotuv» yashiriladi */
+  .t-body:has(.t-main .ux-fab) .t-shell-fab { display: none; }
 
   .t-tabbar {
     position: fixed;
@@ -307,13 +348,27 @@
     transition: opacity .12s;
   }
   .t-tab:active { opacity: .5; }
-  .t-tab.is-active { color: var(--brand); }
+  .t-tab.is-active { color: var(--brand); font-weight: 650; }
+  /* Faol tab — ikonka ortida yumshoq "kapsula" (iOS) */
+  .t-tab-icon::before {
+    content: "";
+    position: absolute;
+    inset: -4px -14px;
+    border-radius: var(--r-pill, 999px);
+    background: var(--brand-soft);
+    opacity: 0;
+    transform: scale(.7);
+    transition: opacity .18s, transform .22s cubic-bezier(.2, .9, .3, 1);
+    z-index: -1;
+  }
+  .t-tab.is-active .t-tab-icon::before { opacity: 1; transform: none; }
   .t-tab:focus-visible { outline: 3px solid var(--brand-soft); outline-offset: -3px; border-radius: 10px; }
-  .t-tab-icon { position: relative; display: inline-flex; }
+  .t-tab-icon { position: relative; display: inline-flex; isolation: isolate; margin-bottom: 2px; }
   .t-tab-dot {
     position: absolute;
-    top: -4px;
-    left: 14px;
+    top: -6px;
+    left: 13px;
+    z-index: 1;
     min-width: 17px;
     height: 17px;
     padding: 0 4px;
@@ -327,7 +382,7 @@
     box-shadow: 0 0 0 2px var(--surface);
     font-variant-numeric: tabular-nums;
   }
-  .t-tab-label { white-space: nowrap; }
+  .t-tab-label { white-space: nowrap; font-size: 11px; letter-spacing: -.005em; }
 
   .t-sheet-backdrop {
     display: block;
@@ -431,6 +486,7 @@
 @keyframes t-fade { from { opacity: 0; } to { opacity: 1; } }
 @media (prefers-reduced-motion: reduce) {
   .t-sheet, .t-sheet-backdrop { animation: none; }
+  .t-tab-icon::before { transition: none; }
 }
 
 /* ---------- Sahifa sarlavhasi (barcha asosiy sahifalar) ---------- */
@@ -477,61 +533,157 @@
 .t-dash-alerts:empty { display: none; }
 .t-dash-alerts > * { margin: 0 !important; }
 
-.t-kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
-.t-kpi {
+/* Yuqori qism: 3D hero (bugungi tushum) + ixcham ko'rsatkichlar */
+.t-top { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); gap: 14px; align-items: stretch; }
+.t-hero {
+  --t-hero-ink: #fff;
   display: grid;
-  gap: 4px;
   align-content: start;
-  padding: 14px 16px;
-  border-radius: 16px;
-  background: var(--surface);
-  box-shadow: var(--shadow-sm);
-  min-width: 0;
+  gap: 6px;
+  min-height: 200px;
+  padding: 20px 22px 18px;
+  overflow: visible;
+  color: var(--t-hero-ink);
+  background:
+    radial-gradient(120% 90% at 100% 0%, rgba(255, 255, 255, .16), transparent 55%),
+    linear-gradient(145deg, #3268d0 0%, #1f4fa8 48%, #14357a 100%);
+  margin-bottom: 18px; /* orqa qatlamlar (stack) uchun joy */
 }
-.t-kpi-l { display: flex; align-items: center; gap: 7px; font-size: 13px; font-weight: 600; }
-.t-kpi-l--ok { color: var(--accent); }
-.t-kpi-l--brand { color: var(--brand); }
-.t-kpi-l--gold { color: var(--t-gold); }
-.t-kpi-l--muted { color: var(--ink-2); }
-.t-kpi-v {
-  font-size: 24px;
-  font-weight: 700;
-  letter-spacing: -.03em;
-  line-height: 1.2;
-  color: var(--ink-1);
+.dark .t-hero {
+  background:
+    radial-gradient(120% 90% at 100% 0%, rgba(255, 255, 255, .12), transparent 55%),
+    linear-gradient(145deg, #3567d6 0%, #23479a 52%, #172f66 100%);
+}
+.t-hero-l { display: flex; align-items: center; gap: 9px; font-size: 14px; font-weight: 600; color: rgba(255, 255, 255, .88); }
+.t-hero-ic {
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  display: grid;
+  place-items: center;
+  background: rgba(255, 255, 255, .16);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .3), 0 4px 10px -4px rgba(0, 0, 0, .35);
+}
+.t-hero-v {
+  margin-top: 4px;
+  font-size: clamp(34px, 4.2vw, 46px);
+  font-weight: 750;
+  letter-spacing: -.04em;
+  line-height: 1.05;
   overflow-wrap: anywhere;
+  text-shadow: 0 2px 12px rgba(0, 0, 0, .18);
 }
-.t-kpi-v small { font-size: 13px; font-weight: 500; color: var(--ink-3); letter-spacing: 0; }
-.t-kpi-d { font-size: 13px; font-weight: 500; }
-.t-up { color: var(--accent); }
-.t-down { color: var(--t-danger); }
-@media (max-width: 1100px) { .t-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-@media (max-width: 380px) { .t-kpis { grid-template-columns: 1fr; } }
-
-.t-quick { display: flex; gap: 10px; flex-wrap: wrap; }
-.t-quick:empty { display: none; }
-.t-quick .quick-action {
+.t-hero-v small { margin-left: 6px; font-size: 16px; font-weight: 600; letter-spacing: 0; opacity: .75; text-shadow: none; }
+.t-hero-foot { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; margin-top: 6px; position: relative; z-index: 1; max-width: 62%; }
+.t-hero-delta {
   display: inline-flex;
   align-items: center;
-  gap: 10px;
-  padding: 10px 16px 10px 12px;
+  gap: 4px;
+  padding: 3px 10px;
+  border-radius: var(--r-pill, 999px);
+  font-size: 13px;
+  font-weight: 700;
+  background: rgba(255, 255, 255, .92);
+  font-variant-numeric: tabular-nums;
+}
+.t-hero-delta.is-up { color: #127044; }
+.t-hero-delta.is-down { color: #b02a20; }
+.t-hero-delta-l { font-weight: 500; color: #4a5470; }
+.t-hero-note { font-size: 13px; color: rgba(255, 255, 255, .8); }
+.t-hero-note b { color: #fff; font-weight: 650; }
+.t-hero-spark {
+  position: absolute;
+  right: 14px;
+  bottom: 14px;
+  width: min(50%, 340px);
+  height: 92px;
+  overflow: visible;
+  pointer-events: none;
+}
+.t-hero-spark-l { fill: none; stroke: #fff; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; filter: drop-shadow(0 3px 4px rgba(0, 0, 0, .25)); }
+.t-hero-spark-d { fill: #fff; filter: drop-shadow(0 0 6px rgba(255, 255, 255, .9)); }
+
+/* Ko'rsatkichlar: desktopda hero yonida ustun, planshetda 3 ustun, telefonda gorizontal lenta (ux-strip) */
+.t-stats.ux-strip { --ux-cols: 1; grid-auto-rows: 1fr; gap: 10px; margin-bottom: 18px; }
+.ux-stat.t-stat {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  color: inherit;
+  text-decoration: none;
+  transition: box-shadow .15s, background .15s;
+}
+.t-stat-t { display: grid; gap: 1px; flex: 1; min-width: 0; }
+.t-stat .ux-stat-v { font-size: 20px; }
+.t-stat .ux-stat-s { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.t-stat-go { color: var(--ink-3); transform: rotate(-90deg); flex: none; }
+a.t-stat:hover { box-shadow: var(--shadow); }
+a.t-stat:active { background: var(--t-fill-2); }
+
+@media (max-width: 1100px) {
+  .t-top { grid-template-columns: minmax(0, 1fr); gap: 0; }
+  .t-stats.ux-strip { --ux-cols: 3; grid-auto-rows: auto; margin-bottom: 0; }
+}
+@media (max-width: 700px) {
+  .t-hero { min-height: 0; padding: 18px 18px 16px; }
+  .t-hero-foot { max-width: none; }
+  .t-hero-spark { position: relative; right: auto; bottom: auto; justify-self: end; width: min(70%, 240px); height: 52px; margin-top: 4px; }
+  .t-stats.ux-strip { margin-bottom: 0; }
+  .t-stats.ux-strip > * { flex-basis: min(64%, 230px); }
+  .t-stat .ux-clay { width: 36px; height: 36px; border-radius: 11px; }
+  .t-stat .ux-stat-v { font-size: 18px; }
+  .t-stat-go { display: none; }
+}
+
+/* Tezkor amallar — teng plitkalar bitta qatorda (soni 1–4, yetim plitka yo'q) */
+.t-qa-row { display: grid; grid-template-columns: repeat(var(--qa-n, 3), minmax(0, 1fr)); gap: 10px; }
+.t-qa {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 64px;
+  padding: 12px 14px;
   border: 0;
-  border-radius: 14px;
+  border-radius: 16px;
   background: var(--surface);
   color: var(--brand);
   box-shadow: var(--shadow-sm);
   text-decoration: none;
   font: inherit;
+  text-align: left;
   cursor: pointer;
-  transition: opacity .12s;
-  margin: 0;
+  transition: opacity .12s, box-shadow .15s;
+  min-width: 0;
 }
-.t-quick .quick-action:active { opacity: .55; }
-.t-quick .quick-action > span { display: grid; text-align: left; font-size: 14px; font-weight: 600; color: var(--ink-1); line-height: 1.25; }
-.t-quick .quick-action small { font-size: 12px; font-weight: 500; color: var(--ink-3); }
-.t-quick .quick-action--accent { background: var(--brand); color: var(--t-on-brand); }
-.t-quick .quick-action--accent > span, .t-quick .quick-action--accent small { color: var(--t-on-brand); }
-.t-quick .quick-action--accent small { opacity: .8; }
+.t-qa:hover { box-shadow: var(--shadow); }
+.t-qa:active { opacity: .55; }
+.t-qa-ic {
+  width: 38px;
+  height: 38px;
+  border-radius: 11px;
+  display: grid;
+  place-items: center;
+  flex: none;
+  background: var(--brand-soft);
+  color: var(--brand);
+}
+.t-qa-t { display: grid; min-width: 0; font-size: 15px; font-weight: 600; color: var(--ink-1); line-height: 1.25; }
+.t-qa-t small { font-size: 12.5px; font-weight: 500; color: var(--ink-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.t-qa--accent { background: var(--brand-fill, var(--brand)); }
+.t-qa--accent .t-qa-ic { background: rgba(255, 255, 255, .18); color: var(--t-on-brand); }
+.t-qa--accent .t-qa-t, .t-qa--accent .t-qa-t small { color: var(--t-on-brand); }
+.t-qa--accent .t-qa-t small { opacity: .82; }
+@media (max-width: 700px) {
+  .t-qa-row[data-n="4"] { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 560px) {
+  .t-qa-row { gap: 8px; }
+  .t-qa-row[data-n="3"] .t-qa { flex-direction: column; align-items: flex-start; gap: 8px; padding: 12px; }
+  .t-qa-t { font-size: 14px; }
+  .t-qa-t small { font-size: 12px; white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+  .t-qa-ic { width: 34px; height: 34px; border-radius: 10px; }
+}
 
 .t-dash-grid { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 16px; align-items: start; }
 .t-dash-grid--one { grid-template-columns: minmax(0, 1fr); }
@@ -599,10 +751,19 @@ a.t-cell:active { background: var(--t-fill); }
 .t-chart-grid { stroke: var(--t-sep); stroke-width: 1; }
 .t-chart-ax { fill: var(--ink-3); font-size: 11px; font-family: inherit; }
 .t-chart-ax.is-on { fill: var(--ink-1); font-weight: 600; }
-.t-chart-line { fill: none; stroke: var(--brand); stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; }
-.t-chart-cursor { stroke: var(--brand); stroke-width: 1; opacity: .4; }
-.t-chart-halo { fill: var(--brand); opacity: .18; }
-.t-chart-dot { fill: var(--brand); stroke: var(--surface); stroke-width: 2; }
+.t-chart-line { fill: none; stroke: var(--brand); stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
+/* Chuqurlik: chiziq ostidagi xira soya va nuqtaning "pol"dagi aksi */
+.t-chart-depth { fill: none; stroke: var(--brand); stroke-width: 7; opacity: .22; stroke-linecap: round; }
+.dark .t-chart-depth { opacity: .4; }
+.t-chart-cursor { stroke: var(--brand); stroke-width: 1; opacity: .35; stroke-dasharray: 3 3; }
+.t-chart-floor { fill: var(--brand); opacity: .16; }
+.t-chart-glow { pointer-events: none; }
+.t-chart-dot { fill: var(--brand); stroke: var(--surface); stroke-width: 2.5; filter: drop-shadow(0 3px 4px rgba(31, 79, 168, .45)); }
+.t-chart-dot-hi { fill: #fff; opacity: .7; pointer-events: none; }
+.t-chart-glow, .t-chart-dot, .t-chart-dot-hi, .t-chart-floor, .t-chart-cursor { transition: cx .18s ease, cy .18s ease; }
+@media (prefers-reduced-motion: reduce) { .t-chart-glow, .t-chart-dot, .t-chart-dot-hi, .t-chart-floor, .t-chart-cursor { transition: none; } }
+.t-week { display: flex; flex-direction: column; }
+.t-week-empty { flex: 1; align-content: center; min-height: 240px; }
 .t-chart-tip rect { fill: var(--ink-1); }
 .t-chart-tip-t { fill: var(--surface); font-size: 12px; font-weight: 600; font-family: inherit; }
 .t-chart-tip-d { font-size: 11px; font-weight: 700; font-family: inherit; }
@@ -630,6 +791,11 @@ a.t-cell:active { background: var(--t-fill); }
 .t-skel-line { height: 12px; border-radius: 6px; flex: 1; max-width: 260px; }
 .t-skel-amt { width: 70px; height: 12px; border-radius: 6px; margin-left: auto; }
 @media (max-width: 1100px) { .t-skel-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+/* Telefonda — lenta kabi (sahifalardagi ux-strip bilan bir xil), ro'yxat birinchi ekranda */
+@media (max-width: 700px) {
+  .t-skel-kpis { display: flex; overflow: hidden; gap: 10px; }
+  .t-skel-kpi { flex: 0 0 min(64%, 230px); height: 76px; }
+}
 @keyframes t-shimmer { from { background-position: 100% 0; } to { background-position: -100% 0; } }
 @media (prefers-reduced-motion: reduce) { .t-skel-block { animation: none; } }
 

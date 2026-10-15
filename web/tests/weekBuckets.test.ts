@@ -29,4 +29,12 @@ describe('weekBuckets', () => {
     expect(d.match(/C/g)).toHaveLength(2);
     expect(smoothPath([])).toBe('');
   });
+
+  it("smoothPath — nol chizig'idan pastga otib ketmaydi", () => {
+    // Keskin pasayish, keyin tekis nol: Catmull-Rom odatda bu yerda pastga "otadi"
+    const d = smoothPath([[0, 10], [10, 90], [20, 100], [30, 100], [40, 100]]);
+    const ys = [...d.matchAll(/(-?\d+\.\d),(-?\d+\.\d)/g)].map((m) => Number(m[2]));
+    expect(Math.max(...ys)).toBeLessThanOrEqual(100);
+    expect(Math.min(...ys)).toBeGreaterThanOrEqual(10);
+  });
 });

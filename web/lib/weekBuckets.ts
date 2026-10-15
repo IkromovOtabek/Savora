@@ -51,7 +51,11 @@ export function toDayPoints(
   });
 }
 
-/** Catmull-Rom → kubik Bezier: nuqtalardan silliq SVG yo'l. */
+/**
+ * Catmull-Rom → kubik Bezier: nuqtalardan silliq SVG yo'l.
+ * Boshqaruv nuqtalarining Y qiymati segment chegarasida ushlab turiladi — egri chiziq
+ * nol chizig'idan pastga yoki cho'qqidan yuqoriga "otib" ketmaydi (overshoot yo'q).
+ */
 export function smoothPath(pts: [number, number][]): string {
   if (pts.length === 0) return '';
   const f = (n: number) => n.toFixed(1);
@@ -62,9 +66,12 @@ export function smoothPath(pts: [number, number][]): string {
     const p2 = pts[i + 1];
     const p3 = pts[i + 2] ?? p2;
     const c1x = p1[0] + (p2[0] - p0[0]) / 6;
-    const c1y = p1[1] + (p2[1] - p0[1]) / 6;
+    const lo = Math.min(p1[1], p2[1]);
+    const hi = Math.max(p1[1], p2[1]);
+    const clampY = (v: number) => Math.min(hi, Math.max(lo, v));
+    const c1y = clampY(p1[1] + (p2[1] - p0[1]) / 6);
     const c2x = p2[0] - (p3[0] - p1[0]) / 6;
-    const c2y = p2[1] - (p3[1] - p1[1]) / 6;
+    const c2y = clampY(p2[1] - (p3[1] - p1[1]) / 6);
     d += ` C${f(c1x)},${f(c1y)} ${f(c2x)},${f(c2y)} ${f(p2[0])},${f(p2[1])}`;
   }
   return d;

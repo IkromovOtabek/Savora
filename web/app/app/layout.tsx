@@ -11,6 +11,7 @@ import BrandMark from '@/components/BrandMark';
 import { isOrganizationActive } from '@/lib/models/master/Organization';
 import { loadUserPermissions } from '@/lib/permissionGuard';
 import Icon from '@/components/icons/Icon';
+import { SaleFab, ToolbarTitle } from '@/components/tenant/ShellChrome';
 import './tenant.css';
 import '@/components/ui/ux.css';
 
@@ -56,6 +57,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   return (
     <div className="t-shell">
+      <a href="#t-main" className="t-skip">Asosiy kontentga o&apos;tish</a>
       <aside className="t-side" aria-label="Yon panel">
         <Link href="/app" className="t-org">
           <span className="t-org-mark"><BrandMark size={26} /></span>
@@ -80,7 +82,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           <Link href="/app" className="t-toolbar-brand" aria-label="Bosh sahifa">
             <BrandMark size={24} />
           </Link>
-          <div className="t-toolbar-title">{org.name}</div>
+          <ToolbarTitle orgName={org.name} />
           {features.products && (
             <form action="/app/products" method="get" role="search" className="t-search">
               <Icon name="search" size={16} />
@@ -96,7 +98,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           )}
           <div className="t-toolbar-actions">
             {canSell && (
-              <Link href="/app/sales/new" className="t-btn t-btn--filled t-toolbar-sale">
+              <Link href="/app/sales/new" className="t-btn t-btn--filled t-toolbar-sale ux-hide-mobile">
                 <Icon name="plus" size={16} />
                 <span>Yangi sotuv</span>
               </Link>
@@ -111,10 +113,12 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             <span className="t-desktop-only"><LogoutButton iconOnly /></span>
           </div>
         </header>
-        <main className="t-main">
+        <main className={`t-main${canSell ? ' t-main--fab' : ''}`} id="t-main" tabIndex={-1}>
           <Suspense fallback={null}><SearchParamToast /></Suspense>
           {children}
         </main>
+        {/* Mobil asosiy amal — faqat sotuv huquqi va moduli bo'lsa (toolbar tugmasi bilan bir xil shart) */}
+        {canSell && <SaleFab />}
         {/* Pastki tab panel + «Yana» oynasi — faqat mobil (CSS bilan) */}
         <TenantNav variant="tabbar" {...navProps} orgName={org.name} username={user.username} />
       </div>
