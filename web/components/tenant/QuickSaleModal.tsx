@@ -7,6 +7,7 @@ import BarcodeInputField from '@/components/ui/BarcodeInputField';
 import Icon from '@/components/icons/Icon';
 import { fmtMoney } from '@/lib/format';
 import { toast } from '@/lib/toast';
+import './styles/sales.css';
 
 interface CartLine extends ScannedProduct {
   qty: number;
@@ -149,9 +150,9 @@ export default function QuickSaleModal({ open, onClose }: Props) {
 
   return (
     <div className="u-modal-overlay" onClick={() => !busy && onClose()}>
-      <div className="u-modal u-modal--wide quick-sale-modal" onClick={(e) => e.stopPropagation()}>
+      <div className="u-modal u-modal--wide quick-sale-modal" role="dialog" aria-modal="true" aria-labelledby="quick-sale-title" onClick={(e) => e.stopPropagation()}>
         <div className="u-modal-head">
-          <h3>Tez sotuv</h3>
+          <h3 id="quick-sale-title">Tez sotuv</h3>
           <button type="button" className="u-icon-btn" onClick={onClose} disabled={busy} aria-label="Yopish">
             <Icon name="close" size={18} />
           </button>
@@ -171,91 +172,75 @@ export default function QuickSaleModal({ open, onClose }: Props) {
           </div>
 
           {(lookupError || sellError) && (
-            <div className="auth-alert auth-alert--warn">{lookupError || sellError}</div>
+            <div className="auth-alert auth-alert--warn" role="alert">{lookupError || sellError}</div>
           )}
 
           {searching && (
-            <p className="quick-sale-hint">Qidirilmoqda...</p>
+            <p className="quick-sale-hint" aria-live="polite">Qidirilmoqda...</p>
           )}
 
           {cart.length === 0 ? (
-            <div className="quick-sale-empty">
+            <div className="sl-cart-empty">
               <Icon name="cart" size={32} />
-              <p>Mahsulot skaner qiling — ro&apos;yxat shu yerda paydo bo&apos;ladi.</p>
+              <p>Mahsulot skaner qiling — savat shu yerda paydo bo&apos;ladi.</p>
             </div>
           ) : (
-            <div className="table-wrap">
-              <table className="data-table data-table--simple">
-                <thead>
-                  <tr>
-                    <th>Mahsulot</th>
-                    <th>Narx</th>
-                    <th>Soni</th>
-                    <th>Jami</th>
-                    <th />
-                  </tr>
-                </thead>
-                <tbody>
-                  {cart.map((line) => {
-                    const unitPrice = needsPrice(line) ? Number(line.priceInput) || 0 : line.salePrice;
-                    return (
-                      <tr key={line.id}>
-                        <td>
-                          <div className="cell-main">{line.name}</div>
-                          <div className="cell-sub">
-                            {line.barcode && <span>Shtrix: {line.barcode} · </span>}
-                            {line.imei && <code className="imei-code">{line.imei}</code>}
-                          </div>
-                        </td>
-                        <td>
-                          {needsPrice(line) ? (
-                            <input
-                              type="number"
-                              min={0}
-                              step={1000}
-                              value={line.priceInput}
-                              onChange={(e) => updatePrice(line.id, e.target.value)}
-                              className="quick-sale-price-input"
-                              placeholder="Narx"
-                              disabled={busy}
-                            />
-                          ) : (
-                            fmtMoney(line.salePrice)
-                          )}
-                        </td>
-                        <td>
-                          {line.trackQuantity ? (
-                            <div className="quick-sale-qty">
-                              <button type="button" className="qty-btn" disabled={line.qty <= 1 || busy} onClick={() => updateQty(line.id, line.qty - 1)}>−</button>
-                              <span>{line.qty}</span>
-                              <button type="button" className="qty-btn" disabled={line.qty >= line.available || busy} onClick={() => updateQty(line.id, line.qty + 1)}>+</button>
-                            </div>
-                          ) : (
-                            '1'
-                          )}
-                        </td>
-                        <td>{fmtMoney(unitPrice * line.qty)}</td>
-                        <td>
-                          <button type="button" className="icon-btn" title="O'chirish" onClick={() => removeLine(line.id)} disabled={busy}>
-                            <Icon name="close" size={16} />
-                          </button>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+            <ul className="sl-cart" aria-label="Savat">
+              {cart.map((line) => {
+                const unitPrice = needsPrice(line) ? Number(line.priceInput) || 0 : line.salePrice;
+                return (
+                  <li key={line.id} className="sl-cart-line">
+                    <div className="sl-cart-name">
+                      <b>{line.name}</b>
+                      <span>
+                        {line.barcode && <>Shtrix: {line.barcode}</>}
+                        {line.barcode && line.imei && ' · '}
+                        {line.imei && <code>{line.imei}</code>}
+                      </span>
+                    </div>
+                    <div className="sl-cart-ctl">
+                      {needsPrice(line) ? (
+                        <input
+                          type="number"
+                          min={0}
+                          step={1000}
+                          value={line.priceInput}
+                          onChange={(e) => updatePrice(line.id, e.target.value)}
+                          className="quick-sale-price-input"
+                          placeholder="Narx"
+                          aria-label={`${line.name} narxi`}
+                          disabled={busy}
+                        />
+                      ) : null}
+                      {line.trackQuantity ? (
+                        <div className="sl-qty">
+                          <button type="button" disabled={line.qty <= 1 || busy} onClick={() => updateQty(line.id, line.qty - 1)} aria-label="Kamaytirish">−</button>
+                          <span aria-live="polite">{line.qty}</span>
+                          <button type="button" disabled={line.qty >= line.available || busy} onClick={() => updateQty(line.id, line.qty + 1)} aria-label="Ko'paytirish">+</button>
+                        </div>
+                      ) : null}
+                    </div>
+                    <div className="sl-cart-sum">
+                      {fmtMoney(unitPrice * line.qty)}
+                      {line.qty > 1 && <small>{line.qty} × {fmtMoney(unitPrice)}</small>}
+                    </div>
+                    <button type="button" className="icon-btn sl-cart-del" title="O'chirish" aria-label={`${line.name} — savatdan olib tashlash`} onClick={() => removeLine(line.id)} disabled={busy}>
+                      <Icon name="close" size={16} />
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
           )}
 
           <div className="quick-sale-foot">
-            <div className="quick-sale-total">
-              <span>Jami:</span>
+            <div className="sl-cart-total">
+              <span>Jami</span>
               <strong>{fmtMoney(total)} so&apos;m</strong>
             </div>
             <div className="u-modal-actions" style={{ margin: 0 }}>
-              <button type="button" className="btn btn-ghost btn-sm" onClick={onClose} disabled={busy}>Bekor</button>
-              <button type="button" className="btn btn-primary btn-sm btn-with-icon" onClick={handleSell} disabled={busy || !cart.length}>
+              <button type="button" className="btn btn-ghost" onClick={onClose} disabled={busy}>Bekor</button>
+              <button type="button" className="btn btn-primary btn-with-icon" onClick={handleSell} disabled={busy || !cart.length}>
                 <Icon name="cart" size={16} />
                 {busy ? 'Sotilmoqda...' : 'Sotish'}
               </button>

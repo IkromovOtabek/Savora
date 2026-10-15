@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import Icon from '@/components/icons/Icon';
 import { fmtMoney, fmtDate } from '@/lib/format';
+import './styles/sales.css';
 
 export interface OverdueInstallment {
   saleId: string;
@@ -15,27 +16,33 @@ export interface OverdueInstallment {
 export default function InstallmentAlert({ items }: { items: OverdueInstallment[] }) {
   if (items.length === 0) return null;
   return (
-    <div className="inst-alert">
-      <div className="inst-alert-head">
+    <section className="sl-alert" aria-labelledby="sl-alert-h">
+      <div className="sl-alert-head">
         <Icon name="alert" size={18} />
-        <strong>Muddati o&apos;tgan nasiya to&apos;lovlari ({items.length})</strong>
+        <strong id="sl-alert-h">Muddati o&apos;tgan nasiya to&apos;lovlari</strong>
+        <b>{items.length}</b>
       </div>
-      <div className="inst-alert-list">
+      <div>
         {items.slice(0, 5).map((it) => (
-          <Link key={it.saleId} href={`/app/sales/${it.saleId}`} className="inst-alert-row">
-            <span className="inst-alert-name">
+          <Link key={it.saleId} href={`/app/sales/${it.saleId}`} className="sl-alert-row">
+            <span className="sl-alert-name">
               {it.product}
               {it.customer ? ` · ${it.customer}` : ''}
             </span>
-            <span className="inst-alert-meta">
-              {it.months} oy · {fmtMoney(it.sum)} so&apos;m · {fmtDate(it.dueDate)}
+            <span className="sl-alert-sub">{it.months} oy kechikkan · {fmtDate(it.dueDate)}</span>
+            <span className="sl-alert-sum">
+              {fmtMoney(it.sum)}
+              <small>so&apos;m</small>
             </span>
           </Link>
         ))}
       </div>
       {items.length > 5 && (
-        <Link href="/app/nasiya" className="inst-alert-more">Barchasini ko&apos;rish →</Link>
+        <Link href="/app/nasiya" className="sl-alert-more">
+          Barchasini ko&apos;rish
+          <Icon name="arrowRight" size={16} />
+        </Link>
       )}
-    </div>
+    </section>
   );
 }

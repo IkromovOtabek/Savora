@@ -4,9 +4,33 @@ import { branchFilter, branchAggMatch } from '@/lib/branchScope';
 import { PAYMENT_TYPE_LABELS, SALE_STATUS_LABELS, PaymentType, SaleStatus } from '@/lib/models/tenant/Sale';
 import { fmtDate, fmtMoney } from '@/lib/format';
 import SaleRowDelete from '@/components/tenant/SaleRowDelete';
+import Icon from '@/components/icons/Icon';
 import { loadUserPermissions } from '@/lib/permissionGuard';
 
 export const metadata = { title: 'Sotuvlar — Savora' };
+
+/** Ro'yxatdagi qisqa to'lov turi yorliqlari (yagona atamalar) */
+const TYPE_SHORT: Record<PaymentType, string> = {
+  cash: 'Naqd',
+  debt: 'Qarz',
+  installment: 'Nasiya',
+  bank_credit: 'Bank krediti',
+};
+
+const STATUS_SEG: { key?: SaleStatus; label: string }[] = [
+  { label: 'Barchasi' },
+  { key: 'paid', label: "To'langan" },
+  { key: 'partial', label: 'Qarzdor' },
+  { key: 'cancelled', label: 'Bekor qilingan' },
+];
+
+function initials(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return '?';
+  return (parts[0][0] + (parts[1]?.[0] ?? '')).toUpperCase();
+}
+
+type SumRow = { n: number; sum: number };
 
 export default async function SalesPage({
   searchParams,
@@ -23,6 +47,8 @@ export default async function SalesPage({
   const filter: Record<string, unknown> = { ...scope };
   if (sp.status && sp.status in SALE_STATUS_LABELS) filter.status = sp.status;
   if (sp.type && sp.type in PAYMENT_TYPE_LABELS) filter.paymentType = sp.type;
+  const activeStatus = filter.status as SaleStatus | undefined;
+  const activeType = filter.paymentType as PaymentType | undefined;
 
   const sales = await Sale.find(filter).sort({ createdAt: -1 }).limit(200).lean();
 
@@ -35,176 +61,210 @@ export default async function SalesPage({
   const productMap = Object.fromEntries(products.map((p) => [String(p._id), p]));
   const branchMap = Object.fromEntries(branches.map((b) => [String(b._id), b.name]));
 
-  // Jadval va mobil kartalar uchun bir marta hisoblangan qatorlar
-  const rows = sales.map((s, i) => {
+  const rows = sales.map((s) => {
     const prod = productMap[String(s.productId)];
     const qty = s.productSnapshot.saleQuantity ?? 1;
     const unit = qty > 0 ? Math.round(s.totalAmount / qty) : s.totalAmount;
     const cancelled = s.status === 'cancelled';
-    const isDebt = s.status === 'partial' || s.paymentType === 'installment' || s.paymentType === 'debt';
+    const color = prod?.color || '';
+    const note = prod?.notes || s.notes || '';
+    const customer = s.customerSnapshot?.fullName || '';
+    const name = prod?.deviceModel || prod?.name || s.productSnapshot.name;
     return {
       id: String(s._id),
-      no: i + 1,
       saleNo: s.saleNo,
-      productId: String(s.productId),
-      name: prod?.deviceModel || prod?.name || s.productSnapshot.name,
-      color: prod?.color || '—',
+      name,
+      color,
       qty,
       source: branchMap[String(s.branchId)] ?? '—',
       imei: s.productSnapshot.imei,
       purchase: s.productSnapshot.purchasePrice ?? prod?.purchasePrice ?? 0,
       unit,
-      typeLabel: PAYMENT_TYPE_LABELS[s.paymentType as PaymentType],
-      note: prod?.notes || s.notes || '—',
+      total: s.totalAmount,
+      remaining: s.remainingAmount,
+      type: s.paymentType as PaymentType,
+      note,
+      customer,
+      avatar: initials(customer || name),
       date: fmtDate(s.createdAt!),
       cancelled,
-      isDebt,
     };
   });
 
   const todayStart = new Date();
   todayStart.setHours(0, 0, 0, 0);
+  const weekStart = new Date(todayStart);
+  weekStart.setDate(weekStart.getDate() - 6);
   const todaySales = await Sale.countDocuments({ ...scope, createdAt: { $gte: todayStart }, status: { $ne: 'cancelled' } });
   const debtTotal = await Sale.aggregate([
     { $match: { ...branchAggMatch(user), status: 'partial' } },
     { $group: { _id: null, total: { $sum: '$remainingAmount' } } },
   ]);
 
+  // Xulosa paneli: bugun / 7 kun / jami va to'lov turlari bo'yicha sonlar (bitta aggregate, filial chegarasi bilan)
+  const sumGroup = { $group: { _id: null, n: { $sum: 1 }, sum: { $sum: '$totalAmount' } } };
+  const [summary] = await Sale.aggregate<{
+    byType: { _id: PaymentType; n: number }[];
+    all: SumRow[];
+    week: SumRow[];
+    today: SumRow[];
+  }>([
+    { $match: { ...branchAggMatch(user), status: { $ne: 'cancelled' } } },
+    {
+      $facet: {
+        byType: [{ $group: { _id: '$paymentType', n: { $sum: 1 } } }],
+        all: [sumGroup],
+        week: [{ $match: { createdAt: { $gte: weekStart } } }, sumGroup],
+        today: [{ $match: { createdAt: { $gte: todayStart } } }, sumGroup],
+      },
+    },
+  ]);
+  const typeCount = Object.fromEntries((summary?.byType ?? []).map((t) => [t._id, t.n])) as Partial<Record<PaymentType, number>>;
+  const all = summary?.all[0] ?? { n: 0, sum: 0 };
+  const week = summary?.week[0] ?? { n: 0, sum: 0 };
+  const today = summary?.today[0] ?? { n: 0, sum: 0 };
+
+  const typeChips: PaymentType[] = (['cash', 'debt', 'installment', 'bank_credit'] as PaymentType[]).filter((t) => {
+    if (t === 'installment') return features.nasiya || features.variant;
+    if (t === 'bank_credit') return features.creditKassa;
+    return true;
+  });
+
+  const href = (status?: string, type?: string) => {
+    const q = new URLSearchParams();
+    if (status) q.set('status', status);
+    if (type) q.set('type', type);
+    const s = q.toString();
+    return s ? `/app/sales?${s}` : '/app/sales';
+  };
+  const filtered = !!(activeStatus || activeType);
+
   return (
     <>
       <div className="t-page-head">
         <div>
           <h1 className="t-page-title">Sotuvlar</h1>
-          <p className="t-page-sub">Bugun: {todaySales} ta · Qarzdorlik: {fmtMoney(debtTotal[0]?.total ?? 0)} so&apos;m</p>
+          <p className="t-page-sub">
+            Bugun: <strong>{todaySales} ta</strong> · Qarzdorlik: <strong>{fmtMoney(debtTotal[0]?.total ?? 0)} so&apos;m</strong>
+          </p>
         </div>
-        <Link href="/app/sales/new" className="btn btn-primary">+ Yangi sotuv</Link>
+        <div className="t-page-actions">
+          {features.export && perms.has('export.data') && (
+            <a href="/api/export/sales" className="btn btn-ghost btn-with-icon">
+              <Icon name="download" size={16} />
+              CSV yuklab olish
+            </a>
+          )}
+          <Link href="/app/sales/new" className="btn btn-primary btn-with-icon">
+            <Icon name="plus" size={16} />
+            Yangi sotuv
+          </Link>
+        </div>
       </div>
 
-      <div className="filter-chips">
-        <Link href="/app/sales" className={`chip${!sp.status && !sp.type ? ' chip--active' : ''}`}>Barchasi</Link>
-        <Link href="/app/sales?status=partial" className={`chip${sp.status === 'partial' ? ' chip--active' : ''}`}>Qarzdor</Link>
-        <Link href="/app/sales?type=cash" className={`chip${sp.type === 'cash' ? ' chip--active' : ''}`}>Naqd</Link>
-        <Link href="/app/sales?type=debt" className={`chip${sp.type === 'debt' ? ' chip--active' : ''}`}>Qarz</Link>
-        {(features.nasiya || features.variant) && <Link href="/app/sales?type=installment" className={`chip${sp.type === 'installment' ? ' chip--active' : ''}`}>Nasiya</Link>}
-        {features.creditKassa && <Link href="/app/sales?type=bank_credit" className={`chip${sp.type === 'bank_credit' ? ' chip--active' : ''}`}>Bank krediti</Link>}
-        {features.export && perms.has('export.data') && <a href="/api/export/sales" className="chip">CSV yuklab olish</a>}
+      <section className="sl-stats" aria-label="Sotuvlar xulosasi">
+        <div className="sl-stat sl-stat--hero">
+          <span className="sl-stat-l"><Icon name="trendingUp" size={16} />Bugun</span>
+          <span className="sl-stat-v">{fmtMoney(today.sum)} <small>so&apos;m</small></span>
+          <span className="sl-stat-d">{todaySales} ta sotuv</span>
+        </div>
+        <div className="sl-stat">
+          <span className="sl-stat-l"><Icon name="chart" size={16} />So&apos;nggi 7 kun</span>
+          <span className="sl-stat-v">{fmtMoney(week.sum)} <small>so&apos;m</small></span>
+          <span className="sl-stat-d">{week.n} ta sotuv</span>
+        </div>
+        <div className="sl-stat">
+          <span className="sl-stat-l"><Icon name="cart" size={16} />Jami</span>
+          <span className="sl-stat-v">{fmtMoney(all.sum)} <small>so&apos;m</small></span>
+          <span className="sl-stat-d">{all.n} ta sotuv</span>
+        </div>
+        <div className="sl-stat sl-stat--gold">
+          <span className="sl-stat-l"><Icon name="wallet" size={16} />Qarzdorlik</span>
+          <span className="sl-stat-v">{fmtMoney(debtTotal[0]?.total ?? 0)} <small>so&apos;m</small></span>
+          <span className="sl-stat-d">Qoldiq to&apos;lovlar</span>
+        </div>
+      </section>
+
+      <div className="sl-toolbar">
+        <nav className="sl-seg" aria-label="Holat bo'yicha filtr">
+          {STATUS_SEG.map((s) => (
+            <Link
+              key={s.label}
+              href={href(s.key, activeType)}
+              className="sl-seg-btn"
+              aria-current={activeStatus === s.key ? 'page' : undefined}
+            >
+              {s.label}
+            </Link>
+          ))}
+        </nav>
+        <nav className="sl-chips" aria-label="To'lov turi bo'yicha filtr">
+          <Link href={href(activeStatus)} className="sl-chip" aria-current={!activeType ? 'page' : undefined}>
+            Barcha turlar <b>{all.n}</b>
+          </Link>
+          {typeChips.map((t) => (
+            <Link key={t} href={href(activeStatus, t)} className="sl-chip" aria-current={activeType === t ? 'page' : undefined}>
+              {TYPE_SHORT[t]} <b>{typeCount[t] ?? 0}</b>
+            </Link>
+          ))}
+        </nav>
       </div>
 
-      <div className="panel" style={{ marginTop: 20 }}>
-        {sales.length === 0 ? (
-          <div className="panel-empty">
-            <p>Sotuv topilmadi.</p>
-            <Link href="/app/sales/new" className="btn btn-primary">Birinchi sotuvni qilish</Link>
+      <div className="sl-card sl-list-card">
+        {rows.length === 0 ? (
+          <div className="sl-empty">
+            <div className="sl-empty-ic"><Icon name="cart" size={30} /></div>
+            <h3>{filtered ? 'Bu filtr bo\'yicha sotuv yo\'q' : 'Hali sotuv yo\'q'}</h3>
+            <p>{filtered ? 'Boshqa holat yoki to\'lov turini tanlab ko\'ring.' : 'Birinchi sotuvni rasmiylashtiring — u shu yerda paydo bo\'ladi.'}</p>
+            {filtered ? (
+              <Link href="/app/sales" className="btn btn-ghost">Filtrni tozalash</Link>
+            ) : (
+              <Link href="/app/sales/new" className="btn btn-primary">Birinchi sotuvni qilish</Link>
+            )}
           </div>
         ) : (
-          <div className="table-wrap sold-table-wrap">
-            <table className="data-table data-table--sold">
-              <colgroup>
-                <col className="sold-col sold-col--num" />
-                <col className="sold-col sold-col--status" />
-                <col className="sold-col sold-col--source" />
-                <col className="sold-col sold-col--model" />
-                <col className="sold-col sold-col--color" />
-                <col className="sold-col sold-col--imei" />
-                <col className="sold-col sold-col--price" />
-                <col className="sold-col sold-col--type" />
-                <col className="sold-col sold-col--note" />
-                <col className="sold-col sold-col--date" />
-                <col className="sold-col sold-col--actions" />
-              </colgroup>
-              <thead>
-                <tr>
-                  <th>№</th>
-                  <th>Holat</th>
-                  <th>Manba</th>
-                  <th>Model</th>
-                  <th>Rang</th>
-                  <th>IMEI</th>
-                  <th>Narx</th>
-                  <th>Yo&apos;nalish</th>
-                  <th>Izoh</th>
-                  <th>Sana</th>
-                  <th>Amallar</th>
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map((r) => (
-                  <tr key={r.id} className={r.cancelled ? 'row-cancelled' : ''}>
-                    <td data-label="№">{r.no}</td>
-                    <td data-label="Holat">
-                      <span className={`badge-status badge-status--${r.cancelled ? 'expired' : 'active'}`}>
-                        {r.cancelled ? 'Bekor' : 'Sotildi'}
-                      </span>
-                    </td>
-                    <td data-label="Manba"><span className="source-chip">{r.source}</span></td>
-                    <td data-label="Model">
-                      <div className="sold-cell-stack">
-                        <Link href={`/app/products/${r.productId}`} className="cell-link cell-main">{r.name}</Link>
-                        {r.qty > 1 && <div className="cell-sub">Soni: {r.qty} ta</div>}
-                      </div>
-                    </td>
-                    <td data-label="Rang">{r.color}</td>
-                    <td data-label="IMEI"><code className="imei-code">{r.imei}</code></td>
-                    <td data-label="Narx">
-                      <div className="sold-cell-stack">
-                        {canViewCost && <div className="cell-sub">Olingan: {fmtMoney(r.purchase)}</div>}
-                        <div className="cell-main">Sotilgan: {fmtMoney(r.unit)}</div>
-                      </div>
-                    </td>
-                    <td data-label="Yo&apos;nalish">{r.typeLabel}</td>
-                    <td data-label="Izoh">{r.note}</td>
-                    <td data-label="Sana">{r.date}</td>
-                    <td className="cell-actions">
-                      <div className="row-actions">
-                        <Link href={`/app/sales/${r.id}`} className="btn btn-ghost btn-sm">Batafsil</Link>
-                        {canCancel && !r.cancelled && <SaleRowDelete saleId={r.id} saleNo={r.saleNo} />}
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-
-        {/* Mobil — toza kartalar (jadval o'rniga) */}
-        {sales.length > 0 && (
-          <div className="sold-cards">
-            {rows.map((r) => (
-              <div key={r.id} className={`sold-card${r.cancelled ? ' sold-card--cancelled' : ''}`}>
-                <div className="sold-card-top">
-                  <span className="sold-card-no">#{r.no}</span>
-                  <span className={`badge-status badge-status--${r.cancelled ? 'expired' : 'active'}`}>
-                    {r.cancelled ? 'Bekor' : 'Sotildi'}
-                  </span>
-                  <span className="sold-card-date">{r.date}</span>
-                </div>
-                <Link href={`/app/products/${r.productId}`} className="sold-card-name">{r.name}</Link>
-                <div className="sold-card-meta">Soni: {r.qty} ta · Rang: {r.color}</div>
-                <div className="sold-card-grid">
-                  <div className="sold-card-field">
-                    <span className="sold-card-l">Manba</span>
-                    <span className="source-chip">{r.source}</span>
+          <>
+            <ul className="sl-list">
+              {rows.map((r) => (
+                <li key={r.id} className={`sl-row${r.cancelled ? ' sl-row--cancelled' : ''}`}>
+                  <span className={`sl-av sl-av--${r.cancelled ? 'cancelled' : r.type}`} aria-hidden>{r.avatar}</span>
+                  <div className="sl-row-main">
+                    <Link href={`/app/sales/${r.id}`} className="sl-row-title">
+                      {r.name}{r.qty > 1 ? ` × ${r.qty}` : ''}
+                    </Link>
+                    <div className="sl-row-sub">
+                      <span>{r.saleNo}</span>
+                      {r.imei && <code>{r.imei}</code>}
+                      {r.color && <span>{r.color}</span>}
+                    </div>
+                    <div className="sl-row-meta">
+                      {r.customer && <span>{r.customer}</span>}
+                      <span>{r.source}</span>
+                      <span>{r.date}</span>
+                      {r.note && <span className="sl-row-note" title={r.note}>{r.note}</span>}
+                    </div>
                   </div>
-                  <div className="sold-card-field">
-                    <span className="sold-card-l">IMEI</span>
-                    <code className="imei-code">{r.imei}</code>
+                  <div className="sl-row-pay">
+                    <span className={`sl-pill sl-pill--${r.cancelled ? 'cancelled' : r.type}`}>
+                      {r.cancelled ? 'Bekor qilingan' : TYPE_SHORT[r.type]}
+                    </span>
+                    <div className="sl-row-amt">
+                      <strong>{fmtMoney(r.total)} so&apos;m</strong>
+                      {r.qty > 1 && <span>{r.qty} × {fmtMoney(r.unit)}</span>}
+                      {canViewCost && <span>Olingan: {fmtMoney(r.purchase)}</span>}
+                      {!r.cancelled && r.remaining > 0 && <span className="sl-rem">Qoldiq: {fmtMoney(r.remaining)}</span>}
+                    </div>
                   </div>
-                </div>
-                <div className="sold-card-foot">
-                  <div className="sold-card-price">
-                    <span className="sold-card-l">Narx ({r.typeLabel})</span>
-                    {canViewCost && <span className="sold-card-old">Olingan: {fmtMoney(r.purchase)}</span>}
-                    <span className={`sold-card-new${r.isDebt ? ' sold-card-new--debt' : ''}`}>{fmtMoney(r.unit)} so&apos;m</span>
-                  </div>
-                  <div className="row-actions">
-                    <Link href={`/app/sales/${r.id}`} className="btn btn-ghost btn-sm">Batafsil</Link>
+                  <div className="sl-row-act">
                     {canCancel && !r.cancelled && <SaleRowDelete saleId={r.id} saleNo={r.saleNo} />}
                   </div>
-                </div>
-              </div>
-            ))}
-          </div>
+                </li>
+              ))}
+            </ul>
+            {rows.length >= 200 && (
+              <p className="sl-foot-note">Oxirgi 200 ta sotuv ko&apos;rsatilmoqda. To&apos;liq ro&apos;yxat uchun CSV yuklab oling.</p>
+            )}
+          </>
         )}
       </div>
     </>

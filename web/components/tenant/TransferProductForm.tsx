@@ -3,6 +3,8 @@
 import { useActionState } from 'react';
 import { useToastOnState } from '@/lib/useToastOnState';
 import { transferProductAction } from '@/app/actions/transfer';
+import Icon from '@/components/icons/Icon';
+import './styles/sales.css';
 
 export default function TransferProductForm({
   productId,
@@ -20,9 +22,9 @@ export default function TransferProductForm({
   if (options.length === 0) return null;
 
   return (
-    <div className="panel" style={{ marginTop: 16, maxWidth: 640 }}>
-      <div className="panel-head"><h2>Boshqa filialga ko&apos;chirish</h2></div>
-      <form action={formAction} className="form-grid">
+    <section className="sl-card sl-transfer" aria-labelledby="sl-transfer-h">
+      <div className="sl-card-head"><h2 id="sl-transfer-h">Boshqa filialga ko&apos;chirish</h2></div>
+      <form action={formAction}>
         <input type="hidden" name="productId" value={productId} />
         {state?.error && <div className="auth-alert auth-alert--error">{state.error}</div>}
         {state?.success && <div className="auth-alert auth-alert--info">{state.success}</div>}
@@ -34,8 +36,11 @@ export default function TransferProductForm({
             ))}
           </select>
         </div>
-        <button type="submit" className="btn btn-primary btn-sm" disabled={isPending}>Ko&apos;chirish</button>
+        <button type="submit" className="btn btn-primary btn-with-icon" disabled={isPending}>
+          <Icon name="repeat" size={16} />
+          {isPending ? 'Ko\'chirilmoqda...' : 'Ko\'chirish'}
+        </button>
       </form>
-    </div>
+    </section>
   );
 }
