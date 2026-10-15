@@ -159,7 +159,7 @@ export default function QuickSaleModal({ open, onClose }: Props) {
 
         <div className="quick-sale-body">
           <div className="auth-field" style={{ margin: 0 }}>
-            <label htmlFor="quick-sale-scan">Skaner pistalet</label>
+            <label htmlFor="quick-sale-scan">Skaner (pistolet)</label>
             <BarcodeInputField
               id="quick-sale-scan"
               placeholder="Shtrix kodni skaner qiling..."

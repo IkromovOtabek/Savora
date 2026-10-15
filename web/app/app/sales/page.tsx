@@ -72,10 +72,10 @@ export default async function SalesPage({
 
   return (
     <>
-      <div className="dash-head">
+      <div className="t-page-head">
         <div>
-          <h1 className="dash-hello">Sotildi</h1>
-          <p className="dash-sub">Bugun: {todaySales} ta · Qarzdorlik: {fmtMoney(debtTotal[0]?.total ?? 0)} so&apos;m</p>
+          <h1 className="t-page-title">Sotuvlar</h1>
+          <p className="t-page-sub">Bugun: {todaySales} ta · Qarzdorlik: {fmtMoney(debtTotal[0]?.total ?? 0)} so&apos;m</p>
         </div>
         <Link href="/app/sales/new" className="btn btn-primary">+ Yangi sotuv</Link>
       </div>
@@ -87,7 +87,7 @@ export default async function SalesPage({
         <Link href="/app/sales?type=debt" className={`chip${sp.type === 'debt' ? ' chip--active' : ''}`}>Qarz</Link>
         {(features.nasiya || features.variant) && <Link href="/app/sales?type=installment" className={`chip${sp.type === 'installment' ? ' chip--active' : ''}`}>Nasiya</Link>}
         {features.creditKassa && <Link href="/app/sales?type=bank_credit" className={`chip${sp.type === 'bank_credit' ? ' chip--active' : ''}`}>Bank krediti</Link>}
-        {features.export && perms.has('export.data') && <a href="/api/export/sales" className="chip">CSV export</a>}
+        {features.export && perms.has('export.data') && <a href="/api/export/sales" className="chip">CSV yuklab olish</a>}
       </div>
 
       <div className="panel" style={{ marginTop: 20 }}>
@@ -115,7 +115,7 @@ export default async function SalesPage({
               <thead>
                 <tr>
                   <th>№</th>
-                  <th>Status</th>
+                  <th>Holat</th>
                   <th>Manba</th>
                   <th>Model</th>
                   <th>Rang</th>
@@ -131,7 +131,7 @@ export default async function SalesPage({
                 {rows.map((r) => (
                   <tr key={r.id} className={r.cancelled ? 'row-cancelled' : ''}>
                     <td data-label="№">{r.no}</td>
-                    <td data-label="Status">
+                    <td data-label="Holat">
                       <span className={`badge-status badge-status--${r.cancelled ? 'expired' : 'active'}`}>
                         {r.cancelled ? 'Bekor' : 'Sotildi'}
                       </span>
