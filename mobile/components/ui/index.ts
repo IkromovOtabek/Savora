@@ -5,3 +5,4 @@ export { Group, GroupLink, Cell, IconSquare, AmountColumn, listCellStyle, type C
 export { SegmentedControl, Switch, SearchField, Field, Stepper, Chips } from './Controls';
 export { Pill, Avatar, ProgressBar, Ring, Card, StatCard, toneColors, type Tone } from './Display';
 export { Loading, EmptyState, ErrorState, InlineError } from './States';
+export { BrandMark } from './BrandMark';

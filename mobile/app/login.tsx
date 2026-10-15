@@ -6,7 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '@/lib/auth';
 import { errMsg } from '@/lib/api';
 import { useTheme } from '@/lib/theme';
-import { Field, Button } from '@/components/ui';
+import { Field, Button, BrandMark } from '@/components/ui';
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -43,7 +43,7 @@ export default function LoginScreen() {
           keyboardShouldPersistTaps="handled"
         >
           <View style={s.wrap}>
-            <View style={[s.logo, { backgroundColor: c.tint }]}><Text style={s.logoText}>S</Text></View>
+            <View style={s.logo}><BrandMark size={72} /></View>
             <Text style={[s.title, { color: c.ink }]}>Savora</Text>
             <Text style={[s.subtitle, { color: c.ink3 }]}>Hisobingizga kiring</Text>
 
@@ -91,7 +91,6 @@ const s = StyleSheet.create({
   scroll: { flexGrow: 1, justifyContent: 'center', paddingHorizontal: 24 },
   wrap: { width: '100%', maxWidth: 420, alignSelf: 'center' },
   logo: { width: 72, height: 72, borderRadius: 18, alignSelf: 'center', alignItems: 'center', justifyContent: 'center' },
-  logoText: { color: '#fff', fontSize: 34, fontWeight: '700' },
   title: { fontSize: 32, fontWeight: '700', letterSpacing: -0.8, textAlign: 'center', marginTop: 16 },
   subtitle: { fontSize: 15, textAlign: 'center', marginTop: 4, marginBottom: 28 },
   foot: { fontSize: 13, textAlign: 'center', marginTop: 22, lineHeight: 18 },

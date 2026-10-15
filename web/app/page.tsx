@@ -13,6 +13,7 @@ import ProductShowcase from '@/components/landing/ProductShowcase';
 import Faq from '@/components/landing/Faq';
 import { RotatingWord, HeroStage, CountUp } from '@/components/landing/HeroMotion';
 import ThemeToggle from '@/components/ThemeToggle';
+import BrandMark from '@/components/BrandMark';
 import '@/components/landing/landing.css';
 
 const onest = Onest({ subsets: ['latin', 'cyrillic'], weight: ['400', '500', '600', '700', '800'], variable: '--font-onest', display: 'swap' });
@@ -91,7 +92,7 @@ export default async function LandingPage() {
       {/* NAV */}
       <header className="lp-nav">
         <div className="lp-wrap lp-nav-in">
-          <Link href="/" className="lp-brand"><span className="lp-logo" aria-hidden="true">S</span>Savora</Link>
+          <Link href="/" className="lp-brand"><BrandMark size={32} />Savora</Link>
           <nav className="lp-links" aria-label="Bo'limlar">
             <a href="#nasiya">Nasiya</a>
             <a href="#demo">Demo</a>
@@ -277,7 +278,7 @@ export default async function LandingPage() {
         <div className="lp-wrap">
           <div className="lp-foot-grid">
             <div>
-              <Link href="/" className="lp-brand"><span className="lp-logo" aria-hidden="true">S</span>Savora</Link>
+              <Link href="/" className="lp-brand"><BrandMark size={32} />Savora</Link>
               <p style={{ color: 'var(--lp-ink2)', maxWidth: 300, marginTop: 12 }}>Do&apos;konlar uchun savdo, ombor, nasiya va shartnoma platformasi.</p>
             </div>
             <div><h4>Mahsulot</h4><a href="#imkoniyatlar">Imkoniyatlar</a><a href="#tariflar">Tariflar</a><Link href={LOCALHOST_LINKS.register}>Bepul sinov</Link></div>

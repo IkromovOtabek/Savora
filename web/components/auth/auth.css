@@ -39,6 +39,7 @@
   text-decoration: none;
 }
 .au-appicon:active { opacity: .6; }
+.au-appicon--mark { overflow: hidden; background: none; }
 .au-appicon--danger { background: var(--danger-soft, rgba(208, 54, 43, .14)); color: var(--danger, #c7332a); box-shadow: none; }
 .au-appicon--warn { background: var(--warn-soft, rgba(224, 165, 38, .18)); color: var(--warn, #a0650a); box-shadow: none; }
 .au-appicon--brand { background: var(--brand-soft); color: var(--brand); box-shadow: none; }

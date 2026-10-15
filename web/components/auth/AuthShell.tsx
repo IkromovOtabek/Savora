@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { BrandGlyph } from '@/components/BrandMark';
 import Icon, { type IconName } from '@/components/icons/Icon';
 import './auth.css';
 
@@ -40,7 +41,7 @@ export default function AuthShell({ title, subtitle, wide, icon, iconTone = 'bra
             <Icon name={icon} size={28} />
           </span>
         ) : (
-          <Link href="/" className="au-appicon" aria-label="Savora — bosh sahifa">S</Link>
+          <Link href="/" className="au-appicon au-appicon--mark" aria-label="Savora — bosh sahifa"><BrandGlyph size={60} radius={0} /></Link>
         )}
         {top}
         <h1 className="au-title">{title}</h1>
