@@ -1,0 +1,374 @@
+/* ════════════════════════════════════════════════════════════
+   MOLIYA — Naqd kassa, Kredit kassa, Kirim-chiqim, Hisobot
+   Prefiks: fn-   ·   Faqat globals.css tokenlari
+   ════════════════════════════════════════════════════════════ */
+
+.fn-page { display: flex; flex-direction: column; gap: 20px; }
+.fn-r { transform: rotate(-90deg); flex: none; }
+.fn-l { transform: rotate(90deg); flex: none; }
+.fn-num { font-variant-numeric: tabular-nums; letter-spacing: -.02em; }
+.fn-cur { font-size: .55em; font-weight: 600; opacity: .7; margin-left: 4px; letter-spacing: 0; }
+.fn-section-title {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 12px;
+  margin: 4px 4px -8px; font-size: 13px; font-weight: 600; text-transform: uppercase;
+  letter-spacing: .04em; color: var(--ink-3);
+}
+.fn-section-title span:last-child { text-transform: none; letter-spacing: 0; font-weight: 500; }
+
+/* ── Hamyon (hero) karta ─────────────────────────────────── */
+.fn-hero {
+  position: relative; overflow: hidden; isolation: isolate;
+  border-radius: var(--r-xl); padding: 22px 22px 20px;
+  background: var(--grad-brand); color: var(--on-brand);
+  box-shadow: var(--shadow-brand);
+  display: flex; flex-direction: column; gap: 14px;
+}
+.fn-hero::after {
+  content: ""; position: absolute; z-index: -1; inset: auto -60px -90px auto;
+  width: 260px; height: 260px; border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 255, 255, .18), rgba(255, 255, 255, 0) 70%);
+}
+.fn-hero-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.fn-hero-label { font-size: 13px; font-weight: 600; opacity: .82; text-transform: uppercase; letter-spacing: .05em; }
+.fn-hero-chip {
+  display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px; border-radius: var(--r-pill);
+  background: rgba(255, 255, 255, .16); font-size: 12px; font-weight: 600; white-space: nowrap;
+}
+.fn-hero-value { font-size: clamp(30px, 5vw, 42px); font-weight: 700; line-height: 1.05; }
+.fn-hero-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 8px; }
+.fn-hero-stat { background: rgba(255, 255, 255, .13); border-radius: var(--r); padding: 10px 12px; min-width: 0; }
+.fn-hero-stat-l { display: block; font-size: 12px; font-weight: 500; opacity: .82; }
+.fn-hero-stat-v { display: block; font-size: 17px; font-weight: 700; margin-top: 2px; overflow-wrap: anywhere; }
+.fn-hero-link {
+  align-self: flex-start; display: inline-flex; align-items: center; gap: 6px; min-height: 36px;
+  padding: 7px 14px; border-radius: var(--r-pill); background: rgba(255, 255, 255, .18);
+  color: var(--on-brand); font-size: 14px; font-weight: 600; text-decoration: none;
+}
+.fn-hero-link:active { opacity: .6; }
+.fn-hero-link:focus-visible, .fn-hero a:focus-visible { outline: 2px solid var(--on-brand); outline-offset: 2px; }
+
+/* ── Filial / bank kartalari (Wallet pass) ───────────────── */
+.fn-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 14px; }
+.fn-pass {
+  position: relative; display: flex; flex-direction: column; gap: 12px;
+  background: var(--surface); border-radius: var(--r-lg); padding: 16px;
+  box-shadow: var(--shadow-sm); color: var(--ink-1); text-decoration: none;
+  transition: transform .15s, box-shadow .15s;
+}
+a.fn-pass:hover { box-shadow: var(--shadow); }
+a.fn-pass:active { opacity: .7; }
+a.fn-pass:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+.fn-pass-head { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.fn-avatar {
+  flex: none; width: 38px; height: 38px; border-radius: 11px; display: grid; place-items: center;
+  background: var(--brand-soft); color: var(--brand); font-weight: 700; font-size: 15px;
+}
+.fn-pass-name { flex: 1; min-width: 0; font-size: 16px; font-weight: 600; letter-spacing: -.01em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fn-pass-chev { color: var(--ink-3); flex: none; }
+.fn-pass-label { font-size: 12px; font-weight: 500; color: var(--ink-3); }
+.fn-pass-value { font-size: 24px; font-weight: 700; line-height: 1.15; }
+.fn-pass-rows { display: flex; flex-direction: column; border-top: 1px solid var(--sep); }
+.fn-pass-row {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 10px;
+  padding: 9px 0; border-bottom: 1px solid var(--sep); font-size: 14px;
+}
+.fn-pass-row:last-child { border-bottom: 0; padding-bottom: 0; }
+.fn-pass-row span { color: var(--ink-2); }
+.fn-pass-row strong { font-weight: 600; font-variant-numeric: tabular-nums; }
+
+.fn-in { color: var(--accent); }
+.fn-out { color: var(--danger); }
+.fn-gold { color: var(--gold); }
+
+/* Ikki rangli nisbat chizig'i */
+.fn-split { display: flex; height: 6px; border-radius: var(--r-pill); overflow: hidden; background: var(--fill); }
+.fn-split > i { display: block; height: 100%; }
+.fn-split-in { background: var(--accent); }
+.fn-split-out { background: var(--danger); }
+.fn-split-brand { background: var(--brand); }
+.fn-split-gold { background: var(--gold); }
+
+/* ── Bo'sh holat ─────────────────────────────────────────── */
+.fn-empty {
+  display: flex; flex-direction: column; align-items: center; text-align: center; gap: 8px;
+  padding: 40px 20px; color: var(--ink-3);
+}
+.fn-empty-icon { width: 56px; height: 56px; border-radius: 16px; display: grid; place-items: center; background: var(--fill-2); color: var(--ink-3); }
+.fn-empty strong { color: var(--ink-1); font-size: 16px; font-weight: 600; }
+.fn-empty p { margin: 0; font-size: 14px; max-width: 320px; }
+.fn-empty .btn { margin-top: 6px; }
+
+/* ── Sana / oy tanlash pillari ───────────────────────────── */
+.fn-datebar {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  background: var(--surface); border-radius: var(--r-lg); padding: 8px; box-shadow: var(--shadow-sm);
+}
+.fn-pills { display: flex; gap: 2px; padding: 2px; border-radius: 10px; background: var(--fill); }
+.fn-pill {
+  display: inline-flex; align-items: center; justify-content: center; min-height: 40px; min-width: 40px;
+  padding: 6px 14px; border: 0; border-radius: 8px; background: transparent; color: var(--ink-1);
+  font-size: 14px; font-weight: 500; text-decoration: none; cursor: pointer; white-space: nowrap;
+}
+.fn-pill:active { opacity: .6; }
+.fn-pill:focus-visible { outline: 2px solid var(--brand); outline-offset: 1px; }
+.fn-pill--on { background: var(--surface); font-weight: 600; box-shadow: 0 3px 8px rgba(0, 0, 0, .12), 0 0 0 .5px rgba(0, 0, 0, .04); }
+.fn-date-form { display: flex; align-items: center; gap: 8px; margin-left: auto; }
+.fn-date-form label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.fn-date-form input {
+  min-height: 40px; padding: 6px 10px; border: 0; border-radius: 10px; background: var(--fill-2);
+  color: var(--ink-1); font: inherit; font-size: 15px; font-variant-numeric: tabular-nums;
+}
+.fn-date-form input:focus-visible { outline: none; box-shadow: 0 0 0 4px var(--brand-ring); }
+
+/* ── Kunlik vaqt chizig'i (kassa batafsil) ───────────────── */
+.fn-panel { background: var(--surface); border-radius: var(--r-lg); box-shadow: var(--shadow-sm); overflow: hidden; }
+.fn-panel-head {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 14px 16px; border-bottom: 1px solid var(--sep);
+}
+.fn-panel-head h2 { margin: 0; font-size: 17px; font-weight: 600; letter-spacing: -.01em; }
+.fn-panel-head small { color: var(--ink-3); font-size: 13px; font-variant-numeric: tabular-nums; }
+.fn-panel-body { padding: 16px; }
+
+.fn-timeline { list-style: none; margin: 0; padding: 4px 0; }
+.fn-tl-item {
+  position: relative; display: grid; grid-template-columns: 52px 18px 1fr auto; align-items: start;
+  gap: 0 10px; padding: 10px 16px;
+}
+.fn-tl-item::before {
+  content: ""; position: absolute; left: calc(16px + 52px + 10px + 8px); top: 0; bottom: 0; width: 2px; background: var(--sep);
+}
+.fn-tl-item:first-child::before { top: 18px; }
+.fn-tl-item:last-child::before { bottom: calc(100% - 18px); }
+.fn-tl-time { font-size: 13px; font-weight: 600; color: var(--ink-2); font-variant-numeric: tabular-nums; padding-top: 1px; }
+.fn-tl-dot {
+  position: relative; z-index: 1; width: 12px; height: 12px; margin: 4px 3px 0; border-radius: 50%;
+  background: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft);
+}
+.fn-tl-main { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.fn-tl-title { font-weight: 600; color: var(--ink-1); text-decoration: none; font-size: 15px; }
+a.fn-tl-title:hover { color: var(--brand); }
+a.fn-tl-title:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; border-radius: 4px; }
+.fn-tl-sub { font-size: 13px; color: var(--ink-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fn-tl-amount { font-weight: 700; font-size: 15px; font-variant-numeric: tabular-nums; white-space: nowrap; color: var(--accent); }
+
+/* ── Kirim / chiqim bo'lingan sarlavha ───────────────────── */
+.fn-flow {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 1px; background: var(--sep);
+  border-radius: var(--r-xl); overflow: hidden; box-shadow: var(--shadow-sm);
+}
+.fn-flow-side { background: var(--surface); padding: 18px; display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.fn-flow-label { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; color: var(--ink-2); }
+.fn-flow-ico { width: 26px; height: 26px; border-radius: 8px; display: grid; place-items: center; flex: none; }
+.fn-flow-ico--in { background: var(--brand-soft); color: var(--brand); }
+.fn-flow-ico--out { background: var(--accent-soft); color: var(--accent); }
+.fn-flow-value { font-size: clamp(22px, 3.4vw, 30px); font-weight: 700; line-height: 1.15; overflow-wrap: anywhere; }
+.fn-flow-sub { font-size: 13px; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+.fn-flow-net {
+  grid-column: 1 / -1; background: var(--surface); padding: 14px 18px;
+  display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+}
+.fn-flow-net span { font-size: 14px; font-weight: 600; color: var(--ink-2); }
+.fn-flow-net strong { font-size: 22px; font-weight: 700; font-variant-numeric: tabular-nums; }
+
+/* Qidiruv */
+.fn-search {
+  display: flex; align-items: center; gap: 8px; min-height: 44px; background: var(--fill);
+  border-radius: var(--r-sm); padding: 6px 6px 6px 12px;
+}
+.fn-search:focus-within { box-shadow: 0 0 0 4px var(--brand-ring); }
+.fn-search > svg { color: var(--ink-3); flex: none; }
+.fn-search input { flex: 1; min-width: 0; border: 0; background: none; outline: none; font: inherit; font-size: 16px; color: var(--ink-1); }
+.fn-search input::placeholder { color: var(--ink-3); }
+
+/* Filiallar reytingi (qator karta) */
+.fn-rank { list-style: none; margin: 0; padding: 0; }
+.fn-rank-item + .fn-rank-item { border-top: 1px solid var(--sep); }
+.fn-rank-link {
+  display: grid; grid-template-columns: 38px 1fr auto 16px; align-items: center; gap: 12px;
+  padding: 12px 16px; color: var(--ink-1); text-decoration: none; min-height: 60px;
+}
+.fn-rank-link:hover { background: var(--fill-2); }
+.fn-rank-link:active { opacity: .6; }
+.fn-rank-link:focus-visible { outline: 2px solid var(--brand); outline-offset: -2px; }
+.fn-rank-main { min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+.fn-rank-name { font-weight: 600; font-size: 15px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fn-rank-meta { font-size: 12px; color: var(--ink-3); font-variant-numeric: tabular-nums; display: flex; gap: 10px; flex-wrap: wrap; }
+.fn-rank-end { text-align: right; display: flex; flex-direction: column; gap: 2px; }
+.fn-rank-end strong { font-size: 15px; font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.fn-rank-end small { font-size: 11px; color: var(--ink-3); }
+
+/* Segment (Omborda / Sotilgan) */
+.fn-seg { display: flex; gap: 2px; padding: 2px; border-radius: 10px; background: var(--fill); max-width: 420px; }
+.fn-seg-btn {
+  flex: 1; min-height: 40px; padding: 7px 12px; border: 0; border-radius: 8px; background: transparent;
+  color: var(--ink-1); font: inherit; font-size: 14px; font-weight: 500; cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+}
+.fn-seg-btn:focus-visible { outline: 2px solid var(--brand); outline-offset: 1px; }
+.fn-seg-btn[aria-selected="true"] { background: var(--surface); font-weight: 600; box-shadow: 0 3px 8px rgba(0, 0, 0, .12), 0 0 0 .5px rgba(0, 0, 0, .04); }
+.fn-seg-count { font-size: 12px; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+
+.fn-code { font-family: var(--font-mono); font-size: 12px; color: var(--ink-2); background: var(--fill-2); padding: 2px 6px; border-radius: 6px; }
+.fn-table td.fn-right, .fn-table th.fn-right { text-align: right; font-variant-numeric: tabular-nums; }
+
+/* ── Kredit kassa: bank kartalari ────────────────────────── */
+.fn-bank {
+  position: relative; overflow: hidden; isolation: isolate; border-radius: var(--r-xl); padding: 18px;
+  min-height: 176px; display: flex; flex-direction: column; gap: 10px; color: var(--on-brand);
+  background: linear-gradient(150deg, #3a68c4, #1f4fa8); box-shadow: var(--shadow);
+}
+.fn-bank::after {
+  content: ""; position: absolute; z-index: -1; right: -40px; top: -40px; width: 160px; height: 160px; border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 255, 255, .2), rgba(255, 255, 255, 0) 70%);
+}
+.fn-bank--1 { background: linear-gradient(150deg, #2c8a62, #13603f); }
+.fn-bank--2 { background: linear-gradient(150deg, #e0a526, #b07a0c); }
+.fn-bank--3 { background: linear-gradient(150deg, #5a5fd0, #353a9e); }
+.fn-bank--4 { background: linear-gradient(150deg, #d0574d, #9b2c24); }
+.fn-bank--5 { background: linear-gradient(150deg, #3f4a63, #1e2638); }
+.fn-bank--off { filter: grayscale(.85); opacity: .7; }
+.fn-bank-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.fn-bank-name { font-size: 17px; font-weight: 700; letter-spacing: -.01em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fn-bank-chip { font-size: 11px; font-weight: 700; padding: 3px 8px; border-radius: var(--r-pill); background: rgba(255, 255, 255, .22); text-transform: uppercase; letter-spacing: .04em; }
+.fn-bank-label { font-size: 12px; opacity: .82; font-weight: 500; margin-top: auto; }
+.fn-bank-value { font-size: 26px; font-weight: 700; line-height: 1.1; overflow-wrap: anywhere; }
+.fn-bank-foot { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.fn-bank-count { font-size: 13px; font-weight: 600; opacity: .9; margin-right: auto; }
+.fn-bank-btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 4px; min-height: 36px; min-width: 36px;
+  padding: 6px 12px; border: 0; border-radius: var(--r-pill); background: rgba(255, 255, 255, .2);
+  color: var(--on-brand); font: inherit; font-size: 13px; font-weight: 600; text-decoration: none; cursor: pointer;
+}
+.fn-bank-btn:active { opacity: .6; }
+.fn-bank-btn:focus-visible { outline: 2px solid var(--on-brand); outline-offset: 2px; }
+.fn-bank-btn--icon { padding: 6px; }
+.fn-bank form { display: contents; }
+
+.fn-add {
+  border: 2px dashed var(--border); border-radius: var(--r-xl); min-height: 176px; background: transparent;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px;
+  color: var(--brand); font: inherit; font-size: 15px; font-weight: 600; cursor: pointer; padding: 18px;
+}
+.fn-add:hover { background: var(--brand-soft); border-color: var(--brand-ring); }
+.fn-add:active { opacity: .6; }
+.fn-add:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+.fn-add-ico { width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center; background: var(--brand-soft); }
+.fn-add-form {
+  border-radius: var(--r-xl); min-height: 176px; background: var(--surface); box-shadow: var(--shadow-sm);
+  padding: 16px; display: flex; flex-direction: column; gap: 10px;
+}
+.fn-add-form .auth-field { margin: 0; }
+.fn-add-form .auth-alert { margin: 0; }
+.fn-add-actions { display: flex; gap: 8px; margin-top: auto; }
+.fn-add-actions .btn { flex: 1; }
+
+/* ── Hisobot (monitoring) ────────────────────────────────── */
+.fn-bento { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+.fn-bento .fn-hero { grid-column: span 2; grid-row: span 2; }
+.fn-tile {
+  background: var(--surface); border-radius: var(--r-lg); padding: 14px 16px; box-shadow: var(--shadow-sm);
+  display: flex; flex-direction: column; gap: 6px; min-width: 0;
+}
+.fn-tile-head { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 500; color: var(--ink-3); }
+.fn-tile-ico { width: 28px; height: 28px; border-radius: 8px; display: grid; place-items: center; flex: none; }
+.fn-tile-ico--brand { background: var(--brand-soft); color: var(--brand); }
+.fn-tile-ico--in { background: var(--accent-soft); color: var(--accent); }
+.fn-tile-ico--gold { background: var(--gold-soft); color: var(--gold); }
+.fn-tile-ico--out { background: var(--danger-soft); color: var(--danger); }
+.fn-tile-v { font-size: 24px; font-weight: 700; line-height: 1.15; font-variant-numeric: tabular-nums; letter-spacing: -.02em; overflow-wrap: anywhere; }
+.fn-tile-s { font-size: 12px; color: var(--ink-3); }
+
+.fn-two { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: 16px; align-items: start; }
+
+/* Grafik — filiallar reytingi */
+.fn-chart-legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: 12px; color: var(--ink-3); }
+.fn-chart-legend span { display: inline-flex; align-items: center; gap: 6px; }
+.fn-chart-legend i { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
+.fn-chart { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 14px; }
+.fn-chart-row { display: grid; grid-template-columns: 26px minmax(0, 1fr); gap: 10px; align-items: start; }
+.fn-chart-rank {
+  width: 26px; height: 26px; border-radius: 8px; display: grid; place-items: center; font-size: 13px; font-weight: 700;
+  background: var(--fill-2); color: var(--ink-2); font-variant-numeric: tabular-nums;
+}
+.fn-chart-row:first-child .fn-chart-rank { background: var(--gold-soft); color: var(--gold); }
+.fn-chart-main { min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+.fn-chart-top { display: flex; justify-content: space-between; gap: 10px; align-items: baseline; }
+.fn-chart-name { font-weight: 600; font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fn-chart-total { font-weight: 700; font-size: 14px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.fn-bars { display: flex; flex-direction: column; gap: 4px; }
+.fn-bar-track { position: relative; height: 10px; border-radius: var(--r-pill); background: var(--fill-2); }
+.fn-bar {
+  position: relative; display: block; height: 100%; min-width: 4px; border-radius: var(--r-pill);
+  transform-origin: left center; animation: fn-grow .6s cubic-bezier(.2, .8, .2, 1) both;
+}
+.fn-bar--rev { background: linear-gradient(90deg, #3a68c4, #1f4fa8); }
+.fn-bar--cost { background: var(--gold); }
+.fn-bar--profit { background: var(--accent); }
+.fn-bar-track:hover .fn-tip, .fn-bar-track:focus-within .fn-tip { opacity: 1; transform: translate(-50%, -4px); }
+.fn-tip {
+  position: absolute; left: 50%; bottom: 100%; z-index: 3; pointer-events: none; opacity: 0;
+  transform: translate(-50%, 2px); transition: opacity .15s, transform .15s;
+  background: var(--ink-1); color: var(--bg); font-size: 12px; font-weight: 600; white-space: nowrap;
+  padding: 5px 9px; border-radius: 8px; box-shadow: var(--shadow); font-variant-numeric: tabular-nums;
+}
+.fn-chart-meta { display: flex; gap: 12px; flex-wrap: wrap; font-size: 12px; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+@keyframes fn-grow { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+@media (prefers-reduced-motion: reduce) { .fn-bar { animation: none; } }
+
+/* To'lov turi taqsimoti */
+.fn-mix { display: flex; height: 12px; border-radius: var(--r-pill); overflow: hidden; background: var(--fill); gap: 2px; }
+.fn-mix > i { display: block; height: 100%; }
+.fn-mix-list { list-style: none; margin: 14px 0 0; padding: 0; }
+.fn-mix-row { display: grid; grid-template-columns: 10px 1fr auto auto; gap: 10px; align-items: center; padding: 10px 0; border-top: 1px solid var(--sep); font-size: 14px; }
+.fn-mix-row:first-child { border-top: 0; }
+.fn-mix-row i { width: 10px; height: 10px; border-radius: 3px; }
+.fn-mix-row span { color: var(--ink-2); }
+.fn-mix-row strong { font-variant-numeric: tabular-nums; font-weight: 600; }
+.fn-mix-row small { font-size: 12px; color: var(--ink-3); font-variant-numeric: tabular-nums; min-width: 38px; text-align: right; }
+.fn-c-cash { background: var(--accent); }
+.fn-c-debt { background: var(--danger); }
+.fn-c-installment { background: var(--gold); }
+.fn-c-bank_credit { background: var(--brand); }
+
+/* ── Obuna to'lovi (PaymentSubmit) ───────────────────────── */
+.fn-paycard {
+  position: relative; overflow: hidden; border-radius: var(--r-lg); padding: 16px 18px;
+  background: var(--grad-brand); color: var(--on-brand); display: flex; flex-direction: column; gap: 4px;
+}
+.fn-paycard small { font-size: 12px; opacity: .82; }
+.fn-paycard strong { font-family: var(--font-mono); font-size: 20px; letter-spacing: 2px; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.fn-paycard span { font-size: 14px; font-weight: 600; opacity: .92; text-transform: uppercase; letter-spacing: .04em; }
+
+/* ── Moslashuvchanlik ────────────────────────────────────── */
+@media (max-width: 1000px) {
+  .fn-bento { grid-template-columns: repeat(2, 1fr); }
+  .fn-bento .fn-hero { grid-row: auto; }
+  .fn-two { grid-template-columns: 1fr; }
+}
+@media (max-width: 700px) {
+  .fn-page { gap: 16px; }
+  .fn-hero { padding: 18px 16px 16px; border-radius: var(--r-lg); }
+  .fn-grid { grid-template-columns: 1fr; }
+  .fn-flow { grid-template-columns: 1fr; }
+  .fn-flow-side { padding: 14px 16px; }
+  .fn-datebar { padding: 6px; }
+  .fn-date-form { margin-left: 0; width: 100%; }
+  .fn-date-form input { flex: 1; min-height: 44px; }
+  .fn-date-form .btn { min-height: 44px; }
+  .fn-pills { width: 100%; }
+  .fn-pill { flex: 1; min-height: 44px; padding: 6px 8px; }
+  .fn-seg { max-width: none; }
+  .fn-seg-btn { min-height: 44px; }
+  .fn-tl-item { grid-template-columns: 44px 18px 1fr; padding: 10px 14px; }
+  .fn-tl-item::before { left: calc(14px + 44px + 10px + 8px); }
+  .fn-tl-amount { grid-column: 3; justify-self: start; }
+  .fn-rank-link { grid-template-columns: 38px 1fr 16px; padding: 12px 14px; }
+  .fn-rank-end { grid-column: 2; grid-row: 2; text-align: left; flex-direction: row; align-items: baseline; gap: 6px; }
+  .fn-bank-btn { min-height: 44px; min-width: 44px; }
+  .fn-tile-v { font-size: 20px; }
+}
+@media (max-width: 420px) {
+  .fn-bento { grid-template-columns: 1fr 1fr; gap: 10px; }
+  .fn-tile { padding: 12px; }
+}

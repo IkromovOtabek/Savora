@@ -1,4 +1,6 @@
+import Link from 'next/link';
 import { getTenantSession } from '@/lib/tenantSession';
+import Icon from '@/components/icons/Icon';
 import { isBranchScoped } from '@/lib/branchScope';
 import NaxtKassaCards, { KassaCard } from '@/components/tenant/NaxtKassaCards';
 
@@ -54,6 +56,11 @@ export default async function KassaPage() {
           <p className="t-page-sub">
             {isBranchScoped(user) ? 'Filialingiz' : `${branches.length} ta filial`} bo&apos;yicha naqd tushum va qoldiq
           </p>
+        </div>
+        <div className="t-page-actions">
+          <Link href="/app/sales/new" className="btn btn-primary btn-with-icon">
+            <Icon name="plus" size={18} /> Sotuv
+          </Link>
         </div>
       </div>
       <NaxtKassaCards total={total} cards={cards} />

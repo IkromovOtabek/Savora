@@ -60,24 +60,26 @@ export default async function KirimChiqimDetailPage({
   });
 
   const totals = aggregateFlowTotals(stockLines, soldLines);
-  const title = isAll ? 'JAMI (BARCHA FILIALLAR)' : branch!.name;
+  const title = isAll ? 'Barcha filiallar' : branch!.name;
 
   return (
     <>
-      <div className="dash-head">
+      <div className="t-page-head">
         <div>
           <div style={{ marginBottom: 8 }}>
-            <BackLink href="/app/kirim-chiqim" className="btn btn-ghost btn-sm">
-              Orqaga
+            <BackLink href="/app/kirim-chiqim" className="btn btn-plain btn-sm">
+              Kirim-chiqim
             </BackLink>
           </div>
-          <h1 className="dash-hello">{title}</h1>
-          <p className="dash-sub">Kirim-chiqim batafsil</p>
+          <h1 className="t-page-title">{title}</h1>
+          <p className="t-page-sub">Ombordagi va sotilgan mahsulotlar batafsil</p>
         </div>
         {!isAll && (
-          <Link href={`/app/products?branch=${branchId}&status=sold`} className="btn btn-ghost">
-            Omborda ko&apos;rish
-          </Link>
+          <div className="t-page-actions">
+            <Link href={`/app/products?branch=${branchId}&status=sold`} className="btn btn-ghost">
+              Omborda ko&apos;rish
+            </Link>
+          </div>
         )}
       </div>
 

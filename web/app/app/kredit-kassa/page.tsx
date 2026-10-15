@@ -43,10 +43,10 @@ export default async function CreditKassaPage() {
 
   return (
     <>
-      <div className="dash-head dash-head--simple">
+      <div className="t-page-head">
         <div>
-          <h1 className="dash-hello">Kredit kassa</h1>
-          <p className="dash-sub">Banklar bo&apos;yicha kredit sotuvlar</p>
+          <h1 className="t-page-title">Kredit kassa</h1>
+          <p className="t-page-sub">Banklar bo&apos;yicha bank krediti sotuvlar va qoldiq</p>
         </div>
       </div>
       <CreditKassaPanel

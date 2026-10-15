@@ -5,8 +5,10 @@ import { useRouter } from 'next/navigation';
 import { submitPaymentRequestAction } from '@/app/actions/payments';
 import { resolvePublicFileUrl } from '@/lib/fileUrl';
 import { toast } from '@/lib/toast';
+import { fmtDate } from '@/lib/format';
 import Icon from '@/components/icons/Icon';
 import PriceInput from '@/components/ui/PriceInput';
+import '@/components/tenant/styles/finance.css';
 
 interface OwnRequest {
   id: string;
@@ -92,7 +94,8 @@ export default function PaymentSubmit({ account, monthlyPrice, requests }: Props
           <>
             <div className="pay-account">
               <div className="cell-sub">Quyidagi hisobga o&apos;tkazing:</div>
-              <div className="pay-account-card">
+              <div className="fn-paycard" style={{ margin: '8px 0' }}>
+                <small>Karta raqami</small>
                 <strong>{account.paymentCardNumber}</strong>
                 {account.paymentCardHolder && <span>{account.paymentCardHolder}</span>}
               </div>
@@ -108,25 +111,26 @@ export default function PaymentSubmit({ account, monthlyPrice, requests }: Props
               <form onSubmit={submit} className="form-grid">
                 <div className="form-row">
                   <div className="auth-field">
-                    <label>Necha oyga? *</label>
+                    <label htmlFor="pay-months">Necha oyga? *</label>
                     <input
+                      id="pay-months"
                       type="number" min={1} max={24} value={months} disabled={busy}
                       onChange={(e) => setMonths(Math.min(24, Math.max(1, parseInt(e.target.value, 10) || 1)))}
                     />
                     <span className="field-hint">{monthlyPrice > 0 ? `${months} oy × ${fmtSum(monthlyPrice)}` : '1–24 oy'}</span>
                   </div>
                   <div className="auth-field">
-                    <label>To&apos;lov summasi *</label>
-                    <PriceInput key={months} name="amount" required defaultValue={amount} disabled={busy} />
+                    <label htmlFor="pay-amount">To&apos;lov summasi *</label>
+                    <PriceInput key={months} id="pay-amount" name="amount" required defaultValue={amount} disabled={busy} />
                   </div>
                 </div>
                 <div className="auth-field">
-                  <label>To&apos;lov sanasi *</label>
-                  <input name="paidAt" type="date" required disabled={busy} defaultValue={new Date().toISOString().slice(0, 10)} />
+                  <label htmlFor="pay-date">To&apos;lov sanasi *</label>
+                  <input id="pay-date" name="paidAt" type="date" required disabled={busy} defaultValue={new Date().toISOString().slice(0, 10)} />
                 </div>
                 <div className="auth-field">
-                  <label>Chek / screenshot *</label>
-                  <input type="file" accept="image/*" onChange={onFile} disabled={uploading || busy} />
+                  <label htmlFor="pay-receipt">Chek (rasm) *</label>
+                  <input id="pay-receipt" type="file" accept="image/*" onChange={onFile} disabled={uploading || busy} />
                   {uploading && <span className="field-hint">Yuklanmoqda...</span>}
                   {receiptUrl && (
                     <a href={receiptUrl} target="_blank" rel="noopener noreferrer" className="cell-link" style={{ fontSize: '.85rem' }}>
@@ -135,8 +139,8 @@ export default function PaymentSubmit({ account, monthlyPrice, requests }: Props
                   )}
                 </div>
                 <div className="auth-field">
-                  <label>Izoh (ixtiyoriy)</label>
-                  <input name="note" disabled={busy} />
+                  <label htmlFor="pay-note">Izoh (ixtiyoriy)</label>
+                  <input id="pay-note" name="note" disabled={busy} />
                 </div>
                 <button className="btn btn-primary" disabled={busy || uploading || !receiptUrl} style={{ alignSelf: 'flex-start' }}>
                   {busy ? 'Yuborilmoqda...' : 'To\'lovni yuborish'}
@@ -153,10 +157,10 @@ export default function PaymentSubmit({ account, monthlyPrice, requests }: Props
               <tbody>
                 {requests.map((r) => (
                   <tr key={r.id}>
-                    <td>{new Date(r.createdAt).toLocaleDateString('uz-UZ')}</td>
-                    <td>{fmtSum(r.amount)}</td>
-                    <td>{r.months}</td>
-                    <td>
+                    <td data-label="Sana">{fmtDate(r.createdAt)}</td>
+                    <td data-label="Summa">{fmtSum(r.amount)}</td>
+                    <td data-label="Oy">{r.months}</td>
+                    <td data-label="Holat">
                       <span className={`badge-status ${STATUS[r.status].cls}`}>{STATUS[r.status].label}</span>
                       {r.reviewNote ? <div className="cell-sub">{r.reviewNote}</div> : null}
                     </td>

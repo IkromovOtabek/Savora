@@ -1,34 +1,80 @@
 'use client';
 
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import Icon from '@/components/icons/Icon';
+import '@/components/tenant/styles/finance.css';
+
+/** YYYY-MM-DD ga `days` kun qo'shadi (UTC — server/client bir xil natija) */
+function shiftDay(date: string, days: number): string {
+  const d = new Date(`${date}T00:00:00Z`);
+  if (Number.isNaN(d.getTime())) return date;
+  d.setUTCDate(d.getUTCDate() + days);
+  return d.toISOString().slice(0, 10);
+}
 
 export default function KassaDateFilter({
   initialDate,
   basePath = '/app/kassa',
+  today,
 }: {
   initialDate: string;
   basePath?: string;
+  /** Server hisoblagan bugungi sana (YYYY-MM-DD) — "Bugun"/"Kecha" pillari uchun */
+  today?: string;
 }) {
   const router = useRouter();
+  const todayStr = today ?? initialDate;
+  const yesterday = shiftDay(todayStr, -1);
+  const prev = shiftDay(initialDate, -1);
+  const next = shiftDay(initialDate, 1);
+  const canNext = today ? next <= today : true;
+  const href = (d: string) => `${basePath}?date=${d}`;
 
   return (
-    <form
-      className="search-bar panel"
-      style={{ padding: '16px 20px', marginBottom: 20 }}
-      onSubmit={(e) => {
-        e.preventDefault();
-        const fd = new FormData(e.currentTarget);
-        const date = String(fd.get('date') || '');
-        router.push(`${basePath}?date=${date}`);
-      }}
-    >
-      <div className="imei-search-row">
-        <div className="auth-field" style={{ flex: 1, margin: 0, maxWidth: 260 }}>
-          <label htmlFor="date">Sana</label>
-          <input id="date" name="date" type="date" defaultValue={initialDate} required />
-        </div>
-        <button type="submit" className="btn btn-primary btn-sm">Ko&apos;rish</button>
+    <nav className="fn-datebar" aria-label="Sana tanlash">
+      <div className="fn-pills">
+        <Link href={href(prev)} className="fn-pill" aria-label="Oldingi kun">
+          <Icon name="chevron" size={18} className="fn-l" />
+        </Link>
+        <Link
+          href={href(yesterday)}
+          className={`fn-pill${initialDate === yesterday ? ' fn-pill--on' : ''}`}
+          aria-current={initialDate === yesterday ? 'date' : undefined}
+        >
+          Kecha
+        </Link>
+        <Link
+          href={href(todayStr)}
+          className={`fn-pill${initialDate === todayStr ? ' fn-pill--on' : ''}`}
+          aria-current={initialDate === todayStr ? 'date' : undefined}
+        >
+          Bugun
+        </Link>
+        {canNext ? (
+          <Link href={href(next)} className="fn-pill" aria-label="Keyingi kun">
+            <Icon name="chevron" size={18} className="fn-r" />
+          </Link>
+        ) : (
+          <span className="fn-pill" aria-hidden="true" style={{ opacity: 0.35 }}>
+            <Icon name="chevron" size={18} className="fn-r" />
+          </span>
+        )}
       </div>
-    </form>
+
+      <form
+        className="fn-date-form"
+        onSubmit={(e) => {
+          e.preventDefault();
+          const fd = new FormData(e.currentTarget);
+          const date = String(fd.get('date') || '');
+          router.push(`${basePath}?date=${date}`);
+        }}
+      >
+        <label htmlFor="date">Sana</label>
+        <input key={initialDate} id="date" name="date" type="date" defaultValue={initialDate} max={today} required />
+        <button type="submit" className="btn btn-tinted btn-sm">Ko&apos;rish</button>
+      </form>
+    </nav>
   );
 }
