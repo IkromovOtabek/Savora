@@ -9,9 +9,9 @@ export default function QuickSaleTrigger() {
 
   return (
     <>
-      <button type="button" className="quick-action quick-action--accent btn-with-icon" onClick={() => setOpen(true)}>
-        <Icon name="search" size={22} />
-        <span>Tez sotuv<small>Skaner (pistolet)</small></span>
+      <button type="button" className="t-qa t-qa--accent" onClick={() => setOpen(true)} aria-haspopup="dialog">
+        <span className="t-qa-ic"><Icon name="search" size={20} /></span>
+        <span className="t-qa-t">Tez sotuv<small>Skaner (pistolet)</small></span>
       </button>
       <QuickSaleModal open={open} onClose={() => setOpen(false)} />
     </>
