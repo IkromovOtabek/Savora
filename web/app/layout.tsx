@@ -1,8 +1,12 @@
 import type { Metadata, Viewport } from 'next';
+import { Onest } from 'next/font/google';
 import './globals.css';
 import Toaster from '@/components/ui/Toaster';
 import PWARegister from '@/components/PWARegister';
 import VisitTracker from '@/components/analytics/VisitTracker';
+
+// Onest — tizim shrifti (SF) bo'lmagan qurilmalar uchun zaxira (globals.css: --font-sans)
+const onest = Onest({ subsets: ['latin', 'cyrillic'], variable: '--font-onest', display: 'swap' });
 
 export const metadata: Metadata = {
   title: 'Savora — Do\'koningiz uchun zamonaviy savdo va nasiya tizimi',
@@ -23,7 +27,10 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: '#4F46E5',
+  themeColor: [
+    { media: '(prefers-color-scheme: light)', color: '#f2f4f9' },
+    { media: '(prefers-color-scheme: dark)', color: '#05080f' },
+  ],
   width: 'device-width',
   initialScale: 1,
   viewportFit: 'cover',
@@ -35,7 +42,7 @@ const themeScript = `
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="uz" suppressHydrationWarning>
+    <html lang="uz" className={onest.variable} suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
       </head>
