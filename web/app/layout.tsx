@@ -11,7 +11,7 @@ const onest = Onest({ subsets: ['latin', 'cyrillic'], variable: '--font-onest', 
 
 const SITE_TITLE = 'Savora — Do\'koningiz uchun zamonaviy savdo va nasiya tizimi';
 const SITE_DESCRIPTION =
-  'Savora — ombor, kassa, nasiya va shartnomani bitta joydan boshqaring. Qarzdorlarga avtomatik eslatma, filiallar, hisobotlar. Bepul sinab ko\'ring.';
+  'Savora — ombor, kassa va nasiyani bitta joydan boshqaring. Qarzdorlarga eslatma, filiallar, hisobotlar va AI tahlil. Bepul sinab ko\'ring.';
 
 export const metadata: Metadata = {
   // NEXT_PUBLIC_APP_URL — OG rasm, canonical va boshqa nisbiy URL'lar shu asosda to'liq bo'ladi
@@ -31,7 +31,6 @@ export const metadata: Metadata = {
     'do\'kon uchun dastur',
     'telefon do\'koni',
     'IMEI',
-    'shartnoma',
     'Savora',
   ],
   // './' — har sahifa o'z manziliga kanonik (Next metadataBase + joriy yo'l)

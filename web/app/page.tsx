@@ -17,6 +17,7 @@ import Faq from '@/components/landing/Faq';
 import { RotatingWord, HeroStage, CountUp } from '@/components/landing/HeroMotion';
 import ThemeToggle from '@/components/ThemeToggle';
 import BrandMark from '@/components/BrandMark';
+import SavoraJsonLd from '@/components/seo/JsonLd';
 import '@/components/landing/landing.css';
 
 const onest = Onest({ subsets: ['latin', 'cyrillic'], weight: ['400', '500', '600', '700', '800'], variable: '--font-onest', display: 'swap' });
@@ -131,6 +132,7 @@ export default async function LandingPage() {
 
   return (
     <div className={`lp ${onest.variable} ${unbounded.variable}`}>
+      <SavoraJsonLd />
       {/* NAV */}
       <header className="lp-nav">
         <div className="lp-wrap lp-nav-in">

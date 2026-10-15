@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 
 /** Hero'dagi almashinuvchi so'z — har 2.4 soniyada pastdan yuqoriga siljiydi */
-const WORDS = ['Nasiyani', 'Omborni', 'Kassani', 'Shartnomani', 'Filiallarni'];
+const WORDS = ['Nasiyani', 'Omborni', 'Kassani', 'Qarzlarni', 'Filiallarni'];
 
 export function RotatingWord() {
   const [i, setI] = useState(0);
@@ -15,7 +15,7 @@ export function RotatingWord() {
   return (
     <span className="lp-rot" aria-live="polite">
       {/* Eng uzun so'z kenglikni ushlab turadi — matn sakramaydi */}
-      <span className="lp-rot-sizer" aria-hidden="true">Shartnomani</span>
+      <span className="lp-rot-sizer" aria-hidden="true">Filiallarni</span>
       {WORDS.map((w, k) => (
         <span key={w} className={`lp-rot-word${k === i ? ' is-on' : ''}${k === (i + WORDS.length - 1) % WORDS.length ? ' is-out' : ''}`} aria-hidden={k !== i}>
           {w}
@@ -43,7 +43,7 @@ const KIND: Record<Feed['kind'], { t: string; cls: string }> = {
   bank: { t: 'Bank', cls: 'mut' },
 };
 const TOASTS = [
-  { t: 'Shartnoma №1048 imzolandi', s: 'SMS-kod orqali · 2 daqiqada', ic: 'sign' },
+  { t: 'AI tavsiya tayyor', s: '3 ta topshiriq · direktor uchun', ic: 'sign' },
   { t: 'Eslatma yuborildi', s: 'Umid X. · ertaga to\'lov kuni', ic: 'msg' },
   { t: 'To\'lov qabul qilindi', s: '+1 450 000 so\'m · Click', ic: 'ok' },
   { t: 'Kam qoldi: Zaryadka 20W', s: 'Omborda 3 dona', ic: 'box' },

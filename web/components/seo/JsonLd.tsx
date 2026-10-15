@@ -21,7 +21,7 @@ export function savoraJsonLd(base = siteUrl()) {
       url: base,
       image: `${base}/opengraph-image`,
       description:
-        "Savora — do'konlar uchun ombor, kassa, nasiya (muddatli to'lov) va shartnomani bitta joydan boshqarish tizimi. Qarzdorlarga avtomatik eslatma, filiallar va hisobotlar.",
+        "Savora — do'konlar uchun ombor, kassa va nasiyani (muddatli to'lov) bitta joydan boshqarish tizimi. Nasiya jadvali, qarzdorlarga eslatma, filiallar, hisobotlar va AI tahlil.",
       offers: {
         '@type': 'Offer',
         price: '0',
