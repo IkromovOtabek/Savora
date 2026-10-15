@@ -3,6 +3,7 @@ import { getSession } from '@/lib/session';
 import { getMasterModels } from '@/lib/masterDb';
 import { getTenantModels } from '@/lib/tenantDb';
 import { isFeatureEnabled } from '@/lib/features';
+import { loadUserPermissions } from '@/lib/permissionGuard';
 import { PAYMENT_TYPE_LABELS } from '@/lib/models/tenant/Sale';
 
 function csvEscape(v: string | number) {
@@ -22,6 +23,8 @@ export async function GET() {
   if (!org || !isFeatureEnabled(org, 'export')) {
     return NextResponse.json({ error: 'Export moduli faol emas' }, { status: 403 });
   }
+  const perms = await loadUserPermissions(user);
+  if (!perms.has('export.data')) return NextResponse.json({ error: 'Eksport huquqi yo\'q' }, { status: 403 });
 
   const { Sale } = await getTenantModels(user.dbName);
   const sales = await Sale.find().sort({ createdAt: -1 }).limit(5000).lean();

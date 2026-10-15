@@ -5,11 +5,13 @@ import { Types } from 'mongoose';
 import { getTenantSession } from '@/lib/tenantSession';
 import { generateTransferNo } from '@/lib/transfers';
 import { parseQtyField, resolveStatusAfterSale } from '@/lib/productQuantity';
+import { checkPermission } from '@/lib/permissionGuard';
 
 type State = { error?: string; success?: string } | null;
 
 export async function transferProductAction(_prev: State, formData: FormData): Promise<State> {
   const { user, Product, Branch, Transfer } = await getTenantSession();
+  { const denied = await checkPermission(user, 'transfer.create'); if (denied) return denied; }
 
   const productId = String(formData.get('productId') || '');
   const branchId = String(formData.get('branchId') || '');

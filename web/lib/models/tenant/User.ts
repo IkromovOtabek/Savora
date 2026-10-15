@@ -15,6 +15,8 @@ export interface IUser {
   /** Filial-login bo'lsa — tegishli filial _id */
   branchId?: Types.ObjectId;
   mustChangePassword?: boolean;
+  /** Huquqlar (lib/permissions.ts). undefined → rol standarti; admin doim hammasiga ega */
+  permissions?: string[];
   tokenVersion: number;
   active: boolean;
   createdAt?: Date;
@@ -30,6 +32,8 @@ export const userSchema = new Schema<IUser>(
     fullName: { type: String, trim: true },
     branchId: { type: Schema.Types.ObjectId, ref: 'Branch' },
     mustChangePassword: { type: Boolean, default: false },
+    // default: undefined — massiv bo'lmasa rol standarti amal qiladi (Mongoose [] qilib qo'ymasin)
+    permissions: { type: [String], default: undefined },
     tokenVersion: { type: Number, default: 0 },
     active: { type: Boolean, default: true },
   },

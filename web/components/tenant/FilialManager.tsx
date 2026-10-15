@@ -6,6 +6,9 @@ import { createFilialAction, updateFilialAction, deleteFilialAction } from '@/ap
 import { toast } from '@/lib/toast';
 import { fmtDateTime } from '@/lib/format';
 import Icon from '@/components/icons/Icon';
+import PermissionEditor from '@/components/tenant/PermissionEditor';
+import type { OrgFeatures } from '@/lib/featureKeys';
+import type { PermissionKey } from '@/lib/permissions';
 
 interface Row {
   id: string;
@@ -18,6 +21,9 @@ interface Row {
   branchId?: string;
   phone?: string;
   address?: string;
+  /** Amaldagi huquqlar va rol standartimi */
+  permissions: PermissionKey[];
+  permissionsDefault: boolean;
 }
 
 type ActResult = { error?: string; success?: string } | null;
@@ -26,13 +32,15 @@ export default function FilialManager({
   rows,
   maxFilial,
   activeBranchCount,
+  features,
 }: {
   rows: Row[];
   maxFilial: number;
   activeBranchCount: number;
+  features: OrgFeatures;
 }) {
   const router = useRouter();
-  const [modal, setModal] = useState<null | { type: 'create' } | { type: 'edit'; row: Row }>(null);
+  const [modal, setModal] = useState<null | { type: 'create' } | { type: 'edit'; row: Row } | { type: 'perms'; row: Row }>(null);
   const [busy, setBusy] = useState(false);
 
   async function run(action: (fd: FormData) => Promise<ActResult>, form: HTMLFormElement) {
@@ -82,6 +90,7 @@ export default function FilialManager({
                 <th>Login</th>
                 <th>Parol</th>
                 <th>Rol</th>
+                <th>Huquqlar</th>
                 <th>Yaratilgan</th>
                 <th style={{ textAlign: 'right' }}>Amallar</th>
               </tr>
@@ -105,9 +114,22 @@ export default function FilialManager({
                       {r.role === 'admin' ? 'Admin' : 'Filial'}
                     </span>
                   </td>
+                  <td className="u-perms">
+                    {r.role === 'admin'
+                      ? <span className="u-perm-chip">Hammasi</span>
+                      : <span className="u-perm-chip">{r.permissions.length} ta{r.permissionsDefault ? ' · standart' : ''}</span>}
+                  </td>
                   <td className="u-date">{fmtDateTime(r.createdAt)}</td>
                   <td>
                     <div className="u-actions">
+                      <button
+                        className="u-icon-btn"
+                        title="Huquqlar"
+                        disabled={r.role === 'admin'}
+                        onClick={() => setModal({ type: 'perms', row: r })}
+                      >
+                        <Icon name="key" size={16} />
+                      </button>
                       <button
                         className="u-icon-btn"
                         title="Tahrirlash"
@@ -157,6 +179,26 @@ export default function FilialManager({
                 <button type="submit" className="btn btn-primary btn-sm" disabled={busy}>{busy ? 'Saqlanmoqda...' : 'Yaratish'}</button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* ===== Modal: huquqlar ===== */}
+      {modal?.type === 'perms' && (
+        <div className="u-modal-overlay" onClick={() => !busy && setModal(null)}>
+          <div className="u-modal u-modal--wide" onClick={(e) => e.stopPropagation()}>
+            <div className="u-modal-head">
+              <h3>Huquqlar — {modal.row.name}</h3>
+              <button className="u-icon-btn" onClick={() => setModal(null)}><Icon name="close" size={18} /></button>
+            </div>
+            <PermissionEditor
+              userId={modal.row.id}
+              name={modal.row.name}
+              initial={modal.row.permissions}
+              isDefault={modal.row.permissionsDefault}
+              features={features}
+              onDone={() => setModal(null)}
+            />
           </div>
         </div>
       )}

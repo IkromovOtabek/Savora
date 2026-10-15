@@ -25,6 +25,8 @@ interface Props {
   mediaEnabled?: boolean;
   creditKassaEnabled?: boolean;
   creditBanks?: { id: string; name: string }[];
+  /** "product.viewCost" huquqi — yo'q bo'lsa tahrirda kelish narxi ko'rsatilmaydi (server mavjudini saqlaydi) */
+  canViewCost?: boolean;
   initial?: {
     id: string;
     name: string;
@@ -55,8 +57,11 @@ export default function ProductForm({
   mediaEnabled,
   creditKassaEnabled = false,
   creditBanks = [],
+  canViewCost = true,
   initial,
 }: Props) {
+  // Yangi mahsulotda kelish narxi kiritiladi (kirim hujjati), tahrirda esa huquqsiz yashiriladi
+  const showCost = canViewCost || mode === 'create';
   const action = mode === 'create' ? createProductAction : updateProductAction;
   const [state, formAction, isPending] = useActionState(action, null);
   useToastOnState(state);
@@ -140,10 +145,12 @@ export default function ProductForm({
           )}
 
           <div className="form-row">
-            <div className="auth-field">
-              <label htmlFor="purchasePrice">Kelish narxi *</label>
-              <PriceInput id="purchasePrice" name="purchasePrice" required defaultValue={initial?.purchasePrice} disabled={isPending} />
-            </div>
+            {showCost && (
+              <div className="auth-field">
+                <label htmlFor="purchasePrice">Kelish narxi *</label>
+                <PriceInput id="purchasePrice" name="purchasePrice" required defaultValue={initial?.purchasePrice} disabled={isPending} />
+              </div>
+            )}
             <div className="auth-field">
               <label htmlFor="salePrice">Sotuv narxi</label>
               <PriceInput id="salePrice" name="salePrice" defaultValue={initial?.salePrice} disabled={isPending} placeholder="Ixtiyoriy" />

@@ -3,6 +3,7 @@ import { branchFilter } from '@/lib/branchScope';
 import { isPhoneShop } from '@/lib/businessTypes';
 import { getStockQty } from '@/lib/productQuantity';
 import SaleForm from '@/components/tenant/SaleForm';
+import { requirePermission } from '@/lib/permissionGuard';
 
 export const metadata = { title: 'Yangi sotuv — Savora' };
 
@@ -11,6 +12,7 @@ export default async function NewSalePage({
 }: {
   searchParams: Promise<{ productId?: string; payment?: string }>;
 }) {
+  await requirePermission('sale.create');
   const sp = await searchParams;
   const { user, Product, Branch, CreditBank, org, features } = await getTenantSession();
   const phoneShop = isPhoneShop(org);

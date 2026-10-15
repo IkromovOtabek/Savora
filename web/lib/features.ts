@@ -1,5 +1,6 @@
 import { PlanTier } from './plans';
 import { isPhoneShop } from './businessTypes';
+import { presetFor } from './businessPresets';
 import {
   FEATURE_KEYS,
   type FeatureKey,
@@ -20,6 +21,8 @@ export interface FeatureModule {
   adminOnly?: boolean;
   category: 'savdo' | 'ombor' | 'boshqaruv' | 'hisobot';
   defaultByPlan: Record<PlanTier, boolean>;
+  /** Biznes preseti yoqa oladigan tariflar (bo'lmasa = defaultByPlan) */
+  allowedByPlan?: Record<PlanTier, boolean>;
 }
 
 const ALL_PLANS: Record<PlanTier, boolean> = {
@@ -145,8 +148,9 @@ export const TENANT_MODULES: Record<FeatureKey, FeatureModule> = {
     description: 'Shaxsiy qarz daftari — qarz oldi-berdi, muddat eslatmasi (SMS + Telegram)',
     route: '/app/daftar',
     category: 'boshqaruv',
-    // Faqat Super Admin yoqsa ishlaydi — barcha tarifda default OFF
+    // Standart OFF — Super Admin yoki biznes preseti (oziq-ovqat, qurilish, optom...) yoqadi
     defaultByPlan: { free: false, starter: false, pro: false, business: false, custom: false },
+    allowedByPlan: { free: false, starter: true, pro: true, business: true, custom: true },
   },
   nasiya: {
     key: 'nasiya',
@@ -175,8 +179,12 @@ export function getFeatureCategories(): { id: FeatureModule['category']; label: 
   return [...map.entries()].map(([id, keys]) => ({ id, label: CATEGORY_LABELS[id], keys }));
 }
 
+function planTierOf(tier: string): PlanTier {
+  return (['free', 'starter', 'pro', 'business', 'custom'].includes(tier) ? tier : 'pro') as PlanTier;
+}
+
 export function defaultFeaturesForPlan(tier: string): OrgFeatures {
-  const plan = (['free', 'starter', 'pro', 'business', 'custom'].includes(tier) ? tier : 'pro') as PlanTier;
+  const plan = planTierOf(tier);
   const features = {} as OrgFeatures;
   for (const key of FEATURE_KEYS) {
     features[key] = TENANT_MODULES[key].defaultByPlan[plan];
@@ -184,20 +192,75 @@ export function defaultFeaturesForPlan(tier: string): OrgFeatures {
   return features;
 }
 
+/** Tarif bu modulni biznes preseti orqali yoqishga ruxsat beradimi */
+export function planAllows(tier: string, key: FeatureKey): boolean {
+  const plan = planTierOf(tier);
+  const mod = TENANT_MODULES[key];
+  return (mod.allowedByPlan ?? mod.defaultByPlan)[plan];
+}
+
+/** Tarif standarti + biznes preseti (Super Admin override'larisiz) */
+export function baseOrgFeatures(org: Pick<OrgFeatureSource, 'plan' | 'businessType'>): OrgFeatures {
+  const base = defaultFeaturesForPlan(org.plan.tier);
+  const preset = presetFor(org.businessType);
+  for (const key of FEATURE_KEYS) {
+    const want = preset[key];
+    if (want === false) base[key] = false;
+    else if (want === true && planAllows(org.plan.tier, key)) base[key] = true;
+  }
+  return base;
+}
+
+/**
+ * Yakuniy modullar. Tartib: tarif standarti → biznes preseti → org.features (Super Admin).
+ * org.features — faqat aniq (boolean) qiymatlar ustun; qolganlari preset/tarifdan.
+ */
 export function resolveOrgFeatures(org: OrgFeatureSource): OrgFeatures {
-  const defaults = defaultFeaturesForPlan(org.plan.tier);
-  if (!org.features) return defaults;
-  const resolved = { ...defaults };
+  const resolved = baseOrgFeatures(org);
+  if (!org.features) return resolved;
   for (const key of FEATURE_KEYS) {
     if (typeof org.features[key] === 'boolean') resolved[key] = org.features[key]!;
   }
   return resolved;
 }
 
+export type FeatureSource = 'plan' | 'preset' | 'override';
+export type FeatureExplain = Record<FeatureKey, { enabled: boolean; source: FeatureSource; base: boolean }>;
+
+/** Har modul qiymati qayerdan kelgani — Super Admin UI indikatori uchun */
+export function explainOrgFeatures(org: OrgFeatureSource): FeatureExplain {
+  const planDefaults = defaultFeaturesForPlan(org.plan.tier);
+  const base = baseOrgFeatures(org);
+  const out = {} as FeatureExplain;
+  for (const key of FEATURE_KEYS) {
+    const ov = org.features?.[key];
+    if (typeof ov === 'boolean' && ov !== base[key]) {
+      out[key] = { enabled: ov, source: 'override', base: base[key] };
+    } else {
+      out[key] = { enabled: base[key], source: base[key] !== planDefaults[key] ? 'preset' : 'plan', base: base[key] };
+    }
+  }
+  return out;
+}
+
+/** To'liq qiymatlardan faqat bazadan (tarif + preset) FARQ qiladiganlarini qoldiradi */
+export function diffFeatureOverrides(
+  org: Pick<OrgFeatureSource, 'plan' | 'businessType'>,
+  wanted: OrgFeatures,
+): Partial<OrgFeatures> {
+  const base = baseOrgFeatures(org);
+  const out: Partial<OrgFeatures> = {};
+  for (const key of FEATURE_KEYS) {
+    if (wanted[key] !== base[key]) out[key] = wanted[key];
+  }
+  return out;
+}
+
 export function isFeatureEnabled(org: OrgFeatureSource, key: FeatureKey): boolean {
   return resolveOrgFeatures(org)[key];
 }
 
+/** IMEI rejimi — biznes turi (TERMS.hasImei) asosida */
 export function isImeiEnabled(org: Pick<OrgFeatureSource, 'businessType'>): boolean {
   return isPhoneShop(org);
 }

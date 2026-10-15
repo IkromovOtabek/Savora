@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { Types } from 'mongoose';
 import { verifyMobileToken } from '@/lib/mobileAuth';
+import { mobilePermissionDenied } from '@/lib/permissionGuard';
 import { getTenantModels } from '@/lib/tenantDb';
 import { generateTransferNo } from '@/lib/transfers';
 import { parseQtyField, resolveStatusAfterSale } from '@/lib/productQuantity';
@@ -9,6 +10,7 @@ import { parseQtyField, resolveStatusAfterSale } from '@/lib/productQuantity';
 export async function POST(req: Request) {
   const user = await verifyMobileToken(req);
   if (!user || !user.dbName) return NextResponse.json({ error: 'Avtorizatsiya kerak.' }, { status: 401 });
+  { const denied = await mobilePermissionDenied(user, 'transfer.create'); if (denied) return denied; }
 
   let body: { productId?: string; toBranchId?: string; qty?: number | string; notes?: string };
   try { body = await req.json(); } catch { return NextResponse.json({ error: 'Noto\'g\'ri so\'rov.' }, { status: 400 }); }

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { Types } from 'mongoose';
 import { verifyMobileToken } from '@/lib/mobileAuth';
+import { mobilePermissionDenied } from '@/lib/permissionGuard';
 import { getTenantModels } from '@/lib/tenantDb';
 import { branchFilter } from '@/lib/branchScope';
 import { calcSaleStatus } from '@/lib/sales';
@@ -49,6 +50,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const user = await verifyMobileToken(req);
   if (!user || !user.dbName) return NextResponse.json({ error: 'Avtorizatsiya kerak.' }, { status: 401 });
+  { const denied = await mobilePermissionDenied(user, 'payment.accept'); if (denied) return denied; }
   const { id } = await params;
   if (!Types.ObjectId.isValid(id)) return NextResponse.json({ error: 'Sotuv topilmadi.' }, { status: 404 });
 

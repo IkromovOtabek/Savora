@@ -9,6 +9,8 @@ import PlanLimitsBanner from '@/components/tenant/PlanLimitsBanner';
 import QuickSaleTrigger from '@/components/tenant/QuickSaleTrigger';
 import InstallmentAlert, { OverdueInstallment } from '@/components/tenant/InstallmentAlert';
 import { computeInstallmentPlan } from '@/lib/installment';
+import { loadUserPermissions } from '@/lib/permissionGuard';
+import { BUSINESS_TYPES, parseBusinessType } from '@/lib/businessTypes';
 
 export const metadata = { title: 'Boshqaruv — Savora' };
 
@@ -19,6 +21,9 @@ export default async function TenantDashboard({
 }) {
   const sp = await searchParams;
   const { user, org, features, Branch, Product, Sale, User } = await getTenantSession();
+
+  const perms = await loadUserPermissions(user);
+  const bizLabel = BUSINESS_TYPES[parseBusinessType(org.businessType ?? 'general')].label;
 
   const todayStart = new Date();
   todayStart.setHours(0, 0, 0, 0);
@@ -75,13 +80,15 @@ export default async function TenantDashboard({
 
       {sp?.welcome === '1' && (
         <div className="auth-alert auth-alert--info" style={{ marginBottom: 16 }}>
-          Do&apos;koningiz yaratildi! Siz admin sifatida tizimga kirdingiz — bepul tarifda ishlayapsiz.
+          Do&apos;koningiz yaratildi! Siz admin sifatida tizimga kirdingiz.
+          {' '}{org.plan?.isTrial ? 'Sinov muddati boshlandi.' : org.plan?.tier === 'free' ? 'Bepul tarifda ishlayapsiz.' : ''}
+          {' '}Modullar «{bizLabel}» yo&apos;nalishiga mos sozlandi.
         </div>
       )}
 
       <InstallmentAlert items={overdueInstallments} />
 
-      <OnboardingChecklist org={org} features={features} />
+      {user.role === 'admin' && <OnboardingChecklist org={org} features={features} />}
 
       {user.role === 'admin' && (
         <PlanLimitsBanner org={org} current={{ users: userCount, branches: branchCount, products: productCount }} />
@@ -94,14 +101,14 @@ export default async function TenantDashboard({
       )}
 
       <div className="quick-actions">
-        {features.sales && <QuickSaleTrigger />}
-        {features.products && (
+        {features.sales && perms.has('sale.create') && <QuickSaleTrigger />}
+        {features.products && perms.has('product.create') && (
           <Link href="/app/products/new" className="quick-action btn-with-icon">
             <Icon name="box" size={22} />
             <span>Mahsulot<small>Omborga qo&apos;shish</small></span>
           </Link>
         )}
-        {features.kassa && (
+        {features.kassa && perms.has('kassa.view') && (
           <Link href="/app/kassa" className="quick-action btn-with-icon">
             <Icon name="wallet" size={22} />
             <span>Kassa<small>Bugungi tushum</small></span>
@@ -136,7 +143,7 @@ export default async function TenantDashboard({
         {recentSales.length === 0 ? (
           <div className="panel-empty">
             <p>Hozircha sotuv yo&apos;q.</p>
-            {features.sales && <Link href="/app/sales/new" className="btn btn-primary">Sotuv qilish</Link>}
+            {features.sales && perms.has('sale.create') && <Link href="/app/sales/new" className="btn btn-primary">Sotuv qilish</Link>}
           </div>
         ) : (
           <div className="table-wrap">

@@ -9,10 +9,12 @@ import SearchParamToast from '@/components/ui/SearchParamToast';
 import { Suspense } from 'react';
 import BrandMark from '@/components/BrandMark';
 import { isOrganizationActive } from '@/lib/models/master/Organization';
+import { loadUserPermissions } from '@/lib/permissionGuard';
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const { user, org, features, Sale } = await getTenantSession({ allowExpired: true });
   const showImei = isImeiEnabled(org);
+  const permissions = [...(await loadUserPermissions(user))];
 
   // Sidebar badge'lar — faol qarzdor sotuvlar. Filial login faqat o'zinikini sanaydi.
   const scope = branchFilter(user);
@@ -59,7 +61,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           </Link>
         </div>
         <div className="tenant-side-nav">
-          <TenantNav isAdmin={user.role === 'admin'} features={features} showImei={showImei} badges={navBadges} />
+          <TenantNav isAdmin={user.role === 'admin'} features={features} showImei={showImei} permissions={permissions} badges={navBadges} />
         </div>
         <div className="tenant-side-foot">
           <LogoutButton iconOnly />
@@ -68,7 +70,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       <div className="tenant-body">
         <header className="tenant-top">
           <div className="tenant-top-left">
-            <TenantNav variant="mobile" isAdmin={user.role === 'admin'} features={features} showImei={showImei} badges={navBadges} />
+            <TenantNav variant="mobile" isAdmin={user.role === 'admin'} features={features} showImei={showImei} permissions={permissions} badges={navBadges} />
           </div>
           <div className="tenant-top-center">{org.name}</div>
           <div className="tenant-top-actions">
@@ -82,7 +84,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           {children}
         </main>
         {/* Pastki tab panel — faqat mobil (CSS bilan) */}
-        <TenantNav variant="tabbar" isAdmin={user.role === 'admin'} features={features} showImei={showImei} badges={navBadges} />
+        <TenantNav variant="tabbar" isAdmin={user.role === 'admin'} features={features} showImei={showImei} permissions={permissions} badges={navBadges} />
       </div>
     </div>
   );

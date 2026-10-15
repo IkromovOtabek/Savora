@@ -1,11 +1,13 @@
 import { NextResponse } from 'next/server';
 import { verifyMobileToken } from '@/lib/mobileAuth';
+import { mobilePermissionDenied } from '@/lib/permissionGuard';
 import { getTenantModels } from '@/lib/tenantDb';
 
 /** Kirim-chiqim ro'yxati + jami (kirim, chiqim, qoldiq). */
 export async function GET(req: Request) {
   const user = await verifyMobileToken(req);
   if (!user || !user.dbName) return NextResponse.json({ error: 'Avtorizatsiya kerak.' }, { status: 401 });
+  { const denied = await mobilePermissionDenied(user, 'kirimChiqim.manage'); if (denied) return denied; }
 
   const { CashFlow } = await getTenantModels(user.dbName);
   const [items, agg] = await Promise.all([
@@ -28,6 +30,7 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   const user = await verifyMobileToken(req);
   if (!user || !user.dbName) return NextResponse.json({ error: 'Avtorizatsiya kerak.' }, { status: 401 });
+  { const denied = await mobilePermissionDenied(user, 'kirimChiqim.manage'); if (denied) return denied; }
 
   let body: { type?: string; amount?: number; description?: string };
   try { body = await req.json(); } catch { return NextResponse.json({ error: 'Noto\'g\'ri so\'rov.' }, { status: 400 }); }

@@ -21,12 +21,16 @@ interface Props {
   /** Nasiya (variant/nasiya) va Kredit (creditKassa) modullari yoqilganmi */
   canInstallment?: boolean;
   canCredit?: boolean;
+  /** Huquqlar: sotish ("sale.create") va filialga berish ("transfer.create") */
+  canSell?: boolean;
+  canTransfer?: boolean;
 }
 
 type View = 'menu' | 'sellType' | 'sellQty' | 'branches' | 'branchQty';
 
 export default function ProductRowActions({
   productId, status, branches, currentBranchId, trackQuantity = false, available = 1, salePrice = 0, canInstallment = false, canCredit = false,
+  canSell = true, canTransfer = true,
 }: Props) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -148,14 +152,19 @@ export default function ProductRowActions({
 
               {view === 'menu' && (
                 <>
-                  <button type="button" className="row-action-item" disabled={busy}
-                    onClick={() => setView('sellType')}>
-                    <Icon name="cart" size={15} /> Sotildi
-                  </button>
-                  <button type="button" className="row-action-item" disabled={busy}
-                    onClick={() => setView('branches')}>
-                    <Icon name="repeat" size={15} /> Boshqa filialga berildi
-                  </button>
+                  {canSell && (
+                    <button type="button" className="row-action-item" disabled={busy}
+                      onClick={() => setView('sellType')}>
+                      <Icon name="cart" size={15} /> Sotildi
+                    </button>
+                  )}
+                  {canTransfer && (
+                    <button type="button" className="row-action-item" disabled={busy}
+                      onClick={() => setView('branches')}>
+                      <Icon name="repeat" size={15} /> Boshqa filialga berildi
+                    </button>
+                  )}
+                  {!canSell && !canTransfer && <div className="row-action-err">Huquq berilmagan</div>}
                 </>
               )}
 

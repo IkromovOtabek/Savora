@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { Types } from 'mongoose';
 import { verifyMobileToken } from '@/lib/mobileAuth';
+import { mobilePermissionDenied } from '@/lib/permissionGuard';
 import { getTenantModels } from '@/lib/tenantDb';
 import { branchFilter } from '@/lib/branchScope';
 import { getMobileFeatures } from '@/lib/mobileOrg';
@@ -66,6 +67,7 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   const user = await verifyMobileToken(req);
   if (!user || !user.dbName) return NextResponse.json({ error: 'Avtorizatsiya kerak.' }, { status: 401 });
+  { const denied = await mobilePermissionDenied(user, 'sale.create'); if (denied) return denied; }
 
   const features = await getMobileFeatures(user.organizationId);
   if (!features) return NextResponse.json({ error: 'Do\'kon topilmadi.' }, { status: 404 });

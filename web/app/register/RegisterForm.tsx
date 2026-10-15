@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useActionState, useEffect, useState } from 'react';
 import { registerAction } from '@/app/actions/register';
 import { normalizeSlug } from '@/lib/slug';
-import { BUSINESS_TYPES } from '@/lib/businessTypes';
+import { BUSINESS_TYPES, type BusinessType } from '@/lib/businessTypes';
 import { fmtPlanPrice, type PlanPreset } from '@/lib/plans';
 import PasswordField from '@/components/auth/PasswordField';
 import Icon from '@/components/icons/Icon';
@@ -20,6 +20,7 @@ export default function RegisterForm({ plans }: { plans: PlanPreset[] }) {
   const [step, setStep] = useState<1 | 2>(1);
   const [stepError, setStepError] = useState<string | null>(null);
   const [plan, setPlan] = useState<string>('pro');
+  const [bizType, setBizType] = useState<BusinessType>('general');
   const [visitorId, setVisitorId] = useState('');
   const [visitSessionId, setVisitSessionId] = useState('');
 
@@ -112,12 +113,28 @@ export default function RegisterForm({ plans }: { plans: PlanPreset[] }) {
             </div>
 
             <div className="auth-field">
-              <label htmlFor="businessType">Biznes yo&apos;nalishi *</label>
-              <select id="businessType" name="businessType" disabled={isPending} defaultValue="general">
-                {Object.entries(BUSINESS_TYPES).map(([key, val]) => (
-                  <option key={key} value={key}>{val.label} — {val.description}</option>
-                ))}
-              </select>
+              <label>Biznes yo&apos;nalishi *</label>
+              <div className="biz-pick-grid" role="radiogroup" aria-label="Biznes yo'nalishi">
+                {(Object.entries(BUSINESS_TYPES) as [BusinessType, (typeof BUSINESS_TYPES)[BusinessType]][]).map(([key, val]) => {
+                  const on = bizType === key;
+                  return (
+                    <label key={key} className={`biz-pick${on ? ' biz-pick--on' : ''}`}>
+                      <input
+                        type="radio"
+                        name="businessType"
+                        value={key}
+                        checked={on}
+                        onChange={() => setBizType(key)}
+                        disabled={isPending}
+                      />
+                      <span className="biz-pick-icon"><Icon name={val.icon} size={18} /></span>
+                      <strong>{val.label}</strong>
+                      <small>{val.description}</small>
+                    </label>
+                  );
+                })}
+              </div>
+              <span className="field-hint">Menyu va modullar tanlangan yo&apos;nalishga moslab sozlanadi (keyin o&apos;zgartirish mumkin).</span>
             </div>
 
             <div className="form-row">
@@ -188,8 +205,8 @@ export default function RegisterForm({ plans }: { plans: PlanPreset[] }) {
 
             <p className="field-hint" style={{ marginTop: 12 }}>
               {plan === 'free'
-                ? 'Bepul tarif — doimiy bepul, cheklovlar bilan. Modullar tarifga qarab avtomatik yoqiladi.'
-                : '14 kun bepul sinov. Sinovdan keyin tarif to\'lovi orqali davom etadi. Modullar tarifga qarab avtomatik yoqiladi.'}
+                ? `Bepul tarif — doimiy bepul, cheklovlar bilan. Modullar tarif va «${BUSINESS_TYPES[bizType].label}» yo'nalishiga qarab avtomatik yoqiladi.`
+                : `14 kun bepul sinov. Sinovdan keyin tarif to'lovi orqali davom etadi. Modullar tarif va «${BUSINESS_TYPES[bizType].label}» yo'nalishiga qarab avtomatik yoqiladi.`}
             </p>
 
             <div className="form-row" style={{ marginTop: 8 }}>

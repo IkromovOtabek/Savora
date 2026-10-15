@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { FeatureKey, OrgFeatures } from '@/lib/features';
 import Icon, { IconName } from '@/components/icons/Icon';
+import type { PermissionKey } from '@/lib/permissions';
 
 const NAV_ICONS: Record<string, IconName> = {
   '/app': 'home',
@@ -27,22 +28,23 @@ const NAV_ICONS: Record<string, IconName> = {
   '/app/nasiya': 'clock',
 };
 
-const LINKS: { href: string; label: string; feature?: FeatureKey; adminOnly?: boolean; branchOnly?: boolean; imeiOnly?: boolean; exact?: boolean }[] = [
+// feature — modul o'chiq bo'lsa yashiriladi; permission — xodimda huquq bo'lmasa yashiriladi
+const LINKS: { href: string; label: string; feature?: FeatureKey; permission?: PermissionKey; adminOnly?: boolean; branchOnly?: boolean; imeiOnly?: boolean; exact?: boolean }[] = [
   { href: '/app', label: 'Asosiy Sahifa', exact: true, branchOnly: true },
   { href: '/app/products', label: 'Ombor', feature: 'products' },
   { href: '/app/sales', label: 'Sotildi', feature: 'sales' },
   { href: '/app/transferred', label: 'Filialga berildi', feature: 'transferred' },
-  { href: '/app/kassa', label: 'Naxt kassa', feature: 'kassa' },
-  { href: '/app/kirim-chiqim', label: 'Kirim-Chiqim', feature: 'kirimChiqim', adminOnly: true },
+  { href: '/app/kassa', label: 'Naxt kassa', feature: 'kassa', permission: 'kassa.view' },
+  { href: '/app/kirim-chiqim', label: 'Kirim-Chiqim', feature: 'kirimChiqim', permission: 'kirimChiqim.manage', adminOnly: true },
   { href: '/app/kredit-kassa', label: 'Kredit kassa', feature: 'creditKassa', adminOnly: true },
   { href: '/app/inventory', label: 'Inventar', feature: 'inventory' },
-  { href: '/app/imei', label: 'IMEI qidirish', imeiOnly: true },
-  { href: '/app/monitoring', label: 'Hisobot', feature: 'monitoring' },
-  { href: '/app/users', label: 'Filiallar', feature: 'users', adminOnly: true },
-  { href: '/app/audit', label: 'Amallar', feature: 'audit', adminOnly: true },
+  { href: '/app/imei', label: 'IMEI qidirish', imeiOnly: true, adminOnly: true },
+  { href: '/app/monitoring', label: 'Hisobot', feature: 'monitoring', permission: 'reports.view' },
+  { href: '/app/users', label: 'Filiallar', feature: 'users', permission: 'users.manage', adminOnly: true },
+  { href: '/app/audit', label: 'Amallar', feature: 'audit', permission: 'audit.view', adminOnly: true },
   { href: '/app/debts', label: 'Qarzdorlik', feature: 'sales' },
   { href: '/app/nasiya', label: 'Nasiya', feature: 'nasiya' },
-  { href: '/app/daftar', label: 'Daftar', feature: 'daftar' },
+  { href: '/app/daftar', label: 'Daftar', feature: 'daftar', permission: 'daftar.manage' },
   { href: '/app/profile', label: 'Kabinet' },
 ];
 
@@ -94,12 +96,15 @@ export default function TenantNav({
   isAdmin,
   features,
   showImei,
+  permissions,
   badges,
   variant = 'sidebar',
 }: {
   isAdmin: boolean;
   features: OrgFeatures;
   showImei: boolean;
+  /** Joriy foydalanuvchi huquqlari (server'da hisoblanadi). Berilmasa — tekshirilmaydi */
+  permissions?: readonly PermissionKey[];
   /** Havola oldida ko'rsatiladigan qizil son (masalan Qarzdorlik soni). href -> son */
   badges?: Record<string, number>;
   /** 'sidebar' — desktop ro'yxat; 'mobile' — header burger + drawer; 'tabbar' — pastki tab panel */
@@ -122,6 +127,7 @@ export default function TenantNav({
     if (l.adminOnly && !isAdmin) return false;
     if (l.branchOnly && isAdmin) return false;
     if (l.feature && !features[l.feature]) return false;
+    if (l.permission && permissions && !permissions.includes(l.permission)) return false;
     if (l.imeiOnly && (!showImei || !features.products)) return false;
     return true;
   });

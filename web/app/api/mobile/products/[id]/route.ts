@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { Types } from 'mongoose';
 import { verifyMobileToken } from '@/lib/mobileAuth';
+import { userCan } from '@/lib/permissionGuard';
 import { getTenantModels } from '@/lib/tenantDb';
 import { branchFilter } from '@/lib/branchScope';
 
@@ -16,6 +17,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
   }
 
   const { Product, Branch } = await getTenantModels(user.dbName);
+  const canViewCost = await userCan(user, 'product.viewCost');
   const p = await Product.findOne({ _id: id, ...branchFilter(user) }).lean();
   if (!p) return NextResponse.json({ error: 'Mahsulot topilmadi.' }, { status: 404 });
 
@@ -32,9 +34,10 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
     imei: p.imei,
     barcode: p.barcode ?? null,
     color: p.color ?? null,
-    purchasePrice: p.purchasePrice,
+    purchasePrice: canViewCost ? p.purchasePrice : 0,
     salePrice: p.salePrice,
-    profit: Math.max(0, (p.salePrice ?? 0) - (p.purchasePrice ?? 0)),
+    profit: canViewCost ? Math.max(0, (p.salePrice ?? 0) - (p.purchasePrice ?? 0)) : 0,
+    costHidden: !canViewCost,
     status: p.status,
     trackQuantity: p.trackQuantity ?? false,
     quantity: p.quantity ?? 1,
