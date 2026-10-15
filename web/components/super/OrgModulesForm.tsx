@@ -4,6 +4,7 @@ import { useActionState } from 'react';
 import { applyBusinessPresetAction, updateOrgFeaturesAction } from '@/app/actions/orgFeatures';
 import { getFeatureCategories, TENANT_MODULES, type FeatureExplain, type FeatureSource } from '@/lib/features';
 import { BUSINESS_TYPES } from '@/lib/businessTypes';
+import { Alert, Pill, type PillTone } from './ui';
 
 interface Props {
   orgId: string;
@@ -19,6 +20,12 @@ const SOURCE_LABEL: Record<FeatureSource, string> = {
   override: "Qo'lda",
 };
 
+const SOURCE_TONE: Record<FeatureSource, PillTone> = {
+  plan: 'mut',
+  preset: 'br',
+  override: 'gold',
+};
+
 export default function OrgModulesForm({ orgId, explain, businessType = 'general', planLabel }: Props) {
   const [state, formAction, isPending] = useActionState(updateOrgFeaturesAction, null);
   const [presetState, presetAction, presetPending] = useActionState(applyBusinessPresetAction, null);
@@ -29,65 +36,70 @@ export default function OrgModulesForm({ orgId, explain, businessType = 'general
 
   return (
     <>
-      {msg?.error && <div className="auth-alert auth-alert--error" style={{ margin: '16px 24px 0' }}>{msg.error}</div>}
-      {msg?.success && <div className="auth-alert auth-alert--info" style={{ margin: '16px 24px 0' }}>{msg.success}</div>}
+      {msg?.error && <Alert tone="error">{msg.error}</Alert>}
+      {msg?.success && <Alert tone="ok">{msg.success}</Alert>}
 
       {/* Biznes turi → preset. Override'lar tozalanadi, modullar tarif + preset bo'yicha */}
-      <form action={presetAction} className="preset-bar">
+      <form action={presetAction} className="sa-section">
         <input type="hidden" name="orgId" value={orgId} />
-        <div className="auth-field">
-          <label htmlFor="presetBusinessType">Biznes turi</label>
-          <select id="presetBusinessType" name="businessType" defaultValue={businessType} disabled={busy} key={businessType}>
-            {Object.entries(BUSINESS_TYPES).map(([key, val]) => (
-              <option key={key} value={key}>{val.label}</option>
-            ))}
-          </select>
+        <div className="sa-preset">
+          <div className="sa-field">
+            <label htmlFor="presetBusinessType">Biznes turi</label>
+            <select id="presetBusinessType" name="businessType" defaultValue={businessType} disabled={busy} key={businessType}>
+              {Object.entries(BUSINESS_TYPES).map(([key, val]) => (
+                <option key={key} value={key}>{val.label}</option>
+              ))}
+            </select>
+          </div>
+          <button
+            type="submit"
+            className="sa-btn sa-btn--tinted"
+            disabled={busy}
+            onClick={(e) => {
+              if (overrideCount > 0 && !confirm(`${overrideCount} ta qo'lda o'zgartirilgan modul tozalanadi. Davom etasizmi?`)) e.preventDefault();
+            }}
+          >
+            {presetPending ? 'Qo\'llanmoqda…' : 'Biznes turiga moslab qo\'llash'}
+          </button>
         </div>
-        <button
-          type="submit"
-          className="btn btn-ghost"
-          disabled={busy}
-          onClick={(e) => {
-            if (overrideCount > 0 && !confirm(`${overrideCount} ta qo'lda o'zgartirilgan modul tozalanadi. Davom etasizmi?`)) e.preventDefault();
-          }}
-        >
-          {presetPending ? 'Qo\'llanmoqda...' : 'Biznes turiga mos funksiyalarni qo\'llash'}
-        </button>
+        <div className="sa-gfoot" style={{ padding: 0 }}>Qo&apos;lda qilingan o&apos;zgarishlar tozalanadi, modullar tarif va biznes turi bo&apos;yicha qayta yoqiladi.</div>
       </form>
 
-      <div className="feat-legend">
-        <span><span className="feat-src feat-src--plan">Tarif</span> {planLabel} standarti</span>
-        <span><span className="feat-src feat-src--preset">Preset</span> biznes turi bo&apos;yicha</span>
-        <span><span className="feat-src feat-src--override">Qo&apos;lda</span> Super Admin o&apos;zgartirgan ({overrideCount})</span>
+      <div className="sa-legend" aria-label="Manba belgilari">
+        <span><Pill tone={SOURCE_TONE.plan}>Tarif</Pill> {planLabel} standarti</span>
+        <span><Pill tone={SOURCE_TONE.preset}>Preset</Pill> biznes turi bo&apos;yicha</span>
+        <span><Pill tone={SOURCE_TONE.override}>Qo&apos;lda</Pill> Super Admin o&apos;zgartirgan ({overrideCount})</span>
       </div>
 
-      <form action={formAction} className="form-grid" style={{ padding: '20px 24px' }}>
+      <form action={formAction} className="sa-form">
         <input type="hidden" name="orgId" value={orgId} />
 
         {categories.map((cat) => (
-          <div key={cat.id} className="module-group">
-            <h3 className="module-group-title">{cat.label}</h3>
-            <div className="module-grid">
+          <div key={cat.id} className="sa-section">
+            <div className="sa-ghead">{cat.label}</div>
+            <div className="sa-group" style={{ background: 'var(--bg-soft)' }}>
               {cat.keys.map((key) => {
                 const mod = TENANT_MODULES[key];
                 const ex = explain[key];
+                const inputId = `feature-${orgId}-${key}`;
                 return (
-                  <label key={`${key}-${ex.enabled}-${ex.source}`} className="module-check">
+                  <label key={`${key}-${ex.enabled}-${ex.source}`} className="sa-cell" htmlFor={inputId}>
+                    <span className="sa-cell-t">
+                      <b>{mod.label}</b>
+                      <small className="sa-wrap">{mod.description}</small>
+                    </span>
+                    <span title={ex.source === 'override' ? `Standart: ${ex.base ? 'yoqiq' : 'o\'chiq'}` : undefined}>
+                      <Pill tone={SOURCE_TONE[ex.source]}>{SOURCE_LABEL[ex.source]}</Pill>
+                    </span>
                     <input
+                      id={inputId}
                       type="checkbox"
+                      role="switch"
+                      className="sa-switch"
                       name={`feature_${key}`}
                       defaultChecked={ex.enabled}
                       disabled={busy}
                     />
-                    <span>
-                      <strong>
-                        {mod.label}
-                        <span className={`feat-src feat-src--${ex.source}`} title={ex.source === 'override' ? `Standart: ${ex.base ? 'yoqiq' : 'o\'chiq'}` : undefined}>
-                          {SOURCE_LABEL[ex.source]}
-                        </span>
-                      </strong>
-                      <small>{mod.description}</small>
-                    </span>
                   </label>
                 );
               })}
@@ -95,9 +107,11 @@ export default function OrgModulesForm({ orgId, explain, businessType = 'general
           </div>
         ))}
 
-        <button type="submit" className="btn btn-primary" disabled={busy}>
-          {isPending ? 'Saqlanmoqda...' : 'Modullarni saqlash'}
-        </button>
+        <div className="sa-form-actions">
+          <button type="submit" className="sa-btn sa-btn--filled" disabled={busy}>
+            {isPending ? 'Saqlanmoqda…' : 'Modullarni saqlash'}
+          </button>
+        </div>
       </form>
     </>
   );

@@ -6,8 +6,9 @@ import { isOrganizationActive, isTrialActive, daysUntilExpiry } from '@/lib/mode
 import { BUSINESS_TYPES } from '@/lib/businessTypes';
 import { resolveOrgPlan, fmtPlanPrice, PLAN_PRESETS } from '@/lib/plans';
 import Icon from '@/components/icons/Icon';
+import { Avatar, Chevron, Kpi, OrgStatusPill, PageTitle, Pill } from '@/components/super/ui';
 
-export const metadata = { title: 'Super Admin — Savora' };
+export const metadata = { title: "Do'konlar — Super Admin" };
 
 function fmtDate(d: Date) {
   return new Date(d).toLocaleDateString('uz-UZ', { day: '2-digit', month: '2-digit', year: 'numeric' });
@@ -44,98 +45,63 @@ export default async function SuperDashboard() {
 
   return (
     <>
-      <div className="super-page-head">
-        <div>
-          <h1>Platforma boshqaruvi</h1>
-          <p>Client bizneslar va tizim funksiyalari — bir joyda</p>
-        </div>
-        <Link href="/super/organizations/new" className="btn btn-primary">
-          <Icon name="plus" size={18} />
-          Yangi biznes
-        </Link>
-      </div>
+      <PageTitle title="Do'konlar" sub="Mijoz bizneslar, ularning tarifi va obuna holati — bir joyda" />
 
-      <div className="super-stats">
-        <div className="super-stat super-stat--brand">
-          <Icon name="wallet" size={22} className="super-stat-icon" />
-          <strong>{fmtSum(mrr)}</strong><span>MRR (oylik daromad, so&apos;m)</span>
-        </div>
-        <div className="super-stat super-stat--ok">
-          <Icon name="store" size={22} className="super-stat-icon" />
-          <strong>{activeCount}</strong><span>Faol biznes</span>
-        </div>
-        <div className="super-stat">
-          <Icon name="building" size={22} className="super-stat-icon" />
-          <strong>{orgs.length}</strong>
-          <span>Jami biznes</span>
-          <em className="super-stat-hint">+{newThisMonth} shu oyda</em>
-        </div>
-        <div className="super-stat super-stat--brand">
-          <Icon name="bell" size={22} className="super-stat-icon" />
-          <strong>{trialCount}</strong><span>Sinovda</span>
-        </div>
-        <div className="super-stat super-stat--warn">
-          <Icon name="bell" size={22} className="super-stat-icon" />
-          <strong>{expiringSoon.length}</strong><span>7 kunda tugaydi</span>
-        </div>
-        <div className="super-stat super-stat--danger">
-          <Icon name="store" size={22} className="super-stat-icon" />
-          <strong>{expiredCount}</strong><span>Muddati tugagan</span>
-        </div>
+      <div className="sa-kpis sa-kpis--6">
+        <Kpi hero label="MRR" value={fmtSum(mrr)} unit="so'm" icon="wallet" delta="Oylik takroriy daromad" />
+        <Kpi label="Faol" value={activeCount} icon="store" tone="o" />
+        <Kpi label="Jami" value={orgs.length} icon="building" tone="b" delta={`+${newThisMonth} shu oyda`} deltaTone={newThisMonth > 0 ? 'ok' : undefined} />
+        <Kpi label="Sinovda" value={trialCount} icon="clock" tone="c" />
+        <Kpi label="7 kunda tugaydi" value={expiringSoon.length} icon="bell" tone="a" />
+        <Kpi label="Muddati tugagan" value={expiredCount} icon="alert" tone="r" />
       </div>
 
       {expiringSoon.length > 0 && (
-        <div className="panel" style={{ marginBottom: 24 }}>
-          <div className="panel-head"><h2>Tez orada tugaydi (7 kun)</h2></div>
-          <div className="table-wrap">
-            <table className="data-table">
-              <thead>
-                <tr><th>Biznes</th><th>Qolgan</th><th>Sana</th><th>To&apos;lov/oy</th><th></th></tr>
-              </thead>
-              <tbody>
-                {expiringSoon.map(({ org, days }) => (
-                  <tr key={String(org._id)}>
-                    <td>
-                      <div className="cell-main">{org.name}{org.plan?.isTrial ? ' · sinov' : ''}</div>
-                      <div className="cell-sub">{org.slug}</div>
-                    </td>
-                    <td>
-                      <span className={`badge-status badge-status--${days <= 2 ? 'expired' : 'suspended'}`}>
-                        {days === 0 ? 'Bugun' : `${days} kun`}
-                      </span>
-                    </td>
-                    <td>{fmtDate(org.expiresAt)}</td>
-                    <td>{fmtPlanPrice(resolveOrgPlan(org).monthlyPayment)}</td>
-                    <td className="cell-actions">
-                      <Link href={`/super/organizations/${org._id}`} className="btn btn-primary btn-sm">Uzaytirish</Link>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+        <section className="sa-section">
+          <div className="sa-ghead">Tez orada tugaydi · 7 kun</div>
+          <div className="sa-group">
+            {expiringSoon.map(({ org, days }) => (
+              <Link key={String(org._id)} href={`/super/organizations/${org._id}`} className="sa-cell sa-cell--av">
+                <Avatar name={org.name} />
+                <span className="sa-cell-t">
+                  <b>{org.name}{org.plan?.isTrial ? ' · sinov' : ''}</b>
+                  <small>{org.slug} · {fmtDate(org.expiresAt)} · {fmtPlanPrice(resolveOrgPlan(org).monthlyPayment)}/oy</small>
+                </span>
+                <Pill tone={days <= 2 ? 'bad' : 'warn'}>{days === 0 ? 'Bugun' : `${days} kun`}</Pill>
+                <Chevron />
+              </Link>
+            ))}
           </div>
-        </div>
+          <div className="sa-gfoot">Do&apos;kon sahifasida muddatni uzaytiring.</div>
+        </section>
       )}
 
-      <div className="panel">
-        <div className="panel-head"><h2>Bizneslar</h2></div>
+      <section className="sa-card">
+        <div className="sa-card-h">
+          <div>
+            <h2>Barcha do&apos;konlar</h2>
+            <p>{orgs.length} ta biznes</p>
+          </div>
+        </div>
         {orgs.length === 0 ? (
-          <div className="panel-empty">
-            <p>Hozircha biznes yo&apos;q.</p>
-            <Link href="/super/organizations/new" className="btn btn-primary">Birinchi biznesni yaratish</Link>
+          <div className="sa-empty">
+            <p>Hozircha do&apos;kon yo&apos;q.</p>
+            <Link href="/super/organizations/new" className="sa-btn sa-btn--filled">
+              <Icon name="plus" size={16} /> Birinchi do&apos;konni yaratish
+            </Link>
           </div>
         ) : (
-          <div className="table-wrap">
-            <table className="data-table">
+          <div className="sa-table-wrap">
+            <table className="sa-table">
               <thead>
                 <tr>
-                  <th>Biznes</th>
+                  <th>Do&apos;kon</th>
                   <th>Turi</th>
                   <th>Tarif</th>
-                  <th>To&apos;lov/oy</th>
+                  <th className="sa-td-r">To&apos;lov/oy</th>
                   <th>Holat</th>
                   <th>Muddat</th>
-                  <th></th>
+                  <th aria-label="Amallar" />
                 </tr>
               </thead>
               <tbody>
@@ -147,16 +113,16 @@ export default async function SuperDashboard() {
                   return (
                     <tr key={String(org._id)}>
                       <td>
-                        <div className="cell-main">{org.name}</div>
-                        <div className="cell-sub">{org.slug}{org.ownerName ? ` · ${org.ownerName}` : ''}</div>
+                        <Link href={`/super/organizations/${org._id}`} className="sa-td-main">{org.name}</Link>
+                        <span className="sa-td-sub">{org.slug}{org.ownerName ? ` · ${org.ownerName}` : ''}</span>
                       </td>
                       <td>{typeLabel}</td>
-                      <td>{plan}</td>
-                      <td>{fmtPlanPrice(planInfo.monthlyPayment)}</td>
-                      <td><span className={`badge-status badge-status--${st.key}`}>{st.label}</span></td>
+                      <td>{plan}{org.plan?.isTrial ? <> <Pill tone="br">sinov</Pill></> : null}</td>
+                      <td className="sa-td-r">{fmtPlanPrice(planInfo.monthlyPayment)}</td>
+                      <td><OrgStatusPill status={st} /></td>
                       <td>{fmtDate(org.expiresAt)}</td>
-                      <td className="cell-actions">
-                        <Link href={`/super/organizations/${org._id}`} className="btn btn-primary btn-sm">Boshqarish</Link>
+                      <td className="sa-td-r">
+                        <Link href={`/super/organizations/${org._id}`} className="sa-btn sa-btn--tinted sa-btn--sm">Boshqarish</Link>
                       </td>
                     </tr>
                   );
@@ -165,7 +131,7 @@ export default async function SuperDashboard() {
             </table>
           </div>
         )}
-      </div>
+      </section>
     </>
   );
 }

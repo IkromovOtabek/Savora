@@ -3,6 +3,7 @@
 import { useTransition } from 'react';
 import { logoutAction } from '@/app/actions/auth';
 import Icon from '@/components/icons/Icon';
+import '@/components/auth/auth.css';
 
 export default function LogoutButton({ className = 'btn-ghost', iconOnly = false }: { className?: string; iconOnly?: boolean }) {
   const [isPending, start] = useTransition();
@@ -10,20 +11,20 @@ export default function LogoutButton({ className = 'btn-ghost', iconOnly = false
     return (
       <button
         type="button"
-        className="logout-icon-btn"
+        className="logout-icon-btn au-round"
         disabled={isPending}
         onClick={() => start(() => logoutAction())}
         title="Chiqish"
         aria-label="Chiqish"
       >
-        <Icon name="logout" size={20} />
+        <Icon name="logout" size={17} />
       </button>
     );
   }
   return (
     <button type="button" className={`btn btn-with-icon ${className}`} disabled={isPending} onClick={() => start(() => logoutAction())}>
       <Icon name="logout" size={16} />
-      {isPending ? '...' : 'Chiqish'}
+      {isPending ? 'Chiqilmoqda…' : 'Chiqish'}
     </button>
   );
 }

@@ -1,19 +1,18 @@
 import { notFound } from 'next/navigation';
-import Link from 'next/link';
-import BackLink from '@/components/ui/BackLink';
 import { getMasterModels } from '@/lib/masterDb';
 import { explainOrgFeatures, resolveOrgFeatures } from '@/lib/features';
 import { BUSINESS_TYPES } from '@/lib/businessTypes';
 import { resolveOrgPlan, fmtPlanPrice } from '@/lib/plans';
-import { getOrgAdminCredentials } from '@/lib/organizations';
+import { getOrgAdminCredentials, getOrgDisplayStatus } from '@/lib/organizations';
 import OrgEditForm from '@/components/super/OrgEditForm';
 import OrgModulesForm from '@/components/super/OrgModulesForm';
 import OrgLinksPanel from '@/components/super/OrgLinksPanel';
 import OrgTenantSummary from '@/components/super/OrgTenantSummary';
 import CollapsibleCard from '@/components/super/CollapsibleCard';
 import OrgPermissionsMatrix from '@/components/super/OrgPermissionsMatrix';
+import { Alert, OrgStatusPill, PageTitle } from '@/components/super/ui';
 
-export const metadata = { title: 'Biznes boshqaruvi — Savora' };
+export const metadata = { title: "Do'kon boshqaruvi — Super Admin" };
 
 export default async function OrgDetailPage({
   params,
@@ -34,26 +33,28 @@ export default async function OrgDetailPage({
   const typeLabel = BUSINESS_TYPES[org.businessType as keyof typeof BUSINESS_TYPES]?.label ?? 'Umumiy savdo';
   const plan = resolveOrgPlan(org);
   const credentials = await getOrgAdminCredentials(org);
+  const status = getOrgDisplayStatus(org);
 
   return (
     <>
-      <div className="super-page-head">
-        <div>
-          <BackLink href="/super">Bizneslar</BackLink>
-          <h1>{org.name}</h1>
-          <p>{typeLabel} · {plan.label} · {fmtPlanPrice(plan.monthlyPayment)} so&apos;m/oy · {plan.maxFilial} filial · {plan.maxUsers} xodim</p>
-        </div>
-      </div>
+      <PageTitle
+        back={{ href: '/super', label: "Do'konlar" }}
+        title={org.name}
+        sub={
+          <>
+            {typeLabel} · {plan.label} · {fmtPlanPrice(plan.monthlyPayment)}{plan.monthlyPayment > 0 ? '/oy' : ''} · {plan.maxFilial} filial · {plan.maxUsers} xodim
+          </>
+        }
+        actions={<OrgStatusPill status={status} />}
+      />
 
       {sp?.created === '1' && (
-        <div className="auth-alert auth-alert--info" style={{ marginBottom: 20 }}>
-          Biznes yaratildi. Modullarni yoqing va o&apos;ngdagi havolalarni clientga bering.
-        </div>
+        <Alert tone="ok">Do&apos;kon yaratildi. Modullarni yoqing va o&apos;ngdagi havolalarni mijozga bering.</Alert>
       )}
 
-      <div className="super-org-layout">
-        <div className="super-org-main">
-          <CollapsibleCard title="Biznes sozlamalari" icon="settings" iconBg="linear-gradient(135deg,#6366f1,#8b5cf6)">
+      <div className="sa-org-layout">
+        <div className="sa-stack">
+          <CollapsibleCard title="Do'kon sozlamalari" sub="Nomi, tarif, holat va obuna muddati" icon="settings" iconBg="#8a93a8">
             <OrgEditForm
               orgId={String(org._id)}
               initial={{
@@ -76,11 +77,7 @@ export default async function OrgDetailPage({
             />
           </CollapsibleCard>
 
-          <CollapsibleCard title="Xodimlar va filiallar" icon="users" iconBg="linear-gradient(135deg,#0ea5e9,#6366f1)" defaultOpen={false}>
-            <OrgTenantSummary dbName={org.dbName} />
-          </CollapsibleCard>
-
-          <CollapsibleCard title="Modullar" sub="Tarif → biznes turi preseti → qo'lda o'zgartirish" icon="grid" iconBg="linear-gradient(135deg,#10b981,#059669)">
+          <CollapsibleCard title="Modullar" sub="Tarif → biznes turi preseti → qo'lda o'zgartirish" icon="grid" iconBg="#1a8a52">
             <OrgModulesForm
               orgId={String(org._id)}
               explain={featureExplain}
@@ -89,14 +86,20 @@ export default async function OrgDetailPage({
             />
           </CollapsibleCard>
 
-          <CollapsibleCard title="Huquqlar" sub="Loginlar bo'yicha ruxsatlar (filial login)" icon="key" iconBg="linear-gradient(135deg,#f59e0b,#d97706)" defaultOpen={false}>
+          <CollapsibleCard title="Huquqlar" sub="Loginlar bo'yicha ruxsatlar (filial loginlari)" icon="key" iconBg="#d69a17" defaultOpen={false}>
             <OrgPermissionsMatrix orgId={String(org._id)} dbName={org.dbName} features={features} />
+          </CollapsibleCard>
+
+          <CollapsibleCard title="Xodimlar va filiallar" sub="Faqat ko'rish" icon="users" iconBg="#1287a8" defaultOpen={false}>
+            <OrgTenantSummary dbName={org.dbName} />
           </CollapsibleCard>
         </div>
 
-        <CollapsibleCard title="Localhost havolalar" sub={`${org.name} · ${typeLabel}`} icon="globe" iconBg="linear-gradient(135deg,#0ea5e9,#6366f1)">
-          <OrgLinksPanel org={org} />
-        </CollapsibleCard>
+        <div className="sa-org-aside">
+          <CollapsibleCard title="Havolalar" sub={`${org.name} · ${typeLabel}`} icon="globe" iconBg="#1f4fa8">
+            <OrgLinksPanel org={org} />
+          </CollapsibleCard>
+        </div>
       </div>
     </>
   );

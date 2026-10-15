@@ -1,19 +1,15 @@
 import { getEffectivePlanPresets } from '@/lib/platformSettings';
 import PlansSettingsForm from '@/components/super/PlansSettingsForm';
+import { PageTitle } from '@/components/super/ui';
 
-export const metadata = { title: 'Tariflar — Savora' };
+export const metadata = { title: 'Tariflar — Super Admin' };
 
 export default async function SuperPlansPage() {
   const presets = await getEffectivePlanPresets();
 
   return (
     <>
-      <div className="super-page-head">
-        <div>
-          <h1>Tariflar</h1>
-          <p>Standart tariflarni qo&apos;lda tahrirlash — filial, xodim, oylik to&apos;lov</p>
-        </div>
-      </div>
+      <PageTitle title="Tariflar" sub="Standart tariflarni tahrirlash — filial, xodim soni va oylik to'lov" />
       <PlansSettingsForm presets={presets} />
     </>
   );

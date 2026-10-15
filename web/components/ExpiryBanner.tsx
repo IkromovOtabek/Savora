@@ -2,11 +2,12 @@ import { resolveOrgPlan } from '@/lib/plans';
 import { expiryWarningText, shouldShowExpiryWarning, daysUntilExpiry } from '@/lib/notifications';
 import { IOrganization, isTrialActive } from '@/lib/models/master/Organization';
 import Icon from '@/components/icons/Icon';
+import '@/components/auth/auth.css';
 
 /** Kabinetdagi to'lov bo'limiga olib boradigan tugma */
 function PayButton() {
   return (
-    <a href="#obuna-tolovi" className="btn btn-primary btn-sm btn-with-icon" style={{ marginTop: 10 }}>
+    <a href="#obuna-tolovi" className="au-btn au-btn--filled au-btn--sm" style={{ marginTop: 10 }}>
       <Icon name="wallet" size={15} /> To&apos;lash
     </a>
   );
@@ -25,12 +26,12 @@ export default function ExpiryBanner({
     const days = daysUntilExpiry(org.expiresAt);
     const near = days <= 3;
     return (
-      <div className={`notify-banner ${near ? 'notify-banner--warn' : 'notify-banner--info'} btn-with-icon`}>
-        <Icon name="bell" size={18} className="notify-icon" />
+      <div className={`au-alert ${near ? 'au-alert--warn' : 'au-alert--info'}`} role="status">
+        <Icon name="bell" size={18} />
         <div>
           <strong>Bepul sinov:</strong>{' '}
           {days <= 0 ? 'bugun tugaydi' : `${days} kun qoldi`}.
-          <div className="notify-sub">
+          <div style={{ marginTop: 4, fontWeight: 400, opacity: .9 }}>
             To&apos;liq imkoniyatlardan foydalanishni davom ettirish uchun tarifni faollashtiring.
           </div>
           {showPayButton && <PayButton />}
@@ -45,18 +46,18 @@ export default function ExpiryBanner({
   const text = expiryWarningText(org, plan.monthlyPayment);
 
   return (
-    <div className="notify-banner notify-banner--warn btn-with-icon">
-      <Icon name="bell" size={18} className="notify-icon" />
+    <div className="au-alert au-alert--warn" role="status">
+      <Icon name="bell" size={18} />
       <div>
         <strong>Eslatma:</strong> {text}
         {org.plan.agreementNote && (
-          <div className="notify-sub">Kelishuv: {org.plan.agreementNote}</div>
+          <div style={{ marginTop: 4, fontWeight: 400, opacity: .9 }}>Kelishuv: {org.plan.agreementNote}</div>
         )}
         {showPayButton ? (
           <PayButton />
         ) : (
           plan.monthlyPayment > 0 && (
-            <div className="notify-sub">To&apos;lov uchun platforma egasiga murojaat qiling.</div>
+            <div style={{ marginTop: 4, fontWeight: 400, opacity: .9 }}>To&apos;lov uchun platforma egasiga murojaat qiling.</div>
           )
         )}
       </div>

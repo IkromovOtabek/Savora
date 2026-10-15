@@ -6,6 +6,7 @@ import { resolveOrgPlan } from '@/lib/plans';
 import { fmtDate } from '@/lib/format';
 import PaymentSubmit from '@/components/tenant/PaymentSubmit';
 import Icon from '@/components/icons/Icon';
+import { AuthAlert } from '@/components/auth/AuthShell';
 
 export const metadata = { title: 'Obuna muddati tugadi — Savora' };
 
@@ -44,29 +45,29 @@ export default async function ExpiredPage() {
   }
 
   return (
-    <div className="dash-main" style={{ maxWidth: 720 }}>
-      <div className="locked-card" style={{ marginBottom: 20 }}>
-        <div className="locked-icon" style={{ background: '#fef2f2', color: '#dc2626' }}>
-          <Icon name="clock" size={32} />
+    <div className="au-inline au-inline--wide">
+      <div className="au-card au-card--wide">
+        <div className="au-head" style={{ marginBottom: 0 }}>
+          <span className="au-appicon au-appicon--danger" aria-hidden="true">
+            <Icon name="clock" size={28} />
+          </span>
+          <h1 className="au-title">Obuna muddati tugadi</h1>
+          <p className="au-sub">
+            <strong>{org.name}</strong> obunasi <span style={{ fontVariantNumeric: 'tabular-nums' }}>{fmtDate(org.expiresAt)}</span> sanasida tugagan
+            {expiredDays > 0 ? ` (${expiredDays} kun oldin)` : ''}. Tizimdan foydalanish to&apos;xtatildi.
+          </p>
+          <p className="au-help" style={{ maxWidth: '52ch', marginTop: 6 }}>
+            {isAdmin
+              ? 'Davom etish uchun obunani uzaytiring — quyida to\'lovni amalga oshiring va chekni yuklang. Tasdiqlangach tizim avtomatik ochiladi.'
+              : 'Do\'kon egasi (admin) obuna to\'lovini amalga oshirishi kerak. To\'lov tasdiqlangach tizim ochiladi. Iltimos, do\'kon egangizga murojaat qiling.'}
+          </p>
         </div>
-        <h1>Obuna muddati tugadi</h1>
-        <p>
-          <strong>{org.name}</strong> obunasi {fmtDate(org.expiresAt)} sanasida tugagan
-          {expiredDays > 0 ? ` (${expiredDays} kun oldin)` : ''}. Tizimdan foydalanish to&apos;xtatildi.
-        </p>
-        <p className="locked-sub">
-          {isAdmin
-            ? 'Davom etish uchun obunani uzaytiring — quyida to\'lovni amalga oshiring va chekni yuklang. Tasdiqlangach tizim avtomatik ochiladi.'
-            : 'Do\'kon egasi (admin) obuna to\'lovini amalga oshirishi kerak. To\'lov tasdiqlangach tizim ochiladi. Iltimos, do\'kon egangizga murojaat qiling.'}
-        </p>
       </div>
 
       {isAdmin ? (
         <PaymentSubmit account={payAccount} monthlyPrice={monthlyPrice} requests={ownRequests} />
       ) : (
-        <div className="auth-alert auth-alert--warn">
-          To&apos;lovni faqat do&apos;kon admini amalga oshira oladi.
-        </div>
+        <AuthAlert tone="warn">To&apos;lovni faqat do&apos;kon admini amalga oshira oladi.</AuthAlert>
       )}
     </div>
   );

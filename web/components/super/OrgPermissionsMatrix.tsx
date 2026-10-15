@@ -27,11 +27,11 @@ export default async function OrgPermissionsMatrix({
       permissions: [...effectivePermissions({ role: u.role, permissions: u.permissions })] as PermissionKey[],
     }));
   } catch {
-    return <div className="panel-empty"><p>Ma&apos;lumotlarni yuklab bo&apos;lmadi.</p></div>;
+    return <div className="sa-empty">Ma&apos;lumotlarni yuklab bo&apos;lmadi.</div>;
   }
 
   if (users.length === 0) {
-    return <div className="panel-empty"><p>Login yo&apos;q.</p></div>;
+    return <div className="sa-empty">Login yo&apos;q.</div>;
   }
 
   return <OrgPermissionsMatrixForm orgId={orgId} users={users} features={features} />;

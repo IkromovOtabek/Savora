@@ -1,0 +1,290 @@
+/* ============================================================
+   Savora — Kirish / ro'yxat / ommaviy sahifalar ("Samarqand" iOS)
+   Prefiks: au-  ·  faqat globals.css tokenlari (yangi tokenlarga fallback)
+   ============================================================ */
+
+.au-wrap {
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  padding: 40px 16px;
+  background: var(--bg-soft);
+  color: var(--ink-1);
+  font-variant-numeric: tabular-nums;
+}
+
+/* iOS sheet karta */
+.au-card {
+  width: 100%;
+  max-width: 420px;
+  background: var(--card, var(--surface));
+  border-radius: 22px;
+  padding: 32px 24px 24px;
+  box-shadow: 0 0 0 .5px var(--sep, var(--border)), var(--shadow-lg);
+}
+.au-card--wide { max-width: 560px; }
+.au-card--plain { box-shadow: 0 0 0 .5px var(--sep, var(--border)), var(--shadow); }
+
+.au-head { display: grid; justify-items: center; text-align: center; gap: 6px; margin-bottom: 22px; }
+.au-appicon {
+  width: 60px; height: 60px; border-radius: 15px;
+  display: grid; place-items: center;
+  background: linear-gradient(180deg, #3a68c4, #1f4fa8);
+  color: #fff;
+  font-family: "Unbounded", "Onest", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-weight: 700; font-size: 26px; letter-spacing: -.02em;
+  box-shadow: 0 6px 16px -4px rgba(31, 79, 168, .45);
+  margin-bottom: 10px;
+  text-decoration: none;
+}
+.au-appicon:active { opacity: .6; }
+.au-appicon--danger { background: var(--danger-soft, rgba(208, 54, 43, .14)); color: var(--danger, #c7332a); box-shadow: none; }
+.au-appicon--warn { background: var(--warn-soft, rgba(224, 165, 38, .18)); color: var(--warn, #a0650a); box-shadow: none; }
+.au-appicon--brand { background: var(--brand-soft); color: var(--brand); box-shadow: none; }
+.au-title { font-size: 28px; line-height: 1.15; font-weight: 700; letter-spacing: -.03em; margin: 0; text-wrap: balance; }
+.au-sub { color: var(--ink-2); font-size: 15px; margin: 0; max-width: 40ch; text-wrap: pretty; }
+.au-sub strong { color: var(--ink-1); }
+
+/* Qadamlar — segment ko'rinishida */
+.au-steps {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 2px;
+  padding: 2px; border-radius: 9px;
+  background: var(--fill, rgba(118, 128, 160, .14));
+  margin: 0 auto 18px; max-width: 280px;
+}
+.au-steps span {
+  text-align: center; font-size: 13px; font-weight: 500; padding: 5px 10px; border-radius: 7px; color: var(--ink-2);
+}
+.au-steps span[aria-current="step"] {
+  background: var(--card, var(--surface)); color: var(--ink-1); font-weight: 600;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, .12), 0 0 0 .5px rgba(0, 0, 0, .04);
+}
+
+/* Xabarlar */
+.au-alert {
+  display: flex; gap: 10px; align-items: flex-start;
+  padding: 11px 14px; border-radius: 12px;
+  font-size: 14px; font-weight: 500; line-height: 1.45;
+  margin-bottom: 14px;
+}
+.au-alert svg { flex: none; margin-top: 1px; }
+.au-alert code { font-weight: 700; background: rgba(0, 0, 0, .06); padding: 1px 6px; border-radius: 6px; }
+.au-alert--error { background: var(--danger-soft, rgba(208, 54, 43, .14)); color: var(--danger, #c7332a); }
+.au-alert--warn { background: var(--warn-soft, rgba(224, 165, 38, .18)); color: var(--warn, #a0650a); }
+.au-alert--info { background: var(--brand-soft); color: var(--brand); }
+.au-alert--ok { background: var(--accent-soft); color: var(--accent); }
+
+/* Forma */
+.au-form { display: grid; gap: 18px; }
+.au-section { display: grid; gap: 6px; }
+.au-ghead { font-size: 13px; color: var(--ink-3); text-transform: uppercase; letter-spacing: .02em; font-weight: 500; padding: 0 14px; }
+.au-gfoot { font-size: 13px; color: var(--ink-3); padding: 0 14px; line-height: 1.45; }
+
+/* Guruhlangan maydonlar (Settings ilovasi kabi) */
+.au-group {
+  background: var(--fill-2, rgba(118, 128, 160, .08));
+  border-radius: 12px;
+  overflow: hidden;
+}
+.au-row {
+  position: relative;
+  display: grid;
+  gap: 1px;
+  padding: 9px 14px 10px;
+}
+.au-row + .au-row::before {
+  content: ""; position: absolute; top: 0; left: 14px; right: 0; height: .5px;
+  background: var(--sep, var(--border));
+}
+.au-row > label, .au-row .au-label {
+  font-size: 12px; font-weight: 600; color: var(--ink-3); letter-spacing: .01em;
+}
+.au-row input, .au-row select, .au-pwd input {
+  width: 100%;
+  border: 0; outline: 0; background: transparent;
+  font: inherit; font-size: 16px; color: var(--ink-1);
+  padding: 2px 0; min-height: 26px;
+}
+.au-row input::placeholder { color: var(--ink-3); opacity: .8; }
+.au-row:focus-within { background: var(--brand-soft); }
+.au-row:focus-within > label { color: var(--brand); }
+.au-row input:disabled { opacity: .55; }
+.au-hint { font-size: 12px; color: var(--ink-3); line-height: 1.4; margin-top: 2px; }
+.au-hint b { color: var(--ink-2); font-weight: 600; }
+.au-row--split { grid-template-columns: 1fr 1fr; gap: 0 14px; }
+.au-row--split > div { display: grid; gap: 1px; }
+.au-row--split > div + div { padding-left: 14px; border-left: .5px solid var(--sep, var(--border)); }
+.au-row--split label { font-size: 12px; font-weight: 600; color: var(--ink-3); }
+
+/* Parol (ko'rsatish/yashirish) */
+.au-pwd { display: flex; align-items: center; gap: 6px; }
+.au-pwd input { flex: 1; min-width: 0; }
+.au-pwd-toggle {
+  flex: none; width: 32px; height: 32px; margin: -4px -6px -4px 0;
+  border: 0; border-radius: 999px; background: transparent;
+  color: var(--ink-3); display: grid; place-items: center; cursor: pointer;
+  transition: opacity .12s;
+}
+.au-pwd-toggle:hover { color: var(--brand); }
+.au-pwd-toggle:active { opacity: .5; }
+.au-pwd-toggle:focus-visible { outline: 3px solid var(--brand-soft); }
+
+/* Tugmalar (tekis iOS) */
+.au-btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 7px;
+  border: 0; border-radius: 14px; padding: 14px 20px;
+  font: inherit; font-size: 17px; font-weight: 600; line-height: 1.2;
+  cursor: pointer; text-decoration: none; white-space: nowrap;
+  transition: opacity .12s;
+  -webkit-tap-highlight-color: transparent;
+}
+.au-btn:active { opacity: .5; }
+.au-btn:disabled { opacity: .4; cursor: not-allowed; }
+.au-btn:focus-visible { outline: 3px solid var(--brand-soft); outline-offset: 1px; }
+.au-btn--filled { background: var(--brand); color: var(--on-brand, #fff); }
+.au-btn--tinted { background: var(--brand-soft); color: var(--brand); }
+.au-btn--gray { background: var(--fill, rgba(118, 128, 160, .14)); color: var(--ink-1); }
+.au-btn--plain { background: transparent; color: var(--brand); padding-inline: 6px; }
+.au-btn--block { width: 100%; }
+.au-btn--sm { padding: 8px 14px; font-size: 15px; border-radius: 10px; }
+.au-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+.au-actions > .au-btn--grow { flex: 1; }
+.au-actions--center { justify-content: center; }
+
+.au-link { color: var(--brand); font-weight: 500; text-decoration: none; }
+.au-link:hover { text-decoration: underline; }
+.au-links { display: grid; justify-items: center; gap: 6px; margin-top: 16px; font-size: 15px; }
+.au-foot { margin-top: 18px; text-align: center; color: var(--ink-3); font-size: 13px; line-height: 1.5; text-wrap: pretty; }
+.au-foot .au-link { font-size: 15px; }
+.au-help { color: var(--ink-2); font-size: 14px; line-height: 1.5; margin: 0; text-wrap: pretty; }
+
+/* Biznes turi tanlash (plitalar) */
+.au-biz-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
+.au-biz {
+  position: relative; display: grid; grid-template-columns: auto 1fr; gap: 2px 10px; align-items: center;
+  padding: 10px 12px; border-radius: 12px; cursor: pointer;
+  background: var(--fill-2, rgba(118, 128, 160, .08));
+  box-shadow: inset 0 0 0 1px transparent;
+  transition: box-shadow .15s, background .15s;
+}
+.au-biz input { position: absolute; opacity: 0; pointer-events: none; }
+.au-biz-sq {
+  grid-row: span 2; width: 30px; height: 30px; border-radius: 8px;
+  display: grid; place-items: center;
+  background: var(--fill, rgba(118, 128, 160, .14)); color: var(--ink-2);
+  transition: background .15s, color .15s;
+}
+.au-biz strong { font-size: 14px; font-weight: 600; line-height: 1.25; }
+.au-biz small { font-size: 12px; color: var(--ink-3); line-height: 1.3; }
+.au-biz:hover { background: var(--fill, rgba(118, 128, 160, .14)); }
+.au-biz:active { opacity: .7; }
+.au-biz--on, .au-biz--on:hover { background: var(--brand-soft); box-shadow: inset 0 0 0 2px var(--brand); }
+.au-biz--on .au-biz-sq { background: var(--brand); color: var(--on-brand, #fff); }
+.au-biz:has(input:focus-visible) { outline: 3px solid var(--brand-soft); outline-offset: 1px; }
+
+/* Tarif tanlash */
+.au-plan-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; }
+.au-plan {
+  position: relative; display: grid; gap: 6px; align-content: start;
+  padding: 14px 16px; border-radius: 14px; cursor: pointer;
+  background: var(--fill-2, rgba(118, 128, 160, .08));
+  box-shadow: inset 0 0 0 1px transparent;
+  transition: box-shadow .15s, background .15s;
+}
+.au-plan input { position: absolute; opacity: 0; pointer-events: none; }
+.au-plan:has(input:focus-visible) { outline: 3px solid var(--brand-soft); outline-offset: 1px; }
+.au-plan--on { background: var(--brand-soft); box-shadow: inset 0 0 0 2px var(--brand); }
+.au-plan-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.au-plan-name { font-weight: 600; font-size: 15px; }
+.au-plan-badge { font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 999px; background: var(--gold-soft, rgba(224, 165, 38, .16)); color: var(--gold, #b98410); }
+.au-plan-price { font-size: 24px; font-weight: 700; letter-spacing: -.03em; }
+.au-plan-price small { font-size: 13px; font-weight: 500; color: var(--ink-3); letter-spacing: 0; }
+.au-plan ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; font-size: 13px; color: var(--ink-2); }
+.au-plan li { display: flex; gap: 6px; align-items: flex-start; }
+.au-plan li svg { color: var(--accent); margin-top: 3px; flex: none; }
+
+/* Telegram yuklanish */
+.au-spinner {
+  width: 34px; height: 34px; border-radius: 50%;
+  border: 3px solid var(--fill, rgba(118, 128, 160, .14)); border-top-color: var(--brand);
+  animation: au-spin .7s linear infinite;
+}
+@keyframes au-spin { to { transform: rotate(360deg); } }
+.au-divider { display: flex; align-items: center; gap: 10px; color: var(--ink-3); font-size: 12px; }
+.au-divider::before, .au-divider::after { content: ""; flex: 1; height: .5px; background: var(--sep, var(--border)); }
+.au-meta { display: flex; justify-content: center; gap: 14px; color: var(--ink-3); font-size: 12px; }
+.au-meta span { display: inline-flex; align-items: center; gap: 4px; }
+
+/* Ichki sahifalar (muddati tugadi / qulflangan) — ilova ichida */
+.au-inline { display: grid; justify-items: center; padding: 32px 16px; }
+.au-inline .au-card { box-shadow: 0 0 0 .5px var(--sep, var(--border)), var(--shadow); text-align: center; }
+.au-inline--wide { max-width: 760px; margin: 0 auto; gap: 16px; }
+.au-inline--wide > * { width: 100%; }
+
+/* ============ Ommaviy sahifalar (yordam, bog'lanish, shartlar) ============ */
+.au-page { min-height: 100vh; background: var(--bg-soft); color: var(--ink-1); }
+.au-nav {
+  position: sticky; top: 0; z-index: 10;
+  background: var(--bar, rgba(248, 249, 252, .8));
+  backdrop-filter: blur(24px) saturate(1.8); -webkit-backdrop-filter: blur(24px) saturate(1.8);
+  border-bottom: .5px solid var(--sep, var(--border));
+}
+.au-nav-in { max-width: 960px; margin: 0 auto; padding: 10px 16px; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.au-brand { display: inline-flex; align-items: center; gap: 10px; font-weight: 700; font-size: 17px; letter-spacing: -.02em; color: var(--ink-1); text-decoration: none; }
+.au-article { max-width: calc(65ch + 32px); margin: 0 auto; padding: 36px 16px 72px; display: grid; gap: 22px; }
+.au-article-head { display: grid; gap: 6px; }
+.au-article-head h1 { font-size: clamp(30px, 5vw, 40px); line-height: 1.1; font-weight: 700; letter-spacing: -.035em; margin: 0; }
+.au-article-head p { color: var(--ink-2); font-size: 17px; margin: 0; }
+.au-article-sec { display: grid; gap: 6px; }
+.au-article-sec > h2 { font-size: 13px; color: var(--ink-3); text-transform: uppercase; letter-spacing: .02em; font-weight: 500; padding: 0 16px; margin: 0; }
+.au-article-card {
+  background: var(--card, var(--surface)); border-radius: 14px;
+  box-shadow: 0 0 0 .5px var(--sep, var(--border));
+  padding: 16px; display: grid; gap: 10px;
+  font-size: 16px; line-height: 1.65; color: var(--ink-1);
+}
+.au-article-card p { margin: 0; text-wrap: pretty; }
+.au-article-card ol, .au-article-card ul { margin: 0; padding-left: 20px; display: grid; gap: 6px; }
+.au-article-card code { font-size: 14px; background: var(--fill-2, rgba(118, 128, 160, .08)); padding: 1px 6px; border-radius: 6px; }
+.au-article-list { background: var(--card, var(--surface)); border-radius: 14px; box-shadow: 0 0 0 .5px var(--sep, var(--border)); overflow: hidden; }
+.au-cell { position: relative; display: flex; align-items: center; gap: 12px; padding: 0 16px; min-height: 50px; color: var(--ink-1); text-decoration: none; }
+.au-cell + .au-cell::before { content: ""; position: absolute; top: 0; right: 0; left: 58px; height: .5px; background: var(--sep, var(--border)); }
+.au-cell-t { flex: 1; min-width: 0; padding: 10px 0; display: grid; }
+.au-cell-t b { font-weight: 500; font-size: 15px; }
+.au-cell-t small { font-size: 13px; color: var(--ink-3); }
+.au-cell-v { color: var(--ink-3); font-size: 15px; }
+a.au-cell:hover { background: var(--fill-2, rgba(118, 128, 160, .08)); }
+a.au-cell:active { opacity: .6; }
+.au-sq { width: 30px; height: 30px; border-radius: 8px; display: grid; place-items: center; color: #fff; flex: none; background: #8a93a8; }
+.au-sq--b { background: #1f4fa8; } .au-sq--a { background: #d69a17; } .au-sq--o { background: #1a8a52; } .au-sq--r { background: #d0362b; }
+.au-chev { color: var(--ink-3); opacity: .6; display: grid; }
+.au-chev svg { transform: rotate(-90deg); }
+
+/* Dumaloq ikonka tugmasi (ThemeToggle, Chiqish) — iOS kulrang to'ldirish */
+.theme-toggle.au-round, .logout-icon-btn.au-round {
+  width: 34px; height: 34px; padding: 0; flex: none;
+  display: inline-grid; place-items: center;
+  border: 0; border-radius: 999px;
+  background: var(--fill, rgba(118, 128, 160, .14));
+  color: var(--brand); box-shadow: none; cursor: pointer;
+  transition: opacity .12s;
+}
+.logout-icon-btn.au-round { color: var(--danger, #c7332a); }
+.theme-toggle.au-round:hover, .logout-icon-btn.au-round:hover { background: var(--fill, rgba(118, 128, 160, .14)); border: 0; }
+.theme-toggle.au-round:active, .logout-icon-btn.au-round:active { opacity: .5; }
+.theme-toggle.au-round:focus-visible, .logout-icon-btn.au-round:focus-visible { outline: 3px solid var(--brand-soft); outline-offset: 1px; }
+.logout-icon-btn.au-round:disabled { opacity: .4; cursor: default; }
+.dark .theme-toggle.au-round, .dark .logout-icon-btn.au-round { background: var(--fill, rgba(140, 150, 180, .22)); }
+.dark .logout-icon-btn.au-round { color: var(--danger, #ff6b5f); }
+
+.dark .au-nav { background: var(--bar, rgba(20, 26, 40, .78)); }
+.dark .au-alert code { background: rgba(255, 255, 255, .1); }
+
+@media (max-width: 520px) {
+  .au-wrap { padding: 24px 12px; place-items: start center; }
+  .au-card { padding: 26px 16px 18px; border-radius: 20px; }
+  .au-row--split { grid-template-columns: 1fr; }
+  .au-row--split > div + div { padding-left: 0; border-left: 0; border-top: .5px solid var(--sep, var(--border)); padding-top: 8px; margin-top: 8px; }
+  .au-title { font-size: 26px; }
+}
