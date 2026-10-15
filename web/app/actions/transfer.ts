@@ -4,7 +4,9 @@ import { revalidatePath } from 'next/cache';
 import { Types } from 'mongoose';
 import { getTenantSession } from '@/lib/tenantSession';
 import { generateTransferNo } from '@/lib/transfers';
-import { parseQtyField, resolveStatusAfterSale } from '@/lib/productQuantity';
+import { parseQtyField } from '@/lib/productQuantity';
+import { branchFilter } from '@/lib/branchScope';
+import { transferStock } from '@/lib/stock';
 
 type State = { error?: string; success?: string } | null;
 
@@ -15,56 +17,43 @@ export async function transferProductAction(_prev: State, formData: FormData): P
   const branchId = String(formData.get('branchId') || '');
   const qty = parseQtyField(String(formData.get('qty') || '1'));
 
-  if (!productId || !Types.ObjectId.isValid(branchId)) {
+  if (!Types.ObjectId.isValid(productId) || !Types.ObjectId.isValid(branchId)) {
     return { error: 'Mahsulot va filial tanlanishi shart.' };
   }
 
-  const product = await Product.findById(productId);
-  if (!product || product.status !== 'in_stock') {
+  // Filial login faqat o'z filiali mahsulotini beradi (IDOR himoyasi)
+  const scope = branchFilter(user);
+  const found = await Product.findOne({ _id: productId, ...scope }).lean();
+  if (!found || found.status !== 'in_stock') {
     return { error: 'Faqat ombordagi mahsulot beriladi.' };
   }
 
   const branch = await Branch.findOne({ _id: branchId, active: true }).lean();
   if (!branch) return { error: 'Filial topilmadi.' };
-  if (String(product.branchId) === branchId) {
+  if (String(found.branchId) === branchId) {
     return { error: 'Mahsulot allaqachon shu filialda.' };
   }
 
-  const fromBranchId = product.branchId;
-  const fromBranch = await Branch.findById(fromBranchId).lean();
-  const now = new Date();
-
   let transferQty = 1;
-  if (product.trackQuantity) {
-    const available = product.quantity - product.soldQuantity;
+  if (found.trackQuantity) {
+    const available = found.quantity - found.soldQuantity;
     if (available < 1) return { error: 'Omborda qoldiq yo\'q.' };
     transferQty = Math.min(qty, available);
     if (transferQty < 1) return { error: 'Beriladigan son noto\'g\'ri.' };
-    // Ombordan kamayadi
-    product.quantity -= transferQty;
-    // Hammasi berilsa — status transferred
-    if (product.quantity - product.soldQuantity <= 0) {
-      product.status = product.soldQuantity > 0
-        ? resolveStatusAfterSale(product.trackQuantity, product.quantity, product.soldQuantity)
-        : 'transferred';
-    }
-  } else {
-    transferQty = 1;
-    // Yagona mahsulot — butunlay maqsad filialga o'tadi
-    product.branchId = new Types.ObjectId(branchId);
-    product.status = 'in_stock';
   }
 
-  if (!Array.isArray(product.history)) product.history = [];
-  product.history.push({
-    action: 'transferred',
-    detail: `${transferQty} ta · ${branch.name}`,
-    by: user.username,
-    at: now,
+  // Atomik: qoldiq sharti + ayirish/ko'chirish bitta so'rovda
+  const moved = await transferStock(Product, found._id, new Types.ObjectId(branchId), transferQty, {
+    scope,
+    trackQuantity: !!found.trackQuantity,
+    history: { action: 'transferred', detail: `${transferQty} ta · ${branch.name}`, by: user.username, at: new Date() },
   });
+  if (!moved) return { error: 'Mahsulot holati o\'zgargan yoki qoldiq yetarli emas. Qayta urinib ko\'ring.' };
+  const product = moved.product;
+  const fromBranchId = moved.fromBranchId;
+  const fromBranch = await Branch.findById(fromBranchId).lean();
 
   try {
-    await product.save();
     const transferNo = await generateTransferNo(Transfer);
     await Transfer.create({
       transferNo,
@@ -88,11 +77,11 @@ export async function transferProductAction(_prev: State, formData: FormData): P
 }
 
 export async function bulkImeiLookup(imeiList: string[]) {
-  const { Product, Branch } = await getTenantSession();
-  const normalized = [...new Set(imeiList.map((i) => i.trim().replace(/\s/g, '').toUpperCase()).filter(Boolean))];
+  const { user, Product, Branch } = await getTenantSession();
+  const normalized = [...new Set(imeiList.map((i) => i.trim().replace(/\s/g, '').toUpperCase()).filter(Boolean))].slice(0, 500);
   if (normalized.length === 0) return { found: [], missing: [] };
 
-  const products = await Product.find({ imei: { $in: normalized } }).lean();
+  const products = await Product.find({ imei: { $in: normalized }, ...branchFilter(user) }).lean();
   const branches = await Branch.find().lean();
   const branchMap = Object.fromEntries(branches.map((b) => [String(b._id), b.name]));
 

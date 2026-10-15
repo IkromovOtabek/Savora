@@ -1,19 +1,20 @@
 'use server';
 
 import { redirect } from 'next/navigation';
+import { headers } from 'next/headers';
 import { getSession } from '@/lib/session';
 import { getMasterModels } from '@/lib/masterDb';
 import { getAppZone, getTenantSlug, resolveTenant } from '@/lib/tenantContext';
 import { getTenantModels } from '@/lib/tenantDb';
 import { clearRouteCookies, setRouteCookies } from '@/lib/routeCookies';
 import { rootUrl } from '@/lib/urls';
-import { generateTempPassword } from '@/lib/credentials';
 import { sendTelegramTo, sendTelegram } from '@/lib/telegram';
+import { clientIpFrom, hashToken, loginRateKeys, randomNumericCode, safeEqual } from '@/lib/security';
 import { hitRateLimit, clearRateLimit } from '@/lib/rateLimit';
 import { lookupUser, reserveUsername } from '@/lib/userDirectory';
 
 type State = { error?: string } | null;
-type ResetState = { error?: string; success?: string } | null;
+type ResetState = { error?: string; success?: string; step?: 'code' | 'done'; username?: string } | null;
 
 type LoginZone = 'super' | 'tenant' | 'root';
 
@@ -44,11 +45,16 @@ export async function loginAction(_prev: State, formData: FormData): Promise<Sta
     .toLowerCase();
   const tenantSlug = cleanedSlug || (await getTenantSlug());
 
-  // Brute-force himoyasi — 15 daqiqada 6 ta noto'g'ri urinishdan keyin bloklash
-  const rlKey = `login:${zone}:${tenantSlug}:${username}`;
+  // Brute-force himoyasi — 15 daqiqada 6 ta noto'g'ri urinishdan keyin bloklash.
+  // Kalit slug/zonaga bog'liq EMAS (tenantSlug'ni almashtirib chetlab o'tib bo'lmaydi):
+  // username bo'yicha + IP bo'yicha (ko'p loginni sinab ko'rish) alohida.
+  const ip = clientIpFrom(await headers());
+  const keys = loginRateKeys(username, ip);
+  const rlKey = keys.user;
   const rl = hitRateLimit(rlKey);
-  if (!rl.ok) {
-    const min = Math.ceil((rl.retryAfterSec ?? 0) / 60);
+  const rlIp = hitRateLimit(keys.ip, 30);
+  if (!rl.ok || !rlIp.ok) {
+    const min = Math.ceil((Math.max(rl.retryAfterSec ?? 0, rlIp.retryAfterSec ?? 0)) / 60);
     return { error: `Juda ko'p urinish. ${min} daqiqadan so'ng qayta urinib ko'ring.` };
   }
 
@@ -125,35 +131,47 @@ export async function loginAction(_prev: State, formData: FormData): Promise<Sta
   return null;
 }
 
+const RESET_CODE_TTL_MS = 15 * 60 * 1000; // 15 daqiqa
+const RESET_MAX_ATTEMPTS = 5;
+
+/** Tiklash uchun do'konni topish: global registr → slug → header zaxira */
+async function resolveResetOrg(username: string, tenantSlug: string) {
+  const dir = await lookupUser(username);
+  const { Organization } = await getMasterModels();
+  return dir
+    ? Organization.findById(dir.organizationId).lean()
+    : tenantSlug
+      ? resolveTenantOrg(tenantSlug)
+      : resolveTenant();
+}
+
 /**
- * Parolni tiklash — yangi vaqtinchalik parol do'konning ulangan Telegram'iga yuboriladi.
+ * Parolni tiklash 1-qadam — bir martalik 6 xonali kod (15 daqiqa) do'konning ulangan
+ * Telegram'iga yuboriladi. Parol HALI o'zgarmaydi: eski parol kod ishlatilguncha amal qiladi
+ * (begona odam "unutdim" bosib egani bloklay olmaydi).
  * Username mavjudligini oshkor qilmaslik uchun har doim bir xil javob qaytaradi.
  */
 export async function requestPasswordResetAction(_prev: ResetState, formData: FormData): Promise<ResetState> {
   const username = String(formData.get('username') || '').trim().toLowerCase();
   const tenantSlug = String(formData.get('tenantSlug') || '').trim() || (await getTenantSlug());
 
-  // Spam himoyasi — 15 daqiqada 4 ta so'rovgacha
-  const rl = hitRateLimit(`reset:${tenantSlug}:${username}`, 4);
-  if (!rl.ok) {
+  if (!username) return { error: 'Login kiritilishi shart.' };
+
+  // Spam himoyasi — 15 daqiqada login bo'yicha 4 ta, IP bo'yicha 10 ta so'rovgacha
+  const keys = loginRateKeys(username, clientIpFrom(await headers()), 'reset');
+  const rl = hitRateLimit(keys.user, 4);
+  const rlIp = hitRateLimit(keys.ip, 10);
+  if (!rl.ok || !rlIp.ok) {
     return { error: 'Juda ko\'p so\'rov. Birozdan so\'ng qayta urinib ko\'ring.' };
   }
 
   const generic =
-    'Agar bunday foydalanuvchi mavjud bo\'lsa va do\'kon Telegram\'i ulangan bo\'lsa, yangi vaqtinchalik parol Telegram\'ga yuborildi.';
-
-  if (!username) return { error: 'Login kiritilishi shart.' };
+    'Agar bunday foydalanuvchi mavjud bo\'lsa va do\'kon Telegram\'i ulangan bo\'lsa, tasdiqlash kodi Telegram\'ga yuborildi. Kod 15 daqiqa amal qiladi.';
+  const next: ResetState = { success: generic, step: 'code', username };
 
   try {
-    // Slug'siz: username orqali do'konni topamiz (registr), so'ng slug/header zaxira.
-    const dir = await lookupUser(username);
-    const { Organization } = await getMasterModels();
-    const org = dir
-      ? await Organization.findById(dir.organizationId).lean()
-      : tenantSlug
-        ? await resolveTenantOrg(tenantSlug)
-        : await resolveTenant();
-    if (!org) return { success: generic };
+    const org = await resolveResetOrg(username, tenantSlug);
+    if (!org) return next;
 
     const { User } = await getTenantModels(org.dbName);
     const user = await User.findOne({ username, active: true }).exec();
@@ -165,30 +183,105 @@ export async function requestPasswordResetAction(_prev: ResetState, formData: Fo
           `<b>Savora — parol tiklash so'rovi</b>\nDo'kon: ${org.name}\nFoydalanuvchi: ${username}\nTelegram ulanmagan — qo'lda tiklang.`
         );
       }
-      return { success: generic };
+      return next;
     }
 
     if (user) {
-      const tempPassword = generateTempPassword();
-      user.password = tempPassword;
-      user.mustChangePassword = true;
-      user.tokenVersion = (user.tokenVersion ?? 0) + 1; // eski sessiyalarni bekor qiladi
-      await user.save();
+      const code = randomNumericCode(6);
+      await User.updateOne(
+        { _id: user._id },
+        {
+          $set: {
+            resetCodeHash: hashToken(`${String(user._id)}:${code}`),
+            resetCodeExpiresAt: new Date(Date.now() + RESET_CODE_TTL_MS),
+            resetAttempts: 0,
+          },
+        }
+      );
 
       await sendTelegramTo(
         org.telegramChatId,
         `<b>Savora — parolni tiklash</b>\n` +
           `Do'kon: ${org.name}\n` +
           `Login: <code>${username}</code>\n` +
-          `Yangi vaqtinchalik parol: <code>${tempPassword}</code>\n\n` +
-          `Kirgach, tizim parolni o'zgartirishni so'raydi.`
+          `Tasdiqlash kodi: <code>${code}</code> (15 daqiqa amal qiladi)\n\n` +
+          `Agar siz so'ramagan bo'lsangiz — e'tibor bermang, parolingiz o'zgarmaydi.`
       );
     }
 
-    return { success: generic };
+    return next;
   } catch (err) {
     if (err && typeof err === 'object' && 'digest' in err) throw err;
     return { error: 'Server xatosi. Qayta urinib ko\'ring.' };
+  }
+}
+
+/**
+ * Parolni tiklash 2-qadam — kod + yangi parol. Kod bir martalik, 15 daqiqa, 5 ta noto'g'ri
+ * urinishdan keyin bekor bo'ladi. Muvaffaqiyatda eski sessiyalar bekor qilinadi.
+ */
+export async function confirmPasswordResetAction(_prev: ResetState, formData: FormData): Promise<ResetState> {
+  const username = String(formData.get('username') || '').trim().toLowerCase();
+  const tenantSlug = String(formData.get('tenantSlug') || '').trim() || (await getTenantSlug());
+  const code = String(formData.get('code') || '').replace(/\s/g, '');
+  const newPassword = String(formData.get('newPassword') || '');
+  const confirmPassword = String(formData.get('confirmPassword') || '');
+  const keep = { step: 'code' as const, username };
+
+  if (!username) return { error: 'Login kiritilishi shart.' };
+  if (!/^\d{6}$/.test(code)) return { ...keep, error: 'Kod 6 ta raqamdan iborat.' };
+  if (newPassword.length < 6) return { ...keep, error: 'Yangi parol kamida 6 ta belgi.' };
+  if (newPassword !== confirmPassword) return { ...keep, error: 'Parollar mos kelmadi.' };
+
+  const keys = loginRateKeys(username, clientIpFrom(await headers()), 'reset-confirm');
+  const rl = hitRateLimit(keys.user, 6);
+  const rlIp = hitRateLimit(keys.ip, 20);
+  if (!rl.ok || !rlIp.ok) {
+    return { ...keep, error: 'Juda ko\'p urinish. Birozdan so\'ng qayta urinib ko\'ring.' };
+  }
+
+  const invalid = { ...keep, error: 'Kod noto\'g\'ri yoki muddati o\'tgan.' };
+
+  try {
+    const org = await resolveResetOrg(username, tenantSlug);
+    if (!org || org.status === 'suspended') return invalid;
+
+    const { User } = await getTenantModels(org.dbName);
+    const user = await User.findOne({ username, active: true })
+      .select('+resetCodeHash +resetCodeExpiresAt +resetAttempts')
+      .exec();
+    if (!user || !user.resetCodeHash || !user.resetCodeExpiresAt) return invalid;
+
+    if (user.resetCodeExpiresAt.getTime() < Date.now() || (user.resetAttempts ?? 0) >= RESET_MAX_ATTEMPTS) {
+      await User.updateOne({ _id: user._id }, { $unset: { resetCodeHash: '', resetCodeExpiresAt: '', resetAttempts: '' } });
+      return invalid;
+    }
+
+    if (!safeEqual(hashToken(`${String(user._id)}:${code}`), user.resetCodeHash)) {
+      await User.updateOne({ _id: user._id }, { $inc: { resetAttempts: 1 } });
+      return invalid;
+    }
+
+    // Kodni atomik "iste'mol" qilamiz — parallel so'rov bir kodni ikki marta ishlata olmaydi
+    const claimed = await User.updateOne(
+      { _id: user._id, resetCodeHash: user.resetCodeHash },
+      { $unset: { resetCodeHash: '', resetCodeExpiresAt: '', resetAttempts: '' } }
+    );
+    if (claimed.modifiedCount !== 1) return invalid;
+
+    user.password = newPassword;
+    user.mustChangePassword = false;
+    user.tokenVersion = (user.tokenVersion ?? 0) + 1; // eski sessiyalarni bekor qiladi
+    user.resetCodeHash = undefined;
+    user.resetCodeExpiresAt = undefined;
+    user.resetAttempts = undefined;
+    await user.save();
+    clearRateLimit(loginRateKeys(username, '').user);
+
+    return { success: 'Parol yangilandi. Endi yangi parol bilan kiring.', step: 'done' };
+  } catch (err) {
+    if (err && typeof err === 'object' && 'digest' in err) throw err;
+    return { ...keep, error: 'Server xatosi. Qayta urinib ko\'ring.' };
   }
 }
 

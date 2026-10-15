@@ -2,7 +2,9 @@ import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import BackLink from '@/components/ui/BackLink';
 import { getCurrentUser } from '@/lib/auth';
+import { Types } from 'mongoose';
 import { getTenantSession } from '@/lib/tenantSession';
+import { branchFilter } from '@/lib/branchScope';
 import { PAYMENT_TYPE_LABELS, SALE_STATUS_LABELS } from '@/lib/models/tenant/Sale';
 import { fmtDate, fmtDateTime, fmtMoney } from '@/lib/format';
 import { computeDebtInfo } from '@/lib/debts';
@@ -24,9 +26,11 @@ export default async function SaleDetailPage({
   const { id } = await params;
   const sp = await searchParams;
   const user = await getCurrentUser();
-  const { Sale } = await getTenantSession();
+  const { user: tenantUser, Sale } = await getTenantSession();
 
-  const sale = await Sale.findById(id).lean();
+  if (!Types.ObjectId.isValid(id)) notFound();
+  // Filial login faqat o'z filiali sotuvini ko'radi (IDOR himoyasi)
+  const sale = await Sale.findOne({ _id: id, ...branchFilter(tenantUser) }).lean();
   if (!sale) notFound();
 
   const isAdmin = user?.role === 'admin';

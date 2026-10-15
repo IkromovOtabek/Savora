@@ -6,12 +6,14 @@ import { getTenantAdminSession } from '@/lib/tenantSession';
 import { getMasterModels } from '@/lib/masterDb';
 import { resolveOrgPlan } from '@/lib/plans';
 import { logError } from '@/lib/logger';
+import { addMonthsClamped } from '@/lib/dates';
 
 type State = { error?: string; success?: string } | null;
 
 function parseAmount(v: string): number | null {
   const n = Number(String(v).replace(/\s/g, ''));
-  if (!Number.isFinite(n) || n <= 0) return null;
+  // Butun so'm — kasr summalar rad etiladi
+  if (!Number.isSafeInteger(n) || n <= 0) return null;
   return n;
 }
 
@@ -103,8 +105,7 @@ export async function approvePaymentRequestAction(_prev: State, formData: FormDa
 
     // Muddatni hozirgi yoki mavjud tugash sanasidan (qaysi kechroq) uzaytiramiz
     const base = org.expiresAt && org.expiresAt.getTime() > Date.now() ? new Date(org.expiresAt) : new Date();
-    base.setMonth(base.getMonth() + req.months);
-    org.expiresAt = base;
+    org.expiresAt = addMonthsClamped(base, req.months); // oy oxiri to'g'ri (31-yan → fev oxiri)
     org.status = 'active';
     if (org.plan) org.plan.isTrial = false;
     await org.save();

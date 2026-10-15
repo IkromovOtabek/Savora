@@ -1,5 +1,6 @@
 import { getTenantAdminSession } from '@/lib/tenantSession';
 import { fmtDateTime } from '@/lib/format';
+import { searchPattern } from '@/lib/security';
 import type { AuditEntity } from '@/lib/models/tenant/AuditLog';
 
 export const metadata = { title: 'Amallar — Savora' };
@@ -39,7 +40,7 @@ export default async function AuditPage({
 
   const filter: Record<string, unknown> = {};
   if (sp.entity && FILTERS.some((f) => f.key === sp.entity)) filter.entity = sp.entity;
-  if (sp.q?.trim()) filter.by = new RegExp(sp.q.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+  if (sp.q?.trim()) filter.by = new RegExp(searchPattern(sp.q), 'i');
 
   const logs = await AuditLog.find(filter).sort({ at: -1 }).limit(300).lean();
 

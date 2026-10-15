@@ -3,7 +3,9 @@
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { Types } from 'mongoose';
-import { getTenantSession } from '@/lib/tenantSession';
+import { getTenantSession, getTenantAdminSession } from '@/lib/tenantSession';
+import { branchFilter } from '@/lib/branchScope';
+import { reserveStock, releaseStock } from '@/lib/stock';
 import { isPhoneShop } from '@/lib/businessTypes';
 import { ProductStatus } from '@/lib/models/tenant/Product';
 import { generateProductCode } from '@/lib/productId';
@@ -18,18 +20,19 @@ type State = { error?: string; success?: string } | null;
 // Boshqa filialga o'tkazish — alohida "Filialga berish" (transfer) orqali.
 type LocationStatus = 'warehouse' | 'sold';
 
+/** Narx — faqat butun so'm (kasr/manfiy → null) */
 function parsePrice(v: string): number | null {
   const n = Number(v.replace(/\s/g, ''));
-  if (!Number.isFinite(n) || n < 0) return null;
+  if (!Number.isSafeInteger(n) || n < 0) return null;
   return n;
 }
 
-/** Ixtiyoriy narx: bo'sh bo'lsa 0, noto'g'ri bo'lsa null */
+/** Ixtiyoriy narx: bo'sh bo'lsa 0, noto'g'ri (yoki kasr) bo'lsa null */
 function parseOptionalPrice(v: string): number | null {
   const t = v.replace(/\s/g, '').trim();
   if (!t) return 0;
   const n = Number(t);
-  if (!Number.isFinite(n) || n < 0) return null;
+  if (!Number.isSafeInteger(n) || n < 0) return null;
   return n;
 }
 
@@ -200,7 +203,9 @@ export async function updateProductAction(_prev: State, formData: FormData): Pro
   if (purchasePrice === null) return { error: 'Kelish narxi noto\'g\'ri.' };
   if (salePrice === null) return { error: 'Sotuv narxi noto\'g\'ri.' };
 
-  const product = await Product.findById(productId);
+  if (!Types.ObjectId.isValid(productId)) return { error: 'Mahsulot topilmadi.' };
+  // Filial login faqat o'z filiali mahsulotini tahrirlaydi (IDOR himoyasi)
+  const product = await Product.findOne({ _id: productId, ...branchFilter(user) });
   if (!product) return { error: 'Mahsulot topilmadi.' };
 
   const prevSalePrice = product.salePrice;
@@ -291,72 +296,71 @@ export async function quickMarkSoldAction(_prev: State, formData: FormData): Pro
   const productId = String(formData.get('productId') || '');
   const qty = parseQtyField(String(formData.get('qty') || '1'));
   const priceRaw = String(formData.get('salePrice') || '').trim();
-  if (!productId) return { error: 'Mahsulot topilmadi.' };
+  if (!productId || !Types.ObjectId.isValid(productId)) return { error: 'Mahsulot topilmadi.' };
 
-  const product = await Product.findById(productId);
-  if (!product) return { error: 'Mahsulot topilmadi.' };
-  if (product.status === 'sold') return { error: 'Mahsulot allaqachon sotilgan.' };
+  const scope = branchFilter(user);
+  const found = await Product.findOne({ _id: productId, ...scope }).lean();
+  if (!found) return { error: 'Mahsulot topilmadi.' };
+  if (found.status !== 'in_stock') return { error: 'Mahsulot allaqachon sotilgan.' };
 
   // Sotilgan narx: kiritilgan bo'lsa yangilanadi; bo'lmasa mavjud narx
+  let salePrice = found.salePrice;
   if (priceRaw) {
     const p = parseOptionalPrice(priceRaw);
     if (p === null || p <= 0) return { error: 'Sotilgan narx noto\'g\'ri.' };
-    product.salePrice = p;
+    salePrice = p;
   }
-  if (!product.salePrice || product.salePrice <= 0) {
+  if (!salePrice || salePrice <= 0) {
     return { error: 'PRICE_REQUIRED' };
   }
 
   let saleQty = 1;
-  if (product.trackQuantity) {
-    const available = product.quantity - product.soldQuantity;
+  if (found.trackQuantity) {
+    const available = found.quantity - found.soldQuantity;
     if (available < 1) return { error: 'Omborda qoldiq yo\'q.' };
     saleQty = Math.min(qty, available);
     if (saleQty < 1) return { error: 'Sotiladigan son noto\'g\'ri.' };
-    product.soldQuantity += saleQty;
-    product.status = resolveStatusAfterSale(product.trackQuantity, product.quantity, product.soldQuantity);
-  } else {
-    saleQty = 1;
-    product.status = 'sold';
   }
-  product.soldPaymentType = 'cash';
-  product.soldBankName = undefined;
 
   const now = new Date();
-  if (product.status === 'sold') product.soldAt = now;
-  if (!Array.isArray(product.history)) product.history = [];
-  product.history.push({
-    action: 'sold',
-    detail: `${saleQty} ta · ${fmtSum(product.salePrice * saleQty)}`,
-    by: user.username,
-    at: now,
-  });
+  const totalAmount = salePrice * saleQty;
 
-  const totalAmount = product.salePrice * saleQty;
+  // Atomik: qoldiq tekshiruvi + ayirish bitta so'rovda (parallel sotuvda minusga tushmaydi)
+  const product = await reserveStock(Product, found._id, saleQty, {
+    scope,
+    set: { salePrice, soldPaymentType: 'cash' },
+    history: { action: 'sold', detail: `${saleQty} ta · ${fmtSum(totalAmount)}`, by: user.username, at: now },
+  });
+  if (!product) return { error: 'Omborda yetarli qoldiq yo\'q yoki mahsulot allaqachon sotilgan.' };
 
   try {
-    await product.save();
     // Sotuv yozuvi — "Sotildi" sahifasida ko'rinadi
     const { generateSaleNo } = await import('@/lib/sales');
-    const saleNo = await generateSaleNo(Sale);
-    await Sale.create({
-      saleNo,
-      productId: product._id,
-      productSnapshot: {
-        name: product.name,
-        imei: product.imei,
-        purchasePrice: product.purchasePrice,
-        saleQuantity: saleQty,
-      },
-      branchId: product.branchId,
-      paymentType: 'cash',
-      totalAmount,
-      paidAmount: totalAmount,
-      remainingAmount: 0,
-      status: 'paid',
-      payments: [{ amount: totalAmount, paidAt: now, recordedBy: user.username }],
-      soldBy: user.username,
-    });
+    try {
+      const saleNo = await generateSaleNo(Sale);
+      await Sale.create({
+        saleNo,
+        productId: product._id,
+        productSnapshot: {
+          name: product.name,
+          imei: product.imei,
+          purchasePrice: product.purchasePrice,
+          saleQuantity: saleQty,
+        },
+        branchId: product.branchId,
+        paymentType: 'cash',
+        totalAmount,
+        paidAmount: totalAmount,
+        remainingAmount: 0,
+        status: 'paid',
+        payments: [{ amount: totalAmount, paidAt: now, recordedBy: user.username }],
+        soldBy: user.username,
+      });
+    } catch (err) {
+      // Kompensatsiya: sotuv yozilmasa — mahsulot omborga qaytadi
+      await releaseStock(Product, product._id, saleQty);
+      throw err;
+    }
     await recordAudit(user, {
       action: 'sale.quick',
       entity: 'sale',
@@ -376,11 +380,17 @@ export async function quickMarkSoldAction(_prev: State, formData: FormData): Pro
 }
 
 export async function deleteProductAction(formData: FormData): Promise<void> {
-  const { user, Product } = await getTenantSession();
+  // O'chirish — faqat biznes egasi (admin). Filial login o'chira olmaydi.
+  const { user, Product, Sale } = await getTenantAdminSession();
   const productId = String(formData.get('productId') || '');
-  if (!productId) return;
+  if (!productId || !Types.ObjectId.isValid(productId)) return;
 
-  const deleted = await Product.findByIdAndDelete(productId).lean();
+  // Sotuv tarixi bor mahsulot o'chirilmaydi (moliyaviy yozuvlar yetim qolmasin)
+  const hasSales = await Sale.exists({ productId });
+  if (hasSales) redirect(`/app/products/${productId}?deleteBlocked=1`);
+
+  const deleted = await Product.findOneAndDelete({ _id: productId }).lean();
+  if (!deleted) redirect('/app/products');
   await recordAudit(user, {
     action: 'product.delete',
     entity: 'product',

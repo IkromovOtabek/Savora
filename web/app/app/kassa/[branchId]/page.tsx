@@ -1,6 +1,8 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
+import { Types } from 'mongoose';
 import { getTenantSession } from '@/lib/tenantSession';
+import { isBranchScoped } from '@/lib/branchScope';
 import { dayRange, extractKassaPayments } from '@/lib/kassa';
 import { fmtDateTime, fmtMoney } from '@/lib/format';
 import KassaDateFilter from '@/components/tenant/KassaDateFilter';
@@ -19,8 +21,11 @@ export default async function KassaBranchPage({
 }) {
   const { branchId } = await params;
   const sp = await searchParams;
-  const { Sale, Branch } = await getTenantSession();
+  const { user, Sale, Branch } = await getTenantSession();
 
+  if (!Types.ObjectId.isValid(branchId)) notFound();
+  // Filial login faqat o'z filiali kassasini ko'radi
+  if (isBranchScoped(user) && String(user.branchId) !== branchId) notFound();
   const branch = await Branch.findById(branchId).lean();
   if (!branch) notFound();
 

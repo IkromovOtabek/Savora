@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { getTenantSession } from '@/lib/tenantSession';
+import { searchPattern } from '@/lib/security';
 
 export const metadata = { title: 'Mijozlar — Savora' };
 
@@ -19,9 +20,11 @@ export default async function CustomersPage({
 
   const filter: Record<string, unknown> = {};
   if (q) {
+    // Regex injection/ReDoS himoyasi: ekranlangan, 50 belgigacha
+    const pattern = searchPattern(q);
     filter.$or = [
-      { fullName: { $regex: q, $options: 'i' } },
-      { phone: { $regex: q, $options: 'i' } },
+      { fullName: { $regex: pattern, $options: 'i' } },
+      { phone: { $regex: pattern, $options: 'i' } },
     ];
   }
 

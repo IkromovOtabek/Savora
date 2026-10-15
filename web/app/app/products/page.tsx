@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { getTenantSession } from '@/lib/tenantSession';
 import { branchFilter } from '@/lib/branchScope';
+import { searchPattern } from '@/lib/security';
 import { isImeiEnabled } from '@/lib/features';
 import { resolveOrgPlan } from '@/lib/plans';
 import { PRODUCT_STATUS_LABELS, ProductStatus } from '@/lib/models/tenant/Product';
@@ -41,15 +42,17 @@ export default async function ProductsPage({
   const filter: Record<string, unknown> = {};
   const q = (sp.q ?? '').trim();
   if (q) {
-    const qNoSpace = q.replace(/\s/g, '');
+    // Regex injection/ReDoS himoyasi: ekranlangan, 50 belgigacha
+    const pattern = searchPattern(q);
+    const qNoSpace = searchPattern(q.replace(/\s/g, ''));
     filter.$or = [
-      { name: { $regex: q, $options: 'i' } },
+      { name: { $regex: pattern, $options: 'i' } },
       { imei: { $regex: qNoSpace, $options: 'i' } },
       { barcode: { $regex: qNoSpace, $options: 'i' } },
       { productId: { $regex: qNoSpace, $options: 'i' } },
     ];
   }
-  if (sp.branch) filter.branchId = sp.branch;
+  if (sp.branch && /^[a-f0-9]{24}$/i.test(sp.branch)) filter.branchId = sp.branch;
   // Ombor faqat QOLDIQ mahsulotlarni ko'rsatadi — sotilganlar bu yerda emas, "Sotildi" sahifasida.
   if (sp.status && sp.status !== 'sold' && sp.status in PRODUCT_STATUS_LABELS) {
     filter.status = sp.status;

@@ -17,6 +17,10 @@ export interface IUser {
   mustChangePassword?: boolean;
   tokenVersion: number;
   active: boolean;
+  /** Parol tiklash: bir martalik kod xeshi (SHA-256), muddati va noto'g'ri urinishlar soni */
+  resetCodeHash?: string;
+  resetCodeExpiresAt?: Date;
+  resetAttempts?: number;
   createdAt?: Date;
   updatedAt?: Date;
   comparePassword(candidate: string): Promise<boolean>;
@@ -32,6 +36,9 @@ export const userSchema = new Schema<IUser>(
     mustChangePassword: { type: Boolean, default: false },
     tokenVersion: { type: Number, default: 0 },
     active: { type: Boolean, default: true },
+    resetCodeHash: { type: String, select: false },
+    resetCodeExpiresAt: { type: Date, select: false },
+    resetAttempts: { type: Number, select: false },
   },
   { timestamps: true, collection: 'users' }
 );

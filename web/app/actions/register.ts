@@ -1,7 +1,10 @@
 'use server';
 
 import { redirect } from 'next/navigation';
+import { headers } from 'next/headers';
 import { getAppZone } from '@/lib/tenantContext';
+import { hitRateLimit } from '@/lib/rateLimit';
+import { clientIpFrom } from '@/lib/security';
 import { createOrganization, normalizeSlug } from '@/lib/organizations';
 import { parseBusinessType } from '@/lib/businessTypes';
 import { getSession } from '@/lib/session';
@@ -44,6 +47,13 @@ export async function registerAction(_prev: State, formData: FormData): Promise<
   }
   if (adminPassword !== confirmPassword) {
     return { error: 'Parollar mos kelmadi.' };
+  }
+
+  // Spam himoyasi: bitta IP'dan sutkasiga 3 tagacha do'kon yaratish (validatsiyadan o'tgan urinishlar)
+  const ip = clientIpFrom(await headers());
+  const rl = hitRateLimit(`register-ip:${ip}`, 3, 24 * 60 * 60 * 1000);
+  if (!rl.ok) {
+    return { error: 'Bu qurilmadan bugun juda ko\'p ro\'yxatdan o\'tildi. Ertaga qayta urinib ko\'ring yoki biz bilan bog\'laning.' };
   }
 
   try {

@@ -25,8 +25,9 @@ export function fmtDateTime(d: Date | string): string {
   return `${pad(dt.getDate())}.${pad(dt.getMonth() + 1)}.${dt.getFullYear()}, ${pad(dt.getHours())}:${pad(dt.getMinutes())}`;
 }
 
+/** Pul summasi — faqat butun so'm (kasr, manfiy, noto'g'ri qiymat → null) */
 export function parsePrice(v: string): number | null {
   const n = Number(String(v).replace(/\s/g, ''));
-  if (!Number.isFinite(n) || n < 0) return null;
+  if (!Number.isSafeInteger(n) || n < 0) return null;
   return n;
 }

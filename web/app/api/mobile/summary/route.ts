@@ -1,10 +1,12 @@
 import { NextResponse } from 'next/server';
-import { verifyMobileToken } from '@/lib/mobileAuth';
+import { authenticateMobile } from '@/lib/mobileAuth';
 import { getTenantModels } from '@/lib/tenantDb';
 import { branchFilter, branchAggMatch } from '@/lib/branchScope';
 
 export async function GET(req: Request) {
-  const user = await verifyMobileToken(req);
+  const auth = await authenticateMobile(req);
+  if (auth instanceof NextResponse) return auth;
+  const user = auth;
   if (!user || !user.dbName) {
     return NextResponse.json({ error: 'Avtorizatsiya kerak.' }, { status: 401 });
   }

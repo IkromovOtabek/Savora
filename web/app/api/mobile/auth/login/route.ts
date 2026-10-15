@@ -3,7 +3,8 @@ import { getMasterModels } from '@/lib/masterDb';
 import { getTenantModels } from '@/lib/tenantDb';
 import { isOrganizationActive } from '@/lib/models/master/Organization';
 import { createMobileToken } from '@/lib/mobileAuth';
-import { hitRateLimit } from '@/lib/rateLimit';
+import { clearRateLimit, hitRateLimit } from '@/lib/rateLimit';
+import { clientIpFrom, loginRateKeys } from '@/lib/security';
 import { normalizeSlug } from '@/lib/slug';
 import { lookupUser } from '@/lib/userDirectory';
 
@@ -22,9 +23,11 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Login va parol shart.' }, { status: 400 });
   }
 
-  // Brute-force himoyasi
-  const rl = hitRateLimit(`mobile:${slug || '-'}:${username}`);
-  if (!rl.ok) {
+  // Brute-force himoyasi — slug kalitga kirmaydi (almashtirib chetlab o'tib bo'lmaydi)
+  const keys = loginRateKeys(username, clientIpFrom(req.headers));
+  const rl = hitRateLimit(keys.user);
+  const rlIp = hitRateLimit(keys.ip, 30);
+  if (!rl.ok || !rlIp.ok) {
     return NextResponse.json({ error: 'Juda ko\'p urinish. Birozdan so\'ng urinib ko\'ring.' }, { status: 429 });
   }
 
@@ -57,6 +60,7 @@ export async function POST(req: Request) {
     dbName: org.dbName,
     branchId: user.branchId ? String(user.branchId) : undefined,
   };
+  clearRateLimit(keys.user);
   const token = await createMobileToken(sessionUser);
 
   return NextResponse.json({

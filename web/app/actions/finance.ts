@@ -8,7 +8,8 @@ type State = { error?: string; success?: string } | null;
 
 function parseAmount(v: string): number | null {
   const n = Number(v.replace(/\s/g, ''));
-  if (!Number.isFinite(n) || n <= 0) return null;
+  // Butun so'm — kasr summalar rad etiladi
+  if (!Number.isSafeInteger(n) || n <= 0) return null;
   return n;
 }
 

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { verifyMobileToken } from '@/lib/mobileAuth';
+import { authenticateMobile } from '@/lib/mobileAuth';
 import { getTenantModels } from '@/lib/tenantDb';
 import { reserveUsername, isUsernameAvailable, UsernameTakenError } from '@/lib/userDirectory';
 import { addOrgUser } from '@/lib/orgUsers';
@@ -8,7 +8,9 @@ const normalizeLogin = (v: string) => v.trim().toLowerCase().replace(/\s+/g, '')
 
 /** Filiallar ro'yxati. */
 export async function GET(req: Request) {
-  const user = await verifyMobileToken(req);
+  const auth = await authenticateMobile(req);
+  if (auth instanceof NextResponse) return auth;
+  const user = auth;
   if (!user || !user.dbName) return NextResponse.json({ error: 'Avtorizatsiya kerak.' }, { status: 401 });
   const { Branch } = await getTenantModels(user.dbName);
   const branches = await Branch.find({ active: true }).sort({ isMain: -1, name: 1 }).lean();
@@ -19,7 +21,9 @@ export async function GET(req: Request) {
 
 /** Yangi filial + login. Faqat biznes egasi (admin). createFilialAction mantiqi. */
 export async function POST(req: Request) {
-  const user = await verifyMobileToken(req);
+  const auth = await authenticateMobile(req);
+  if (auth instanceof NextResponse) return auth;
+  const user = auth;
   if (!user || !user.dbName || !user.organizationId) return NextResponse.json({ error: 'Avtorizatsiya kerak.' }, { status: 401 });
   if (user.role !== 'admin') return NextResponse.json({ error: 'Faqat biznes egasi filial qo\'sha oladi.' }, { status: 403 });
 

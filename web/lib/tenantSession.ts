@@ -1,5 +1,4 @@
-import { requireOrgAdmin, requireOrgUser, requireOrgWithFeatures } from './auth';
-import { resolveTenant } from './tenantContext';
+import { requireOrgAdminWithOrg, requireOrgWithFeatures } from './auth';
 import { getTenantModels } from './tenantDb';
 import { getMasterModels } from './masterDb';
 import { IOrganization } from './models/master/Organization';
@@ -14,9 +13,8 @@ export async function getTenantSession(opts?: { allowExpired?: boolean }) {
 
 /** Admin huquqi + tenant modellari + modullar */
 export async function getTenantAdminSession(opts?: { allowExpired?: boolean }) {
-  const user = await requireOrgAdmin(opts);
-  const org = await resolveTenant();
-  if (!org) throw new Error('Do\'kon topilmadi.');
+  // Do'kon sessiyadagi organizationId'dan (slug/cookie'dan emas)
+  const { user, org } = await requireOrgAdminWithOrg(opts);
   const features = resolveOrgFeatures(org);
   const models = await getTenantModels(user.dbName!);
   return { user, org, features, ...models };
