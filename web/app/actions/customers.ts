@@ -3,11 +3,13 @@
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { getTenantSession } from '@/lib/tenantSession';
+import { checkPermission } from '@/lib/permissionGuard';
 
 type State = { error?: string; success?: string } | null;
 
 export async function createCustomerAction(_prev: State, formData: FormData): Promise<State> {
-  const { Customer } = await getTenantSession();
+  const { user, Customer } = await getTenantSession();
+  { const denied = await checkPermission(user, 'customers.manage'); if (denied) return denied; }
 
   const fullName = String(formData.get('fullName') || '').trim();
   const phone = String(formData.get('phone') || '').trim();
@@ -38,7 +40,8 @@ export async function createCustomerAction(_prev: State, formData: FormData): Pr
 }
 
 export async function updateCustomerAction(_prev: State, formData: FormData): Promise<State> {
-  const { Customer } = await getTenantSession();
+  const { user, Customer } = await getTenantSession();
+  { const denied = await checkPermission(user, 'customers.manage'); if (denied) return denied; }
 
   const customerId = String(formData.get('customerId') || '');
   const fullName = String(formData.get('fullName') || '').trim();

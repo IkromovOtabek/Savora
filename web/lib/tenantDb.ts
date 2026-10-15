@@ -11,7 +11,7 @@ import { transferSchema, ITransfer } from './models/tenant/Transfer';
 import { auditLogSchema, IAuditLog } from './models/tenant/AuditLog';
 import { ledgerEntrySchema, ILedgerEntry } from './models/tenant/LedgerEntry';
 
-const TENANT_MODELS_VERSION = 6;
+const TENANT_MODELS_VERSION = 7;
 
 type TenantModelsMap = Map<string, ReturnType<typeof registerModels>>;
 const globalForTenant = global as unknown as { _savdoproTenantCache?: TenantModelsMap };

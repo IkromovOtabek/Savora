@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { verifyMobileToken } from '@/lib/mobileAuth';
+import { mobilePermissionDenied, userCan } from '@/lib/permissionGuard';
 import { getTenantModels } from '@/lib/tenantDb';
 import { branchFilter } from '@/lib/branchScope';
 
@@ -9,6 +10,7 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: 'Avtorizatsiya kerak.' }, { status: 401 });
   }
   const { Product } = await getTenantModels(user.dbName);
+  const canViewCost = await userCan(user, 'product.viewCost');
 
   const url = new URL(req.url);
   const q = (url.searchParams.get('q') || '').trim();
@@ -41,7 +43,8 @@ export async function GET(req: Request) {
       imei: p.imei,
       barcode: p.barcode ?? null,
       salePrice: p.salePrice,
-      purchasePrice: p.purchasePrice,
+      purchasePrice: canViewCost ? p.purchasePrice : 0,
+      costHidden: !canViewCost,
       status: p.status,
       trackQuantity: p.trackQuantity ?? false,
       available: p.trackQuantity ? Math.max(0, (p.quantity ?? 0) - (p.soldQuantity ?? 0)) : (p.status === 'in_stock' ? 1 : 0),
@@ -55,6 +58,7 @@ export async function POST(req: Request) {
   if (!user || !user.dbName) {
     return NextResponse.json({ error: 'Avtorizatsiya kerak.' }, { status: 401 });
   }
+  { const denied = await mobilePermissionDenied(user, 'product.create'); if (denied) return denied; }
   let body: { name?: string; code?: string; barcode?: string; brand?: string; purchasePrice?: number; salePrice?: number; notes?: string };
   try { body = await req.json(); } catch { return NextResponse.json({ error: 'Noto\'g\'ri so\'rov.' }, { status: 400 }); }
 

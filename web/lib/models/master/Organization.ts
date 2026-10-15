@@ -1,6 +1,6 @@
 import { Schema, Types } from 'mongoose';
 import { FEATURE_KEYS, FeatureKey, OrgFeatures } from '../../featureKeys';
-import { BusinessType } from '../../businessTypes';
+import { BUSINESS_TYPE_IDS, BusinessType } from '../../businessTypes';
 
 export interface IOrganization {
   name: string;
@@ -75,7 +75,7 @@ export const organizationSchema = new Schema<IOrganization>(
     adminUsername: { type: String, trim: true, lowercase: true },
     businessType: {
       type: String,
-      enum: ['general', 'phone_shop', 'restaurant', 'wholesale', 'service', 'pharmacy', 'auto_parts'],
+      enum: [...BUSINESS_TYPE_IDS],
       default: 'general',
     },
     status: { type: String, enum: ['active', 'suspended', 'expired'], default: 'active' },

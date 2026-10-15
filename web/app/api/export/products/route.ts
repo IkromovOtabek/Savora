@@ -3,6 +3,7 @@ import { getSession } from '@/lib/session';
 import { getMasterModels } from '@/lib/masterDb';
 import { getTenantModels } from '@/lib/tenantDb';
 import { isFeatureEnabled } from '@/lib/features';
+import { loadUserPermissions } from '@/lib/permissionGuard';
 
 function csvEscape(v: string | number) {
   const s = String(v);
@@ -21,13 +22,15 @@ export async function GET() {
   if (!org || !isFeatureEnabled(org, 'export')) {
     return NextResponse.json({ error: 'Export moduli faol emas' }, { status: 403 });
   }
+  const perms = await loadUserPermissions(user);
+  if (!perms.has('export.data')) return NextResponse.json({ error: 'Eksport huquqi yo\'q' }, { status: 403 });
 
   const { Product } = await getTenantModels(user.dbName);
   const products = await Product.find().sort({ createdAt: -1 }).lean();
 
   const header = 'IMEI,Nom,Rang,Holat,Kelish,Sotuv,Izoh';
   const rows = products.map((p) =>
-    [p.imei, p.name, p.color ?? '', p.status, p.purchasePrice, p.salePrice, p.notes ?? '']
+    [p.imei, p.name, p.color ?? '', p.status, perms.has('product.viewCost') ? p.purchasePrice : '', p.salePrice, p.notes ?? '']
       .map(csvEscape).join(',')
   );
 

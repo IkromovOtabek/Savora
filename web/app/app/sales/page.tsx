@@ -4,6 +4,7 @@ import { branchFilter, branchAggMatch } from '@/lib/branchScope';
 import { PAYMENT_TYPE_LABELS, SALE_STATUS_LABELS, PaymentType, SaleStatus } from '@/lib/models/tenant/Sale';
 import { fmtDate, fmtMoney } from '@/lib/format';
 import SaleRowDelete from '@/components/tenant/SaleRowDelete';
+import { loadUserPermissions } from '@/lib/permissionGuard';
 
 export const metadata = { title: 'Sotuvlar — Savora' };
 
@@ -13,8 +14,11 @@ export default async function SalesPage({
   searchParams: Promise<{ status?: string; type?: string }>;
 }) {
   const sp = await searchParams;
-  const { user, Sale, Product, Branch } = await getTenantSession();
+  const { user, Sale, Product, Branch, features } = await getTenantSession();
 
+  const perms = await loadUserPermissions(user);
+  const canViewCost = perms.has('product.viewCost');
+  const canCancel = perms.has('sale.cancel');
   const scope = branchFilter(user);
   const filter: Record<string, unknown> = { ...scope };
   if (sp.status && sp.status in SALE_STATUS_LABELS) filter.status = sp.status;
@@ -81,9 +85,9 @@ export default async function SalesPage({
         <Link href="/app/sales?status=partial" className={`chip${sp.status === 'partial' ? ' chip--active' : ''}`}>Qarzdor</Link>
         <Link href="/app/sales?type=cash" className={`chip${sp.type === 'cash' ? ' chip--active' : ''}`}>Naqd</Link>
         <Link href="/app/sales?type=debt" className={`chip${sp.type === 'debt' ? ' chip--active' : ''}`}>Qarz</Link>
-        <Link href="/app/sales?type=installment" className={`chip${sp.type === 'installment' ? ' chip--active' : ''}`}>Nasiya</Link>
-        <Link href="/app/sales?type=bank_credit" className={`chip${sp.type === 'bank_credit' ? ' chip--active' : ''}`}>Bank krediti</Link>
-        <a href="/api/export/sales" className="chip">CSV export</a>
+        {(features.nasiya || features.variant) && <Link href="/app/sales?type=installment" className={`chip${sp.type === 'installment' ? ' chip--active' : ''}`}>Nasiya</Link>}
+        {features.creditKassa && <Link href="/app/sales?type=bank_credit" className={`chip${sp.type === 'bank_credit' ? ' chip--active' : ''}`}>Bank krediti</Link>}
+        {features.export && perms.has('export.data') && <a href="/api/export/sales" className="chip">CSV export</a>}
       </div>
 
       <div className="panel" style={{ marginTop: 20 }}>
@@ -143,7 +147,7 @@ export default async function SalesPage({
                     <td data-label="IMEI"><code className="imei-code">{r.imei}</code></td>
                     <td data-label="Narx">
                       <div className="sold-cell-stack">
-                        <div className="cell-sub">Olingan: {fmtMoney(r.purchase)}</div>
+                        {canViewCost && <div className="cell-sub">Olingan: {fmtMoney(r.purchase)}</div>}
                         <div className="cell-main">Sotilgan: {fmtMoney(r.unit)}</div>
                       </div>
                     </td>
@@ -153,7 +157,7 @@ export default async function SalesPage({
                     <td className="cell-actions">
                       <div className="row-actions">
                         <Link href={`/app/sales/${r.id}`} className="btn btn-ghost btn-sm">Batafsil</Link>
-                        {!r.cancelled && <SaleRowDelete saleId={r.id} saleNo={r.saleNo} />}
+                        {canCancel && !r.cancelled && <SaleRowDelete saleId={r.id} saleNo={r.saleNo} />}
                       </div>
                     </td>
                   </tr>
@@ -190,12 +194,12 @@ export default async function SalesPage({
                 <div className="sold-card-foot">
                   <div className="sold-card-price">
                     <span className="sold-card-l">Narx ({r.typeLabel})</span>
-                    <span className="sold-card-old">Olingan: {fmtMoney(r.purchase)}</span>
+                    {canViewCost && <span className="sold-card-old">Olingan: {fmtMoney(r.purchase)}</span>}
                     <span className={`sold-card-new${r.isDebt ? ' sold-card-new--debt' : ''}`}>{fmtMoney(r.unit)} so&apos;m</span>
                   </div>
                   <div className="row-actions">
                     <Link href={`/app/sales/${r.id}`} className="btn btn-ghost btn-sm">Batafsil</Link>
-                    {!r.cancelled && <SaleRowDelete saleId={r.id} saleNo={r.saleNo} />}
+                    {canCancel && !r.cancelled && <SaleRowDelete saleId={r.id} saleNo={r.saleNo} />}
                   </div>
                 </div>
               </div>

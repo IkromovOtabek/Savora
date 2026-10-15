@@ -5,6 +5,7 @@ import { ProductStatus } from '@/lib/models/tenant/Product';
 import ProductForm from '@/components/tenant/ProductForm';
 import DeleteProductButton from '@/components/tenant/DeleteProductButton';
 import ProductHistory from '@/components/tenant/ProductHistory';
+import { loadUserPermissions } from '@/lib/permissionGuard';
 
 export const metadata = { title: 'Mahsulot — Savora' };
 
@@ -25,6 +26,9 @@ export default async function ProductDetailPage({
   // Filial-login faqat o'z filiali mahsulotini ko'radi/tahrirlaydi
   if (!isAdmin && user.branchId && String(product.branchId) !== user.branchId) notFound();
 
+  const perms = await loadUserPermissions(user);
+  const canViewCost = perms.has('product.viewCost');
+
   const branches = await Branch.find({ active: true }).sort({ name: 1 }).lean();
   const creditBanks = features.creditKassa
     ? await CreditBank.find({ active: true }).sort({ name: 1 }).lean()
@@ -42,6 +46,7 @@ export default async function ProductDetailPage({
         creditKassaEnabled={features.creditKassa}
         creditBanks={creditBanks.map((b) => ({ id: String(b._id), name: b.name }))}
         isAdmin={isAdmin}
+        canViewCost={canViewCost}
         currentBranchId={user.branchId}
         branches={branches.map((b) => ({ id: String(b._id), name: b.name }))}
         initial={{
@@ -56,7 +61,8 @@ export default async function ProductDetailPage({
           status: product.status as ProductStatus,
           soldPaymentType: product.soldPaymentType,
           soldBankName: product.soldBankName,
-          purchasePrice: product.purchasePrice,
+          // Huquqsiz xodimga kelish narxi umuman yuborilmaydi (RSC payload'da ham)
+          purchasePrice: canViewCost ? product.purchasePrice : 0,
           salePrice: product.salePrice,
           productId: product.productId,
           trackQuantity: product.trackQuantity ?? false,
@@ -66,9 +72,11 @@ export default async function ProductDetailPage({
       />
       <ProductHistory history={product.history ?? []} />
 
-      <div style={{ maxWidth: 640, marginTop: 16 }}>
-        <DeleteProductButton productId={String(product._id)} productName={product.name} />
-      </div>
+      {perms.has('product.delete') && (
+        <div style={{ maxWidth: 640, marginTop: 16 }}>
+          <DeleteProductButton productId={String(product._id)} productName={product.name} />
+        </div>
+      )}
     </>
   );
 }

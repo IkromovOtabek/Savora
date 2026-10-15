@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { verifyMobileToken } from '@/lib/mobileAuth';
+import { mobilePermissionDenied } from '@/lib/permissionGuard';
 import { getTenantModels } from '@/lib/tenantDb';
 import { reserveUsername, isUsernameAvailable, UsernameTakenError } from '@/lib/userDirectory';
 import { addOrgUser } from '@/lib/orgUsers';
@@ -22,6 +23,7 @@ export async function POST(req: Request) {
   const user = await verifyMobileToken(req);
   if (!user || !user.dbName || !user.organizationId) return NextResponse.json({ error: 'Avtorizatsiya kerak.' }, { status: 401 });
   if (user.role !== 'admin') return NextResponse.json({ error: 'Faqat biznes egasi filial qo\'sha oladi.' }, { status: 403 });
+  { const denied = await mobilePermissionDenied(user, 'users.manage'); if (denied) return denied; }
 
   let body: { name?: string; address?: string; phone?: string; username?: string; password?: string };
   try { body = await req.json(); } catch { return NextResponse.json({ error: 'Noto\'g\'ri so\'rov.' }, { status: 400 }); }

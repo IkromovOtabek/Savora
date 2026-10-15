@@ -14,6 +14,7 @@ const PARAM_MESSAGES: Record<string, { msg: string; type: ToastType }> = {
   sold: { msg: 'Mahsulot sotildi.', type: 'success' },
   transferred: { msg: 'Boshqa filialga berildi.', type: 'success' },
   saved: { msg: 'Saqlandi.', type: 'success' },
+  denied: { msg: 'Bu amal uchun huquqingiz yo‘q.', type: 'error' },
 };
 
 export default function SearchParamToast() {

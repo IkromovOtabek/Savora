@@ -3,7 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { Types } from 'mongoose';
-import { getTenantSession, getTenantAdminSession } from '@/lib/tenantSession';
+import { getTenantSession } from '@/lib/tenantSession';
 import { parsePrice } from '@/lib/format';
 import { calcSaleStatus, generateSaleNo } from '@/lib/sales';
 import { PaymentType } from '@/lib/models/tenant/Sale';
@@ -14,6 +14,8 @@ import { recordAudit } from '@/lib/audit';
 import { markOnboardingStep } from '@/lib/onboarding';
 import { branchFilter } from '@/lib/branchScope';
 import { logError } from '@/lib/logger';
+import { checkPermission, userCan } from '@/lib/permissionGuard';
+import { permissionDeniedError } from '@/lib/permissions';
 
 type State = { error?: string; success?: string } | null;
 
@@ -126,6 +128,8 @@ export type QuickSaleLine = { productId: string; qty: number; salePrice?: number
 export async function quickSaleBatchAction(items: QuickSaleLine[]): Promise<State> {
   const { user, Product, Sale, features } = await getTenantSession();
   if (!features.sales) return featureDisabledError('sales');
+  { const denied = await checkPermission(user, 'sale.create'); if (denied) return denied; }
+  const canEditPrice = await userCan(user, 'sale.editPrice');
   if (!items.length) return { error: 'Sotish uchun mahsulot tanlanmagan.' };
 
   const scope = branchFilter(user);
@@ -152,6 +156,8 @@ export async function quickSaleBatchAction(items: QuickSaleLine[]): Promise<Stat
       }
 
       if (item.salePrice != null && item.salePrice > 0) {
+        // Narxi bor mahsulotda narxni o'zgartirish — "sale.editPrice" huquqi kerak
+        if (!canEditPrice && product.salePrice > 0 && item.salePrice !== product.salePrice) return permissionDeniedError('sale.editPrice');
         product.salePrice = item.salePrice;
       }
       if (!product.salePrice || product.salePrice <= 0) {
@@ -232,6 +238,7 @@ export async function quickSaleBatchAction(items: QuickSaleLine[]): Promise<Stat
 export async function createSaleAction(_prev: State, formData: FormData): Promise<State> {
   const { user, Product, Customer, Sale, CreditBank, features } = await getTenantSession();
   if (!features.sales) return featureDisabledError('sales');
+  { const denied = await checkPermission(user, 'sale.create'); if (denied) return denied; }
 
   const productId = String(formData.get('productId') || '');
   const customerName = String(formData.get('customerName') || '').trim();
@@ -259,6 +266,8 @@ export async function createSaleAction(_prev: State, formData: FormData): Promis
     const available = product.quantity - product.soldQuantity;
     if (saleQty > available) return { error: `Omborda faqat ${available} ta qoldi.` };
   }
+  // Sotuv narxidan arzon sotish — "sale.discount" huquqi kerak
+  if (product.salePrice > 0 && totalAmount < product.salePrice * saleQty && !(await userCan(user, 'sale.discount'))) return permissionDeniedError('sale.discount');
 
   let customer = null;
   if (customerName && customerPhone) {
@@ -393,6 +402,7 @@ export async function createSaleAction(_prev: State, formData: FormData): Promis
 
 export async function addSalePaymentAction(_prev: State, formData: FormData): Promise<State> {
   const { user, Sale } = await getTenantSession();
+  { const denied = await checkPermission(user, 'payment.accept'); if (denied) return denied; }
 
   const saleId = String(formData.get('saleId') || '');
   const amount = parsePrice(String(formData.get('amount') || ''));
@@ -420,12 +430,14 @@ export async function addSalePaymentAction(_prev: State, formData: FormData): Pr
 }
 
 export async function cancelSaleAction(_prev: State, formData: FormData): Promise<State> {
-  const { Product, Sale } = await getTenantAdminSession();
+  // Admin — doim; filial login — faqat "sale.cancel" huquqi bo'lsa va faqat o'z filiali sotuvini
+  const { user, Product, Sale } = await getTenantSession();
+  { const denied = await checkPermission(user, 'sale.cancel'); if (denied) return denied; }
 
   const saleId = String(formData.get('saleId') || '');
-  if (!saleId) return { error: 'Sotuv topilmadi.' };
+  if (!saleId || !Types.ObjectId.isValid(saleId)) return { error: 'Sotuv topilmadi.' };
 
-  const sale = await Sale.findById(saleId);
+  const sale = await Sale.findOne({ _id: saleId, ...branchFilter(user) });
   if (!sale) return { error: 'Sotuv topilmadi.' };
   if (sale.status === 'cancelled') return { error: 'Allaqachon bekor qilingan.' };
 

@@ -1992,3 +1992,39 @@ img { max-width: 100%; display: block; }
 .daftar-meta { font-size: .82rem; color: var(--ink-3); }
 .daftar-card-foot { display: flex; gap: 8px; border-top: 1px solid var(--border); padding-top: 10px; }
 .daftar-del { color: #b91c1c; }
+
+/* ===== Biznes turi tanlash (ro'yxatdan o'tish) ===== */
+.biz-pick-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.biz-pick { position: relative; display: flex; flex-direction: column; gap: 4px; padding: 12px; border: 1.5px solid var(--border); border-radius: var(--r-sm); background: var(--surface); cursor: pointer; transition: border-color .15s, box-shadow .15s; }
+.biz-pick:hover { border-color: var(--brand); }
+.biz-pick--on { border-color: var(--brand); box-shadow: 0 0 0 3px rgba(79,70,229,.15); }
+.biz-pick input { position: absolute; opacity: 0; pointer-events: none; }
+.biz-pick-icon { width: 32px; height: 32px; border-radius: 9px; display: inline-flex; align-items: center; justify-content: center; color: var(--brand); background: var(--bg-soft); }
+.biz-pick--on .biz-pick-icon { color: #fff; background: var(--brand); }
+.biz-pick strong { font-size: .86rem; font-weight: 800; line-height: 1.25; }
+.biz-pick small { font-size: .72rem; color: var(--ink-3); line-height: 1.35; }
+@media (max-width: 640px) { .biz-pick-grid { grid-template-columns: repeat(2, 1fr); } }
+
+/* ===== Modul manbasi (tarif / preset / qo'lda) ===== */
+.feat-src { display: inline-block; margin-left: 6px; font-size: .62rem; font-weight: 800; text-transform: uppercase; letter-spacing: .04em; padding: 1px 6px; border-radius: 999px; vertical-align: middle; }
+.feat-src--plan { color: var(--ink-3); background: var(--bg-soft); border: 1px solid var(--border); }
+.feat-src--preset { color: #047857; background: #d1fae5; }
+.feat-src--override { color: #b45309; background: #fef3c7; }
+.dark .feat-src--preset { color: #6ee7b7; background: rgba(16,185,129,.18); }
+.dark .feat-src--override { color: #fcd34d; background: rgba(245,158,11,.18); }
+.preset-bar { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 10px; padding: 16px 24px 0; }
+.preset-bar .auth-field { flex: 1; min-width: 220px; margin: 0; }
+.feat-legend { display: flex; flex-wrap: wrap; gap: 10px; padding: 10px 24px 0; font-size: .78rem; color: var(--ink-3); }
+
+/* ===== Huquqlar ===== */
+.perm-editor { padding: 16px 20px 20px; max-height: 70vh; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; }
+.perm-editor-hint { margin: 0; font-size: .86rem; color: var(--ink-2); line-height: 1.5; }
+.module-check--locked { opacity: .6; cursor: not-allowed; }
+.module-check strong svg { margin-left: 4px; vertical-align: -1px; }
+.u-perm-chip { font-size: .74rem; font-weight: 700; padding: 3px 10px; border-radius: 999px; background: var(--bg-soft); border: 1px solid var(--border); color: var(--ink-2); white-space: nowrap; }
+.perm-matrix-wrap { padding: 16px 24px 20px; display: flex; flex-direction: column; gap: 12px; }
+.perm-matrix th, .perm-matrix td { text-align: center; white-space: nowrap; }
+.perm-matrix th:first-child, .perm-matrix td:first-child { text-align: left; white-space: normal; min-width: 200px; }
+.perm-matrix td small { display: block; color: var(--ink-3); font-size: .72rem; }
+.perm-matrix-group td { background: var(--bg-soft); font-weight: 800; font-size: .74rem; text-transform: uppercase; letter-spacing: .04em; color: var(--ink-2); }
+.perm-matrix input { accent-color: var(--brand); width: 16px; height: 16px; }

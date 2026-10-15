@@ -12,6 +12,7 @@ import { resolveWarehouseBranchId } from '@/lib/warehouseBranch';
 import { recordAudit } from '@/lib/audit';
 import { markOnboardingStep } from '@/lib/onboarding';
 import { ensureMainBranchId } from '@/lib/mainBranch';
+import { checkPermission, userCan } from '@/lib/permissionGuard';
 
 type State = { error?: string; success?: string } | null;
 // Mahsulot holati formada: omborda (o'z filialida) yoki sotilgan.
@@ -103,6 +104,7 @@ function generateSku(): string {
 
 export async function createProductAction(_prev: State, formData: FormData): Promise<State> {
   const { user, org, Product, Branch } = await getTenantSession();
+  { const denied = await checkPermission(user, 'product.create'); if (denied) return denied; }
   const phoneShop = isPhoneShop(org);
 
   const name = String(formData.get('name') || '').trim();
@@ -176,6 +178,9 @@ export async function createProductAction(_prev: State, formData: FormData): Pro
 
 export async function updateProductAction(_prev: State, formData: FormData): Promise<State> {
   const { user, org, Product, Branch, CreditBank, features } = await getTenantSession();
+  { const denied = await checkPermission(user, 'product.edit'); if (denied) return denied; }
+  // Kelish narxini ko'rmaydigan xodim formada uni yubormaydi — mavjud qiymat saqlanadi
+  const canViewCost = await userCan(user, 'product.viewCost');
   const phoneShop = isPhoneShop(org);
 
   const productId = String(formData.get('productId') || '');
@@ -188,7 +193,7 @@ export async function updateProductAction(_prev: State, formData: FormData): Pro
   const soldBankName = String(formData.get('soldBankName') || '').trim();
   const notes = String(formData.get('notes') || '').trim();
   const photoUrl = String(formData.get('photoUrl') || '').trim();
-  const purchasePrice = parsePrice(String(formData.get('purchasePrice') || ''));
+  let purchasePrice = canViewCost ? parsePrice(String(formData.get('purchasePrice') || '')) : 0;
   const salePrice = parseOptionalPrice(String(formData.get('salePrice') || ''));
   const trackQuantity = formData.get('trackQuantity') === 'on';
   const quantity = trackQuantity ? parseQtyField(String(formData.get('quantity') || '1')) : 1;
@@ -205,6 +210,7 @@ export async function updateProductAction(_prev: State, formData: FormData): Pro
 
   const prevSalePrice = product.salePrice;
   const prevPurchasePrice = product.purchasePrice;
+  if (!canViewCost) purchasePrice = prevPurchasePrice;
 
   if (locationStatus === 'sold' && features.creditKassa && soldPaymentType === 'credit') {
     const bank = await CreditBank.findOne({ name: soldBankName, active: true }).lean();
@@ -288,6 +294,7 @@ export async function updateProductAction(_prev: State, formData: FormData): Pro
 /** Ro'yxatdan tezkor: mahsulotni sotilgan deb belgilash (naqd) + Sotuv yozuvi */
 export async function quickMarkSoldAction(_prev: State, formData: FormData): Promise<State> {
   const { user, Product, Sale } = await getTenantSession();
+  { const denied = await checkPermission(user, 'sale.create'); if (denied) return denied; }
   const productId = String(formData.get('productId') || '');
   const qty = parseQtyField(String(formData.get('qty') || '1'));
   const priceRaw = String(formData.get('salePrice') || '').trim();
@@ -377,6 +384,7 @@ export async function quickMarkSoldAction(_prev: State, formData: FormData): Pro
 
 export async function deleteProductAction(formData: FormData): Promise<void> {
   const { user, Product } = await getTenantSession();
+  if (!(await userCan(user, 'product.delete'))) redirect('/app/products?denied=1');
   const productId = String(formData.get('productId') || '');
   if (!productId) return;
 
@@ -396,6 +404,7 @@ export async function deleteProductAction(formData: FormData): Promise<void> {
 /** CSV import: IMEI,Nom,Rang,Kelish,Sotuv,Izoh */
 export async function importProductsAction(_prev: State, formData: FormData): Promise<State> {
   const { user, Product, Branch } = await getTenantSession();
+  { const denied = await checkPermission(user, 'product.create'); if (denied) return denied; }
 
   const csv = String(formData.get('csv') || '').trim();
   const warehouseBranchId = await resolveWarehouseBranchId(Branch);

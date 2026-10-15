@@ -1,10 +1,12 @@
 import { getTenantSession } from '@/lib/tenantSession';
 import { isImeiEnabled } from '@/lib/features';
 import ProductForm from '@/components/tenant/ProductForm';
+import { requirePermission } from '@/lib/permissionGuard';
 
 export const metadata = { title: 'Yangi mahsulot — Savora' };
 
 export default async function NewProductPage() {
+  await requirePermission('product.create');
   const { user, Branch, org, features } = await getTenantSession();
   const isAdmin = user.role === 'admin';
   // Admin barcha filialni tanlaydi; filial-login uchun faqat o'z filiali

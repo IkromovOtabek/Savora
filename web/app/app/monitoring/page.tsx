@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { getTenantSession } from '@/lib/tenantSession';
+import { userCan } from '@/lib/permissionGuard';
 import { branchFilter, isBranchScoped } from '@/lib/branchScope';
 import { statsFromSales, monthRange } from '@/lib/monitoring';
 import { PAYMENT_TYPE_LABELS, PaymentType } from '@/lib/models/tenant/Sale';
@@ -19,7 +20,8 @@ export default async function MonitoringPage({
   const [y, m] = (sp.month ?? `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`).split('-').map(Number);
   const { start, end } = monthRange(y, m);
 
-  const { user, Sale, Branch, Product } = await getTenantSession();
+  const { user, Sale, Branch, Product, features } = await getTenantSession();
+  const canExport = features.export && (await userCan(user, 'export.data'));
 
   // Filial login — faqat o'z filiali hisoboti; admin — barcha filiallar taqqoslamasi
   const scope = branchFilter(user);
@@ -112,8 +114,8 @@ export default async function MonitoringPage({
           <p className="dash-sub">Oylik hisobot — {monthLabel}</p>
         </div>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-          <Link href="/api/export/sales" className="btn btn-ghost">Sotuvlar CSV</Link>
-          <Link href="/api/export/products" className="btn btn-ghost">Ombor CSV</Link>
+          {canExport && <Link href="/api/export/sales" className="btn btn-ghost">Sotuvlar CSV</Link>}
+          {canExport && <Link href="/api/export/products" className="btn btn-ghost">Ombor CSV</Link>}
         </div>
       </div>
 

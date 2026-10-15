@@ -1,7 +1,6 @@
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import BackLink from '@/components/ui/BackLink';
-import { getCurrentUser } from '@/lib/auth';
 import { getTenantSession } from '@/lib/tenantSession';
 import { PAYMENT_TYPE_LABELS, SALE_STATUS_LABELS } from '@/lib/models/tenant/Sale';
 import { fmtDate, fmtDateTime, fmtMoney } from '@/lib/format';
@@ -11,6 +10,9 @@ import InstallmentPlan from '@/components/tenant/InstallmentPlan';
 import SalePaymentForm from '@/components/tenant/SalePaymentForm';
 import CancelSaleButton from '@/components/tenant/CancelSaleButton';
 import SaleReviewTrigger from '@/components/tenant/SaleReviewTrigger';
+import { Types } from 'mongoose';
+import { branchFilter } from '@/lib/branchScope';
+import { loadUserPermissions } from '@/lib/permissionGuard';
 
 export const metadata = { title: 'Sotuv — Savora' };
 
@@ -23,15 +25,16 @@ export default async function SaleDetailPage({
 }) {
   const { id } = await params;
   const sp = await searchParams;
-  const user = await getCurrentUser();
-  const { Sale } = await getTenantSession();
+  const { user, Sale } = await getTenantSession();
+  if (!Types.ObjectId.isValid(id)) notFound();
 
-  const sale = await Sale.findById(id).lean();
+  // Filial login faqat o'z filiali sotuvini ko'radi
+  const sale = await Sale.findOne({ _id: id, ...branchFilter(user) }).lean();
   if (!sale) notFound();
 
-  const isAdmin = user?.role === 'admin';
-  const canPay = sale.status === 'partial';
-  const canCancel = isAdmin && sale.status !== 'cancelled';
+  const perms = await loadUserPermissions(user);
+  const canPay = sale.status === 'partial' && perms.has('payment.accept');
+  const canCancel = perms.has('sale.cancel') && sale.status !== 'cancelled';
 
   // Nasiya (variant) sotuvi bo'lsa — oylik to'lov jadvali
   const plan = sale.paymentType === 'installment' ? computeInstallmentPlan(sale) : null;

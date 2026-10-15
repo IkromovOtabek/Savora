@@ -2,7 +2,7 @@ import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import BackLink from '@/components/ui/BackLink';
 import { getMasterModels } from '@/lib/masterDb';
-import { resolveOrgFeatures } from '@/lib/features';
+import { explainOrgFeatures, resolveOrgFeatures } from '@/lib/features';
 import { BUSINESS_TYPES } from '@/lib/businessTypes';
 import { resolveOrgPlan, fmtPlanPrice } from '@/lib/plans';
 import { getOrgAdminCredentials } from '@/lib/organizations';
@@ -11,6 +11,7 @@ import OrgModulesForm from '@/components/super/OrgModulesForm';
 import OrgLinksPanel from '@/components/super/OrgLinksPanel';
 import OrgTenantSummary from '@/components/super/OrgTenantSummary';
 import CollapsibleCard from '@/components/super/CollapsibleCard';
+import OrgPermissionsMatrix from '@/components/super/OrgPermissionsMatrix';
 
 export const metadata = { title: 'Biznes boshqaruvi — Savora' };
 
@@ -29,6 +30,7 @@ export default async function OrgDetailPage({
 
   const expiresValue = new Date(org.expiresAt).toISOString().slice(0, 10);
   const features = resolveOrgFeatures(org);
+  const featureExplain = explainOrgFeatures(org);
   const typeLabel = BUSINESS_TYPES[org.businessType as keyof typeof BUSINESS_TYPES]?.label ?? 'Umumiy savdo';
   const plan = resolveOrgPlan(org);
   const credentials = await getOrgAdminCredentials(org);
@@ -78,8 +80,17 @@ export default async function OrgDetailPage({
             <OrgTenantSummary dbName={org.dbName} />
           </CollapsibleCard>
 
-          <CollapsibleCard title="Modullar" sub="Qaysi bo'limlar ochiq — belgilang va saqlang" icon="grid" iconBg="linear-gradient(135deg,#10b981,#059669)">
-            <OrgModulesForm orgId={String(org._id)} initial={features} businessType={org.businessType ?? 'general'} />
+          <CollapsibleCard title="Modullar" sub="Tarif → biznes turi preseti → qo'lda o'zgartirish" icon="grid" iconBg="linear-gradient(135deg,#10b981,#059669)">
+            <OrgModulesForm
+              orgId={String(org._id)}
+              explain={featureExplain}
+              businessType={org.businessType ?? 'general'}
+              planLabel={plan.label}
+            />
+          </CollapsibleCard>
+
+          <CollapsibleCard title="Huquqlar" sub="Loginlar bo'yicha ruxsatlar (filial login)" icon="key" iconBg="linear-gradient(135deg,#f59e0b,#d97706)" defaultOpen={false}>
+            <OrgPermissionsMatrix orgId={String(org._id)} dbName={org.dbName} features={features} />
           </CollapsibleCard>
         </div>
 

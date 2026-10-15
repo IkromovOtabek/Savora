@@ -7,6 +7,7 @@ import { PRODUCT_STATUS_LABELS, ProductStatus } from '@/lib/models/tenant/Produc
 import ProductSearch from '@/components/tenant/ProductSearch';
 import ProductRowActions from '@/components/tenant/ProductRowActions';
 import LimitBanner from '@/components/tenant/LimitBanner';
+import { loadUserPermissions } from '@/lib/permissionGuard';
 // import ProductImportForm from '@/components/tenant/ProductImportForm'; // CSV Import vaqtincha yashirilgan
 
 export const metadata = { title: 'Ombor — Savora' };
@@ -30,6 +31,8 @@ export default async function ProductsPage({
   const sp = await searchParams;
   const { user, Product, Branch, org, features } = await getTenantSession();
   const showImei = isImeiEnabled(org);
+  const perms = await loadUserPermissions(user);
+  const canViewCost = perms.has('product.viewCost');
   const canInstallment = !!(features.variant || features.nasiya);
   const canCredit = !!features.creditKassa;
 
@@ -96,8 +99,8 @@ export default async function ProductsPage({
           </p>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
-          <Link href="/app/products/new" className="btn btn-primary">+ Mahsulot qo&apos;shish</Link>
-          <a href="/api/export/products" className="btn btn-ghost">CSV export</a>
+          {perms.has('product.create') && <Link href="/app/products/new" className="btn btn-primary">+ Mahsulot qo&apos;shish</Link>}
+          {features.export && perms.has('export.data') && <a href="/api/export/products" className="btn btn-ghost">CSV export</a>}
         </div>
       </div>
 
@@ -117,7 +120,7 @@ export default async function ProductsPage({
         {products.length === 0 ? (
           <div className="panel-empty">
             <p>{q ? `"${q}" bo'yicha mahsulot topilmadi.` : 'Mahsulot topilmadi.'}</p>
-            {!q && <Link href="/app/products/new" className="btn btn-primary">Mahsulot qo&apos;shish</Link>}
+            {!q && perms.has('product.create') && <Link href="/app/products/new" className="btn btn-primary">Mahsulot qo&apos;shish</Link>}
           </div>
         ) : (
           <>
@@ -131,7 +134,7 @@ export default async function ProductsPage({
                     <th>Filial</th>
                     <th>Son</th>
                     <th>Holat</th>
-                    <th>Kelish</th>
+                    {canViewCost && <th>Kelish</th>}
                     <th>Sotuv</th>
                     <th></th>
                   </tr>
@@ -159,7 +162,7 @@ export default async function ProductsPage({
                           <div className="cell-sub">Sotildi: {fmtDate(p.soldAt)}</div>
                         )}
                       </td>
-                      <td data-label="Kelish">{fmtMoney(p.purchasePrice)}</td>
+                      {canViewCost && <td data-label="Kelish">{fmtMoney(p.purchasePrice)}</td>}
                       <td data-label="Sotuv">{fmtMoney(p.salePrice)}</td>
                       <td className="cell-actions" data-label="">
                         <ProductRowActions
@@ -171,6 +174,8 @@ export default async function ProductsPage({
                           salePrice={p.salePrice ?? 0}
                           canInstallment={canInstallment}
                           canCredit={canCredit}
+                          canSell={features.sales && perms.has('sale.create')}
+                          canTransfer={perms.has('transfer.create')}
                           branches={filialBranches}
                         />
                       </td>

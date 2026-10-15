@@ -2,7 +2,6 @@ import { getMasterModels } from './masterDb';
 import { getTenantModels } from './tenantDb';
 import { ensureTenantDatabase } from './tenantSetup';
 import { IOrganization, isOrganizationActive } from './models/master/Organization';
-import { defaultFeaturesForPlan } from './features';
 import { parseBusinessType, BusinessType } from './businessTypes';
 import { getPlanPreset, parsePlanTier, PlanTier } from './plans';
 import { normalizeSlug, tenantDbName, validateSlug } from './slug';
@@ -137,7 +136,9 @@ export async function createOrganization(input: CreateOrganizationInput): Promis
       agreementNote: tier === 'custom' ? input.agreementNote?.trim() : undefined,
       isTrial: input.isTrial ?? false,
     },
-    features: defaultFeaturesForPlan(preset.tier),
+    // Modullar SAQLANMAYDI (materialize qilinmaydi): tarif standarti + biznes preseti
+    // har safar resolveOrgFeatures orqali hisoblanadi. org.features faqat Super Admin
+    // override'lari uchun — shunda tarif/biznes turi o'zgarsa modullar ham to'g'ri o'zgaradi.
     referralCode,
     referredBy: input.referredBy?.toUpperCase() || undefined,
     referralBonusMonths,

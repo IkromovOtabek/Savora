@@ -3,7 +3,6 @@ import { IOrganization } from './models/master/Organization';
 import { OrgFeatures } from './featureKeys';
 import { BusinessType } from './businessTypes';
 import { getPlanPreset, parsePlanTier, PlanTier } from './plans';
-import { defaultFeaturesForPlan } from './features';
 
 export type OrgStatus = IOrganization['status'];
 
@@ -15,7 +14,8 @@ export interface UpdateOrganizationInput {
   expiresAt?: Date;
   planTier?: PlanTier;
   businessType?: BusinessType;
-  features?: OrgFeatures;
+  /** Faqat Super Admin override'lari (bazadan farqlar). null — hammasini tozalash. */
+  features?: Partial<OrgFeatures> | null;
   maxFilial?: number;
   maxUsers?: number;
   monthlyPayment?: number;
@@ -53,10 +53,11 @@ export async function updateOrganization(orgId: string, input: UpdateOrganizatio
     if (input.maxUsers === undefined) org.plan.maxUsers = preset.maxUsers;
     if (input.monthlyPayment === undefined) org.plan.monthlyPayment = preset.monthlyPrice;
     if (tier !== 'custom') org.plan.agreementNote = undefined;
-    // Tarif o'zgarsa — modullar yangi tarif standartiga o'tadi (alohida features berilmagan bo'lsa).
+    // Tarif o'zgarsa — Super Admin override'lari tozalanadi va modullar yangi tarif
+    // standarti + biznes preseti bo'yicha hisoblanadi (alohida features berilmagan bo'lsa).
     // Aks holda do'kon eski modullar bilan qolib ketardi ("tarif o'zgarmadi" muammosi).
     if (tierChanged && input.features === undefined) {
-      org.features = defaultFeaturesForPlan(tier);
+      org.set('features', undefined);
       org.markModified('features');
     }
   }
@@ -74,7 +75,9 @@ export async function updateOrganization(orgId: string, input: UpdateOrganizatio
 
   if (input.businessType !== undefined) org.businessType = input.businessType;
   if (input.features !== undefined) {
-    org.features = input.features;
+    // null — barcha override'larni tozalash (biznes preseti + tarif standartiga qaytish)
+    if (input.features === null) org.set('features', undefined);
+    else org.features = input.features;
     org.markModified('features');
   }
 

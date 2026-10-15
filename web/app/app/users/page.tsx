@@ -1,11 +1,12 @@
 import { getTenantAdminSession, getOrgWithPlan } from '@/lib/tenantSession';
 import FilialManager from '@/components/tenant/FilialManager';
 import LimitBanner from '@/components/tenant/LimitBanner';
+import { effectivePermissions } from '@/lib/permissions';
 
 export const metadata = { title: 'Foydalanuvchilar — Savora' };
 
 export default async function UsersPage() {
-  const { user, User, Branch } = await getTenantAdminSession();
+  const { user, User, Branch, features } = await getTenantAdminSession();
   const fullOrg = user.organizationId ? await getOrgWithPlan(user.organizationId) : null;
   const maxFilial = fullOrg?.plan.maxFilial ?? 1;
 
@@ -33,13 +34,15 @@ export default async function UsersPage() {
       branchId: u.branchId ? String(u.branchId) : undefined,
       phone: branch?.phone ?? '',
       address: branch?.address ?? '',
+      permissions: [...effectivePermissions({ role: u.role, permissions: u.permissions })],
+      permissionsDefault: u.role === 'admin' || !Array.isArray(u.permissions),
     };
   });
 
   return (
     <>
       <LimitBanner label="Filiallar" current={activeBranches} max={maxFilial} />
-      <FilialManager rows={rows} maxFilial={maxFilial} activeBranchCount={activeBranches} />
+      <FilialManager rows={rows} maxFilial={maxFilial} activeBranchCount={activeBranches} features={features} />
     </>
   );
 }

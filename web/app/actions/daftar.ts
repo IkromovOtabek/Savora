@@ -5,6 +5,7 @@ import { redirect } from 'next/navigation';
 import { getTenantSession } from '@/lib/tenantSession';
 import { featureDisabledError } from '@/lib/featureAction';
 import { branchFilter } from '@/lib/branchScope';
+import { checkPermission, userCan } from '@/lib/permissionGuard';
 import type { LedgerType } from '@/lib/models/tenant/LedgerEntry';
 
 type State = { error?: string; success?: string } | null;
@@ -12,6 +13,7 @@ type State = { error?: string; success?: string } | null;
 export async function createDaftarAction(_prev: State, formData: FormData): Promise<State> {
   const { user, features, LedgerEntry } = await getTenantSession();
   if (!features.daftar) return featureDisabledError('daftar');
+  { const denied = await checkPermission(user, 'daftar.manage'); if (denied) return denied; }
 
   const type = (String(formData.get('type') || 'given') === 'taken' ? 'taken' : 'given') as LedgerType;
   const personName = String(formData.get('personName') || '').trim();
@@ -50,7 +52,7 @@ export async function createDaftarAction(_prev: State, formData: FormData): Prom
 
 export async function returnDaftarAction(formData: FormData): Promise<void> {
   const { features, LedgerEntry, user } = await getTenantSession();
-  if (!features.daftar) return;
+  if (!features.daftar || !(await userCan(user, 'daftar.manage'))) return;
   const id = String(formData.get('id') || '');
   if (!id) return;
   await LedgerEntry.findOneAndUpdate(
@@ -62,7 +64,7 @@ export async function returnDaftarAction(formData: FormData): Promise<void> {
 
 export async function deleteDaftarAction(formData: FormData): Promise<void> {
   const { features, LedgerEntry, user } = await getTenantSession();
-  if (!features.daftar) return;
+  if (!features.daftar || !(await userCan(user, 'daftar.manage'))) return;
   const id = String(formData.get('id') || '');
   if (!id) return;
   await LedgerEntry.deleteOne({ _id: id, ...branchFilter(user) });
