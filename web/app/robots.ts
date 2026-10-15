@@ -2,6 +2,9 @@ import type { MetadataRoute } from 'next';
 import { headers } from 'next/headers';
 import { siteUrl } from '@/lib/siteUrl';
 
+// Host sarlavhasiga qarab (subdomen yoki asosiy domen) javob beradi — har so'rovda hisoblanadi
+export const dynamic = 'force-dynamic';
+
 /**
  * /robots.txt
  * - Asosiy domen: ommaviy sahifalar ochiq; kabinet (/app), super panel, tenant (/t/), API, /tg yopiq.
