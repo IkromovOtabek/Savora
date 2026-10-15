@@ -108,12 +108,12 @@ export default async function MonitoringPage({
 
   return (
     <>
-      <div className="dash-head">
+      <div className="t-page-head">
         <div>
-          <h1 className="dash-hello">Hisobot</h1>
-          <p className="dash-sub">Oylik hisobot — {monthLabel}</p>
+          <h1 className="t-page-title">Hisobot</h1>
+          <p className="t-page-sub">Oylik hisobot — {monthLabel}</p>
         </div>
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        <div className="t-page-actions">
           {canExport && <Link href="/api/export/sales" className="btn btn-ghost">Sotuvlar CSV</Link>}
           {canExport && <Link href="/api/export/products" className="btn btn-ghost">Ombor CSV</Link>}
         </div>

@@ -46,10 +46,10 @@ export default async function DebtsPage({
 
   return (
     <>
-      <div className="dash-head">
+      <div className="t-page-head">
         <div>
-          <h1 className="dash-hello">Qarzdorlik nazorati</h1>
-          <p className="dash-sub">Muddati o&apos;tgan va yaqinlashayotgan to&apos;lovlarni kuzating</p>
+          <h1 className="t-page-title">Qarzdorlik nazorati</h1>
+          <p className="t-page-sub">Muddati o&apos;tgan va yaqinlashayotgan to&apos;lovlarni kuzating</p>
         </div>
         <Link href="/app/sales/new" className="btn btn-primary">+ Yangi sotuv</Link>
       </div>

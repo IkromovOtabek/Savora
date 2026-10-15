@@ -2,7 +2,7 @@ import { getTenantSession } from '@/lib/tenantSession';
 import { isBranchScoped } from '@/lib/branchScope';
 import NaxtKassaCards, { KassaCard } from '@/components/tenant/NaxtKassaCards';
 
-export const metadata = { title: 'Naxt kassa — Savora' };
+export const metadata = { title: 'Naqd kassa — Savora' };
 
 export default async function KassaPage() {
   const { user, Sale, Branch, CashFlow } = await getTenantSession();
@@ -46,5 +46,17 @@ export default async function KassaPage() {
     qolgan: naxtSotuvTotal - adminTotal,
   };
 
-  return <NaxtKassaCards total={total} cards={cards} />;
+  return (
+    <>
+      <div className="t-page-head">
+        <div>
+          <h1 className="t-page-title">Naqd kassa</h1>
+          <p className="t-page-sub">
+            {isBranchScoped(user) ? 'Filialingiz' : `${branches.length} ta filial`} bo&apos;yicha naqd tushum va qoldiq
+          </p>
+        </div>
+      </div>
+      <NaxtKassaCards total={total} cards={cards} />
+    </>
+  );
 }

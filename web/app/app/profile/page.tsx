@@ -48,10 +48,10 @@ export default async function ProfilePage() {
 
   return (
     <>
-      <div className="dash-head">
+      <div className="t-page-head">
         <div>
-          <h1 className="dash-hello">Kabinet</h1>
-          <p className="dash-sub">Foydalanuvchi: <strong>{user.username}</strong> · {isAdmin ? 'Admin' : 'Filial'}</p>
+          <h1 className="t-page-title">Kabinet</h1>
+          <p className="t-page-sub">Foydalanuvchi: <strong>{user.username}</strong> · {isAdmin ? 'Admin' : 'Filial'}</p>
         </div>
       </div>
 

@@ -46,10 +46,10 @@ export default async function NasiyaPage({
 
   return (
     <>
-      <div className="dash-head">
+      <div className="t-page-head">
         <div>
-          <h1 className="dash-hello">Variant (Nasiya)</h1>
-          <p className="dash-sub">Bo&apos;lib to&apos;lash savdolari</p>
+          <h1 className="t-page-title">Variant (Nasiya)</h1>
+          <p className="t-page-sub">Bo&apos;lib to&apos;lash savdolari</p>
         </div>
         <Link href="/app/sales/new" className="btn btn-primary">+ Yangi sotuv</Link>
       </div>

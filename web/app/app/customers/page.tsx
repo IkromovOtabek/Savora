@@ -45,10 +45,10 @@ export default async function CustomersPage({
 
   return (
     <>
-      <div className="dash-head dash-head--simple">
+      <div className="t-page-head">
         <div>
-          <h1 className="dash-hello">Mijozlar</h1>
-          <p className="dash-sub">
+          <h1 className="t-page-title">Mijozlar</h1>
+          <p className="t-page-sub">
             {total} ta mijoz
             {totalPages > 1 ? ` · ${page}-sahifa` : ''}
           </p>

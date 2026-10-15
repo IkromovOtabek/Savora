@@ -11,7 +11,7 @@ export default function QuickSaleTrigger() {
     <>
       <button type="button" className="quick-action quick-action--accent btn-with-icon" onClick={() => setOpen(true)}>
         <Icon name="search" size={22} />
-        <span>Tez sotuv<small>Skaner pistalet</small></span>
+        <span>Tez sotuv<small>Skaner (pistolet)</small></span>
       </button>
       <QuickSaleModal open={open} onClose={() => setOpen(false)} />
     </>

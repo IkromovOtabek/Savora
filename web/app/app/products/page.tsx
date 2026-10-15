@@ -93,17 +93,17 @@ export default async function ProductsPage({
   return (
     <>
       {isAdmin && <LimitBanner label="Mahsulotlar" current={orgProductCount} max={maxProducts} />}
-      <div className="dash-head">
+      <div className="t-page-head">
         <div>
-          <h1 className="dash-hello">Ombor</h1>
-          <p className="dash-sub">
+          <h1 className="t-page-title">Ombor</h1>
+          <p className="t-page-sub">
             {total} ta mahsulot
             {totalPages > 1 ? ` · ${page}-sahifa (${totalPages} ta)` : ''}
           </p>
         </div>
-        <div style={{ display: 'flex', gap: 8 }}>
+        <div className="t-page-actions">
           {perms.has('product.create') && <Link href="/app/products/new" className="btn btn-primary">+ Mahsulot qo&apos;shish</Link>}
-          {features.export && perms.has('export.data') && <a href="/api/export/products" className="btn btn-ghost">CSV export</a>}
+          {features.export && perms.has('export.data') && <a href="/api/export/products" className="btn btn-ghost">CSV yuklab olish</a>}
         </div>
       </div>
 

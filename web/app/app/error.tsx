@@ -2,6 +2,7 @@
 
 import { useEffect } from 'react';
 import Link from 'next/link';
+import Icon from '@/components/icons/Icon';
 
 export default function AppError({
   error,
@@ -11,23 +12,27 @@ export default function AppError({
   reset: () => void;
 }) {
   useEffect(() => {
-    // Batafsil xato serverda log qilinadi (digest bo'yicha topiladi); brauzerda faqat qisqa yozuv
-    console.error('App error', error.digest ?? '');
+    console.error(error);
   }, [error]);
 
+  const isDb =
+    error.message.includes('ECONNREFUSED') ||
+    error.message.includes('MongoServerSelectionError') ||
+    error.message.includes('MongooseServerSelectionError');
+
   return (
-    <div className="auth-wrap">
-      <div className="auth-card auth-card--wide">
-        <h1 className="auth-title">Xatolik yuz berdi</h1>
-        <p className="auth-subtitle">
-          Kutilmagan xatolik yuz berdi. Birozdan so&apos;ng qayta urinib ko&apos;ring. Muammo takrorlansa,
-          qo&apos;llab-quvvatlash xizmatiga murojaat qiling.
-        </p>
-        {error.digest && <p className="field-hint">Xato kodi: {error.digest}</p>}
-        <div style={{ display: 'flex', gap: 10, marginTop: 20, flexWrap: 'wrap' }}>
-          <button type="button" className="btn btn-primary" onClick={reset}>Qayta urinish</button>
-          <Link href="/login" className="btn btn-ghost">Login sahifasi</Link>
-        </div>
+    <div className="t-error" role="alert">
+      <span className="t-error-icon"><Icon name="alert" size={26} /></span>
+      <h1>{isDb ? 'Baza ulanmadi' : 'Nimadir xato ketdi'}</h1>
+      <p>
+        {isDb
+          ? "Ma'lumotlar bazasiga ulanib bo'lmadi. Birozdan so'ng qayta urinib ko'ring yoki administratorga xabar bering."
+          : "Sahifani ochishda kutilmagan xatolik yuz berdi. Ma'lumotlaringiz joyida — qayta urinib ko'ring."}
+      </p>
+      {error.digest && <code>Xato kodi: {error.digest}</code>}
+      <div className="t-error-actions">
+        <button type="button" className="t-btn t-btn--filled" onClick={reset}>Qayta urinish</button>
+        <Link href="/app" className="t-btn t-btn--gray">Bosh sahifaga qaytish</Link>
       </div>
     </div>
   );

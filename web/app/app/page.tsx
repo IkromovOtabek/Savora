@@ -9,6 +9,8 @@ import PlanLimitsBanner from '@/components/tenant/PlanLimitsBanner';
 import QuickSaleTrigger from '@/components/tenant/QuickSaleTrigger';
 import InstallmentAlert, { OverdueInstallment } from '@/components/tenant/InstallmentAlert';
 import { computeInstallmentPlan } from '@/lib/installment';
+import { dayBoundaries, toDayPoints } from '@/lib/weekBuckets';
+import WeekChart from '@/components/tenant/WeekChart';
 import { loadUserPermissions } from '@/lib/permissionGuard';
 import { BUSINESS_TYPES, parseBusinessType } from '@/lib/businessTypes';
 
@@ -32,7 +34,10 @@ export default async function TenantDashboard({
   const scope = branchFilter(user);
   const aggScope = branchAggMatch(user);
 
-  const [inStock, todaySalesCount, todayRevenueAgg, debtAgg, recentSales, userCount, branchCount, productCount] = await Promise.all([
+  // Haftalik grafik — oxirgi 7 kun, kunlik chegaralar server vaqti bo'yicha (todayStart bilan bir xil)
+  const weekBounds = dayBoundaries(todayStart, 7);
+
+  const [inStock, todaySalesCount, todayRevenueAgg, debtAgg, recentSales, userCount, branchCount, productCount, weekAgg] = await Promise.all([
     Product.countDocuments({ ...scope, status: 'in_stock' }),
     Sale.countDocuments({ ...scope, createdAt: { $gte: todayStart }, status: { $ne: 'cancelled' } }),
     Sale.aggregate([
@@ -44,7 +49,17 @@ export default async function TenantDashboard({
     User.countDocuments({ active: true }),
     Branch.countDocuments({ active: true }),
     Product.countDocuments({ ...scope }),
+    features.sales
+      ? Sale.aggregate<{ _id: Date; total: number; count: number }>([
+          { $match: { ...aggScope, createdAt: { $gte: weekBounds[0], $lt: weekBounds[weekBounds.length - 1] }, status: { $ne: 'cancelled' } } },
+          { $bucket: { groupBy: '$createdAt', boundaries: weekBounds, default: 'other', output: { total: { $sum: '$paidAmount' }, count: { $sum: 1 } } } },
+        ])
+      : Promise.resolve([] as { _id: Date; total: number; count: number }[]),
   ]);
+  const week = toDayPoints(weekBounds, weekAgg);
+  const weekHasData = week.some((d) => d.total > 0);
+  const yesterday = week[week.length - 2]?.total ?? 0;
+  const revenueDelta = yesterday > 0 ? Math.round(((todayRevenueAgg[0]?.total ?? 0) / yesterday - 1) * 100) : null;
 
   const todayRevenue = todayRevenueAgg[0]?.total ?? 0;
   const debtTotal = debtAgg[0]?.total ?? 0;
@@ -69,39 +84,67 @@ export default async function TenantDashboard({
     }
   }
 
+  const now = new Date();
+  const dateLabel = `${now.getDate()}-${UZ_MONTHS[now.getMonth()]}, ${UZ_WEEKDAYS[now.getDay()]}`;
+  const showSaleCta = features.sales && perms.has('sale.create');
+
   return (
-    <>
-      <div className="dash-head dash-head--simple">
+    <div className="t-dash">
+      <div className="t-page-head">
         <div>
-          <h1 className="dash-hello">Salom, {user.username}!</h1>
-          <p className="dash-sub">{user.role === 'admin' ? 'Admin' : 'Xodim'} — bugungi natijalar</p>
+          <h1 className="t-page-title">Xayrli kun, {user.username}</h1>
+          <p className="t-page-sub">{dateLabel} · {user.role === 'admin' ? 'barcha filiallar' : 'filialingiz'} bo&apos;yicha</p>
         </div>
       </div>
 
       {sp?.welcome === '1' && (
-        <div className="auth-alert auth-alert--info" style={{ marginBottom: 16 }}>
+        <div className="t-note t-note--info">
           Do&apos;koningiz yaratildi! Siz admin sifatida tizimga kirdingiz.
           {' '}{org.plan?.isTrial ? 'Sinov muddati boshlandi.' : org.plan?.tier === 'free' ? 'Bepul tarifda ishlayapsiz.' : ''}
           {' '}Modullar «{bizLabel}» yo&apos;nalishiga mos sozlandi.
         </div>
       )}
 
-      <InstallmentAlert items={overdueInstallments} />
-
-      {user.role === 'admin' && <OnboardingChecklist org={org} features={features} />}
-
-      {user.role === 'admin' && (
-        <PlanLimitsBanner org={org} current={{ users: userCount, branches: branchCount, products: productCount }} />
-      )}
-
       {sp?.module === 'disabled' && (
-        <div className="auth-alert auth-alert--warn" style={{ marginBottom: 16 }}>
+        <div className="t-note t-note--warn">
           Bu bo&apos;lim o&apos;chirilgan. Platforma egasiga murojaat qiling.
         </div>
       )}
 
-      <div className="quick-actions">
-        {features.sales && perms.has('sale.create') && <QuickSaleTrigger />}
+      <div className="t-dash-alerts">
+        <InstallmentAlert items={overdueInstallments} />
+        {user.role === 'admin' && <OnboardingChecklist org={org} features={features} />}
+        {user.role === 'admin' && (
+          <PlanLimitsBanner org={org} current={{ users: userCount, branches: branchCount, products: productCount }} />
+        )}
+      </div>
+
+      <div className="t-kpis">
+        <div className="t-kpi">
+          <div className="t-kpi-l t-kpi-l--ok"><Icon name="wallet" size={16} />Bugungi tushum</div>
+          <div className="t-kpi-v t-num">{fmtMoney(todayRevenue)} <small>so&apos;m</small></div>
+          {revenueDelta !== null && (
+            <div className={`t-kpi-d ${revenueDelta >= 0 ? 't-up' : 't-down'}`}>
+              {revenueDelta >= 0 ? '▲' : '▼'} {Math.abs(revenueDelta)}% kechagiga nisbatan
+            </div>
+          )}
+        </div>
+        <div className="t-kpi">
+          <div className="t-kpi-l t-kpi-l--brand"><Icon name="cart" size={16} />Sotuvlar soni</div>
+          <div className="t-kpi-v t-num">{todaySalesCount} <small>ta bugun</small></div>
+        </div>
+        <div className="t-kpi">
+          <div className="t-kpi-l t-kpi-l--gold"><Icon name="clock" size={16} />Qarz va nasiya qoldig&apos;i</div>
+          <div className="t-kpi-v t-num">{fmtMoney(debtTotal)} <small>so&apos;m</small></div>
+        </div>
+        <div className="t-kpi">
+          <div className="t-kpi-l t-kpi-l--muted"><Icon name="box" size={16} />Omborda</div>
+          <div className="t-kpi-v t-num">{inStock} <small>ta mahsulot</small></div>
+        </div>
+      </div>
+
+      <div className="t-quick">
+        {showSaleCta && <QuickSaleTrigger />}
         {features.products && perms.has('product.create') && (
           <Link href="/app/products/new" className="quick-action btn-with-icon">
             <Icon name="box" size={22} />
@@ -116,62 +159,53 @@ export default async function TenantDashboard({
         )}
       </div>
 
-      <div className="dash-stats">
-        <div className="dash-stat dash-stat--ok">
-          <div className="dash-stat-n">{todaySalesCount}</div>
-          <div className="dash-stat-l">Bugun sotuv</div>
-        </div>
-        <div className="dash-stat dash-stat--ok">
-          <div className="dash-stat-n">{fmtMoney(todayRevenue)}</div>
-          <div className="dash-stat-l">Bugun tushum</div>
-        </div>
-        <div className="dash-stat dash-stat--warn">
-          <div className="dash-stat-n">{fmtMoney(debtTotal)}</div>
-          <div className="dash-stat-l">Qarz</div>
-        </div>
-        <div className="dash-stat">
-          <div className="dash-stat-n">{inStock}</div>
-          <div className="dash-stat-l">Omborda</div>
-        </div>
-      </div>
-
-      <div className="panel">
-        <div className="panel-head">
-          <h2>So&apos;nggi sotuvlar</h2>
-          {features.sales && <Link href="/app/sales" className="btn btn-ghost btn-sm">Hammasi</Link>}
-        </div>
-        {recentSales.length === 0 ? (
-          <div className="panel-empty">
-            <p>Hozircha sotuv yo&apos;q.</p>
-            {features.sales && perms.has('sale.create') && <Link href="/app/sales/new" className="btn btn-primary">Sotuv qilish</Link>}
-          </div>
-        ) : (
-          <div className="table-wrap">
-            <table className="data-table data-table--simple">
-              <thead>
-                <tr><th>Sotuv</th><th>Mijoz</th><th>Summa</th><th>Holat</th></tr>
-              </thead>
-              <tbody>
-                {recentSales.map((s) => (
-                  <tr key={String(s._id)}>
-                    <td data-label="Sotuv">
-                      <Link href={`/app/sales/${s._id}`} className="cell-link cell-main">{s.saleNo}</Link>
-                      <div className="cell-sub">{PAYMENT_TYPE_LABELS[s.paymentType as PaymentType]}</div>
-                    </td>
-                    <td data-label="Mijoz">{s.customerSnapshot?.fullName ?? '—'}</td>
-                    <td data-label="Summa">{fmtMoney(s.totalAmount)}</td>
-                    <td data-label="Holat">
-                      <span className={`badge-status badge-status--${s.status === 'paid' ? 'active' : 'suspended'}`}>
-                        {SALE_STATUS_LABELS[s.status as SaleStatus]}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+      <div className={`t-dash-grid${features.sales && weekHasData ? '' : ' t-dash-grid--one'}`}>
+        {features.sales && weekHasData && (
+          <section className="t-card" aria-labelledby="t-week-h">
+            <div className="t-card-head">
+              <h2 id="t-week-h">Haftalik tushum</h2>
+              <span className="t-card-meta t-num">{fmtMoney(week.reduce((a, d) => a + d.total, 0))} so&apos;m</span>
+            </div>
+            <WeekChart points={week} />
+          </section>
         )}
+
+        <section aria-labelledby="t-recent-h">
+          <div className="t-group-head">
+            <h2 id="t-recent-h">So&apos;nggi sotuvlar</h2>
+            {features.sales && <Link href="/app/sales" className="t-link">Hammasi</Link>}
+          </div>
+          <div className="t-group">
+            {recentSales.length === 0 ? (
+              <div className="t-empty">
+                <p>Hozircha sotuv yo&apos;q.</p>
+                {showSaleCta && <Link href="/app/sales/new" className="t-btn t-btn--filled">Sotuv qilish</Link>}
+              </div>
+            ) : (
+              recentSales.map((s) => (
+                <Link key={String(s._id)} href={`/app/sales/${s._id}`} className="t-cell">
+                  <span className={`t-sq t-sq--${s.paymentType === 'installment' ? 'gold' : s.status === 'paid' ? 'ok' : 'brand'}`} aria-hidden="true">
+                    <Icon name={s.paymentType === 'installment' ? 'clock' : 'cart'} size={16} />
+                  </span>
+                  <span className="t-cell-t">
+                    <b>{s.customerSnapshot?.fullName ?? s.productSnapshot?.name ?? s.saleNo}</b>
+                    <small>{s.saleNo} · {PAYMENT_TYPE_LABELS[s.paymentType as PaymentType]} · {fmtDateTime(s.createdAt ?? now)}</small>
+                  </span>
+                  <span className="t-cell-a">
+                    <span className="t-num">{fmtMoney(s.totalAmount)}</span>
+                    <span className={`t-pill ${s.status === 'paid' ? 't-pill--ok' : 't-pill--warn'}`}>
+                      {SALE_STATUS_LABELS[s.status as SaleStatus]}
+                    </span>
+                  </span>
+                </Link>
+              ))
+            )}
+          </div>
+        </section>
       </div>
-    </>
+    </div>
   );
 }
+
+const UZ_MONTHS = ['yanvar', 'fevral', 'mart', 'aprel', 'may', 'iyun', 'iyul', 'avgust', 'sentabr', 'oktabr', 'noyabr', 'dekabr'];
+const UZ_WEEKDAYS = ['yakshanba', 'dushanba', 'seshanba', 'chorshanba', 'payshanba', 'juma', 'shanba'];

@@ -15,7 +15,7 @@ function Card({ c, highlight }: { c: KassaCard; highlight?: boolean }) {
       <h3 className="kx-card-title">{c.name}</h3>
 
       <div className="kx-row">
-        <div className="kx-row-head"><span className="kx-label">Naxt sotuv</span></div>
+        <div className="kx-row-head"><span className="kx-label">Naqd sotuv</span></div>
         <div className="kx-value kx-value--in">{fmtMoney(c.naxtSotuv)} UZS</div>
       </div>
 
