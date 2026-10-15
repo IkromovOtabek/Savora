@@ -4,9 +4,9 @@ import { getMasterModels } from '@/lib/masterDb';
 import { isOrganizationActive, isTrialActive, daysUntilExpiry } from '@/lib/models/master/Organization';
 import { resolveOrgPlan, PLAN_PRESETS } from '@/lib/plans';
 import { getOrgDisplayStatus } from '@/lib/organizations';
-import Icon from '@/components/icons/Icon';
+import { Avatar, Chevron, Kpi, OrgStatusPill, PageTitle, Pill, Sq } from '@/components/super/ui';
 
-export const metadata = { title: 'Asosiy sahifa — Super Admin' };
+export const metadata = { title: 'Asosiy panel — Super Admin' };
 
 function fmtSum(n: number) {
   return new Intl.NumberFormat('uz-UZ').format(Math.round(n));
@@ -19,7 +19,6 @@ export default async function SuperDashboardHome() {
   await requireSuperAdmin();
   const { Organization, PaymentRequest, SiteVisit } = await getMasterModels();
 
-  const now = new Date();
   const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
   const monthStart = new Date(); monthStart.setDate(1); monthStart.setHours(0, 0, 0, 0);
   const weekAgo = new Date(Date.now() - 6 * 24 * 60 * 60 * 1000); weekAgo.setHours(0, 0, 0, 0);
@@ -67,145 +66,147 @@ export default async function SuperDashboardHome() {
 
   return (
     <>
-      <div className="super-page-head">
-        <div>
-          <h1>Boshqaruv paneli</h1>
-          <p>Platformaning bugungi holatini kuzating</p>
-        </div>
-        <Link href="/super/organizations/new" className="btn btn-primary btn-with-icon">
-          <Icon name="plus" size={18} /> Yangi biznes
-        </Link>
-      </div>
+      <PageTitle title="Asosiy panel" sub="Platformaning bugungi holati" />
 
       {/* Asosiy ko'rsatkichlar */}
-      <div className="super-stats">
-        <div className="super-stat super-stat--brand">
-          <Icon name="wallet" size={22} className="super-stat-icon" />
-          <strong>{fmtSum(mrr)}</strong><span>MRR (oylik daromad, so&apos;m)</span>
-        </div>
-        <div className="super-stat super-stat--ok">
-          <Icon name="store" size={22} className="super-stat-icon" />
-          <strong>{active.length}</strong><span>Faol biznes</span>
-        </div>
-        <div className="super-stat">
-          <Icon name="building" size={22} className="super-stat-icon" />
-          <strong>{total}</strong><span>Jami biznes</span>
-          <em className="super-stat-hint">+{newThisMonth} shu oyda</em>
-        </div>
-        <div className="super-stat super-stat--warn">
-          <Icon name="wallet" size={22} className="super-stat-icon" />
-          <strong>{pendingPayments}</strong><span>Kutilayotgan to&apos;lov</span>
-        </div>
+      <div className="sa-kpis">
+        <Kpi hero label="MRR" value={fmtSum(mrr)} unit="so'm" icon="wallet" delta="Oylik takroriy daromad" />
+        <Kpi label="Faol do'konlar" value={active.length} icon="store" tone="o" delta={`Jami ${total}`} />
+        <Kpi label="Yangi (shu oy)" value={`+${newThisMonth}`} icon="building" tone="b" deltaTone={newThisMonth > 0 ? 'ok' : undefined} delta={`${recentVisitsSignup} ta saytdan ro'yxat`} />
+        <Kpi
+          label="Kutilayotgan to'lov"
+          value={pendingPayments}
+          icon="clipboard"
+          tone="a"
+          delta={pendingPayments > 0 ? <Link href="/super/payments" className="sa-link" style={{ color: 'var(--brand)' }}>Ko&apos;rib chiqish</Link> : 'Hammasi ko\'rilgan'}
+        />
       </div>
 
       {/* Ikkilamchi ko'rsatkichlar */}
-      <div className="super-substats">
-        <div className="super-substat"><span>Sinovda</span><strong>{trialCount}</strong></div>
-        <div className="super-substat"><span>7 kunda tugaydi</span><strong>{expiringSoon.length}</strong></div>
-        <div className="super-substat"><span>Muddati tugagan</span><strong>{expiredCount}</strong></div>
-        <div className="super-substat"><span>Bugun tashrif</span><strong>{todayVisits}</strong></div>
-        <div className="super-substat"><span>Hozir onlayn</span><strong className="online-num">{onlineCount}</strong></div>
-        <div className="super-substat"><span>Oylik ro&apos;yxatdan</span><strong>{recentVisitsSignup}</strong></div>
+      <div className="sa-kpis sa-kpis--6">
+        <div className="sa-card sa-mini"><span>Sinovda</span><b>{trialCount}</b></div>
+        <div className="sa-card sa-mini"><span>7 kunda tugaydi</span><b>{expiringSoon.length}</b></div>
+        <div className="sa-card sa-mini"><span>Muddati tugagan</span><b>{expiredCount}</b></div>
+        <div className="sa-card sa-mini"><span>Bugun tashrif</span><b>{todayVisits}</b></div>
+        <div className="sa-card sa-mini"><span>Hozir onlayn</span><b className="sa-ok">{onlineCount}</b></div>
+        <div className="sa-card sa-mini"><span>Oylik ro&apos;yxatdan</span><b>{recentVisitsSignup}</b></div>
       </div>
 
-      <div className="super-dash-grid">
+      <div className="sa-two">
         {/* Tashrif grafigi (7 kun) */}
-        <div className="panel">
-          <div className="panel-head">
-            <h2>Tashriflar (7 kun)</h2>
-            <Link href="/super/visitors" className="cell-link" style={{ fontSize: '.85rem' }}>Batafsil →</Link>
+        <section className="sa-card">
+          <div className="sa-card-h">
+            <h2>Tashriflar · 7 kun</h2>
+            <Link href="/super/visitors">Batafsil</Link>
           </div>
-          <div className="dash-chart">
+          <div className="sa-bars" role="img" aria-label="Oxirgi 7 kunlik tashriflar grafigi">
             {days.map((d) => (
-              <div key={d.key} className="dash-bar-col" title={`${d.label}: ${d.visits} tashrif, ${d.signups} ro'yxat`}>
-                <div className="dash-bar-track">
-                  <div className="dash-bar" style={{ height: `${Math.round((d.visits / maxVisits) * 100)}%` }} />
+              <div key={d.key} className="sa-bar" title={`${d.label}: ${d.visits} tashrif, ${d.signups} ro'yxat`}>
+                <span className="sa-bar-v">{d.visits}</span>
+                <div className="sa-bar-track">
+                  <div className="sa-bar-fill" style={{ height: `${Math.round((d.visits / maxVisits) * 100)}%` }} />
                 </div>
-                <span className="dash-bar-val">{d.visits}</span>
-                <span className="dash-bar-label">{d.label}</span>
+                <span className="sa-bar-l">{d.label}</span>
               </div>
             ))}
           </div>
-        </div>
+        </section>
 
         {/* Tariflar taqsimoti */}
-        <div className="panel">
-          <div className="panel-head"><h2>Tariflar bo&apos;yicha</h2></div>
-          <div style={{ padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <section className="sa-card">
+          <div className="sa-card-h"><h2>Tariflar bo&apos;yicha</h2></div>
+          <div className="sa-dist">
             {(['free', 'starter', 'pro', 'business', 'custom'] as const).map((t) => {
               const c = byTier[t] ?? 0;
               const pct = total ? Math.round((c / total) * 100) : 0;
               const label = PLAN_PRESETS[t]?.label ?? t;
               if (c === 0) return null;
               return (
-                <div key={t}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '.85rem', marginBottom: 4 }}>
-                    <span>{label}</span><span className="cell-sub">{c} ({pct}%)</span>
-                  </div>
-                  <div className="dist-bar-track"><div className="dist-bar" style={{ width: `${pct}%` }} /></div>
+                <div key={t} className="sa-dist-row">
+                  <div><span>{label}</span><span>{c} · {pct}%</span></div>
+                  <div className="sa-prog"><i style={{ width: `${pct}%` }} /></div>
                 </div>
               );
             })}
+            {total === 0 && <p className="sa-empty" style={{ padding: 8 }}>Ma&apos;lumot yo&apos;q</p>}
           </div>
-        </div>
+        </section>
       </div>
 
-      {/* Tez orada tugaydi */}
-      {expiringSoon.length > 0 && (
-        <div className="panel" style={{ marginTop: 20 }}>
-          <div className="panel-head"><h2>Tez orada tugaydi (7 kun)</h2></div>
-          <div className="table-wrap">
-            <table className="data-table">
-              <thead><tr><th>Biznes</th><th>Qolgan</th><th>Tarif</th><th></th></tr></thead>
-              <tbody>
+      <div className="sa-two">
+        {/* So'nggi bizneslar */}
+        <section className="sa-section">
+          <div className="sa-ghead">So&apos;nggi do&apos;konlar <Link href="/super">Hammasi</Link></div>
+          <div className="sa-group">
+            {orgs.length === 0 && <div className="sa-empty">Hozircha do&apos;kon yo&apos;q.</div>}
+            {orgs.slice(0, 6).map((org) => {
+              const st = getOrgDisplayStatus(org);
+              return (
+                <Link key={String(org._id)} href={`/super/organizations/${org._id}`} className="sa-cell sa-cell--av">
+                  <Avatar name={org.name} />
+                  <span className="sa-cell-t">
+                    <b>{org.name}</b>
+                    <small>
+                      {PLAN_PRESETS[org.plan?.tier as keyof typeof PLAN_PRESETS]?.label ?? org.plan?.tier}
+                      {' · '}
+                      {org.createdAt ? new Date(org.createdAt).toLocaleDateString('uz-UZ') : '—'}
+                    </small>
+                  </span>
+                  <OrgStatusPill status={st} />
+                  <Chevron />
+                </Link>
+              );
+            })}
+          </div>
+        </section>
+
+        <div className="sa-stack">
+          {/* Tez orada tugaydi */}
+          {expiringSoon.length > 0 && (
+            <section className="sa-section">
+              <div className="sa-ghead">Tez orada tugaydi · 7 kun</div>
+              <div className="sa-group">
                 {expiringSoon.slice(0, 8).map(({ org, days: d }) => (
-                  <tr key={String(org._id)}>
-                    <td><div className="cell-main">{org.name}</div><div className="cell-sub">{org.slug}</div></td>
-                    <td><span className={`badge-status badge-status--${d <= 2 ? 'expired' : 'suspended'}`}>{d === 0 ? 'Bugun' : `${d} kun`}</span></td>
-                    <td>{PLAN_PRESETS[org.plan?.tier as keyof typeof PLAN_PRESETS]?.label ?? org.plan?.tier}</td>
-                    <td className="cell-actions"><Link href={`/super/organizations/${org._id}`} className="btn btn-primary btn-sm">Uzaytirish</Link></td>
-                  </tr>
+                  <Link key={String(org._id)} href={`/super/organizations/${org._id}`} className="sa-cell">
+                    <span className="sa-cell-t">
+                      <b>{org.name}</b>
+                      <small>{org.slug} · {PLAN_PRESETS[org.plan?.tier as keyof typeof PLAN_PRESETS]?.label ?? org.plan?.tier}</small>
+                    </span>
+                    <Pill tone={d <= 2 ? 'bad' : 'warn'}>{d === 0 ? 'Bugun' : `${d} kun`}</Pill>
+                    <Chevron />
+                  </Link>
                 ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
+              </div>
+            </section>
+          )}
 
-      {/* So'nggi bizneslar */}
-      <div className="panel" style={{ marginTop: 20 }}>
-        <div className="panel-head">
-          <h2>So&apos;nggi bizneslar</h2>
-          <Link href="/super" className="cell-link" style={{ fontSize: '.85rem' }}>Hammasi →</Link>
-        </div>
-        <div className="table-wrap">
-          <table className="data-table">
-            <thead><tr><th>Biznes</th><th>Tarif</th><th>Holat</th><th>Sana</th></tr></thead>
-            <tbody>
-              {orgs.slice(0, 6).map((org) => {
-                const st = getOrgDisplayStatus(org);
-                return (
-                  <tr key={String(org._id)}>
-                    <td><Link href={`/super/organizations/${org._id}`} className="cell-link cell-main">{org.name}</Link><div className="cell-sub">{org.slug}</div></td>
-                    <td>{PLAN_PRESETS[org.plan?.tier as keyof typeof PLAN_PRESETS]?.label ?? org.plan?.tier}</td>
-                    <td><span className={`badge-status badge-status--${st.key}`}>{st.label}</span></td>
-                    <td className="cell-sub">{org.createdAt ? new Date(org.createdAt).toLocaleDateString('uz-UZ') : '—'}</td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      {/* Tezkor amallar */}
-      <div className="panel" style={{ marginTop: 20 }}>
-        <div className="panel-head"><h2>Tezkor amallar</h2></div>
-        <div className="quick-actions">
-          <Link href="/super/organizations/new" className="quick-action"><Icon name="plus" size={18} /> Yangi biznes</Link>
-          <Link href="/super/payments" className="quick-action"><Icon name="wallet" size={18} /> To&apos;lovlar{pendingPayments > 0 ? ` (${pendingPayments})` : ''}</Link>
-          <Link href="/super/visitors" className="quick-action"><Icon name="chart" size={18} /> Tashriflar</Link>
-          <Link href="/super/plans" className="quick-action"><Icon name="plans" size={18} /> Tariflar</Link>
+          {/* Tezkor amallar */}
+          <section className="sa-section">
+            <div className="sa-ghead">Tezkor amallar</div>
+            <div className="sa-group">
+              <Link href="/super/organizations/new" className="sa-cell sa-cell--ic">
+                <Sq icon="plus" tone="b" />
+                <span className="sa-cell-t"><b>Yangi do&apos;kon</b></span>
+                <Chevron />
+              </Link>
+              <Link href="/super/payments" className="sa-cell sa-cell--ic">
+                <Sq icon="wallet" tone="a" />
+                <span className="sa-cell-t"><b>To&apos;lovlar</b></span>
+                {pendingPayments > 0 && <span className="sa-cell-v">{pendingPayments}</span>}
+                <Chevron />
+              </Link>
+              <Link href="/super/visitors" className="sa-cell sa-cell--ic">
+                <Sq icon="chart" tone="c" />
+                <span className="sa-cell-t"><b>Tashriflar</b></span>
+                <Chevron />
+              </Link>
+              <Link href="/super/plans" className="sa-cell sa-cell--ic">
+                <Sq icon="plans" tone="v" />
+                <span className="sa-cell-t"><b>Tariflar</b></span>
+                <Chevron />
+              </Link>
+            </div>
+          </section>
         </div>
       </div>
     </>

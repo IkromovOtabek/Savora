@@ -12,22 +12,22 @@ export default async function SuperExpiryBanner() {
   if (expiring.length === 0) return null;
 
   return (
-    <div className="notify-banner notify-banner--warn btn-with-icon">
-      <Icon name="bell" size={18} className="notify-icon" />
+    <div className="sa-alert sa-alert--warn" role="status">
+      <Icon name="bell" size={18} />
       <div>
-        <strong>Obuna eslatmasi:</strong> {expiring.length} ta biznes obunasi 2 kun ichida tugaydi.
-      <ul className="notify-list">
-        {expiring.slice(0, 5).map((org) => {
-          const plan = resolveOrgPlan(org);
-          return (
-            <li key={String(org._id)}>
-              <Link href={`/super/organizations/${org._id}`}>{org.name}</Link>
-              {' — '}
-              {expiryWarningText(org, plan.monthlyPayment)}
-            </li>
-          );
-        })}
-      </ul>
+        <strong>Obuna eslatmasi:</strong> {expiring.length} ta do&apos;kon obunasi 2 kun ichida tugaydi.
+        <ul>
+          {expiring.slice(0, 5).map((org) => {
+            const plan = resolveOrgPlan(org);
+            return (
+              <li key={String(org._id)}>
+                <Link href={`/super/organizations/${org._id}`}>{org.name}</Link>
+                {' — '}
+                {expiryWarningText(org, plan.monthlyPayment)}
+              </li>
+            );
+          })}
+        </ul>
       </div>
     </div>
   );

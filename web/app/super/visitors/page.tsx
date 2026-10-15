@@ -2,6 +2,7 @@ import { requireSuperAdmin } from '@/lib/auth';
 import { getMasterModels } from '@/lib/masterDb';
 import { parseDeviceLabel } from '@/lib/visitAnalytics';
 import type { IVisitEvent } from '@/lib/models/master/SiteVisit';
+import { Kpi, PageTitle, Pill } from '@/components/super/ui';
 
 export const metadata = { title: 'Tashriflar — Super Admin' };
 
@@ -16,7 +17,7 @@ function dayKey(d: Date) {
 }
 function deviceType(ua?: string): string {
   if (!ua) return 'Noma\'lum';
-  return /Mobi|Android|iPhone|iPod/i.test(ua) ? 'Mobil' : /iPad|Tablet/i.test(ua) ? 'Planshet' : 'Desktop';
+  return /Mobi|Android|iPhone|iPod/i.test(ua) ? 'Mobil' : /iPad|Tablet/i.test(ua) ? 'Planshet' : 'Kompyuter';
 }
 function pageCount(events: IVisitEvent[]): number {
   const pages = events.filter((e) => e.type === 'page').length;
@@ -59,94 +60,110 @@ export default async function SuperVisitorsPage({
     if (row) { row.visits++; if (v.signedUp) row.signups++; }
   }
   const today = dayKey(new Date());
+  const signedToday = dayVisits.filter((v) => v.signedUp).length;
+  const knownToday = dayVisits.filter((v) => !!v.organizationSlug).length;
 
   return (
     <>
-      <div className="super-page-head">
-        <div>
-          <h1>Tashrif buyuruvchilar statistikasi</h1>
-          <p>Kim tashrif buyurdi, qurilma, qaysi sahifa va onlayn holati</p>
-        </div>
+      <PageTitle
+        title="Tashriflar"
+        sub="Kim tashrif buyurdi, qaysi qurilmadan, nechta sahifa ko'rdi va hozir onlaynmi"
+        actions={
+          <form method="get" className="sa-form-actions">
+            <label htmlFor="v-date" className="sa-count">Kun</label>
+            <input id="v-date" type="date" name="date" defaultValue={selectedDay} className="sa-input" style={{ width: 170 }} />
+            <button type="submit" className="sa-btn sa-btn--tinted sa-btn--sm">Ko&apos;rsatish</button>
+          </form>
+        }
+      />
+
+      <div className="sa-kpis">
+        <Kpi label="Tashriflar" value={dayVisits.length} icon="chart" tone="b" delta={selectedDay === today ? 'Bugun' : selectedDay} />
+        <Kpi label="Hozir onlayn" value={onlineCount} icon="globe" tone="o" delta="So'nggi 5 daqiqa" deltaTone={onlineCount > 0 ? 'ok' : undefined} />
+        <Kpi label="Ro'yxatdan o'tdi" value={signedToday} icon="signup" tone="v" />
+        <Kpi label="Do'kon foydalanuvchisi" value={knownToday} icon="store" tone="a" />
       </div>
 
-      {/* Bugungi (tanlangan kun) tashriflar */}
-      <div className="panel" style={{ marginBottom: 20 }}>
-        <div className="panel-head">
-          <h2>
-            <span className="v-dot v-dot--on" /> Tashriflar ({dayVisits.length})
-            {onlineCount > 0 && <span className="v-online-tag"> · {onlineCount} online</span>}
-          </h2>
-          <form method="get" style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-            <input type="date" name="date" defaultValue={selectedDay} className="input-base" style={{ maxWidth: 170 }} />
-            <button type="submit" className="btn btn-ghost btn-sm">Yangilash</button>
-          </form>
+      {/* Tanlangan kun tashriflari */}
+      <section className="sa-card">
+        <div className="sa-card-h">
+          <div>
+            <h2>Tashriflar ro&apos;yxati</h2>
+            <p>{dayVisits.length} ta sessiya{onlineCount > 0 ? ` · ${onlineCount} onlayn` : ''}</p>
+          </div>
         </div>
-        <div className="table-wrap">
-          <table className="data-table">
+        <div className="sa-table-wrap">
+          <table className="sa-table">
             <thead>
               <tr>
                 <th>Holat</th>
                 <th>Foydalanuvchi</th>
                 <th>Qurilma</th>
-                <th>OS / Brauzer</th>
-                <th>Sahifalar</th>
+                <th>OS / brauzer</th>
+                <th className="sa-td-c">Sahifalar</th>
                 <th>Kirdi</th>
                 <th>Chiqdi</th>
               </tr>
             </thead>
             <tbody>
               {dayVisits.length === 0 ? (
-                <tr><td colSpan={7}><div className="cell-sub" style={{ padding: 8 }}>Bu kuni tashrif yo&apos;q.</div></td></tr>
+                <tr><td colSpan={7}><div className="sa-empty">Bu kuni tashrif yo&apos;q.</div></td></tr>
               ) : dayVisits.map((v) => {
                 const online = new Date(v.lastSeenAt).getTime() >= onlineCutoff.getTime();
                 const known = v.signedUp || !!v.organizationSlug;
-                const status = online ? 'online' : known ? 'left' : 'idle';
-                const statusLabel = online ? 'Online' : known ? 'Chiqdi' : 'Faolsiz';
+                const statusLabel = online ? 'Onlayn' : known ? 'Chiqdi' : 'Faolsiz';
                 return (
                   <tr key={v.sessionId}>
-                    <td data-label="Holat"><span className={`v-status v-status--${status}`}><span className="v-dot" /> {statusLabel}</span></td>
-                    <td data-label="Foydalanuvchi">
-                      {v.organizationSlug
-                        ? <span className="cell-main">{v.organizationSlug}</span>
-                        : <span className="cell-sub" style={{ fontStyle: 'italic' }}>Mehmon</span>}
+                    <td>
+                      <span className="sa-status"><span className={`sa-dot${online ? ' sa-dot--on' : ''}`} /> {statusLabel}</span>
                     </td>
-                    <td data-label="Qurilma">{deviceType(v.userAgent)}</td>
-                    <td data-label="OS / Brauzer">{parseDeviceLabel(v.userAgent)}</td>
-                    <td data-label="Sahifalar"><span className="v-pages">{pageCount(v.events)}</span></td>
-                    <td data-label="Kirdi">{timeOnly(v.startedAt)}</td>
-                    <td data-label="Chiqdi" className="cell-sub">{online ? '—' : timeOnly(v.lastSeenAt)}</td>
+                    <td>
+                      {v.organizationSlug
+                        ? <span className="sa-td-main">{v.organizationSlug}</span>
+                        : <span className="sa-td-sub" style={{ fontStyle: 'italic', margin: 0 }}>Mehmon</span>}
+                    </td>
+                    <td>{deviceType(v.userAgent)}</td>
+                    <td>{parseDeviceLabel(v.userAgent)}</td>
+                    <td className="sa-td-c"><Pill tone="br">{pageCount(v.events)}</Pill></td>
+                    <td>{timeOnly(v.startedAt)}</td>
+                    <td style={{ color: 'var(--ink-3)' }}>{online ? '—' : timeOnly(v.lastSeenAt)}</td>
                   </tr>
                 );
               })}
             </tbody>
           </table>
         </div>
-      </div>
+      </section>
 
       {/* So'nggi 14 kun */}
-      <div className="panel">
-        <div className="panel-head"><h2>So&apos;nggi 14 kun</h2></div>
-        <div className="table-wrap">
-          <table className="data-table v-14-table">
+      <section className="sa-card">
+        <div className="sa-card-h"><h2>So&apos;nggi 14 kun</h2></div>
+        <div className="sa-table-wrap">
+          <table className="sa-table">
             <thead>
-              <tr><th>Sana</th><th style={{ textAlign: 'center' }}>Tashriflar</th><th style={{ textAlign: 'center' }}>Ro&apos;yxatdan</th><th style={{ textAlign: 'center' }}>Login</th></tr>
+              <tr>
+                <th>Sana</th>
+                <th className="sa-td-r">Tashriflar</th>
+                <th className="sa-td-r">Ro&apos;yxatdan</th>
+                <th className="sa-td-r">Kirish</th>
+              </tr>
             </thead>
             <tbody>
               {days.map((d) => (
                 <tr key={d.key}>
-                  <td data-label="Sana">
-                    <code className="imei-code">{d.key}</code>
-                    {d.key === today && <span className="badge-status badge-status--active" style={{ marginLeft: 8 }}>bugun</span>}
+                  <td>
+                    <span className="sa-code">{d.key}</span>
+                    {d.key === today && <> <Pill tone="ok">bugun</Pill></>}
                   </td>
-                  <td data-label="Tashriflar" style={{ textAlign: 'center' }}><span className="v-num v-num--visit">{d.visits}</span></td>
-                  <td data-label="Ro'yxatdan" style={{ textAlign: 'center' }}><span className="v-num v-num--signup">{d.signups}</span></td>
-                  <td data-label="Login" style={{ textAlign: 'center' }}><span className="v-num v-num--login">{d.logins}</span></td>
+                  <td className="sa-td-r"><b>{d.visits}</b></td>
+                  <td className="sa-td-r" style={{ color: d.signups ? 'var(--accent)' : 'var(--ink-3)' }}>{d.signups}</td>
+                  <td className="sa-td-r" style={{ color: 'var(--ink-3)' }}>{d.logins}</td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
-      </div>
+      </section>
     </>
   );
 }

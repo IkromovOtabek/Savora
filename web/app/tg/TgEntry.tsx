@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Icon from '@/components/icons/Icon';
+import AuthShell, { AuthAlert } from '@/components/auth/AuthShell';
 
 interface TgWebApp {
   initData: string;
@@ -101,68 +102,58 @@ export default function TgEntry() {
 
   if (phase === 'loading') {
     return (
-      <div className="tg-login-bg">
-        <div style={{ textAlign: 'center' }}>
-          <style>{'@keyframes tgspin{to{transform:rotate(360deg)}}'}</style>
-          <div style={{ width: 40, height: 40, margin: '0 auto', border: '3px solid rgba(255,255,255,.3)', borderTopColor: '#fff', borderRadius: '50%', animation: 'tgspin .7s linear infinite' }} />
-        </div>
-      </div>
+      <main className="au-wrap" aria-busy="true">
+        <div className="au-spinner" role="status" aria-label="Yuklanmoqda" />
+      </main>
     );
   }
 
   return (
-    <div className="tg-login-bg">
-      <form className="tg-login-card" onSubmit={onSubmit}>
-        <div className="tg-login-icon"><Icon name="store" size={30} /></div>
-        <div className="tg-login-title">Savora</div>
-        <div className="tg-login-sub">Tizimga kirish</div>
+    <AuthShell title="Tizimga kirish" subtitle="Savora — Telegram orqali">
+      <form className="au-form" onSubmit={onSubmit}>
+        {error && <AuthAlert tone="error">{error}</AuthAlert>}
 
-        {error && <div className="tg-login-err">{error}</div>}
-
-        <label className="tg-login-label" htmlFor="tg-slug">Do&apos;kon manzili</label>
-        <div className="tg-login-iw">
-          <span className="tg-ic"><Icon name="building" size={17} /></span>
-          <input id="tg-slug" className="tg-login-input" value={slug} onChange={(e) => setSlug(e.target.value)}
-            placeholder="masalan: diamed" autoCapitalize="none" autoCorrect="off" />
+        <div className="au-group">
+          <div className="au-row">
+            <label htmlFor="tg-slug">Do&apos;kon manzili</label>
+            <input id="tg-slug" value={slug} onChange={(e) => setSlug(e.target.value)}
+              placeholder="masalan: diamed" autoCapitalize="none" autoCorrect="off" spellCheck={false} />
+          </div>
+          <div className="au-row">
+            <label htmlFor="tg-user">Login</label>
+            <input id="tg-user" value={username} onChange={(e) => setUsername(e.target.value)} autoComplete="username"
+              placeholder="Foydalanuvchi nomi yoki telefon" autoCapitalize="none" autoCorrect="off" spellCheck={false} />
+          </div>
+          <div className="au-row">
+            <label htmlFor="tg-pass">Parol</label>
+            <div className="au-pwd">
+              <input id="tg-pass" type={showPass ? 'text' : 'password'} autoComplete="current-password"
+                value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Parolingiz" />
+              <button type="button" className="au-pwd-toggle" onClick={() => setShowPass((v) => !v)}
+                aria-label={showPass ? 'Parolni yashirish' : "Parolni ko'rsatish"} aria-pressed={showPass}>
+                <Icon name={showPass ? 'eyeOff' : 'eye'} size={19} />
+              </button>
+            </div>
+          </div>
         </div>
 
-        <label className="tg-login-label" htmlFor="tg-user">Login</label>
-        <div className="tg-login-iw">
-          <span className="tg-ic"><Icon name="user" size={17} /></span>
-          <input id="tg-user" className="tg-login-input" value={username} onChange={(e) => setUsername(e.target.value)}
-            placeholder="Foydalanuvchi nomi yoki tel" autoCapitalize="none" autoCorrect="off" />
-        </div>
-
-        <label className="tg-login-label" htmlFor="tg-pass">Parol</label>
-        <div className="tg-login-iw">
-          <span className="tg-ic"><Icon name="shield" size={17} /></span>
-          <input id="tg-pass" className="tg-login-input" type={showPass ? 'text' : 'password'}
-            value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" />
-          <button type="button" className="tg-eye" onClick={() => setShowPass((v) => !v)} aria-label="Parolni ko'rsatish">
-            <Icon name={showPass ? 'eyeOff' : 'eye'} size={18} />
-          </button>
-        </div>
-
-        <button type="submit" className="tg-login-btn" disabled={busy}>
-          {busy ? 'Kirilmoqda…' : 'Kirish →'}
+        <button type="submit" className="au-btn au-btn--filled au-btn--block" disabled={busy}>
+          {busy ? 'Kirilmoqda…' : 'Kirish'}
         </button>
 
-        <div className="tg-login-divider">Xavfsiz ulanish</div>
+        <div className="au-divider">yoki</div>
 
-        <button type="button" className="tg-login-tg" onClick={onTelegram} disabled={tgBusy}>
-          <Icon name="send" size={17} />
+        <button type="button" className="au-btn au-btn--tinted au-btn--block" onClick={onTelegram} disabled={tgBusy}>
+          <Icon name="send" size={18} />
           {tgBusy ? 'Tekshirilmoqda…' : 'Telegram orqali kirish'}
         </button>
-
-        <div className="tg-login-foot">
-          Yangi foydalanuvchimisiz?<br />
-          <b>Ro&apos;yxatdan o&apos;tish uchun murojaat qiling</b>
-        </div>
-        <div className="tg-login-meta">
-          <span><Icon name="shield" size={12} /> End-to-end shifrlangan</span>
-          <span><Icon name="phone" size={12} /> Savora</span>
-        </div>
       </form>
-    </div>
+
+      <p className="au-foot">Yangi foydalanuvchimisiz? Ro&apos;yxatdan o&apos;tish uchun murojaat qiling.</p>
+      <div className="au-meta">
+        <span><Icon name="shield" size={12} /> Xavfsiz ulanish</span>
+        <span><Icon name="phone" size={12} /> Savora</span>
+      </div>
+    </AuthShell>
   );
 }

@@ -3,6 +3,9 @@
 import Link from 'next/link';
 import { useActionState } from 'react';
 import { confirmPasswordResetAction, requestPasswordResetAction } from '@/app/actions/auth';
+import AuthShell, { AuthAlert } from '@/components/auth/AuthShell';
+import PasswordField from '@/components/auth/PasswordField';
+import Icon from '@/components/icons/Icon';
 
 interface Props {
   title: string;
@@ -16,72 +19,103 @@ interface Props {
 export default function ForgotForm({ title, storeName, canReset, notice, tenantSlug, loginUrl }: Props) {
   const [state, formAction, isPending] = useActionState(requestPasswordResetAction, null);
   const [confirmState, confirmAction, isConfirming] = useActionState(confirmPasswordResetAction, null);
+  const codeStep = state?.step === 'code';
 
   return (
-    <div className="auth-wrap">
-      <div className="auth-card">
-        <Link href="/" className="auth-brand">
-          <span className="brand-logo">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M6 20 L12 6" stroke="var(--ink-1)" /><path d="M12 6 L18 20" stroke="var(--brand)" /></svg>
-          </span>
-          Savora
-        </Link>
+    <AuthShell
+      title={title}
+      subtitle={storeName || undefined}
+      top={
+        canReset ? (
+          <div className="au-steps" role="list" aria-label="Parolni tiklash qadamlari">
+            <span role="listitem" aria-current={!codeStep ? 'step' : undefined}>1. Login</span>
+            <span role="listitem" aria-current={codeStep ? 'step' : undefined}>2. Kod</span>
+          </div>
+        ) : undefined
+      }
+    >
+      {notice && <AuthAlert tone="info">{notice}</AuthAlert>}
+      {state?.error && <AuthAlert tone="error">{state.error}</AuthAlert>}
+      {state?.success && !confirmState && <AuthAlert tone="info">{state.success}</AuthAlert>}
+      {confirmState?.error && <AuthAlert tone="error">{confirmState.error}</AuthAlert>}
+      {confirmState?.success && <AuthAlert tone="ok">{confirmState.success}</AuthAlert>}
 
-        <h1 className="auth-title">{title}</h1>
-        {storeName && <p className="auth-subtitle">{storeName}</p>}
-
-        {notice && <div className="auth-alert auth-alert--info">{notice}</div>}
-        {state?.error && <div className="auth-alert auth-alert--error">{state.error}</div>}
-        {state?.success && !confirmState && <div className="auth-alert auth-alert--info">{state.success}</div>}
-        {confirmState?.error && <div className="auth-alert auth-alert--error">{confirmState.error}</div>}
-        {confirmState?.success && <div className="auth-alert auth-alert--info">{confirmState.success}</div>}
-
-        {canReset && state?.step === 'code' && confirmState?.step !== 'done' && (
-          <form action={confirmAction} className="auth-form">
-            {tenantSlug && <input type="hidden" name="tenantSlug" value={tenantSlug} />}
-            <input type="hidden" name="username" value={state.username ?? ''} />
-            <p className="auth-help" style={{ fontSize: '.85rem', color: 'var(--ink-2)', lineHeight: 1.5 }}>
-              Telegram&apos;ga kelgan 6 xonali kodni va yangi parolni kiriting.
-            </p>
-            <div className="auth-field">
+      {canReset && codeStep && confirmState?.step !== 'done' && (
+        <form action={confirmAction} className="au-form">
+          {tenantSlug && <input type="hidden" name="tenantSlug" value={tenantSlug} />}
+          <input type="hidden" name="username" value={state.username ?? ''} />
+          <p className="au-help">Telegram&apos;ga kelgan 6 xonali kodni va yangi parolni kiriting.</p>
+          <div className="au-group">
+            <div className="au-row">
               <label htmlFor="code">Tasdiqlash kodi</label>
-              <input id="code" name="code" type="text" inputMode="numeric" autoComplete="one-time-code" pattern="\d{6}" maxLength={6} required autoFocus disabled={isConfirming} />
+              <input
+                id="code"
+                name="code"
+                type="text"
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                pattern="\d{6}"
+                maxLength={6}
+                placeholder="••••••"
+                required
+                autoFocus
+                disabled={isConfirming}
+                style={{ letterSpacing: '.3em', fontVariantNumeric: 'tabular-nums' }}
+              />
             </div>
-            <div className="auth-field">
+          </div>
+          <div className="au-group">
+            <div className="au-row">
               <label htmlFor="newPassword">Yangi parol</label>
-              <input id="newPassword" name="newPassword" type="password" autoComplete="new-password" minLength={6} required disabled={isConfirming} />
+              <PasswordField id="newPassword" name="newPassword" autoComplete="new-password" minLength={6} placeholder="Kamida 6 belgi" required disabled={isConfirming} />
             </div>
-            <div className="auth-field">
+            <div className="au-row">
               <label htmlFor="confirmPassword">Yangi parolni takrorlang</label>
-              <input id="confirmPassword" name="confirmPassword" type="password" autoComplete="new-password" minLength={6} required disabled={isConfirming} />
+              <PasswordField id="confirmPassword" name="confirmPassword" autoComplete="new-password" minLength={6} placeholder="Takrorlang" required disabled={isConfirming} />
             </div>
-            <button type="submit" className="btn btn-primary auth-submit" disabled={isConfirming}>
-              {isConfirming ? 'Saqlanmoqda...' : 'Parolni yangilash'}
-            </button>
-          </form>
-        )}
+          </div>
+          <button type="submit" className="au-btn au-btn--filled au-btn--block" disabled={isConfirming}>
+            {isConfirming ? 'Saqlanmoqda…' : 'Parolni yangilash'}
+          </button>
+        </form>
+      )}
 
-        {canReset && !state?.step && (
-          <form action={formAction} className="auth-form">
-            {tenantSlug && <input type="hidden" name="tenantSlug" value={tenantSlug} />}
-            <p className="auth-help" style={{ fontSize: '.85rem', color: 'var(--ink-2)', lineHeight: 1.5 }}>
-              Loginni kiriting. Bir martalik tasdiqlash kodi do&apos;konning ulangan Telegram&apos;iga yuboriladi.
-              Telegram ulanmagan bo&apos;lsa, do&apos;kon admini yoki platforma egasiga murojaat qiling.
-            </p>
-            <div className="auth-field">
+      {canReset && !state?.step && (
+        <form action={formAction} className="au-form">
+          {tenantSlug && <input type="hidden" name="tenantSlug" value={tenantSlug} />}
+          <p className="au-help">
+            Loginni kiriting. Bir martalik tasdiqlash kodi do&apos;konning ulangan Telegram&apos;iga yuboriladi.
+            Telegram ulanmagan bo&apos;lsa, do&apos;kon admini yoki platforma egasiga murojaat qiling.
+          </p>
+          <div className="au-group">
+            <div className="au-row">
               <label htmlFor="username">Login</label>
-              <input id="username" name="username" type="text" autoComplete="username" required autoFocus disabled={isPending} />
+              <input
+                id="username"
+                name="username"
+                type="text"
+                autoComplete="username"
+                autoCapitalize="none"
+                autoCorrect="off"
+                spellCheck={false}
+                placeholder="Foydalanuvchi nomi"
+                required
+                autoFocus
+                disabled={isPending}
+              />
             </div>
-            <button type="submit" className="btn btn-primary auth-submit" disabled={isPending}>
-              {isPending ? 'Yuborilmoqda...' : 'Kod yuborish'}
-            </button>
-          </form>
-        )}
+          </div>
+          <button type="submit" className="au-btn au-btn--filled au-btn--block" disabled={isPending}>
+            {isPending ? 'Yuborilmoqda…' : 'Kod yuborish'}
+          </button>
+        </form>
+      )}
 
-        <p className="auth-foot">
-          <Link href={loginUrl} className="cell-link">← Kirish sahifasiga qaytish</Link>
-        </p>
+      <div className="au-links">
+        <Link href={loginUrl} className="au-btn au-btn--plain">
+          <Icon name="arrowLeft" size={17} /> Kirish sahifasiga qaytish
+        </Link>
       </div>
-    </div>
+    </AuthShell>
   );
 }

@@ -2,8 +2,8 @@ import Link from 'next/link';
 import { requireOrgUser } from '@/lib/auth';
 import { TENANT_MODULES } from '@/lib/features';
 import type { FeatureKey } from '@/lib/features';
-import Icon from '@/components/icons/Icon';
 import { isPermissionKey, PERMISSIONS } from '@/lib/permissions';
+import AuthShell from '@/components/auth/AuthShell';
 
 export const metadata = { title: 'Modul mavjud emas — Savora' };
 
@@ -19,19 +19,18 @@ export default async function LockedPage({
   if (isPermissionKey(sp.p)) {
     const perm = PERMISSIONS[sp.p];
     return (
-      <div className="locked-wrap">
-        <div className="locked-card">
-          <div className="locked-icon"><Icon name="lock" size={32} /></div>
-          <h1>Huquq berilmagan</h1>
-          <p>
-            Sizga <strong>&ldquo;{perm.label}&rdquo;</strong> huquqi berilmagan. ({perm.description})
-          </p>
-          <p className="locked-sub">Bu bo&apos;limdan foydalanish uchun do&apos;kon egasidan huquq so&apos;rang.</p>
-          <div className="locked-actions">
-            <Link href="/app" className="btn btn-primary">Bosh sahifa</Link>
-          </div>
+      <AuthShell
+        inline
+        icon="lock"
+        iconTone="warn"
+        title="Huquq berilmagan"
+        subtitle={<>Sizga <strong>&ldquo;{perm.label}&rdquo;</strong> huquqi berilmagan. ({perm.description})</>}
+      >
+        <p className="au-help">Bu bo&apos;limdan foydalanish uchun do&apos;kon egasidan huquq so&apos;rang.</p>
+        <div className="au-actions au-actions--center" style={{ marginTop: 18 }}>
+          <Link href="/app" className="au-btn au-btn--filled au-btn--block">Bosh sahifa</Link>
         </div>
-      </div>
+      </AuthShell>
     );
   }
 
@@ -40,23 +39,26 @@ export default async function LockedPage({
   const label = mod?.label ?? 'Bu';
 
   return (
-    <div className="locked-wrap">
-      <div className="locked-card">
-        <div className="locked-icon"><Icon name="shield" size={32} /></div>
-        <h1>{label} moduli mavjud emas</h1>
-        <p>
-          Siz tarif bo&apos;yicha <strong>&ldquo;{label}&rdquo;</strong> moduliga a&apos;zo bo&apos;lmagansiz.
+    <AuthShell
+      inline
+      icon="shield"
+      iconTone="brand"
+      title={`${label} moduli mavjud emas`}
+      subtitle={
+        <>
+          Tarifingizda <strong>&ldquo;{label}&rdquo;</strong> moduli yoqilmagan.
           {mod?.description ? ` (${mod.description})` : ''}
-        </p>
-        <p className="locked-sub">
-          Bu bo&apos;limdan foydalanish uchun tarifingizni yangilang — Kabinet bo&apos;limidan to&apos;lov
-          yuboring yoki platforma egasiga murojaat qiling.
-        </p>
-        <div className="locked-actions">
-          <Link href="/app/profile" className="btn btn-primary">Kabinet (tarif/to&apos;lov)</Link>
-          <Link href="/app" className="btn btn-ghost">Bosh sahifa</Link>
-        </div>
+        </>
+      }
+    >
+      <p className="au-help">
+        Bu bo&apos;limdan foydalanish uchun tarifingizni yangilang — Kabinet bo&apos;limidan to&apos;lov
+        yuboring yoki platforma egasiga murojaat qiling.
+      </p>
+      <div className="au-form" style={{ marginTop: 18, gap: 8 }}>
+        <Link href="/app/profile" className="au-btn au-btn--filled au-btn--block">Kabinet (tarif va to&apos;lov)</Link>
+        <Link href="/app" className="au-btn au-btn--plain au-btn--block">Bosh sahifa</Link>
       </div>
-    </div>
+    </AuthShell>
   );
 }

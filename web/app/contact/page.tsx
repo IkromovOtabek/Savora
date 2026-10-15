@@ -1,25 +1,33 @@
 import Link from 'next/link';
-import BackLink from '@/components/ui/BackLink';
+import Icon from '@/components/icons/Icon';
+import PublicPage from '@/components/auth/PublicPage';
+
+export const metadata = { title: "Bog'lanish — Savora" };
+
+const CONTACTS = [
+  { label: 'Telegram', value: '@savora', href: 'https://t.me/savora', icon: 'send', tone: 'b' },
+  { label: 'Email', value: 'support@savora.uz', href: 'mailto:support@savora.uz', icon: 'globe', tone: 'o' },
+  { label: 'Telefon', value: '+998 90 000 00 00', href: 'tel:+998900000000', icon: 'phone', tone: 'a' },
+] as const;
 
 export default function ContactPage() {
   return (
-    <>
-      <header className="nav">
-        <div className="container nav-inner">
-          <Link href="/" className="brand"><span className="brand-logo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M6 20 L12 6" stroke="var(--ink-1)" /><path d="M12 6 L18 20" stroke="var(--brand)" /></svg></span>Savora</Link>
-          <BackLink href="/" className="btn btn-ghost btn-sm">Bosh sahifa</BackLink>
+    <PublicPage title="Bog'lanish" lead="Savora jamoasi bilan bog'lanish usullari.">
+      <section className="au-article-sec">
+        <h2>Aloqa</h2>
+        <div className="au-article-list">
+          {CONTACTS.map((c) => (
+            <a key={c.label} href={c.href} className="au-cell">
+              <span className={`au-sq au-sq--${c.tone}`}><Icon name={c.icon} size={17} strokeWidth={2.2} /></span>
+              <span className="au-cell-t"><b>{c.label}</b></span>
+              <span className="au-cell-v" style={{ fontVariantNumeric: 'tabular-nums' }}>{c.value}</span>
+              <span className="au-chev"><Icon name="chevron" size={14} strokeWidth={2.6} /></span>
+            </a>
+          ))}
         </div>
-      </header>
-      <main className="container" style={{ padding: '48px 24px', maxWidth: 520 }}>
-        <h1 style={{ fontSize: '2rem', fontWeight: 850, marginBottom: 24 }}>Bog&apos;lanish</h1>
-        <p style={{ color: 'var(--ink-2)', marginBottom: 24 }}>Savora jamoasi bilan bog&apos;lanish:</p>
-        <ul style={{ color: 'var(--ink-2)', lineHeight: 2 }}>
-          <li>Telegram: @savora</li>
-          <li>Email: support@savora.uz</li>
-          <li>Telefon: +998 90 000 00 00</li>
-        </ul>
-        <Link href="/register" className="btn btn-primary" style={{ marginTop: 24 }}>7 kun bepul sinov</Link>
-      </main>
-    </>
+      </section>
+
+      <Link href="/register" className="au-btn au-btn--filled au-btn--block">14 kun bepul sinab ko&apos;rish</Link>
+    </PublicPage>
   );
 }

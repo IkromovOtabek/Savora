@@ -2,6 +2,7 @@ import { requireSuperAdmin } from '@/lib/auth';
 import { getMasterModels } from '@/lib/masterDb';
 import { resolvePublicFileUrl } from '@/lib/storage';
 import PaymentReview from '@/components/super/PaymentReview';
+import { PageTitle } from '@/components/super/ui';
 
 export const metadata = { title: 'To\'lovlar — Super Admin' };
 
@@ -38,12 +39,7 @@ export default async function SuperPaymentsPage() {
 
   return (
     <>
-      <div className="super-page-head">
-        <div>
-          <h1>To&apos;lovlar</h1>
-          <p>Do&apos;konlar yuborgan to&apos;lov cheklari — tekshirib tasdiqlang</p>
-        </div>
-      </div>
+      <PageTitle title="To'lovlar" sub="Do'konlar yuborgan to'lov cheklari — tekshirib tasdiqlang" />
       <PaymentReview requests={rows} account={account} />
     </>
   );

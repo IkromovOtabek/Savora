@@ -2,7 +2,8 @@
 
 import { useActionState } from 'react';
 import { runExpireOrgsAction, runExpiryNotifyAction } from '@/app/actions/systems';
-import Icon from '@/components/icons/Icon';
+import Icon, { type IconName } from '@/components/icons/Icon';
+import { Alert, Sq, type SqTone } from './ui';
 
 const APP_BASE = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
 
@@ -12,98 +13,120 @@ function CronPanel({
   action,
   anchor,
   curl,
+  icon,
+  tone,
 }: {
   title: string;
   description: string;
   action: typeof runExpireOrgsAction;
   anchor: string;
   curl: string;
+  icon: IconName;
+  tone: SqTone;
 }) {
   const [state, formAction, pending] = useActionState(action, null);
 
   return (
-    <div className="panel system-panel" id={anchor}>
-      <div className="panel-head">
-        <h2>{title}</h2>
-        <p className="panel-sub">{description}</p>
+    <section className="sa-card" id={anchor}>
+      <div className="sa-card-h" style={{ alignItems: 'flex-start' }}>
+        <div className="sa-subhead">
+          <Sq icon={icon} tone={tone} />
+          <div>
+            <h3>{title}</h3>
+            <p>{description}</p>
+          </div>
+        </div>
       </div>
-      <div className="system-panel-body">
-        {state?.error && <div className="auth-alert auth-alert--error">{state.error}</div>}
-        {state?.success && <div className="auth-alert auth-alert--info">{state.success}</div>}
+      <div className="sa-card-b sa-fields">
+        {state?.error && <Alert tone="error">{state.error}</Alert>}
+        {state?.success && <Alert tone="ok">{state.success}</Alert>}
         <form action={formAction}>
-          <button type="submit" className="btn btn-primary btn-with-icon" disabled={pending}>
+          <button type="submit" className="sa-btn sa-btn--tinted" disabled={pending}>
             <Icon name="clock" size={16} />
-            {pending ? 'Ishlanmoqda...' : 'Hozir ishga tushirish'}
+            {pending ? 'Ishlanmoqda…' : 'Hozir ishga tushirish'}
           </button>
         </form>
-        <details className="system-curl">
-          <summary>Cron / terminal buyrug&apos;i</summary>
+        <details className="sa-details">
+          <summary><Icon name="chevron" size={14} /> Cron / terminal buyrug&apos;i</summary>
           <pre>{curl}</pre>
         </details>
       </div>
-    </div>
+    </section>
+  );
+}
+
+function InfoGroup({ id, title, foot, rows }: { id: string; title: string; foot?: string; rows: React.ReactNode[] }) {
+  return (
+    <section className="sa-section" id={id}>
+      <div className="sa-ghead">{title}</div>
+      <div className="sa-group">
+        {rows.map((r, i) => (
+          <div key={i} className="sa-cell">
+            <span className="sa-cell-t"><small className="sa-wrap" style={{ color: 'var(--ink-1)', fontSize: 14 }}>{r}</small></span>
+          </div>
+        ))}
+      </div>
+      {foot && <div className="sa-gfoot">{foot}</div>}
+    </section>
   );
 }
 
 export default function SystemsPanels() {
   return (
-    <div className="systems-stack">
-      <CronPanel
-        anchor="notify"
-        title="Obuna eslatmalari"
-        description="Obunaga 2 kun qolganda Super Admin, biznes admin va xodimlarga panelda + Telegram xabar."
-        action={runExpiryNotifyAction}
-        curl={`curl -H "Authorization: Bearer $CRON_SECRET" ${APP_BASE}/api/cron/expiry-notifications\n# yoki: npm run notify`}
+    <div className="sa-stack">
+      <div className="sa-two">
+        <CronPanel
+          anchor="notify"
+          icon="bell"
+          tone="a"
+          title="Obuna eslatmalari"
+          description="Obunaga 2 kun qolganda Super Admin, do'kon admini va xodimlarga panelda va Telegram'da xabar."
+          action={runExpiryNotifyAction}
+          curl={`curl -H "Authorization: Bearer $CRON_SECRET" ${APP_BASE}/api/cron/expiry-notifications\n# yoki: npm run notify`}
+        />
+        <CronPanel
+          anchor="expire"
+          icon="clock"
+          tone="r"
+          title="Obuna muddati (cron)"
+          description="Muddati o'tgan faol do'konlarni avtomatik «muddati tugagan» holatiga o'tkazadi."
+          action={runExpireOrgsAction}
+          curl={`curl -H "Authorization: Bearer $CRON_SECRET" ${APP_BASE}/api/cron/expire-orgs\n# yoki: npm run expire`}
+        />
+      </div>
+
+      <InfoGroup
+        id="modules-savdo"
+        title="Variant, kredit, kassa"
+        foot="Har bir do'kon uchun Super Admin → Do'kon → Modullar bo'limidan yoqing."
+        rows={[
+          <><b>Variant</b> — sotuvda bo&apos;lib to&apos;lash (nasiya)</>,
+          <><b>Kredit kassa</b> — do&apos;kon egasi bank qo&apos;shadi; sotuv va mahsulot holatida «Kredit»</>,
+          <><b>Kassa</b> — kunlik tushum va kredit kassa hisoboti</>,
+          <><b>Kirim-chiqim</b> — do&apos;kon egasi admin panelida kirim/chiqim jurnali</>,
+        ]}
       />
-      <CronPanel
-        anchor="expire"
-        title="Obuna muddati (Cron)"
-        description="Muddati o'tgan faol bizneslarni avtomatik expired qiladi."
-        action={runExpireOrgsAction}
-        curl={`curl -H "Authorization: Bearer $CRON_SECRET" ${APP_BASE}/api/cron/expire-orgs\n# yoki: npm run expire`}
+
+      <InfoGroup
+        id="export"
+        title="CSV eksport"
+        foot="Do'kon panelida tizimga kirilgan holda ishlaydi — Super Admin to'g'ridan-to'g'ri ocha olmaydi."
+        rows={[
+          <>Ombor CSV: do&apos;kon paneli → Ombor (eksport moduli yoqilgan bo&apos;lishi kerak)</>,
+          <>API: <code className="sa-code">GET /api/export/products</code> — do&apos;kon sessiyasi talab qilinadi</>,
+          <>Sotuvlar: <code className="sa-code">GET /api/export/sales</code></>,
+        ]}
       />
 
-      <div className="panel system-panel" id="modules-savdo">
-        <div className="panel-head">
-          <h2>Variant, Kredit, Kassa</h2>
-          <p className="panel-sub">Har bir biznes uchun Super Admin → Biznes → Modullar bo&apos;limidan yoqing</p>
-        </div>
-        <div className="system-panel-body">
-          <ul className="system-list">
-            <li><strong>Variant</strong> — sotuvda bo&apos;lib to&apos;lash (nasiya)</li>
-            <li><strong>Kredit kassa</strong> — biznes egasi bank qo&apos;shadi; sotuv va mahsulot statusida &quot;Kredit&quot;</li>
-            <li><strong>Kassa</strong> — kunlik tushum va kredit kassa hisoboti</li>
-            <li><strong>Kirim-Chiqim</strong> — biznes egasi admin panelida kirim/chiqim jurnali</li>
-          </ul>
-        </div>
-      </div>
-
-      <div className="panel system-panel" id="export">
-        <div className="panel-head">
-          <h2>CSV export</h2>
-          <p className="panel-sub">Do&apos;kon panelida login qilingan holda ishlaydi — Super Admin to&apos;g&apos;ridan-to&apos;g&apos;ri ochilmaydi.</p>
-        </div>
-        <div className="system-panel-body">
-          <ul className="system-list">
-            <li>Ombor CSV: do&apos;kon paneli → Ombor (export moduli yoqilgan bo&apos;lishi kerak)</li>
-            <li>API: <code>GET /api/export/products</code> — tenant sessiya cookie talab qilinadi</li>
-            <li>Sotuvlar: <code>GET /api/export/sales</code></li>
-          </ul>
-        </div>
-      </div>
-
-      <div className="panel system-panel" id="telegram">
-        <div className="panel-head">
-          <h2>Telegram bot</h2>
-          <p className="panel-sub">Yangi sotuv va obuna eslatmalari. .env da TELEGRAM_BOT_TOKEN va TELEGRAM_CHAT_ID.</p>
-        </div>
-        <div className="system-panel-body">
-          <ul className="system-list">
-            <li>Webhook: <code>POST /api/telegram/webhook</code> (brauzerda GET ishlamaydi — bu normal)</li>
-            <li>Webhook <code>setWebhook</code> bilan <code>secret_token=TELEGRAM_WEBHOOK_SECRET</code> parametri orqali ulanadi (busiz production'da so&apos;rovlar rad etiladi)</li>
-          </ul>
-        </div>
-      </div>
+      <InfoGroup
+        id="telegram"
+        title="Telegram bot"
+        foot="Yangi sotuv va obuna eslatmalari. .env faylida TELEGRAM_BOT_TOKEN va TELEGRAM_CHAT_ID bo'lishi kerak."
+        rows={[
+          <>Webhook: <code className="sa-code">POST /api/telegram/webhook</code> (brauzerda GET ishlamaydi — bu normal)</>,
+          <>Webhook <code className="sa-code">setWebhook</code> orqali <code className="sa-code">secret_token=TELEGRAM_WEBHOOK_SECRET</code> parametri bilan ulanadi (busiz production&apos;da so&apos;rovlar rad etiladi)</>,
+        ]}
+      />
     </div>
   );
 }

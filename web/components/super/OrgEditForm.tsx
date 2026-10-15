@@ -5,8 +5,8 @@ import { updateOrganizationAction } from '@/app/actions/orgSettings';
 import { PLAN_PRESETS } from '@/lib/plans';
 import { BUSINESS_TYPES } from '@/lib/businessTypes';
 import { formatPasswordHash } from '@/lib/credentials';
-import { IconBadge } from '@/components/icons/Icon';
 import PriceInput from '@/components/ui/PriceInput';
+import { Alert, Sq } from './ui';
 
 interface Props {
   orgId: string;
@@ -34,63 +34,48 @@ export default function OrgEditForm({ orgId, initial }: Props) {
   const [planTier, setPlanTier] = useState(initial.planTier);
 
   return (
-    <>
-      {state?.error && <div className="auth-alert auth-alert--error panel-alert">{state.error}</div>}
-      {state?.success && <div className="auth-alert auth-alert--info panel-alert">{state.success}</div>}
+    <form action={formAction} className="sa-form">
+      <input type="hidden" name="orgId" value={orgId} />
 
-      <form action={formAction} className="form-grid form-grid--simple">
-        <input type="hidden" name="orgId" value={orgId} />
+      {state?.error && <Alert tone="error">{state.error}</Alert>}
+      {state?.success && <Alert tone="ok">{state.success}</Alert>}
 
-        <div className="org-meta-grid">
-          <div className="org-meta-item">
-            <IconBadge name="globe" bg="linear-gradient(135deg,#0ea5e9,#6366f1)" className="icon-badge--sm" />
-            <div>
-              <span className="org-meta-label">Kirish manzili</span>
-              <code>/t/{initial.slug}/login</code>
-            </div>
+      {/* Faqat ko'rish uchun ma'lumotlar — Settings uslubidagi guruh */}
+      <div className="sa-section">
+        <div className="sa-ghead">Kirish ma&apos;lumotlari</div>
+        <div className="sa-group" style={{ background: 'var(--bg-soft)' }}>
+          <div className="sa-cell sa-cell--ic">
+            <Sq icon="globe" tone="b" />
+            <span className="sa-cell-t"><b>Kirish manzili</b></span>
+            <code className="sa-code">/t/{initial.slug}/login</code>
           </div>
-          <div className="org-meta-item">
-            <IconBadge name="building" bg="linear-gradient(135deg,#10b981,#059669)" className="icon-badge--sm" />
-            <div>
-              <span className="org-meta-label">Baza</span>
-              <code>{initial.dbName}</code>
-            </div>
+          <div className="sa-cell sa-cell--ic">
+            <Sq icon="building" tone="o" />
+            <span className="sa-cell-t"><b>Baza</b></span>
+            <code className="sa-code">{initial.dbName}</code>
           </div>
-        </div>
-
-        <div className="form-section">
-          <div className="form-section-head">
-            <IconBadge name="login" bg="linear-gradient(135deg,#f59e0b,#ef4444)" className="icon-badge--sm" />
-            <div>
-              <h3>Kirish ma&apos;lumotlari</h3>
-              <p className="field-hint">Faqat ko&apos;rish — parol bazada bcrypt bilan shifrlangan. Egasi profildan o&apos;zgartiradi.</p>
-            </div>
+          <div className="sa-cell sa-cell--ic">
+            <Sq icon="user" tone="v" />
+            <span className="sa-cell-t"><b>Login</b></span>
+            <code className="sa-code">{initial.adminUsername || '—'}</code>
           </div>
-
-          <div className="org-cred-grid">
-            <div className="org-cred-item org-cred-item--readonly">
-              <IconBadge name="user" bg="linear-gradient(135deg,#6366f1,#8b5cf6)" className="icon-badge--sm" />
-              <div className="org-cred-field">
-                <span className="org-meta-label">Login</span>
-                <code className="cred-value">{initial.adminUsername || '—'}</code>
-              </div>
-            </div>
-            <div className="org-cred-item org-cred-item--readonly">
-              <IconBadge name="shield" bg="linear-gradient(135deg,#10b981,#059669)" className="icon-badge--sm" />
-              <div className="org-cred-field">
-                <span className="org-meta-label">Parol (shifrlangan)</span>
-                <code className="cred-value cred-hash">{formatPasswordHash(initial.passwordHash)}</code>
-              </div>
-            </div>
+          <div className="sa-cell sa-cell--ic">
+            <Sq icon="shield" tone="g" />
+            <span className="sa-cell-t"><b>Parol (shifrlangan)</b></span>
+            <code className="sa-code" style={{ maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={formatPasswordHash(initial.passwordHash)}>
+              {formatPasswordHash(initial.passwordHash)}
+            </code>
           </div>
         </div>
+        <div className="sa-gfoot">Faqat ko&apos;rish — parol bazada bcrypt bilan shifrlangan. Egasi profildan o&apos;zgartiradi.</div>
+      </div>
 
-        <div className="auth-field">
-          <label htmlFor="name">Biznes nomi *</label>
+      <div className="sa-fields">
+        <div className="sa-field">
+          <label htmlFor="name">Do&apos;kon nomi *</label>
           <input id="name" name="name" type="text" required defaultValue={initial.name} disabled={isPending} />
         </div>
-
-        <div className="auth-field">
+        <div className="sa-field">
           <label htmlFor="businessType">Biznes turi</label>
           <select id="businessType" name="businessType" defaultValue={initial.businessType} disabled={isPending}>
             {Object.entries(BUSINESS_TYPES).map(([key, val]) => (
@@ -98,28 +83,22 @@ export default function OrgEditForm({ orgId, initial }: Props) {
             ))}
           </select>
         </div>
-
-        <div className="form-row">
-          <div className="auth-field">
+        <div className="sa-grid-2">
+          <div className="sa-field">
             <label htmlFor="ownerName">Egasi</label>
             <input id="ownerName" name="ownerName" type="text" defaultValue={initial.ownerName} disabled={isPending} />
           </div>
-          <div className="auth-field">
+          <div className="sa-field">
             <label htmlFor="phone">Telefon</label>
             <input id="phone" name="phone" type="tel" defaultValue={initial.phone} disabled={isPending} />
           </div>
         </div>
+      </div>
 
-        <div className="form-section">
-          <div className="form-section-head">
-            <IconBadge name="plans" bg="linear-gradient(135deg,#7c3aed,#9333ea)" className="icon-badge--sm" />
-            <div>
-              <h3>Tarif va to&apos;lov</h3>
-              <p className="field-hint">Filial, xodim, modul va oylik to&apos;lovni qo&apos;lda o&apos;zgartirish mumkin.</p>
-            </div>
-          </div>
-
-          <div className="auth-field">
+      <div className="sa-section">
+        <div className="sa-ghead">Tarif va to&apos;lov</div>
+        <div className="sa-fields">
+          <div className="sa-field">
             <label htmlFor="planTier">Tarif</label>
             <select
               id="planTier"
@@ -133,24 +112,22 @@ export default function OrgEditForm({ orgId, initial }: Props) {
               ))}
             </select>
           </div>
-
-          <div className="form-row form-row-3">
-            <div className="auth-field">
+          <div className="sa-grid-3">
+            <div className="sa-field">
               <label htmlFor="maxFilial">Filial soni</label>
               <input id="maxFilial" name="maxFilial" type="number" min={1} defaultValue={initial.maxFilial} disabled={isPending} />
             </div>
-            <div className="auth-field">
+            <div className="sa-field">
               <label htmlFor="maxUsers">Xodim soni</label>
               <input id="maxUsers" name="maxUsers" type="number" min={1} defaultValue={initial.maxUsers} disabled={isPending} />
             </div>
-            <div className="auth-field">
+            <div className="sa-field">
               <label htmlFor="monthlyPayment">Oylik to&apos;lov (so&apos;m)</label>
               <PriceInput id="monthlyPayment" name="monthlyPayment" defaultValue={initial.monthlyPayment} disabled={isPending} />
             </div>
           </div>
-
           {planTier === 'custom' && (
-            <div className="auth-field">
+            <div className="sa-field">
               <label htmlFor="agreementNote">Kelishuv matni *</label>
               <textarea
                 id="agreementNote"
@@ -159,15 +136,18 @@ export default function OrgEditForm({ orgId, initial }: Props) {
                 required
                 defaultValue={initial.agreementNote}
                 disabled={isPending}
-                className="text-area"
                 placeholder="Masalan: 3 filial, 10 xodim, oylik 250 000 so'm, monitoring yoqilgan..."
               />
             </div>
           )}
         </div>
+        <div className="sa-gfoot">Filial, xodim, modul va oylik to&apos;lovni qo&apos;lda o&apos;zgartirish mumkin.</div>
+      </div>
 
-        <div className="form-row">
-          <div className="auth-field">
+      <div className="sa-section">
+        <div className="sa-ghead">Obuna</div>
+        <div className="sa-grid-2">
+          <div className="sa-field">
             <label htmlFor="status">Holat</label>
             <select id="status" name="status" defaultValue={initial.status} disabled={isPending}>
               <option value="active">Faol</option>
@@ -175,14 +155,18 @@ export default function OrgEditForm({ orgId, initial }: Props) {
               <option value="expired">Muddati tugagan</option>
             </select>
           </div>
-          <div className="auth-field">
+          <div className="sa-field">
             <label htmlFor="expiresAt">Obuna muddati *</label>
             <input id="expiresAt" name="expiresAt" type="date" required defaultValue={initial.expiresAt} disabled={isPending} />
           </div>
         </div>
+      </div>
 
-        <button type="submit" className="btn btn-primary" disabled={isPending}>Saqlash</button>
-      </form>
-    </>
+      <div className="sa-form-actions">
+        <button type="submit" className="sa-btn sa-btn--filled" disabled={isPending}>
+          {isPending ? 'Saqlanmoqda…' : 'Saqlash'}
+        </button>
+      </div>
+    </form>
   );
 }

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Icon from '@/components/icons/Icon';
+import '@/components/auth/auth.css';
 
 type Theme = 'light' | 'dark';
 
@@ -30,17 +31,17 @@ export default function ThemeToggle() {
   }
 
   // Hydration mosligi uchun mount bo'lguncha bo'sh joy
-  if (!mounted) return <button className="theme-toggle" aria-hidden suppressHydrationWarning />;
+  if (!mounted) return <button type="button" className="theme-toggle au-round" aria-hidden tabIndex={-1} suppressHydrationWarning />;
 
   return (
     <button
       type="button"
-      className="theme-toggle"
+      className="theme-toggle au-round"
       onClick={toggle}
       title={theme === 'dark' ? 'Yorug‘ rejim' : 'Qorong‘i rejim'}
-      aria-label="Temani almashtirish"
+      aria-label={theme === 'dark' ? 'Yorug‘ rejimga o‘tish' : 'Qorong‘i rejimga o‘tish'}
     >
-      <Icon name={theme === 'dark' ? 'sun' : 'moon'} size={18} />
+      <Icon name={theme === 'dark' ? 'sun' : 'moon'} size={17} />
     </button>
   );
 }

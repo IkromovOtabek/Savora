@@ -1,10 +1,11 @@
 import { requireSuperAdmin } from '@/lib/auth';
 import { getMasterModels } from '@/lib/masterDb';
-import { isOrganizationActive, isTrialActive, daysUntilExpiry } from '@/lib/models/master/Organization';
-import { resolveOrgPlan } from '@/lib/plans';
+import { isOrganizationActive, isTrialActive } from '@/lib/models/master/Organization';
+import { resolveOrgPlan, PLAN_PRESETS } from '@/lib/plans';
 import { fmtMoney } from '@/lib/format';
+import { Kpi, PageTitle } from '@/components/super/ui';
 
-export const metadata = { title: 'Metrikalar — Savora' };
+export const metadata = { title: 'Metrikalar — Super Admin' };
 
 const MONTHS_UZ = ['Yan', 'Fev', 'Mar', 'Apr', 'May', 'Iyn', 'Iyl', 'Avg', 'Sen', 'Okt', 'Noy', 'Dek'];
 
@@ -51,68 +52,76 @@ export default async function SuperMetricsPage() {
   const lastM = buckets[buckets.length - 1].count;
   const prevM = buckets[buckets.length - 2]?.count || 0;
   const growth = prevM ? Math.round(((lastM - prevM) / prevM) * 100) : (lastM ? 100 : 0);
+  const activeTotal = active.length || 1;
 
   return (
     <>
-      <div className="super-page-head">
-        <div>
-          <h1>Metrikalar</h1>
-          <p>Investitsiya va o&apos;sish ko&apos;rsatkichlari</p>
-        </div>
+      <PageTitle title="Metrikalar" sub="Daromad, o'sish va konversiya ko'rsatkichlari" />
+
+      <div className="sa-kpis">
+        <Kpi hero label="MRR" value={fmtMoney(mrr)} unit="so'm" icon="wallet" delta="Oylik takroriy daromad" />
+        <Kpi label="ARR" value={fmtMoney(arr)} unit="so'm" icon="chart" tone="b" delta="Yillik daromad (MRR × 12)" />
+        <Kpi label="ARPU" value={fmtMoney(arpu)} unit="so'm" icon="user" tone="v" delta="O'rtacha to'lov (bir do'kon)" />
+        <Kpi
+          label="Oylik o'sish"
+          value={`${growth >= 0 ? '+' : ''}${growth}%`}
+          icon="trendingUp"
+          tone={growth >= 0 ? 'o' : 'r'}
+          delta="Yangi ro'yxatlar, o'tgan oyga nisbatan"
+          deltaTone={growth >= 0 ? 'ok' : 'bad'}
+        />
       </div>
 
-      <div className="dash-stats">
-        <div className="dash-stat dash-stat--ok">
-          <div className="dash-stat-n">{fmtMoney(mrr)}</div>
-          <div className="dash-stat-l">MRR (oylik daromad, so&apos;m)</div>
-        </div>
-        <div className="dash-stat">
-          <div className="dash-stat-n">{fmtMoney(arr)}</div>
-          <div className="dash-stat-l">ARR (yillik, so&apos;m)</div>
-        </div>
-        <div className="dash-stat">
-          <div className="dash-stat-n">{fmtMoney(arpu)}</div>
-          <div className="dash-stat-l">ARPU (o&apos;rtacha to&apos;lov)</div>
-        </div>
-        <div className={`dash-stat${growth >= 0 ? ' dash-stat--ok' : ' dash-stat--warn'}`}>
-          <div className="dash-stat-n">{growth >= 0 ? '+' : ''}{growth}%</div>
-          <div className="dash-stat-l">Oylik o&apos;sish (ro&apos;yxat)</div>
-        </div>
+      <div className="sa-kpis">
+        <div className="sa-card sa-mini"><span>Faol do&apos;konlar</span><b>{active.length}</b></div>
+        <div className="sa-card sa-mini"><span>To&apos;lovchi</span><b>{paying.length}</b></div>
+        <div className="sa-card sa-mini"><span>Sinovda</span><b>{trial.length}</b></div>
+        <div className="sa-card sa-mini"><span>Tark etganlar (churn)</span><b style={{ color: churnRate > 0 ? 'var(--warn, #a0650a)' : undefined }}>{churnRate}%</b></div>
       </div>
 
-      <div className="dash-stats">
-        <div className="dash-stat"><div className="dash-stat-n">{active.length}</div><div className="dash-stat-l">Faol do&apos;konlar</div></div>
-        <div className="dash-stat"><div className="dash-stat-n">{paying.length}</div><div className="dash-stat-l">To&apos;lovchi</div></div>
-        <div className="dash-stat"><div className="dash-stat-n">{trial.length}</div><div className="dash-stat-l">Sinovda</div></div>
-        <div className="dash-stat dash-stat--warn"><div className="dash-stat-n">{churnRate}%</div><div className="dash-stat-l">Churn (tark etganlar)</div></div>
-      </div>
-
-      <div className="panel" style={{ marginTop: 20 }}>
-        <div className="panel-head"><h2>O&apos;sish — oxirgi 6 oy (yangi ro&apos;yxat)</h2></div>
-        <div className="shot-chart" style={{ height: 200 }}>
-          {buckets.map((b) => (
-            <div key={b.label} className="shot-chart-col">
-              <span style={{ fontSize: '.8rem', fontWeight: 800, color: 'var(--ink-2)' }}>{b.count}</span>
-              <div className="shot-chart-bar" style={{ height: `${(b.count / maxCount) * 100}%`, minHeight: 4 }} />
-              <span className="shot-chart-m">{b.label}</span>
+      <div className="sa-two">
+        <section className="sa-card">
+          <div className="sa-card-h">
+            <div>
+              <h2>O&apos;sish · oxirgi 6 oy</h2>
+              <p>Har oy yangi ro&apos;yxatdan o&apos;tgan do&apos;konlar</p>
             </div>
-          ))}
-        </div>
-      </div>
+          </div>
+          <div className="sa-bars" role="img" aria-label="Oxirgi 6 oylik yangi ro'yxatlar grafigi">
+            {buckets.map((b, i) => (
+              <div key={`${b.label}-${i}`} className="sa-bar">
+                <span className="sa-bar-v">{b.count}</span>
+                <div className="sa-bar-track">
+                  <div className="sa-bar-fill" style={{ height: `${(b.count / maxCount) * 100}%` }} />
+                </div>
+                <span className="sa-bar-l">{b.label}</span>
+              </div>
+            ))}
+          </div>
+        </section>
 
-      <div className="panel" style={{ marginTop: 20 }}>
-        <div className="panel-head"><h2>Trial → to&apos;lov konversiyasi: {conversion}%</h2></div>
-        <div className="table-wrap">
-          <table className="data-table">
-            <thead><tr><th>Tarif</th><th>Faol do&apos;konlar</th></tr></thead>
-            <tbody>
-              {[...byTier.entries()].sort((a, b) => b[1] - a[1]).map(([tier, count]) => (
-                <tr key={tier}><td className="cell-main">{tier}</td><td>{count}</td></tr>
-              ))}
-              {byTier.size === 0 && <tr><td colSpan={2} style={{ textAlign: 'center', color: 'var(--ink-3)' }}>Ma&apos;lumot yo&apos;q</td></tr>}
-            </tbody>
-          </table>
-        </div>
+        <section className="sa-section">
+          <div className="sa-ghead">Sinov → to&apos;lov konversiyasi</div>
+          <div className="sa-group">
+            <div className="sa-cell">
+              <span className="sa-cell-t"><b>Konversiya</b><small>To&apos;lovchi / (to&apos;lovchi + sinovda)</small></span>
+              <span className="sa-cell-v"><b>{conversion}%</b></span>
+            </div>
+          </div>
+          <div className="sa-ghead" style={{ marginTop: 14 }}>Faol do&apos;konlar · tarif bo&apos;yicha</div>
+          <div className="sa-group">
+            {[...byTier.entries()].sort((a, b) => b[1] - a[1]).map(([tier, count]) => (
+              <div key={tier} className="sa-cell">
+                <span className="sa-cell-t">
+                  <b>{PLAN_PRESETS[tier as keyof typeof PLAN_PRESETS]?.label ?? tier}</b>
+                  <span className="sa-prog" style={{ marginTop: 6 }}><i style={{ width: `${Math.round((count / activeTotal) * 100)}%` }} /></span>
+                </span>
+                <span className="sa-cell-v">{count}</span>
+              </div>
+            ))}
+            {byTier.size === 0 && <div className="sa-empty">Ma&apos;lumot yo&apos;q</div>}
+          </div>
+        </section>
       </div>
     </>
   );

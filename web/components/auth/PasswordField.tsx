@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import Icon from '@/components/icons/Icon';
+import './auth.css';
 
 interface Props {
   id: string;
@@ -11,13 +12,15 @@ interface Props {
   minLength?: number;
   disabled?: boolean;
   defaultValue?: string;
+  placeholder?: string;
 }
 
-export default function PasswordField({ id, name, autoComplete, required, minLength, disabled, defaultValue }: Props) {
+/** iOS uslubidagi parol maydoni — o'ngda ko'z tugmasi (ko'rsatish/yashirish) */
+export default function PasswordField({ id, name, autoComplete, required, minLength, disabled, defaultValue, placeholder }: Props) {
   const [show, setShow] = useState(false);
 
   return (
-    <div className="auth-pwd">
+    <div className="au-pwd">
       <input
         id={id}
         name={name}
@@ -27,14 +30,20 @@ export default function PasswordField({ id, name, autoComplete, required, minLen
         minLength={minLength}
         disabled={disabled}
         defaultValue={defaultValue}
+        placeholder={placeholder}
+        autoCapitalize="none"
+        autoCorrect="off"
+        spellCheck={false}
       />
       <button
         type="button"
-        className="auth-pwd-toggle"
+        className="au-pwd-toggle"
         onClick={() => setShow((v) => !v)}
         aria-label={show ? 'Parolni yashirish' : "Parolni ko'rsatish"}
+        aria-pressed={show}
+        aria-controls={id}
       >
-        <Icon name={show ? 'eyeOff' : 'eye'} size={18} />
+        <Icon name={show ? 'eyeOff' : 'eye'} size={19} />
       </button>
     </div>
   );

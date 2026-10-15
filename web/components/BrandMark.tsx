@@ -1,10 +1,27 @@
-/** Savora belgisi — sodda ikki tonli chevron (qutisiz) */
+/** Savora belgisi — ilova ikonkasi: kobalt gradientli yumaloq kvadrat, ichida «S» */
 export default function BrandMark({ size = 28 }: { size?: number }) {
-  const strokeWidth = Math.max(1.2, size * 0.13);
   return (
-    <svg width={size} height={size} viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-      <path d="M16 48 L32 18" stroke="var(--ink-1)" strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
-      <path d="M32 18 L48 48" stroke="var(--brand)" strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
+    <span
+      aria-hidden="true"
+      style={{
+        width: size,
+        height: size,
+        borderRadius: Math.round(size * 0.25),
+        background: 'linear-gradient(180deg, #3a68c4, #1f4fa8)',
+        color: '#fff',
+        display: 'inline-grid',
+        placeItems: 'center',
+        flex: 'none',
+        fontFamily: '"Unbounded", "Onest", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+        fontWeight: 700,
+        fontSize: Math.round(size * 0.46),
+        lineHeight: 1,
+        letterSpacing: '-.02em',
+        boxShadow: '0 2px 6px rgba(31, 79, 168, .35)',
+        userSelect: 'none',
+      }}
+    >
+      S
+    </span>
   );
 }

@@ -1,6 +1,7 @@
 import { FEATURE_KEYS, resolveOrgFeatures, TENANT_MODULES, isImeiEnabled } from '@/lib/features';
 import { moduleLink, tenantLoginUrl } from '@/lib/urls';
 import { IOrganization } from '@/lib/models/master/Organization';
+import { Pill } from './ui';
 
 interface Props {
   org: Pick<IOrganization, 'slug' | 'name' | 'plan' | 'features' | 'businessType'>;
@@ -41,19 +42,20 @@ export default function OrgLinksPanel({ org }: Props) {
   }
 
   return (
-    <div className="links-list" style={{ padding: '0 24px 24px' }}>
-      {links.map((item) => (
-        <div key={item.label} className={`links-item${item.enabled ? '' : ' links-item--off'}`}>
-          <div className="links-item-head">
-            <strong>{item.label}</strong>
-            {!item.enabled && <span className="badge-status badge-status--expired">O&apos;chirilgan</span>}
+    <div className="sa-section">
+      <div className="sa-group" style={{ background: 'var(--bg-soft)' }}>
+        {links.map((item) => (
+          <div key={item.label} className={`sa-cell${item.enabled ? '' : ' sa-cell--off'}`}>
+            <span className="sa-cell-t">
+              <b>{item.label}</b>
+              <small className="sa-wrap">{item.desc}</small>
+              <a href={item.url} target="_blank" rel="noreferrer" className="sa-link-url">{item.url}</a>
+            </span>
+            {!item.enabled && <Pill tone="bad">O&apos;chiq</Pill>}
           </div>
-          <p className="links-item-desc">{item.desc}</p>
-          <code className="links-item-url">
-            <a href={item.url} target="_blank" rel="noreferrer">{item.url}</a>
-          </code>
-        </div>
-      ))}
+        ))}
+      </div>
+      <div className="sa-gfoot">Havolalarni mijozga bering. O&apos;chiq modullar havolasi ishlamaydi.</div>
     </div>
   );
 }

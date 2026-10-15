@@ -10,6 +10,7 @@ import {
   type PermissionGroup,
   type PermissionKey,
 } from '@/lib/permissions';
+import { Alert } from './ui';
 
 export interface MatrixUser {
   id: string;
@@ -38,27 +39,27 @@ export default function OrgPermissionsMatrixForm({
   const stamp = users.map((u) => `${u.id}:${u.permissions.join(',')}`).join('|');
 
   return (
-    <form action={formAction} className="perm-matrix-wrap" key={stamp}>
+    <form action={formAction} className="sa-form" key={stamp}>
       <input type="hidden" name="orgId" value={orgId} />
       {editable.map((u) => <input key={u.id} type="hidden" name="userId" value={u.id} />)}
 
-      {state?.error && <div className="auth-alert auth-alert--error">{state.error}</div>}
-      {state?.success && <div className="auth-alert auth-alert--info">{state.success}</div>}
+      {state?.error && <Alert tone="error">{state.error}</Alert>}
+      {state?.success && <Alert tone="ok">{state.success}</Alert>}
 
-      <p className="field-hint" style={{ margin: 0 }}>
+      <p className="sa-gfoot" style={{ padding: 0 }}>
         Admin (do&apos;kon egasi) doim barcha huquqlarga ega. «Faqat egasi» huquqlarini filialga berib bo&apos;lmaydi.
-        Modul o&apos;chiq bo&apos;lsa huquq amalda ishlamaydi (kulrang).
+        Modul o&apos;chiq bo&apos;lsa, huquq amalda ishlamaydi (xira ko&apos;rinadi).
       </p>
 
-      <div className="table-wrap">
-        <table className="data-table data-table--simple perm-matrix">
+      <div className="sa-matrix-wrap">
+        <table className="sa-matrix">
           <thead>
             <tr>
-              <th>Huquq</th>
+              <th scope="col">Huquq</th>
               {users.map((u) => (
-                <th key={u.id} title={u.username}>
+                <th key={u.id} scope="col" title={u.username}>
                   {u.name}
-                  <small style={{ display: 'block', fontWeight: 500 }}>
+                  <small>
                     {u.role === 'admin' ? 'Admin' : u.isDefault ? 'Filial · standart' : 'Filial · maxsus'}
                     {!u.active && ' · nofaol'}
                   </small>
@@ -68,22 +69,25 @@ export default function OrgPermissionsMatrixForm({
           </thead>
           <tbody>
             {GROUPS.flatMap((g) => [
-              <tr key={`g-${g}`} className="perm-matrix-group">
+              <tr key={`g-${g}`} className="sa-matrix-group">
                 <td colSpan={users.length + 1}>{PERMISSION_GROUP_LABELS[g]}</td>
               </tr>,
               ...PERMISSION_KEYS.filter((k) => PERMISSIONS[k].group === g).map((k) => {
                 const p = PERMISSIONS[k];
                 const featureOff = p.feature ? !features[p.feature] : false;
                 return (
-                  <tr key={k} style={featureOff ? { opacity: 0.55 } : undefined}>
-                    <td>
+                  <tr key={k} className={featureOff ? 'sa-matrix-off' : undefined}>
+                    <th scope="row" style={{ fontWeight: 500 }}>
                       {p.label}
-                      <small>{k}{p.adminOnly ? ' · faqat egasi' : ''}{featureOff ? ' · modul o\'chiq' : ''}</small>
-                    </td>
+                      <small style={{ display: 'block', fontSize: 12, color: 'var(--ink-3)', fontWeight: 400 }}>
+                        {k}{p.adminOnly ? ' · faqat egasi' : ''}{featureOff ? ' · modul o\'chiq' : ''}
+                      </small>
+                    </th>
                     {users.map((u) => (
                       <td key={u.id}>
                         <input
                           type="checkbox"
+                          className="sa-check"
                           name={`perm_${u.id}`}
                           value={k}
                           defaultChecked={u.permissions.includes(k)}
@@ -101,18 +105,18 @@ export default function OrgPermissionsMatrixForm({
       </div>
 
       {editable.length > 0 ? (
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-          <button type="submit" className="btn btn-primary" disabled={isPending}>
-            {isPending ? 'Saqlanmoqda...' : 'Huquqlarni saqlash'}
+        <div className="sa-form-actions">
+          <button type="submit" className="sa-btn sa-btn--filled" disabled={isPending}>
+            {isPending ? 'Saqlanmoqda…' : 'Huquqlarni saqlash'}
           </button>
           {editable.map((u) => (
-            <button key={u.id} type="submit" name="resetUser" value={u.id} className="btn btn-ghost btn-sm" disabled={isPending}>
+            <button key={u.id} type="submit" name="resetUser" value={u.id} className="sa-btn sa-btn--gray sa-btn--sm" disabled={isPending}>
               {u.name}: standartga qaytarish
             </button>
           ))}
         </div>
       ) : (
-        <p className="field-hint" style={{ margin: 0 }}>Filial login yo&apos;q — o&apos;zgartiriladigan huquq yo&apos;q.</p>
+        <p className="sa-gfoot" style={{ padding: 0 }}>Filial logini yo&apos;q — o&apos;zgartiriladigan huquq yo&apos;q.</p>
       )}
     </form>
   );
