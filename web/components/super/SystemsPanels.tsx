@@ -97,10 +97,10 @@ export default function SystemsPanels() {
 
       <InfoGroup
         id="modules-savdo"
-        title="Variant, kredit, kassa"
+        title="Nasiya, kredit, kassa"
         foot="Har bir do'kon uchun Super Admin → Do'kon → Modullar bo'limidan yoqing."
         rows={[
-          <><b>Variant</b> — sotuvda bo&apos;lib to&apos;lash (nasiya)</>,
+          <><b>Nasiya sotuvi</b> — sotuvda bo&apos;lib to&apos;lash</>,
           <><b>Kredit kassa</b> — do&apos;kon egasi bank qo&apos;shadi; sotuv va mahsulot holatida «Kredit»</>,
           <><b>Kassa</b> — kunlik tushum va kredit kassa hisoboti</>,
           <><b>Kirim-chiqim</b> — do&apos;kon egasi admin panelida kirim/chiqim jurnali</>,

@@ -2,6 +2,8 @@ import { requireSuperAdmin } from '@/lib/auth';
 import { getMasterModels } from '@/lib/masterDb';
 import { parseDeviceLabel } from '@/lib/visitAnalytics';
 import type { IVisitEvent } from '@/lib/models/master/SiteVisit';
+import Link from 'next/link';
+import Icon from '@/components/icons/Icon';
 import { Kpi, PageTitle, Pill } from '@/components/super/ui';
 
 export const metadata = { title: 'Tashriflar — Super Admin' };
@@ -14,6 +16,16 @@ function timeOnly(d?: Date | string | null) {
 }
 function dayKey(d: Date) {
   return d.toISOString().slice(0, 10);
+}
+/** YYYY-MM-DD ga ±n kun (UTC tushda — kun chegarasidan qochish) */
+function shiftDay(key: string, n: number): string {
+  const d = new Date(`${key}T12:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + n);
+  return d.toISOString().slice(0, 10);
+}
+function dayLabel(key: string): string {
+  const [y, m, d] = key.split('-');
+  return `${d}.${m}.${y}`;
 }
 function deviceType(ua?: string): string {
   if (!ua) return 'Noma\'lum';
@@ -69,16 +81,28 @@ export default async function SuperVisitorsPage({
         title="Tashriflar"
         sub="Kim tashrif buyurdi, qaysi qurilmadan, nechta sahifa ko'rdi va hozir onlaynmi"
         actions={
-          <form method="get" className="sa-form-actions">
-            <label htmlFor="v-date" className="sa-count">Kun</label>
-            <input id="v-date" type="date" name="date" defaultValue={selectedDay} className="sa-input" style={{ width: 170 }} />
-            <button type="submit" className="sa-btn sa-btn--tinted sa-btn--sm">Ko&apos;rsatish</button>
-          </form>
+          <nav className="ux-month sa-daynav" aria-label="Kun tanlash">
+            <Link href={`/super/visitors?date=${shiftDay(selectedDay, -1)}`} aria-label="Oldingi kun">
+              <Icon name="chevron" size={16} strokeWidth={2.4} className="sa-rot90" />
+            </Link>
+            <span className="ux-month-cur" aria-current="date">
+              {selectedDay === today ? 'Bugun' : selectedDay === shiftDay(today, -1) ? 'Kecha' : dayLabel(selectedDay)}
+            </span>
+            <Link
+              href={`/super/visitors?date=${shiftDay(selectedDay, 1)}`}
+              aria-label="Keyingi kun"
+              aria-disabled={selectedDay >= today ? 'true' : undefined}
+              tabIndex={selectedDay >= today ? -1 : undefined}
+            >
+              <Icon name="chevron" size={16} strokeWidth={2.4} className="sa-rot-90" />
+            </Link>
+            {selectedDay !== today && <Link href="/super/visitors">Bugun</Link>}
+          </nav>
         }
       />
 
-      <div className="sa-kpis">
-        <Kpi label="Tashriflar" value={dayVisits.length} icon="chart" tone="b" delta={selectedDay === today ? 'Bugun' : selectedDay} />
+      <div className="ux-strip">
+        <Kpi label="Tashriflar" value={dayVisits.length} icon="chart" tone="b" delta={selectedDay === today ? 'Bugun' : dayLabel(selectedDay)} />
         <Kpi label="Hozir onlayn" value={onlineCount} icon="globe" tone="o" delta="So'nggi 5 daqiqa" deltaTone={onlineCount > 0 ? 'ok' : undefined} />
         <Kpi label="Ro'yxatdan o'tdi" value={signedToday} icon="signup" tone="v" />
         <Kpi label="Do'kon foydalanuvchisi" value={knownToday} icon="store" tone="a" />
@@ -107,7 +131,13 @@ export default async function SuperVisitorsPage({
             </thead>
             <tbody>
               {dayVisits.length === 0 ? (
-                <tr><td colSpan={7}><div className="sa-empty">Bu kuni tashrif yo&apos;q.</div></td></tr>
+                <tr><td colSpan={7}>
+                  <div className="ux-empty">
+                    <span className="ux-empty-ic"><Icon name="chart" size={24} /></span>
+                    <b>Bu kuni tashrif yo&apos;q</b>
+                    <p>Pastdagi «So&apos;nggi 14 kun» ro&apos;yxatidan boshqa kunni tanlang.</p>
+                  </div>
+                </td></tr>
               ) : dayVisits.map((v) => {
                 const online = new Date(v.lastSeenAt).getTime() >= onlineCutoff.getTime();
                 const known = v.signedUp || !!v.organizationSlug;
@@ -137,7 +167,7 @@ export default async function SuperVisitorsPage({
 
       {/* So'nggi 14 kun */}
       <section className="sa-card">
-        <div className="sa-card-h"><h2>So&apos;nggi 14 kun</h2></div>
+        <div className="sa-card-h"><div><h2>So&apos;nggi 14 kun</h2><p>Kunni bosing — o&apos;sha kun tashriflari ochiladi</p></div></div>
         <div className="sa-table-wrap">
           <table className="sa-table">
             <thead>
@@ -150,9 +180,9 @@ export default async function SuperVisitorsPage({
             </thead>
             <tbody>
               {days.map((d) => (
-                <tr key={d.key}>
+                <tr key={d.key} aria-current={d.key === selectedDay ? 'date' : undefined} className={d.key === selectedDay ? 'sa-tr-on' : undefined}>
                   <td>
-                    <span className="sa-code">{d.key}</span>
+                    <Link href={`/super/visitors?date=${d.key}`} className="sa-td-main">{dayLabel(d.key)}</Link>
                     {d.key === today && <> <Pill tone="ok">bugun</Pill></>}
                   </td>
                   <td className="sa-td-r"><b>{d.visits}</b></td>

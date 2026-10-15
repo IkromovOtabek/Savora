@@ -132,7 +132,11 @@ export default function PaymentReview({ requests, account }: { requests: ReqRow[
         </div>
         <div className="sa-group">
           {pending.length === 0 ? (
-            <div className="sa-empty">Yangi to&apos;lov so&apos;rovi yo&apos;q.</div>
+            <div className="ux-empty">
+              <span className="ux-empty-ic"><Icon name="check" size={24} /></span>
+              <b>Hammasi ko&apos;rib chiqilgan</b>
+              <p>Do&apos;kon chek yuborsa, shu yerda tasdiqlash uchun paydo bo&apos;ladi.</p>
+            </div>
           ) : (
             pending.map((r) => (
               <div key={r.id} className="sa-pay">

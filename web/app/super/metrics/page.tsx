@@ -3,7 +3,7 @@ import { getMasterModels } from '@/lib/masterDb';
 import { isOrganizationActive, isTrialActive } from '@/lib/models/master/Organization';
 import { resolveOrgPlan, PLAN_PRESETS } from '@/lib/plans';
 import { fmtMoney } from '@/lib/format';
-import { Kpi, PageTitle } from '@/components/super/ui';
+import { HeroStat, Kpi, PageTitle } from '@/components/super/ui';
 
 export const metadata = { title: 'Metrikalar — Super Admin' };
 
@@ -58,25 +58,38 @@ export default async function SuperMetricsPage() {
     <>
       <PageTitle title="Metrikalar" sub="Daromad, o'sish va konversiya ko'rsatkichlari" />
 
-      <div className="sa-kpis">
-        <Kpi hero label="MRR" value={fmtMoney(mrr)} unit="so'm" icon="wallet" delta="Oylik takroriy daromad" />
-        <Kpi label="ARR" value={fmtMoney(arr)} unit="so'm" icon="chart" tone="b" delta="Yillik daromad (MRR × 12)" />
-        <Kpi label="ARPU" value={fmtMoney(arpu)} unit="so'm" icon="user" tone="v" delta="O'rtacha to'lov (bir do'kon)" />
-        <Kpi
-          label="Oylik o'sish"
-          value={`${growth >= 0 ? '+' : ''}${growth}%`}
-          icon="trendingUp"
-          tone={growth >= 0 ? 'o' : 'r'}
-          delta="Yangi ro'yxatlar, o'tgan oyga nisbatan"
-          deltaTone={growth >= 0 ? 'ok' : 'bad'}
+      <div className="sa-hero-row">
+        <HeroStat
+          label="MRR"
+          value={fmtMoney(mrr)}
+          unit="so'm"
+          icon="wallet"
+          sub="Oylik takroriy daromad"
+          items={[
+            { label: 'ARR (MRR × 12)', value: fmtMoney(arr) },
+            { label: 'To\'lovchi', value: paying.length },
+            { label: 'Sinovda', value: trial.length },
+          ]}
         />
-      </div>
-
-      <div className="sa-kpis">
-        <div className="sa-card sa-mini"><span>Faol do&apos;konlar</span><b>{active.length}</b></div>
-        <div className="sa-card sa-mini"><span>To&apos;lovchi</span><b>{paying.length}</b></div>
-        <div className="sa-card sa-mini"><span>Sinovda</span><b>{trial.length}</b></div>
-        <div className="sa-card sa-mini"><span>Tark etganlar (churn)</span><b style={{ color: churnRate > 0 ? 'var(--warn, #a0650a)' : undefined }}>{churnRate}%</b></div>
+        <div className="ux-strip sa-strip-3">
+          <Kpi label="ARPU" value={fmtMoney(arpu)} unit="so'm" icon="user" tone="v" delta="O'rtacha to'lov (bir do'kon)" />
+          <Kpi
+            label="Oylik o'sish"
+            value={`${growth >= 0 ? '+' : ''}${growth}%`}
+            icon="trendingUp"
+            tone={growth >= 0 ? 'o' : 'r'}
+            delta="Yangi ro'yxatlar, o'tgan oyga nisbatan"
+            deltaTone={growth >= 0 ? 'ok' : 'bad'}
+          />
+          <Kpi
+            label="Tark etganlar"
+            value={`${churnRate}%`}
+            icon="alert"
+            tone={churnRate > 0 ? 'a' : 'g'}
+            delta={`Muddati tugagan: ${expired.length}`}
+            deltaTone={churnRate > 0 ? 'warn' : undefined}
+          />
+        </div>
       </div>
 
       <div className="sa-two">
@@ -87,7 +100,7 @@ export default async function SuperMetricsPage() {
               <p>Har oy yangi ro&apos;yxatdan o&apos;tgan do&apos;konlar</p>
             </div>
           </div>
-          <div className="sa-bars" role="img" aria-label="Oxirgi 6 oylik yangi ro'yxatlar grafigi">
+          <div className="sa-bars sa-bars--3d" role="img" aria-label="Oxirgi 6 oylik yangi ro'yxatlar grafigi">
             {buckets.map((b, i) => (
               <div key={`${b.label}-${i}`} className="sa-bar">
                 <span className="sa-bar-v">{b.count}</span>
@@ -108,7 +121,7 @@ export default async function SuperMetricsPage() {
               <span className="sa-cell-v"><b>{conversion}%</b></span>
             </div>
           </div>
-          <div className="sa-ghead" style={{ marginTop: 14 }}>Faol do&apos;konlar · tarif bo&apos;yicha</div>
+          <div className="sa-ghead" style={{ marginTop: 14 }}>Faol do&apos;konlar · tarif bo&apos;yicha <span>{active.length}</span></div>
           <div className="sa-group">
             {[...byTier.entries()].sort((a, b) => b[1] - a[1]).map(([tier, count]) => (
               <div key={tier} className="sa-cell">

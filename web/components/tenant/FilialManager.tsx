@@ -7,6 +7,8 @@ import { toast } from '@/lib/toast';
 import { fmtDate } from '@/lib/format';
 import Icon from '@/components/icons/Icon';
 import PermissionEditor from '@/components/tenant/PermissionEditor';
+import Tilt from '@/components/ui/Tilt';
+import MoreMenu from '@/components/ui/MoreMenu';
 import type { OrgFeatures } from '@/lib/featureKeys';
 import type { PermissionKey } from '@/lib/permissions';
 import '@/components/tenant/styles/admin.css';
@@ -101,13 +103,13 @@ export default function FilialManager({
 
   return (
     <>
-      {/* ===== Xulosa: tarif limiti + loginlar ===== */}
+      {/* ===== Xulosa: tarif limiti (3D asosiy ob'ekt) + loginlar ===== */}
       <div className="ad-team-summary">
-        <div className="ad-stat">
-          <span className="ad-stat-l"><Icon name="store" size={15} /> Filiallar (tarif limiti)</span>
-          <span className="ad-stat-v">{activeBranchCount}<small> / {maxFilial}</small></span>
+        <Tilt stack className={`ad-hero${atLimit ? ' ad-hero--over' : ''}`}>
+          <span className="ad-hero-l"><Icon name="store" size={15} /> Filiallar · tarif limiti</span>
+          <span className="ad-hero-v ux-z">{activeBranchCount}<small> / {maxFilial}</small></span>
           <div
-            className={`ad-meter${meterTone}`}
+            className={`ad-meter ad-meter--hero${meterTone}`}
             role="meter"
             aria-label="Filiallar limiti"
             aria-valuemin={0}
@@ -116,21 +118,23 @@ export default function FilialManager({
           >
             <div className="ad-meter-bar"><div className="ad-meter-fill" style={{ width: `${limitPct}%` }} /></div>
           </div>
-          <span className="ad-stat-sub">
+          <span className="ad-hero-s">
             {atLimit
               ? <>Limitga yetdi · <a href="/app/profile#obuna-tolovi">Tarifni yangilash</a></>
               : `Yana ${Math.max(0, maxFilial - activeBranchCount)} ta filial ochish mumkin`}
           </span>
-        </div>
-        <div className="ad-stat">
-          <span className="ad-stat-l"><Icon name="users" size={15} /> Faol loginlar</span>
-          <span className="ad-stat-v">{activeLogins}</span>
-          <span className="ad-stat-sub">Jami {rows.length} ta login</span>
-        </div>
-        <div className="ad-stat">
-          <span className="ad-stat-l"><Icon name="lock" size={15} /> O&apos;chirilgan</span>
-          <span className="ad-stat-v">{offLogins}</span>
-          <span className="ad-stat-sub">Tizimga kira olmaydi</span>
+        </Tilt>
+        <div className="ad-team-stats">
+          <div className="ad-stat">
+            <span className="ad-stat-l"><Icon name="users" size={15} /> Faol loginlar</span>
+            <span className="ad-stat-v">{activeLogins}</span>
+            <span className="ad-stat-sub">Jami {rows.length} ta login</span>
+          </div>
+          <div className="ad-stat">
+            <span className="ad-stat-l"><Icon name="lock" size={15} /> O&apos;chirilgan</span>
+            <span className="ad-stat-v">{offLogins}</span>
+            <span className="ad-stat-sub">Tizimga kira olmaydi</span>
+          </div>
         </div>
       </div>
 
@@ -138,13 +142,7 @@ export default function FilialManager({
       <section id="filial" className="ad-team" aria-labelledby="ad-team-title">
         <div className="ad-sec-head">
           <h2 id="ad-team-title">Jamoa</h2>
-          <button
-            type="button"
-            className="btn btn-plain btn-sm btn-with-icon"
-            onClick={() => setModal({ type: 'create' })}
-          >
-            <Icon name="plus" size={16} /> Yangi filial
-          </button>
+          <span>{rows.length} ta login</span>
         </div>
 
         <ul className="ad-team-grid" role="list">
@@ -219,16 +217,19 @@ export default function FilialManager({
                         >
                           <Icon name="edit" size={15} /> Tahrirlash
                         </button>
-                        <button
-                          type="button"
-                          className="btn btn-danger btn-sm"
-                          aria-label={`${r.name} filialini o'chirish`}
-                          title="O'chirish"
-                          disabled={!canDelete || busy}
-                          onClick={() => setConfirmId(r.id)}
-                        >
-                          <Icon name="trash" size={15} />
-                        </button>
+                        {canDelete && (
+                          <MoreMenu label={`${r.name}: ko'proq amallar`}>
+                            <button
+                              type="button"
+                              role="menuitem"
+                              className="ux-danger"
+                              disabled={busy}
+                              onClick={() => setConfirmId(r.id)}
+                            >
+                              <Icon name="trash" size={16} /> Filialni o&apos;chirish
+                            </button>
+                          </MoreMenu>
+                        )}
                       </>
                     )}
                   </div>
@@ -237,7 +238,7 @@ export default function FilialManager({
             );
           })}
 
-          <li className="ad-member-add-wrap">
+          <li className="ad-member-add-wrap ux-hide-mobile">
             <button type="button" className="ad-member-add" onClick={() => setModal({ type: 'create' })}>
               <span className="ad-member-add-ic"><Icon name="plus" size={22} /></span>
               <b>Yangi filial qo&apos;shish</b>
@@ -246,6 +247,13 @@ export default function FilialManager({
           </li>
         </ul>
       </section>
+
+      {/* Telefonda asosiy amal — pastki o'ng FAB (tab bar ustida) */}
+      {!modal && (
+        <button type="button" className="ux-fab" onClick={() => setModal({ type: 'create' })}>
+          <Icon name="plus" size={18} /> Yangi filial
+        </button>
+      )}
 
       {/* ===== Yon panel: yangi filial ===== */}
       {modal?.type === 'create' && (
