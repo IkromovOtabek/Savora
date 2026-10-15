@@ -1,151 +1,211 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
+import { View, Text, Modal, Alert, Linking, KeyboardAvoidingView, Platform, ScrollView, StyleSheet } from 'react-native';
+import { useLocalSearchParams, useFocusEffect } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { api, errMsg } from '@/lib/api';
+import { useResource } from '@/lib/hooks';
+import { useTheme, tabular, MONO } from '@/lib/theme';
+import { fmtMoney, fmtDate, fmtDayMonth, payLabel, digits, grouped } from '@/lib/format';
 import {
-  View, Text, ScrollView, StyleSheet, ActivityIndicator, TouchableOpacity, TextInput, Alert, KeyboardAvoidingView, Platform,
-} from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
-import { api } from '@/lib/api';
-import { colors, tiles, fmtSum, fmtDate } from '@/lib/theme';
+  Screen, NavBar, LargeTitle, Group, Cell, Pill, Ring, Button, Field, Chips, Loading, ErrorState, InlineError, useLayout, type Tone, type IconName,
+} from '@/components/ui';
 
 interface Month { month: number; amount: number; paidAmount: number; paid: boolean; state: string; dueDate: string }
 interface Plan { total: number; down: number; monthly: number; months: number; monthsPaid: number; remaining: number; overdueCount: number; schedule: Month[] }
+interface Payment { amount: number; paidAt: string; note: string | null; recordedBy: string | null }
 interface Sale {
-  id: string; saleNo: string; product: string; customer: string | null; phone: string | null;
-  paymentType: string; totalAmount: number; paidAmount: number; remainingAmount: number;
-  installmentMonths: number | null; dueDate: string | null; status: string; plan: Plan | null;
+  id: string; saleNo: string; product: string; imei: string | null; customer: string | null; phone: string | null;
+  paymentType: string; bankName: string | null; totalAmount: number; paidAmount: number; remainingAmount: number;
+  installmentMonths: number | null; dueDate: string | null; status: string; createdAt: string; soldBy: string | null;
+  payments: Payment[]; plan: Plan | null;
 }
 
-const PAY_LABEL: Record<string, string> = { cash: 'Naqd', debt: 'Qarz', installment: 'Nasiya', bank_credit: 'Bank krediti' };
-const STATE: Record<string, { label: string; c: { bg: string; fg: string } }> = {
-  paid: { label: 'To\'landi', c: tiles.green },
-  partial: { label: 'Qisman', c: { bg: '#eff6ff', fg: '#2563eb' } },
-  upcoming: { label: 'Muddat kelmagan', c: tiles.amber },
-  overdue: { label: 'To\'lanmagan', c: tiles.red },
+const MONTH_STATE: Record<string, { label: string; tone: Tone; icon: IconName; sq: 'o' | 'a' | 'g' | 'r' | 'b' }> = {
+  paid: { label: 'To\'landi', tone: 'ok', icon: 'checkmark', sq: 'o' },
+  partial: { label: 'Qisman', tone: 'br', icon: 'pie-chart', sq: 'b' },
+  upcoming: { label: 'Kutilmoqda', tone: 'mut', icon: 'time', sq: 'g' },
+  overdue: { label: 'Kechikkan', tone: 'bad', icon: 'alert', sq: 'r' },
 };
-const digits = (v: string) => v.replace(/\D/g, '');
-const grouped = (v: string) => digits(v).replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+const STATUS: Record<string, { label: string; tone: Tone }> = {
+  paid: { label: 'To\'langan', tone: 'ok' },
+  partial: { label: 'Qoldiq bor', tone: 'warn' },
+  cancelled: { label: 'Bekor qilingan', tone: 'mut' },
+};
 
 export default function SaleDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const router = useRouter();
-  const [s, setS] = useState<Sale | null>(null);
-  const [loading, setLoading] = useState(true);
+  const { c } = useTheme();
+  const res = useResource<Sale>(id ? `/api/mobile/sales/${id}` : null);
+  const first = useRef(true);
+  useFocusEffect(useCallback(() => { if (first.current) { first.current = false; return; } res.reloadSilently(); }, [res.reloadSilently]));
+  const [sheet, setSheet] = useState(false);
+
+  const s = res.data;
+  const backLabel = s?.paymentType === 'installment' ? 'Nasiya' : 'Orqaga';
+
+  if (res.loading && !s) return <Screen header={<NavBar backLabel={backLabel} />}><Loading /></Screen>;
+  if (!s) return <Screen header={<NavBar backLabel={backLabel} />}><ErrorState message={res.error} onRetry={res.retry} /></Screen>;
+
+  const pct = s.totalAmount > 0 ? s.paidAmount / s.totalAmount : 0;
+  const canPay = s.remainingAmount > 0 && s.status !== 'cancelled';
+  const nextMonth = s.plan?.schedule.find((m) => !m.paid);
+  const nextDue = nextMonth ? Math.min(Math.max(0, nextMonth.amount - nextMonth.paidAmount), s.remainingAmount) : s.remainingAmount;
+  const st = STATUS[s.status] ?? { label: s.status, tone: 'mut' as Tone };
+  const metaLine = [`№${s.saleNo}`, s.customer ? s.product : null, s.plan ? `${s.plan.monthsPaid}/${s.plan.months}-oy` : payLabel(s.paymentType)].filter(Boolean).join(' · ');
+
+  return (
+    <Screen
+      header={<NavBar backLabel={backLabel} />}
+      refreshing={res.refreshing}
+      onRefresh={res.refresh}
+      gap={18}
+      footer={canPay ? (
+        <Button title="To'lov qabul qilish" value={fmtMoney(nextDue)} size="lg" full onPress={() => setSheet(true)} />
+      ) : undefined}
+    >
+      <LargeTitle
+        size="medium"
+        left={<Ring value={pct} size={84} stroke={9} color={s.status === 'paid' ? c.ok : c.tint} />}
+        title={s.customer ?? s.product}
+        subtitle={metaLine}
+      />
+
+      {res.error ? <InlineError message={res.error} onRetry={res.refresh} /> : null}
+
+      <Group>
+        <Cell title="Qoldiq" right={<Text style={[st2.amount, tabular, { color: s.remainingAmount > 0 ? c.bad : c.ok }]}>{fmtMoney(s.remainingAmount, { suffix: true })}</Text>} />
+        <Cell title="Jami summa" value={fmtMoney(s.totalAmount, { suffix: true })} />
+        <Cell title="To'langan" value={fmtMoney(s.paidAmount, { suffix: true })} valueColor={c.ok} />
+        <Cell title="Holat" right={<Pill label={st.label} tone={st.tone} />} />
+      </Group>
+
+      <Group header="Ma'lumot">
+        <Cell title="To'lov turi" value={payLabel(s.paymentType)} />
+        {s.bankName ? <Cell title="Bank" value={s.bankName} /> : null}
+        {s.plan ? <Cell title="Oylik to'lov" value={fmtMoney(s.plan.monthly, { suffix: true })} /> : null}
+        {s.plan && s.plan.down > 0 ? <Cell title="Boshlang'ich to'lov" value={fmtMoney(s.plan.down, { suffix: true })} /> : null}
+        {s.dueDate ? <Cell title="Muddat" value={fmtDate(s.dueDate)} /> : null}
+        {s.customer ? <Cell title="Mijoz" value={s.customer} /> : null}
+        {s.phone ? <Cell title="Telefon" value={s.phone} valueColor={c.tint} onPress={() => Linking.openURL(`tel:${s.phone}`)} accessibilityLabel={`Qo'ng'iroq: ${s.phone}`} /> : null}
+        <Cell title="Mahsulot" value={s.product} />
+        {s.imei && !s.imei.startsWith('SVR-') ? <Cell title="Kod" value={s.imei} valueMono={MONO} /> : null}
+        <Cell title="Sana" value={fmtDate(s.createdAt)} />
+        {s.soldBy ? <Cell title="Sotuvchi" value={s.soldBy} /> : null}
+      </Group>
+
+      {s.plan && s.plan.schedule.length > 0 ? (
+        <Group header={`To'lov jadvali · ${s.plan.monthsPaid}/${s.plan.months}`}>
+          {s.plan.schedule.map((m) => {
+            const meta = MONTH_STATE[m.state] ?? MONTH_STATE.upcoming;
+            return (
+              <Cell
+                key={m.month}
+                icon={meta.icon}
+                iconColor={c.sq[meta.sq]}
+                title={fmtDayMonth(m.dueDate)}
+                subtitle={m.state === 'partial' ? `${m.month}-oy · ${fmtMoney(m.paidAmount)} to'landi` : `${m.month}-oy`}
+                right={
+                  <View style={st2.col}>
+                    <Text style={[st2.colAmt, tabular, { color: c.ink }]}>{fmtMoney(m.amount)}</Text>
+                    <Pill label={meta.label} tone={meta.tone} />
+                  </View>
+                }
+              />
+            );
+          })}
+        </Group>
+      ) : null}
+
+      {s.payments.length > 0 ? (
+        <Group header="To'lovlar tarixi">
+          {[...s.payments].reverse().map((p, i) => (
+            <Cell
+              key={`${p.paidAt}-${i}`}
+              icon="cash"
+              iconColor={c.sq.o}
+              title={fmtMoney(p.amount, { suffix: true })}
+              subtitle={[fmtDate(p.paidAt), p.note, p.recordedBy].filter(Boolean).join(' · ')}
+            />
+          ))}
+        </Group>
+      ) : null}
+
+      <PaySheet
+        visible={sheet}
+        onClose={() => setSheet(false)}
+        sale={s}
+        suggested={nextDue}
+        onPaid={() => { setSheet(false); res.reloadSilently(); }}
+      />
+    </Screen>
+  );
+}
+
+function PaySheet({ visible, onClose, sale, suggested, onPaid }: {
+  visible: boolean; onClose: () => void; sale: Sale; suggested: number; onPaid: () => void;
+}) {
+  const { c } = useTheme();
+  const L = useLayout();
+  const insets = useSafeAreaInsets();
   const [amount, setAmount] = useState('');
-  const [paying, setPaying] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const val = Number(digits(amount)) || 0;
+  const tooMuch = val > sale.remainingAmount;
 
-  const load = useCallback(async () => {
-    try { setS(await api<Sale>(`/api/mobile/sales/${id}`)); } catch { /* ignore */ } finally { setLoading(false); }
-  }, [id]);
-  useFocusEffect(useCallback(() => { load(); }, [load]));
-
-  async function pay(sum?: number) {
-    const val = sum ?? Number(digits(amount));
-    if (!val || val <= 0) { Alert.alert('Summa', 'To\'lov summasini kiriting.'); return; }
-    setPaying(true);
+  async function pay() {
+    if (!val) { Alert.alert('Summa', 'To\'lov summasini kiriting.'); return; }
+    if (tooMuch) { Alert.alert('Summa', `Qoldiqdan oshmasin: ${fmtMoney(sale.remainingAmount, { suffix: true })}`); return; }
+    setBusy(true);
     try {
-      await api(`/api/mobile/sales/${id}`, { method: 'POST', body: { amount: val, note: 'Mobil to\'lov' } });
+      await api(`/api/mobile/sales/${sale.id}`, { method: 'POST', body: { amount: val, note: 'Mobil to\'lov' } });
       setAmount('');
-      await load();
-    } catch (e) { Alert.alert('Xatolik', e instanceof Error ? e.message : 'To\'lovda xatolik'); }
-    finally { setPaying(false); }
+      onPaid();
+      Alert.alert('Qabul qilindi', `${fmtMoney(val, { suffix: true })} to'lov yozildi.`);
+    } catch (e) {
+      Alert.alert('Xatolik', errMsg(e, 'To\'lovda xatolik'));
+    } finally { setBusy(false); }
   }
 
+  const quick = [
+    ...(sale.plan && suggested > 0 && suggested < sale.remainingAmount ? [{ key: suggested, label: `Bir oy · ${fmtMoney(suggested)}` }] : []),
+    { key: sale.remainingAmount, label: `To'liq · ${fmtMoney(sale.remainingAmount)}` },
+  ];
+
   return (
-    <SafeAreaView style={st.safe} edges={['top']}>
-      <View style={st.bar}>
-        <TouchableOpacity onPress={() => router.back()} hitSlop={10}><Ionicons name="chevron-back" size={26} color={colors.text} /></TouchableOpacity>
-        <Text style={st.barTitle} numberOfLines={1}>{s?.saleNo ?? 'Sotuv'}</Text>
-        <View style={{ width: 26 }} />
-      </View>
-
-      {loading || !s ? <ActivityIndicator color={colors.brand} style={{ marginTop: 40 }} /> : (
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
-          <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 28 }}>
-            <Text style={st.product}>{s.product}</Text>
-            <Text style={st.sub}>{PAY_LABEL[s.paymentType] ?? s.paymentType}{s.customer ? ` · ${s.customer}` : ''}</Text>
-
-            <View style={st.tiles}>
-              <Tile bg={tiles.indigo.bg} fg={tiles.indigo.fg} label="Jami" value={fmtSum(s.totalAmount)} />
-              <Tile bg={tiles.green.bg} fg={tiles.green.fg} label="To'langan" value={fmtSum(s.paidAmount)} />
-              <Tile bg={tiles.red.bg} fg={tiles.red.fg} label="Qoldiq" value={fmtSum(s.remainingAmount)} />
-            </View>
-
-            {s.plan && (
-              <>
-                <Text style={st.section}>Oylik jadval · {s.plan.monthsPaid}/{s.plan.months} to&apos;landi</Text>
-                <View style={st.months}>
-                  {s.plan.schedule.map((m) => {
-                    const meta = STATE[m.state] ?? STATE.upcoming;
-                    return (
-                      <View key={m.month} style={[st.month, { borderColor: meta.c.fg + '55' }]}>
-                        <Text style={st.mLabel}>{m.month}-oy</Text>
-                        <Text style={st.mAmount}>{fmtSum(m.amount)}</Text>
-                        {m.state === 'partial' ? <Text style={st.mPartial}>{fmtSum(m.paidAmount)} / {fmtSum(m.amount)}</Text> : <Text style={st.mDue}>{fmtDate(m.dueDate)}</Text>}
-                        <View style={[st.mBadge, { backgroundColor: meta.c.bg }]}><Text style={[st.mBadgeT, { color: meta.c.fg }]}>{meta.label}</Text></View>
-                      </View>
-                    );
-                  })}
-                </View>
-              </>
-            )}
-
-            {s.remainingAmount > 0 && s.status !== 'cancelled' && (
-              <View style={st.payCard}>
-                <Text style={st.section}>To&apos;lov qo&apos;shish</Text>
-                {s.plan && s.plan.monthly > 0 && (
-                  <TouchableOpacity style={st.monthPayBtn} onPress={() => pay(Math.min(s.plan!.monthly, s.remainingAmount))} disabled={paying} activeOpacity={0.85}>
-                    <Text style={st.monthPayT}>Bir oy — {fmtSum(Math.min(s.plan.monthly, s.remainingAmount))} so&apos;m</Text>
-                  </TouchableOpacity>
-                )}
-                <View style={st.payRow}>
-                  <TextInput style={st.input} value={grouped(amount)} onChangeText={(v) => setAmount(digits(v))} placeholder={`Qoldiq: ${fmtSum(s.remainingAmount)}`} keyboardType="numeric" placeholderTextColor={colors.textFaint} />
-                  <TouchableOpacity style={[st.payBtn, paying && { opacity: 0.6 }]} onPress={() => pay()} disabled={paying} activeOpacity={0.85}>
-                    {paying ? <ActivityIndicator color="#fff" /> : <Text style={st.payBtnT}>To&apos;lash</Text>}
-                  </TouchableOpacity>
-                </View>
-              </View>
-            )}
-          </ScrollView>
-        </KeyboardAvoidingView>
-      )}
-    </SafeAreaView>
+    <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose} transparent={false}>
+      <KeyboardAvoidingView style={{ flex: 1, backgroundColor: c.bg }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <ScrollView contentContainerStyle={[L.content, { paddingTop: Platform.OS === 'ios' ? 16 : insets.top + 12, paddingBottom: insets.bottom + 24, gap: 18 }]} keyboardShouldPersistTaps="handled">
+          <View style={st2.sheetBar}>
+            <Button title="Bekor qilish" variant="plain" onPress={onClose} />
+            <Text style={[st2.sheetTitle, { color: c.ink }]}>To&apos;lov</Text>
+            <View style={{ width: 90 }} />
+          </View>
+          <Group>
+            <Cell title={sale.customer ?? sale.product} subtitle={`№${sale.saleNo}`} />
+            <Cell title="Qoldiq" value={fmtMoney(sale.remainingAmount, { suffix: true })} valueColor={c.bad} />
+          </Group>
+          <Field
+            label="To'lov summasi"
+            value={grouped(amount)}
+            onChangeText={(v) => setAmount(digits(v))}
+            keyboardType="numeric"
+            placeholder="0"
+            suffix="so'm"
+            autoFocus
+            error={tooMuch ? 'Qoldiqdan katta' : null}
+          />
+          <Chips options={quick} value={val || null} onChange={(k) => setAmount(String(k))} />
+          <Button title="Qabul qilish" value={val ? fmtMoney(val) : undefined} size="lg" full loading={busy} disabled={!val || tooMuch} onPress={pay} />
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </Modal>
   );
 }
 
-function Tile({ bg, fg, label, value }: { bg: string; fg: string; label: string; value: string }) {
-  return (
-    <View style={[st.tile, { backgroundColor: bg }]}>
-      <Text style={[st.tileL, { color: fg }]}>{label}</Text>
-      <Text style={[st.tileV, { color: fg }]} numberOfLines={1}>{value}</Text>
-    </View>
-  );
-}
-
-const st = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.bg },
-  bar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 14, paddingVertical: 10 },
-  barTitle: { fontSize: 17, fontWeight: '700', color: colors.text },
-  product: { fontSize: 19, fontWeight: '800', color: colors.text },
-  sub: { fontSize: 13.5, color: colors.textMuted, marginTop: 3 },
-  tiles: { flexDirection: 'row', gap: 8, marginTop: 16 },
-  tile: { flex: 1, borderRadius: 14, padding: 12 },
-  tileL: { fontSize: 11.5, fontWeight: '600' },
-  tileV: { fontSize: 15, fontWeight: '800', marginTop: 4 },
-  section: { fontSize: 15, fontWeight: '800', color: colors.text, marginTop: 22, marginBottom: 10 },
-  months: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-  month: { width: '47%', flexGrow: 1, backgroundColor: colors.surface, borderWidth: 1, borderRadius: 12, padding: 12 },
-  mLabel: { fontSize: 11.5, color: colors.textFaint, fontWeight: '700', textTransform: 'uppercase' },
-  mAmount: { fontSize: 15, fontWeight: '800', color: colors.text, marginTop: 3 },
-  mDue: { fontSize: 11.5, color: colors.textMuted, marginTop: 2 },
-  mPartial: { fontSize: 11.5, color: '#2563eb', marginTop: 2, fontWeight: '600' },
-  mBadge: { alignSelf: 'flex-start', marginTop: 8, borderRadius: 20, paddingHorizontal: 8, paddingVertical: 2 },
-  mBadgeT: { fontSize: 10.5, fontWeight: '700' },
-  payCard: { marginTop: 8 },
-  monthPayBtn: { backgroundColor: tiles.indigo.bg, borderRadius: 12, paddingVertical: 13, alignItems: 'center', marginBottom: 10 },
-  monthPayT: { color: colors.brand, fontSize: 14.5, fontWeight: '700' },
-  payRow: { flexDirection: 'row', gap: 10 },
-  input: { flex: 1, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12, fontSize: 15, color: colors.text },
-  payBtn: { backgroundColor: colors.brand, borderRadius: 12, paddingHorizontal: 22, alignItems: 'center', justifyContent: 'center' },
-  payBtnT: { color: '#fff', fontSize: 15, fontWeight: '700' },
+const st2 = StyleSheet.create({
+  amount: { fontSize: 15, fontWeight: '700' },
+  col: { alignItems: 'flex-end', gap: 3 },
+  colAmt: { fontSize: 15, fontWeight: '600' },
+  sheetBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  sheetTitle: { fontSize: 17, fontWeight: '600' },
 });

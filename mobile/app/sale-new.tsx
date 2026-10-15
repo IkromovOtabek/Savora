@@ -1,174 +1,235 @@
-import { useCallback, useEffect, useState } from 'react';
-import {
-  View, Text, TextInput, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Alert, FlatList, KeyboardAvoidingView, Platform,
-} from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { useLocalSearchParams, useRouter } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
-import { api } from '@/lib/api';
+import { useCallback, useState } from 'react';
+import { View, Text, Alert, ActivityIndicator, StyleSheet } from 'react-native';
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
+import { api, errMsg } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
-import { colors, tiles, fmtSum } from '@/lib/theme';
+import { useDebounced, usePaged } from '@/lib/hooks';
+import { takePicked, type PickedProduct } from '@/lib/pick';
+import { useTheme, tabular } from '@/lib/theme';
+import { digits, grouped, fmtMoney, fmtPhoneLocal, phoneLocal, phoneE164, PAY_LABELS, type PayType } from '@/lib/format';
+import {
+  Screen, NavBar, LargeTitle, SearchField, Group, Cell, AmountColumn, Pill, Button, IconButton, SegmentedControl,
+  Field, Chips, Stepper, Loading, EmptyState, ErrorState,
+} from '@/components/ui';
 
-interface P { id: string; name: string; salePrice: number; available: number }
-const digits = (v: string) => v.replace(/\D/g, '');
-const grouped = (v: string) => digits(v).replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
-
-type Pay = 'cash' | 'debt' | 'installment' | 'bank_credit';
+const MONTH_PRESETS = [3, 6, 9, 12];
 
 export default function SaleNew() {
   const router = useRouter();
-  const params = useLocalSearchParams<{ productId?: string; name?: string; price?: string }>();
+  const params = useLocalSearchParams<{ productId?: string; name?: string; price?: string; track?: string; available?: string; pay?: string }>();
   const { me } = useAuth();
+  const { c } = useTheme();
   const f = me?.features ?? {};
+  const nasiyaOn = !!(f.variant || f.nasiya);
 
-  const [picked, setPicked] = useState<P | null>(
-    params.productId && params.name ? { id: String(params.productId), name: String(params.name), salePrice: Number(params.price) || 0, available: 1 } : null
-  );
+  // Bank krediti: server bankName talab qiladi, lekin mobil API'da banklar ro'yxati yo'q — shu sababli yashirin.
+  const payTypes: PayType[] = ['cash', 'debt', ...(nasiyaOn ? ['installment' as PayType] : [])];
+
+  const initial: PickedProduct | null = params.productId && params.name ? {
+    id: String(params.productId), name: String(params.name), salePrice: Number(params.price) || 0,
+    available: Number(params.available) || 1, trackQuantity: params.track === '1', status: 'in_stock',
+  } : null;
+
+  const [picked, setPicked] = useState<PickedProduct | null>(initial);
   const [q, setQ] = useState('');
-  const [list, setList] = useState<P[]>([]);
-  const [searching, setSearching] = useState(false);
+  const dq = useDebounced(q.trim(), 300);
 
-  const [pay, setPay] = useState<Pay>('cash');
-  const [total, setTotal] = useState(picked ? String(picked.salePrice) : '');
+  const [pay, setPay] = useState<PayType>(params.pay === 'installment' && nasiyaOn ? 'installment' : 'cash');
+  const [qty, setQty] = useState(1);
+  const [total, setTotal] = useState(initial ? String(initial.salePrice) : '');
+  const [totalEdited, setTotalEdited] = useState(false);
   const [paid, setPaid] = useState('');
   const [months, setMonths] = useState('6');
   const [custName, setCustName] = useState('');
   const [custPhone, setCustPhone] = useState('');
+  const [notes, setNotes] = useState('');
   const [busy, setBusy] = useState(false);
+  const [tried, setTried] = useState(false);
 
-  const search = useCallback(async (text: string) => {
-    setSearching(true);
-    try { const r = await api<{ items: P[] }>(`/api/mobile/products?q=${encodeURIComponent(text)}`); setList(r.items); }
-    catch { setList([]); } finally { setSearching(false); }
+  const list = usePaged<PickedProduct>(picked ? null : `/api/mobile/products?q=${encodeURIComponent(dq)}`);
+
+  const choose = useCallback((p: PickedProduct) => {
+    setPicked(p); setQty(1); setTotal(String(p.salePrice)); setTotalEdited(false);
   }, []);
-  useEffect(() => { if (!picked) search(''); }, [picked, search]);
 
-  const payTypes: { key: Pay; label: string }[] = [
-    { key: 'cash', label: 'Naqd' },
-    { key: 'debt', label: 'Qarz' },
-    ...((f.variant || f.nasiya) ? [{ key: 'installment' as Pay, label: 'Nasiya' }] : []),
-    ...(f.creditKassa ? [{ key: 'bank_credit' as Pay, label: 'Bank' }] : []),
-  ];
+  // Skanerdan (mode=pick) qaytganda
+  useFocusEffect(useCallback(() => { const p = takePicked(); if (p) choose(p); }, [choose]));
+
+  function changeQty(n: number) {
+    setQty(n);
+    if (picked && !totalEdited) setTotal(String(picked.salePrice * n));
+  }
+
+  const totalN = Number(digits(total)) || 0;
+  const paidN = pay === 'cash' ? totalN : Number(digits(paid)) || 0;
+  const monthsN = Number(months) || 0;
+  const needCustomer = pay !== 'cash';
+  const phone = phoneLocal(custPhone);
+
+  const errors = {
+    total: totalN <= 0 ? 'Summani kiriting' : null,
+    paid: pay !== 'cash' && paidN > totalN ? 'Jami summadan oshmasin' : null,
+    months: pay === 'installment' && (monthsN < 1 || monthsN > 60) ? '1 dan 60 oygacha' : null,
+    name: needCustomer && !custName.trim() ? 'Mijoz ismini kiriting' : null,
+    phone: needCustomer && phone.length !== 9 ? 'Telefon 9 ta raqam: 90 123 45 67' : null,
+  };
+  const show = (k: keyof typeof errors) => (tried ? errors[k] : null);
+  const valid = !Object.values(errors).some(Boolean);
 
   async function submit() {
+    setTried(true);
     if (!picked) { Alert.alert('Mahsulot', 'Mahsulot tanlang.'); return; }
-    if (!digits(total)) { Alert.alert('Summa', 'Sotuv summasini kiriting.'); return; }
-    if (pay === 'installment' && (!months || Number(months) < 1)) { Alert.alert('Nasiya', 'Oy sonini kiriting.'); return; }
+    if (!valid) return;
     setBusy(true);
     try {
       const r = await api<{ id: string }>('/api/mobile/sales', {
         method: 'POST',
         body: {
-          productId: picked.id, paymentType: pay,
-          totalAmount: Number(digits(total)),
-          paidAmount: pay === 'cash' ? Number(digits(total)) : Number(digits(paid)) || 0,
-          installmentMonths: pay === 'installment' ? Number(months) : undefined,
-          customerName: custName.trim(), customerPhone: custPhone.trim(),
+          productId: picked.id,
+          paymentType: pay,
+          totalAmount: totalN,
+          paidAmount: paidN,
+          installmentMonths: pay === 'installment' ? monthsN : undefined,
+          customerName: needCustomer ? custName.trim() : '',
+          customerPhone: needCustomer ? phoneE164(phone) : '',
+          saleQty: picked.trackQuantity ? qty : undefined,
+          notes: notes.trim() || undefined,
         },
       });
-      Alert.alert('Sotildi', 'Sotuv yakunlandi.');
       router.replace(`/sale/${r.id}`);
-    } catch (e) { Alert.alert('Xatolik', e instanceof Error ? e.message : 'Sotuvda xatolik'); }
-    finally { setBusy(false); }
+    } catch (e) {
+      Alert.alert('Sotuv amalga oshmadi', errMsg(e, 'Sotuvda xatolik'));
+    } finally { setBusy(false); }
   }
 
-  const needCustomer = pay !== 'cash';
+  /* ───── 1-qadam: mahsulot tanlash ───── */
+  if (!picked) {
+    return (
+      <Screen keyboard header={<NavBar backLabel="Bekor qilish" />}>
+        <LargeTitle title="Yangi sotuv" subtitle="Mahsulotni tanlang yoki skaner qiling" />
+        <SearchField
+          value={q}
+          onChangeText={setQ}
+          placeholder="Mahsulot nomi yoki kodi"
+          right={<IconButton icon="barcode-outline" label="Skaner" tone="plain" onPress={() => router.push('/scan?mode=pick')} />}
+        />
+        {list.loading && list.items.length === 0 ? <Loading />
+          : list.error && list.items.length === 0 ? <ErrorState message={list.error} onRetry={list.retry} />
+          : list.items.length === 0 ? <EmptyState icon="search" title="Mahsulot topilmadi" message={dq ? `«${dq}» bo'yicha hech narsa yo'q.` : 'Omborda sotuvdagi mahsulot yo\'q.'} />
+          : (
+            <Group>
+              {list.items.map((p) => {
+                const ok = p.status === 'in_stock' && p.available > 0;
+                return (
+                  <Cell
+                    key={p.id}
+                    icon="cube"
+                    iconColor={ok ? c.sq.b : c.sq.g}
+                    title={p.name}
+                    subtitle={p.trackQuantity ? `${fmtMoney(p.available)} dona qoldi` : undefined}
+                    right={<AmountColumn amount={fmtMoney(p.salePrice)}>{ok ? null : <Pill label="Sotuvda emas" tone="mut" />}</AmountColumn>}
+                    disabled={!ok}
+                    onPress={() => choose(p)}
+                  />
+                );
+              })}
+            </Group>
+          )}
+        {list.loadingMore ? <ActivityIndicator color={c.tint} /> : list.hasMore ? <Button title="Ko'proq ko'rsatish" variant="plain" onPress={list.loadMore} style={{ alignSelf: 'center' }} /> : null}
+      </Screen>
+    );
+  }
+
+  /* ───── 2-qadam: to'lov ───── */
+  const left = Math.max(0, totalN - paidN);
+  const monthly = pay === 'installment' && monthsN > 0 ? Math.ceil(left / monthsN) : 0;
 
   return (
-    <SafeAreaView style={s.safe} edges={['top']}>
-      <View style={s.bar}>
-        <TouchableOpacity onPress={() => router.back()} hitSlop={10}><Ionicons name="chevron-back" size={26} color={colors.text} /></TouchableOpacity>
-        <Text style={s.barTitle}>Yangi sotuv</Text>
-        <View style={{ width: 26 }} />
+    <Screen
+      keyboard
+      header={<NavBar backLabel="Bekor qilish" />}
+      footer={<Button title="Sotuvni yakunlash" value={fmtMoney(totalN)} size="lg" full loading={busy} onPress={submit} />}
+    >
+      <LargeTitle title="Yangi sotuv" />
+
+      <Group>
+        <Cell
+          icon="cube"
+          iconColor={c.sq.b}
+          title={picked.name}
+          subtitle={`${fmtMoney(picked.salePrice, { suffix: true })}${picked.trackQuantity ? ` · ${fmtMoney(picked.available)} dona bor` : ''}`}
+          right={<Button title="O'zgartirish" size="sm" variant="tinted" onPress={() => setPicked(null)} />}
+        />
+        {picked.trackQuantity ? (
+          <Cell title="Miqdor" right={<Stepper value={qty} onChange={changeQty} min={1} max={Math.max(1, picked.available)} />} />
+        ) : null}
+      </Group>
+
+      <View style={{ gap: 8 }}>
+        <Text style={[s.label, { color: c.ink3 }]}>To&apos;lov turi</Text>
+        <SegmentedControl options={payTypes.map((k) => ({ key: k, label: PAY_LABELS[k] }))} value={pay} onChange={setPay} />
       </View>
 
-      {!picked ? (
+      <Field
+        label="Sotuv summasi"
+        value={grouped(total)}
+        onChangeText={(v) => { setTotal(digits(v)); setTotalEdited(true); }}
+        keyboardType="numeric"
+        placeholder="0"
+        suffix="so'm"
+        error={show('total')}
+      />
+
+      {needCustomer ? (
+        <Field
+          label={pay === 'installment' ? 'Boshlang\'ich to\'lov' : 'Hozir to\'langan (ixtiyoriy)'}
+          value={grouped(paid)}
+          onChangeText={(v) => setPaid(digits(v))}
+          keyboardType="numeric"
+          placeholder="0"
+          suffix="so'm"
+          error={show('paid')}
+        />
+      ) : null}
+
+      {pay === 'installment' ? (
+        <View style={{ gap: 8 }}>
+          <Text style={[s.label, { color: c.ink3 }]}>Muddat (oy)</Text>
+          <Chips options={MONTH_PRESETS.map((m) => ({ key: m, label: `${m} oy` }))} value={MONTH_PRESETS.includes(monthsN) ? monthsN : null} onChange={(m) => setMonths(String(m))} />
+          <Field value={months} onChangeText={(v) => setMonths(digits(v).slice(0, 2))} keyboardType="numeric" placeholder="Boshqa muddat" suffix="oy" error={show('months')} />
+        </View>
+      ) : null}
+
+      {needCustomer ? (
         <>
-          <View style={s.searchWrap}>
-            <Ionicons name="search" size={18} color={colors.textFaint} />
-            <TextInput style={s.search} placeholder="Mahsulot qidirish" value={q} onChangeText={(v) => { setQ(v); search(v); }} autoCapitalize="none" placeholderTextColor={colors.textFaint} />
-            <TouchableOpacity onPress={() => router.push('/scan')}><Ionicons name="barcode-outline" size={22} color={colors.brand} /></TouchableOpacity>
-          </View>
-          {searching ? <ActivityIndicator color={colors.brand} style={{ marginTop: 30 }} /> : (
-            <FlatList
-              data={list}
-              keyExtractor={(i) => i.id}
-              contentContainerStyle={{ padding: 16, paddingTop: 6 }}
-              ListEmptyComponent={<Text style={s.empty}>Mahsulot topilmadi</Text>}
-              renderItem={({ item }) => (
-                <TouchableOpacity style={s.pRow} activeOpacity={0.7} onPress={() => { setPicked(item); setTotal(String(item.salePrice)); }}>
-                  <Text style={s.pName} numberOfLines={1}>{item.name}</Text>
-                  <Text style={s.pPrice}>{fmtSum(item.salePrice)}</Text>
-                </TouchableOpacity>
-              )}
-            />
-          )}
+          <Field label="Mijoz ismi" value={custName} onChangeText={setCustName} placeholder="Ism Familiya" autoCapitalize="words" textContentType="name" error={show('name')} />
+          <Field
+            label="Telefon"
+            prefix="+998"
+            value={fmtPhoneLocal(custPhone)}
+            onChangeText={(v) => setCustPhone(phoneLocal(v))}
+            placeholder="90 123 45 67"
+            keyboardType="phone-pad"
+            textContentType="telephoneNumber"
+            maxLength={12}
+            error={show('phone')}
+          />
         </>
-      ) : (
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
-          <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 32 }} keyboardShouldPersistTaps="handled">
-            <TouchableOpacity style={s.pickedCard} onPress={() => setPicked(null)} activeOpacity={0.8}>
-              <View style={{ flex: 1 }}><Text style={s.pickedName}>{picked.name}</Text><Text style={s.pickedChange}>O&apos;zgartirish</Text></View>
-              <Ionicons name="swap-horizontal" size={20} color={colors.textMuted} />
-            </TouchableOpacity>
+      ) : null}
 
-            <Text style={s.label}>To&apos;lov turi</Text>
-            <View style={s.seg}>
-              {payTypes.map((pt) => (
-                <TouchableOpacity key={pt.key} style={[s.segBtn, pay === pt.key && s.segActive]} onPress={() => setPay(pt.key)} activeOpacity={0.8}>
-                  <Text style={[s.segT, pay === pt.key && s.segTActive]}>{pt.label}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
+      <Field label="Izoh (ixtiyoriy)" value={notes} onChangeText={setNotes} placeholder="Qo'shimcha ma'lumot" />
 
-            <Field label="Sotuv summasi" value={grouped(total)} onChangeText={(v) => setTotal(digits(v))} keyboardType="numeric" placeholder="0" />
-            {needCustomer && <Field label={pay === 'installment' ? 'Boshlang\'ich to\'lov' : 'To\'langan (ixtiyoriy)'} value={grouped(paid)} onChangeText={(v) => setPaid(digits(v))} keyboardType="numeric" placeholder="0" />}
-            {pay === 'installment' && <Field label="Necha oyga" value={months} onChangeText={(v) => setMonths(digits(v))} keyboardType="numeric" placeholder="6" />}
-            {needCustomer && <>
-              <Field label="Mijoz ismi" value={custName} onChangeText={setCustName} placeholder="Ism" />
-              <Field label="Telefon" value={custPhone} onChangeText={setCustPhone} placeholder="+998..." keyboardType="phone-pad" />
-            </>}
-
-            <TouchableOpacity style={[s.save, busy && { opacity: 0.6 }]} onPress={submit} disabled={busy} activeOpacity={0.85}>
-              {busy ? <ActivityIndicator color="#fff" /> : <Text style={s.saveT}>Sotuvni yakunlash</Text>}
-            </TouchableOpacity>
-          </ScrollView>
-        </KeyboardAvoidingView>
-      )}
-    </SafeAreaView>
-  );
-}
-
-function Field(props: React.ComponentProps<typeof TextInput> & { label: string }) {
-  const { label, ...rest } = props;
-  return (
-    <View style={{ marginBottom: 14 }}>
-      <Text style={s.label}>{label}</Text>
-      <TextInput style={s.input} placeholderTextColor={colors.textFaint} autoCorrect={false} {...rest} />
-    </View>
+      <Group header="Xulosa">
+        <Cell title="Jami" value={fmtMoney(totalN, { suffix: true })} valueStrong />
+        {needCustomer ? <Cell title="Hozir to'lanadi" value={fmtMoney(paidN, { suffix: true })} valueColor={c.ok} /> : null}
+        {needCustomer ? <Cell title="Qoldiq" value={fmtMoney(left, { suffix: true })} valueColor={left > 0 ? c.bad : c.ok} /> : null}
+        {monthly > 0 ? <Cell title="Oylik (taxminan)" right={<Text style={[s.gold, tabular, { color: c.gold }]}>{fmtMoney(monthly, { suffix: true })}</Text>} /> : null}
+      </Group>
+    </Screen>
   );
 }
 
 const s = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.bg },
-  bar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 14, paddingVertical: 10 },
-  barTitle: { fontSize: 17, fontWeight: '700', color: colors.text },
-  searchWrap: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: 12, paddingHorizontal: 12, marginHorizontal: 16, marginTop: 8 },
-  search: { flex: 1, paddingVertical: 11, fontSize: 15, color: colors.text },
-  empty: { color: colors.textMuted, textAlign: 'center', marginTop: 30 },
-  pRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: 12, padding: 14, marginBottom: 8 },
-  pName: { flex: 1, fontSize: 14.5, fontWeight: '600', color: colors.text, paddingRight: 10 },
-  pPrice: { fontSize: 14.5, fontWeight: '800', color: colors.text },
-  pickedCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: tiles.indigo.bg, borderRadius: 14, padding: 14, marginBottom: 16 },
-  pickedName: { fontSize: 15.5, fontWeight: '700', color: colors.brand },
-  pickedChange: { fontSize: 12.5, color: colors.brand, marginTop: 2, opacity: 0.8 },
-  label: { fontSize: 13, fontWeight: '600', color: colors.textMuted, marginBottom: 6 },
-  seg: { flexDirection: 'row', gap: 8, marginBottom: 16, flexWrap: 'wrap' },
-  segBtn: { paddingVertical: 9, paddingHorizontal: 16, borderRadius: 20, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
-  segActive: { backgroundColor: colors.brand, borderColor: colors.brand },
-  segT: { fontSize: 13.5, fontWeight: '600', color: colors.textMuted },
-  segTActive: { color: '#fff' },
-  input: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12, fontSize: 16, color: colors.text },
-  save: { backgroundColor: colors.brand, borderRadius: 12, paddingVertical: 15, alignItems: 'center', marginTop: 10 },
-  saveT: { color: '#fff', fontSize: 16, fontWeight: '700' },
+  label: { fontSize: 13, fontWeight: '500' },
+  gold: { fontSize: 15, fontWeight: '600' },
 });

@@ -1,0 +1,105 @@
+/** Formatlash yordamchilari — muhitdan mustaqil (Intl'siz). */
+
+export type PayType = 'cash' | 'debt' | 'installment' | 'bank_credit';
+
+/** To'lov turlari — butun ilovada yagona nomlar. */
+export const PAY_LABELS: Record<PayType, string> = {
+  cash: 'Naqd',
+  debt: 'Qarz',
+  installment: 'Nasiya',
+  bank_credit: 'Bank krediti',
+};
+export const payLabel = (t: string) => PAY_LABELS[t as PayType] ?? t;
+
+const group3 = (s: string) => s.replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+
+/** 1234567 → "1 234 567" (suffix: true → "1 234 567 so'm"). */
+export function fmtMoney(n: number | null | undefined, opts: { suffix?: boolean | string } = {}): string {
+  const v = Math.round(Number(n) || 0);
+  const s = (v < 0 ? '−' : '') + group3(String(Math.abs(v)));
+  if (!opts.suffix) return s;
+  return `${s} ${typeof opts.suffix === 'string' ? opts.suffix : 'so\'m'}`;
+}
+
+/** Ixcham: 6 400 000 → "6,4 mln", 1 250 000 000 → "1,3 mlrd". */
+export function fmtCompact(n: number | null | undefined): string {
+  const v = Math.round(Number(n) || 0);
+  const a = Math.abs(v);
+  const one = (x: number) => (Math.round(x * 10) / 10).toString().replace('.', ',');
+  if (a >= 1e9) return `${one(v / 1e9)} mlrd`;
+  if (a >= 1e6) return `${one(v / 1e6)} mln`;
+  return fmtMoney(v);
+}
+
+/** Faqat raqamlar. */
+export const digits = (v: string) => v.replace(/\D/g, '');
+/** Kiritish maydoni uchun: "1234567" → "1 234 567". */
+export const grouped = (v: string) => group3(digits(v));
+
+/** Sana: DD.MM.YYYY */
+export function fmtDate(d?: string | Date | null): string {
+  if (!d) return '—';
+  const dt = new Date(d);
+  if (Number.isNaN(dt.getTime())) return '—';
+  const p = (x: number) => String(x).padStart(2, '0');
+  return `${p(dt.getDate())}.${p(dt.getMonth() + 1)}.${dt.getFullYear()}`;
+}
+
+const WEEKDAYS = ['Yakshanba', 'Dushanba', 'Seshanba', 'Chorshanba', 'Payshanba', 'Juma', 'Shanba'];
+const MONTHS = ['yanvar', 'fevral', 'mart', 'aprel', 'may', 'iyun', 'iyul', 'avgust', 'sentabr', 'oktabr', 'noyabr', 'dekabr'];
+
+/** "15-oktabr" */
+export function fmtDayMonth(d?: string | Date | null): string {
+  if (!d) return '—';
+  const dt = new Date(d);
+  if (Number.isNaN(dt.getTime())) return '—';
+  return `${dt.getDate()}-${MONTHS[dt.getMonth()]}`;
+}
+
+/** "PAYSHANBA, 15-OKTABR" */
+export function fmtEyebrow(d: Date = new Date()): string {
+  return `${WEEKDAYS[d.getDay()]}, ${fmtDayMonth(d)}`.toUpperCase();
+}
+
+export function greeting(d: Date = new Date()): string {
+  const h = d.getHours();
+  if (h < 11) return 'Xayrli tong';
+  if (h < 18) return 'Xayrli kun';
+  return 'Xayrli kech';
+}
+
+export function startOfToday(): number {
+  const d = new Date(); d.setHours(0, 0, 0, 0); return d.getTime();
+}
+export function isToday(d?: string | Date | null): boolean {
+  if (!d) return false;
+  const t = new Date(d).getTime();
+  const s = startOfToday();
+  return t >= s && t < s + 86400000;
+}
+export function isOverdue(d?: string | Date | null): boolean {
+  if (!d) return false;
+  return new Date(d).getTime() < startOfToday();
+}
+
+/** Telefon: 9 ta raqam (operator + raqam). "+998 " prefiksi alohida ko'rsatiladi. */
+export function phoneLocal(v: string): string {
+  let d = digits(v);
+  if (d.startsWith('998') && d.length > 9) d = d.slice(3);
+  return d.slice(0, 9);
+}
+/** "901234567" → "90 123 45 67" */
+export function fmtPhoneLocal(local: string): string {
+  const d = phoneLocal(local);
+  const parts = [d.slice(0, 2), d.slice(2, 5), d.slice(5, 7), d.slice(7, 9)].filter(Boolean);
+  return parts.join(' ');
+}
+/** Server uchun: "+998901234567" */
+export const phoneE164 = (local: string) => `+998${phoneLocal(local)}`;
+
+/** Ism-familiyadan bosh harflar: "Nodira Alimova" → "NA". */
+export function initials(name?: string | null): string {
+  const parts = String(name || '').trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return '?';
+  return (parts[0][0] + (parts[1]?.[0] ?? '')).toUpperCase();
+}

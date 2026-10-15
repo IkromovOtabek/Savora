@@ -1,16 +1,10 @@
 import { Redirect } from 'expo-router';
-import { ActivityIndicator, View } from 'react-native';
 import { useAuth } from '@/lib/auth';
-import { colors } from '@/lib/theme';
+import { Loading } from '@/components/ui';
 
 export default function Index() {
-  const { loading, me } = useAuth();
-  if (loading) {
-    return (
-      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.bg }}>
-        <ActivityIndicator color={colors.brand} size="large" />
-      </View>
-    );
-  }
-  return <Redirect href={me ? '/(tabs)' : '/login'} />;
+  const { loading, me, error } = useAuth();
+  if (loading) return <Loading full />;
+  // Tarmoq xatosi bo'lsa ham token bor — (tabs) xato ekranini ko'rsatadi
+  return <Redirect href={me || error ? '/(tabs)' : '/login'} />;
 }
