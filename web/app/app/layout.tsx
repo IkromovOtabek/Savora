@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { getTenantSession } from '@/lib/tenantSession';
 import { isImeiEnabled } from '@/lib/features';
 import { branchFilter } from '@/lib/branchScope';
+import { openTaskFilter } from '@/lib/tasks';
 import LogoutButton from '@/components/LogoutButton';
 import TenantNav from '@/components/tenant/TenantNav';
 import ThemeToggle from '@/components/ThemeToggle';
@@ -16,13 +17,13 @@ import './tenant.css';
 import '@/components/ui/ux.css';
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
-  const { user, org, features, Sale } = await getTenantSession({ allowExpired: true });
+  const { user, org, features, Sale, Task } = await getTenantSession({ allowExpired: true });
   const showImei = isImeiEnabled(org);
   const permissions = [...(await loadUserPermissions(user))];
 
   // Sidebar badge'lar — faol qarzdor sotuvlar. Filial login faqat o'zinikini sanaydi.
   const scope = branchFilter(user);
-  const [debtCount, nasiyaCount] = await Promise.all([
+  const [debtCount, nasiyaCount, openTaskCount] = await Promise.all([
     // Qarzdorlik — barcha qisman to'langan (qoldiqli) sotuvlar
     features.sales
       ? Sale.countDocuments({ ...scope, status: 'partial', remainingAmount: { $gt: 0 } })
@@ -31,8 +32,12 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     features.nasiya
       ? Sale.countDocuments({ ...scope, paymentType: 'installment', status: 'partial', remainingAmount: { $gt: 0 } })
       : Promise.resolve(0),
+    // Topshiriqlar — bajarilmagan (indeksli countDocuments, arzon)
+    features.tasks
+      ? Task.countDocuments(openTaskFilter(user)).catch(() => 0)
+      : Promise.resolve(0),
   ]);
-  const navBadges: Record<string, number> = { '/app/debts': debtCount, '/app/nasiya': nasiyaCount };
+  const navBadges: Record<string, number> = { '/app/debts': debtCount, '/app/nasiya': nasiyaCount, '/app/tasks': openTaskCount };
 
   // Muddati tugagan — sidebarsiz, faqat to'lov devori (children = /app/expired)
   if (!isOrganizationActive(org)) {

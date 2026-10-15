@@ -15,6 +15,8 @@ export const FEATURE_KEYS = [
   'audit',
   'daftar',
   'nasiya',
+  'ai',
+  'tasks',
 ] as const;
 
 export type FeatureKey = (typeof FEATURE_KEYS)[number];

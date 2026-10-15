@@ -28,6 +28,8 @@ const NAV_ICONS: Record<string, IconName> = {
   '/app/audit': 'history',
   '/app/daftar': 'edit',
   '/app/nasiya': 'clock',
+  '/app/ai': 'sparkles',
+  '/app/tasks': 'check',
 };
 
 type NavLink = {
@@ -83,6 +85,8 @@ const GROUPS: NavGroup[] = [
   {
     title: 'Boshqaruv',
     links: [
+      { href: '/app/ai', label: 'AI yordamchi', feature: 'ai', permission: 'ai.view' },
+      { href: '/app/tasks', label: 'Topshiriqlar', feature: 'tasks' },
       { href: '/app/users', label: 'Filiallar', feature: 'users', permission: 'users.manage', adminOnly: true },
       { href: '/app/audit', label: 'Amallar', feature: 'audit', permission: 'audit.view', adminOnly: true },
       { href: '/app/profile', label: 'Kabinet' },

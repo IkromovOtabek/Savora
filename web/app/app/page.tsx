@@ -15,6 +15,9 @@ import Tilt from '@/components/ui/Tilt';
 import type { IconName } from '@/components/icons/Icon';
 import { loadUserPermissions } from '@/lib/permissionGuard';
 import { BUSINESS_TYPES, parseBusinessType } from '@/lib/businessTypes';
+import { getLatestReport } from '@/lib/ai/report';
+import { parseAiResult } from '@/lib/ai/validate';
+import '@/components/tenant/styles/ai.css';
 
 export const metadata = { title: 'Boshqaruv — Savora' };
 
@@ -24,9 +27,19 @@ export default async function TenantDashboard({
   searchParams: Promise<{ module?: string; welcome?: string }>;
 }) {
   const sp = await searchParams;
-  const { user, org, features, Branch, Product, Sale, User } = await getTenantSession();
+  const { user, org, features, Branch, Product, Sale, User, AiReport } = await getTenantSession();
 
   const perms = await loadUserPermissions(user);
+  // AI tavsiya — faqat bugungi keshdan (dashboard ochilganda AI chaqirilmaydi)
+  const aiTip = features.ai && perms.has('ai.view')
+    ? await getLatestReport({ AiReport }, user, { todayOnly: true }).then((r) => {
+        if (!r) return null;
+        const res = parseAiResult(r.result);
+        const rec = res?.recommendations[0];
+        if (rec) return { title: rec.title, detail: rec.detail, source: r.source };
+        return res ? { title: 'Bugungi xulosa', detail: res.summary, source: r.source } : null;
+      }).catch(() => null)
+    : null;
   const bizLabel = BUSINESS_TYPES[parseBusinessType(org.businessType ?? 'general')].label;
 
   const todayStart = new Date();
@@ -201,6 +214,18 @@ export default async function TenantDashboard({
             </Link>
           )}
         </nav>
+      )}
+
+      {aiTip && (
+        <Link href="/app/ai" className="t-card ai-dash" aria-label={`AI tavsiya: ${aiTip.title}`}>
+          <span className="ai-dash-ic" aria-hidden="true"><Icon name="sparkles" size={20} /></span>
+          <span className="ai-dash-t">
+            <small>AI tavsiya{aiTip.source === 'rules' ? ' · qoidalar asosida' : ''}</small>
+            <b>{aiTip.title}</b>
+            <span>{aiTip.detail}</span>
+          </span>
+          <Icon name="chevron" size={16} className="t-stat-go" />
+        </Link>
       )}
 
       <div className={`t-dash-grid${features.sales ? '' : ' t-dash-grid--one'}`}>

@@ -18,6 +18,8 @@ const ENTITY_LABELS: Record<AuditEntity, string> = {
   transfer: "Ko'chirish",
   creditBank: 'Bank',
   auth: 'Kirish',
+  task: 'Topshiriq',
+  ai: 'AI yordamchi',
 };
 
 /** Obyekt sahifasi bor bo'limlar — yozuvdan to'g'ridan-to'g'ri ochish uchun */
