@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from 'react';
 import Icon from '@/components/icons/Icon';
+import '@/components/tenant/styles/admin.css';
 import { createTelegramLinkAction } from '@/app/actions/telegramLink';
 
 /**
@@ -28,38 +29,39 @@ export default function TelegramAppLink({ linked }: { linked: boolean }) {
   }
 
   return (
-    <div className="panel" style={{ marginTop: 20 }}>
-      <div className="panel-head">
-        <h2>Telegram ilova (Mini App)</h2>
+    <div className="ad-tg">
+      <div className="ad-cell">
+        <span className="ad-sq ad-sq--tg" aria-hidden="true"><Icon name="send" size={16} /></span>
+        <span className="ad-cell-t">
+          <b>Telegram ilova (Mini App)</b>
+          <small>
+            {linked
+              ? <>Hisobingiz bog&apos;langan — botdagi <b>«Savora&apos;ni ochish»</b> tugmasi bilan login/parolsiz kirasiz.</>
+              : 'Telegram hisobingizni bog\'lang — do\'koningizni Telegram ichida login/parolsiz boshqarasiz.'}
+          </small>
+        </span>
+        <span className="ad-cell-a">
+          <span className={`ad-pill ${linked ? 'ad-pill--ok' : ''}`}>
+            {linked && <Icon name="check" size={12} />}
+            {linked ? 'Bog\'langan' : 'Bog\'lanmagan'}
+          </span>
+          <button
+            type="button"
+            onClick={connect}
+            disabled={pending}
+            className={`btn btn-sm ${linked ? 'btn-ghost' : 'btn-primary'}`}
+          >
+            {pending ? 'Tayyorlanmoqda…' : linked ? 'Qayta bog\'lash' : 'Bog\'lash'}
+          </button>
+        </span>
       </div>
-      <div className="detail-body" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-        {linked ? (
-          <div className="auth-alert auth-alert--info" style={{ margin: 0, display: 'flex', alignItems: 'flex-start', gap: 8 }}>
-            <Icon name="check" size={16} />
-            <span>Telegram hisobingiz bog&apos;langan. Botni ochib <b>“Savora’ni ochish”</b> tugmasi orqali ilovaga to&apos;g&apos;ridan-to&apos;g&apos;ri kirishingiz mumkin.</span>
-          </div>
-        ) : (
-          <p className="dash-sub" style={{ margin: 0 }}>
-            Telegram hisobingizni bog&apos;lang — keyin do&apos;koningizni telefon yoki kompyuterdan
-            to&apos;g&apos;ridan-to&apos;g&apos;ri Telegram ichida (login/parolsiz) boshqarasiz.
-          </p>
-        )}
+      <div aria-live="polite">
         {done && !linked && (
-          <div className="auth-alert" style={{ margin: 0 }}>
+          <div className="auth-alert ad-tg-note">
             Telegram ochildi — botda <b>Start / Ulash</b> tugmasini bosing, so&apos;ng bu sahifani yangilang.
           </div>
         )}
-        {error && <div className="auth-alert auth-alert--error" style={{ margin: 0 }}>{error}</div>}
-        <button
-          type="button"
-          onClick={connect}
-          disabled={pending}
-          className="btn btn-primary btn-with-icon"
-          style={{ alignSelf: 'flex-start' }}
-        >
-          <Icon name="login" size={16} />
-          {pending ? 'Tayyorlanmoqda…' : linked ? 'Qayta bog\'lash' : 'Telegram hisobini bog\'lash'}
-        </button>
+        {error && <div className="auth-alert auth-alert--error ad-tg-note" role="alert">{error}</div>}
       </div>
     </div>
   );

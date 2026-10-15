@@ -1,9 +1,11 @@
 'use client';
 
-import { useActionState, useState, useTransition } from 'react';
+import { useActionState } from 'react';
 import { updateProfileAction, changePasswordAction } from '@/app/actions/profile';
 import { useToastOnState } from '@/lib/useToastOnState';
+import '@/components/tenant/styles/admin.css';
 
+/** Kabinet: «Hisob» va «Xavfsizlik» bo'limlari (iOS Sozlamalar uslubida) */
 export default function ProfileForms({
   username,
   fullName,
@@ -19,48 +21,72 @@ export default function ProfileForms({
   useToastOnState(pwdState);
 
   return (
-    <div className="two-col">
-      <div className="panel">
-        <div className="panel-head"><h2>Kabinet</h2></div>
-        <form action={profileAction} className="form-grid">
-          <div className="form-meta"><span className="form-meta-l">Login:</span> <code>{username}</code></div>
-          {profileState?.error && <div className="auth-alert auth-alert--error">{profileState.error}</div>}
-          {profileState?.success && <div className="auth-alert auth-alert--info">{profileState.success}</div>}
-          <div className="auth-field">
-            <label htmlFor="fullName">To&apos;liq ism</label>
-            <input id="fullName" name="fullName" type="text" defaultValue={fullName} disabled={profilePending} />
-          </div>
-          <button type="submit" className="btn btn-primary btn-sm" disabled={profilePending}>Saqlash</button>
-        </form>
-      </div>
-
-      <div className="panel">
-        <div className="panel-head"><h2>Parolni o&apos;zgartirish</h2></div>
-        {mustChangePassword && (
-          <div className="auth-alert auth-alert--warn" style={{ margin: '16px 24px 0' }}>
-            Birinchi kirish — yangi parol o&apos;rnating.
-          </div>
-        )}
-        <form action={pwdAction} className="form-grid">
-          {pwdState?.error && <div className="auth-alert auth-alert--error">{pwdState.error}</div>}
-          {pwdState?.success && <div className="auth-alert auth-alert--info">{pwdState.success}</div>}
-          {!mustChangePassword && (
-            <div className="auth-field">
-              <label htmlFor="currentPassword">Joriy parol</label>
-              <input id="currentPassword" name="currentPassword" type="password" required disabled={pwdPending} />
+    <>
+      <section id="hisob" aria-labelledby="sec-hisob">
+        <div className="ad-sec-head"><h2 id="sec-hisob">Hisob</h2></div>
+        <div className="ad-group ad-form-group">
+          <form action={profileAction}>
+            <div className="ad-form-row ad-form-row--meta">
+              <span>Login</span>
+              <code>{username}</code>
             </div>
-          )}
-          <div className="auth-field">
-            <label htmlFor="newPassword">Yangi parol</label>
-            <input id="newPassword" name="newPassword" type="password" required minLength={6} disabled={pwdPending} />
-          </div>
-          <div className="auth-field">
-            <label htmlFor="confirmPassword">Tasdiq</label>
-            <input id="confirmPassword" name="confirmPassword" type="password" required minLength={6} disabled={pwdPending} />
-          </div>
-          <button type="submit" className="btn btn-primary btn-sm" disabled={pwdPending}>Yangilash</button>
-        </form>
-      </div>
-    </div>
+            {profileState?.error && (
+              <div className="ad-form-row"><div className="auth-alert auth-alert--error" role="alert">{profileState.error}</div></div>
+            )}
+            {profileState?.success && (
+              <div className="ad-form-row"><div className="auth-alert auth-alert--info" role="status">{profileState.success}</div></div>
+            )}
+            <div className="ad-form-row auth-field">
+              <label htmlFor="fullName">To&apos;liq ism</label>
+              <input id="fullName" name="fullName" type="text" defaultValue={fullName} disabled={profilePending} autoComplete="name" />
+            </div>
+            <div className="ad-form-actions">
+              <button type="submit" className="btn btn-primary btn-sm" disabled={profilePending}>
+                {profilePending ? 'Saqlanmoqda…' : 'Saqlash'}
+              </button>
+            </div>
+          </form>
+        </div>
+      </section>
+
+      <section id="xavfsizlik" aria-labelledby="sec-xavfsizlik">
+        <div className="ad-sec-head"><h2 id="sec-xavfsizlik">Xavfsizlik</h2></div>
+        <div className="ad-group ad-form-group">
+          <form action={pwdAction}>
+            {mustChangePassword && (
+              <div className="ad-form-row">
+                <div className="auth-alert auth-alert--warn" role="status">Birinchi kirish — yangi parol o&apos;rnating.</div>
+              </div>
+            )}
+            {pwdState?.error && (
+              <div className="ad-form-row"><div className="auth-alert auth-alert--error" role="alert">{pwdState.error}</div></div>
+            )}
+            {pwdState?.success && (
+              <div className="ad-form-row"><div className="auth-alert auth-alert--info" role="status">{pwdState.success}</div></div>
+            )}
+            {!mustChangePassword && (
+              <div className="ad-form-row auth-field">
+                <label htmlFor="currentPassword">Joriy parol</label>
+                <input id="currentPassword" name="currentPassword" type="password" required disabled={pwdPending} autoComplete="current-password" />
+              </div>
+            )}
+            <div className="ad-form-row auth-field">
+              <label htmlFor="newPassword">Yangi parol</label>
+              <input id="newPassword" name="newPassword" type="password" required minLength={6} disabled={pwdPending} autoComplete="new-password" />
+            </div>
+            <div className="ad-form-row auth-field">
+              <label htmlFor="confirmPassword">Yangi parolni tasdiqlang</label>
+              <input id="confirmPassword" name="confirmPassword" type="password" required minLength={6} disabled={pwdPending} autoComplete="new-password" />
+            </div>
+            <div className="ad-form-actions">
+              <button type="submit" className="btn btn-primary btn-sm" disabled={pwdPending}>
+                {pwdPending ? 'Yangilanmoqda…' : 'Parolni yangilash'}
+              </button>
+            </div>
+          </form>
+        </div>
+        <p className="ad-sec-foot">Parol kamida 6 belgidan iborat bo&apos;lsin. Parolni unutsangiz, tiklash kodi Telegram orqali keladi.</p>
+      </section>
+    </>
   );
 }

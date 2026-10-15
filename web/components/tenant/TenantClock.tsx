@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Icon from '@/components/icons/Icon';
+import '@/components/tenant/styles/admin.css';
 
 function formatTime(date: Date): string {
   const h = String(date.getHours()).padStart(2, '0');
@@ -21,9 +22,9 @@ export default function TenantClock() {
   }, []);
 
   return (
-    <div className="tenant-clock" aria-live="polite" aria-label="Joriy vaqt">
-      <Icon name="clock" size={16} className="tenant-clock-icon" />
-      <span className="tenant-clock-time" suppressHydrationWarning>
+    <div className="ad-clock" role="timer" aria-label="Joriy vaqt">
+      <Icon name="clock" size={14} />
+      <span suppressHydrationWarning>
         {time || '--:--:--'}
       </span>
     </div>
