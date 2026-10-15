@@ -1,0 +1,356 @@
+[
+  {
+    "text": "Nasiya",
+    "start": 0,
+    "end": 0.36,
+    "id": "w0"
+  },
+  {
+    "text": "deftar",
+    "start": 0.36,
+    "end": 0.69,
+    "id": "w1"
+  },
+  {
+    "text": "ingis",
+    "start": 0.72,
+    "end": 1.02,
+    "id": "w2"
+  },
+  {
+    "text": "halakham",
+    "start": 1.02,
+    "end": 1.47,
+    "id": "w3"
+  },
+  {
+    "text": "qagozdam,",
+    "start": 1.55,
+    "end": 2.2,
+    "id": "w4"
+  },
+  {
+    "text": "kim",
+    "start": 2.38,
+    "end": 2.86,
+    "id": "w5"
+  },
+  {
+    "text": "karzdar,",
+    "start": 3.15,
+    "end": 4.26,
+    "id": "w6"
+  },
+  {
+    "text": "qachan",
+    "start": 4.32,
+    "end": 5.04,
+    "id": "w7"
+  },
+  {
+    "text": "talaydi,",
+    "start": 5.04,
+    "end": 6.12,
+    "id": "w8"
+  },
+  {
+    "text": "unutip",
+    "start": 6.13,
+    "end": 6.41,
+    "id": "w9"
+  },
+  {
+    "text": "qayi",
+    "start": 6.52,
+    "end": 6.7,
+    "id": "w10"
+  },
+  {
+    "text": "dingizmi,",
+    "start": 6.72,
+    "end": 7.43,
+    "id": "w11"
+  },
+  {
+    "text": "tanishin,",
+    "start": 7.7,
+    "end": 8.39,
+    "id": "w12"
+  },
+  {
+    "text": "savara,",
+    "start": 8.39,
+    "end": 9.22,
+    "id": "w13"
+  },
+  {
+    "text": "dakan",
+    "start": 9.44,
+    "end": 9.58,
+    "id": "w14"
+  },
+  {
+    "text": "ingiz",
+    "start": 9.58,
+    "end": 9.94,
+    "id": "w15"
+  },
+  {
+    "text": "uchun",
+    "start": 9.94,
+    "end": 10.29,
+    "id": "w16"
+  },
+  {
+    "text": "yagana",
+    "start": 10.29,
+    "end": 10.69,
+    "id": "w17"
+  },
+  {
+    "text": "tizim,",
+    "start": 10.75,
+    "end": 11.21,
+    "id": "w18"
+  },
+  {
+    "text": "kas",
+    "start": 11.21,
+    "end": 11.43,
+    "id": "w19"
+  },
+  {
+    "text": "sede",
+    "start": 11.43,
+    "end": 11.71,
+    "id": "w20"
+  },
+  {
+    "text": "satu",
+    "start": 11.77,
+    "end": 11.95,
+    "id": "w21"
+  },
+  {
+    "text": "ikki",
+    "start": 12.05,
+    "end": 12.22,
+    "id": "w22"
+  },
+  {
+    "text": "dakikada,",
+    "start": 12.29,
+    "end": 13.16,
+    "id": "w23"
+  },
+  {
+    "text": "nasiya",
+    "start": 13.16,
+    "end": 13.64,
+    "id": "w24"
+  },
+  {
+    "text": "jadwale",
+    "start": 13.64,
+    "end": 14.2,
+    "id": "w25"
+  },
+  {
+    "text": "va",
+    "start": 14.2,
+    "end": 14.35,
+    "id": "w26"
+  },
+  {
+    "text": "eslatmalar",
+    "start": 14.36,
+    "end": 15.07,
+    "id": "w27"
+  },
+  {
+    "text": "automatik,",
+    "start": 15.17,
+    "end": 16.09,
+    "id": "w28"
+  },
+  {
+    "text": "chart",
+    "start": 16.11,
+    "end": 16.32,
+    "id": "w29"
+  },
+  {
+    "text": "nama",
+    "start": 16.32,
+    "end": 16.5,
+    "id": "w30"
+  },
+  {
+    "text": "birtukmada,",
+    "start": 16.5,
+    "end": 17.12,
+    "id": "w31"
+  },
+  {
+    "text": "barche",
+    "start": 17.49,
+    "end": 17.76,
+    "id": "w32"
+  },
+  {
+    "text": "filiyallar",
+    "start": 17.76,
+    "end": 18.3,
+    "id": "w33"
+  },
+  {
+    "text": "bitte",
+    "start": 18.3,
+    "end": 18.52,
+    "id": "w34"
+  },
+  {
+    "text": "ekrande,",
+    "start": 18.62,
+    "end": 19.09,
+    "id": "w35"
+  },
+  {
+    "text": "suni",
+    "start": 19.64,
+    "end": 19.69,
+    "id": "w36"
+  },
+  {
+    "text": "intellect",
+    "start": 19.71,
+    "end": 20.19,
+    "id": "w37"
+  },
+  {
+    "text": "savdanu",
+    "start": 20.19,
+    "end": 20.55,
+    "id": "w38"
+  },
+  {
+    "text": "tahlir",
+    "start": 20.56,
+    "end": 20.88,
+    "id": "w39"
+  },
+  {
+    "text": "klip",
+    "start": 20.88,
+    "end": 21.1,
+    "id": "w40"
+  },
+  {
+    "text": "tapşirik",
+    "start": 21.1,
+    "end": 21.53,
+    "id": "w41"
+  },
+  {
+    "text": "berad,",
+    "start": 21.56,
+    "end": 22,
+    "id": "w42"
+  },
+  {
+    "text": "telefon,",
+    "start": 22,
+    "end": 22.72,
+    "id": "w43"
+  },
+  {
+    "text": "tehnike,",
+    "start": 22.74,
+    "end": 23.44,
+    "id": "w44"
+  },
+  {
+    "text": "mebel",
+    "start": 23.44,
+    "end": 23.82,
+    "id": "w45"
+  },
+  {
+    "text": "dakana,",
+    "start": 23.84,
+    "end": 24.4,
+    "id": "w46"
+  },
+  {
+    "text": "pulingizne",
+    "start": 24.63,
+    "end": 25.28,
+    "id": "w47"
+  },
+  {
+    "text": "vaxte",
+    "start": 25.28,
+    "end": 25.66,
+    "id": "w48"
+  },
+  {
+    "text": "da",
+    "start": 25.66,
+    "end": 25.84,
+    "id": "w49"
+  },
+  {
+    "text": "aling,",
+    "start": 25.84,
+    "end": 26.4,
+    "id": "w50"
+  },
+  {
+    "text": "savara",
+    "start": 26.44,
+    "end": 26.8,
+    "id": "w51"
+  },
+  {
+    "text": "us",
+    "start": 26.89,
+    "end": 27.04,
+    "id": "w52"
+  },
+  {
+    "text": "sayete",
+    "start": 27.04,
+    "end": 27.52,
+    "id": "w53"
+  },
+  {
+    "text": "de",
+    "start": 27.52,
+    "end": 27.68,
+    "id": "w54"
+  },
+  {
+    "text": "antart",
+    "start": 27.68,
+    "end": 28.13,
+    "id": "w55"
+  },
+  {
+    "text": "kün",
+    "start": 28.22,
+    "end": 28.37,
+    "id": "w56"
+  },
+  {
+    "text": "bepul",
+    "start": 28.4,
+    "end": 28.8,
+    "id": "w57"
+  },
+  {
+    "text": "sınapkaring,",
+    "start": 28.8,
+    "end": 29.99,
+    "id": "w58"
+  }
+]

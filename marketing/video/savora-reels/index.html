@@ -1,0 +1,561 @@
+<!doctype html>
+<html lang="uz" data-composition-variables='[{"id":"subs","type":"boolean","label":"Subtitrlar","default":true}]'>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1080, height=1920" />
+    <title>Savora Reels 30s</title>
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <style>
+      @font-face { font-family: "Onest"; src: url("assets/fonts/Onest.ttf") format("truetype"); font-weight: 100 900; }
+      @font-face { font-family: "Unbounded"; src: url("assets/fonts/Unbounded.ttf") format("truetype"); font-weight: 200 900; }
+      :root {
+        --kob: #1f4fa8; --kob2: #3a68c4; --kob3: #173f8f; --gold: #e0a526; --gold2: #f0bf4c;
+        --dark: #0d1526; --dark2: #121d33; --light: #f2f4f9; --muted: #9fb0cf; --red: #e5484d; --green: #2fb36d;
+      }
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body { width: 1080px; height: 1920px; overflow: hidden; background: var(--dark); }
+      #root { position: relative; width: 100%; height: 100%; overflow: hidden; font-family: "Onest", sans-serif; color: var(--light); background: var(--dark); }
+      .clip { position: absolute; inset: 0; overflow: hidden; }
+      .abs { position: absolute; }
+      .w, .c { display: inline-block; will-change: transform, opacity; }
+      .disp { font-family: "Unbounded", sans-serif; letter-spacing: -0.02em; }
+      .cx { position: absolute; left: 60px; right: 60px; text-align: center; }
+
+      /* ---------- shared background ---------- */
+      #bg { position: absolute; inset: 0; }
+      #bg .glow { position: absolute; border-radius: 50%; filter: blur(90px); }
+      #glowA { width: 900px; height: 900px; left: -260px; top: 180px; background: rgba(31,79,168,.55); }
+      #glowB { width: 760px; height: 760px; left: 520px; top: 1080px; background: rgba(58,104,196,.35); }
+      #glowC { width: 520px; height: 520px; left: 600px; top: 120px; background: rgba(224,165,38,.12); }
+      #grid { position: absolute; left: -200px; top: -200px; width: 1480px; height: 2320px;
+        background-image: radial-gradient(rgba(159,176,207,.16) 2px, transparent 2.5px); background-size: 56px 56px; }
+
+      /* ---------- S1 hook ---------- */
+      #s1 .l1 { top: 250px; font-size: 80px; font-weight: 700; }
+      #s1 .l2 { top: 372px; font-size: 58px; font-weight: 600; color: var(--muted); font-family: "Onest"; }
+      #s1 .l3 { top: 452px; font-size: 104px; font-weight: 800; color: var(--gold2); }
+      .notebook { position: absolute; left: 215px; top: 700px; width: 650px; height: 760px; }
+      .page { position: absolute; inset: 0; border-radius: 18px; background: #f3ead6;
+        background-image: repeating-linear-gradient(to bottom, transparent 0 61px, rgba(58,104,196,.35) 61px 63px);
+        box-shadow: 0 40px 80px rgba(0,0,0,.55), inset 0 0 60px rgba(120,90,40,.18); }
+      .page::before { content: ""; position: absolute; left: 92px; top: 0; bottom: 0; width: 3px; background: rgba(229,72,77,.55); }
+      .page.back1 { background: #e9dfc6; }
+      .page.back2 { background: #e2d6ba; }
+      .page .rows { position: absolute; left: 116px; right: 30px; top: 92px; }
+      .page .row { height: 63px; display: flex; align-items: flex-end; padding-bottom: 8px; font-size: 34px; font-weight: 500; color: #24345e; font-style: italic; }
+      .page .row s { text-decoration-color: rgba(229,72,77,.85); text-decoration-thickness: 4px; }
+      .page .row b { margin-left: auto; color: #b0302f; font-weight: 700; }
+      .page .stain { position: absolute; right: 70px; bottom: 90px; width: 150px; height: 150px; border-radius: 50%; border: 10px solid rgba(140,96,40,.18); }
+      .page .title { position: absolute; left: 116px; top: 22px; font-size: 36px; font-weight: 800; color: #24345e; letter-spacing: .04em; }
+      .spiral { position: absolute; left: 24px; top: 40px; bottom: 40px; width: 36px;
+        background-image: radial-gradient(circle at 18px 18px, #3b3f4a 9px, transparent 10px); background-size: 36px 64px; }
+
+      /* ---------- S2 pain ---------- */
+      #s2 .tint { position: absolute; inset: 0; background: radial-gradient(circle at 50% 50%, rgba(229,72,77,.0) 30%, rgba(229,72,77,.18) 100%); }
+      .note { position: absolute; padding: 22px 26px; border-radius: 16px; background: #f3ead6; color: #24345e; font-size: 30px; font-weight: 600; font-style: italic; box-shadow: 0 20px 40px rgba(0,0,0,.45); white-space: nowrap; }
+      .note i { display: inline-block; width: 14px; height: 14px; border-radius: 50%; background: var(--red); margin-right: 12px; }
+      .q { position: absolute; left: 60px; right: 60px; top: 830px; text-align: center; font-size: 92px; font-weight: 800; line-height: 1.08; }
+      .q .red { color: #ff6b6f; }
+      #q3scrib { position: absolute; left: 190px; top: 1090px; width: 700px; height: 60px; }
+      #wipe { position: absolute; left: 540px; top: 960px; width: 40px; height: 40px; margin: -20px 0 0 -20px; border-radius: 50%; background: var(--kob); }
+
+      /* ---------- S3 reveal ---------- */
+      #s3 .rbg { position: absolute; inset: 0; background: radial-gradient(circle at 50% 40%, #2a5cbc 0%, var(--kob) 30%, #12306e 62%, var(--dark) 100%); }
+      #logo3 { position: absolute; left: 400px; top: 380px; width: 280px; height: 280px; }
+      .logo-svg { width: 100%; height: 100%; display: block; overflow: visible; }
+      #s3 .word { top: 720px; font-size: 156px; font-weight: 800; }
+      #s3 .tag { top: 960px; font-size: 50px; font-weight: 600; color: #dfe7f7; }
+      #s3 .chips { position: absolute; left: 60px; right: 60px; top: 1080px; display: flex; justify-content: center; gap: 18px; }
+      .chip { padding: 16px 30px; border-radius: 999px; font-size: 34px; font-weight: 700; background: rgba(255,255,255,.12); border: 2px solid rgba(255,255,255,.22); color: #fff; white-space: nowrap; }
+      .chip.gold { background: rgba(224,165,38,.18); border-color: rgba(240,191,76,.6); color: var(--gold2); }
+      #shine { position: absolute; left: 0; top: 0; width: 140px; height: 280px; background: linear-gradient(90deg, transparent, rgba(255,255,255,.55), transparent); }
+      #logo3 .mask { position: absolute; inset: 0; border-radius: 67px; overflow: hidden; }
+
+      /* ---------- S4 features ---------- */
+      .fhead { position: absolute; left: 60px; right: 60px; top: 238px; text-align: center; }
+      .fhead .idx { display: inline-block; font-size: 28px; font-weight: 700; color: var(--gold2); letter-spacing: .14em; padding: 8px 20px; border: 2px solid rgba(240,191,76,.5); border-radius: 999px; }
+      .fhead .ft { margin-top: 18px; font-size: 76px; font-weight: 800; line-height: 1.05; }
+      .fhead .fs { margin-top: 12px; font-size: 42px; font-weight: 600; color: #cfdaf0; }
+      .fhead .fs em { font-style: normal; color: var(--gold2); }
+      #persp { position: absolute; left: 0; top: 0; width: 1080px; height: 1920px; perspective: 2000px; }
+      #phone { position: absolute; left: 244px; top: 560px; width: 592px; height: 1158px; border-radius: 86px; background: #05080f;
+        box-shadow: 0 0 0 3px #2b3550, 0 60px 120px rgba(0,0,0,.6), 0 0 120px rgba(58,104,196,.35); transform-style: preserve-3d; }
+      #screen { position: absolute; left: 16px; top: 16px; width: 560px; height: 1126px; border-radius: 70px; overflow: hidden; background: #0b1220; }
+      #screen img { position: absolute; left: 0; top: 0; width: 560px; height: 1126px; object-fit: cover; object-position: top; }
+      #island { position: absolute; left: 226px; top: 34px; width: 140px; height: 40px; border-radius: 20px; background: #000; }
+      #glare { position: absolute; left: 16px; top: 16px; width: 560px; height: 1126px; border-radius: 70px; background: linear-gradient(115deg, rgba(255,255,255,.14) 0%, rgba(255,255,255,0) 35%); pointer-events: none; }
+      .card { position: absolute; border-radius: 28px; background: rgba(18,29,51,.94); border: 2px solid rgba(159,176,207,.25); box-shadow: 0 30px 70px rgba(0,0,0,.55); padding: 24px 28px; color: var(--light); }
+      .card .k { font-size: 24px; color: var(--muted); font-weight: 600; }
+      .card .v { font-size: 38px; font-weight: 800; margin-top: 4px; white-space: nowrap; }
+      .card .row { display: flex; align-items: center; gap: 16px; }
+      .ic { width: 64px; height: 64px; border-radius: 18px; display: grid; place-items: center; flex: none; }
+      .ic svg { width: 36px; height: 36px; }
+      .ok { background: rgba(47,179,109,.18); color: #49d18a; }
+      .bl { background: rgba(58,104,196,.3); color: #8fb0ff; }
+      .gd { background: rgba(224,165,38,.2); color: var(--gold2); }
+      .dots { display: flex; gap: 12px; margin-top: 14px; }
+      .dots i { display: block; width: 44px; height: 14px; border-radius: 7px; background: rgba(159,176,207,.25); }
+      .dots i b { display: block; width: 100%; height: 100%; border-radius: 7px; background: var(--gold2); }
+      #cust { left: 70px; top: 640px; width: 620px; padding: 32px 34px; border-radius: 30px; background: #f8f9fc; color: #14213d; border: none; }
+      #cust .hd { display: flex; align-items: center; gap: 18px; }
+      #cust .av { width: 84px; height: 84px; border-radius: 50%; background: #2fb36d; color: #fff; display: grid; place-items: center; font-family: "Unbounded"; font-weight: 800; font-size: 30px; flex: none; }
+      #cust .nm { font-family: "Unbounded"; font-weight: 800; font-size: 34px; color: var(--kob); }
+      #cust .ph { font-size: 25px; color: #5a6a8a; font-weight: 600; margin-top: 4px; }
+      #cust .sum { display: flex; gap: 14px; margin-top: 24px; }
+      #cust .sum div { flex: 1; background: #eef2fa; border-radius: 18px; padding: 14px 18px; }
+      #cust .sum span { display: block; font-size: 22px; color: #5a6a8a; font-weight: 600; }
+      #cust .sum b { display: block; font-size: 30px; font-weight: 800; margin-top: 4px; white-space: nowrap; }
+      #cust .hist { margin-top: 20px; }
+      #cust .ev { display: flex; align-items: center; gap: 14px; padding: 13px 0; border-top: 2px solid #e2e7f1; font-size: 25px; font-weight: 600; }
+      #cust .ev i { width: 16px; height: 16px; border-radius: 50%; flex: none; display: block; }
+      #cust .ev .t { color: #5a6a8a; width: 92px; flex: none; }
+      #cust .ev .a { margin-left: auto; font-weight: 800; white-space: nowrap; }
+      #desk { left: 520px; top: 690px; width: 520px; height: 352px; padding: 12px; border-radius: 24px; background: #1b2540; }
+      #desk img { width: 496px; height: 298px; display: block; border-radius: 14px; object-fit: cover; object-position: left top; }
+      #desk .bar { height: 18px; display: flex; gap: 8px; align-items: center; padding-left: 6px; margin-bottom: 6px; }
+      #desk .bar i { width: 10px; height: 10px; border-radius: 50%; background: #48557a; display: block; }
+      #ai { left: 90px; top: 700px; width: 900px; padding: 30px 32px 34px; border-radius: 34px; background: rgba(13,21,38,.96); border: 2px solid rgba(240,191,76,.45); box-shadow: 0 40px 90px rgba(0,0,0,.6), 0 0 80px rgba(224,165,38,.18); }
+      #ai .top { display: flex; align-items: center; gap: 16px; font-family: "Unbounded"; font-weight: 700; font-size: 34px; }
+      #ai .top .ic { width: 58px; height: 58px; }
+      .bub { margin-top: 22px; padding: 20px 26px; border-radius: 26px; font-size: 32px; font-weight: 600; line-height: 1.35; }
+      .bub.me { margin-left: auto; width: fit-content; max-width: 640px; background: var(--kob); border-bottom-right-radius: 8px; }
+      .bub.bot { background: #18243f; border-bottom-left-radius: 8px; max-width: 800px; }
+      .bub.bot em { font-style: normal; color: var(--gold2); font-weight: 800; }
+      .task { display: flex; align-items: center; gap: 16px; margin-top: 16px; font-size: 30px; font-weight: 600; }
+      .task .cb { width: 40px; height: 40px; border-radius: 12px; border: 3px solid var(--gold2); flex: none; display: grid; place-items: center; }
+      .task .cb svg { width: 26px; height: 26px; }
+
+      /* ---------- S5 benefit ---------- */
+      .slot { position: absolute; left: 60px; right: 60px; top: 840px; height: 190px; text-align: center; }
+      .slot .sw { position: absolute; left: 0; right: 0; top: 0; font-size: 150px; font-weight: 800; color: #fff; }
+      #s5 .shops { top: 300px; font-size: 40px; font-weight: 700; color: var(--muted); }
+      #s5 .p1 { top: 640px; font-size: 76px; font-weight: 700; }
+      #s5 .p2 { top: 760px; font-size: 128px; font-weight: 800; color: var(--gold2); line-height: 1.02; }
+      #track { position: absolute; left: 120px; width: 840px; top: 1100px; padding: 30px 34px; }
+      #track .segs { display: flex; gap: 14px; margin-top: 18px; }
+      #track .segs i { flex: 1; display: block; height: 30px; border-radius: 15px; background: rgba(159,176,207,.22); overflow: hidden; }
+      #track .segs i b { display: block; width: 100%; height: 100%; background: linear-gradient(90deg, var(--gold), var(--gold2)); }
+      #track .lab { display: flex; justify-content: space-between; font-size: 30px; font-weight: 700; }
+      #track .lab span:last-child { color: #49d18a; }
+
+      /* ---------- S6 CTA ---------- */
+      #s6 .rbg { position: absolute; inset: 0; background: radial-gradient(circle at 50% 42%, #2a5cbc 0%, var(--kob) 26%, #12306e 58%, var(--dark) 100%); }
+      #logo6 { position: absolute; left: 430px; top: 330px; width: 220px; height: 220px; }
+      #s6 .word { top: 600px; font-size: 128px; font-weight: 800; }
+      #btn { position: absolute; left: 150px; width: 780px; top: 820px; height: 150px; border-radius: 80px; background: #fff; color: var(--kob); display: grid; place-items: center; font-family: "Unbounded"; font-weight: 800; font-size: 76px; box-shadow: 0 30px 70px rgba(0,0,0,.4), 0 0 0 8px rgba(240,191,76,.45); overflow: hidden; }
+      #btnshine { position: absolute; left: 0; top: 0; width: 160px; height: 150px; background: linear-gradient(90deg, transparent, rgba(58,104,196,.25), transparent); }
+      #s6 .free { top: 1035px; font-size: 92px; font-weight: 800; color: var(--gold2); }
+      #s6 .free2 { top: 1170px; font-size: 40px; font-weight: 600; color: #dfe7f7; }
+      #ripple { position: absolute; left: 860px; top: 935px; width: 60px; height: 60px; margin: -30px 0 0 -30px; border-radius: 50%; border: 6px solid #fff; }
+      #finger { position: absolute; left: 830px; top: 915px; width: 90px; height: 90px; border-radius: 50%; background: rgba(255,255,255,.85); box-shadow: 0 10px 30px rgba(0,0,0,.35); }
+
+      /* ---------- subtitles ---------- */
+      #subs { position: absolute; left: 0; top: 0; width: 1080px; height: 1920px; pointer-events: none; }
+      .sub { position: absolute; left: 70px; right: 70px; top: 1408px; height: 128px; display: flex; align-items: center; justify-content: center; }
+      .sub > span { display: inline-block; max-width: 940px; padding: 18px 34px; border-radius: 26px; background: rgba(8,13,26,.86); border: 2px solid rgba(255,255,255,.08);
+        font-size: 50px; font-weight: 700; line-height: 1.18; text-align: center; color: #fff; }
+      .sub > span em { font-style: normal; color: var(--gold2); }
+    </style>
+  </head>
+  <body>
+    <div id="root" data-composition-id="main" data-start="0" data-duration="30" data-width="1080" data-height="1920" data-fps="30">
+      <!-- Shared background (untimed) -->
+      <div id="bg">
+        <div id="grid"></div>
+        <div class="glow" id="glowA"></div>
+        <div class="glow" id="glowB"></div>
+        <div class="glow" id="glowC"></div>
+      </div>
+
+      <!-- S1 HOOK 0-3 -->
+      <section id="s1" class="clip" data-start="0" data-duration="3.05" data-track-index="1">
+        <div id="s1cam" class="abs" style="inset:0">
+          <div class="cx disp l1 split">Nasiya daftaringiz</div>
+          <div class="cx l2 split">hali ham</div>
+          <div class="cx disp l3 split">qog'ozdami?</div>
+          <div class="notebook" id="nb">
+            <div class="page back2" id="pg3"></div>
+            <div class="page back1" id="pg2"></div>
+            <div class="page" id="pg1">
+              <div class="spiral"></div>
+              <div class="title">NASIYA DAFTAR</div>
+              <div class="rows">
+                <div class="row">Akmal — Redmi <b>2 900 000</b></div>
+                <div class="row"><s>Dilnoza — Galaxy</s> <b>6 500 000?</b></div>
+                <div class="row">Sardor — iPhone 15, 6 oy</div>
+                <div class="row">Nodira — ??? <b>qachon?</b></div>
+                <div class="row"><s>Bekzod — muzlatkich</s></div>
+                <div class="row">Jamshid — divan <b>3 oy</b></div>
+                <div class="row">...</div>
+              </div>
+              <div class="stain"></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- S2 PAIN 2.9-7.6 -->
+      <section id="s2" class="clip" data-start="2.9" data-duration="4.7" data-track-index="2">
+        <div id="s2cam" class="abs" style="inset:0">
+          <div class="tint"></div>
+          <div class="note" id="n1" style="left:60px;top:300px"><i></i>Akmal K. — 2 900 000</div>
+          <div class="note" id="n2" style="left:600px;top:420px"><i></i>Muddati?</div>
+          <div class="note" id="n3" style="left:90px;top:560px">Qarz: 10 500 000</div>
+          <div class="note" id="n4" style="left:640px;top:1300px"><i></i>13.11 — ?</div>
+          <div class="note" id="n5" style="left:70px;top:1230px">Dilnoza Y. — 6 oy</div>
+          <div class="note" id="n6" style="left:560px;top:620px">Nodira — ???</div>
+          <div class="q disp" id="q1">Kim <span class="red">qarzdor?</span></div>
+          <div class="q disp" id="q2">Qachon <span class="red">to'laydi?</span></div>
+          <div class="q disp" id="q3">Unutib qo'ydingizmi?</div>
+          <svg id="q3scrib" viewBox="0 0 700 60"><path id="scribP" d="M10 40 C 120 10, 230 55, 350 30 S 580 10, 690 38" fill="none" stroke="#ff6b6f" stroke-width="10" stroke-linecap="round"/></svg>
+        </div>
+        <div id="wipe"></div>
+      </section>
+
+      <!-- S3 REVEAL 7.3-11.3 -->
+      <section id="s3" class="clip" data-start="7.3" data-duration="4.0" data-track-index="3">
+        <div class="rbg" id="s3bg"></div>
+        <div id="s3cam" class="abs" style="inset:0">
+          <div id="logo3">
+            <svg class="logo-svg" viewBox="0 0 100 100">
+              <defs><linearGradient id="lg3" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3a68c4"/><stop offset="1" stop-color="#173f8f"/></linearGradient></defs>
+              <rect id="l3sq" width="100" height="100" rx="24" fill="url(#lg3)" stroke="rgba(255,255,255,.25)" stroke-width="1"/>
+              <rect class="l3bar" x="20" y="58" width="13" height="24" rx="6.5" fill="#fff" opacity=".55"/>
+              <rect class="l3bar" x="40" y="45" width="13" height="37" rx="6.5" fill="#fff" opacity=".8"/>
+              <rect class="l3bar" x="60" y="32" width="13" height="50" rx="6.5" fill="#fff"/>
+              <path id="l3curve" d="M24 46C38 28 58 20 79 21" fill="none" stroke="#f0bf4c" stroke-width="6.5" stroke-linecap="round"/>
+              <circle id="l3dot" cx="79" cy="21" r="6.5" fill="#f0bf4c"/>
+            </svg>
+            <div class="mask"><div id="shine"></div></div>
+          </div>
+          <div class="cx disp word chars">Savora</div>
+          <div class="cx tag split">Do'koningiz uchun yagona tizim</div>
+          <div class="chips">
+            <div class="chip">Kassa</div><div class="chip">Ombor</div><div class="chip gold">Nasiya</div><div class="chip">AI yordamchi</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- S4 FEATURES 10.9-22.7 -->
+      <section id="s4" class="clip" data-start="10.9" data-duration="11.8" data-track-index="4">
+        <div id="s4cam" class="abs" style="inset:0">
+          <div class="fhead" id="h1"><div class="idx">01 · KASSA</div><div class="ft disp split">Sotuv 2 daqiqada</div><div class="fs split">Naqd, qarz, <em>nasiya</em> yoki bank krediti</div></div>
+          <div class="fhead" id="h2"><div class="idx">02 · NASIYA</div><div class="ft disp split">Nasiya jadvali</div><div class="fs split">To'lov <em>eslatmalari</em> avtomatik</div></div>
+          <div class="fhead" id="h3"><div class="idx">03 · MIJOZLAR</div><div class="ft disp split">Mijoz tarixi</div><div class="fs split">Sotuv, to'lov va <em>qoldiq</em> — bir joyda</div></div>
+          <div class="fhead" id="h4"><div class="idx">04 · FILIALLAR</div><div class="ft disp split">Ko'p filial</div><div class="fs split">Hammasi <em>bitta ekranda</em></div></div>
+          <div class="fhead" id="h5"><div class="idx">05 · AI YORDAMCHI</div><div class="ft disp split">Tahlil va topshiriq</div><div class="fs split">Biznesingiz raqamlari — <em>aniq vazifa</em></div></div>
+
+          <div id="persp">
+            <div id="desk" class="card"><div class="bar"><i></i><i></i><i></i></div><img src="assets/shots/desk_monitoring_c.png" alt="" /></div>
+            <div id="phone">
+              <div id="screen">
+                <img id="sc1" src="assets/shots/app_sales_new.png" alt="" />
+                <img id="sc2" src="assets/shots/app_sales_ID.png" alt="" />
+                <img id="sc3" src="assets/shots/app_sales.png" alt="" />
+                <img id="sc4" src="assets/shots/app_users.png" alt="" />
+                <img id="sc5" src="assets/shots/app_monitoring.png" alt="" />
+              </div>
+              <div id="glare"></div>
+              <div id="island"></div>
+            </div>
+
+            <!-- F1 chips -->
+            <div class="card" id="c1a" style="left:40px;top:760px"><div class="row"><div class="ic bl"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2M9 2h6"/></svg></div><div><div class="k">Sotuv vaqti</div><div class="v">~2 daqiqa</div></div></div></div>
+            <div class="card" id="c1b" style="left:600px;top:1150px"><div class="row"><div class="ic ok"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></div><div><div class="k">Sotuv S-0004</div><div class="v">Tasdiqlandi</div></div></div></div>
+            <!-- F2 chips -->
+            <div class="card" id="c2a" style="left:520px;top:700px;width:520px"><div class="row"><div class="ic gd"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg></div><div><div class="k">Eslatma · 13.11.2026</div><div class="v" style="font-size:32px">2 916 666 so'm</div></div></div></div>
+            <div class="card" id="c2b" style="left:40px;top:1120px;width:470px"><div class="k">To'lov jadvali · 6 oy</div><div class="dots"><i><b class="d"></b></i><i><b class="d"></b></i><i><b class="d"></b></i><i><b class="d"></b></i><i><b class="d"></b></i><i><b class="d"></b></i></div></div>
+            <!-- F3 customer history -->
+            <div class="card" id="cust">
+              <div class="hd"><div class="av">SA</div><div><div class="nm">Sardor Aliyev</div><div class="ph">+998 93 555 11 22</div></div></div>
+              <div class="sum"><div><span>Jami summa</span><b>17 500 000</b></div><div><span>Qoldiq qarz</span><b style="color:#c2410c">17 500 000</b></div></div>
+              <div class="hist">
+                <div class="ev hv"><i style="background:#3a68c4"></i><span class="t">13.10</span>Sotuv S-0004 · iPhone 15<span class="a">17,5 mln</span></div>
+                <div class="ev hv"><i style="background:#e0a526"></i><span class="t">13.11</span>1-oy to'lovi<span class="a">2 916 666</span></div>
+                <div class="ev hv"><i style="background:#9fb0cf"></i><span class="t">13.12</span>2-oy to'lovi<span class="a">2 916 666</span></div>
+              </div>
+            </div>
+            <!-- F4 chips -->
+            <div class="card" id="c4a" style="left:40px;top:1110px"><div class="row"><div class="ic bl"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18M5 21V8l7-5 7 5v13M9 21v-6h6v6"/></svg></div><div><div class="k">Asosiy filial</div><div class="v">40 700 000</div></div></div></div>
+            <div class="card" id="c4b" style="left:600px;top:1210px"><div class="row"><div class="ic gd"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18M5 21V8l7-5 7 5v13M9 21v-6h6v6"/></svg></div><div><div class="k">Chilonzor filiali</div><div class="v">onlayn</div></div></div></div>
+            <!-- F5 AI -->
+            <div class="card" id="ai">
+              <div class="top"><div class="ic gd"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l1.9 5.6L19.5 9.5l-5.6 1.9L12 17l-1.9-5.6L4.5 9.5l5.6-1.9zM19 15l.9 2.6 2.6.9-2.6.9L19 22l-.9-2.6-2.6-.9 2.6-.9z"/></svg></div>AI yordamchi</div>
+              <div class="bub me" id="aiq">Bu oy savdo qanday?</div>
+              <div class="bub bot" id="aia"><span class="tw">Aylanma </span><em class="tw">40,7 mln so'm.</em><span class="tw"> Savdoning </span><em class="tw">43 foizi</em><span class="tw"> nasiyada.</span></div>
+              <div class="task" id="t1"><div class="cb"><svg viewBox="0 0 24 24" fill="none" stroke="#f0bf4c" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path class="tick" d="M20 6 9 17l-5-5"/></svg></div>Sardor Aliyevga 13.11 to'lovini eslatish</div>
+              <div class="task" id="t2"><div class="cb"><svg viewBox="0 0 24 24" fill="none" stroke="#f0bf4c" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path class="tick" d="M20 6 9 17l-5-5"/></svg></div>Chilonzor filialiga tovar o'tkazish</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- S5 BENEFIT 22.4-26.2 -->
+      <section id="s5" class="clip" data-start="22.4" data-duration="3.8" data-track-index="5">
+        <div id="s5cam" class="abs" style="inset:0">
+          <div class="slot" id="slot">
+            <div class="sw disp" id="sw1">Telefon</div>
+            <div class="sw disp" id="sw2">Texnika</div>
+            <div class="sw disp" id="sw3">Mebel</div>
+          </div>
+          <div class="cx shops" id="shops">Telefon · Texnika · Mebel do'konlari uchun</div>
+          <div class="cx p1 split">Pulingizni</div>
+          <div class="cx disp p2 split">vaqtida oling</div>
+          <div class="card" id="track">
+            <div class="lab"><span>Nasiya · iPhone 15 Pro Max</span><span id="cnt">0/6</span></div>
+            <div class="segs"><i><b class="sg"></b></i><i><b class="sg"></b></i><i><b class="sg"></b></i><i><b class="sg"></b></i><i><b class="sg"></b></i><i><b class="sg"></b></i></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- S6 CTA 25.9-30 -->
+      <section id="s6" class="clip" data-start="25.9" data-duration="4.1" data-track-index="6">
+        <div class="rbg" id="s6bg"></div>
+        <div id="s6cam" class="abs" style="inset:0">
+          <div id="logo6">
+            <svg class="logo-svg" viewBox="0 0 100 100">
+              <defs><linearGradient id="lg6" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3a68c4"/><stop offset="1" stop-color="#173f8f"/></linearGradient></defs>
+              <rect width="100" height="100" rx="24" fill="url(#lg6)" stroke="rgba(255,255,255,.3)" stroke-width="1"/>
+              <rect x="20" y="58" width="13" height="24" rx="6.5" fill="#fff" opacity=".55"/>
+              <rect x="40" y="45" width="13" height="37" rx="6.5" fill="#fff" opacity=".8"/>
+              <rect x="60" y="32" width="13" height="50" rx="6.5" fill="#fff"/>
+              <path d="M24 46C38 28 58 20 79 21" fill="none" stroke="#f0bf4c" stroke-width="6.5" stroke-linecap="round"/>
+              <circle cx="79" cy="21" r="6.5" fill="#f0bf4c"/>
+            </svg>
+          </div>
+          <div class="cx disp word chars">Savora</div>
+          <div id="btn"><div id="btnshine"></div><span>savora.uz</span></div>
+          <div id="ripple"></div>
+          <div id="finger"></div>
+          <div class="cx disp free split">14 kun bepul</div>
+          <div class="cx free2 split">Kassa · Ombor · Nasiya · AI yordamchi</div>
+        </div>
+      </section>
+
+      <!-- SUBTITLES (variable: subs) -->
+      <div id="subs">
+        <div id="sub01" class="clip sub" data-start="0.35" data-duration="0.75"><span>Nasiya daftaringiz</span></div>
+        <div id="sub02" class="clip sub" data-start="1.1" data-duration="1.4"><span>hali ham <em>qog'ozdami?</em></span></div>
+        <div id="sub03" class="clip sub" data-start="3.15" data-duration="1.15"><span>Kim qarzdor?</span></div>
+        <div id="sub04" class="clip sub" data-start="4.3" data-duration="1.8"><span>Qachon to'laydi?</span></div>
+        <div id="sub05" class="clip sub" data-start="6.1" data-duration="1.3"><span>Unutib qo'ydingizmi?</span></div>
+        <div id="sub06" class="clip sub" data-start="7.7" data-duration="1.7"><span>Tanishing: <em>Savora.</em></span></div>
+        <div id="sub07" class="clip sub" data-start="9.4" data-duration="1.65"><span>Do'koningiz uchun yagona tizim.</span></div>
+        <div id="sub08" class="clip sub" data-start="11.15" data-duration="1.85"><span>Kassada sotuv <em>ikki daqiqada.</em></span></div>
+        <div id="sub09" class="clip sub" data-start="13.6" data-duration="1.5"><span>Nasiya jadvali va eslatmalar</span></div>
+        <div id="sub10" class="clip sub" data-start="15.1" data-duration="0.85"><span><em>avtomatik.</em></span></div>
+        <div id="sub11" class="clip sub" data-start="16.0" data-duration="0.95"><span>Har bir mijozning</span></div>
+        <div id="sub11b" class="clip sub" data-start="16.95" data-duration="1.0"><span><em>to'lov tarixi</em> bir joyda.</span></div>
+        <div id="sub12" class="clip sub" data-start="18.0" data-duration="1.45"><span>Barcha filiallar <em>bitta ekranda.</em></span></div>
+        <div id="sub13" class="clip sub" data-start="19.65" data-duration="1.2"><span><em>AI</em> biznesingizni tahlil qiladi</span></div>
+        <div id="sub14" class="clip sub" data-start="20.85" data-duration="1.45"><span>va <em>topshiriq beradi.</em></span></div>
+        <div id="sub15" class="clip sub" data-start="22.7" data-duration="1.85"><span>Telefon, texnika, mebel do'koni:</span></div>
+        <div id="sub16" class="clip sub" data-start="24.55" data-duration="1.4"><span>pulingizni <em>vaqtida oling.</em></span></div>
+        <div id="sub17" class="clip sub" data-start="26.4" data-duration="1.25"><span><em>savora.uz</em> saytida</span></div>
+        <div id="sub18" class="clip sub" data-start="27.65" data-duration="2.0"><span><em>14 kun bepul</em> sinab ko'ring!</span></div>
+      </div>
+    </div>
+
+    <script>
+      (function () {
+        // --- deterministic text splitting (build time)
+        document.querySelectorAll(".split").forEach((el) => {
+          const walk = (node) => {
+            [...node.childNodes].forEach((ch) => {
+              if (ch.nodeType === 3) {
+                const parts = ch.textContent.split(/(\s+)/);
+                const frag = document.createDocumentFragment();
+                parts.forEach((p) => {
+                  if (!p) return;
+                  if (/^\s+$/.test(p)) frag.appendChild(document.createTextNode(" "));
+                  else { const s = document.createElement("span"); s.className = "w"; s.textContent = p; frag.appendChild(s); }
+                });
+                ch.replaceWith(frag);
+              } else if (ch.nodeType === 1) {
+                if (ch.classList.contains("w")) return;
+                ch.classList.add("w");
+              }
+            });
+          };
+          walk(el);
+        });
+        document.querySelectorAll(".chars").forEach((el) => {
+          const t = el.textContent; el.textContent = "";
+          [...t].forEach((c) => { const s = document.createElement("span"); s.className = "c"; s.textContent = c; el.appendChild(s); });
+        });
+
+        const vars = (window.__hyperframes && window.__hyperframes.getVariables && window.__hyperframes.getVariables()) || {};
+        if (vars.subs === false || vars.subs === "false") document.getElementById("subs").style.display = "none";
+
+        const tl = gsap.timeline({ paused: true });
+        const q = (s) => document.querySelector(s);
+        const qa = (s) => [...document.querySelectorAll(s)];
+
+        // ---------- shared background drift (camera parallax)
+        tl.fromTo("#grid", { x: 0, y: 0 }, { x: -120, y: -260, duration: 30, ease: "none" }, 0);
+        tl.fromTo("#glowA", { x: 0, y: 0, scale: 1 }, { x: 260, y: 300, scale: 1.25, duration: 30, ease: "sine.inOut" }, 0);
+        tl.fromTo("#glowB", { x: 0, y: 0 }, { x: -380, y: -420, duration: 30, ease: "sine.inOut" }, 0);
+        tl.fromTo("#glowC", { x: 0, opacity: 0.6 }, { x: -500, opacity: 1, duration: 30, ease: "sine.inOut" }, 0);
+
+        // ================= S1 HOOK =================
+        tl.fromTo("#s1cam", { scale: 1.08 }, { scale: 1, duration: 2.7, ease: "power2.out" }, 0);
+        tl.fromTo("#s1 .l1 .w", { y: 90, opacity: 0, rotation: 6 }, { y: 0, opacity: 1, rotation: 0, duration: 0.55, stagger: 0.22, ease: "back.out(1.7)" }, 0.3);
+        tl.fromTo("#s1 .l2 .w", { y: 40, opacity: 0 }, { y: 0, opacity: 1, duration: 0.4, stagger: 0.1, ease: "power3.out" }, 1.0);
+        tl.fromTo("#s1 .l3 .w", { scale: 2.2, opacity: 0, filter: "blur(16px)" }, { scale: 1, opacity: 1, filter: "blur(0px)", duration: 0.45, ease: "expo.out" }, 1.45);
+        tl.fromTo("#s1 .l3", { x: 0 }, { keyframes: [{ x: -10, duration: 0.05 }, { x: 9, duration: 0.05 }, { x: -6, duration: 0.05 }, { x: 0, duration: 0.05 }] }, 1.85);
+        // notebook enters
+        tl.fromTo("#nb", { y: 520, rotation: -18, opacity: 0, scale: 0.9 }, { y: 0, rotation: -5, opacity: 1, scale: 1, duration: 0.7, ease: "back.out(1.4)" }, 0.05);
+        tl.fromTo("#pg2", { rotation: 0 }, { rotation: 3, duration: 0.7, ease: "power2.out" }, 0.1);
+        tl.fromTo("#pg3", { rotation: 0 }, { rotation: -3, duration: 0.7, ease: "power2.out" }, 0.1);
+        // flies away: pages scatter
+        tl.to("#pg1", { x: 760, y: -1250, rotation: 48, scale: 0.7, duration: 0.95, ease: "power3.in" }, 1.75);
+        tl.to("#pg2", { x: -820, y: -900, rotation: -40, scale: 0.75, duration: 0.95, ease: "power3.in" }, 1.85);
+        tl.to("#pg3", { x: 600, y: 900, rotation: 30, scale: 0.8, duration: 0.95, ease: "power3.in" }, 1.95);
+        // exit: zoom-through into S2
+        tl.to("#s1cam", { scale: 1.6, opacity: 0, filter: "blur(14px)", duration: 0.3, ease: "power3.in" }, 2.75);
+
+        // ================= S2 PAIN =================
+        tl.fromTo("#s2cam", { scale: 0.7, opacity: 0, filter: "blur(14px)" }, { scale: 1, opacity: 1, filter: "blur(0px)", duration: 0.35, ease: "power3.out" }, 2.9);
+        tl.fromTo("#s2cam", { rotation: 0 }, { rotation: -1.5, duration: 4.3, ease: "sine.inOut", immediateRender: false }, 3.2);
+        qa(".note").forEach((n, i) => {
+          const rot = [-8, 6, 4, -6, 7, -4][i];
+          tl.fromTo(n, { opacity: 0, scale: 0.6, rotation: rot * 2, y: 40 }, { opacity: 0.85 - (i % 3) * 0.18, scale: 1 - (i % 3) * 0.12, rotation: rot, y: 0, duration: 0.5, ease: "back.out(1.6)" }, 3.0 + i * 0.07);
+          tl.to(n, { y: -60 - (i % 3) * 40, x: (i % 2 ? 30 : -30), duration: 4.0, ease: "none" }, 3.5);
+        });
+        // q1 scale slam
+        tl.fromTo("#q1", { scale: 1.7, opacity: 0, filter: "blur(18px)" }, { scale: 1, opacity: 1, filter: "blur(0px)", duration: 0.4, ease: "expo.out" }, 3.15);
+        tl.to("#q1", { y: -330, scale: 0.55, opacity: 0.18, filter: "blur(3px)", duration: 0.45, ease: "power3.inOut" }, 4.2);
+        // q2 side snap
+        tl.fromTo("#q2", { x: 700, opacity: 0, skewX: -14 }, { x: 0, opacity: 1, skewX: 0, duration: 0.45, ease: "expo.out" }, 4.3);
+        tl.to("#q1", { y: -520, opacity: 0, duration: 0.4, ease: "power3.in" }, 6.0);
+        tl.to("#q2", { y: -330, scale: 0.55, opacity: 0.18, filter: "blur(3px)", duration: 0.45, ease: "power3.inOut" }, 6.0);
+        // q3 rise rotate
+        tl.fromTo("#q3", { y: 260, rotation: -8, opacity: 0 }, { y: 0, rotation: 0, opacity: 1, duration: 0.5, ease: "back.out(1.5)" }, 6.1);
+        const scrib = q("#scribP"); const sl = 760;
+        tl.fromTo(scrib, { strokeDasharray: sl, strokeDashoffset: sl }, { strokeDashoffset: 0, duration: 0.45, ease: "power2.out" }, 6.55);
+        // collapse + kobalt wipe
+        tl.to("#s2cam", { scale: 2.4, opacity: 0, filter: "blur(10px)", duration: 0.35, ease: "power3.in" }, 7.15);
+        tl.fromTo("#wipe", { scale: 0 }, { scale: 120, duration: 0.45, ease: "power3.in" }, 7.1);
+
+        // ================= S3 REVEAL =================
+        tl.fromTo("#s3bg", { opacity: 0 }, { opacity: 1, duration: 0.2, ease: "none" }, 7.45);
+        tl.fromTo("#s3cam", { scale: 1 }, { scale: 1.05, duration: 3.3, ease: "sine.inOut" }, 7.5);
+        tl.fromTo("#logo3", { scale: 0, rotation: -25 }, { scale: 1, rotation: 0, duration: 0.6, ease: "back.out(1.8)" }, 7.5);
+        qa(".l3bar").forEach((b, i) => {
+          tl.fromTo(b, { scaleY: 0, transformOrigin: "50% 100%" }, { scaleY: 1, duration: 0.4, ease: "back.out(2)" }, 7.75 + i * 0.09);
+        });
+        const curve = q("#l3curve"); const cl = 62;
+        tl.fromTo(curve, { strokeDasharray: cl, strokeDashoffset: cl }, { strokeDashoffset: 0, duration: 0.4, ease: "power2.inOut" }, 8.0);
+        tl.fromTo("#l3dot", { scale: 0, transformOrigin: "50% 50%" }, { scale: 1, duration: 0.35, ease: "back.out(3)" }, 8.35);
+        tl.fromTo("#shine", { x: -200, rotation: 20 }, { x: 420, rotation: 20, duration: 0.6, ease: "power2.inOut" }, 8.6);
+        tl.fromTo("#s3 .word .c", { y: 120, opacity: 0, rotationX: -80 }, { y: 0, opacity: 1, rotationX: 0, duration: 0.55, stagger: 0.05, ease: "back.out(1.6)" }, 8.3);
+        tl.fromTo("#s3 .tag .w", { y: 50, opacity: 0 }, { y: 0, opacity: 1, duration: 0.45, stagger: 0.08, ease: "power3.out" }, 9.4);
+        tl.fromTo("#s3 .chip", { y: 60, opacity: 0, scale: 0.8 }, { y: 0, opacity: 1, scale: 1, duration: 0.45, stagger: 0.08, ease: "back.out(1.7)" }, 10.0);
+        tl.to("#s3cam", { y: -260, scale: 0.85, opacity: 0, filter: "blur(10px)", duration: 0.4, ease: "power3.in" }, 10.85);
+        tl.to("#s3bg", { opacity: 0, duration: 0.4, ease: "power2.in" }, 10.9);
+
+        // ================= S4 FEATURES =================
+        const F = [11.0, 13.5, 16.0, 18.0, 19.5, 22.5];
+        // phone entrance (camera tilt) + gentle float
+        tl.fromTo("#phone", { y: 1100, rotationX: 35, rotationY: -20, scale: 0.85 }, { y: 0, rotationX: 8, rotationY: -10, scale: 1, duration: 0.75, ease: "expo.out" }, 10.95);
+        tl.fromTo("#s4cam", { y: 0 }, { y: -30, duration: 11.3, ease: "sine.inOut" }, 11.0);
+        for (let i = 1; i <= 5; i++) {
+          const T = F[i - 1], E = F[i];
+          const h = "#h" + i;
+          tl.fromTo(h + " .idx", { y: -30, opacity: 0 }, { y: 0, opacity: 1, duration: 0.35, ease: "power3.out" }, T + 0.05);
+          tl.fromTo(h + " .ft .w", { y: 70, opacity: 0, rotationX: -60 }, { y: 0, opacity: 1, rotationX: 0, duration: 0.45, stagger: 0.06, ease: "back.out(1.6)" }, T + 0.1);
+          tl.fromTo(h + " .fs .w", { y: 30, opacity: 0 }, { y: 0, opacity: 1, duration: 0.35, stagger: 0.04, ease: "power3.out" }, T + 0.3);
+          if (i < 5) tl.to(h, { y: -60, opacity: 0, duration: 0.22, ease: "power3.in" }, E - 0.22);
+          else tl.to(h, { y: -60, opacity: 0, duration: 0.25, ease: "power3.in" }, 22.3);
+          // screens
+          const sc = "#sc" + i;
+          if (i > 1) {
+            tl.fromTo(sc, { xPercent: 100, opacity: 1 }, { xPercent: 0, duration: 0.5, ease: "expo.out" }, T - 0.05);
+            tl.to("#sc" + (i - 1), { xPercent: -35, opacity: 0.2, duration: 0.5, ease: "expo.out" }, T - 0.05);
+          }
+          // phone whip (rotationY swing)
+          if (i > 1 && i !== 4) {
+            const dir = i % 2 ? 1 : -1;
+            tl.to("#phone", { keyframes: [{ rotationY: 18 * dir, x: -40 * dir, duration: 0.18, ease: "power2.in" }, { rotationY: -8 * dir, x: 0, duration: 0.55, ease: "expo.out" }] }, T - 0.2);
+          }
+        }
+        // F1 chips
+        tl.fromTo("#c1a", { x: -260, opacity: 0, rotation: -6 }, { x: 0, opacity: 1, rotation: -3, duration: 0.5, ease: "back.out(1.5)" }, 11.4);
+        tl.fromTo("#c1b", { y: 120, opacity: 0, scale: 0.7 }, { y: 0, opacity: 1, scale: 1, duration: 0.5, ease: "back.out(1.8)" }, 12.4);
+        tl.to(["#c1a", "#c1b"], { opacity: 0, y: -40, duration: 0.2, ease: "power2.in" }, 13.3);
+        // F2 chips
+        tl.fromTo("#c2a", { x: 300, opacity: 0, rotation: 8 }, { x: 0, opacity: 1, rotation: 3, duration: 0.55, ease: "back.out(1.5)" }, 14.2);
+        tl.fromTo("#c2a", { scale: 1 }, { keyframes: [{ scale: 1.06, duration: 0.1 }, { scale: 1, duration: 0.25 }], immediateRender: false }, 14.75);
+        tl.fromTo("#c2b", { y: 160, opacity: 0 }, { y: 0, opacity: 1, duration: 0.45, ease: "expo.out" }, 13.75);
+        tl.fromTo("#c2b .d", { scaleX: 0, transformOrigin: "0% 50%" }, { scaleX: 1, duration: 0.18, stagger: 0.2, ease: "power2.out" }, 14.1);
+        tl.to(["#c2a", "#c2b"], { opacity: 0, y: -40, duration: 0.2, ease: "power2.in" }, 15.8);
+        // F3 customer history card (slides out of phone)
+        tl.fromTo("#cust", { x: 180, y: 80, rotation: 6, rotationY: 30, scale: 0.7, opacity: 0 }, { x: 0, y: 0, rotation: -3, rotationY: 0, scale: 1, opacity: 1, duration: 0.55, ease: "expo.out" }, 16.05);
+        tl.fromTo("#cust .sum div", { y: 30, opacity: 0 }, { y: 0, opacity: 1, duration: 0.35, stagger: 0.1, ease: "back.out(1.6)" }, 16.35);
+        tl.fromTo("#cust .hv", { x: -50, opacity: 0 }, { x: 0, opacity: 1, duration: 0.35, stagger: 0.18, ease: "power3.out" }, 16.75);
+        tl.to("#cust", { x: -720, rotation: -12, opacity: 0, duration: 0.3, ease: "power3.in" }, 17.72);
+        // F4 multi-branch: phone shifts left, desktop card enters right
+        tl.to("#phone", { x: -150, scale: 0.88, duration: 0.5, ease: "expo.out" }, 18.0);
+        tl.fromTo("#desk", { x: 420, opacity: 0, rotationY: -30, scale: 0.8 }, { x: 0, opacity: 1, rotationY: -12, scale: 1, duration: 0.6, ease: "expo.out" }, 18.05);
+        tl.fromTo("#c4a", { x: -260, opacity: 0 }, { x: 0, opacity: 1, duration: 0.45, ease: "back.out(1.5)" }, 18.35);
+        tl.fromTo("#c4b", { x: 260, opacity: 0 }, { x: 0, opacity: 1, duration: 0.45, ease: "back.out(1.5)" }, 18.5);
+        tl.to(["#c4a", "#c4b"], { opacity: 0, y: -40, duration: 0.2, ease: "power2.in" }, 19.3);
+        tl.to("#desk", { x: 500, opacity: 0, duration: 0.3, ease: "power3.in" }, 19.3);
+        tl.to("#phone", { x: 0, scale: 1, duration: 0.5, ease: "expo.out", overwrite: false }, 19.45);
+        // F5 AI panel
+        tl.to("#sc5", { filter: "brightness(0.55) blur(2px)", duration: 0.4 }, 19.8);
+        tl.fromTo("#ai", { y: 220, opacity: 0, scale: 0.9 }, { y: 0, opacity: 1, scale: 1, duration: 0.5, ease: "expo.out" }, 19.7);
+        tl.fromTo("#aiq", { x: 120, opacity: 0 }, { x: 0, opacity: 1, duration: 0.35, ease: "back.out(1.6)" }, 19.95);
+        tl.fromTo("#aia", { y: 30, opacity: 0 }, { y: 0, opacity: 1, duration: 0.3, ease: "power3.out" }, 20.35);
+        tl.fromTo("#aia .tw", { opacity: 0 }, { opacity: 1, duration: 0.12, stagger: 0.18, ease: "none" }, 20.4);
+        tl.fromTo("#t1", { x: -60, opacity: 0 }, { x: 0, opacity: 1, duration: 0.35, ease: "back.out(1.6)" }, 21.1);
+        tl.fromTo("#t2", { x: -60, opacity: 0 }, { x: 0, opacity: 1, duration: 0.35, ease: "back.out(1.6)" }, 21.35);
+        qa(".tick").forEach((p, i) => tl.fromTo(p, { strokeDasharray: 30, strokeDashoffset: 30 }, { strokeDashoffset: 0, duration: 0.25, ease: "power2.out" }, 21.6 + i * 0.25));
+        // S4 exit
+        tl.to("#s4cam", { scale: 0.8, opacity: 0, filter: "blur(10px)", duration: 0.3, ease: "power3.in", y: -100 }, 22.35);
+
+        // ================= S5 BENEFIT =================
+        tl.fromTo("#s5cam", { scale: 1.15, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.35, ease: "expo.out" }, 22.45);
+        const SW = [22.65, 23.35, 23.8];
+        ["#sw1", "#sw2", "#sw3"].forEach((s, i) => {
+          tl.fromTo(s, { yPercent: 100, opacity: 0, rotationX: -70 }, { yPercent: 0, opacity: 1, rotationX: 0, duration: 0.3, ease: "back.out(1.7)" }, SW[i]);
+          tl.to(s, { yPercent: -90, opacity: 0, duration: 0.2, ease: "power2.in" }, i < 2 ? SW[i + 1] - 0.05 : 24.2);
+        });
+        tl.fromTo("#shops", { opacity: 0, y: 30 }, { opacity: 1, y: 0, duration: 0.35, ease: "power3.out" }, 24.3);
+        tl.fromTo("#s5 .p1 .w", { y: 60, opacity: 0 }, { y: 0, opacity: 1, duration: 0.4, ease: "power3.out" }, 24.5);
+        tl.fromTo("#s5 .p2 .w", { scale: 1.8, opacity: 0, filter: "blur(14px)" }, { scale: 1, opacity: 1, filter: "blur(0px)", duration: 0.45, stagger: 0.18, ease: "expo.out" }, 24.95);
+        tl.fromTo("#track", { y: 140, opacity: 0 }, { y: 0, opacity: 1, duration: 0.45, ease: "expo.out" }, 24.6);
+        tl.fromTo("#s5 .sg", { scaleX: 0, transformOrigin: "0% 50%" }, { scaleX: 1, duration: 0.14, stagger: 0.13, ease: "power2.out" }, 24.9);
+        const cnt = q("#cnt"); const proxy = { v: 0 };
+        tl.fromTo(proxy, { v: 0 }, { v: 6, duration: 0.8, ease: "none", onUpdate: () => { const n = Math.min(6, Math.floor(proxy.v + 0.0001)); cnt.textContent = n + "/6" + (n === 6 ? " to'landi" : ""); } }, 24.95);
+        tl.to("#s5cam", { scale: 1.35, opacity: 0, filter: "blur(12px)", duration: 0.3, ease: "power3.in" }, 25.9);
+
+        // ================= S6 CTA =================
+        tl.fromTo("#s6bg", { opacity: 0 }, { opacity: 1, duration: 0.3, ease: "none" }, 25.95);
+        tl.fromTo("#s6cam", { scale: 0.92 }, { scale: 1, duration: 4, ease: "power2.out" }, 26.0);
+        tl.fromTo("#logo6", { scale: 0, rotation: 30 }, { scale: 1, rotation: 0, duration: 0.55, ease: "back.out(1.8)" }, 26.05);
+        tl.fromTo("#s6 .word .c", { y: 100, opacity: 0 }, { y: 0, opacity: 1, duration: 0.45, stagger: 0.04, ease: "back.out(1.6)" }, 26.2);
+        tl.fromTo("#btn", { scaleX: 0.2, scaleY: 0.6, opacity: 0 }, { scaleX: 1, scaleY: 1, opacity: 1, duration: 0.55, ease: "expo.out" }, 26.4);
+        tl.fromTo("#btn span", { y: 60, opacity: 0 }, { y: 0, opacity: 1, duration: 0.4, ease: "power3.out" }, 26.6);
+        tl.fromTo("#btnshine", { x: -200 }, { x: 900, duration: 0.7, ease: "power2.inOut" }, 27.0);
+        tl.fromTo("#s6 .free .w", { scale: 1.8, opacity: 0, filter: "blur(12px)" }, { scale: 1, opacity: 1, filter: "blur(0px)", duration: 0.45, stagger: 0.12, ease: "expo.out" }, 27.65);
+        tl.fromTo("#s6 .free2 .w", { y: 30, opacity: 0 }, { y: 0, opacity: 1, duration: 0.35, stagger: 0.06, ease: "power3.out" }, 28.2);
+        // tap
+        tl.fromTo("#finger", { x: 200, y: 260, opacity: 0, scale: 1 }, { x: 0, y: 0, opacity: 1, duration: 0.45, ease: "power3.out" }, 28.3);
+        tl.to("#finger", { scale: 0.8, duration: 0.1, ease: "power2.in" }, 28.8);
+        tl.to("#finger", { scale: 1, duration: 0.2, ease: "power2.out" }, 28.9);
+        tl.fromTo("#btn", { scale: 1 }, { keyframes: [{ scale: 0.95, duration: 0.1 }, { scale: 1.03, duration: 0.15 }, { scale: 1, duration: 0.2 }], immediateRender: false }, 28.8);
+        tl.fromTo("#ripple", { scale: 0, opacity: 0.9 }, { scale: 6, opacity: 0, duration: 0.6, ease: "power2.out" }, 28.85);
+        tl.to("#finger", { opacity: 0, y: 80, duration: 0.3, ease: "power2.in" }, 29.4);
+
+        // ================= Subtitles pop
+        qa(".sub > span").forEach((s) => {
+          const st = parseFloat(s.parentElement.getAttribute("data-start"));
+          tl.fromTo(s, { y: 18, scale: 0.94, opacity: 0 }, { y: 0, scale: 1, opacity: 1, duration: 0.18, ease: "back.out(2)" }, st);
+        });
+
+        window.__timelines["main"] = tl;
+      })();
+    </script>
+  </body>
+</html>
