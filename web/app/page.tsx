@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
+import { Onest, Unbounded } from 'next/font/google';
 import { getAppZone } from '@/lib/tenantContext';
 import { getCurrentUser } from '@/lib/auth';
 import { superDashboardUrl } from '@/lib/urls';
@@ -7,45 +8,53 @@ import { fmtPlanPrice } from '@/lib/plans';
 import { getEffectivePlanPresets } from '@/lib/platformSettings';
 import { getLatestReviews } from '@/lib/reviews';
 import { LOCALHOST_LINKS } from '@/lib/urls';
+import { BUSINESS_TYPES, BUSINESS_TYPE_IDS } from '@/lib/businessTypes';
 import ProductShowcase from '@/components/landing/ProductShowcase';
 import Faq from '@/components/landing/Faq';
-import Icon from '@/components/icons/Icon';
+import { RotatingWord, HeroStage, CountUp } from '@/components/landing/HeroMotion';
 import ThemeToggle from '@/components/ThemeToggle';
+import '@/components/landing/landing.css';
 
-const ICONS = {
-  box: <path d="M3 7l9-4 9 4v10l-9 4-9-4V7z M3 7l9 4 9-4 M12 11v10" />,
-  cart: <><circle cx="9" cy="21" r="1" /><circle cx="20" cy="21" r="1" /><path d="M1 1h4l2.7 13.4a2 2 0 0 0 2 1.6h9.7a2 2 0 0 0 2-1.6L23 6H6" /></>,
-  credit: <><rect x="2" y="5" width="20" height="14" rx="2" /><line x1="2" y1="10" x2="22" y2="10" /></>,
-  chart: <><path d="M6 20 L12 6" /><path d="M12 6 L18 20" /></>,
-  users: <><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 21v-2a4 4 0 0 0-3-3.87" /></>,
-  shield: <><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /></>,
-  search: <><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></>,
-  branch: <><circle cx="6" cy="6" r="3" /><circle cx="18" cy="18" r="3" /><path d="M6 9v6a3 3 0 0 0 3 3h6" /></>,
-  bolt: <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />,
-};
+const onest = Onest({ subsets: ['latin', 'cyrillic'], weight: ['400', '500', '600', '700', '800'], variable: '--font-onest', display: 'swap' });
+const unbounded = Unbounded({ subsets: ['latin'], weight: ['600', '700'], variable: '--font-unbounded', display: 'swap' });
 
-function FeatureIcon({ d, bg }: { d: React.ReactNode; bg: string }) {
+/** Sinov muddati — register action bilan bir xil manba */
+const TRIAL_DAYS = Number(process.env.TRIAL_DAYS || 14);
+
+function Svg({ children, size = 22 }: { children: React.ReactNode; size?: number }) {
   return (
-    <span className="ic" style={{ background: bg }}>
-      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">{d}</svg>
-    </span>
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{children}</svg>
   );
 }
+const P = {
+  cart: <><circle cx="9" cy="20" r="1.4" /><circle cx="18" cy="20" r="1.4" /><path d="M2 3h3l2.4 11.2a2 2 0 0 0 2 1.6h8.2a2 2 0 0 0 2-1.5L21 7H6" /></>,
+  cal: <><rect x="3" y="4" width="18" height="17" rx="2" /><path d="M3 9h18M8 2v4M16 2v4" /></>,
+  sign: <path d="M3 17c3-4 5-8 7-8s-1 8 2 8 3-5 5-5 2 3 4 3M3 21h18" />,
+  bell: <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9M10.3 21a1.9 1.9 0 0 0 3.4 0" />,
+  box: <><path d="M21 8 12 3 3 8v8l9 5 9-5z" /><path d="M3 8l9 5 9-5M12 13v8" /></>,
+  branch: <><circle cx="6" cy="6" r="3" /><circle cx="18" cy="18" r="3" /><path d="M6 9v6a3 3 0 0 0 3 3h6" /></>,
+  shield: <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />,
+  users: <><circle cx="9" cy="8" r="3.5" /><path d="M2.5 20a6.5 6.5 0 0 1 13 0M16 4.5a3.5 3.5 0 0 1 0 7M18 14a6 6 0 0 1 3.5 6" /></>,
+  scan: <path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2M7 8v8M10 8v8M13 8v8M17 8v8" />,
+  chart: <path d="M4 20V10M10 20V4M16 20v-7M22 20H2" />,
+  check: <path d="M20 6 9 17l-5-5" />,
+  phone: <><rect x="6" y="2" width="12" height="20" rx="2.5" /><path d="M11 18h2" /></>,
+};
 
-const G = 'linear-gradient(135deg,#4f46e5,#7c3aed)';
-const Gr = 'linear-gradient(135deg,#10b981,#059669)';
-const Go = 'linear-gradient(135deg,#f59e0b,#ef4444)';
+const FLOW = [
+  { ic: P.cart, t: 'Tovarni tanlang', d: 'Skaner yoki qidiruv bilan savatga qo\'shing — bir nechta tovar, miqdor va chegirma bilan.' },
+  { ic: P.cal, t: 'Jadval tayyor', d: 'Boshlang\'ich to\'lov va muddatni tanlang — oylik to\'lov va sanalar darhol hisoblanadi.' },
+  { ic: P.sign, t: 'Shartnoma imzolanadi', d: 'Mijoz ma\'lumotlari bilan shartnoma avtomatik to\'ldiriladi va SMS-kod orqali tasdiqlanadi.' },
+  { ic: P.bell, t: 'Pul o\'z vaqtida', d: 'To\'lov kunidan oldin eslatma, kechiksa — bosqichma-bosqich undirish va hisobot.' },
+];
 
-const FEATURES = [
-  { icon: ICONS.box, bg: G, t: 'Ombor boshqaruvi', d: 'Har bir mahsulot, IMEI, narx va holatini real vaqtda kuzating. Kelgan/qo\'shilgan/sotilgan — hammasi bir joyda.' },
-  { icon: ICONS.cart, bg: Gr, t: 'Sotuv va nasiya', d: 'Naqd, qarz, kredit, variant (bo\'lib to\'lash) — barcha yo\'nalishlar. Mijoz va to\'lov nazorati.' },
-  { icon: ICONS.credit, bg: Go, t: 'Kassa va kredit kassa', d: 'Naqd va bank kreditlari bo\'yicha kassani aniq yuriting. Har banki bo\'yicha qoldiq va hisobot.' },
-  { icon: ICONS.chart, bg: G, t: 'Monitoring va analitika', d: 'Oylik kirim/chiqim/foyda avtomatik hisoblanadi. Filiallar bo\'yicha taqqoslama statistika.' },
-  { icon: ICONS.branch, bg: Gr, t: 'Ko\'p filial', d: 'Cheksiz filial qo\'shing, mahsulotni filiallar aro yuboring va har birini alohida kuzating.' },
-  { icon: ICONS.users, bg: Go, t: 'Rol boshqaruvi', d: 'Do\'kon egasi xodimlarga login ochadi, ruxsatlarni belgilaydi. Har kim o\'z darajasini ko\'radi.' },
-  { icon: ICONS.search, bg: G, t: 'Tezkor IMEI qidiruv', d: 'Bir nechta IMEI ni bir vaqtda qidiring, xatolarni toping, Excel bilan solishtiring.' },
-  { icon: ICONS.bolt, bg: Gr, t: 'Tez va ishonchli', d: 'Bulutli infratuzilma, avtomatik zaxira nusxa va yuqori tezlik — istalgan qurilmadan.' },
-  { icon: ICONS.shield, bg: Go, t: 'To\'liq xavfsizlik', d: 'Har do\'kon ma\'lumoti alohida bazada izolyatsiya qilinadi. Hech kim boshqa do\'konni ko\'rmaydi.' },
+const COMPARE = [
+  'Nasiya jadvali va eslatmalar avtomatik',
+  'Shartnoma bir tugmada, SMS-kod bilan',
+  'IMEI va ombor nazorati',
+  'Bir nechta filial bitta ekranda',
+  'Xodimlarga alohida huquqlar',
+  'Telefondan istalgan joyda',
 ];
 
 const PLANS_STATIC = [
@@ -54,27 +63,12 @@ const PLANS_STATIC = [
   { tier: 'business' as const, featured: false },
 ];
 
-const STEPS = [
-  { n: '1', t: 'Ro\'yxatdan o\'ting', d: 'Do\'kon nomi va manzilini kiriting — 1 daqiqada hisob tayyor. Karta kerak emas.' },
-  { n: '2', t: 'Mahsulot va filial qo\'shing', d: 'Omborni to\'ldiring yoki Excel\'dan import qiling, xodimlarga login bering.' },
-  { n: '3', t: 'Sotuvni boshqaring', d: 'Sotuv, nasiya, kassa va foydani real vaqtda kuzating — istalgan qurilmadan.' },
-];
-
 function initialsOf(s: string): string {
   const parts = s.trim().split(/\s+/).filter(Boolean);
   if (parts.length === 0) return '★';
   if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
   return (parts[0][0] + parts[1][0]).toUpperCase();
 }
-
-const COMPARE = [
-  { f: 'IMEI va ombor nazorati', old: false, savora: true },
-  { f: 'Nasiya va qarzdorlar avtomatik', old: false, savora: true },
-  { f: 'Bir nechta filial bir ekranda', old: false, savora: true },
-  { f: 'Foyda/zarar avtomatik hisobi', old: false, savora: true },
-  { f: 'Istalgan joydan telefonda kirish', old: false, savora: true },
-  { f: 'Ma\'lumot yo\'qolishidan himoya', old: false, savora: true },
-];
 
 export default async function LandingPage() {
   const zone = await getAppZone();
@@ -88,143 +82,77 @@ export default async function LandingPage() {
   const presets = await getEffectivePlanPresets();
   const plans = PLANS_STATIC.map(({ tier, featured }) => {
     const p = presets[tier];
-    return {
-      name: p.label,
-      desc: p.description,
-      price: fmtPlanPrice(p.monthlyPrice),
-      featured,
-      feats: p.marketingFeatures,
-    };
+    return { name: p.label, desc: p.description, price: fmtPlanPrice(p.monthlyPrice), featured, feats: p.marketingFeatures };
   });
+  const sectors = BUSINESS_TYPE_IDS.map((id) => BUSINESS_TYPES[id].label);
 
   return (
-    <>
+    <div className={`lp ${onest.variable} ${unbounded.variable}`}>
       {/* NAV */}
-      <header className="nav">
-        <div className="container nav-inner">
-          <div className="brand">
-            <span className="brand-logo">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M6 20 L12 6" stroke="var(--ink-1)" /><path d="M12 6 L18 20" stroke="var(--brand)" /></svg>
-            </span>
-            Savora
-          </div>
-          <nav className="nav-links">
+      <header className="lp-nav">
+        <div className="lp-wrap lp-nav-in">
+          <Link href="/" className="lp-brand"><span className="lp-logo" aria-hidden="true">S</span>Savora</Link>
+          <nav className="lp-links" aria-label="Bo'limlar">
+            <a href="#nasiya">Nasiya</a>
             <a href="#demo">Demo</a>
-            <a href="#features">Imkoniyatlar</a>
-            <a href="#pricing">Tariflar</a>
+            <a href="#imkoniyatlar">Imkoniyatlar</a>
+            <a href="#tariflar">Tariflar</a>
             <a href="#faq">Savollar</a>
-            <a href="/login">Kirish</a>
           </nav>
-          <div className="nav-cta">
+          <div className="lp-nav-cta">
             <ThemeToggle />
-            <Link href="/login" className="btn btn-ghost btn-with-icon">
-              <Icon name="login" size={16} />
-              Kirish
-            </Link>
-            <Link href={LOCALHOST_LINKS.register} className="btn btn-primary btn-with-icon">
-              <Icon name="signup" size={16} />
-              Ro&apos;yxatdan o&apos;tish
-            </Link>
+            <Link href="/login" className="lp-btn lp-btn--t lp-btn--sm">Kirish</Link>
+            <Link href={LOCALHOST_LINKS.register} className="lp-btn lp-btn--f lp-btn--sm">Boshlash</Link>
           </div>
         </div>
       </header>
 
       {/* HERO */}
-      <section className="hero">
-        <div className="container hero-grid">
-          <div>
-            <span className="badge"><span className="badge-dot" /> 7 kun bepul sinov — karta talab qilinmaydi</span>
-            <h1>Do&apos;koningizni <span className="grad">bitta tizimdan</span> boshqaring</h1>
-            <p className="hero-sub">Savora — ombor, sotuv, nasiya, kassa, filiallar va xodimlarni bir joyda. Zamonaviy, tez va ishonchli. O&apos;zbekiston do&apos;konlari uchun maxsus yaratilgan.</p>
-            <div className="hero-cta">
-              <Link href={LOCALHOST_LINKS.register} className="btn btn-primary btn-lg btn-with-icon">
-                <Icon name="signup" size={20} />
-                Ro&apos;yxatdan o&apos;tish — bepul boshlash
-              </Link>
-              <a href="/login" className="btn btn-ghost btn-lg btn-with-icon">
-                <Icon name="login" size={20} />
-                Kirish
-              </a>
+      <section className="lp-hero">
+        <div className="lp-wrap lp-hero-grid">
+          <div className="lp-hero-copy">
+            <span className="lp-pill-top"><b>{TRIAL_DAYS} kun bepul</b> Karta talab qilinmaydi</span>
+            <h1 className="lp-h1">
+              <RotatingWord />
+              <span className="lp-l2">bitta ilovada boshqaring</span>
+            </h1>
+            <p className="lp-sub">Savora — ombor, kassa, nasiya va shartnomani birlashtirgan savdo tizimi. Sotuv 2 daqiqada rasmiylashadi, to&apos;lov vaqtida eslatiladi, qarz esa nazoratdan chiqmaydi.</p>
+            <div className="lp-cta">
+              <Link href={LOCALHOST_LINKS.register} className="lp-btn lp-btn--f lp-btn--lg">Bepul boshlash</Link>
+              <a href="#demo" className="lp-btn lp-btn--g lp-btn--lg">Demoni ko&apos;rish</a>
             </div>
-            <div className="hero-trust">
-              <span className="btn-with-icon"><Icon name="check" size={16} className="trust-check" /> Kredit karta kerak emas</span>
-              <span className="btn-with-icon"><Icon name="check" size={16} className="trust-check" /> 5 daqiqada sozlash</span>
-              <span className="btn-with-icon"><Icon name="check" size={16} className="trust-check" /> Istalgan vaqt bekor qilish</span>
+            <div className="lp-stats">
+              <div><b><CountUp to={sectors.length} /></b><span>savdo yo&apos;nalishi</span></div>
+              <div><b>2 daq</b><span>nasiya rasmiylashtirish</span></div>
+              <div><b>24/7</b><span>istalgan qurilmadan</span></div>
             </div>
           </div>
-
-          {/* Mockup */}
-          <div className="hero-visual">
-            <div className="mock">
-              <div className="mock-top">
-                <span className="mock-dot" style={{ background: '#ef4444' }} />
-                <span className="mock-dot" style={{ background: '#f59e0b' }} />
-                <span className="mock-dot" style={{ background: '#10b981' }} />
-              </div>
-              <div className="mock-body">
-                <div className="mock-row">
-                  <div className="mock-kpi"><div className="lbl">Bugungi sotuv</div><div className="val up">42 380 000</div></div>
-                  <div className="mock-kpi"><div className="lbl">Foyda</div><div className="val up">8 120 000</div></div>
-                </div>
-                <div className="mock-bars">
-                  {[55, 80, 45, 95, 70, 88, 60].map((h, i) => (
-                    <span key={i} className="mock-bar" style={{ height: `${h}%` }} />
-                  ))}
-                </div>
-              </div>
-            </div>
-            <div className="float-card float-1">
-              <span className="ic" style={{ background: Gr }}>
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5" /></svg>
-              </span>
-              Sotuv +24%
-            </div>
-            <div className="float-card float-2">
-              <span className="ic" style={{ background: G }}>
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 7l9-4 9 4v10l-9 4-9-4V7z" /></svg>
-              </span>
-              1 240 mahsulot
-            </div>
-          </div>
+          <HeroStage />
         </div>
       </section>
 
-      {/* DEMO — real ko'rinishdagi panel skrinshotlari */}
-      <ProductShowcase />
-
-      {/* HOW IT WORKS */}
-      <section className="section section--soft" id="how">
-        <div className="container">
-          <div className="head">
-            <span className="eyebrow">Qanday ishlaydi</span>
-            <h2>3 qadamda ishga tushiring</h2>
-            <p>Murakkab sozlash yo&apos;q — bir necha daqiqada do&apos;koningiz raqamli bo&apos;ladi.</p>
-          </div>
-          <div className="steps">
-            {STEPS.map((s, i) => (
-              <div key={s.n} className="step">
-                <div className="step-num">{s.n}</div>
-                <h3>{s.t}</h3>
-                <p>{s.d}</p>
-                {i < STEPS.length - 1 && <span className="step-arrow" aria-hidden="true">→</span>}
-              </div>
-            ))}
-          </div>
+      {/* SOHALAR LENTASI */}
+      <div className="lp-marq" aria-label="Qo'llab-quvvatlanadigan sohalar">
+        <div className="lp-marq-in">
+          {[...sectors, ...sectors].map((s, k) => (
+            <span key={k} aria-hidden={k >= sectors.length}><i />{s}</span>
+          ))}
         </div>
-      </section>
+      </div>
 
-      {/* FEATURES */}
-      <section className="section" id="features">
-        <div className="container">
-          <div className="head">
-            <span className="eyebrow">Imkoniyatlar</span>
-            <h2>Biznesingiz uchun barcha kerakli vositalar</h2>
-            <p>OneNasiya tajribasidan kelib chiqib yanada kengaytirilgan — do'koningizni to'liq raqamlashtiring.</p>
+      {/* NASIYA OQIMI */}
+      <section className="lp-sec" id="nasiya">
+        <div className="lp-wrap">
+          <div className="lp-head lp-reveal">
+            <span className="lp-eyebrow">Nasiya oqimi</span>
+            <h2>Sotuvdan undirishgacha — to&apos;rt qadam</h2>
+            <p>Daftar, Excel va qo&apos;lda hisoblash yo&apos;q. Har bir nasiya shartnomada, har bir to&apos;lov nazoratda.</p>
           </div>
-          <div className="features">
-            {FEATURES.map((f) => (
-              <div key={f.t} className="feature">
-                <FeatureIcon d={f.icon} bg={f.bg} />
+          <div className="lp-flow">
+            {FLOW.map((f, i) => (
+              <div key={f.t} className="lp-reveal">
+                <span className="ic"><Svg>{f.ic}</Svg></span>
+                <span className="n">{String(i + 1).padStart(2, '0')}</span>
                 <h3>{f.t}</h3>
                 <p>{f.d}</p>
               </div>
@@ -233,70 +161,73 @@ export default async function LandingPage() {
         </div>
       </section>
 
-      {/* COMPARISON */}
-      <section className="section section--soft" id="compare">
-        <div className="container">
-          <div className="head">
-            <span className="eyebrow">Nega o&apos;tish kerak</span>
-            <h2>Daftar/Excel vs Savora</h2>
-            <p>Eski usul vaqtingizni va pulingizni yeydi. Farqni o&apos;zingiz ko&apos;ring.</p>
+      {/* DEMO */}
+      <div className="lp-sec--alt">
+        <ProductShowcase />
+      </div>
+
+      {/* IMKONIYATLAR — bento */}
+      <section className="lp-sec" id="imkoniyatlar">
+        <div className="lp-wrap">
+          <div className="lp-head lp-reveal">
+            <span className="lp-eyebrow">Imkoniyatlar</span>
+            <h2>Do&apos;koningizga kerak bo&apos;lgan hamma narsa</h2>
+            <p>Telefon do&apos;konidan mebel salonigacha — har bir soha o&apos;ziga mos sozlamalar bilan boshlanadi.</p>
           </div>
-          <div className="compare">
-            <div className="compare-row compare-head">
-              <div className="compare-feat">&nbsp;</div>
-              <div className="compare-col compare-old">Daftar / Excel</div>
-              <div className="compare-col compare-new">Savora</div>
-            </div>
-            {COMPARE.map((c) => (
-              <div key={c.f} className="compare-row">
-                <div className="compare-feat">{c.f}</div>
-                <div className="compare-col compare-old"><span className="compare-x"><Icon name="close" size={16} /></span></div>
-                <div className="compare-col compare-new"><span className="compare-ck"><Icon name="check" size={16} /></span></div>
+          <div className="lp-bento">
+            <div className="lp-tile lp-tile--big lp-reveal">
+              <h3>Nasiya — bank darajasida</h3>
+              <p>Ustama, boshlang&apos;ich to&apos;lov, oylik jadval, kafil va muddatidan oldin yopish. Har oy holati bir qarashda ko&apos;rinadi.</p>
+              <div className="lp-sched">
+                <div><span>15-sentabr · 1 450 000</span><i className="ok">To&apos;landi</i></div>
+                <div><span>15-oktabr · 1 450 000</span><i className="now">Bugun</i></div>
+                <div><span>15-noyabr · 1 450 000</span><i className="wait">Kutilmoqda</i></div>
+                <div><span>15-dekabr · 1 450 000</span><i className="wait">Kutilmoqda</i></div>
               </div>
+            </div>
+            <div className="lp-tile lp-reveal"><span className="ic"><Svg>{P.scan}</Svg></span><h3>Tez kassa</h3><p>Skaner, savat, aralash to&apos;lov va chek — klaviaturadan.</p></div>
+            <div className="lp-tile lp-reveal"><span className="ic"><Svg>{P.phone}</Svg></span><h3>IMEI nazorati</h3><p>Har bir telefon IMEI bo&apos;yicha, umumiy qora ro&apos;yxat bilan.</p></div>
+            <div className="lp-tile lp-tile--wide lp-reveal"><span className="ic"><Svg>{P.users}</Svg></span><h3>Xodim huquqlari</h3><p>Kim narxni o&apos;zgartiradi, kim sotuvni bekor qiladi, kim kelish narxini ko&apos;radi — o&apos;zingiz belgilaysiz.</p>
+              <div className="lp-chiprow"><span>Sotish</span><span>Chegirma</span><span>Bekor qilish</span><span>Kelish narxi</span><span>Hisobot</span></div>
+            </div>
+            <div className="lp-tile lp-tile--wide lp-reveal"><span className="ic"><Svg>{P.branch}</Svg></span><h3>Ko&apos;p filial</h3><p>Filiallar aro tovar berish, har filial kassasi va umumiy hisobot bitta ekranda.</p></div>
+            <div className="lp-tile lp-reveal"><span className="ic"><Svg>{P.chart}</Svg></span><h3>Hisobotlar</h3><p>Tushum, foyda, kechikkan qarzlar va kam qolgan tovarlar.</p></div>
+            <div className="lp-tile lp-reveal"><span className="ic"><Svg>{P.box}</Svg></span><h3>Ombor</h3><p>Kirim, qoldiq, inventarizatsiya va CSV eksport.</p></div>
+            <div className="lp-tile lp-reveal"><span className="ic"><Svg>{P.shield}</Svg></span><h3>Xavfsizlik</h3><p>Har do&apos;kon alohida bazada, avtomatik zaxira nusxa bilan.</p></div>
+          </div>
+        </div>
+      </section>
+
+      {/* TAQQOSLASH */}
+      <section className="lp-sec lp-sec--alt" id="taqqoslash">
+        <div className="lp-wrap">
+          <div className="lp-head lp-reveal">
+            <span className="lp-eyebrow">Nega o&apos;tish kerak</span>
+            <h2>Daftar va Excel&apos;dan farqi</h2>
+          </div>
+          <div className="lp-cmp lp-reveal">
+            <div className="lp-cmp-row lp-cmp-head"><span>&nbsp;</span><span>Daftar / Excel</span><span className="sv">Savora</span></div>
+            {COMPARE.map((c) => (
+              <div key={c} className="lp-cmp-row"><span>{c}</span><span className="lp-x" aria-label="Yo'q">✕</span><span className="lp-ck" aria-label="Bor">✓</span></div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* WHY / TRUST */}
-      <section className="section section--soft" id="why">
-        <div className="container">
-          <div className="head">
-            <span className="eyebrow">Nega Savora?</span>
-            <h2>Ishonch — bizning poydevorimiz</h2>
-            <p>Ma'lumotlaringiz xavfsiz, tizim doim ishlaydi, jamoamiz har doim yoningizda.</p>
-          </div>
-          <div className="features">
-            <div className="feature"><FeatureIcon d={ICONS.shield} bg={G} /><h3>Izolyatsiyalangan ma'lumot</h3><p>Har do'kon o'z alohida bazasida. Boshqa hech kim ma'lumotingizga kira olmaydi.</p></div>
-            <div className="feature"><FeatureIcon d={ICONS.bolt} bg={Gr} /><h3>Avtomatik zaxira</h3><p>Ma'lumotlaringiz muntazam zaxiralanadi — hech narsa yo'qolmaydi.</p></div>
-            <div className="feature"><FeatureIcon d={ICONS.users} bg={Go} /><h3>Doimiy yordam</h3><p>Telegram va telefon orqali tezkor qo'llab-quvvatlash. Sozlashda yordam beramiz.</p></div>
-          </div>
-        </div>
-      </section>
-
-      {/* TESTIMONIALS — real baholar (oxirgi yozilgan) */}
+      {/* SHARHLAR */}
       {reviews.length > 0 && (
-        <section className="section" id="reviews">
-          <div className="container">
-            <div className="head">
-              <span className="eyebrow">Mijozlar fikri</span>
-              <h2>Mijozlarimiz nima deydi</h2>
-              <p>Sotuvdan so&apos;ng mijozlar va do&apos;konlar tomonidan qoldirilgan haqiqiy baholar.</p>
+        <section className="lp-sec" id="sharhlar">
+          <div className="lp-wrap">
+            <div className="lp-head lp-reveal">
+              <span className="lp-eyebrow">Mijozlar fikri</span>
+              <h2>Savora&apos;dan foydalanayotganlar</h2>
             </div>
-            <div className="reviews">
+            <div className="lp-revs">
               {reviews.map((r) => (
-                <figure key={r.id} className="review">
-                  <div className="review-stars" aria-label={`${r.rating} yulduz`}>
-                    {'★'.repeat(r.rating)}<span className="review-stars-off">{'★'.repeat(5 - r.rating)}</span>
-                  </div>
+                <figure key={r.id} className="lp-rev lp-reveal">
+                  <div className="lp-stars" aria-label={`${r.rating} yulduz`}>{'★'.repeat(r.rating)}<span>{'★'.repeat(5 - r.rating)}</span></div>
                   <blockquote>{r.comment}</blockquote>
-                  <figcaption className="review-author">
-                    <span className="review-avatar">{initialsOf(r.authorName || r.shopName)}</span>
-                    <span>
-                      <span className="review-name">{r.authorName || 'Mijoz'}</span>
-                      <span className="review-role">{r.shopName}</span>
-                    </span>
-                  </figcaption>
+                  <figcaption><span className="lp-av">{initialsOf(r.authorName || r.shopName)}</span><span><b>{r.authorName || 'Mijoz'}</b><small>{r.shopName}</small></span></figcaption>
                 </figure>
               ))}
             </div>
@@ -304,76 +235,61 @@ export default async function LandingPage() {
         </section>
       )}
 
-      {/* PRICING */}
-      <section className="section section--soft" id="pricing">
-        <div className="container">
-          <div className="head">
-            <span className="eyebrow">Tariflar</span>
+      {/* TARIFLAR */}
+      <section className="lp-sec" id="tariflar">
+        <div className="lp-wrap">
+          <div className="lp-head lp-reveal">
+            <span className="lp-eyebrow">Tariflar</span>
             <h2>Sizga mos tarifni tanlang</h2>
-            <p>Barcha tariflar <strong>7 kun bepul</strong> sinovdan boshlanadi. Karta talab qilinmaydi.</p>
+            <p>Har bir tarif {TRIAL_DAYS} kunlik bepul sinov bilan boshlanadi. Karta talab qilinmaydi.</p>
           </div>
-          <div className="pricing">
+          <div className="lp-plans">
             {plans.map((p) => (
-              <div key={p.name} className={`plan${p.featured ? ' plan--featured' : ''}`}>
-                {p.featured && <span className="plan-tag">Eng ommabop</span>}
-                <div className="plan-name">{p.name}</div>
-                <div className="plan-desc">{p.desc}</div>
-                <div className="plan-price">{p.price} <span>so'm/oy</span></div>
-                <ul className="plan-feat">
-                  {p.feats.map((ft) => (
-                    <li key={ft}><span className="ck"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5" /></svg></span>{ft}</li>
-                  ))}
-                </ul>
-                <Link href={LOCALHOST_LINKS.register} className={`btn btn-with-icon ${p.featured ? 'btn-white' : 'btn-primary'}`}>
-                  <Icon name="signup" size={16} />
-                  Ro&apos;yxatdan o&apos;tish — 7 kun bepul
-                </Link>
+              <div key={p.name} className={`lp-plan lp-reveal${p.featured ? ' lp-plan--f' : ''}`}>
+                {p.featured && <span className="lp-plan-tag">Eng ommabop</span>}
+                <div className="lp-plan-name">{p.name}</div>
+                <div className="lp-plan-desc">{p.desc}</div>
+                <div className="lp-plan-price">{p.price} <span>so&apos;m/oy</span></div>
+                <ul>{p.feats.map((ft) => <li key={ft}><Svg size={16}>{P.check}</Svg>{ft}</li>)}</ul>
+                <Link href={LOCALHOST_LINKS.register} className={`lp-btn ${p.featured ? 'lp-btn--w' : 'lp-btn--f'}`}>Bepul sinash</Link>
               </div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* FAQ */}
       <Faq />
 
       {/* CTA */}
-      <section className="section">
-        <div className="container">
-          <div className="cta-band">
-            <h2>Bugun bepul boshlang</h2>
-            <p>7 kun davomida barcha imkoniyatlardan bepul foydalaning. Yoqsa — davom etasiz, yoqmasa — bekor qilasiz.</p>
-            <Link href={LOCALHOST_LINKS.register} className="btn btn-white btn-lg btn-with-icon">
-              <Icon name="signup" size={20} />
-              Ro&apos;yxatdan o&apos;tish
-            </Link>
+      <section className="lp-sec">
+        <div className="lp-wrap">
+          <div className="lp-ctab lp-reveal">
+            <svg className="lp-girih" viewBox="0 0 600 600" aria-hidden="true"><defs><pattern id="lp-cta-p" width="75" height="75" patternUnits="userSpaceOnUse"><g fill="none" stroke="currentColor" strokeWidth="1.2"><rect x="17.5" y="17.5" width="40" height="40" /><rect x="17.5" y="17.5" width="40" height="40" transform="rotate(45 37.5 37.5)" /><circle cx="37.5" cy="37.5" r="9" /></g></pattern></defs><rect width="600" height="600" fill="url(#lp-cta-p)" /></svg>
+            <h2>Nasiyani nazorat qiling, pulni vaqtida oling</h2>
+            <p>{TRIAL_DAYS} kun barcha imkoniyatlar bepul. Ma&apos;lumotlaringizni ko&apos;chirishda yordam beramiz.</p>
+            <Link href={LOCALHOST_LINKS.register} className="lp-btn lp-btn--w lp-btn--lg">Ro&apos;yxatdan o&apos;tish</Link>
           </div>
         </div>
       </section>
 
       {/* FOOTER */}
-      <footer className="footer">
-        <div className="container">
-          <div className="footer-grid">
-            <div style={{ maxWidth: 280 }}>
-              <div className="brand" style={{ marginBottom: 12 }}>
-                <span className="brand-logo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M6 20 L12 6" stroke="var(--ink-1)" /><path d="M12 6 L18 20" stroke="var(--brand)" /></svg></span>
-                Savora
-              </div>
-              <p style={{ fontSize: '.92rem', color: 'var(--ink-2)' }}>Do'konlar uchun zamonaviy savdo va nasiya boshqaruv platformasi.</p>
+      <footer className="lp-foot">
+        <div className="lp-wrap">
+          <div className="lp-foot-grid">
+            <div>
+              <Link href="/" className="lp-brand"><span className="lp-logo" aria-hidden="true">S</span>Savora</Link>
+              <p style={{ color: 'var(--lp-ink2)', maxWidth: 300, marginTop: 12 }}>Do&apos;konlar uchun savdo, ombor, nasiya va shartnoma platformasi.</p>
             </div>
-            <div className="footer-col"><h4>Mahsulot</h4><a href="#features">Imkoniyatlar</a><a href="#pricing">Tariflar</a><Link href="/register">Bepul sinov</Link></div>
-            <div className="footer-col"><h4>Kompaniya</h4><a href="#why">Biz haqimizda</a><Link href="/contact">Bog&apos;lanish</Link></div>
-            <div className="footer-col"><h4>Hujjatlar</h4><Link href="/privacy">Maxfiylik</Link><Link href="/terms">Shartlar</Link><Link href="/help">Yordam</Link></div>
+            <div><h4>Mahsulot</h4><a href="#imkoniyatlar">Imkoniyatlar</a><a href="#tariflar">Tariflar</a><Link href={LOCALHOST_LINKS.register}>Bepul sinov</Link></div>
+            <div><h4>Kompaniya</h4><Link href="/contact">Bog&apos;lanish</Link><Link href="/help">Yordam</Link></div>
+            <div><h4>Hujjatlar</h4><Link href="/privacy">Maxfiylik</Link><Link href="/terms">Shartlar</Link></div>
           </div>
-          <div className="footer-bottom">
+          <div className="lp-foot-bot">
             <span>© {new Date().getFullYear()} Savora. Barcha huquqlar himoyalangan.</span>
-            <span className="btn-with-icon footer-made">
-              O&apos;zbekistonda <Icon name="heart" size={14} className="footer-heart" /> bilan yaratilgan
-            </span>
+            <span>O&apos;zbekistonda yaratilgan</span>
           </div>
         </div>
       </footer>
-    </>
+    </div>
   );
 }

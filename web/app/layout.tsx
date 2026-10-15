@@ -7,7 +7,7 @@ import VisitTracker from '@/components/analytics/VisitTracker';
 export const metadata: Metadata = {
   title: 'Savora — Do\'koningiz uchun zamonaviy savdo va nasiya tizimi',
   description:
-    'Savora — ombor, sotuv, nasiya, kassa va filiallarni bitta joydan boshqaring. 7 kun bepul sinab ko\'ring.',
+    'Savora — ombor, kassa, nasiya va shartnomani bitta joydan boshqaring. Bepul sinab ko\'ring.',
   manifest: '/manifest.webmanifest',
   appleWebApp: {
     capable: true,
