@@ -18,7 +18,7 @@ export const SUPER_NAV_GROUPS: { title: string; items: SuperNavItem[] }[] = [
     title: 'Boshqaruv',
     items: [
       { href: '/super/dashboard', label: 'Asosiy panel', icon: 'home' },
-      { href: '/super', label: "Do'konlar", icon: 'store' },
+      { href: '/super', label: "Do'konlar", icon: 'building' },
       { href: '/super/payments', label: "To'lovlar", icon: 'wallet' },
     ],
   },

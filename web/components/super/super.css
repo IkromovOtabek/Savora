@@ -442,3 +442,146 @@ a.sa-cell:active, label.sa-cell:active { background: var(--sa-fill); }
 @media (prefers-reduced-motion: reduce) {
   .sa-side, .sa-switch, .sa-switch::after, .sa-collapse-arrow, .sa-bar-fill { transition: none; }
 }
+
+/* ============================================================
+   UX va 3D bosqichi (super): hero, lenta, tablar, havolalar, ro'yxat
+   ============================================================ */
+
+/* Desktopda gamburger ko'rinmasin (sa-icon-btn display'ini bosib o'tadi) */
+.sa-icon-btn.sa-toolbar-menu { display: none; }
+
+/* KPI ikonkalari — hajmli (ux-clay), label qatoriga moslangan o'lcham */
+.sa-kpi .sa-clay { width: 28px; height: 28px; border-radius: 9px; }
+.sa-kpi .sa-clay svg { width: 15px; height: 15px; }
+.ux-clay.sa-clay--v { background: linear-gradient(145deg, #8b72e6, #4f37a8); box-shadow: inset 0 2px 1px rgba(255, 255, 255, .4), inset 0 -3px 4px rgba(0, 0, 0, .18), 0 6px 12px -4px rgba(79, 55, 168, .45); }
+.ux-clay.sa-clay--c { background: linear-gradient(145deg, #2fb2d4, #0d6b86); box-shadow: inset 0 2px 1px rgba(255, 255, 255, .4), inset 0 -3px 4px rgba(0, 0, 0, .18), 0 6px 12px -4px rgba(13, 107, 134, .45); }
+
+/* Hero (3D, Tilt stack) + yonidagi lenta */
+.sa-hero-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.7fr); gap: 16px; align-items: stretch; }
+.sa-hero-row > .ux-strip { align-content: stretch; margin-bottom: 18px; }
+.sa-hero-row .sa-kpi { height: 100%; }
+.sa-hero {
+  background: linear-gradient(150deg, #4a78d4 0%, #1f4fa8 55%, #173d85 100%);
+  color: #fff; padding: 18px 20px 16px; display: grid; gap: 6px; align-content: start;
+  margin-bottom: 18px; /* stack qatlamlari uchun joy */
+  min-width: 0;
+}
+.sa-hero-l { display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 600; color: rgba(255, 255, 255, .88); }
+.sa-hero-ic { width: 28px; height: 28px; border-radius: 9px; display: grid; place-items: center; background: rgba(255, 255, 255, .18); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .3); }
+.sa-hero-v { font-size: 38px; font-weight: 800; letter-spacing: -.04em; line-height: 1.05; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; text-shadow: 0 2px 10px rgba(0, 0, 0, .18); }
+.sa-hero-v small { font-size: 15px; font-weight: 600; letter-spacing: 0; color: rgba(255, 255, 255, .8); text-shadow: none; }
+.sa-hero-s { font-size: 13px; color: rgba(255, 255, 255, .82); }
+.sa-hero-items { margin: 10px 0 0; padding-top: 12px; border-top: 1px solid rgba(255, 255, 255, .18); display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.sa-hero-items div { min-width: 0; display: grid; gap: 1px; }
+.sa-hero-items dt { font-size: 12px; color: rgba(255, 255, 255, .78); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sa-hero-items dd { margin: 0; font-size: 18px; font-weight: 700; letter-spacing: -.02em; font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dark .sa-hero { background: linear-gradient(150deg, #3a68c4 0%, #1f4fa8 55%, #142f66 100%); }
+
+/* Lenta ustunlari (ux.css dan keyin yuklangani uchun yuqori aniqlik) */
+.sa-shell .ux-strip { --ux-cols: 4; }
+.sa-shell .ux-strip.sa-strip-3 { --ux-cols: 3; }
+.sa-strip-mini .sa-mini { height: 100%; }
+
+/* 3D ustunli grafik — chuqur gradient, yon yuz va soya (sahifada bittadan) */
+.sa-bars--3d .sa-bar-track { overflow: visible; background: linear-gradient(180deg, var(--sa-fill-2), var(--sa-fill)); border-radius: 8px 8px 6px 6px; }
+.sa-bars--3d .sa-bar-fill {
+  position: relative; border-radius: 8px 8px 6px 6px;
+  background: linear-gradient(180deg, #6f97e8 0%, var(--brand) 60%, #173d85 100%);
+  box-shadow: inset -6px 0 0 rgba(0, 0, 0, .14), inset 0 2px 0 rgba(255, 255, 255, .35), 0 10px 16px -8px rgba(31, 79, 168, .55);
+}
+.sa-bars--3d .sa-bar-fill::before { /* ust yuz */
+  content: ""; position: absolute; left: 0; right: 0; top: -4px; height: 8px; border-radius: 50%;
+  background: linear-gradient(90deg, #a9c2f3, #7aa0ea); opacity: .9;
+}
+
+/* Tablar (do'kon sahifasi) */
+.sa-tabs { display: grid; gap: 16px; min-width: 0; }
+.sa-tabs-bar {
+  position: sticky; top: 52px; z-index: 15; margin: -4px -24px 0; padding: 8px 24px;
+  background: var(--sa-bar); backdrop-filter: blur(24px) saturate(1.8); -webkit-backdrop-filter: blur(24px) saturate(1.8);
+  border-bottom: .5px solid var(--sa-sep);
+}
+.sa-tabs-list { gap: 4px; padding: 3px; border-radius: 12px; background: var(--sa-fill); width: max-content; max-width: 100%; }
+.sa-tab {
+  display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 0 14px; border: 0; border-radius: 9px;
+  background: transparent; color: var(--ink-2); font: inherit; font-size: 14px; font-weight: 600; cursor: pointer;
+}
+.sa-tab svg { color: var(--ink-3); }
+.sa-tab:hover { color: var(--ink-1); }
+.sa-tab[aria-selected="true"] { background: var(--sa-card); color: var(--ink-1); box-shadow: 0 2px 6px rgba(0, 0, 0, .1), 0 0 0 .5px rgba(0, 0, 0, .04); }
+.sa-tab[aria-selected="true"] svg { color: var(--brand); }
+.sa-tab:focus-visible { outline: 3px solid var(--brand-soft); outline-offset: 1px; }
+.sa-tabpanel { min-width: 0; max-width: 920px; }
+.sa-tabpanel[hidden] { display: none; }
+.sa-panel-h { display: flex; align-items: center; gap: 12px; padding: 14px 16px; }
+
+/* Havolalar — ixcham, nusxalanadigan qatorlar */
+.sa-links { background: var(--bg-soft); }
+.sa-link-row { position: relative; display: flex; align-items: center; gap: 12px; min-height: 52px; padding: 8px 10px 8px 16px; }
+.sa-link-row + .sa-link-row::before { content: ""; position: absolute; top: 0; right: 0; left: 16px; height: .5px; background: var(--sa-sep); }
+.sa-link-t { flex: 1; min-width: 0; display: grid; gap: 1px; }
+.sa-link-t b { font-size: 15px; font-weight: 500; display: flex; align-items: center; gap: 6px; min-width: 0; }
+.sa-link-path { font-family: var(--font-mono, ui-monospace, monospace); font-size: 12.5px; color: var(--brand); text-decoration: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sa-link-path:hover { text-decoration: underline; }
+.sa-copy {
+  flex: none; display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 0 12px; border: 0; border-radius: 999px;
+  background: var(--brand-soft); color: var(--brand); font: inherit; font-size: 13px; font-weight: 600; cursor: pointer;
+}
+.sa-copy:active { opacity: .55; }
+.sa-copy:focus-visible { outline: 3px solid var(--brand-soft); outline-offset: 1px; }
+.sa-copy--done { background: var(--sa-ok-soft); color: var(--sa-ok); }
+
+/* Do'konlar ro'yxati — qidiruv va holat filtri */
+.sa-list-h { align-items: center; flex-wrap: wrap; }
+.sa-list-tools { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; min-width: 0; }
+.sa-searchbox { position: relative; display: flex; align-items: center; min-width: 0; flex: 0 1 260px; }
+.sa-searchbox svg { position: absolute; left: 11px; color: var(--ink-3); pointer-events: none; }
+.sa-searchbox input {
+  width: 100%; min-height: 36px; padding: 7px 12px 7px 34px; border: 0; border-radius: 10px;
+  background: var(--sa-fill); color: var(--ink-1); font: inherit; font-size: 14px; outline: none;
+}
+.sa-searchbox input:focus { background: var(--sa-card); box-shadow: inset 0 0 0 2px var(--brand); }
+.sa-seg--scroll { display: flex; max-width: 100%; }
+.sa-seg--scroll button { flex: none; }
+.sa-seg-n { color: var(--ink-3); font-weight: 500; font-variant-numeric: tabular-nums; margin-left: 2px; }
+.sa-list-m { border-top: .5px solid var(--sa-sep); }
+
+/* Kun navigatsiyasi (tashriflar) */
+.sa-daynav .sa-rot90 { transform: rotate(90deg); }
+.sa-daynav .sa-rot-90 { transform: rotate(-90deg); }
+.sa-table tr.sa-tr-on td { background: var(--brand-soft); }
+
+/* Tariflar — kompyuterda 3 ustun */
+.sa-plans { display: grid; gap: 16px; }
+@media (min-width: 1180px) {
+  .sa-plans { grid-template-columns: repeat(3, minmax(0, 1fr)); align-items: stretch; }
+  .sa-plans .sa-grid-2 { grid-template-columns: minmax(0, 1fr); }
+  .sa-plans .sa-grid-3 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .sa-plans .sa-grid-3 > :last-child { grid-column: 1 / -1; }
+}
+
+@media (max-width: 1100px) {
+  .sa-hero-row { grid-template-columns: minmax(0, 1fr); }
+  .sa-hero-row > .ux-strip { margin-bottom: 0; }
+  .sa-hero { margin-bottom: 20px; }
+  .sa-shell .ux-strip { --ux-cols: 2; }
+  .sa-shell .ux-strip.sa-strip-3 { --ux-cols: 3; }
+}
+@media (max-width: 860px) {
+  .sa-side { visibility: hidden; transition: transform .25s ease, visibility 0s linear .25s; }
+  .sa-shell--open .sa-side { visibility: visible; transition: transform .25s ease; }
+  .sa-tabs-bar { margin-inline: -16px; padding-inline: 16px; }
+  .sa-tabs-list { width: auto; }
+  .sa-body--fab { padding-bottom: 96px; }
+  .sa-shell .ux-fab { bottom: calc(20px + env(safe-area-inset-bottom, 0px)); }
+}
+@media (max-width: 700px) {
+  .sa-hero-v { font-size: 32px; }
+  .sa-list-tools { width: 100%; }
+  .sa-searchbox { flex: 1 1 100%; }
+  .sa-searchbox input { min-height: 44px; font-size: 16px; }
+  .sa-shell .ux-strip > .sa-kpi, .sa-shell .ux-strip > .sa-mini { flex-basis: min(46%, 200px); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sa-side { transition: none; }
+}

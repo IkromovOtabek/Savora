@@ -144,6 +144,15 @@ export default async function ProfilePage() {
         </aside>
 
         <div className="ad-settings-main">
+          {/* Telefon/planshet: bo'limlarga tez o'tish (kompyuterda chap menyu bor) */}
+          <nav className="ad-jump-m ux-scrollx" aria-label="Kabinet bo'limlari">
+            {jump.map((j) => (
+              <a key={j.href} href={j.href} className="ad-chip">
+                <Icon name={j.icon} size={15} /> {j.label}
+              </a>
+            ))}
+          </nav>
+
           <ProfileForms
             username={user.username}
             fullName={dbUser?.fullName ?? ''}

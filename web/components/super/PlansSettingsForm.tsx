@@ -25,6 +25,7 @@ export default function PlansSettingsForm({ presets }: Props) {
         Bu qiymatlar yangi do&apos;kon yaratishda va marketing sahifasida ko&apos;rinadi. Har bir do&apos;kon uchun alohida qo&apos;lda ham o&apos;zgartirish mumkin.
       </p>
 
+      <div className="sa-plans">
       {(['starter', 'pro', 'business'] as const).map((tier) => {
         const p = presets[tier];
         return (
@@ -67,6 +68,7 @@ export default function PlansSettingsForm({ presets }: Props) {
           </section>
         );
       })}
+      </div>
 
       <Alert tone="info">
         <strong>Kelishuv tarifi</strong> — har bir do&apos;kon sahifasida alohida sozlanadi (filial, xodim, to&apos;lov, kelishuv matni).

@@ -425,3 +425,63 @@ a.ad-onb-step:focus-visible { outline: 3px solid var(--brand-ring); outline-offs
 @media (prefers-reduced-motion: reduce) {
   .ad-side-overlay .u-modal.ad-side, .ad-switch, .ad-switch::after, .ad-meter-fill, .ad-ring-val { animation: none; transition: none; }
 }
+
+/* ============================================================
+   UX va 3D bosqichi (Boshqaruv)
+   ============================================================ */
+
+/* Filiallar: tarif limiti — sahifaning asosiy 3D ob'ekti (Tilt stack) */
+.ad-team-summary { grid-template-columns: minmax(0, 1.3fr) minmax(0, 2fr); align-items: stretch; }
+.ad-hero {
+  background: var(--grad-brand); color: var(--on-brand);
+  padding: 16px 18px; display: grid; gap: 8px; align-content: start; min-width: 0;
+  margin-bottom: 14px; /* stack qatlamlari uchun joy */
+}
+.ad-hero--over { background: linear-gradient(160deg, #e0655a, #a52a20); }
+.ad-hero-l { display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; color: rgba(255, 255, 255, .86); }
+.ad-hero-v { font-size: 34px; font-weight: 800; letter-spacing: -.04em; line-height: 1.05; font-variant-numeric: tabular-nums; text-shadow: 0 2px 10px rgba(0, 0, 0, .18); }
+.ad-hero-v small { font-size: 17px; font-weight: 600; letter-spacing: 0; color: rgba(255, 255, 255, .78); text-shadow: none; }
+.ad-hero-s { font-size: 13px; color: rgba(255, 255, 255, .86); }
+.ad-hero-s a { color: inherit; font-weight: 700; text-decoration: underline; text-underline-offset: 2px; }
+.ad-meter--hero .ad-meter-bar { background: rgba(255, 255, 255, .22); height: 8px; border-radius: 4px; }
+.ad-meter--hero .ad-meter-fill,
+.ad-meter--hero.ad-meter--warn .ad-meter-fill,
+.ad-meter--hero.ad-meter--over .ad-meter-fill { background: #fff; box-shadow: 0 0 10px rgba(255, 255, 255, .5); }
+.ad-team-stats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-bottom: 14px; }
+.ad-team-stats .ad-stat { height: 100%; }
+
+/* Karta amallari: ⋯ menyu (o'chirish ichida). Menyu kesilmasligi uchun karta overflow ochiq */
+.ad-member { overflow: visible; }
+.ad-member-actions .ux-more { flex: none; }
+.ad-member-actions .ux-more-btn { width: 40px; height: 36px; border-radius: 10px; }
+.ad-member-actions .ux-more-menu { top: auto; bottom: calc(100% + 6px); }
+.ad-member-actions .ux-more-menu button:disabled { opacity: .45; cursor: not-allowed; }
+
+/* Amallar: chiplar bir qatorda aylanadi (kesilmaydi) */
+.ad-chips.ux-scrollx { flex-wrap: nowrap; }
+
+/* Kabinet: telefon/planshetda bo'limlarga tez o'tish */
+.ad-jump-m { display: none; }
+
+@media (max-width: 1100px) {
+  .ad-jump-m { display: flex; margin: -8px 0 -6px; }
+  .ad-jump-m .ad-chip svg { color: var(--brand); }
+}
+@media (max-width: 900px) {
+  .ad-team-summary { grid-template-columns: minmax(0, 1fr); }
+  .ad-team-summary > .ad-stat:first-child { grid-column: auto; }
+  .ad-team-stats { margin-bottom: 0; }
+}
+@media (max-width: 700px) {
+  .ad-team-summary { gap: 8px; margin-bottom: 18px; }
+  .ad-hero { padding: 14px 16px; }
+  .ad-hero-v { font-size: 30px; }
+  .ad-team-stats { gap: 8px; }
+  .ad-team-stats .ad-stat { padding: 12px 14px; gap: 4px; }
+  .ad-team-stats .ad-stat-v { font-size: 22px; }
+  .ad-team-stats .ad-stat-sub { display: none; }
+  .ad-chips.ux-scrollx { flex: 1 1 100%; }
+  .ad-hide-sm { display: none; }
+  .ad-member-actions .ux-more-btn { height: 44px; width: 44px; }
+  .ad-team { padding-bottom: 72px; } /* FAB oxirgi kartani yopmasin */
+}

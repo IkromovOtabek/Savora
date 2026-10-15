@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import Icon, { type IconName } from '@/components/icons/Icon';
+import Tilt from '@/components/ui/Tilt';
 
 /** Super admin uchun kichik UI bloklari (server va client'da ishlaydi) */
 
@@ -63,7 +64,7 @@ export function Kpi({
   return (
     <div className={`sa-card sa-kpi${hero ? ' sa-kpi--hero' : ''}`}>
       <div className="sa-kpi-l">
-        <Sq icon={icon} tone={tone} size={15} />
+        {hero ? <Sq icon={icon} tone={tone} size={15} /> : <Clay icon={icon} tone={tone} />}
         {label}
       </div>
       <div className="sa-kpi-v">
@@ -72,6 +73,64 @@ export function Kpi({
       </div>
       {delta && <div className={`sa-kpi-d${deltaTone ? ` sa-kpi-d--${deltaTone}` : ''}`}>{delta}</div>}
     </div>
+  );
+}
+
+const CLAY: Record<SqTone, string> = {
+  b: 'ux-clay', a: 'ux-clay ux-clay--gold', o: 'ux-clay ux-clay--green', r: 'ux-clay ux-clay--red',
+  v: 'ux-clay sa-clay--v', c: 'ux-clay sa-clay--c', g: 'ux-clay ux-clay--gray',
+};
+
+/** KPI uchun hajmli ikonka (ux-clay) */
+export function Clay({ icon, tone = 'b' }: { icon: IconName; tone?: SqTone }) {
+  return (
+    <span className={`${CLAY[tone]} sa-clay`} aria-hidden="true">
+      <Icon name={icon} size={15} strokeWidth={2.3} />
+    </span>
+  );
+}
+
+/**
+ * Sahifaning asosiy "ob'ekti" — 3D (Tilt stack) hero karta: katta raqam + 2–3 ichki ko'rsatkich.
+ * Tugma emas; faqat ko'rsatkich.
+ */
+export function HeroStat({
+  label,
+  value,
+  unit,
+  icon,
+  sub,
+  items,
+}: {
+  label: string;
+  value: React.ReactNode;
+  unit?: string;
+  icon: IconName;
+  sub?: React.ReactNode;
+  items?: { label: string; value: React.ReactNode }[];
+}) {
+  return (
+    <Tilt stack className="sa-hero">
+      <div className="sa-hero-l">
+        <span className="sa-hero-ic" aria-hidden="true"><Icon name={icon} size={16} strokeWidth={2.3} /></span>
+        {label}
+      </div>
+      <div className="sa-hero-v ux-z">
+        {value}
+        {unit && <small> {unit}</small>}
+      </div>
+      {sub && <div className="sa-hero-s">{sub}</div>}
+      {items && items.length > 0 && (
+        <dl className="sa-hero-items">
+          {items.map((it) => (
+            <div key={it.label}>
+              <dt>{it.label}</dt>
+              <dd>{it.value}</dd>
+            </div>
+          ))}
+        </dl>
+      )}
+    </Tilt>
   );
 }
 

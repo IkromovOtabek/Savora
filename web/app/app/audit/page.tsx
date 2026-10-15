@@ -114,7 +114,7 @@ export default async function AuditPage({
           <span className="ad-stat-v">{todayCount}</span>
         </div>
         <div className={`ad-stat${dangerCount > 0 ? ' ad-stat--danger' : ''}`}>
-          <span className="ad-stat-l"><Icon name="alert" size={15} /> Xavfli amallar</span>
+          <span className="ad-stat-l"><Icon name="alert" size={15} /> Xavfli<span className="ad-hide-sm"> amallar</span></span>
           <span className="ad-stat-v">{dangerCount}</span>
         </div>
         <div className="ad-stat">
@@ -124,7 +124,7 @@ export default async function AuditPage({
       </div>
 
       <form className="ad-filters" role="search" action="/app/audit">
-        <nav className="ad-chips" aria-label="Bo'lim bo'yicha saralash">
+        <nav className="ad-chips ux-scrollx" aria-label="Bo'lim bo'yicha saralash">
           {FILTERS.map((f) => (
             <Link
               key={f.key || 'all'}

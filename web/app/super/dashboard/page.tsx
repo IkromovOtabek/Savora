@@ -4,7 +4,8 @@ import { getMasterModels } from '@/lib/masterDb';
 import { isOrganizationActive, isTrialActive, daysUntilExpiry } from '@/lib/models/master/Organization';
 import { resolveOrgPlan, PLAN_PRESETS } from '@/lib/plans';
 import { getOrgDisplayStatus } from '@/lib/organizations';
-import { Avatar, Chevron, Kpi, OrgStatusPill, PageTitle, Pill, Sq } from '@/components/super/ui';
+import Icon from '@/components/icons/Icon';
+import { Avatar, Chevron, HeroStat, Kpi, OrgStatusPill, PageTitle, Pill, Sq } from '@/components/super/ui';
 
 export const metadata = { title: 'Asosiy panel — Super Admin' };
 
@@ -68,27 +69,37 @@ export default async function SuperDashboardHome() {
     <>
       <PageTitle title="Asosiy panel" sub="Platformaning bugungi holati" />
 
-      {/* Asosiy ko'rsatkichlar */}
-      <div className="sa-kpis">
-        <Kpi hero label="MRR" value={fmtSum(mrr)} unit="so'm" icon="wallet" delta="Oylik takroriy daromad" />
-        <Kpi label="Faol do'konlar" value={active.length} icon="store" tone="o" delta={`Jami ${total}`} />
-        <Kpi label="Yangi (shu oy)" value={`+${newThisMonth}`} icon="building" tone="b" deltaTone={newThisMonth > 0 ? 'ok' : undefined} delta={`${recentVisitsSignup} ta saytdan ro'yxat`} />
-        <Kpi
-          label="Kutilayotgan to'lov"
-          value={pendingPayments}
-          icon="clipboard"
-          tone="a"
-          delta={pendingPayments > 0 ? <Link href="/super/payments" className="sa-link" style={{ color: 'var(--brand)' }}>Ko&apos;rib chiqish</Link> : 'Hammasi ko\'rilgan'}
+      {/* Asosiy ob'ekt — MRR (3D) + eng muhim 3 ko'rsatkich */}
+      <div className="sa-hero-row">
+        <HeroStat
+          label="MRR"
+          value={fmtSum(mrr)}
+          unit="so'm"
+          icon="wallet"
+          sub="Oylik takroriy daromad"
+          items={[
+            { label: 'Faol do\'konlar', value: active.length },
+            { label: 'Jami', value: total },
+            { label: 'Hozir onlayn', value: onlineCount },
+          ]}
         />
+        <div className="ux-strip sa-strip-3">
+          <Kpi label="Yangi (shu oy)" value={`+${newThisMonth}`} icon="building" tone="b" deltaTone={newThisMonth > 0 ? 'ok' : undefined} delta={`${recentVisitsSignup} ta saytdan ro'yxat`} />
+          <Kpi
+            label="Kutilayotgan to'lov"
+            value={pendingPayments}
+            icon="clipboard"
+            tone="a"
+            delta={pendingPayments > 0 ? <Link href="/super/payments" className="sa-link" style={{ color: 'var(--brand)' }}>Ko&apos;rib chiqish</Link> : 'Hammasi ko\'rilgan'}
+          />
+          <Kpi label="7 kunda tugaydi" value={expiringSoon.length} icon="bell" tone="r" deltaTone={expiringSoon.length > 0 ? 'warn' : undefined} delta={`Sinovda: ${trialCount}`} />
+        </div>
       </div>
 
-      {/* Ikkilamchi ko'rsatkichlar */}
-      <div className="sa-kpis sa-kpis--6">
-        <div className="sa-card sa-mini"><span>Sinovda</span><b>{trialCount}</b></div>
-        <div className="sa-card sa-mini"><span>7 kunda tugaydi</span><b>{expiringSoon.length}</b></div>
+      {/* Ikkilamchi ko'rsatkichlar — telefonda bitta gorizontal lenta */}
+      <div className="ux-strip sa-strip-3 sa-strip-mini">
         <div className="sa-card sa-mini"><span>Muddati tugagan</span><b>{expiredCount}</b></div>
         <div className="sa-card sa-mini"><span>Bugun tashrif</span><b>{todayVisits}</b></div>
-        <div className="sa-card sa-mini"><span>Hozir onlayn</span><b className="sa-ok">{onlineCount}</b></div>
         <div className="sa-card sa-mini"><span>Oylik ro&apos;yxatdan</span><b>{recentVisitsSignup}</b></div>
       </div>
 
@@ -99,7 +110,14 @@ export default async function SuperDashboardHome() {
             <h2>Tashriflar · 7 kun</h2>
             <Link href="/super/visitors">Batafsil</Link>
           </div>
-          <div className="sa-bars" role="img" aria-label="Oxirgi 7 kunlik tashriflar grafigi">
+          {weekVisits.length === 0 ? (
+            <div className="ux-empty">
+              <span className="ux-empty-ic"><Icon name="chart" size={24} /></span>
+              <b>Tashrif hali yo&apos;q</b>
+              <p>Saytga kirganlar shu yerda kunlar bo&apos;yicha ko&apos;rinadi.</p>
+            </div>
+          ) : (
+          <div className="sa-bars sa-bars--3d" role="img" aria-label="Oxirgi 7 kunlik tashriflar grafigi">
             {days.map((d) => (
               <div key={d.key} className="sa-bar" title={`${d.label}: ${d.visits} tashrif, ${d.signups} ro'yxat`}>
                 <span className="sa-bar-v">{d.visits}</span>
@@ -110,6 +128,7 @@ export default async function SuperDashboardHome() {
               </div>
             ))}
           </div>
+          )}
         </section>
 
         {/* Tariflar taqsimoti */}

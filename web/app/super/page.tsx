@@ -6,7 +6,8 @@ import { isOrganizationActive, isTrialActive, daysUntilExpiry } from '@/lib/mode
 import { BUSINESS_TYPES } from '@/lib/businessTypes';
 import { resolveOrgPlan, fmtPlanPrice, PLAN_PRESETS } from '@/lib/plans';
 import Icon from '@/components/icons/Icon';
-import { Avatar, Chevron, Kpi, OrgStatusPill, PageTitle, Pill } from '@/components/super/ui';
+import OrgList, { type OrgListRow } from '@/components/super/OrgList';
+import { Avatar, Chevron, HeroStat, Kpi, PageTitle, Pill } from '@/components/super/ui';
 
 export const metadata = { title: "Do'konlar — Super Admin" };
 
@@ -43,17 +44,41 @@ export default async function SuperDashboard() {
   monthStart.setHours(0, 0, 0, 0);
   const newThisMonth = orgs.filter((o) => o.createdAt && new Date(o.createdAt) >= monthStart).length;
 
+  const rows: OrgListRow[] = orgs.map((org) => ({
+    id: String(org._id),
+    name: org.name,
+    slug: org.slug,
+    ownerName: org.ownerName ?? '',
+    typeLabel: BUSINESS_TYPES[org.businessType as keyof typeof BUSINESS_TYPES]?.label ?? 'Umumiy',
+    planLabel: PLAN_PRESETS[org.plan.tier as keyof typeof PLAN_PRESETS]?.label ?? org.plan.tier,
+    isTrial: Boolean(org.plan?.isTrial),
+    price: fmtPlanPrice(resolveOrgPlan(org).monthlyPayment),
+    status: getOrgDisplayStatus(org),
+    expires: fmtDate(org.expiresAt),
+  }));
+
   return (
     <>
       <PageTitle title="Do'konlar" sub="Mijoz bizneslar, ularning tarifi va obuna holati — bir joyda" />
 
-      <div className="sa-kpis sa-kpis--6">
-        <Kpi hero label="MRR" value={fmtSum(mrr)} unit="so'm" icon="wallet" delta="Oylik takroriy daromad" />
-        <Kpi label="Faol" value={activeCount} icon="store" tone="o" />
-        <Kpi label="Jami" value={orgs.length} icon="building" tone="b" delta={`+${newThisMonth} shu oyda`} deltaTone={newThisMonth > 0 ? 'ok' : undefined} />
-        <Kpi label="Sinovda" value={trialCount} icon="clock" tone="c" />
-        <Kpi label="7 kunda tugaydi" value={expiringSoon.length} icon="bell" tone="a" />
-        <Kpi label="Muddati tugagan" value={expiredCount} icon="alert" tone="r" />
+      <div className="sa-hero-row">
+        <HeroStat
+          label="MRR"
+          value={fmtSum(mrr)}
+          unit="so'm"
+          icon="wallet"
+          sub="Oylik takroriy daromad"
+          items={[
+            { label: 'Faol do\'konlar', value: activeCount },
+            { label: 'Jami', value: orgs.length },
+            { label: 'Shu oyda', value: `+${newThisMonth}` },
+          ]}
+        />
+        <div className="ux-strip sa-strip-3">
+          <Kpi label="Sinovda" value={trialCount} icon="clock" tone="c" />
+          <Kpi label="7 kunda tugaydi" value={expiringSoon.length} icon="bell" tone="a" />
+          <Kpi label="Muddati tugagan" value={expiredCount} icon="alert" tone="r" deltaTone={expiredCount > 0 ? 'bad' : undefined} delta={expiredCount > 0 ? 'Uzaytirish kerak' : undefined} />
+        </div>
       </div>
 
       {expiringSoon.length > 0 && (
@@ -76,62 +101,20 @@ export default async function SuperDashboard() {
         </section>
       )}
 
-      <section className="sa-card">
-        <div className="sa-card-h">
-          <div>
-            <h2>Barcha do&apos;konlar</h2>
-            <p>{orgs.length} ta biznes</p>
-          </div>
-        </div>
-        {orgs.length === 0 ? (
-          <div className="sa-empty">
-            <p>Hozircha do&apos;kon yo&apos;q.</p>
+      {orgs.length === 0 ? (
+        <section className="sa-card">
+          <div className="ux-empty">
+            <span className="ux-empty-ic"><Icon name="store" size={26} /></span>
+            <b>Hozircha do&apos;kon yo&apos;q</b>
+            <p>Birinchi mijoz biznesini yarating — havolalar va login avtomatik tayyorlanadi.</p>
             <Link href="/super/organizations/new" className="sa-btn sa-btn--filled">
               <Icon name="plus" size={16} /> Birinchi do&apos;konni yaratish
             </Link>
           </div>
-        ) : (
-          <div className="sa-table-wrap">
-            <table className="sa-table">
-              <thead>
-                <tr>
-                  <th>Do&apos;kon</th>
-                  <th>Turi</th>
-                  <th>Tarif</th>
-                  <th className="sa-td-r">To&apos;lov/oy</th>
-                  <th>Holat</th>
-                  <th>Muddat</th>
-                  <th aria-label="Amallar" />
-                </tr>
-              </thead>
-              <tbody>
-                {orgs.map((org) => {
-                  const st = getOrgDisplayStatus(org);
-                  const planInfo = resolveOrgPlan(org);
-                  const plan = PLAN_PRESETS[org.plan.tier as keyof typeof PLAN_PRESETS]?.label ?? org.plan.tier;
-                  const typeLabel = BUSINESS_TYPES[org.businessType as keyof typeof BUSINESS_TYPES]?.label ?? 'Umumiy';
-                  return (
-                    <tr key={String(org._id)}>
-                      <td>
-                        <Link href={`/super/organizations/${org._id}`} className="sa-td-main">{org.name}</Link>
-                        <span className="sa-td-sub">{org.slug}{org.ownerName ? ` · ${org.ownerName}` : ''}</span>
-                      </td>
-                      <td>{typeLabel}</td>
-                      <td>{plan}{org.plan?.isTrial ? <> <Pill tone="br">sinov</Pill></> : null}</td>
-                      <td className="sa-td-r">{fmtPlanPrice(planInfo.monthlyPayment)}</td>
-                      <td><OrgStatusPill status={st} /></td>
-                      <td>{fmtDate(org.expiresAt)}</td>
-                      <td className="sa-td-r">
-                        <Link href={`/super/organizations/${org._id}`} className="sa-btn sa-btn--tinted sa-btn--sm">Boshqarish</Link>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </section>
+        </section>
+      ) : (
+        <OrgList rows={rows} />
+      )}
     </>
   );
 }

@@ -28,6 +28,8 @@ export default function SuperShell({
 }) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
+  // Telefonda asosiy amal (Yangi do'kon) — ro'yxat sahifalarida pastki o'ng FAB
+  const fabPage = pathname === '/super' || pathname === '/super/dashboard';
 
   // Sahifa almashganda mobil menyu yopiladi
   useEffect(() => { setOpen(false); }, [pathname]);
@@ -59,14 +61,20 @@ export default function SuperShell({
           <p className="sa-toolbar-title">{toolbarTitle(pathname)}</p>
           <span className="sa-toolbar-spacer" />
           {pathname !== '/super/organizations/new' && (
-            <Link href="/super/organizations/new" className="sa-btn sa-btn--filled sa-btn--sm sa-toolbar-new">
+            <Link href="/super/organizations/new" className={`sa-btn sa-btn--filled sa-btn--sm sa-toolbar-new${fabPage ? ' ux-hide-mobile' : ''}`} aria-label="Yangi do'kon">
               <Icon name="plus" size={15} strokeWidth={2.6} />
               <span>Yangi do&apos;kon</span>
             </Link>
           )}
           <ThemeToggle />
         </header>
-        <div className="sa-body">{children}</div>
+        <div className={`sa-body${fabPage ? ' sa-body--fab' : ''}`}>{children}</div>
+        {fabPage && (
+          <Link href="/super/organizations/new" className="ux-fab">
+            <Icon name="plus" size={18} strokeWidth={2.6} />
+            Yangi do&apos;kon
+          </Link>
+        )}
       </div>
     </div>
   );
