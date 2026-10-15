@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { bulkImeiLookup } from '@/app/actions/transfer';
 import { checkImeiBlacklistAction } from '@/app/actions/imeiBlacklist';
 import Icon from '@/components/icons/Icon';
+import CameraScanButton from '@/components/ui/CameraScanButton';
 import type { BlacklistHit } from '@/lib/imeiBlacklist';
 import { PRODUCT_STATUS_LABELS, ProductStatus } from '@/lib/models/tenant/Product';
 import { fmtMoney } from '@/lib/format';
@@ -27,33 +28,72 @@ export default function ImeiBulkSearch() {
     });
   }
 
-  const entered = text.split(/[\n,;\s]+/).filter(Boolean).length;
+  const tokens = text.split(/[\n,;\s]+/).filter(Boolean);
+  const entered = tokens.length;
+  // Standart IMEI — 15 raqam; boshqalari ham qidiriladi, faqat ogohlantirish sifatida sanaladi
+  const odd = tokens.filter((t) => !/^\d{15}$/.test(t)).length;
   const blacklisted = new Set(blacklist.map((b) => b.imei));
+
+  // Skaner — kodni ro'yxat oxiriga yangi qatorda qo'shadi (takrorlanmasin)
+  function onScan(code: string) {
+    const c = code.trim();
+    if (!c) return;
+    setText((prev) => {
+      const list = prev.split(/[\n,;\s]+/).filter(Boolean);
+      if (list.includes(c)) return prev;
+      return [...list, c].join('\n');
+    });
+  }
+
+  function clear() {
+    setText('');
+    setResult(null);
+    setBlacklist([]);
+  }
 
   return (
     <>
       <section className="st-imei-hero" aria-labelledby="st-imei-title">
-        <div>
-          <h2 id="st-imei-title"><Icon name="search" size={20} /> Ko&apos;p IMEI qidiruv</h2>
-          <p>Har qatorga bittadan, yoki vergul / probel bilan ajratib kiriting.</p>
+        <div className="st-imei-hero-head">
+          <span className="ux-clay" aria-hidden="true"><Icon name="search" size={20} /></span>
+          <div>
+            <h2 id="st-imei-title">Ko&apos;p IMEI qidiruv</h2>
+            <p>Har qatorga bittadan yoki vergul / probel bilan. Skaner bilan ham qo&apos;shish mumkin.</p>
+          </div>
         </div>
         <label htmlFor="imeis" className="sr-only">IMEI ro&apos;yxati (har qator, vergul yoki probel bilan)</label>
         <textarea
           id="imeis"
-          rows={7}
+          rows={5}
           className="st-imei-ta"
           value={text}
           onChange={(e) => setText(e.target.value)}
+          onKeyDown={(e) => {
+            // Ctrl/⌘ + Enter — darhol qidirish
+            if (e.key === 'Enter' && (e.metaKey || e.ctrlKey) && text.trim() && !pending) {
+              e.preventDefault();
+              search();
+            }
+          }}
           placeholder={'353456789012345\n353456789012346'}
           spellCheck={false}
           autoComplete="off"
           inputMode="numeric"
         />
         <div className="st-imei-bar">
-          <span className="st-imei-count" aria-live="polite"><b>{entered}</b> ta IMEI kiritildi</span>
-          <button type="button" className="btn btn-primary btn-with-icon" onClick={search} disabled={pending || !text.trim()}>
+          <span className="st-imei-count" aria-live="polite">
+            <b>{entered}</b> ta IMEI
+            {odd > 0 && <span className="st-imei-odd"> · {odd} tasi 15 raqam emas</span>}
+          </span>
+          <div className="st-imei-tools">
+            <CameraScanButton onScan={onScan} label="Skaner" />
+            {text && (
+              <button type="button" className="btn btn-plain btn-sm" onClick={clear}>Tozalash</button>
+            )}
+          </div>
+          <button type="button" className="btn btn-primary btn-with-icon st-imei-go" onClick={search} disabled={pending || !text.trim()}>
             <Icon name="search" size={18} />
-            {pending ? 'Qidirilmoqda...' : 'Qidirish'}
+            {pending ? 'Qidirilmoqda...' : entered > 0 ? `${entered} ta IMEI ni qidirish` : 'Qidirish'}
           </button>
         </div>
       </section>
@@ -123,9 +163,12 @@ export default function ImeiBulkSearch() {
       )}
 
       {result && result.found.length === 0 && result.missing.length === 0 && (
-        <div className="st-group st-empty st-section">
-          <span className="st-empty-ic"><Icon name="search" size={24} /></span>
-          <p>Natija yo&apos;q. IMEI larni tekshirib, qayta urinib ko&apos;ring.</p>
+        <div className="st-group st-section">
+          <div className="ux-empty">
+            <span className="ux-empty-ic"><Icon name="search" size={24} /></span>
+            <b>Natija yo&apos;q</b>
+            <p>IMEI larni tekshirib, qayta urinib ko&apos;ring.</p>
+          </div>
         </div>
       )}
     </>

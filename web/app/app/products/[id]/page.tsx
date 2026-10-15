@@ -10,6 +10,8 @@ import { loadUserPermissions } from '@/lib/permissionGuard';
 import ProductRowActions from '@/components/tenant/ProductRowActions';
 import BackLink from '@/components/ui/BackLink';
 import Icon from '@/components/icons/Icon';
+import Tilt from '@/components/ui/Tilt';
+import MoreMenu from '@/components/ui/MoreMenu';
 
 function fmtMoney(n: number) {
   return new Intl.NumberFormat('uz-UZ').format(n);
@@ -72,7 +74,8 @@ export default async function ProductDetailPage({
         </div>
       )}
 
-      <section className="st-hero" aria-labelledby="st-hero-name">
+      {/* Sahifaning asosiy "ob'ekti" — mahsulot kartasi (3D to'plam), narx oldinga chiqadi */}
+      <Tilt as="section" stack max={4} className="st-hero">
         <div className="st-hero-photo">
           {product.photoUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
@@ -96,7 +99,7 @@ export default async function ProductDetailPage({
             {showImei && product.imei && <span>IMEI <code className="st-mono">{product.imei}</code></span>}
             {!showImei && product.barcode && <span>Kod <code className="st-mono">{product.barcode}</code></span>}
           </div>
-          <div className="st-hero-price">
+          <div className="st-hero-price ux-z">
             {salePrice > 0 ? (
               <><b>{fmtMoney(salePrice)}</b><span>so&apos;m · sotuv narxi</span></>
             ) : (
@@ -145,14 +148,14 @@ export default async function ProductDetailPage({
             </div>
           )}
         </dl>
-
-      </section>
+      </Tilt>
 
       <div className="st-actionbar" role="toolbar" aria-label="Mahsulot amallari">
         {status === 'in_stock' && (canSell || canTransfer) && (
           <ProductRowActions
             variant="bar"
             productId={String(product._id)}
+            productName={product.name}
             status={product.status}
             currentBranchId={String(product.branchId)}
             trackQuantity={trackQuantity}
@@ -168,10 +171,11 @@ export default async function ProductDetailPage({
         <a href="#st-edit" className="btn btn-tinted btn-with-icon">
           <Icon name="edit" size={17} /> Tahrirlash
         </a>
+        {/* O'chirish — xavfli amal: asosiy panelda emas, ⋯ ichida "Xavfli zona"ga olib boradi */}
         {canDelete && (
-          <a href="#st-danger" className="btn btn-danger btn-with-icon">
-            <Icon name="trash" size={17} /> O&apos;chirish
-          </a>
+          <MoreMenu label="Boshqa amallar">
+            <a href="#st-danger" className="ux-danger"><Icon name="trash" size={18} /> O&apos;chirish</a>
+          </MoreMenu>
         )}
       </div>
 
