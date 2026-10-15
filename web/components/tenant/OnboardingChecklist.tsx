@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { IOrganization, isOnboardingComplete, onboardingProgress } from '@/lib/models/master/Organization';
 import Icon from '@/components/icons/Icon';
+import '@/components/tenant/styles/admin.css';
 
 interface Props {
   org: Pick<IOrganization, 'onboarding' | 'plan'>;
@@ -17,7 +18,7 @@ export default function OnboardingChecklist({ org, features }: Props) {
     {
       done: !!o.branchCreated,
       label: 'Filial yarating',
-      href: '/app/branches',
+      href: '/app/users#filial',
       hint: 'Do\'koningizning asosiy filialini sozlang',
     },
     {
@@ -34,31 +35,50 @@ export default function OnboardingChecklist({ org, features }: Props) {
     },
   ];
 
+  const doneCount = steps.filter((s) => s.done).length;
+  const r = 22;
+  const c = 2 * Math.PI * r;
+
   return (
-    <div className="onboarding-card">
-      <div className="onboarding-head">
-        <div>
-          <h3 className="onboarding-title">Do&apos;koningizni sozlang</h3>
-          <p className="onboarding-sub">{progress}% bajarildi</p>
-        </div>
-        <div className="onboarding-bar-wrap">
-          <div className="onboarding-bar" style={{ width: `${progress}%` }} />
-        </div>
+    <section className="ad-group ad-onb" aria-labelledby="ad-onb-title">
+      <div className="ad-ring ad-ring--sm" role="img" aria-label={`${progress}% bajarildi`}>
+        <svg viewBox="0 0 56 56" aria-hidden="true">
+          <circle className="ad-ring-track" cx="28" cy="28" r={r} fill="none" strokeWidth="6" />
+          <circle
+            className="ad-ring-val"
+            cx="28" cy="28" r={r} fill="none" strokeWidth="6" strokeLinecap="round"
+            strokeDasharray={c} strokeDashoffset={c * (1 - progress / 100)}
+          />
+        </svg>
+        <div className="ad-ring-c" aria-hidden="true"><b>{progress}%</b></div>
       </div>
-      <div className="onboarding-steps">
-        {steps.map((s, i) => (
-          <div key={i} className={`onboarding-step${s.done ? ' onboarding-step--done' : ''}`}>
-            <div className="onboarding-check">{s.done ? <Icon name="check" size={14} /> : i + 1}</div>
-            <div className="onboarding-step-body">
-              <div className="onboarding-step-label">{s.label}</div>
-              <div className="onboarding-step-hint">{s.hint}</div>
-            </div>
-            {!s.done && (
-              <Link href={s.href} className="btn btn-ghost btn-sm">Boshlash</Link>
-            )}
-          </div>
-        ))}
+      <div className="ad-onb-head">
+        <h3 id="ad-onb-title">Do&apos;koningizni sozlang</h3>
+        <p>{doneCount} / {steps.length} qadam bajarildi — qolganlari bir necha daqiqa oladi</p>
       </div>
-    </div>
+      <ol className="ad-onb-steps">
+        {steps.map((s, i) => {
+          const inner = (
+            <>
+              <span className="ad-onb-mark" aria-hidden="true">{s.done ? <Icon name="check" size={14} /> : i + 1}</span>
+              <span className="ad-cell-t">
+                <b>{s.label}</b>
+                <small>{s.done ? 'Bajarildi' : s.hint}</small>
+              </span>
+              {!s.done && <Icon name="chevron" size={14} className="ad-onb-go" />}
+            </>
+          );
+          return (
+            <li key={s.href}>
+              {s.done ? (
+                <div className="ad-onb-step ad-onb-step--done">{inner}</div>
+              ) : (
+                <Link href={s.href} className="ad-onb-step">{inner}</Link>
+              )}
+            </li>
+          );
+        })}
+      </ol>
+    </section>
   );
 }

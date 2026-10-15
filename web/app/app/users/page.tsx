@@ -1,6 +1,5 @@
 import { getTenantAdminSession, getOrgWithPlan } from '@/lib/tenantSession';
 import FilialManager from '@/components/tenant/FilialManager';
-import LimitBanner from '@/components/tenant/LimitBanner';
 import { effectivePermissions } from '@/lib/permissions';
 
 export const metadata = { title: 'Filiallar — Savora' };
@@ -44,10 +43,9 @@ export default async function UsersPage() {
       <div className="t-page-head">
         <div>
           <h1 className="t-page-title">Filiallar va jamoa</h1>
-          <p className="t-page-sub">{activeBranches} ta faol filial · {rows.length} ta login</p>
+          <p className="t-page-sub">Filial loginlari, huquqlar va tarif limiti</p>
         </div>
       </div>
-      <LimitBanner label="Filiallar" current={activeBranches} max={maxFilial} />
       <FilialManager rows={rows} maxFilial={maxFilial} activeBranchCount={activeBranches} features={features} />
     </>
   );

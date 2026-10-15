@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { checkPlanLimits, resolveOrgPlan } from '@/lib/plans';
 import { IOrganization } from '@/lib/models/master/Organization';
 import Icon from '@/components/icons/Icon';
+import '@/components/tenant/styles/admin.css';
 
 interface Props {
   org: Pick<IOrganization, 'plan'>;
@@ -12,20 +13,36 @@ export default function PlanLimitsBanner({ org, current }: Props) {
   const plan = resolveOrgPlan({ plan: org.plan });
   const limits = checkPlanLimits(plan, current);
 
-  const warnings: string[] = [];
-  if (limits.usersPercent >= 80) warnings.push(`Xodimlar: ${current.users}/${plan.maxUsers}`);
-  if (limits.branchesPercent >= 80) warnings.push(`Filiallar: ${current.branches}/${plan.maxFilial}`);
-  if (limits.productsPercent >= 80) warnings.push(`Mahsulotlar: ${current.products}/${plan.maxProducts}`);
+  const meters: { label: string; used: number; max: number; pct: number }[] = [];
+  if (limits.usersPercent >= 80) meters.push({ label: 'Xodimlar', used: current.users, max: plan.maxUsers, pct: limits.usersPercent });
+  if (limits.branchesPercent >= 80) meters.push({ label: 'Filiallar', used: current.branches, max: plan.maxFilial, pct: limits.branchesPercent });
+  if (limits.productsPercent >= 80) meters.push({ label: 'Mahsulotlar', used: current.products, max: plan.maxProducts, pct: limits.productsPercent });
 
-  if (warnings.length === 0) return null;
+  if (meters.length === 0) return null;
 
   return (
-    <div className="plan-limit-banner">
-      <span className="plan-limit-icon"><Icon name="alert" size={18} /></span>
-      <div className="plan-limit-body">
-        <strong>Limit yaqinlashmoqda:</strong> {warnings.join(' · ')}
+    <div className="ad-limit" role="status">
+      <span className="ad-sq ad-sq--gold" aria-hidden="true"><Icon name="alert" size={16} /></span>
+      <div className="ad-limit-body">
+        <p className="ad-limit-title">Tarif limiti yaqinlashmoqda</p>
+        <div className="ad-limit-meters">
+          {meters.map((m) => (
+            <div
+              key={m.label}
+              className={`ad-meter ${m.pct >= 100 ? 'ad-meter--over' : 'ad-meter--warn'}`}
+              role="meter"
+              aria-label={m.label}
+              aria-valuemin={0}
+              aria-valuemax={m.max}
+              aria-valuenow={m.used}
+            >
+              <div className="ad-meter-top"><span>{m.label}</span><b>{m.used} / {m.max}</b></div>
+              <div className="ad-meter-bar"><div className="ad-meter-fill" style={{ width: `${m.pct}%` }} /></div>
+            </div>
+          ))}
+        </div>
       </div>
-      <Link href="/app/profile#plan" className="btn btn-sm btn-primary">Tarifni yangilash</Link>
+      <Link href="/app/profile#obuna-tolovi" className="btn btn-sm btn-tinted">Tarifni yangilash</Link>
     </div>
   );
 }

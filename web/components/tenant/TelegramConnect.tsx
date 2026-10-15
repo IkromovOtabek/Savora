@@ -1,4 +1,5 @@
 import Icon from '@/components/icons/Icon';
+import '@/components/tenant/styles/admin.css';
 import { createOrgLinkToken } from '@/lib/security';
 
 interface Props {
@@ -25,32 +26,31 @@ export default function TelegramConnect({ orgId, connected }: Props) {
   const link = `https://t.me/${bot}?start=link_${createOrgLinkToken(String(orgId), secret)}`;
 
   return (
-    <div className="panel" style={{ marginTop: 20 }}>
-      <div className="panel-head">
-        <h2>Telegram</h2>
-      </div>
-      <div className="detail-body" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-        {connected ? (
-          <div className="auth-alert auth-alert--info" style={{ margin: 0, display: 'flex', alignItems: 'flex-start', gap: 8 }}>
-            <Icon name="check" size={16} />
-            <span>Telegram ulangan. Obuna eslatmalari va parolni tiklash kodlari shu yerga keladi.</span>
-          </div>
-        ) : (
-          <p className="dash-sub" style={{ margin: 0 }}>
-            Telegram&apos;ni ulang — parolni unutsangiz tiklash kodi shu yerga keladi, hamda obuna
-            muddati eslatmalari keladi.
-          </p>
-        )}
-        <a
-          href={link}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="btn btn-primary btn-with-icon"
-          style={{ alignSelf: 'flex-start' }}
-        >
-          <Icon name="bell" size={16} />
-          {connected ? 'Qayta ulash' : 'Telegram ulash'}
-        </a>
+    <div className="ad-tg">
+      <div className="ad-cell">
+        <span className="ad-sq ad-sq--tg" aria-hidden="true"><Icon name="bell" size={16} /></span>
+        <span className="ad-cell-t">
+          <b>Do&apos;kon bildirishnomalari</b>
+          <small>
+            {connected
+              ? 'Ulangan — obuna eslatmalari va parolni tiklash kodlari shu chatga keladi.'
+              : 'Ulang — parolni unutsangiz tiklash kodi va obuna muddati eslatmalari keladi.'}
+          </small>
+        </span>
+        <span className="ad-cell-a">
+          <span className={`ad-pill ${connected ? 'ad-pill--ok' : ''}`}>
+            {connected && <Icon name="check" size={12} />}
+            {connected ? 'Ulangan' : 'Ulanmagan'}
+          </span>
+          <a
+            href={link}
+            target="_blank"
+            rel="noopener noreferrer"
+            className={`btn btn-sm ${connected ? 'btn-ghost' : 'btn-primary'}`}
+          >
+            {connected ? 'Qayta ulash' : 'Telegram ulash'}
+          </a>
+        </span>
       </div>
     </div>
   );

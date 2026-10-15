@@ -1,14 +1,15 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createFilialAction, updateFilialAction, deleteFilialAction } from '@/app/actions/filials';
 import { toast } from '@/lib/toast';
-import { fmtDateTime } from '@/lib/format';
+import { fmtDate } from '@/lib/format';
 import Icon from '@/components/icons/Icon';
 import PermissionEditor from '@/components/tenant/PermissionEditor';
 import type { OrgFeatures } from '@/lib/featureKeys';
 import type { PermissionKey } from '@/lib/permissions';
+import '@/components/tenant/styles/admin.css';
 
 interface Row {
   id: string;
@@ -27,6 +28,15 @@ interface Row {
 }
 
 type ActResult = { error?: string; success?: string } | null;
+type Modal = null | { type: 'create' } | { type: 'edit'; row: Row } | { type: 'perms'; row: Row };
+
+/** Ism/nomdan 1–2 harfli bosh harflar (avatar uchun) */
+function initials(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return '?';
+  const s = parts.length > 1 ? parts[0][0] + parts[1][0] : parts[0].slice(0, 2);
+  return s.toUpperCase();
+}
 
 export default function FilialManager({
   rows,
@@ -40,8 +50,25 @@ export default function FilialManager({
   features: OrgFeatures;
 }) {
   const router = useRouter();
-  const [modal, setModal] = useState<null | { type: 'create' } | { type: 'edit'; row: Row } | { type: 'perms'; row: Row }>(null);
+  const [modal, setModal] = useState<Modal>(null);
   const [busy, setBusy] = useState(false);
+  /** Ikki bosqichli o'chirish: birinchi bosishda shu qatorga tasdiq chiqadi */
+  const [confirmId, setConfirmId] = useState<string | null>(null);
+
+  // Esc — oynani yopish (saqlanayotgan paytda emas)
+  useEffect(() => {
+    if (!modal) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape' && !busy) setModal(null); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [modal, busy]);
+
+  // Tasdiq 6 soniyadan keyin o'z-o'zidan bekor bo'ladi
+  useEffect(() => {
+    if (!confirmId) return;
+    const t = window.setTimeout(() => setConfirmId(null), 6000);
+    return () => window.clearTimeout(t);
+  }, [confirmId]);
 
   async function run(action: (fd: FormData) => Promise<ActResult>, form: HTMLFormElement) {
     setBusy(true);
@@ -55,7 +82,7 @@ export default function FilialManager({
 
   async function remove(row: Row) {
     if (!row.branchId) return;
-    if (!confirm(`"${row.name}" filialini o'chirasizmi?`)) return;
+    setConfirmId(null);
     setBusy(true);
     const fd = new FormData();
     fd.set('branchId', row.branchId);
@@ -66,130 +93,228 @@ export default function FilialManager({
     router.refresh();
   }
 
+  const limitPct = maxFilial > 0 ? Math.min(100, Math.round((activeBranchCount / maxFilial) * 100)) : 0;
+  const atLimit = maxFilial > 0 && activeBranchCount >= maxFilial;
+  const meterTone = atLimit ? ' ad-meter--over' : limitPct >= 80 ? ' ad-meter--warn' : '';
+  const activeLogins = rows.filter((r) => r.active).length;
+  const offLogins = rows.length - activeLogins;
+
   return (
     <>
-      <div className="panel">
-        <div className="panel-head">
-          <h2>Barcha foydalanuvchilar</h2>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <span className="count-chip">{rows.length} ta</span>
-            <button
-              className="btn btn-primary btn-sm btn-with-icon"
-              onClick={() => setModal({ type: 'create' })}
-            >
-              <Icon name="plus" size={16} /> Yangi
-            </button>
+      {/* ===== Xulosa: tarif limiti + loginlar ===== */}
+      <div className="ad-team-summary">
+        <div className="ad-stat">
+          <span className="ad-stat-l"><Icon name="store" size={15} /> Filiallar (tarif limiti)</span>
+          <span className="ad-stat-v">{activeBranchCount}<small> / {maxFilial}</small></span>
+          <div
+            className={`ad-meter${meterTone}`}
+            role="meter"
+            aria-label="Filiallar limiti"
+            aria-valuemin={0}
+            aria-valuemax={maxFilial}
+            aria-valuenow={activeBranchCount}
+          >
+            <div className="ad-meter-bar"><div className="ad-meter-fill" style={{ width: `${limitPct}%` }} /></div>
           </div>
+          <span className="ad-stat-sub">
+            {atLimit
+              ? <>Limitga yetdi · <a href="/app/profile#obuna-tolovi">Tarifni yangilash</a></>
+              : `Yana ${Math.max(0, maxFilial - activeBranchCount)} ta filial ochish mumkin`}
+          </span>
         </div>
-
-        <div className="table-wrap">
-          <table className="data-table users-table">
-            <thead>
-              <tr>
-                <th style={{ width: 48 }}>№</th>
-                <th>Login</th>
-                <th>Parol</th>
-                <th>Rol</th>
-                <th>Huquqlar</th>
-                <th>Yaratilgan</th>
-                <th style={{ textAlign: 'right' }}>Amallar</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((r, i) => (
-                <tr key={r.id} className={r.active ? '' : 'u-row--off'}>
-                  <td className="u-num">{i + 1}</td>
-                  <td>
-                    <div className="u-login">
-                      <span className={`u-avatar${r.role === 'admin' ? ' u-avatar--admin' : ''}`}>
-                        {r.name.trim().charAt(0).toUpperCase()}
-                      </span>
-                      <span className="u-name">{r.name}</span>
-                      {r.isSelf && <span className="u-self">Siz</span>}
-                    </div>
-                  </td>
-                  <td className="u-pass">••••••</td>
-                  <td>
-                    <span className={`u-role ${r.role === 'admin' ? 'u-role--admin' : 'u-role--user'}`}>
-                      {r.role === 'admin' ? 'Admin' : 'Filial'}
-                    </span>
-                  </td>
-                  <td className="u-perms">
-                    {r.role === 'admin'
-                      ? <span className="u-perm-chip">Hammasi</span>
-                      : <span className="u-perm-chip">{r.permissions.length} ta{r.permissionsDefault ? ' · standart' : ''}</span>}
-                  </td>
-                  <td className="u-date">{fmtDateTime(r.createdAt)}</td>
-                  <td>
-                    <div className="u-actions">
-                      <button
-                        className="u-icon-btn"
-                        title="Huquqlar"
-                        disabled={r.role === 'admin'}
-                        onClick={() => setModal({ type: 'perms', row: r })}
-                      >
-                        <Icon name="key" size={16} />
-                      </button>
-                      <button
-                        className="u-icon-btn"
-                        title="Tahrirlash"
-                        disabled={r.role === 'admin' || !r.branchId}
-                        onClick={() => setModal({ type: 'edit', row: r })}
-                      >
-                        <Icon name="edit" size={16} />
-                      </button>
-                      <button
-                        className="u-icon-btn u-icon-btn--danger"
-                        title="O'chirish"
-                        disabled={r.role === 'admin' || r.isSelf || !r.branchId}
-                        onClick={() => remove(r)}
-                      >
-                        <Icon name="trash" size={16} />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <div className="ad-stat">
+          <span className="ad-stat-l"><Icon name="users" size={15} /> Faol loginlar</span>
+          <span className="ad-stat-v">{activeLogins}</span>
+          <span className="ad-stat-sub">Jami {rows.length} ta login</span>
         </div>
-
+        <div className="ad-stat">
+          <span className="ad-stat-l"><Icon name="lock" size={15} /> O&apos;chirilgan</span>
+          <span className="ad-stat-v">{offLogins}</span>
+          <span className="ad-stat-sub">Tizimga kira olmaydi</span>
+        </div>
       </div>
 
-      {/* ===== Modal: yangi filial ===== */}
+      {/* ===== Jamoa kartalari ===== */}
+      <section id="filial" className="ad-team" aria-labelledby="ad-team-title">
+        <div className="ad-sec-head">
+          <h2 id="ad-team-title">Jamoa</h2>
+          <button
+            type="button"
+            className="btn btn-plain btn-sm btn-with-icon"
+            onClick={() => setModal({ type: 'create' })}
+          >
+            <Icon name="plus" size={16} /> Yangi filial
+          </button>
+        </div>
+
+        <ul className="ad-team-grid" role="list">
+          {rows.map((r) => {
+            const isAdmin = r.role === 'admin';
+            const canEdit = !isAdmin && !!r.branchId;
+            const canDelete = !isAdmin && !r.isSelf && !!r.branchId;
+            const confirming = confirmId === r.id;
+            return (
+              <li key={r.id} className={`ad-member${r.active ? '' : ' ad-member--off'}`}>
+                <div className="ad-member-top">
+                  <span className={`ad-avatar${isAdmin ? ' ad-avatar--admin' : ''}`} aria-hidden="true">
+                    {initials(r.name)}
+                  </span>
+                  <div className="ad-member-id">
+                    <h3 className="ad-member-name">{r.name}</h3>
+                    <span className="ad-member-login">@{r.username}</span>
+                  </div>
+                </div>
+
+                <div className="ad-member-pills">
+                  <span className={`ad-pill ${isAdmin ? 'ad-pill--brand' : ''}`}>
+                    {isAdmin ? 'Admin' : 'Filial'}
+                  </span>
+                  <span className={`ad-pill ${r.active ? 'ad-pill--ok' : 'ad-pill--danger'}`}>
+                    <span className="ad-dot" aria-hidden="true" />
+                    {r.active ? 'Faol' : 'O\'chiq'}
+                  </span>
+                  <span className="ad-pill">
+                    <Icon name="key" size={12} />
+                    {isAdmin ? 'Barcha huquqlar' : `${r.permissions.length} ta huquq${r.permissionsDefault ? ' · standart' : ''}`}
+                  </span>
+                  {r.isSelf && <span className="ad-pill ad-pill--gold">Siz</span>}
+                </div>
+
+                <div className="ad-member-meta">
+                  {!isAdmin && (
+                    <>
+                      <div><Icon name="phone" size={14} /><span>{r.phone || 'Telefon kiritilmagan'}</span></div>
+                      <div><Icon name="map" size={14} /><span>{r.address || 'Manzil kiritilmagan'}</span></div>
+                    </>
+                  )}
+                  <div><Icon name="clock" size={14} /><span>Yaratilgan: {fmtDate(r.createdAt)}</span></div>
+                </div>
+
+                {!isAdmin && (
+                  <div className="ad-member-actions" aria-live="polite">
+                    {confirming ? (
+                      <div className="ad-confirm">
+                        <span className="ad-confirm-q">O&apos;chirilsinmi?</span>
+                        <button type="button" className="btn btn-ghost btn-sm" onClick={() => setConfirmId(null)} disabled={busy}>
+                          Yo&apos;q
+                        </button>
+                        <button type="button" className="btn btn-danger-fill btn-sm" onClick={() => remove(r)} disabled={busy} autoFocus>
+                          {busy ? 'O\'chirilmoqda…' : 'Ha, o\'chirish'}
+                        </button>
+                      </div>
+                    ) : (
+                      <>
+                        <button
+                          type="button"
+                          className="btn btn-tinted btn-sm btn-with-icon"
+                          onClick={() => setModal({ type: 'perms', row: r })}
+                        >
+                          <Icon name="key" size={15} /> Huquqlar
+                        </button>
+                        <button
+                          type="button"
+                          className="btn btn-ghost btn-sm btn-with-icon"
+                          disabled={!canEdit}
+                          onClick={() => setModal({ type: 'edit', row: r })}
+                        >
+                          <Icon name="edit" size={15} /> Tahrirlash
+                        </button>
+                        <button
+                          type="button"
+                          className="btn btn-danger btn-sm"
+                          aria-label={`${r.name} filialini o'chirish`}
+                          title="O'chirish"
+                          disabled={!canDelete || busy}
+                          onClick={() => setConfirmId(r.id)}
+                        >
+                          <Icon name="trash" size={15} />
+                        </button>
+                      </>
+                    )}
+                  </div>
+                )}
+              </li>
+            );
+          })}
+
+          <li className="ad-member-add-wrap">
+            <button type="button" className="ad-member-add" onClick={() => setModal({ type: 'create' })}>
+              <span className="ad-member-add-ic"><Icon name="plus" size={22} /></span>
+              <b>Yangi filial qo&apos;shish</b>
+              <small>{atLimit ? 'Tarif limitiga yetdingiz' : 'Filial va uning loginini yarating'}</small>
+            </button>
+          </li>
+        </ul>
+      </section>
+
+      {/* ===== Yon panel: yangi filial ===== */}
       {modal?.type === 'create' && (
-        <div className="u-modal-overlay" onClick={() => !busy && setModal(null)}>
-          <div className="u-modal" onClick={(e) => e.stopPropagation()}>
+        <div className="u-modal-overlay ad-side-overlay" onClick={() => !busy && setModal(null)}>
+          <div
+            className="u-modal ad-side"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="ad-create-title"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="u-modal-head">
-              <h3>Yangi filial</h3>
-              <button className="u-icon-btn" onClick={() => setModal(null)} disabled={busy}><Icon name="close" size={18} /></button>
+              <h3 id="ad-create-title">Yangi filial</h3>
+              <button type="button" className="u-icon-btn" aria-label="Yopish" onClick={() => setModal(null)} disabled={busy}>
+                <Icon name="close" size={18} />
+              </button>
             </div>
             <form onSubmit={(e) => { e.preventDefault(); run((fd) => createFilialAction(null, fd), e.currentTarget); }}>
-              <div className="form-row">
-                <div className="auth-field"><label>Filial nomi *</label><input name="name" required disabled={busy} placeholder="Masalan: Chilonzor" /></div>
-                <div className="auth-field"><label>Telefon</label><input name="phone" disabled={busy} placeholder="+998..." /></div>
-              </div>
-              <div className="auth-field"><label>Manzil</label><input name="address" disabled={busy} /></div>
-              <div className="form-row">
-                <div className="auth-field"><label>Login *</label><input name="username" required disabled={busy} placeholder="chilonzor" autoComplete="off" /></div>
-                <div className="auth-field"><label>Parol *</label><input name="password" type="text" required disabled={busy} placeholder="kamida 6 belgi" autoComplete="off" /></div>
-              </div>
+              <fieldset className="ad-fieldset">
+                <legend>Filial</legend>
+                <div className="auth-field">
+                  <label htmlFor="fc-name">Filial nomi *</label>
+                  <input id="fc-name" name="name" required disabled={busy} placeholder="Masalan: Chilonzor" autoFocus />
+                </div>
+                <div className="auth-field">
+                  <label htmlFor="fc-phone">Telefon</label>
+                  <input id="fc-phone" name="phone" type="tel" inputMode="tel" disabled={busy} placeholder="+998..." />
+                </div>
+                <div className="auth-field">
+                  <label htmlFor="fc-address">Manzil</label>
+                  <input id="fc-address" name="address" disabled={busy} />
+                </div>
+              </fieldset>
+              <fieldset className="ad-fieldset">
+                <legend>Kirish ma&apos;lumotlari</legend>
+                <div className="auth-field">
+                  <label htmlFor="fc-username">Login *</label>
+                  <input id="fc-username" name="username" required disabled={busy} placeholder="chilonzor" autoComplete="off" autoCapitalize="none" />
+                </div>
+                <div className="auth-field">
+                  <label htmlFor="fc-password">Parol *</label>
+                  <input id="fc-password" name="password" type="text" required disabled={busy} placeholder="kamida 6 belgi" autoComplete="off" />
+                </div>
+                <p className="ad-hint">Login va parolni filial xodimiga bering. Huquqlarni keyin «Huquqlar» tugmasi orqali sozlaysiz.</p>
+              </fieldset>
               <div className="u-modal-actions">
-                <button type="button" className="btn btn-ghost btn-sm" onClick={() => setModal(null)} disabled={busy}>Bekor</button>
-                <button type="submit" className="btn btn-primary btn-sm" disabled={busy}>{busy ? 'Saqlanmoqda...' : 'Yaratish'}</button>
+                <button type="button" className="btn btn-ghost btn-sm" onClick={() => setModal(null)} disabled={busy}>Bekor qilish</button>
+                <button type="submit" className="btn btn-primary btn-sm" disabled={busy}>{busy ? 'Saqlanmoqda…' : 'Yaratish'}</button>
               </div>
             </form>
           </div>
         </div>
       )}
 
-      {/* ===== Modal: huquqlar ===== */}
+      {/* ===== Oyna: huquqlar ===== */}
       {modal?.type === 'perms' && (
         <div className="u-modal-overlay" onClick={() => !busy && setModal(null)}>
-          <div className="u-modal u-modal--wide" onClick={(e) => e.stopPropagation()}>
+          <div
+            className="u-modal u-modal--wide"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="ad-perms-title"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="u-modal-head">
-              <h3>Huquqlar — {modal.row.name}</h3>
-              <button className="u-icon-btn" onClick={() => setModal(null)}><Icon name="close" size={18} /></button>
+              <h3 id="ad-perms-title">Huquqlar — {modal.row.name}</h3>
+              <button type="button" className="u-icon-btn" aria-label="Yopish" onClick={() => setModal(null)}>
+                <Icon name="close" size={18} />
+              </button>
             </div>
             <PermissionEditor
               userId={modal.row.id}
@@ -203,26 +328,64 @@ export default function FilialManager({
         </div>
       )}
 
-      {/* ===== Modal: filialни tahrirlash ===== */}
+      {/* ===== Yon panel: filialni tahrirlash ===== */}
       {modal?.type === 'edit' && (
-        <div className="u-modal-overlay" onClick={() => !busy && setModal(null)}>
-          <div className="u-modal" onClick={(e) => e.stopPropagation()}>
+        <div className="u-modal-overlay ad-side-overlay" onClick={() => !busy && setModal(null)}>
+          <div
+            className="u-modal ad-side"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="ad-edit-title"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="u-modal-head">
-              <h3>Filialni tahrirlash</h3>
-              <button className="u-icon-btn" onClick={() => setModal(null)} disabled={busy}><Icon name="close" size={18} /></button>
+              <h3 id="ad-edit-title">Filialni tahrirlash</h3>
+              <button type="button" className="u-icon-btn" aria-label="Yopish" onClick={() => setModal(null)} disabled={busy}>
+                <Icon name="close" size={18} />
+              </button>
             </div>
             <form onSubmit={(e) => { e.preventDefault(); run((fd) => updateFilialAction(null, fd), e.currentTarget); }}>
               <input type="hidden" name="branchId" value={modal.row.branchId} />
-              <div className="form-row">
-                <div className="auth-field"><label>Filial nomi *</label><input name="name" required defaultValue={modal.row.name} disabled={busy} /></div>
-                <div className="auth-field"><label>Telefon</label><input name="phone" defaultValue={modal.row.phone} disabled={busy} /></div>
-              </div>
-              <div className="auth-field"><label>Manzil</label><input name="address" defaultValue={modal.row.address} disabled={busy} /></div>
-              <div className="auth-field"><label>Yangi parol (ixtiyoriy)</label><input name="newPassword" type="text" disabled={busy} placeholder="o'zgartirmaslik uchun bo'sh qoldiring" autoComplete="off" /></div>
-              <label className="qty-toggle"><input type="checkbox" name="active" defaultChecked={modal.row.active} disabled={busy} /> Faol</label>
+              <fieldset className="ad-fieldset">
+                <legend>Filial</legend>
+                <div className="auth-field">
+                  <label htmlFor="fe-name">Filial nomi *</label>
+                  <input id="fe-name" name="name" required defaultValue={modal.row.name} disabled={busy} />
+                </div>
+                <div className="auth-field">
+                  <label htmlFor="fe-phone">Telefon</label>
+                  <input id="fe-phone" name="phone" type="tel" inputMode="tel" defaultValue={modal.row.phone} disabled={busy} />
+                </div>
+                <div className="auth-field">
+                  <label htmlFor="fe-address">Manzil</label>
+                  <input id="fe-address" name="address" defaultValue={modal.row.address} disabled={busy} />
+                </div>
+              </fieldset>
+              <fieldset className="ad-fieldset">
+                <legend>Kirish — @{modal.row.username}</legend>
+                <div className="auth-field">
+                  <label htmlFor="fe-password">Yangi parol (ixtiyoriy)</label>
+                  <input id="fe-password" name="newPassword" type="text" disabled={busy} placeholder="o'zgartirmaslik uchun bo'sh qoldiring" autoComplete="off" />
+                </div>
+                <label className="ad-toggle-row" htmlFor="fe-active">
+                  <span>
+                    <b>Faol</b>
+                    <small>O&apos;chirilsa, filial logini tizimga kira olmaydi</small>
+                  </span>
+                  <input
+                    id="fe-active"
+                    className="ad-switch"
+                    type="checkbox"
+                    role="switch"
+                    name="active"
+                    defaultChecked={modal.row.active}
+                    disabled={busy}
+                  />
+                </label>
+              </fieldset>
               <div className="u-modal-actions">
-                <button type="button" className="btn btn-ghost btn-sm" onClick={() => setModal(null)} disabled={busy}>Bekor</button>
-                <button type="submit" className="btn btn-primary btn-sm" disabled={busy}>{busy ? 'Saqlanmoqda...' : 'Saqlash'}</button>
+                <button type="button" className="btn btn-ghost btn-sm" onClick={() => setModal(null)} disabled={busy}>Bekor qilish</button>
+                <button type="submit" className="btn btn-primary btn-sm" disabled={busy}>{busy ? 'Saqlanmoqda…' : 'Saqlash'}</button>
               </div>
             </form>
           </div>
