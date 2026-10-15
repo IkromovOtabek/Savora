@@ -3,6 +3,7 @@ import { getMasterModels } from '@/lib/masterDb';
 import SuperExpiryBanner from '@/components/SuperExpiryBanner';
 import SuperShell from '@/components/super/SuperShell';
 import '@/components/super/super.css';
+import '@/components/ui/ux.css';
 
 export default async function SuperLayout({ children }: { children: React.ReactNode }) {
   await requireSuperAdmin();

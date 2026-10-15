@@ -12,6 +12,7 @@ import { isOrganizationActive } from '@/lib/models/master/Organization';
 import { loadUserPermissions } from '@/lib/permissionGuard';
 import Icon from '@/components/icons/Icon';
 import './tenant.css';
+import '@/components/ui/ux.css';
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const { user, org, features, Sale } = await getTenantSession({ allowExpired: true });
