@@ -182,9 +182,11 @@ NODE_ENV=
 - **Backup/restore** — `scripts/backup.mjs`, `scripts/restore.mjs`. `npm run backup` / `npm run restore`.
   Hujjat: `BACKUP.md`. Cron: har kuni 03:00 (mongodump kerak). Env: `BACKUP_DIR, BACKUP_KEEP_DAYS`.
 - **Telegram parol tiklash** — do'kon Telegram'ini ulash: Kabinet → "Telegram ulash"
-  (`components/tenant/TelegramConnect.tsx`) → `/start link_<orgId>` webhook → `org.telegramChatId`.
-  Tiklash: login → "Parolni unutdingizmi?" → `/forgot` → yangi vaqtinchalik parol Telegram'ga.
-  Env: `TELEGRAM_BOT_USERNAME` (deep link uchun). Webhook setWebhook bilan ulanadi.
+  (`components/tenant/TelegramConnect.tsx`) → `/start link_<imzolangan token, 1 soat>` webhook → `org.telegramChatId`.
+  Tiklash: login → "Parolni unutdingizmi?" → `/forgot` → 6 xonali bir martalik kod (15 daqiqa) Telegram'ga →
+  kod + yangi parol kiritiladi (eski parol kod ishlatilguncha amal qiladi).
+  Env: `TELEGRAM_BOT_USERNAME` (deep link uchun), `TELEGRAM_WEBHOOK_SECRET` (majburiy, production).
+  Webhook setWebhook bilan `secret_token` parametri bilan ulanadi (`.env.example` ga qarang).
 - **PWA** — `public/manifest.webmanifest`, `public/sw.js` (offline), `public/offline.html`,
   `components/PWARegister.tsx` (faqat production'da SW). PWA ikonka: `public/icon-512.svg`
   (favicon esa `app/icon.svg`). `app/layout.tsx` da manifest + viewport themeColor.

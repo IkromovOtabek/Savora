@@ -1,4 +1,5 @@
 import Icon from '@/components/icons/Icon';
+import { createOrgLinkToken } from '@/lib/security';
 
 interface Props {
   orgId: string;
@@ -6,8 +7,9 @@ interface Props {
 }
 
 /**
- * Do'kon Telegram'ini ulash. Tugma bot bilan suhbatni ochib `/start link_<orgId>`
- * yuboradi — webhook telegramChatId ni saqlaydi. Shu chatga obuna eslatmalari
+ * Do'kon Telegram'ini ulash. Tugma bot bilan suhbatni ochib `/start link_<token>`
+ * yuboradi (token = orgId + 1 soatlik muddat + HMAC imzo; faqat server yaratadi) —
+ * webhook tokenni tekshirib telegramChatId ni saqlaydi. Shu chatga obuna eslatmalari
  * va parolni tiklash kodlari keladi.
  */
 export default function TelegramConnect({ orgId, connected }: Props) {
@@ -19,7 +21,8 @@ export default function TelegramConnect({ orgId, connected }: Props) {
     .replace(/\/$/, '');
   if (!bot) return null;
 
-  const link = `https://t.me/${bot}?start=link_${orgId}`;
+  const secret = process.env.SESSION_SECRET || 'dev-only-session-secret-change-in-prod-32ch';
+  const link = `https://t.me/${bot}?start=link_${createOrgLinkToken(String(orgId), secret)}`;
 
   return (
     <div className="panel" style={{ marginTop: 20 }}>
@@ -34,7 +37,7 @@ export default function TelegramConnect({ orgId, connected }: Props) {
           </div>
         ) : (
           <p className="dash-sub" style={{ margin: 0 }}>
-            Telegram&apos;ni ulang — parolni unutsangiz yangi parol shu yerga keladi, hamda obuna
+            Telegram&apos;ni ulang — parolni unutsangiz tiklash kodi shu yerga keladi, hamda obuna
             muddati eslatmalari keladi.
           </p>
         )}

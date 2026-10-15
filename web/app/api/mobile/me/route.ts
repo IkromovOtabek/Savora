@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { verifyMobileToken } from '@/lib/mobileAuth';
+import { authenticateMobile } from '@/lib/mobileAuth';
 import { loadUserPermissions } from '@/lib/permissionGuard';
 import { getMasterModels } from '@/lib/masterDb';
 import { resolveOrgFeatures } from '@/lib/features';
@@ -7,7 +7,9 @@ import { isOrganizationActive, daysUntilExpiry } from '@/lib/models/master/Organ
 import { termsFor, BUSINESS_TYPES } from '@/lib/businessTypes';
 
 export async function GET(req: Request) {
-  const user = await verifyMobileToken(req);
+  const auth = await authenticateMobile(req);
+  if (auth instanceof NextResponse) return auth;
+  const user = auth;
   if (!user || !user.organizationId) {
     return NextResponse.json({ error: 'Avtorizatsiya kerak.' }, { status: 401 });
   }

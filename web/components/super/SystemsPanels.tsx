@@ -100,7 +100,7 @@ export default function SystemsPanels() {
         <div className="system-panel-body">
           <ul className="system-list">
             <li>Webhook: <code>POST /api/telegram/webhook</code> (brauzerda GET ishlamaydi — bu normal)</li>
-            <li>Telegram BotFather orqali webhook ulang</li>
+            <li>Webhook <code>setWebhook</code> bilan <code>secret_token=TELEGRAM_WEBHOOK_SECRET</code> parametri orqali ulanadi (busiz production'da so&apos;rovlar rad etiladi)</li>
           </ul>
         </div>
       </div>

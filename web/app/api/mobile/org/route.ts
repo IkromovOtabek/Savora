@@ -1,11 +1,13 @@
 import { NextResponse } from 'next/server';
-import { verifyMobileToken } from '@/lib/mobileAuth';
+import { authenticateMobile } from '@/lib/mobileAuth';
 import { getMasterModels } from '@/lib/masterDb';
 import { parseBusinessType, BUSINESS_TYPES, termsFor } from '@/lib/businessTypes';
 
 /** GET — mavjud biznes turlari ro'yxati (tanlash uchun). */
 export async function GET(req: Request) {
-  const user = await verifyMobileToken(req);
+  const auth = await authenticateMobile(req);
+  if (auth instanceof NextResponse) return auth;
+  const user = auth;
   if (!user) return NextResponse.json({ error: 'Avtorizatsiya kerak.' }, { status: 401 });
   return NextResponse.json({
     types: (Object.keys(BUSINESS_TYPES) as (keyof typeof BUSINESS_TYPES)[]).map((key) => ({
@@ -18,7 +20,9 @@ export async function GET(req: Request) {
 
 /** PATCH — biznes yo'nalishini o'zgartirish. Faqat biznes egasi (admin). */
 export async function PATCH(req: Request) {
-  const user = await verifyMobileToken(req);
+  const auth = await authenticateMobile(req);
+  if (auth instanceof NextResponse) return auth;
+  const user = auth;
   if (!user || !user.organizationId) {
     return NextResponse.json({ error: 'Avtorizatsiya kerak.' }, { status: 401 });
   }

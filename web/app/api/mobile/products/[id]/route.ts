@@ -1,13 +1,15 @@
 import { NextResponse } from 'next/server';
 import { Types } from 'mongoose';
-import { verifyMobileToken } from '@/lib/mobileAuth';
+import { authenticateMobile } from '@/lib/mobileAuth';
 import { userCan } from '@/lib/permissionGuard';
 import { getTenantModels } from '@/lib/tenantDb';
 import { branchFilter } from '@/lib/branchScope';
 
 /** Bitta mahsulot — batafsil (tarix bilan). */
 export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
-  const user = await verifyMobileToken(req);
+  const auth = await authenticateMobile(req);
+  if (auth instanceof NextResponse) return auth;
+  const user = auth;
   if (!user || !user.dbName) {
     return NextResponse.json({ error: 'Avtorizatsiya kerak.' }, { status: 401 });
   }

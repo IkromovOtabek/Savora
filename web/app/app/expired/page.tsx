@@ -1,6 +1,5 @@
 import { redirect } from 'next/navigation';
-import { requireOrgUser } from '@/lib/auth';
-import { resolveTenant } from '@/lib/tenantContext';
+import { requireOrgWithFeatures } from '@/lib/auth';
 import { getMasterModels } from '@/lib/masterDb';
 import { isOrganizationActive, daysUntilExpiry } from '@/lib/models/master/Organization';
 import { resolveOrgPlan } from '@/lib/plans';
@@ -11,9 +10,8 @@ import Icon from '@/components/icons/Icon';
 export const metadata = { title: 'Obuna muddati tugadi — Savora' };
 
 export default async function ExpiredPage() {
-  const user = await requireOrgUser({ allowExpired: true });
-  const org = await resolveTenant();
-  if (!org) redirect('/login');
+  // Do'kon sessiyadan (slug/cookie'dan emas)
+  const { user, org } = await requireOrgWithFeatures({ allowExpired: true });
   // Faol bo'lsa — bu sahifa kerak emas
   if (isOrganizationActive(org)) redirect('/app');
 

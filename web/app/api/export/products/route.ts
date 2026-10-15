@@ -1,44 +1,55 @@
 import { NextResponse } from 'next/server';
-import { getSession } from '@/lib/session';
-import { getMasterModels } from '@/lib/masterDb';
+import { getApiTenantContext } from '@/lib/auth';
 import { getTenantModels } from '@/lib/tenantDb';
 import { isFeatureEnabled } from '@/lib/features';
 import { loadUserPermissions } from '@/lib/permissionGuard';
+import { branchFilter } from '@/lib/branchScope';
+import { csvCell } from '@/lib/security';
 
-function csvEscape(v: string | number) {
-  const s = String(v);
-  return s.includes(',') || s.includes('"') ? `"${s.replace(/"/g, '""')}"` : s;
-}
+const MAX_ROWS = 20000;
 
 export async function GET() {
-  const session = await getSession('tenant');
-  const user = session.user;
-  if (!user?.dbName || !user.organizationId) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
-
-  const { Organization } = await getMasterModels();
-  const org = await Organization.findById(user.organizationId).lean();
-  if (!org || !isFeatureEnabled(org, 'export')) {
+  // To'liq tekshiruv: sessiya + tokenVersion/faol user + do'kon holati (sessiya do'koni)
+  const ctx = await getApiTenantContext();
+  if (!ctx) return NextResponse.json({ error: 'Avtorizatsiya kerak.' }, { status: 401 });
+  const { user, org } = ctx;
+  if (!isFeatureEnabled(org, 'export')) {
     return NextResponse.json({ error: 'Export moduli faol emas' }, { status: 403 });
   }
   const perms = await loadUserPermissions(user);
   if (!perms.has('export.data')) return NextResponse.json({ error: 'Eksport huquqi yo\'q' }, { status: 403 });
 
-  const { Product } = await getTenantModels(user.dbName);
-  const products = await Product.find().sort({ createdAt: -1 }).lean();
+  const { Product } = await getTenantModels(user.dbName!);
+  // Filial login faqat o'z filiali mahsulotlarini yuklab oladi
+  const cursor = Product.find(branchFilter(user)).sort({ createdAt: -1 }).limit(MAX_ROWS).lean().cursor();
 
   const header = 'IMEI,Nom,Rang,Holat,Kelish,Sotuv,Izoh';
-  const rows = products.map((p) =>
-    [p.imei, p.name, p.color ?? '', p.status, perms.has('product.viewCost') ? p.purchasePrice : '', p.salePrice, p.notes ?? '']
-      .map(csvEscape).join(',')
-  );
+  const canViewCost = perms.has('product.viewCost');
+  const encoder = new TextEncoder();
+  const stream = new ReadableStream<Uint8Array>({
+    async start(controller) {
+      controller.enqueue(encoder.encode('﻿' + header));
+      try {
+        for await (const p of cursor) {
+          const row = [p.imei, p.name, p.color ?? '', p.status, canViewCost ? p.purchasePrice : '', p.salePrice, p.notes ?? '']
+            .map(csvCell).join(',');
+          controller.enqueue(encoder.encode('\n' + row));
+        }
+        controller.close();
+      } catch (err) {
+        controller.error(err);
+      }
+    },
+    async cancel() {
+      await cursor.close();
+    },
+  });
 
-  const csv = '\uFEFF' + [header, ...rows].join('\n');
-  return new NextResponse(csv, {
+  return new NextResponse(stream, {
     headers: {
       'Content-Type': 'text/csv; charset=utf-8',
       'Content-Disposition': 'attachment; filename="ombor.csv"',
+      'Cache-Control': 'no-store',
     },
   });
 }

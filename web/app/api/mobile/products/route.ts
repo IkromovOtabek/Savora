@@ -1,11 +1,14 @@
 import { NextResponse } from 'next/server';
-import { verifyMobileToken } from '@/lib/mobileAuth';
+import { authenticateMobile } from '@/lib/mobileAuth';
 import { mobilePermissionDenied, userCan } from '@/lib/permissionGuard';
 import { getTenantModels } from '@/lib/tenantDb';
 import { branchFilter } from '@/lib/branchScope';
+import { parseIntegerSum, searchPattern } from '@/lib/security';
 
 export async function GET(req: Request) {
-  const user = await verifyMobileToken(req);
+  const auth = await authenticateMobile(req);
+  if (auth instanceof NextResponse) return auth;
+  const user = auth;
   if (!user || !user.dbName) {
     return NextResponse.json({ error: 'Avtorizatsiya kerak.' }, { status: 401 });
   }
@@ -13,7 +16,8 @@ export async function GET(req: Request) {
   const canViewCost = await userCan(user, 'product.viewCost');
 
   const url = new URL(req.url);
-  const q = (url.searchParams.get('q') || '').trim();
+  // Regex injection/ReDoS himoyasi: ekranlangan, 50 belgigacha
+  const q = searchPattern(url.searchParams.get('q'));
   const page = Math.max(1, parseInt(url.searchParams.get('page') || '1', 10) || 1);
   const limit = 30;
 
@@ -54,7 +58,9 @@ export async function GET(req: Request) {
 
 /** Yangi mahsulot qo'shish (mobil). Filial-login o'z filialiga, admin asosiy omborga. */
 export async function POST(req: Request) {
-  const user = await verifyMobileToken(req);
+  const auth = await authenticateMobile(req);
+  if (auth instanceof NextResponse) return auth;
+  const user = auth;
   if (!user || !user.dbName) {
     return NextResponse.json({ error: 'Avtorizatsiya kerak.' }, { status: 401 });
   }
@@ -63,8 +69,11 @@ export async function POST(req: Request) {
   try { body = await req.json(); } catch { return NextResponse.json({ error: 'Noto\'g\'ri so\'rov.' }, { status: 400 }); }
 
   const name = String(body.name || '').trim();
-  const salePrice = Number(body.salePrice) || 0;
-  const purchasePrice = Number(body.purchasePrice) || 0;
+  // Butun so'm — kasr/manfiy narx rad etiladi
+  const salePrice = parseIntegerSum(body.salePrice ?? 0) ?? 0;
+  const purchasePriceParsed = parseIntegerSum(body.purchasePrice ?? 0);
+  if (purchasePriceParsed === null) return NextResponse.json({ error: 'Kelish narxi noto\'g\'ri.' }, { status: 400 });
+  const purchasePrice = purchasePriceParsed;
   const code = String(body.code || '').trim().toUpperCase().replace(/\s/g, '');
   const barcode = String(body.barcode || '').trim();
   if (!name) return NextResponse.json({ error: 'Nom kiritilishi shart.' }, { status: 400 });

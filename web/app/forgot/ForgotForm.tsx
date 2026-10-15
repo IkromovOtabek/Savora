@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useActionState } from 'react';
-import { requestPasswordResetAction } from '@/app/actions/auth';
+import { confirmPasswordResetAction, requestPasswordResetAction } from '@/app/actions/auth';
 
 interface Props {
   title: string;
@@ -15,6 +15,7 @@ interface Props {
 
 export default function ForgotForm({ title, storeName, canReset, notice, tenantSlug, loginUrl }: Props) {
   const [state, formAction, isPending] = useActionState(requestPasswordResetAction, null);
+  const [confirmState, confirmAction, isConfirming] = useActionState(confirmPasswordResetAction, null);
 
   return (
     <div className="auth-wrap">
@@ -31,13 +32,40 @@ export default function ForgotForm({ title, storeName, canReset, notice, tenantS
 
         {notice && <div className="auth-alert auth-alert--info">{notice}</div>}
         {state?.error && <div className="auth-alert auth-alert--error">{state.error}</div>}
-        {state?.success && <div className="auth-alert auth-alert--info">{state.success}</div>}
+        {state?.success && !confirmState && <div className="auth-alert auth-alert--info">{state.success}</div>}
+        {confirmState?.error && <div className="auth-alert auth-alert--error">{confirmState.error}</div>}
+        {confirmState?.success && <div className="auth-alert auth-alert--info">{confirmState.success}</div>}
 
-        {canReset && !state?.success && (
+        {canReset && state?.step === 'code' && confirmState?.step !== 'done' && (
+          <form action={confirmAction} className="auth-form">
+            {tenantSlug && <input type="hidden" name="tenantSlug" value={tenantSlug} />}
+            <input type="hidden" name="username" value={state.username ?? ''} />
+            <p className="auth-help" style={{ fontSize: '.85rem', color: 'var(--ink-2)', lineHeight: 1.5 }}>
+              Telegram&apos;ga kelgan 6 xonali kodni va yangi parolni kiriting.
+            </p>
+            <div className="auth-field">
+              <label htmlFor="code">Tasdiqlash kodi</label>
+              <input id="code" name="code" type="text" inputMode="numeric" autoComplete="one-time-code" pattern="\d{6}" maxLength={6} required autoFocus disabled={isConfirming} />
+            </div>
+            <div className="auth-field">
+              <label htmlFor="newPassword">Yangi parol</label>
+              <input id="newPassword" name="newPassword" type="password" autoComplete="new-password" minLength={6} required disabled={isConfirming} />
+            </div>
+            <div className="auth-field">
+              <label htmlFor="confirmPassword">Yangi parolni takrorlang</label>
+              <input id="confirmPassword" name="confirmPassword" type="password" autoComplete="new-password" minLength={6} required disabled={isConfirming} />
+            </div>
+            <button type="submit" className="btn btn-primary auth-submit" disabled={isConfirming}>
+              {isConfirming ? 'Saqlanmoqda...' : 'Parolni yangilash'}
+            </button>
+          </form>
+        )}
+
+        {canReset && !state?.step && (
           <form action={formAction} className="auth-form">
             {tenantSlug && <input type="hidden" name="tenantSlug" value={tenantSlug} />}
             <p className="auth-help" style={{ fontSize: '.85rem', color: 'var(--ink-2)', lineHeight: 1.5 }}>
-              Loginni kiriting. Yangi vaqtinchalik parol do&apos;konning ulangan Telegram&apos;iga yuboriladi.
+              Loginni kiriting. Bir martalik tasdiqlash kodi do&apos;konning ulangan Telegram&apos;iga yuboriladi.
               Telegram ulanmagan bo&apos;lsa, do&apos;kon admini yoki platforma egasiga murojaat qiling.
             </p>
             <div className="auth-field">
@@ -45,7 +73,7 @@ export default function ForgotForm({ title, storeName, canReset, notice, tenantS
               <input id="username" name="username" type="text" autoComplete="username" required autoFocus disabled={isPending} />
             </div>
             <button type="submit" className="btn btn-primary auth-submit" disabled={isPending}>
-              {isPending ? 'Yuborilmoqda...' : 'Yangi parol yuborish'}
+              {isPending ? 'Yuborilmoqda...' : 'Kod yuborish'}
             </button>
           </form>
         )}

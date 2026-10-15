@@ -1,14 +1,19 @@
 import { NextResponse } from 'next/server';
 import { Types } from 'mongoose';
-import { verifyMobileToken } from '@/lib/mobileAuth';
+import { authenticateMobile } from '@/lib/mobileAuth';
 import { mobilePermissionDenied } from '@/lib/permissionGuard';
 import { getTenantModels } from '@/lib/tenantDb';
 import { generateTransferNo } from '@/lib/transfers';
-import { parseQtyField, resolveStatusAfterSale } from '@/lib/productQuantity';
+import { parseQtyField } from '@/lib/productQuantity';
+import { branchFilter } from '@/lib/branchScope';
+import { getMobileFeatures } from '@/lib/mobileOrg';
+import { transferStock } from '@/lib/stock';
 
 /** Mahsulotni boshqa filialga berish. transferProductAction mantiqini takrorlaydi. */
 export async function POST(req: Request) {
-  const user = await verifyMobileToken(req);
+  const auth = await authenticateMobile(req);
+  if (auth instanceof NextResponse) return auth;
+  const user = auth;
   if (!user || !user.dbName) return NextResponse.json({ error: 'Avtorizatsiya kerak.' }, { status: 401 });
   { const denied = await mobilePermissionDenied(user, 'transfer.create'); if (denied) return denied; }
 
@@ -22,8 +27,15 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Mahsulot va filial tanlanishi shart.' }, { status: 400 });
   }
 
+  const features = await getMobileFeatures(user.organizationId);
+  if (!features?.transferred) {
+    return NextResponse.json({ error: 'Filialga berish moduli yoqilmagan.' }, { status: 403 });
+  }
+
   const { Product, Branch, Transfer } = await getTenantModels(user.dbName);
-  const product = await Product.findById(productId);
+  // Filial login faqat o'z filiali mahsulotini beradi (IDOR himoyasi)
+  const scope = branchFilter(user);
+  const product = await Product.findOne({ _id: productId, ...scope }).lean();
   if (!product || product.status !== 'in_stock') {
     return NextResponse.json({ error: 'Faqat ombordagi mahsulot beriladi.' }, { status: 400 });
   }
@@ -33,30 +45,25 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Mahsulot allaqachon shu filialda.' }, { status: 400 });
   }
 
-  const fromBranchId = product.branchId;
-  const fromBranch = await Branch.findById(fromBranchId).lean();
-  const now = new Date();
-
   let transferQty = 1;
   if (product.trackQuantity) {
     const available = product.quantity - product.soldQuantity;
     if (available < 1) return NextResponse.json({ error: 'Omborda qoldiq yo\'q.' }, { status: 400 });
     transferQty = Math.min(qty, available);
-    product.quantity -= transferQty;
-    if (product.quantity - product.soldQuantity <= 0) {
-      product.status = product.soldQuantity > 0
-        ? resolveStatusAfterSale(product.trackQuantity, product.quantity, product.soldQuantity)
-        : 'transferred';
-    }
-  } else {
-    product.branchId = new Types.ObjectId(branchId);
-    product.status = 'in_stock';
   }
 
-  if (!Array.isArray(product.history)) product.history = [];
-  product.history.push({ action: 'transferred', detail: `${transferQty} ta · ${branch.name}`, by: user.username, at: now });
+  // Atomik: qoldiq sharti + ayirish/ko'chirish bitta so'rovda
+  const moved = await transferStock(Product, product._id, new Types.ObjectId(branchId), transferQty, {
+    scope,
+    trackQuantity: !!product.trackQuantity,
+    history: { action: 'transferred', detail: `${transferQty} ta · ${branch.name}`, by: user.username, at: new Date() },
+  });
+  if (!moved) {
+    return NextResponse.json({ error: 'Mahsulot holati o\'zgargan yoki qoldiq yetarli emas.' }, { status: 409 });
+  }
+  const fromBranchId = moved.fromBranchId;
+  const fromBranch = await Branch.findById(fromBranchId).lean();
 
-  await product.save();
   const transferNo = await generateTransferNo(Transfer);
   await Transfer.create({
     transferNo,

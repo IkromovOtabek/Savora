@@ -1,12 +1,15 @@
 import { NextResponse } from 'next/server';
 import { Types } from 'mongoose';
-import { verifyMobileToken } from '@/lib/mobileAuth';
+import { authenticateMobile } from '@/lib/mobileAuth';
 import { mobilePermissionDenied } from '@/lib/permissionGuard';
 import { getTenantModels } from '@/lib/tenantDb';
 import { branchFilter } from '@/lib/branchScope';
 import { getMobileFeatures } from '@/lib/mobileOrg';
 import { generateSaleNo, calcSaleStatus } from '@/lib/sales';
-import { parseQtyField, resolveStatusAfterSale } from '@/lib/productQuantity';
+import { parseQtyField } from '@/lib/productQuantity';
+import { reserveStock, releaseStock } from '@/lib/stock';
+import { parseIntegerSum } from '@/lib/security';
+import { addMonthsClamped } from '@/lib/dates';
 
 type PaymentType = 'cash' | 'debt' | 'installment' | 'bank_credit';
 const PAYMENT_TYPES: PaymentType[] = ['cash', 'debt', 'installment', 'bank_credit'];
@@ -17,7 +20,9 @@ const PAYMENT_TYPES: PaymentType[] = ['cash', 'debt', 'installment', 'bank_credi
  * Qarzdorlik/Nasiya faqat qoldiqli (partial) sotuvlarni beradi.
  */
 export async function GET(req: Request) {
-  const user = await verifyMobileToken(req);
+  const auth = await authenticateMobile(req);
+  if (auth instanceof NextResponse) return auth;
+  const user = auth;
   if (!user || !user.dbName) {
     return NextResponse.json({ error: 'Avtorizatsiya kerak.' }, { status: 401 });
   }
@@ -65,7 +70,9 @@ export async function GET(req: Request) {
 
 /** Yangi sotuv — naqd / qarz / nasiya / bank krediti. createSaleAction mantiqini takrorlaydi. */
 export async function POST(req: Request) {
-  const user = await verifyMobileToken(req);
+  const auth = await authenticateMobile(req);
+  if (auth instanceof NextResponse) return auth;
+  const user = auth;
   if (!user || !user.dbName) return NextResponse.json({ error: 'Avtorizatsiya kerak.' }, { status: 401 });
   { const denied = await mobilePermissionDenied(user, 'sale.create'); if (denied) return denied; }
 
@@ -81,8 +88,11 @@ export async function POST(req: Request) {
 
   const productId = String(body.productId || '');
   const paymentType = (PAYMENT_TYPES.includes(body.paymentType as PaymentType) ? body.paymentType : 'cash') as PaymentType;
-  const totalAmount = Number(body.totalAmount) || 0;
-  const paidAmountRaw = Number(body.paidAmount) || 0;
+  // Butun so'm — kasr/manfiy summalar rad etiladi
+  const totalAmount = parseIntegerSum(body.totalAmount) ?? 0;
+  const paidAmountParsed = body.paidAmount == null ? 0 : parseIntegerSum(body.paidAmount);
+  if (paidAmountParsed === null) return NextResponse.json({ error: 'To\'langan summa noto\'g\'ri.' }, { status: 400 });
+  const paidAmountRaw = paidAmountParsed;
   const installmentMonthsRaw = Number(body.installmentMonths) || 0;
   const customerName = String(body.customerName || '').trim();
   const customerPhone = String(body.customerPhone || '').trim();
@@ -94,12 +104,12 @@ export async function POST(req: Request) {
   if (totalAmount <= 0) return NextResponse.json({ error: 'Sotuv summasi noto\'g\'ri.' }, { status: 400 });
 
   const { Product, Sale, Customer, CreditBank } = await getTenantModels(user.dbName);
-  const product = await Product.findById(productId);
+  const product = await Product.findById(productId).lean();
   if (!product || product.status !== 'in_stock') {
     return NextResponse.json({ error: 'Mahsulot omborda emas yoki sotilgan.' }, { status: 400 });
   }
   // Filial-login faqat o'z filialidan sotadi
-  if (user.branchId && String(product.branchId) !== String(user.branchId)) {
+  if (user.role === 'user' && user.branchId && String(product.branchId) !== String(user.branchId)) {
     return NextResponse.json({ error: 'Bu mahsulot boshqa filialda.' }, { status: 403 });
   }
 
@@ -141,13 +151,12 @@ export async function POST(req: Request) {
 
   const remainingAmount = Math.max(0, totalAmount - paidAmount);
   const status = calcSaleStatus(totalAmount, paidAmount);
-  const saleNo = await generateSaleNo(Sale);
 
   let dueDate: Date | undefined;
   if (remainingAmount > 0 && paymentType !== 'cash') {
     if (dueDateRaw) { const d = new Date(dueDateRaw); if (!Number.isNaN(d.getTime())) dueDate = d; }
     if (!dueDate && paymentType === 'installment' && installmentMonths) {
-      const d = new Date(); d.setMonth(d.getMonth() + installmentMonths); dueDate = d;
+      dueDate = addMonthsClamped(new Date(), installmentMonths);
     }
   }
 
@@ -155,28 +164,36 @@ export async function POST(req: Request) {
     ? [{ amount: paidAmount, paidAt: new Date(), note: paymentType === 'cash' ? 'Naqd to\'lov' : 'Boshlang\'ich to\'lov', recordedBy: user.username }]
     : [];
 
-  const sale = await Sale.create({
-    saleNo,
-    productId: product._id,
-    productSnapshot: { name: product.name, imei: product.imei, brand: product.brand, deviceModel: product.deviceModel, purchasePrice: product.purchasePrice, saleQuantity: saleQty },
-    ...(customer ? { customerId: customer._id, customerSnapshot: { fullName: customer.fullName, phone: customer.phone } } : {}),
-    branchId: product.branchId,
-    paymentType,
-    bankName: paymentType === 'bank_credit' ? bankName : undefined,
-    totalAmount, paidAmount, remainingAmount, installmentMonths,
-    downPayment: paymentType === 'installment' ? paidAmount : undefined,
-    dueDate, status, payments, soldBy: user.username, notes: notes || undefined,
+  // Atomik: qoldiq tekshiruvi + ayirish bitta so'rovda (parallel sotuvda minusga tushmaydi)
+  const reserved = await reserveStock(Product, product._id, saleQty, {
+    scope: branchFilter(user),
+    history: { action: 'sold', detail: `${saleQty} ta`, by: user.username, at: new Date() },
   });
-
-  if (product.trackQuantity) {
-    product.soldQuantity += saleQty;
-    product.status = resolveStatusAfterSale(product.trackQuantity, product.quantity, product.soldQuantity);
-  } else {
-    product.status = 'sold';
+  if (!reserved) {
+    return NextResponse.json({ error: 'Mahsulot omborda yetarli emas yoki allaqachon sotilgan.' }, { status: 409 });
   }
-  if (!Array.isArray(product.history)) product.history = [];
-  product.history.push({ action: 'sold', detail: `${saleQty} ta`, by: user.username, at: new Date() });
-  await product.save();
+
+  let saleNo: string;
+  let sale;
+  try {
+    saleNo = await generateSaleNo(Sale);
+    sale = await Sale.create({
+      saleNo,
+      productId: product._id,
+      productSnapshot: { name: product.name, imei: product.imei, brand: product.brand, deviceModel: product.deviceModel, purchasePrice: product.purchasePrice, saleQuantity: saleQty },
+      ...(customer ? { customerId: customer._id, customerSnapshot: { fullName: customer.fullName, phone: customer.phone } } : {}),
+      branchId: product.branchId,
+      paymentType,
+      bankName: paymentType === 'bank_credit' ? bankName : undefined,
+      totalAmount, paidAmount, remainingAmount, installmentMonths,
+      downPayment: paymentType === 'installment' ? paidAmount : undefined,
+      dueDate, status, payments, soldBy: user.username, notes: notes || undefined,
+    });
+  } catch {
+    // Kompensatsiya: sotuv yozilmasa — mahsulot omborga qaytadi
+    await releaseStock(Product, product._id, saleQty);
+    return NextResponse.json({ error: 'Sotuvda xatolik yuz berdi.' }, { status: 500 });
+  }
 
   return NextResponse.json({ id: String(sale._id), saleNo }, { status: 201 });
 }

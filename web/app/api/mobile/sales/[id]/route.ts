@@ -1,15 +1,18 @@
 import { NextResponse } from 'next/server';
 import { Types } from 'mongoose';
-import { verifyMobileToken } from '@/lib/mobileAuth';
+import { authenticateMobile } from '@/lib/mobileAuth';
 import { mobilePermissionDenied } from '@/lib/permissionGuard';
 import { getTenantModels } from '@/lib/tenantDb';
 import { branchFilter } from '@/lib/branchScope';
-import { calcSaleStatus } from '@/lib/sales';
+import { applySalePayment } from '@/lib/salePayment';
+import { parseIntegerSum } from '@/lib/security';
 import { computeInstallmentPlan } from '@/lib/installment';
 
 /** Sotuv detali — nasiya bo'lsa oy jadvali (plan) bilan. */
 export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
-  const user = await verifyMobileToken(req);
+  const auth = await authenticateMobile(req);
+  if (auth instanceof NextResponse) return auth;
+  const user = auth;
   if (!user || !user.dbName) return NextResponse.json({ error: 'Avtorizatsiya kerak.' }, { status: 401 });
   const { id } = await params;
   if (!Types.ObjectId.isValid(id)) return NextResponse.json({ error: 'Sotuv topilmadi.' }, { status: 404 });
@@ -48,7 +51,9 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
 
 /** To'lov qo'shish (nasiya oyi / qarz). addSalePaymentAction mantiqi. */
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
-  const user = await verifyMobileToken(req);
+  const auth = await authenticateMobile(req);
+  if (auth instanceof NextResponse) return auth;
+  const user = auth;
   if (!user || !user.dbName) return NextResponse.json({ error: 'Avtorizatsiya kerak.' }, { status: 401 });
   { const denied = await mobilePermissionDenied(user, 'payment.accept'); if (denied) return denied; }
   const { id } = await params;
@@ -56,21 +61,26 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
 
   let body: { amount?: number; note?: string };
   try { body = await req.json(); } catch { return NextResponse.json({ error: 'Noto\'g\'ri so\'rov.' }, { status: 400 }); }
-  const amount = Number(body.amount) || 0;
+  // Butun so'm — kasr/manfiy summa rad etiladi
+  const amount = parseIntegerSum(body.amount) ?? 0;
 
   const { Sale } = await getTenantModels(user.dbName);
-  const sale = await Sale.findOne({ _id: id, ...branchFilter(user) });
+  const sale = await Sale.findOne({ _id: id, ...branchFilter(user) }).lean();
   if (!sale) return NextResponse.json({ error: 'Sotuv topilmadi.' }, { status: 404 });
   if (sale.status === 'cancelled') return NextResponse.json({ error: 'Bekor qilingan sotuv.' }, { status: 400 });
   if (sale.status === 'paid') return NextResponse.json({ error: 'Allaqachon to\'liq to\'langan.' }, { status: 400 });
   if (amount <= 0) return NextResponse.json({ error: 'To\'lov summasi noto\'g\'ri.' }, { status: 400 });
   if (amount > sale.remainingAmount) return NextResponse.json({ error: `Qoldiq: ${sale.remainingAmount}` }, { status: 400 });
 
-  sale.paidAmount += amount;
-  sale.remainingAmount = Math.max(0, sale.totalAmount - sale.paidAmount);
-  sale.status = calcSaleStatus(sale.totalAmount, sale.paidAmount);
-  sale.payments.push({ amount, paidAt: new Date(), note: String(body.note || '').trim() || undefined, recordedBy: user.username });
-  await sale.save();
+  // Atomik: qoldiq sharti bilan bitta yozuv (parallel to'lovda ortiqcha to'lov bo'lmaydi)
+  const res = await applySalePayment(Sale, id, amount, {
+    scope: branchFilter(user),
+    note: String(body.note || '').trim() || undefined,
+    recordedBy: user.username,
+  });
+  if (!res) {
+    return NextResponse.json({ error: 'To\'lov qo\'shilmadi: qoldiq o\'zgargan. Qayta urinib ko\'ring.' }, { status: 409 });
+  }
 
-  return NextResponse.json({ ok: true, paidAmount: sale.paidAmount, remainingAmount: sale.remainingAmount, status: sale.status });
+  return NextResponse.json({ ok: true, ...res });
 }

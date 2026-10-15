@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { sendTelegramTo, sendTelegramWebApp, sendTelegramReplyMenu } from '@/lib/telegram';
 import { getMasterModels } from '@/lib/masterDb';
+import { safeEqual, verifyOrgLinkToken } from '@/lib/security';
+import { logError } from '@/lib/logger';
 
 const APP_BASE = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
 const MINI_APP_URL = `${APP_BASE}/tg`;
@@ -14,8 +16,31 @@ export async function GET() {
   });
 }
 
-/** Do'kon Telegram'ini ulaydi: /start link_<orgId> */
-async function handleLink(chatIdRaw: number | string, orgId: string): Promise<string> {
+/**
+ * Webhook so'rovi haqiqatan Telegram'danmi — setWebhook'da berilgan `secret_token`
+ * har so'rovda `X-Telegram-Bot-Api-Secret-Token` sarlavhasida keladi.
+ * Production'da TELEGRAM_WEBHOOK_SECRET bo'lmasa — barcha so'rov rad etiladi.
+ */
+function isAuthenticWebhook(req: NextRequest): boolean {
+  const secret = process.env.TELEGRAM_WEBHOOK_SECRET;
+  if (!secret) {
+    if (process.env.NODE_ENV === 'production') return false;
+    console.warn('[telegram] TELEGRAM_WEBHOOK_SECRET o\'rnatilmagan — dev rejimida tekshiruvsiz qabul qilinmoqda.');
+    return true;
+  }
+  return safeEqual(req.headers.get('x-telegram-bot-api-secret-token'), secret);
+}
+
+/**
+ * Do'kon Telegram'ini ulaydi: /start link_<imzolangan token>.
+ * Token Kabinet sahifasida yaratiladi (orgId + muddat + HMAC) — orgId'ni bilish yetarli emas.
+ */
+async function handleLink(chatIdRaw: number | string, token: string): Promise<string> {
+  const secret = process.env.SESSION_SECRET || 'dev-only-session-secret-change-in-prod-32ch';
+  const orgId = verifyOrgLinkToken(token, secret);
+  if (!orgId) {
+    return '⛔️ Havola eskirgan yoki noto\'g\'ri. Kabinet → "Telegram ulash" tugmasini qaytadan bosing.';
+  }
   try {
     const { Organization } = await getMasterModels();
     const org = await Organization.findByIdAndUpdate(
@@ -55,6 +80,9 @@ async function handleUserLink(telegramUserId: string, code: string): Promise<str
 }
 
 export async function POST(req: NextRequest) {
+  if (!isAuthenticWebhook(req)) {
+    return NextResponse.json({ ok: false }, { status: 401 });
+  }
   const token = process.env.TELEGRAM_BOT_TOKEN;
   if (!token) return NextResponse.json({ ok: true, skipped: true });
 
@@ -70,8 +98,8 @@ export async function POST(req: NextRequest) {
     if (chatId && text.startsWith('/start')) {
       const param = text.slice('/start'.length).trim();
       if (param.startsWith('link_')) {
-        const orgId = param.slice('link_'.length);
-        const reply = await handleLink(chatId, orgId);
+        const linkToken = param.slice('link_'.length);
+        const reply = await handleLink(chatId, linkToken);
         await sendTelegramTo(String(chatId), reply);
       } else if (param.startsWith('lu_') && fromId) {
         const code = param.slice('lu_'.length);
@@ -84,8 +112,8 @@ export async function POST(req: NextRequest) {
     } else if (chatId && text.trim() === 'Boshlash') {
       await sendTelegramReplyMenu(String(chatId), WELCOME, MINI_APP_URL);
     }
-  } catch {
-    /* ignore */
+  } catch (err) {
+    logError('telegram webhook failed', err);
   }
   return NextResponse.json({ ok: true });
 }

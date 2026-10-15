@@ -1,4 +1,5 @@
 import { notFound } from 'next/navigation';
+import { Types } from 'mongoose';
 import { getTenantSession } from '@/lib/tenantSession';
 import { isImeiEnabled } from '@/lib/features';
 import { ProductStatus } from '@/lib/models/tenant/Product';
@@ -14,13 +15,14 @@ export default async function ProductDetailPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ created?: string }>;
+  searchParams: Promise<{ created?: string; deleteBlocked?: string }>;
 }) {
   const { id } = await params;
   const sp = await searchParams;
   const { user, Product, Branch, CreditBank, org, features } = await getTenantSession();
   const isAdmin = user.role === 'admin';
 
+  if (!Types.ObjectId.isValid(id)) notFound();
   const product = await Product.findById(id).lean();
   if (!product) notFound();
   // Filial-login faqat o'z filiali mahsulotini ko'radi/tahrirlaydi
@@ -38,6 +40,11 @@ export default async function ProductDetailPage({
     <>
       {sp?.created === '1' && (
         <div className="auth-alert auth-alert--info" style={{ marginBottom: 16 }}>Mahsulot muvaffaqiyatli qo&apos;shildi.</div>
+      )}
+      {sp?.deleteBlocked === '1' && (
+        <div className="auth-alert auth-alert--error" style={{ marginBottom: 16 }}>
+          Bu mahsulotning sotuv tarixi bor — o&apos;chirib bo&apos;lmaydi. Kerak bo&apos;lsa, sotuvni bekor qiling yoki mahsulotni tahrirlang.
+        </div>
       )}
       <ProductForm
         mode="edit"

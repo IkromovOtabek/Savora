@@ -1,4 +1,5 @@
 import { ISale } from './models/tenant/Sale';
+import { addMonthsClamped } from './dates';
 
 /** Oy holati: to'landi / qisman / muddati kelmagan / muddati o'tgan. */
 export type InstallmentState = 'paid' | 'partial' | 'upcoming' | 'overdue';
@@ -70,8 +71,8 @@ export function computeInstallmentPlan(sale: SaleForPlan, now: Date = new Date()
     pool -= paidAmount;
     const paid = amount > 0 && paidAmount >= amount;
 
-    const dueDate = new Date(start);
-    dueDate.setMonth(dueDate.getMonth() + i);
+    // 31-yanvar + 1 oy → fevral oxiri (setMonth kabi 3-martga "sakrab" ketmaydi)
+    const dueDate = addMonthsClamped(start, i);
     const overdue = dueDate.getTime() <= nowT;
 
     // Holat: to'liq → paid; qisman to'langan → partial; aks holda muddat bo'yicha

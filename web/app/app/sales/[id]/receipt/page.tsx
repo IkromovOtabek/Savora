@@ -1,7 +1,9 @@
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import BackLink from '@/components/ui/BackLink';
+import { Types } from 'mongoose';
 import { getTenantSession } from '@/lib/tenantSession';
+import { branchFilter } from '@/lib/branchScope';
 import { PAYMENT_TYPE_LABELS } from '@/lib/models/tenant/Sale';
 import { fmtDateTime, fmtMoney } from '@/lib/format';
 import PrintReceiptButton from '@/components/tenant/PrintReceiptButton';
@@ -10,8 +12,9 @@ export const metadata = { title: 'Chek — Savora' };
 
 export default async function SaleReceiptPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const { org, Sale } = await getTenantSession();
-  const sale = await Sale.findById(id).lean();
+  const { user, org, Sale } = await getTenantSession();
+  if (!Types.ObjectId.isValid(id)) notFound();
+  const sale = await Sale.findOne({ _id: id, ...branchFilter(user) }).lean();
   if (!sale || sale.status === 'cancelled') notFound();
 
   return (
