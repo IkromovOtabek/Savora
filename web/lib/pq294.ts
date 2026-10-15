@@ -68,3 +68,17 @@ export function mayBeOperator(quarterTurnover: number, installmentTurnover: numb
   if (quarterTurnover <= PQ294_QUARTER_TURNOVER || quarterTurnover <= 0) return false;
   return (installmentTurnover / quarterTurnover) * 100 >= PQ294_INSTALLMENT_SHARE_PCT;
 }
+
+/** PQ-294 kuchga kirganmi (Toshkent vaqti bo'yicha kun boshidan) */
+export function pq294InForce(now: Date = new Date()): boolean {
+  return now.getTime() >= Date.parse(`${PQ294_EFFECTIVE}T00:00:00+05:00`);
+}
+
+/**
+ * Sotuvdagi nasiya muddati tekshiruvi: 2027-01-01 dan 12 oydan uzun nasiya rad etiladi.
+ * Undan oldin — null (ruxsat), UI esa ogohlantirish ko'rsatadi.
+ */
+export function pq294MonthsError(months: number | undefined, now: Date = new Date()): string | null {
+  if (!months || !pq294InForce(now) || months <= PQ294_MAX_MONTHS) return null;
+  return `2027-yil 1-yanvardan nasiya muddati ${PQ294_MAX_MONTHS} oydan oshmasligi kerak (PQ-294).`;
+}

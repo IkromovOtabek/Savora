@@ -31,3 +31,17 @@ describe('PQ-294 chegaralari', () => {
     expect(mayBeOperator(400_000_000, 400_000_000)).toBe(false);
   });
 });
+
+import { pq294InForce, pq294MonthsError } from '@/lib/pq294';
+import { describe as d2, it as i2, expect as e2 } from 'vitest';
+
+d2('pq294MonthsError', () => {
+  i2('2027 dan oldin uzun muddat ruxsat etiladi', () => {
+    e2(pq294MonthsError(24, new Date('2026-12-31T12:00:00+05:00'))).toBeNull();
+  });
+  i2('2027-01-01 dan 12 oydan uzun nasiya rad etiladi', () => {
+    e2(pq294InForce(new Date('2027-01-01T00:00:00+05:00'))).toBe(true);
+    e2(pq294MonthsError(13, new Date('2027-01-01T09:00:00+05:00'))).toMatch(/12 oydan/);
+    e2(pq294MonthsError(12, new Date('2027-06-01T09:00:00+05:00'))).toBeNull();
+  });
+});

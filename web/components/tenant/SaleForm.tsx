@@ -13,6 +13,7 @@ import BackLink from '@/components/ui/BackLink';
 import ImageUploadField from '@/components/ui/ImageUploadField';
 import PriceInput from '@/components/ui/PriceInput';
 import Icon from '@/components/icons/Icon';
+import { PQ294_MAX_MONTHS } from '@/lib/pq294';
 
 interface ProductOption {
   id: string;
@@ -429,6 +430,11 @@ export default function SaleForm({ isPhoneShop, products, mediaEnabled, features
                         disabled={fieldsOff}
                         inputMode="numeric"
                       />
+                      {Number(months) > PQ294_MAX_MONTHS && (
+                        <small className="field-hint" style={{ color: 'var(--warn)' }}>
+                          Diqqat: 2027-yil 1-yanvardan nasiya muddati {PQ294_MAX_MONTHS} oydan oshmasligi kerak (PQ-294).
+                        </small>
+                      )}
                     </div>
                   )}
                 </div>

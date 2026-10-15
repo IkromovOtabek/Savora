@@ -10,6 +10,7 @@ import { parseQtyField } from '@/lib/productQuantity';
 import { reserveStock, releaseStock } from '@/lib/stock';
 import { parseIntegerSum } from '@/lib/security';
 import { addMonthsClamped } from '@/lib/dates';
+import { pq294MonthsError } from '@/lib/pq294';
 
 type PaymentType = 'cash' | 'debt' | 'installment' | 'bank_credit';
 const PAYMENT_TYPES: PaymentType[] = ['cash', 'debt', 'installment', 'bank_credit'];
@@ -147,6 +148,8 @@ export async function POST(req: Request) {
   if (paymentType === 'installment') {
     installmentMonths = installmentMonthsRaw >= 1 ? Math.min(60, Math.floor(installmentMonthsRaw)) : undefined;
     if (!installmentMonths) return NextResponse.json({ error: 'Nasiya oylari kiritilishi shart (1–60).' }, { status: 400 });
+    const pqErr = pq294MonthsError(installmentMonths);
+    if (pqErr) return NextResponse.json({ error: pqErr }, { status: 400 });
   }
 
   const remainingAmount = Math.max(0, totalAmount - paidAmount);

@@ -19,6 +19,7 @@ import { branchFilter } from '@/lib/branchScope';
 import { logError } from '@/lib/logger';
 import { checkPermission, userCan } from '@/lib/permissionGuard';
 import { permissionDeniedError } from '@/lib/permissions';
+import { pq294MonthsError } from '@/lib/pq294';
 
 type State = { error?: string; success?: string } | null;
 
@@ -306,6 +307,8 @@ export async function createSaleAction(_prev: State, formData: FormData): Promis
       ? Math.min(60, Math.floor(installmentMonthsRaw))
       : undefined;
     if (!installmentMonths) return { error: 'Nasiya oylari kiritilishi shart (1–60).' };
+    const pqErr = pq294MonthsError(installmentMonths);
+    if (pqErr) return { error: pqErr };
   }
 
   const remainingAmount = Math.max(0, totalAmount - paidAmount);
