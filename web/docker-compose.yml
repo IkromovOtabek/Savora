@@ -1,23 +1,79 @@
+# Savora — production stack (VPS). To'liq qo'llanma: docs/DEPLOY.md
+#
+#   cp .env.example .env   # va qiymatlarni to'ldiring (sirlar shu faylda, git'da EMAS)
+#   docker compose build
+#   docker compose up -d
+#
+# Ikki ilova nusxasi (app_a :3001, app_b :3002) — nginx ikkalasiga yuboradi.
+# Yangilashda ular navbatma-navbat qayta ishga tushadi → uzilishsiz deploy (deploy/deploy.sh).
+# Kichik serverda bitta nusxa yetarli bo'lsa: `docker compose up -d mongo app_a`.
+
+x-app: &app
+  image: ${APP_IMAGE:-savora:latest}
+  build:
+    context: .
+    args:
+      APP_VERSION: ${APP_VERSION:-dev}
+      NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:-https://savora.uz}
+      NEXT_PUBLIC_ROOT_DOMAIN: ${NEXT_PUBLIC_ROOT_DOMAIN:-savora.uz}
+      ROOT_DOMAIN: ${ROOT_DOMAIN:-savora.uz}
+      NEXT_PUBLIC_USE_PATH_ROUTING: ${NEXT_PUBLIC_USE_PATH_ROUTING:-true}
+      CSP_MODE: ${CSP_MODE:-enforce}
+  env_file: .env
+  environment:
+    # MONGO_URI shu yerda belgilanadi (env_file'dagidan ustun): konteyner ichidan `mongo` servisiga.
+    # Tashqi baza (masalan Atlas) uchun .env ga MONGO_URI_DOCKER=mongodb+srv://... yozing.
+    MONGO_URI: ${MONGO_URI_DOCKER:-mongodb://mongo:27017}
+    NODE_ENV: production
+  volumes:
+    - uploads:/app/public/uploads
+  depends_on:
+    mongo:
+      condition: service_healthy
+  restart: unless-stopped
+  stop_grace_period: 20s
+  deploy:
+    resources:
+      limits:
+        memory: 768m
+  logging:
+    driver: json-file
+    options:
+      max-size: '20m'
+      max-file: '5'
+
 services:
   mongo:
     image: mongo:7
+    restart: unless-stopped
+    # Faqat lokal (backup/mongosh uchun) — internetga OCHILMAYDI
     ports:
-      - '27017:27017'
+      - '127.0.0.1:27017:27017'
     volumes:
       - mongo_data:/data/db
+    command: ['--wiredTigerCacheSizeGB', '${MONGO_CACHE_GB:-0.5}']
+    healthcheck:
+      test: ['CMD', 'mongosh', '--quiet', '--eval', "db.adminCommand('ping').ok"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    logging:
+      driver: json-file
+      options:
+        max-size: '20m'
+        max-file: '3'
 
-  app:
-    build: .
+  app_a:
+    <<: *app
     ports:
-      - '3000:3000'
-    environment:
-      MONGO_URI: mongodb://mongo:27017
-      MASTER_DB_NAME: savdopro_master
-      SESSION_SECRET: change-this-in-production-32chars-min
-      ROOT_DOMAIN: lvh.me
-      NEXT_PUBLIC_ROOT_DOMAIN: lvh.me
-    depends_on:
-      - mongo
+      - '127.0.0.1:3001:3000'
+
+  app_b:
+    <<: *app
+    ports:
+      - '127.0.0.1:3002:3000'
 
 volumes:
   mongo_data:
+  uploads:

@@ -1,0 +1,27 @@
+# Savora — server crontab (crontab -e orqali qo'shing). Vaqt — server vaqt zonasi (Asia/Tashkent tavsiya).
+# CRON_SECRET ni shu faylga yozmang — /etc/savora-cron.env dan o'qiladi:
+#   echo "CRON_SECRET=<.env dagi qiymat>" | sudo tee /etc/savora-cron.env && sudo chmod 600 /etc/savora-cron.env
+# So'rovlar to'g'ridan-to'g'ri ilovaga (127.0.0.1:3001) boradi — nginx /api/cron/ ni tashqaridan yopadi.
+# Ikkinchi nusxa (3002) zaxira: birinchisi javob bermasa, `|| curl ... 3002` ishlaydi.
+
+SHELL=/bin/bash
+APP=/opt/savora/web
+CRON_CURL="curl -fsS --max-time 120"
+
+# 00:05 — muddati tugagan obunalarni "expired" qilish
+5 0 * * *  . /etc/savora-cron.env; for p in 3001 3002; do $CRON_CURL -H "Authorization: Bearer $CRON_SECRET" http://127.0.0.1:$p/api/cron/expire-orgs && break; done >> /var/log/savora-cron.log 2>&1
+
+# 09:00 — obuna tugashi haqida eslatma (Telegram)
+0 9 * * *  . /etc/savora-cron.env; for p in 3001 3002; do $CRON_CURL -H "Authorization: Bearer $CRON_SECRET" http://127.0.0.1:$p/api/cron/expiry-notifications && break; done >> /var/log/savora-cron.log 2>&1
+
+# 10:00 — nasiya to'lov eslatmalari
+0 10 * * * . /etc/savora-cron.env; for p in 3001 3002; do $CRON_CURL -H "Authorization: Bearer $CRON_SECRET" http://127.0.0.1:$p/api/cron/installment-reminders && break; done >> /var/log/savora-cron.log 2>&1
+
+# 10:30 — Daftar (qarz daftari) eslatmalari: egaga Telegram, mijozga SMS
+30 10 * * * . /etc/savora-cron.env; for p in 3001 3002; do $CRON_CURL -H "Authorization: Bearer $CRON_SECRET" http://127.0.0.1:$p/api/cron/daftar-reminders && break; done >> /var/log/savora-cron.log 2>&1
+
+# 03:00 — to'liq zaxira (master + barcha tenant bazalari), BACKUP.md
+0 3 * * *  cd $APP && node --env-file=.env scripts/backup.mjs >> /var/log/savora-backup.log 2>&1
+
+# Har 5 daqiqada — sog'liq tekshiruvi; yiqilsa logga yozadi (ixtiyoriy: ERROR_WEBHOOK_URL ga ham)
+*/5 * * * * curl -fsS --max-time 5 https://savora.uz/api/health >/dev/null || echo "$(date -Is) HEALTH FAIL" >> /var/log/savora-health.log
