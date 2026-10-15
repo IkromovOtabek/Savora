@@ -1,9 +1,11 @@
 import Link from 'next/link';
 import Icon from '@/components/icons/Icon';
-import PublicPage from '@/components/auth/PublicPage';
+import PublicPage, { PublicSection } from '@/components/auth/PublicPage';
+import { Ph, TRIAL_DAYS } from '../terms/legal';
 
 export const metadata = { title: "Bog'lanish — Savora" };
 
+// TODO(asoschi): telefon raqami vaqtinchalik — haqiqiy qo'llab-quvvatlash raqami bilan almashtirilsin.
 const CONTACTS = [
   { label: 'Telegram', value: '@savora', href: 'https://t.me/savora', icon: 'send', tone: 'b' },
   { label: 'Email', value: 'support@savora.uz', href: 'mailto:support@savora.uz', icon: 'globe', tone: 'o' },
@@ -27,7 +29,23 @@ export default function ContactPage() {
         </div>
       </section>
 
-      <Link href="/register" className="au-btn au-btn--filled au-btn--block">14 kun bepul sinab ko&apos;rish</Link>
+      <PublicSection title="Ish vaqti">
+        <p>Dushanba&ndash;shanba, <Ph>09:00&ndash;19:00</Ph> (Toshkent vaqti). Telegram&apos;ga yozilgan xabarlarga odatda shu kunning o&apos;zida javob beramiz.</p>
+      </PublicSection>
+
+      <PublicSection title="Demo va ko'chirish">
+        <ul>
+          <li>10 daqiqalik onlayn demo yoki do&apos;koningizga borib ko&apos;rsatish &mdash; Telegram orqali vaqt belgilang.</li>
+          <li>Excel yoki daftardagi tovar va qarz ro&apos;yxatini ko&apos;chirishda bepul yordam beramiz.</li>
+          <li>Ko&apos;p uchraydigan savollar &mdash; <Link href="/help" className="au-link">Yordam markazi</Link>da.</li>
+        </ul>
+      </PublicSection>
+
+      <PublicSection title="Rekvizitlar">
+        <p>Savora (yuridik shaxs ma&apos;lumotlari: <Ph>nomi, STIR, manzil</Ph>). Hujjatlar: <Link href="/terms" className="au-link">Ommaviy oferta</Link>, <Link href="/privacy" className="au-link">Maxfiylik siyosati</Link>.</p>
+      </PublicSection>
+
+      <Link href="/register" className="au-btn au-btn--filled au-btn--block">{TRIAL_DAYS} kun bepul sinab ko&apos;rish</Link>
     </PublicPage>
   );
 }

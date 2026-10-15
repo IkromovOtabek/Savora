@@ -1,31 +1,24 @@
 import Link from 'next/link';
 import PublicPage, { PublicSection } from '@/components/auth/PublicPage';
+import { TRIAL_DAYS } from '../terms/legal';
+import { helpArticles } from './articles';
+import HelpCenter from './HelpCenter';
 
-export const metadata = { title: 'Yordam — Savora' };
+export const metadata = {
+  title: 'Yordam markazi — Savora',
+  description: "Savora bo'yicha qo'llanma: ro'yxatdan o'tish, sotuv, nasiya, PQ-294 (2027) talablari, ombor, kassa, mobil ilova va tariflar.",
+};
 
 export default function HelpPage() {
+  const articles = helpArticles(TRIAL_DAYS);
   return (
-    <PublicPage title="Yordam" lead="Savora bilan ishlashni boshlash uchun qisqa yo'riqnoma.">
-      <PublicSection title="Boshlash">
-        <ol>
-          <li><Link href="/register" className="au-link">Ro&apos;yxatdan o&apos;ting</Link> — pulli tariflarda 14 kun bepul sinov.</li>
-          <li>Do&apos;kon manzilini (slug) tanlang.</li>
-          <li>Mahsulot va xodimlarni qo&apos;shing.</li>
-          <li>Do&apos;koningiz manzilidan tizimga kiring.</li>
-        </ol>
-      </PublicSection>
+    <PublicPage wide title="Yordam markazi" lead="Savora bilan ishlash bo'yicha qisqa, qadamma-qadam qo'llanma.">
+      <HelpCenter articles={articles} />
 
-      <PublicSection title="Manzillar">
-        <ul>
-          <li>Asosiy sayt: <code>savora.uz</code></li>
-          <li>Kirish: <code>savora.uz/login</code></li>
-          <li>Do&apos;kon: <code>savora.uz/t/&lt;do&apos;kon&gt;/login</code></li>
-        </ul>
-      </PublicSection>
-
-      <PublicSection title="Savollar">
+      <PublicSection title="Javob topmadingizmi?">
         <p>
-          Savolingiz bo&apos;lsa, <Link href="/contact" className="au-link">Bog&apos;lanish</Link> sahifasi orqali yozing.
+          Telegram yoki telefon orqali yozing &mdash; <Link href="/contact" className="au-link">Bog&apos;lanish</Link>.
+          Ma&apos;lumotlaringizni ko&apos;chirish va xodimlarni o&apos;rgatishda bepul yordam beramiz.
         </p>
       </PublicSection>
     </PublicPage>

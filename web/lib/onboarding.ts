@@ -1,6 +1,10 @@
 import { getMasterModels } from './masterDb';
 
-export type OnboardingStep = 'branchCreated' | 'productAdded' | 'saleMade' | 'profileCompleted';
+/**
+ * Cheklistda ko'rinadigan qadamlar (biznes turi, xodim logini, Telegram ham) — lib/onboardingSteps.ts.
+ * Bu yerda faqat saqlanadigan belgilar; ro'yxat Organization sxemasi bilan bir xil qoladi.
+ */
+export type OnboardingStep ='branchCreated' | 'productAdded' | 'saleMade' | 'profileCompleted';
 
 /**
  * Onboarding qadamini bajarilgan deb belgilaydi (master DB'dagi organization).
