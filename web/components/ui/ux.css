@@ -74,6 +74,7 @@
   .ux-strip {
     display: flex; overflow-x: auto; scroll-snap-type: x mandatory; gap: 10px;
     margin-inline: -16px; padding: 2px 16px 6px; scrollbar-width: none;
+    scroll-padding-inline: 16px; /* snap birinchi kartani chetga yopishtirmasin */
   }
   .ux-strip::-webkit-scrollbar { display: none; }
   .ux-strip > * { flex: 0 0 min(72%, 260px); scroll-snap-align: start; }
