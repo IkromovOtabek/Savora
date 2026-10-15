@@ -1,0 +1,8 @@
+*.mp4
+*.wav
+*.mp3
+*.srt
+.venv/
+node_modules/
+savora-reels/renders/
+savora-reels/.hyperframes/
