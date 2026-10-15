@@ -85,9 +85,8 @@ function Girih() {
   );
 }
 
-/** Jonli telefon sahnasi: sotuvlar oqimi, o'sib boruvchi tushum, chiquvchi bildirishnomalar, parallaks */
+/** Jonli telefon sahnasi: sotuvlar oqimi, o'sib boruvchi tushum, chiquvchi bildirishnomalar */
 export function HeroStage() {
-  const stage = useRef<HTMLDivElement>(null);
   const [tick, setTick] = useState(0);
   const [total, setTotal] = useState(21_840_000);
   const [shown, setShown] = useState(21_840_000);
@@ -124,34 +123,13 @@ export function HeroStage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [total, reduced]);
 
-  // Sichqoncha parallaksi (faqat sichqoncha bor qurilmalarda)
-  useEffect(() => {
-    const el = stage.current;
-    if (!el || window.matchMedia('(prefers-reduced-motion: reduce)').matches || !window.matchMedia('(hover: hover)').matches) return;
-    let raf = 0;
-    const onMove = (e: PointerEvent) => {
-      const r = el.getBoundingClientRect();
-      const x = (e.clientX - r.left) / r.width - 0.5;
-      const y = (e.clientY - r.top) / r.height - 0.5;
-      cancelAnimationFrame(raf);
-      raf = requestAnimationFrame(() => {
-        el.style.setProperty('--px', x.toFixed(3));
-        el.style.setProperty('--py', y.toFixed(3));
-      });
-    };
-    const onLeave = () => { el.style.setProperty('--px', '0'); el.style.setProperty('--py', '0'); };
-    window.addEventListener('pointermove', onMove);
-    el.addEventListener('pointerleave', onLeave);
-    return () => { window.removeEventListener('pointermove', onMove); el.removeEventListener('pointerleave', onLeave); cancelAnimationFrame(raf); };
-  }, []);
-
   const rows = [0, 1, 2, 3].map((k) => FEED[(((tick - k) % FEED.length) + FEED.length) % FEED.length]);
   const toast = TOASTS[tick % TOASTS.length];
   const toast2 = TOASTS[(tick + 2) % TOASTS.length];
   const ring = 38 + ((tick * 9) % 55);
 
   return (
-    <div className="lp-stage" ref={stage}>
+    <div className="lp-stage">
       <div className="lp-layer lp-l0"><Girih /></div>
       <div className="lp-aurora" aria-hidden="true"><i /><i /><i /></div>
 

@@ -122,11 +122,9 @@
 @keyframes lp-rise { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: none; } }
 
 /* sahna */
-.lp-stage { --px: 0; --py: 0; position: relative; height: 600px; display: grid; place-items: center; }
-.lp-layer { position: absolute; inset: 0; display: grid; place-items: center; transition: transform .35s cubic-bezier(.2, .9, .2, 1); pointer-events: none; }
-.lp-l0 { transform: translate(calc(var(--px) * -14px), calc(var(--py) * -14px)); }
-.lp-l2 { transform: translate(calc(var(--px) * 12px), calc(var(--py) * 10px)); pointer-events: auto; }
-.lp-l3 { transform: translate(calc(var(--px) * 28px), calc(var(--py) * 22px)); }
+.lp-stage { position: relative; height: 600px; display: grid; place-items: center; }
+.lp-layer { position: absolute; inset: 0; display: grid; place-items: center; pointer-events: none; }
+.lp-l2 { pointer-events: auto; }
 .lp-girih { width: 640px; max-width: 120%; color: var(--lp-br); opacity: .22; animation: lp-spin 90s linear infinite; }
 @keyframes lp-spin { to { transform: rotate(360deg); } }
 .lp-aurora { position: absolute; inset: 8% 6%; filter: blur(50px); z-index: -1; }
