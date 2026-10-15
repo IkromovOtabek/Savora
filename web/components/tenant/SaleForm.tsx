@@ -35,6 +35,26 @@ const PAYMENT_LABELS: Record<PaymentType, string> = {
 /** Ro'yxatda bir vaqtda ko'rsatiladigan mahsulotlar soni (qolgani qidiruv orqali) */
 const PICK_LIMIT = 60;
 
+/** To'lov muddati uchun tez tanlovlar */
+const DUE_PRESETS: { label: string; days?: number; months?: number }[] = [
+  { label: '1 hafta', days: 7 },
+  { label: '2 hafta', days: 14 },
+  { label: '1 oy', months: 1 },
+  { label: '3 oy', months: 3 },
+];
+
+function addDays(d: Date, n: number): Date {
+  const x = new Date(d.getTime());
+  x.setDate(x.getDate() + n);
+  return x;
+}
+
+/** <input type="date"> qiymati — mahalliy sana, YYYY-MM-DD */
+function isoDay(d: Date): string {
+  const p = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+}
+
 interface Props {
   isPhoneShop: boolean;
   products: ProductOption[];
@@ -83,6 +103,7 @@ export default function SaleForm({ isPhoneShop, products, mediaEnabled, features
   const [paidAmount, setPaidAmount] = useState('0');
   const [months, setMonths] = useState('12');
   const [query, setQuery] = useState('');
+  const [dueDate, setDueDate] = useState('');
   // Sana faqat brauzerda (server/klient vaqt mintaqasi farqi hydration xatosiga olib kelmasin)
   const [now, setNow] = useState<Date | null>(null);
   useEffect(() => { setNow(new Date()); }, []);
@@ -218,9 +239,15 @@ export default function SaleForm({ isPhoneShop, products, mediaEnabled, features
                         placeholder="IMEI raqamini kiriting"
                       />
                     </div>
-                    <button type="button" className="btn btn-primary btn-with-icon" onClick={handleImeiSearch} disabled={searching || !imei.trim()}>
+                    <button
+                      type="button"
+                      className="btn btn-primary btn-with-icon sl-imei-btn"
+                      onClick={handleImeiSearch}
+                      disabled={searching || !imei.trim()}
+                      aria-label={searching ? 'Qidirilmoqda' : 'Qidirish'}
+                    >
                       <Icon name="search" size={16} />
-                      {searching ? 'Qidirilmoqda...' : 'Qidirish'}
+                      <span className="ux-hide-mobile">{searching ? 'Qidirilmoqda...' : 'Qidirish'}</span>
                     </button>
                   </div>
                   {lookupError && <div className="auth-alert auth-alert--warn" role="alert">{lookupError}</div>}
@@ -323,7 +350,7 @@ export default function SaleForm({ isPhoneShop, products, mediaEnabled, features
             </div>
           </section>
 
-          <section className="sl-card" aria-labelledby="sl-extra">
+          <section className="sl-card sl-pos-extra" aria-labelledby="sl-extra">
             <div className="sl-card-head"><h2 id="sl-extra">Qo&apos;shimcha</h2></div>
             <div className="sl-fields">
               {mediaEnabled && (
@@ -410,7 +437,32 @@ export default function SaleForm({ isPhoneShop, products, mediaEnabled, features
               {paymentType !== 'cash' && (
                 <div className="auth-field">
                   <label htmlFor="dueDate">To&apos;lov muddati {paymentType === 'installment' ? '(ixtiyoriy)' : '*'}</label>
-                  <input id="dueDate" name="dueDate" type="date" disabled={fieldsOff} />
+                  {/* Tez tanlov — brauzer sana oynasi (ko'pincha ruscha) ikkilamchi bo'lib qoladi */}
+                  <div className="sl-due-quick" role="group" aria-label="Muddatni tez tanlash">
+                    {DUE_PRESETS.map((d) => {
+                      const v = now ? isoDay(d.days ? addDays(now, d.days) : addMonthsClamped(now, d.months ?? 0)) : '';
+                      return (
+                        <button
+                          key={d.label}
+                          type="button"
+                          className="sl-quick"
+                          aria-pressed={!!v && dueDate === v}
+                          onClick={() => setDueDate(v)}
+                          disabled={fieldsOff || !now}
+                        >
+                          {d.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <input
+                    id="dueDate"
+                    name="dueDate"
+                    type="date"
+                    value={dueDate}
+                    onChange={(e) => setDueDate(e.target.value)}
+                    disabled={fieldsOff}
+                  />
                 </div>
               )}
 
@@ -466,14 +518,30 @@ export default function SaleForm({ isPhoneShop, products, mediaEnabled, features
             </section>
           )}
 
-          <section className="sl-card" aria-label="Jami">
-            <div className="sl-summary-total">
-              <span>{paymentType === 'cash' ? 'To\'lanadi' : 'Hozir to\'lanadi'}</span>
-              <strong>{fmtMoney(Math.min(paid, total))} <small>so&apos;m</small></strong>
-            </div>
-            <div className="sl-card-body">
+          {/* Jami — desktopda o'ng ustun pastida, mobilda tab bar ustidagi qotirilgan panel */}
+          <section className={`sl-card sl-pos-total${picked ? '' : ' sl-pos-total--empty'}`} aria-label="Jami">
+            {picked ? (
+              <div className="sl-summary-total" aria-live="polite">
+                <span>{paymentType === 'cash' ? 'To\'lanadi' : 'Hozir to\'lanadi'}</span>
+                <strong>{fmtMoney(Math.min(paid, total))} <small>so&apos;m</small></strong>
+              </div>
+            ) : (
+              <div className="sl-sum-hint">
+                <span className="sl-sum-hint-ic" aria-hidden><Icon name={isPhoneShop ? 'search' : 'box'} size={18} /></span>
+                <div>
+                  <b>Mahsulot tanlanmagan</b>
+                  <span>{isPhoneShop ? 'IMEI raqami orqali qidiring' : 'Ro\'yxatdan mahsulotni tanlang'} — summa shu yerda chiqadi.</span>
+                </div>
+              </div>
+            )}
+            <div className="sl-card-body sl-pos-submit">
               <button type="submit" className="btn btn-primary sl-submit" disabled={isPending || !picked}>
-                {isPending ? 'Sotilmoqda...' : 'Sotuvni tasdiqlash'}
+                {isPending ? 'Sotilmoqda...' : (
+                  <>
+                    <span className="ux-hide-mobile">{picked ? 'Sotuvni tasdiqlash' : 'Tasdiqlash'}</span>
+                    <span className="ux-only-mobile">Tasdiqlash</span>
+                  </>
+                )}
               </button>
             </div>
           </section>

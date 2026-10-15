@@ -53,18 +53,21 @@ export default function InstallmentMonths({
   // "To'liq" summasi — shu oyning QOLGAN qismi (qisman to'langan bo'lsa ayiriladi), sotuv qoldig'idan oshmaydi
   const monthLeft = openMonth ? Math.max(0, openMonth.amount - openMonth.paidAmount) : 0;
   const fullAmount = Math.min(monthLeft, remaining);
+  // Navbatdagi oy — birinchi to'lanmagan oy (ajratib ko'rsatiladi, "To'lash" tugmasi aniq ko'rinadi)
+  const nextMonth = schedule.find((m) => !m.paid)?.month;
 
   return (
     <>
       <ol className="sl-tl" aria-label="Oylik to'lovlar">
         {schedule.map((m) => {
           const clickable = canPay && !m.paid;
+          const isNext = m.month === nextMonth;
           const meta = INSTALLMENT_STATE_META[m.state];
           const pct = m.amount > 0 ? Math.min(100, Math.round((m.paidAmount / m.amount) * 100)) : 0;
           const inner = (
             <>
               <span className="sl-tl-t">
-                <b>{m.month}-oy</b>
+                <b>{m.month}-oy{isNext && <em className="sl-tl-next">Navbatdagi</em>}</b>
                 <span>
                   {fmtDate(m.dueDate)}
                   {m.state === 'partial' ? ` · to'landi ${fmtMoney(m.paidAmount)}` : ''}
@@ -73,14 +76,14 @@ export default function InstallmentMonths({
               <span className="sl-tl-r">
                 <strong>{fmtMoney(m.amount)}</strong>
                 {clickable
-                  ? <span className="sl-tl-cta">To&apos;lash →</span>
+                  ? <span className={`sl-tl-cta${isNext ? ' sl-tl-cta--main' : ''}`}>To&apos;lash{isNext ? '' : ' →'}</span>
                   : <span className={`sl-pill ${meta.cls}`}>{meta.label}</span>}
               </span>
               {m.state === 'partial' && <span className="sl-tl-mini" aria-hidden><i style={{ width: `${pct}%` }} /></span>}
             </>
           );
           return (
-            <li key={m.month} className={`sl-tl-item sl-tl-item--${m.state}`}>
+            <li key={m.month} className={`sl-tl-item sl-tl-item--${m.state}${isNext ? ' sl-tl-item--next' : ''}`} aria-current={isNext ? 'step' : undefined}>
               <span className="sl-tl-dot" aria-hidden>
                 {m.paid ? <Icon name="check" size={14} strokeWidth={3} /> : m.month}
               </span>

@@ -3,6 +3,7 @@ import { getTenantSession } from '@/lib/tenantSession';
 import { isBranchScoped } from '@/lib/branchScope';
 import { fmtDate, fmtDateTime } from '@/lib/format';
 import Icon from '@/components/icons/Icon';
+import Tilt from '@/components/ui/Tilt';
 
 export const metadata = { title: 'Filialga berildi — Savora' };
 
@@ -36,34 +37,37 @@ export default async function TransferredPage() {
           <h1 className="t-page-title">Filialga berildi</h1>
           <p className="t-page-sub">Bugun: <strong>{todayCount} ta</strong> · Jami berilgan: <strong>{totalQty} dona</strong></p>
         </div>
-        <div className="t-page-actions">
-          <Link href="/app/products" className="btn btn-ghost btn-with-icon">
-            <Icon name="box" size={16} />
-            Omborga o&apos;tish
-          </Link>
-        </div>
+        {/* Bo'sh holatda bir xil tugma ro'yxat o'rnida bor; mobilda "Ombor" tab bar'da */}
+        {transfers.length > 0 && (
+          <div className="t-page-actions ux-hide-mobile">
+            <Link href="/app/products" className="btn btn-ghost btn-with-icon">
+              <Icon name="box" size={16} />
+              Omborga o&apos;tish
+            </Link>
+          </div>
+        )}
       </div>
 
-      <section className="sl-stats sl-tr-stats" aria-label="Xulosa">
-        <div className="sl-stat sl-stat--hero">
+      <section className="ux-strip sl-strip sl-tr-stats" aria-label="Xulosa">
+        <Tilt className="sl-stat sl-stat--hero" max={5}>
           <span className="sl-stat-l"><Icon name="repeat" size={16} />Bugun</span>
-          <span className="sl-stat-v">{todayCount} <small>ta</small></span>
-        </div>
+          <span className="sl-stat-v ux-z">{todayCount} <small>ta</small></span>
+        </Tilt>
         <div className="sl-stat">
-          <span className="sl-stat-l"><Icon name="box" size={16} />Jami dona</span>
+          <span className="sl-stat-l"><span className="ux-clay ux-clay--green sl-clay" aria-hidden><Icon name="box" size={16} /></span>Dona</span>
           <span className="sl-stat-v">{totalQty}</span>
         </div>
         <div className="sl-stat">
-          <span className="sl-stat-l"><Icon name="store" size={16} />Filiallar</span>
+          <span className="sl-stat-l"><span className="ux-clay ux-clay--gold sl-clay" aria-hidden><Icon name="store" size={16} /></span>Filiallar</span>
           <span className="sl-stat-v">{branchCount}</span>
         </div>
       </section>
 
       <div className="sl-card sl-list-card">
         {transfers.length === 0 ? (
-          <div className="sl-empty">
-            <div className="sl-empty-ic"><Icon name="repeat" size={30} /></div>
-            <h3>Hali filialga berilgan mahsulot yo&apos;q</h3>
+          <div className="ux-empty sl-empty">
+            <div className="ux-empty-ic"><Icon name="repeat" size={28} /></div>
+            <b>Hali filialga berilgan mahsulot yo&apos;q</b>
             <p>Ombordagi mahsulot sahifasidan uni boshqa filialga ko&apos;chirishingiz mumkin.</p>
             <Link href="/app/products" className="btn btn-primary">Omborga o&apos;tish</Link>
           </div>
@@ -77,18 +81,17 @@ export default async function TransferredPage() {
                     <span className="sl-av" aria-hidden><Icon name="box" size={18} /></span>
                     <div className="sl-row-main">
                       <Link href={`/app/products/${t.productId}`} className="sl-row-title">{t.productSnapshot.name}</Link>
-                      <div className="sl-row-sub">
-                        <span>{t.transferNo}</span>
-                        {t.productSnapshot.imei && <code>{t.productSnapshot.imei}</code>}
-                      </div>
+                      {/* Asosiy 2-qator: yo'nalish · vaqt. Raqam, IMEI, xodim — faqat keng ekranda */}
                       <div className="sl-row-meta">
                         <span className="sl-tr-route">
                           <span>{t.fromBranchName ?? '—'}</span>
                           <Icon name="arrowRight" size={14} />
                           <b>{t.toBranchName}</b>
                         </span>
-                        <span>{t.transferredBy}</span>
                         <span>{fmtDateTime(t.createdAt!).split(', ')[1]}</span>
+                        <span className="sl-row-x">{t.transferNo}</span>
+                        {t.productSnapshot.imei && <code className="sl-row-x">{t.productSnapshot.imei}</code>}
+                        <span className="sl-row-x">{t.transferredBy}</span>
                       </div>
                     </div>
                     <div className="sl-tr-qty">
