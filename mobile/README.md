@@ -1,6 +1,6 @@
 # Savora Mobile
 
-Savora (POS / ombor / nasiya savdo) tizimining **native mobil ilovasi** — biznes egalari va filiallar uchun. Expo (SDK 52) + expo-router v4. Dizayn: **jonli** — rangli KPI plitkalari va tez amallar.
+Savora (POS / ombor / nasiya savdo) tizimining **native mobil ilovasi** — biznes egalari va filiallar uchun. Expo (SDK 54) + expo-router v6. Dizayn: **jonli** — rangli KPI plitkalari va tez amallar.
 
 ## Imkoniyatlar (v1.0)
 
@@ -30,29 +30,15 @@ Telefonda **Expo Go** ni oching, QR kodni skaner qiling (yoki `i` / `a` bilan si
 - Doimiy (prod): `app.json` → `expo.extra.apiUrl` (hozir `https://savora.uz`).
 - Vaqtincha: `EXPO_PUBLIC_API_URL` muhit o'zgaruvchisi.
 
-## Production — App Store + Play Market
+## Production — TestFlight / App Store / Play Market
 
-### 1. Tayyorgarlik
-- **Ikonka va splash** qo'shing: `assets/icon.png` (1024×1024), `assets/adaptive-icon.png` (Android), `assets/splash.png`. `app.json` da yo'llarni ko'rsating.
-- `app.json`: `version`, iOS `bundleIdentifier` = `uz.savora.app`, Android `package` = `uz.savora.app` (tayyor).
-- `expo.extra.apiUrl` production domeniga ishora qilsin.
+Batafsil qadam-baqadam qo'llanma: [`RELEASE.md`](RELEASE.md). Qisqacha:
 
-### 2. EAS build
 ```bash
-npm install -g eas-cli
-eas login
-eas build:configure          # projectId ni app.json ga yozadi
-eas build -p android --profile production   # AAB (Play uchun)
-eas build -p ios --profile production       # IPA (App Store uchun)
+npm run build:ios      # eas build -p ios --profile production (birinchi marta Apple ID so'raydi)
+npm run submit:ios     # TestFlight'ga (birinchi marta ASC API kalitini so'raydi, keyin saqlaydi)
 ```
-> iOS uchun **Apple Developer** ($99/yil), Android uchun **Google Play Console** ($25 bir marta) hisobi kerak.
-
-### 3. Do'konga yuborish
-```bash
-eas submit -p android --latest   # Play Console'ga
-eas submit -p ios --latest       # App Store Connect'ga
-```
-So'ng har do'konning konsolida ma'lumot (skrinshot, tavsif, maxfiylik siyosati) to'ldirilib, ko'rikka yuboriladi.
+GitHub'dan: Actions → **Mobile release** → Run workflow. Ikonkalar: `assets/` (`npm run icons` qayta yaratadi).
 
 ## Tuzilma
 
@@ -69,8 +55,9 @@ mobile/
 │       ├── sales.tsx        # Sotuvlar
 │       ├── nasiya.tsx       # Nasiya
 │       └── profile.tsx      # Kabinet
-├── lib/  (api.ts · auth.tsx · theme.ts)
-├── app.json · eas.json
+├── lib/  (api.ts · auth.tsx · theme.ts · format.ts · hooks.ts)
+├── assets/  (icon · adaptive-icon · splash-icon · make-icons.py)
+├── app.json · eas.json · RELEASE.md
 ```
 
 ## Backend endpointlar (Savora web)

@@ -5,3 +5,15 @@ web-build/
 *.log
 .DS_Store
 expo-env.d.ts
+
+# Prebuild natijalari (EAS o'zi yig'adi; lokal prebuild qilsangiz commit qilmang)
+ios/
+android/
+
+# Imzo kalitlari va sertifikatlar — hech qachon git'ga
+*.p8
+*.p12
+*.mobileprovision
+*.jks
+*.keystore
+credentials.json

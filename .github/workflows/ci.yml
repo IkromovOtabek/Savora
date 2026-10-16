@@ -55,7 +55,9 @@ jobs:
           cache-dependency-path: mobile/package-lock.json
       - run: npm ci
       - name: Type check
-        run: npx tsc --noEmit
+        run: npm run typecheck
+      - name: Expo doctor
+        run: npx expo-doctor
 
   docker:
     # Dockerfile buzilmaganini tekshiradi (push qilinmaydi)

@@ -1,0 +1,85 @@
+# Mobil ilova relizi — EAS Build (Expo serverlarida yig'iladi) va ixtiyoriy TestFlight / Play'ga yuborish.
+#
+# Ishga tushirish:
+#   1) GitHub → Actions → "Mobile release" → Run workflow (platforma, profil, submit tanlanadi)
+#   2) yoki teg: git tag mobile-v1.0.0 && git push origin mobile-v1.0.0  → iOS+Android production + submit
+#
+# Kerakli sir (Settings → Secrets and variables → Actions → Secrets):
+#   EXPO_TOKEN — https://expo.dev/accounts/otabekikromov/settings/access-tokens
+# Apple/Google imzo kalitlari EAS'da saqlanadi (birinchi marta lokalda interaktiv `eas build` bilan
+# yaratiladi — qarang: mobile/RELEASE.md). Bu workflow'ga Apple paroli kerak emas.
+name: Mobile release
+
+on:
+  workflow_dispatch:
+    inputs:
+      platform:
+        description: Platforma
+        type: choice
+        default: ios
+        options: [ios, android, all]
+      profile:
+        description: EAS build profili
+        type: choice
+        default: production
+        options: [production, preview]
+      submit:
+        description: Build tugagach do'konga yuborish (TestFlight / Play internal)
+        type: boolean
+        default: true
+  push:
+    tags: ['mobile-v*']
+
+concurrency:
+  group: mobile-release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mobile
+    env:
+      PLATFORM: ${{ github.event.inputs.platform || 'all' }}
+      PROFILE: ${{ github.event.inputs.profile || 'production' }}
+      SUBMIT: ${{ github.event.inputs.submit || 'true' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+
+      - name: EAS CLI
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - run: npm ci
+
+      - name: Type check
+        run: npm run typecheck
+
+      - name: Expo doctor
+        run: npx expo-doctor
+
+      - name: EAS build (+ submit)
+        # --no-wait: GitHub runner kutib o'tirmaydi; jarayon expo.dev'da davom etadi.
+        # Submit faqat production profilida ma'noga ega (preview — ichki tarqatish).
+        run: |
+          EXTRA=""
+          if [ "$SUBMIT" = "true" ] && [ "$PROFILE" = "production" ]; then
+            EXTRA="--auto-submit"
+          fi
+          eas build --platform "$PLATFORM" --profile "$PROFILE" --non-interactive --no-wait $EXTRA
+
+      - name: Natija
+        run: |
+          echo "## Mobile release" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Platforma: **$PLATFORM**, profil: **$PROFILE**, submit: **$SUBMIT**" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Build holati: https://expo.dev/accounts/otabekikromov/projects/savora-mobile/builds" >> "$GITHUB_STEP_SUMMARY"
+          echo "- TestFlight: https://appstoreconnect.apple.com → Savora → TestFlight" >> "$GITHUB_STEP_SUMMARY"

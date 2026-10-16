@@ -2,23 +2,38 @@
   "expo": {
     "name": "Savora",
     "slug": "savora-mobile",
+    "owner": "otabekikromov",
     "version": "1.0.0",
     "orientation": "portrait",
     "scheme": "savora",
+    "icon": "./assets/icon.png",
+    "primaryColor": "#1F4FA8",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
-    "splash": {
-      "backgroundColor": "#1F4FA8"
-    },
     "ios": {
-      "supportsTablet": true,
-      "bundleIdentifier": "uz.savora.app"
+      "supportsTablet": false,
+      "bundleIdentifier": "uz.savora.app",
+      "config": {
+        "usesNonExemptEncryption": false
+      },
+      "infoPlist": {
+        "CFBundleDevelopmentRegion": "uz",
+        "CFBundleAllowMixedLocalizations": true
+      }
     },
     "android": {
       "package": "uz.savora.app",
       "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png",
         "backgroundColor": "#1F4FA8"
-      }
+      },
+      "permissions": [
+        "android.permission.CAMERA"
+      ],
+      "blockedPermissions": [
+        "android.permission.RECORD_AUDIO"
+      ]
     },
     "plugins": [
       "expo-router",
@@ -26,12 +41,32 @@
       "expo-asset",
       "expo-font",
       [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash-icon.png",
+          "imageWidth": 200,
+          "resizeMode": "contain",
+          "backgroundColor": "#1F4FA8",
+          "dark": {
+            "backgroundColor": "#05080F"
+          }
+        }
+      ],
+      [
         "expo-camera",
-        { "cameraPermission": "Shtrix kodni skaner qilish uchun kameradan foydalaniladi." }
+        {
+          "cameraPermission": "Shtrix kodni skaner qilish uchun kameradan foydalaniladi.",
+          "microphonePermission": false,
+          "recordAudioAndroid": false
+        }
       ]
     ],
     "extra": {
-      "apiUrl": "https://savora.uz"
+      "apiUrl": "https://savora.uz",
+      "router": {},
+      "eas": {
+        "projectId": "a4fc9249-18d5-4304-9387-348a62ec1cf9"
+      }
     }
   }
 }

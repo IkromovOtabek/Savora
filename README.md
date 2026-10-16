@@ -26,7 +26,7 @@ Batafsil: [`web/PROJECT.md`](web/PROJECT.md), [`web/BACKUP.md`](web/BACKUP.md).
 
 ## mobile/ — Mobil ilova
 
-Expo (SDK 52) + expo-router. Biznes egalari va filiallar uchun. `web/app/api/mobile/*` REST endpointlariga ulanadi.
+Expo (SDK 54) + expo-router. Biznes egalari va filiallar uchun. `web/app/api/mobile/*` REST endpointlariga ulanadi.
 
 ```bash
 cd mobile
@@ -38,4 +38,6 @@ API manzili: `mobile/app.json` → `extra.apiUrl` (yoki `EXPO_PUBLIC_API_URL`). 
 
 ## Deploy
 
-Veb ilova `web/` papkasidan deploy qilinadi (Dockerfile, docker-compose `web/` ichida). CI (`.github/workflows/ci.yml`) `web/` da typecheck + test + build ishlatadi.
+Veb ilova `web/` papkasidan deploy qilinadi (Dockerfile, docker-compose, `web/deploy/deploy.sh`). Mobil ilova EAS Build orqali TestFlight / Play'ga: [`mobile/RELEASE.md`](mobile/RELEASE.md).
+
+CI/CD (GitHub Actions): `ci.yml` — typecheck + test + build (web, mobile, Docker); `mobile-release.yml` — EAS build + submit. Sirlar va oqim: [`docs/CI_CD.md`](docs/CI_CD.md).
