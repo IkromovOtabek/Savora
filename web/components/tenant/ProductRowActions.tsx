@@ -9,6 +9,8 @@ import { toast } from '@/lib/toast';
 import Icon from '@/components/icons/Icon';
 import ReviewModal from '@/components/tenant/ReviewModal';
 import PriceInput from '@/components/ui/PriceInput';
+import { useDict } from '@/lib/i18n/client';
+import { tr } from '@/lib/i18n/fmt';
 
 interface Props {
   productId: string;
@@ -36,6 +38,8 @@ export default function ProductRowActions({
   productId, productName, status, branches, currentBranchId, trackQuantity = false, available = 1, salePrice = 0, canInstallment = false, canCredit = false,
   canSell = true, canTransfer = true, variant = 'row',
 }: Props) {
+  const d = useDict();
+  const t = d.stock.rowActions;
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [view, setView] = useState<View>('menu');
@@ -106,14 +110,14 @@ export default function ProductRowActions({
       if (res.error === 'PRICE_REQUIRED') {
         // Narx kiritilmagan — narx so'rash bosqichiga o'tamiz
         setView('sellQty');
-        setErr('Avval sotilgan narxni kiriting.');
+        setErr(t.priceFirst);
         return;
       }
       setErr(res.error);
       toast(res.error, 'error');
       return;
     }
-    toast(res?.success ?? 'Bajarildi.', 'success');
+    toast(res?.success ?? t.done, 'success');
     setOpen(false);
     if (onSuccess) {
       onSuccess();
@@ -148,8 +152,8 @@ export default function ProductRowActions({
             ref={btnRef}
             type="button"
             className={variant === 'bar' ? 'btn btn-primary btn-with-icon' : 'icon-btn'}
-            title="Sotish yoki filialga berish"
-            aria-label={variant === 'bar' ? undefined : `${productName ? `${productName}: ` : ''}sotish yoki filialga berish`}
+            title={t.title}
+            aria-label={variant === 'bar' ? undefined : `${productName ? `${productName}: ` : ''}${t.sellOrTransfer}`}
             aria-expanded={open}
             onClick={() => (open ? setOpen(false) : openMenu())}
             disabled={busy}
@@ -157,7 +161,7 @@ export default function ProductRowActions({
             {variant === 'bar' ? (
               <>
                 <Icon name="cart" size={18} />
-                <span>Sotish / Filialga berish</span>
+                <span>{t.barLabel}</span>
               </>
             ) : (
               <>
@@ -177,38 +181,38 @@ export default function ProductRowActions({
                   {canSell && (
                     <button type="button" className="row-action-item" disabled={busy}
                       onClick={() => setView('sellType')}>
-                      <Icon name="cart" size={15} /> Sotildi
+                      <Icon name="cart" size={15} /> {t.sold}
                     </button>
                   )}
                   {canTransfer && (
                     <button type="button" className="row-action-item" disabled={busy}
                       onClick={() => setView('branches')}>
-                      <Icon name="repeat" size={15} /> Boshqa filialga berildi
+                      <Icon name="repeat" size={15} /> {t.toBranch}
                     </button>
                   )}
-                  {!canSell && !canTransfer && <div className="row-action-err">Huquq berilmagan</div>}
+                  {!canSell && !canTransfer && <div className="row-action-err">{t.noPermission}</div>}
                 </>
               )}
 
               {view === 'sellType' && (
                 <>
                   <button type="button" className="row-action-back" onClick={() => setView('menu')}>
-                    <Icon name="arrowLeft" size={14} /> Orqaga
+                    <Icon name="arrowLeft" size={14} /> {d.common.back}
                   </button>
                   <button type="button" className="row-action-item" disabled={busy}
                     onClick={() => { (needQty || needPrice) ? (setQty(1), setView('sellQty')) : doSell(); }}>
-                    <Icon name="wallet" size={15} /> Naqd
+                    <Icon name="wallet" size={15} /> {d.common.cash}
                   </button>
                   {canInstallment && (
                     <button type="button" className="row-action-item" disabled={busy}
                       onClick={() => { setOpen(false); router.push(`/app/sales/new?productId=${productId}&payment=installment`); }}>
-                      <Icon name="clock" size={15} /> Nasiya
+                      <Icon name="clock" size={15} /> {d.common.installment}
                     </button>
                   )}
                   {canCredit && (
                     <button type="button" className="row-action-item" disabled={busy}
                       onClick={() => { setOpen(false); router.push(`/app/sales/new?productId=${productId}&payment=bank_credit`); }}>
-                      <Icon name="wallet" size={15} /> Kredit
+                      <Icon name="wallet" size={15} /> {t.credit}
                     </button>
                   )}
                 </>
@@ -216,7 +220,7 @@ export default function ProductRowActions({
 
               {view === 'sellQty' && (
                 <QtyStep
-                  label="Nechta sotildi?"
+                  label={t.howManySold}
                   max={available}
                   qty={qty}
                   setQty={setQty}
@@ -227,17 +231,17 @@ export default function ProductRowActions({
                   busy={busy}
                   onBack={() => setView('menu')}
                   onConfirm={doSell}
-                  confirmLabel="Sotildi"
+                  confirmLabel={t.sold}
                 />
               )}
 
               {view === 'branches' && (
                 <>
                   <button type="button" className="row-action-back" onClick={() => setView('menu')}>
-                    <Icon name="arrowLeft" size={14} /> Orqaga
+                    <Icon name="arrowLeft" size={14} /> {d.common.back}
                   </button>
                   {otherBranches.length === 0 ? (
-                    <div className="row-action-empty">Boshqa filial yo&apos;q.<br /><b>Filiallar</b> bo&apos;limidan yangi filial qo&apos;shing.</div>
+                    <div className="row-action-empty">{t.noOtherBranch}<br />{t.addBranchBefore}<b>{t.addBranchLink}</b>{t.addBranchAfter}</div>
                   ) : otherBranches.map((b) => (
                     <button key={b.id} type="button" className="row-action-item" disabled={busy}
                       onClick={() => { setBranch(b); needQty ? (setQty(1), setView('branchQty')) : run((fd) => transferProductAction(null, fd), { qty: '1', branchId: b.id }, '/app/transferred'); }}>
@@ -249,7 +253,7 @@ export default function ProductRowActions({
 
               {view === 'branchQty' && (
                 <QtyStep
-                  label={`${branch?.name}ga nechta?`}
+                  label={tr(t.howManyTo, { branch: branch?.name ?? '' })}
                   max={available}
                   qty={qty}
                   setQty={setQty}
@@ -257,7 +261,7 @@ export default function ProductRowActions({
                   busy={busy}
                   onBack={() => setView('branches')}
                   onConfirm={doTransfer}
-                  confirmLabel="Berildi"
+                  confirmLabel={t.transferred}
                 />
               )}
             </div>
@@ -269,8 +273,8 @@ export default function ProductRowActions({
         <Link
           href={`/app/products/${productId}`}
           className="icon-btn ux-hide-mobile"
-          title="Tahrirlash"
-          aria-label={`${productName ? `${productName}: ` : ''}tahrirlash`}
+          title={d.common.edit}
+          aria-label={`${productName ? `${productName}: ` : ''}${t.editAria}`}
         >
           <Icon name="edit" size={16} />
         </Link>
@@ -289,15 +293,17 @@ function QtyStep({
   showQty?: boolean; showPrice?: boolean; price?: string; setPrice?: (v: string) => void;
   busy: boolean; onBack: () => void; onConfirm: () => void; confirmLabel: string;
 }) {
+  const d = useDict();
+  const t = d.stock.rowActions;
   const priceOk = !showPrice || (!!price.trim() && Number(price) > 0);
   return (
     <div className="row-action-qty">
       <button type="button" className="row-action-back" onClick={onBack}>
-        <Icon name="arrowLeft" size={14} /> Orqaga
+        <Icon name="arrowLeft" size={14} /> {d.common.back}
       </button>
       {showQty && (
         <>
-          <label className="row-action-qty-label">{label} <span>(mavjud: {max})</span></label>
+          <label className="row-action-qty-label">{label} <span>{tr(t.available, { max })}</span></label>
           <div className="row-action-qty-row">
             <button type="button" className="qty-btn" disabled={qty <= 1} onClick={() => setQty(Math.max(1, qty - 1))}>−</button>
             <input
@@ -311,11 +317,11 @@ function QtyStep({
       )}
       {showPrice && (
         <>
-          <label className="row-action-qty-label">Sotilgan narx (so&apos;m)</label>
+          <label className="row-action-qty-label">{t.soldPrice}</label>
           <PriceInput
             value={String(price ?? '')}
             onValueChange={(raw) => setPrice?.(raw)}
-            placeholder="Masalan: 4 500 000"
+            placeholder={t.pricePlaceholder}
             className="row-action-qty-input"
           />
         </>

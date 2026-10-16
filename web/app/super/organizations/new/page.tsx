@@ -1,6 +1,10 @@
+import { getDict } from '@/lib/i18n/server';
 import CreateOrgForm from './CreateOrgForm';
 
-export const metadata = { title: 'Yangi do\'kon — Savora' };
+export async function generateMetadata() {
+  const d = await getDict();
+  return { title: d.superPanel.newOrg.metaTitle };
+}
 
 export default function NewOrgPage() {
   return <CreateOrgForm />;

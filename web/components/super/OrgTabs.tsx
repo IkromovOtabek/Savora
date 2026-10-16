@@ -2,6 +2,7 @@
 
 import { useEffect, useId, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
 import Icon, { type IconName } from '@/components/icons/Icon';
+import { useDict } from '@/lib/i18n/client';
 
 export interface OrgTab {
   id: string;
@@ -18,6 +19,7 @@ export default function OrgTabs({ tabs, defaultId }: { tabs: OrgTab[]; defaultId
   const [active, setActive] = useState(defaultId ?? tabs[0]?.id);
   const base = useId();
   const listRef = useRef<HTMLDivElement>(null);
+  const d = useDict();
 
   // Hash'dan boshlang'ich tab (#huquqlar) va orqaga/oldinga tugmalari
   useEffect(() => {
@@ -53,7 +55,7 @@ export default function OrgTabs({ tabs, defaultId }: { tabs: OrgTab[]; defaultId
   return (
     <div className="sa-tabs">
       <div className="sa-tabs-bar">
-        <div className="sa-tabs-list ux-scrollx" role="tablist" aria-label="Do'kon bo'limlari" ref={listRef} onKeyDown={onKey}>
+        <div className="sa-tabs-list ux-scrollx" role="tablist" aria-label={d.superPanel.org.tabsAria} ref={listRef} onKeyDown={onKey}>
           {tabs.map((t) => {
             const on = t.id === active;
             return (

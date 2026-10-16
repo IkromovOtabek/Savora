@@ -1,9 +1,15 @@
 import { NextResponse } from 'next/server';
+import { randomBytes } from 'crypto';
 import { authenticateMobile } from '@/lib/mobileAuth';
 import { mobilePermissionDenied, userCan } from '@/lib/permissionGuard';
+import { recordAudit } from '@/lib/audit';
 import { getTenantModels } from '@/lib/tenantDb';
 import { branchFilter } from '@/lib/branchScope';
 import { parseIntegerSum, searchPattern } from '@/lib/security';
+
+/** Matn maydonlari uzunlik chegarasi — oshsa 400 (xotira/DB to'ldirish himoyasi) */
+const MAX_LEN = { name: 120, code: 64, barcode: 64, brand: 60, notes: 500 } as const;
+const tooLong = (v: string, max: number) => v.length > max;
 
 export async function GET(req: Request) {
   const auth = await authenticateMobile(req);
@@ -18,7 +24,8 @@ export async function GET(req: Request) {
   const url = new URL(req.url);
   // Regex injection/ReDoS himoyasi: ekranlangan, 50 belgigacha
   const q = searchPattern(url.searchParams.get('q'));
-  const page = Math.max(1, parseInt(url.searchParams.get('page') || '1', 10) || 1);
+  // Sahifa 1..1000 — cheksiz skip() bilan DB'ni qiynamaslik uchun
+  const page = Math.min(1000, Math.max(1, parseInt(url.searchParams.get('page') || '1', 10) || 1));
   const limit = 30;
 
   // Ombor faqat qoldiq — sotilganlar bu yerda emas ("Sotildi" da)
@@ -76,7 +83,13 @@ export async function POST(req: Request) {
   const purchasePrice = purchasePriceParsed;
   const code = String(body.code || '').trim().toUpperCase().replace(/\s/g, '');
   const barcode = String(body.barcode || '').trim();
+  const brand = String(body.brand || '').trim();
+  const notes = String(body.notes || '').trim();
   if (!name) return NextResponse.json({ error: 'Nom kiritilishi shart.' }, { status: 400 });
+  if (tooLong(name, MAX_LEN.name) || tooLong(code, MAX_LEN.code) || tooLong(barcode, MAX_LEN.barcode)
+    || tooLong(brand, MAX_LEN.brand) || tooLong(notes, MAX_LEN.notes)) {
+    return NextResponse.json({ error: 'Matn maydoni juda uzun.' }, { status: 400 });
+  }
   if (salePrice <= 0) return NextResponse.json({ error: 'Sotuv narxi noto\'g\'ri.' }, { status: 400 });
 
   const { Product, Branch } = await getTenantModels(user.dbName);
@@ -88,18 +101,34 @@ export async function POST(req: Request) {
     branchId = String(main._id);
   }
 
-  // Kod/IMEI berilmasa avtomatik yaratamiz (unique bo'lishi shart)
-  const imei = code || `SVR-${Date.now().toString(36).toUpperCase()}`;
+  // Kod/IMEI berilmasa avtomatik yaratamiz — vaqt + tasodifiy qism (bir ms ichida ikki so'rov to'qnashmasin)
+  const imei = code || `SVR-${Date.now().toString(36).toUpperCase()}-${randomBytes(3).toString('hex').toUpperCase()}`;
   const dup = await Product.findOne({ imei }).lean();
   if (dup) return NextResponse.json({ error: 'Bu kod/IMEI allaqachon mavjud.' }, { status: 409 });
 
-  const p = await Product.create({
-    name, imei, barcode: barcode || undefined,
-    brand: String(body.brand || '').trim() || undefined,
-    purchasePrice, salePrice, branchId, status: 'in_stock',
-    notes: String(body.notes || '').trim() || undefined,
-    createdBy: user.username,
-    history: [{ action: 'created', detail: 'Mobil ilova orqali qo\'shildi', by: user.username, at: new Date() }],
+  let p;
+  try {
+    p = await Product.create({
+      name, imei, barcode: barcode || undefined,
+      brand: brand || undefined,
+      purchasePrice, salePrice, branchId, status: 'in_stock',
+      notes: notes || undefined,
+      createdBy: user.username,
+      history: [{ action: 'created', detail: 'Mobil ilova orqali qo\'shildi', by: user.username, at: new Date() }],
+    });
+  } catch (err) {
+    // Unique indeks (E11000) — findOne va create orasidagi poyga; 500 emas, 409
+    if ((err as { code?: number })?.code === 11000) {
+      return NextResponse.json({ error: 'Bu kod/IMEI allaqachon mavjud.' }, { status: 409 });
+    }
+    throw err;
+  }
+
+  await recordAudit(user, {
+    action: 'product.create',
+    entity: 'product',
+    entityId: String(p._id),
+    summary: `Mahsulot qo'shildi: ${name} (mobil)`,
   });
 
   return NextResponse.json({ id: String(p._id), name: p.name }, { status: 201 });

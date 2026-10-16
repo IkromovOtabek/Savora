@@ -9,6 +9,7 @@ import {
 } from '@/lib/organizations';
 import { parsePlanTier } from '@/lib/plans';
 import { parseBusinessType } from '@/lib/businessTypes';
+import { getDict } from '@/lib/i18n/server';
 
 type State = { error?: string; success?: string } | null;
 
@@ -62,6 +63,7 @@ export async function createOrganizationAction(_prev: State, formData: FormData)
     redirect(`/super/organizations/${orgId}?created=1`);
   } catch (err) {
     if (err && typeof err === 'object' && 'digest' in err) throw err;
-    return { error: err instanceof Error ? err.message : 'Xatolik yuz berdi.' };
+    const d = await getDict();
+    return { error: err instanceof Error ? err.message : d.common.errorGeneric };
   }
 }

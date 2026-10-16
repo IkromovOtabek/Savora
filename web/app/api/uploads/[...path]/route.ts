@@ -2,6 +2,23 @@ import { NextResponse } from 'next/server';
 import { readFile } from 'fs/promises';
 import path from 'path';
 import { localUploadKeyFromUrl, mimeFromUploadKey } from '@/lib/storage';
+import { getSession } from '@/lib/session';
+import { getApiTenantContext } from '@/lib/auth';
+
+/**
+ * To'lov cheki (`receipts/<dbName>/...`) ni kim ko'ra oladi: super admin yoki
+ * cheki o'ziniki bo'lgan do'kon sessiyasi (muddati tugagan do'kon ham — to'lash uchun).
+ * Papka nomi app/api/upload bilan bir xil sanitizatsiya orqali solishtiriladi.
+ */
+async function receiptAllowed(folder: string): Promise<boolean> {
+  try {
+    const sup = await getSession('super');
+    if (sup.user?.role === 'super_admin') return true;
+  } catch { /* super cookie yo'q */ }
+  const ctx = await getApiTenantContext({ allowExpired: true });
+  if (!ctx?.user.dbName) return false;
+  return ctx.user.dbName.replace(/[^a-zA-Z0-9_-]/g, '_') === folder;
+}
 
 /** Lokal `public/uploads` dagi fayllarni xavfsiz xizmat qiladi (chek, mahsulot rasmlari) */
 export async function GET(
@@ -10,12 +27,19 @@ export async function GET(
 ) {
   const { path: segments } = await params;
   const key = segments.join('/');
-  if (!key || key.includes('..')) {
+  // Yashirin fayllar (.env, .htaccess va h.k.) va yuqoriga chiqish — 404
+  if (!key || key.includes('..') || segments.some((s) => s.startsWith('.'))) {
     return NextResponse.json({ error: 'Not found' }, { status: 404 });
   }
 
   const safeKey = localUploadKeyFromUrl(`/api/uploads/${key}`);
   if (!safeKey) {
+    return NextResponse.json({ error: 'Not found' }, { status: 404 });
+  }
+
+  // To'lov cheklari ochiq emas — faqat super admin yoki shu do'kon
+  const isReceipt = segments[0] === 'receipts';
+  if (isReceipt && !(await receiptAllowed(segments[1] ?? ''))) {
     return NextResponse.json({ error: 'Not found' }, { status: 404 });
   }
 
@@ -26,7 +50,7 @@ export async function GET(
     return new NextResponse(buffer, {
       headers: {
         'Content-Type': mimeFromUploadKey(safeKey),
-        'Cache-Control': 'public, max-age=86400',
+        'Cache-Control': isReceipt ? 'private, max-age=3600' : 'public, max-age=86400',
       },
     });
   } catch {

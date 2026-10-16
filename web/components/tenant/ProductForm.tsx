@@ -11,17 +11,19 @@ import Icon from '@/components/icons/Icon';
 import ImageUploadField from '@/components/ui/ImageUploadField';
 import PriceInput from '@/components/ui/PriceInput';
 import { fmtMoney } from '@/lib/format';
+import { useDict } from '@/lib/i18n/client';
+import { tr } from '@/lib/i18n/fmt';
 
 interface BranchOption { id: string; name: string }
 
 export type LocationStatus = 'warehouse' | 'sold';
 
-/** Forma bo'limlari — yuqoridagi "qadam" navigatsiyasi uchun */
+/** Forma bo'limlari — yuqoridagi "qadam" navigatsiyasi uchun (nomlar — d.stock.form.sections) */
 const FORM_SECTIONS = [
-  { id: 'st-sec-main', label: 'Asosiy' },
-  { id: 'st-sec-price', label: 'Narx' },
-  { id: 'st-sec-stock', label: 'Ombor' },
-  { id: 'st-sec-extra', label: 'Qo\'shimcha' },
+  { id: 'st-sec-main', key: 'main' },
+  { id: 'st-sec-price', key: 'price' },
+  { id: 'st-sec-stock', key: 'stock' },
+  { id: 'st-sec-extra', key: 'extra' },
 ] as const;
 
 interface Props {
@@ -69,6 +71,8 @@ export default function ProductForm({
   canViewCost = true,
   initial,
 }: Props) {
+  const d = useDict();
+  const t = d.stock.form;
   // Yangi mahsulotda kelish narxi kiritiladi (kirim hujjati), tahrirda esa huquqsiz yashiriladi
   const showCost = canViewCost || mode === 'create';
   const action = mode === 'create' ? createProductAction : updateProductAction;
@@ -124,17 +128,14 @@ export default function ProductForm({
     <div className={`st-form-page${isCreate ? ' st-form-page--create' : ' st-form-page--edit'}`} id="st-edit">
       {isCreate ? (
         <div className="st-form-head">
-          <BackLink href="/app/products" className="btn btn-plain btn-sm st-form-back">Ombor</BackLink>
+          <BackLink href="/app/products" className="btn btn-plain btn-sm st-form-back">{t.back}</BackLink>
           <div>
-            <h1>Yangi mahsulot</h1>
-            <p>
-              Mahsulot {isAdmin ? 'asosiy omboringizga' : 'shu filial omboriga'} qo&apos;shiladi.
-              {isAdmin ? ' Filialga keyin ro\'yxatdagi "Filialga berish" orqali o\'tkaziladi.' : ''}
-            </p>
+            <h1>{t.newTitle}</h1>
+            <p>{isAdmin ? t.newHintAdmin : t.newHintBranch}</p>
           </div>
         </div>
       ) : (
-        <div className="st-ghead"><span>Tahrirlash</span></div>
+        <div className="st-ghead"><span>{d.common.edit}</span></div>
       )}
 
       {state?.error && <div className="auth-alert auth-alert--error st-alert" role="alert">{state.error}</div>}
@@ -143,14 +144,14 @@ export default function ProductForm({
       {branches.length === 0 && !isAdmin ? (
         <div className="st-group st-empty">
           <span className="st-empty-ic"><Icon name="building" size={24} /></span>
-          <p>Filial topilmadi. Administrator bilan bog&apos;laning.</p>
+          <p>{t.noBranch}</p>
         </div>
       ) : (
         <>
-        <nav className="st-fnav ux-scrollx" aria-label="Forma bo'limlari">
+        <nav className="st-fnav ux-scrollx" aria-label={t.navLabel}>
           {FORM_SECTIONS.map((s, i) => (
             <a key={s.id} href={`#${s.id}`} aria-current={activeSec === s.id ? 'step' : undefined}>
-              <span className="st-fnav-n" aria-hidden="true">{i + 1}</span>{s.label}
+              <span className="st-fnav-n" aria-hidden="true">{i + 1}</span>{t.sections[s.key]}
             </a>
           ))}
         </nav>
@@ -163,46 +164,46 @@ export default function ProductForm({
           {/* ---- Asosiy ---- */}
           <section id="st-sec-main" className="st-fsec" aria-labelledby="st-f-main">
             <div className="st-ghead st-ghead--form">
-              <span id="st-f-main"><span className="st-fgroup-ic" aria-hidden="true"><Icon name="box" size={13} /></span>Asosiy</span>
+              <span id="st-f-main"><span className="st-fgroup-ic" aria-hidden="true"><Icon name="box" size={13} /></span>{t.sections.main}</span>
             </div>
             <div className="st-group">
               {mode === 'edit' && initial?.productId && (
                 <div className="st-idrow">
-                  <span>Mahsulot ID</span>
+                  <span>{t.productIdLabel}</span>
                   <code>{initial.productId}</code>
                 </div>
               )}
               <div className="st-fgroup-body">
                 <div className="auth-field">
-                  <label htmlFor="name">Mahsulot nomi *</label>
-                  <input id="name" name="name" type="text" required defaultValue={initial?.name} disabled={isPending} placeholder="Masalan: iPhone 15 Pro 256GB" />
+                  <label htmlFor="name">{t.nameLabel}</label>
+                  <input id="name" name="name" type="text" required defaultValue={initial?.name} disabled={isPending} placeholder={t.namePlaceholder} />
                 </div>
 
                 {showImei ? (
                   <div className="form-row">
                     <div className="auth-field">
-                      <label htmlFor="imei">IMEI *</label>
+                      <label htmlFor="imei">{t.imeiLabel}</label>
                       <input id="imei" name="imei" type="text" required defaultValue={initial?.imei} disabled={isPending} className="imei-input" placeholder="353456789012345" inputMode="numeric" autoComplete="off" />
                     </div>
                     <div className="auth-field">
-                      <label htmlFor="color">Rang</label>
+                      <label htmlFor="color">{t.colorLabel}</label>
                       <input id="color" name="color" type="text" defaultValue={initial?.color} disabled={isPending} />
                     </div>
                   </div>
                 ) : (
                   <>
                     <div className="auth-field">
-                      <label htmlFor="barcode">Shtrix-kod / SKU</label>
+                      <label htmlFor="barcode">{t.barcodeLabel}</label>
                       <BarcodeInputField
                         id="barcode"
                         name="barcode"
                         defaultValue={initial?.barcode}
                         disabled={isPending}
                       />
-                      <span className="field-hint">Bo&apos;sh qoldirsangiz avtomatik kod beriladi</span>
+                      <span className="field-hint">{t.barcodeHint}</span>
                     </div>
                     <div className="auth-field">
-                      <label htmlFor="color">Rang / xususiyat</label>
+                      <label htmlFor="color">{t.colorFeatureLabel}</label>
                       <input id="color" name="color" type="text" defaultValue={initial?.color} disabled={isPending} />
                     </div>
                   </>
@@ -214,20 +215,20 @@ export default function ProductForm({
           {/* ---- Narx ---- */}
           <section id="st-sec-price" className="st-fsec" aria-labelledby="st-f-price">
             <div className="st-ghead st-ghead--form">
-              <span id="st-f-price"><span className="st-fgroup-ic" aria-hidden="true"><Icon name="wallet" size={13} /></span>Narx</span>
+              <span id="st-f-price"><span className="st-fgroup-ic" aria-hidden="true"><Icon name="wallet" size={13} /></span>{t.sections.price}</span>
             </div>
             <div className="st-group">
               <div className="st-fgroup-body">
                 <div className="form-row">
                   {showCost && (
                     <div className="auth-field">
-                      <label htmlFor="purchasePrice">Kelish narxi *</label>
+                      <label htmlFor="purchasePrice">{t.purchaseLabel}</label>
                       <PriceInput id="purchasePrice" name="purchasePrice" required value={purchaseRaw} onValueChange={setPurchaseRaw} disabled={isPending} placeholder="0" />
                     </div>
                   )}
                   <div className="auth-field">
-                    <label htmlFor="salePrice">Sotuv narxi</label>
-                    <PriceInput id="salePrice" name="salePrice" value={saleRaw} onValueChange={setSaleRaw} disabled={isPending} placeholder="Ixtiyoriy" />
+                    <label htmlFor="salePrice">{t.saleLabel}</label>
+                    <PriceInput id="salePrice" name="salePrice" value={saleRaw} onValueChange={setSaleRaw} disabled={isPending} placeholder={d.common.optional} />
                   </div>
                 </div>
 
@@ -241,18 +242,18 @@ export default function ProductForm({
                         <Icon name={ready && profit < 0 ? 'alert' : 'trendingUp'} size={20} />
                       </span>
                       <div className="st-profit-main">
-                        <div className="st-profit-l">Foyda (1 dona)</div>
+                        <div className="st-profit-l">{d.stock.detail.profitUnit}</div>
                         <div className={`st-profit-v${ready ? (profit >= 0 ? ' st-profit-v--ok' : ' st-profit-v--bad') : ''}`}>
-                          {ready ? <>{profit > 0 ? '+' : ''}{fmt(profit)} <small>so&apos;m</small></> : '—'}
+                          {ready ? <>{profit > 0 ? '+' : ''}{fmt(profit)} <small>{d.common.sum}</small></> : '—'}
                         </div>
                       </div>
                       {ready ? (
                         <dl className="st-profit-side">
-                          <div><dt>Marja</dt><dd className={profit < 0 ? 'st-profit-v--bad' : ''}>{pct(margin)}</dd></div>
-                          <div><dt>Ustama</dt><dd className={profit < 0 ? 'st-profit-v--bad' : ''}>{pct(markup)}</dd></div>
+                          <div><dt>{t.margin}</dt><dd className={profit < 0 ? 'st-profit-v--bad' : ''}>{pct(margin)}</dd></div>
+                          <div><dt>{t.markup}</dt><dd className={profit < 0 ? 'st-profit-v--bad' : ''}>{pct(markup)}</dd></div>
                         </dl>
                       ) : (
-                        <p className="st-profit-hint">Ikkala narxni kiriting — foyda va marja shu yerda ko&apos;rinadi.</p>
+                        <p className="st-profit-hint">{t.profitHint}</p>
                       )}
                     </div>
                   );
@@ -264,14 +265,14 @@ export default function ProductForm({
           {/* ---- Ombor ---- */}
           <section id="st-sec-stock" className="st-fsec" aria-labelledby="st-f-stock">
             <div className="st-ghead st-ghead--form">
-              <span id="st-f-stock"><span className="st-fgroup-ic" aria-hidden="true"><Icon name="building" size={13} /></span>Ombor</span>
+              <span id="st-f-stock"><span className="st-fgroup-ic" aria-hidden="true"><Icon name="building" size={13} /></span>{t.sections.stock}</span>
             </div>
             <div className="st-group">
               <div className="st-fgroup-body">
                 <label className="st-switch-row">
                   <span className="st-switch-row-t">
-                    <b>Son kiritish (miqdor bilan)</b>
-                    <small>Bir xil mahsulotdan bir nechta dona bo&apos;lsa yoqing</small>
+                    <b>{t.trackQty}</b>
+                    <small>{t.trackQtyHint}</small>
                   </span>
                   <input
                     type="checkbox"
@@ -286,7 +287,7 @@ export default function ProductForm({
                 {trackQuantity && (
                   <div className="auth-field">
                     <label htmlFor="quantity">
-                      {mode === 'create' ? 'Miqdor (nechta) *' : 'Umumiy miqdor *'}
+                      {mode === 'create' ? t.qtyCreate : t.qtyEdit}
                     </label>
                     <input
                       id="quantity"
@@ -299,8 +300,7 @@ export default function ProductForm({
                     />
                     {mode === 'edit' && initial?.trackQuantity && (
                       <span className="field-hint">
-                        Sotilgan: {initial.soldQuantity ?? 0} · Qoldiq:{' '}
-                        {Math.max(0, (initial.quantity ?? 0) - (initial.soldQuantity ?? 0))}
+                        {tr(t.soldRemaining, { sold: initial.soldQuantity ?? 0, left: Math.max(0, (initial.quantity ?? 0) - (initial.soldQuantity ?? 0)) })}
                       </span>
                     )}
                   </div>
@@ -308,7 +308,7 @@ export default function ProductForm({
 
                 {mode === 'edit' && (
                   <fieldset className="auth-field" style={{ border: 0, padding: 0, margin: 0 }}>
-                    <legend className="st-profit-l" style={{ marginBottom: 6 }}>Holat</legend>
+                    <legend className="st-profit-l" style={{ marginBottom: 6 }}>{d.common.status}</legend>
                     <div className="st-seg">
                       <label>
                         <input
@@ -319,7 +319,7 @@ export default function ProductForm({
                           onChange={() => setLocationStatus('warehouse')}
                           disabled={isPending}
                         />
-                        <span>Omborda</span>
+                        <span>{t.inWarehouse}</span>
                       </label>
                       <label>
                         <input
@@ -330,7 +330,7 @@ export default function ProductForm({
                           onChange={() => setLocationStatus('sold')}
                           disabled={isPending}
                         />
-                        <span>Sotildi</span>
+                        <span>{t.soldOpt}</span>
                       </label>
                     </div>
                   </fieldset>
@@ -338,7 +338,7 @@ export default function ProductForm({
 
                 {mode === 'edit' && locationStatus === 'sold' && trackQuantity && (
                   <div className="auth-field">
-                    <label htmlFor="sellQty">Nechta sotildi? *</label>
+                    <label htmlFor="sellQty">{t.sellQtyLabel}</label>
                     <input
                       id="sellQty"
                       name="sellQty"
@@ -354,7 +354,7 @@ export default function ProductForm({
                 {mode === 'edit' && locationStatus === 'sold' && creditKassaEnabled && (
                   <>
                     <fieldset className="auth-field" style={{ border: 0, padding: 0, margin: 0 }}>
-                      <legend className="st-profit-l" style={{ marginBottom: 6 }}>To&apos;lov turi</legend>
+                      <legend className="st-profit-l" style={{ marginBottom: 6 }}>{t.paymentType}</legend>
                       <div className="st-seg">
                         <label>
                           <input
@@ -365,7 +365,7 @@ export default function ProductForm({
                             onChange={() => setSoldPaymentType('cash')}
                             disabled={isPending}
                           />
-                          <span>Naqd</span>
+                          <span>{d.common.cash}</span>
                         </label>
                         <label>
                           <input
@@ -376,17 +376,18 @@ export default function ProductForm({
                             onChange={() => setSoldPaymentType('credit')}
                             disabled={isPending}
                           />
-                          <span>Bank krediti</span>
+                          <span>{t.bankCredit}</span>
                         </label>
                       </div>
                     </fieldset>
                     {soldPaymentType === 'credit' && (
                       <div className="auth-field">
-                        <label htmlFor="soldBankName">Bank *</label>
+                        <label htmlFor="soldBankName">{t.bankLabel}</label>
                         {activeCreditBanks.length === 0 ? (
                           <p className="field-hint">
-                            Bank qo&apos;shilmagan.{' '}
-                            <Link href="/app/kredit-kassa">Kredit kassa</Link> bo&apos;limiga o&apos;ting.
+                            {t.noBankBefore}
+                            <Link href="/app/kredit-kassa">{t.noBankLink}</Link>
+                            {t.noBankAfter}
                           </p>
                         ) : (
                           <select
@@ -412,18 +413,18 @@ export default function ProductForm({
           {/* ---- Qo'shimcha ---- */}
           <section id="st-sec-extra" className="st-fsec" aria-labelledby="st-f-extra">
             <div className="st-ghead st-ghead--form">
-              <span id="st-f-extra"><span className="st-fgroup-ic" aria-hidden="true"><Icon name="edit" size={13} /></span>Qo&apos;shimcha</span>
+              <span id="st-f-extra"><span className="st-fgroup-ic" aria-hidden="true"><Icon name="edit" size={13} /></span>{t.sections.extra}</span>
             </div>
             <div className="st-group">
               <div className="st-fgroup-body">
                 {mediaEnabled && (
                   <div className="auth-field">
-                    <span className="st-profit-l">Rasm</span>
+                    <span className="st-profit-l">{t.photo}</span>
                     <ImageUploadField defaultValue={initial?.photoUrl} disabled={isPending} />
                   </div>
                 )}
                 <div className="auth-field">
-                  <label htmlFor="notes">Izoh</label>
+                  <label htmlFor="notes">{d.common.note}</label>
                   <textarea id="notes" name="notes" rows={3} defaultValue={initial?.notes} disabled={isPending} className="text-area" />
                 </div>
               </div>
@@ -432,7 +433,7 @@ export default function ProductForm({
 
           <div className="st-form-submit">
             <button type="submit" className="btn btn-primary" disabled={isPending}>
-              {isPending ? 'Saqlanmoqda...' : isCreate ? 'Mahsulot qo\'shish' : 'Saqlash'}
+              {isPending ? d.common.saving : isCreate ? t.submitCreate : d.common.save}
             </button>
           </div>
         </form>

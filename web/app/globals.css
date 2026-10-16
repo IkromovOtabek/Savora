@@ -72,7 +72,7 @@
   --r-pill: 999px;
 
   /* Shrift */
-  --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", var(--font-onest, "Onest"), "Segoe UI", Roboto, sans-serif;
+  --font-sans: var(--font-jakarta, "Plus Jakarta Sans"), var(--font-onest, "Onest"), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   --font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
 
   --maxw: 1180px;

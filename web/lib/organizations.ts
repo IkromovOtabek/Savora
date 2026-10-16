@@ -14,6 +14,17 @@ function generateReferralCode(slug: string): string {
   return `${base}${rand}`;
 }
 
+/** Muddati o'tgan faol do'konlarni "expired" qiladi; o'zgargan yozuvlar sonini qaytaradi (cron + panel) */
+export async function expireOverdueOrganizations(): Promise<number> {
+  const { Organization } = await getMasterModels();
+  const now = new Date();
+  const result = await Organization.updateMany(
+    { status: 'active', expiresAt: { $lt: now } },
+    { $set: { status: 'expired', updatedAt: now } },
+  );
+  return result.modifiedCount;
+}
+
 export { normalizeSlug, validateSlug } from './slug';
 export { tenantLoginUrl, tenantAppUrl, moduleLink } from './urls';
 

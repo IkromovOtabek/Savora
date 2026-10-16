@@ -1,14 +1,20 @@
 import { getAppZone, getTenantSlug, resolveTenant } from '@/lib/tenantContext';
 import { isOrganizationActive } from '@/lib/models/master/Organization';
 import { tenantLoginUrl } from '@/lib/urls';
+import { getDict } from '@/lib/i18n/server';
 import ForgotForm from './ForgotForm';
 
-export const metadata = { title: 'Parolni tiklash — Savora' };
+export async function generateMetadata() {
+  const d = await getDict();
+  return { title: d.auth.forgot.metaTitle };
+}
 
 export default async function ForgotPage() {
   const zone = await getAppZone();
+  const d = await getDict();
+  const t = d.auth.forgot;
 
-  let title = 'Parolni tiklash';
+  const title = t.title;
   let storeName = '';
   let canReset = false;
   let notice = '';
@@ -16,16 +22,16 @@ export default async function ForgotPage() {
   if (zone === 'tenant') {
     const org = await resolveTenant();
     if (!org) {
-      notice = 'Do\'kon topilmadi. Manzilni tekshiring.';
+      notice = t.storeNotFound;
     } else if (!isOrganizationActive(org)) {
       storeName = org.name;
-      notice = 'Bu do\'kon obunasi to\'xtatilgan. Platforma egasiga murojaat qiling.';
+      notice = t.storeSuspended;
     } else {
       storeName = org.name;
       canReset = true;
     }
   } else {
-    notice = 'Parolni tiklash faqat do\'kon kirish sahifasidan mavjud.';
+    notice = t.tenantOnly;
   }
 
   const slug = zone === 'tenant' ? await getTenantSlug() : '';

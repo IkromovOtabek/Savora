@@ -230,3 +230,16 @@ xodimlar bitta filial login/paroli bilan ishlaydi. (`createEmployeeAction`, `Emp
 - **zod validatsiya** — barcha action'larga sxema (hozir qo'lda parsing).
 - **Soft-delete** — o'chirish o'rniga `deletedAt` (audit kuchayadi).
 - **Offline-first POS** — PWA bor; keyingisi offline sotuv + sinxronlash.
+
+---
+
+## 13. Interfeys tillari (uz / ru) — 2026-10
+
+- Standart til — o'zbek (lotin), ikkinchi til — rus. Tanlov **cookie** `savora_lang` da (URL prefiksi yo'q, marshrutlar o'zgarmagan).
+- `?lang=ru` so'rovi `middleware.ts` orqali cookie qo'yadi (marketing havolalari uchun); UI'da `components/LangSwitch.tsx` (server action `app/actions/locale.ts` → `setLocale`).
+- Kod: `lib/i18n/` — `config.ts` (Locale), `fmt.ts` (`tr`, `plural`, `MONTHS`, `WEEKDAYS`, `fmtMonthYear`), `server.ts` (`getDict`, `getLocale`), `client.tsx` (`useDict`, `useLocale`; `I18nProvider` root layoutda).
+- Lug'atlar `lib/i18n/dict/<bo'lim>.ts`: `export const uz = {...}; export const ru: typeof uz = {...}` — kalitlar bir xil (TS + `tests/i18n.test.ts` tekshiradi). Bo'limlar: `common`, `catalog` (modul/huquq/biznes turi/atama nomlari), `landing`, `auth`, `shell`, `sales`, `stock`, `crm`, `superPanel`, `ui`.
+- Qoida: yangi UI matni to'g'ridan-to'g'ri JSX'ga yozilmaydi — lug'atga (uz + ru) qo'shilib, `const d = await getDict()` (server) yoki `const d = useDict()` (client) orqali chiqariladi.
+- Tarjima qilinmaydi: mijozga yuboriladigan SMS/Telegram matnlari (`lib/debts.ts`, `lib/notifications.ts`, `lib/*Reminders.ts`), oferta/maxfiylik siyosati tanasi, super admin DB'da saqlaydigan tarif nomlari.
+- `lib/navConfig.ts` dagi guruh `title` — barqaror identifikator (User.navLayout shuni saqlaydi); ko'rinadigan nom `d.shell.nav.groups[title]` lookup orqali.
+- Mobil (Expo): alohida `mobile/lib/i18n.tsx`, tanlov AsyncStorage `savora_lang`.

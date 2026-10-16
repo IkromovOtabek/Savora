@@ -1,4 +1,5 @@
 import { notFound } from 'next/navigation';
+import { requireSuperAdmin } from '@/lib/auth';
 import { getMasterModels } from '@/lib/masterDb';
 import { explainOrgFeatures, resolveOrgFeatures } from '@/lib/features';
 import { BUSINESS_TYPES } from '@/lib/businessTypes';
@@ -12,6 +13,7 @@ import OrgTabs from '@/components/super/OrgTabs';
 import Icon, { type IconName } from '@/components/icons/Icon';
 import OrgPermissionsMatrix from '@/components/super/OrgPermissionsMatrix';
 import { Alert, OrgStatusPill, PageTitle } from '@/components/super/ui';
+import { daysUntilExpiry } from '@/lib/models/master/Organization';
 
 /** Tab ichidagi karta: rangli ikonka, sarlavha, izoh */
 function Panel({ title, sub, icon, iconBg, children }: { title: string; sub: string; icon: IconName; iconBg: string; children: React.ReactNode }) {
@@ -42,6 +44,8 @@ export default async function OrgDetailPage({
 }) {
   const { id } = await params;
   const sp = await searchParams;
+  // Layout xavfsizlik chegarasi emas (soft-navigatsiyada qayta render bo'lmaydi) — sahifa o'zi tekshiradi
+  await requireSuperAdmin();
   const { Organization } = await getMasterModels();
   const org = await Organization.findById(id).lean();
   if (!org) notFound();
@@ -53,19 +57,29 @@ export default async function OrgDetailPage({
   const plan = resolveOrgPlan(org);
   const credentials = await getOrgAdminCredentials(org);
   const status = getOrgDisplayStatus(org);
+  const daysLeft = daysUntilExpiry(org);
 
   return (
     <>
       <PageTitle
         back={{ href: '/super', label: "Do'konlar" }}
         title={org.name}
-        sub={
-          <>
-            {typeLabel} · {plan.label} · {fmtPlanPrice(plan.monthlyPayment)}{plan.monthlyPayment > 0 ? '/oy' : ''} · {plan.maxFilial} filial · {plan.maxUsers} xodim
-          </>
-        }
+        sub={<>{typeLabel} · {org.slug}</>}
         actions={<OrgStatusPill status={status} />}
       />
+
+      {/* Asosiy faktlar — bir qarashda: tarif, to'lov, muddat, limitlar */}
+      <dl className="sa-facts">
+        <div><dt>Tarif</dt><dd>{plan.label}</dd></div>
+        <div><dt>Oylik to&apos;lov</dt><dd>{fmtPlanPrice(plan.monthlyPayment)}</dd></div>
+        <div className={daysLeft < 0 ? 'is-bad' : daysLeft <= 7 ? 'is-warn' : undefined}>
+          <dt>Obuna muddati</dt>
+          <dd>{new Date(org.expiresAt).toLocaleDateString('uz-UZ')}</dd>
+          <small>{daysLeft < 0 ? `${-daysLeft} kun oldin tugagan` : daysLeft === 0 ? 'Bugun tugaydi' : `${daysLeft} kun qoldi`}</small>
+        </div>
+        <div><dt>Filial limiti</dt><dd>{plan.maxFilial}</dd></div>
+        <div><dt>Xodim limiti</dt><dd>{plan.maxUsers}</dd></div>
+      </dl>
 
       {sp?.created === '1' && (
         <Alert tone="ok">Do&apos;kon yaratildi. Modullarni yoqing va «Havolalar» bo&apos;limidagi havolalarni mijozga bering.</Alert>

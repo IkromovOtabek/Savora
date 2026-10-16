@@ -7,9 +7,14 @@ import { Avatar } from '@/components/tenant/ClientsUi';
 import { getTenantSession } from '@/lib/tenantSession';
 import { branchAggMatch } from '@/lib/branchScope';
 import { fmtDate, fmtMoney } from '@/lib/format';
+import { getDict } from '@/lib/i18n/server';
+import { tr } from '@/lib/i18n/fmt';
 import '@/components/tenant/styles/clients.css';
 
-export const metadata = { title: 'Mijoz — Savora' };
+export async function generateMetadata() {
+  const d = await getDict();
+  return { title: d.crm.customers.detailMetaTitle };
+}
 
 export default async function CustomerDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -17,6 +22,8 @@ export default async function CustomerDetailPage({ params }: { params: Promise<{
   const { Customer, Sale, user, features } = await getTenantSession();
   const customer = await Customer.findById(id).lean();
   if (!customer) notFound();
+  const d = await getDict();
+  const c = d.crm.customers;
 
   // 360° xulosa — bitta aggregate (filial login faqat o'z filiali bo'yicha)
   const [stats] = await Sale.aggregate<{ count: number; total: number; remaining: number; last?: Date }>([
@@ -26,31 +33,31 @@ export default async function CustomerDetailPage({ params }: { params: Promise<{
 
   return (
     <div className="cl-page">
-      <BackLink href="/app/customers">Mijozlar</BackLink>
+      <BackLink href="/app/customers">{c.title}</BackLink>
 
       <div className="cl-profile">
-        <aside className="cl-card cl-pcard" aria-label="Mijoz profili">
+        <aside className="cl-card cl-pcard" aria-label={c.profileAria}>
           <Avatar name={customer.fullName} photoUrl={customer.photoUrl} size="lg" />
           <h1 className="cl-pcard-name">{customer.fullName}</h1>
-          {customer.createdAt && <small className="cl-pcard-since">Mijoz: {fmtDate(customer.createdAt)} dan</small>}
+          {customer.createdAt && <small className="cl-pcard-since">{tr(c.since, { date: fmtDate(customer.createdAt) })}</small>}
 
           <div className="cl-pcard-acts">
-            <a href={`tel:${customer.phone}`} className="btn btn-tinted btn-with-icon"><Icon name="phone" size={16} /> Qo&apos;ng&apos;iroq</a>
-            <a href={`sms:${customer.phone}`} className="btn btn-tinted btn-with-icon"><Icon name="send" size={16} /> SMS</a>
+            <a href={`tel:${customer.phone}`} className="btn btn-tinted btn-with-icon"><Icon name="phone" size={16} /> {c.call}</a>
+            <a href={`sms:${customer.phone}`} className="btn btn-tinted btn-with-icon"><Icon name="send" size={16} /> {c.sms}</a>
           </div>
 
           <dl className="cl-plist">
-            <div><dt><Icon name="phone" size={15} /> Telefon</dt><dd className="t-num">{customer.phone}</dd></div>
-            <div><dt><Icon name="map" size={15} /> Manzil</dt><dd>{customer.address || '—'}</dd></div>
-            {customer.notes && <div><dt><Icon name="edit" size={15} /> Izoh</dt><dd>{customer.notes}</dd></div>}
+            <div><dt><Icon name="phone" size={15} /> {d.common.phone}</dt><dd className="t-num">{customer.phone}</dd></div>
+            <div><dt><Icon name="map" size={15} /> {c.address}</dt><dd>{customer.address || '—'}</dd></div>
+            {customer.notes && <div><dt><Icon name="edit" size={15} /> {d.common.note}</dt><dd>{customer.notes}</dd></div>}
           </dl>
 
           <div className="cl-ptotals">
-            <div><span>Sotuvlar</span><b className="t-num">{stats?.count ?? 0}</b></div>
-            <div><span>Jami summa</span><b className="t-num">{fmtMoney(stats?.total ?? 0)}</b></div>
-            <div className={(stats?.remaining ?? 0) > 0 ? 'cl-ptotals--gold' : ''}><span>Qoldiq qarz</span><b className="t-num">{fmtMoney(stats?.remaining ?? 0)}</b></div>
+            <div><span>{c.salesCount}</span><b className="t-num">{stats?.count ?? 0}</b></div>
+            <div><span>{c.totalAmount}</span><b className="t-num">{fmtMoney(stats?.total ?? 0)}</b></div>
+            <div className={(stats?.remaining ?? 0) > 0 ? 'cl-ptotals--gold' : ''}><span>{c.remainingDebt}</span><b className="t-num">{fmtMoney(stats?.remaining ?? 0)}</b></div>
           </div>
-          {stats?.last && <small className="cl-pcard-since">Oxirgi xarid: {fmtDate(stats.last)}</small>}
+          {stats?.last && <small className="cl-pcard-since">{tr(c.lastPurchase, { date: fmtDate(stats.last) })}</small>}
         </aside>
 
         <CustomerForm

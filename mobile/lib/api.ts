@@ -1,5 +1,6 @@
 import Constants from 'expo-constants';
 import * as SecureStore from 'expo-secure-store';
+import { getDict, tr } from './i18n';
 
 const TOKEN_KEY = 'savora_token';
 const TIMEOUT_MS = 15000;
@@ -61,7 +62,7 @@ export async function api<T = unknown>(path: string, opts: ApiOptions = {}): Pro
   } catch (e) {
     const aborted = (e as { name?: string })?.name === 'AbortError';
     throw new ApiError(
-      aborted ? 'Server javob bermadi. Qayta urinib ko\'ring.' : 'Internet aloqasi yo\'q yoki server ishlamayapti.',
+      aborted ? getDict().api.timeout : getDict().api.offline,
       0,
     );
   } finally {
@@ -74,12 +75,12 @@ export async function api<T = unknown>(path: string, opts: ApiOptions = {}): Pro
       await clearToken();
       onUnauthorized?.();
     }
-    throw new ApiError((data as { error?: string }).error || `Xatolik yuz berdi (${res.status})`, res.status);
+    throw new ApiError((data as { error?: string }).error || tr(getDict().api.httpError, { status: res.status }), res.status);
   }
   return data as T;
 }
 
 /** Xatodan foydalanuvchiga ko'rsatiladigan matn. */
-export function errMsg(e: unknown, fallback = 'Xatolik yuz berdi'): string {
-  return e instanceof Error && e.message ? e.message : fallback;
+export function errMsg(e: unknown, fallback?: string): string {
+  return e instanceof Error && e.message ? e.message : (fallback ?? getDict().common.errorGeneric);
 }

@@ -7,8 +7,9 @@ import { getTenantSession } from '@/lib/tenantSession';
 import { parsePrice } from '@/lib/format';
 import { calcSaleStatus, generateSaleNo } from '@/lib/sales';
 import { PaymentType } from '@/lib/models/tenant/Sale';
-import { sendTelegram } from '@/lib/telegram';
+import { sendTelegram, tgEscape } from '@/lib/telegram';
 import { featureDisabledError } from '@/lib/featureAction';
+import { isOwnUploadUrl } from '@/lib/fileUrl';
 import { parseQtyField, getStockQty } from '@/lib/productQuantity';
 import { reserveStock, releaseStock } from '@/lib/stock';
 import { addMonthsClamped } from '@/lib/dates';
@@ -66,6 +67,7 @@ function toScannedProduct(
     status: string;
   },
   branchName: string,
+  canViewCost: boolean,
 ): ScannedProduct {
   return {
     id: String(product._id),
@@ -76,7 +78,8 @@ function toScannedProduct(
     brand: product.brand ?? '',
     deviceModel: product.deviceModel ?? '',
     salePrice: product.salePrice,
-    purchasePrice: product.purchasePrice,
+    // Kelish narxi — faqat "product.viewCost" huquqi bo'lsa (xodimga brauzer orqali sizib chiqmasin)
+    purchasePrice: canViewCost ? product.purchasePrice : 0,
     branchId: String(product.branchId),
     branchName,
     trackQuantity: product.trackQuantity ?? false,
@@ -98,7 +101,7 @@ export async function lookupProductByImei(imei: string): Promise<ScannedProduct 
   if (!product) return null;
 
   const branch = await Branch.findById(product.branchId).lean();
-  return toScannedProduct(product, branch?.name ?? '—');
+  return toScannedProduct(product, branch?.name ?? '—', await userCan(user, 'product.viewCost'));
 }
 
 /** Shtrix, IMEI yoki mahsulot kodi bo'yicha qidiruv (skaner pistalet uchun) */
@@ -123,7 +126,7 @@ export async function lookupProductByScan(code: string): Promise<ScannedProduct 
   if (!product) return null;
 
   const branch = await Branch.findById(product.branchId).lean();
-  return toScannedProduct(product, branch?.name ?? '—');
+  return toScannedProduct(product, branch?.name ?? '—', await userCan(user, 'product.viewCost'));
 }
 
 export type QuickSaleLine = { productId: string; qty: number; salePrice?: number };
@@ -255,6 +258,11 @@ export async function createSaleAction(_prev: State, formData: FormData): Promis
 
   if (!productId || !Types.ObjectId.isValid(productId)) return { error: 'Mahsulot tanlanishi shart.' };
   if (totalAmount === null || totalAmount <= 0) return { error: 'Sotuv summasi noto\'g\'ri.' };
+  // Rasm: faqat o'zimizning storage URL'i + «Rasm/kamera» moduli yoqilgan bo'lsa
+  if (photoUrl) {
+    if (!features.mediaUpload) return featureDisabledError('mediaUpload');
+    if (!isOwnUploadUrl(photoUrl)) return { error: 'Rasm havolasi noto\'g\'ri. Rasmni formadagi yuklash tugmasi orqali yuklang.' };
+  }
 
   if (paidAmountRaw === null) return { error: 'To\'langan summa noto\'g\'ri (butun so\'mda kiriting).' };
 
@@ -271,15 +279,16 @@ export async function createSaleAction(_prev: State, formData: FormData): Promis
   }
   // Sotuv narxidan arzon sotish — "sale.discount" huquqi kerak
   if (product.salePrice > 0 && totalAmount < product.salePrice * saleQty && !(await userCan(user, 'sale.discount'))) return permissionDeniedError('sale.discount');
+  // Sotuv narxidan qimmat sotish (narxni o'zgartirish) — "sale.editPrice" huquqi kerak (quickSaleBatchAction bilan bir xil)
+  if (product.salePrice > 0 && totalAmount > product.salePrice * saleQty && !(await userCan(user, 'sale.editPrice'))) return permissionDeniedError('sale.editPrice');
 
   let customer = null;
   if (customerName && customerPhone) {
+    // Shu telefonli mijoz bor bo'lsa — uning ismi USTIDAN YOZILMAYDI (sotuvchi boshqa mijoz
+    // kartochkasini o'zgartirib yubormasin); mijoz ismi "Mijozlar" bo'limida tahrirlanadi
     customer = await Customer.findOne({ phone: customerPhone }).lean();
     if (!customer) {
       customer = (await Customer.create({ fullName: customerName, phone: customerPhone })).toObject();
-    } else if (customer.fullName !== customerName) {
-      await Customer.findByIdAndUpdate(customer._id, { fullName: customerName });
-      customer = { ...customer, fullName: customerName };
     }
   }
 
@@ -395,10 +404,10 @@ export async function createSaleAction(_prev: State, formData: FormData): Promis
 
     void sendTelegram(
       `<b>Savora — Yangi sotuv</b>\n` +
-      `${saleNo} · ${product.name} (${saleQty} ta)\n` +
-      (customer ? `Mijoz: ${customer.fullName}\n` : '') +
+      `${tgEscape(saleNo)} · ${tgEscape(product.name)} (${saleQty} ta)\n` +
+      (customer ? `Mijoz: ${tgEscape(customer.fullName)}\n` : '') +
       `Summa: ${totalAmount.toLocaleString('uz-UZ')} so'm\n` +
-      `To'lov: ${paymentType}${bankName ? ` (${bankName})` : ''}`,
+      `To'lov: ${tgEscape(paymentType)}${bankName ? ` (${tgEscape(bankName)})` : ''}`,
     );
 
     revalidatePath('/app');
@@ -438,6 +447,14 @@ export async function addSalePaymentAction(_prev: State, formData: FormData): Pr
   });
   if (!res) return { error: 'To\'lov qo\'shilmadi: qoldiq o\'zgargan. Sahifani yangilab qayta urinib ko\'ring.' };
 
+  await recordAudit(user, {
+    action: 'sale.payment',
+    entity: 'sale',
+    entityId: saleId,
+    summary: `To'lov qabul qilindi: ${sale.saleNo} · ${amount.toLocaleString('uz-UZ')} so'm (qoldiq ${res.remainingAmount.toLocaleString('uz-UZ')} so'm)`,
+    meta: { amount, remaining: res.remainingAmount, status: res.status },
+  });
+
   revalidatePath('/app/sales');
   revalidatePath(`/app/sales/${saleId}`);
   revalidatePath('/app');
@@ -474,6 +491,14 @@ export async function cancelSaleAction(_prev: State, formData: FormData): Promis
       at: new Date(),
     });
   }
+
+  await recordAudit(user, {
+    action: 'sale.cancel',
+    entity: 'sale',
+    entityId: saleId,
+    summary: `Sotuv bekor qilindi: ${sale.saleNo} · ${sale.productSnapshot?.name ?? ''} · ${sale.totalAmount.toLocaleString('uz-UZ')} so'm`,
+    meta: { paidAmount: sale.paidAmount, paymentType: sale.paymentType, totalAmount: sale.totalAmount },
+  });
 
   revalidatePath('/app/sales');
   revalidatePath(`/app/sales/${saleId}`);

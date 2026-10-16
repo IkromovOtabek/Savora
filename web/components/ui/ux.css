@@ -49,17 +49,16 @@
     0 18px 36px -14px rgba(0, 0, 0, .7);
 }
 
-/* Hajmli ikonka (KPI uchun) */
+/* Ikonka plashkasi (KPI uchun) — tekis: yumshoq rangli fon + rangli chiziqli ikonka */
 .ux-clay {
   width: 40px; height: 40px; border-radius: 12px; display: grid; place-items: center; flex: none;
-  color: #fff; background: linear-gradient(145deg, #3a68c4, #173f8f);
-  box-shadow: inset 0 2px 1px rgba(255, 255, 255, .4), inset 0 -3px 4px rgba(0, 0, 0, .18), 0 6px 12px -4px rgba(31, 79, 168, .45);
+  color: var(--brand); background: var(--brand-soft);
 }
-.ux-clay svg { width: 20px; height: 20px; filter: drop-shadow(0 1px 1px rgba(0, 0, 0, .25)); }
-.ux-clay--gold { background: linear-gradient(145deg, #f3c04d, #c98f12); color: #241703; box-shadow: inset 0 2px 1px rgba(255, 255, 255, .5), inset 0 -3px 4px rgba(0, 0, 0, .12), 0 6px 12px -4px rgba(201, 143, 18, .5); }
-.ux-clay--green { background: linear-gradient(145deg, #33b37a, #147045); box-shadow: inset 0 2px 1px rgba(255, 255, 255, .4), inset 0 -3px 4px rgba(0, 0, 0, .18), 0 6px 12px -4px rgba(20, 112, 69, .45); }
-.ux-clay--red { background: linear-gradient(145deg, #ec6a5f, #a52a20); box-shadow: inset 0 2px 1px rgba(255, 255, 255, .4), inset 0 -3px 4px rgba(0, 0, 0, .18), 0 6px 12px -4px rgba(165, 42, 32, .45); }
-.ux-clay--gray { background: linear-gradient(145deg, #a3abbd, #6d768b); }
+.ux-clay svg { width: 20px; height: 20px; }
+.ux-clay--gold { color: var(--gold); background: var(--gold-soft); }
+.ux-clay--green { color: var(--accent); background: var(--accent-soft); }
+.ux-clay--red { color: var(--danger); background: var(--danger-soft); }
+.ux-clay--gray { color: var(--ink-2); background: var(--fill); }
 
 /* ---------- Xulosa lentasi: desktopda setka, mobilda bitta gorizontal lenta ---------- */
 .ux-strip {
@@ -95,7 +94,9 @@
 /* ---------- Gorizontal aylanuvchi segment/chiplar (kesilmasin) ---------- */
 .ux-scrollx {
   display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; min-width: 0;
-  contain: inline-size; max-width: 100%; /* chiplar konteynerni kengaytirmasin */
+  /* chiplar konteynerni (mobilda butun sahifani) kengaytirmasin. contain tufayli kenglik kontentdan
+     hisoblanmaydi — shuning uchun width: 100% shart, aks holda flex/max-content ota ichida 0 ga siqiladi */
+  contain: inline-size; width: 100%; max-width: 100%;
   -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 28px), transparent);
   mask-image: linear-gradient(90deg, #000 calc(100% - 28px), transparent);
   padding-right: 24px;

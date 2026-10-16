@@ -1,11 +1,16 @@
 import { NextResponse } from 'next/server';
 import { authenticateMobile } from '@/lib/mobileAuth';
 import { mobilePermissionDenied } from '@/lib/permissionGuard';
+import { recordAudit } from '@/lib/audit';
 import { getTenantModels } from '@/lib/tenantDb';
 import { reserveUsername, isUsernameAvailable, UsernameTakenError } from '@/lib/userDirectory';
 import { addOrgUser } from '@/lib/orgUsers';
 
 const normalizeLogin = (v: string) => v.trim().toLowerCase().replace(/\s+/g, '');
+
+/** Matn maydonlari uzunlik chegarasi — oshsa 400 (xotira/DB to'ldirish himoyasi) */
+const MAX_LEN = { name: 80, address: 200, phone: 20, username: 32 } as const;
+const tooLong = (v: string, max: number) => v.length > max;
 
 /** Filiallar ro'yxati. */
 export async function GET(req: Request) {
@@ -39,6 +44,9 @@ export async function POST(req: Request) {
   const password = String(body.password || '');
 
   if (!name) return NextResponse.json({ error: 'Filial nomi shart.' }, { status: 400 });
+  if (tooLong(name, MAX_LEN.name) || tooLong(address, MAX_LEN.address) || tooLong(phone, MAX_LEN.phone) || tooLong(username, MAX_LEN.username)) {
+    return NextResponse.json({ error: 'Matn maydoni juda uzun.' }, { status: 400 });
+  }
   if (username.length < 3) return NextResponse.json({ error: 'Login kamida 3 belgi.' }, { status: 400 });
   if (password.length < 6) return NextResponse.json({ error: 'Parol kamida 6 belgi.' }, { status: 400 });
 
@@ -57,6 +65,12 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: e instanceof UsernameTakenError ? e.message : 'Filial yaratishda xatolik.' }, { status: 409 });
   }
   await addOrgUser(user.organizationId, { username, name, role: 'user', branchId: String(branch._id) });
+  await recordAudit(user, {
+    action: 'branch.create',
+    entity: 'branch',
+    entityId: String(branch._id),
+    summary: `Filial yaratildi: ${name} (login: ${username}) (mobil)`,
+  });
 
   return NextResponse.json({ id: String(branch._id), name: branch.name, login: username }, { status: 201 });
 }

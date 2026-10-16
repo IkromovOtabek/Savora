@@ -6,6 +6,8 @@ import { confirmPasswordResetAction, requestPasswordResetAction } from '@/app/ac
 import AuthShell, { AuthAlert } from '@/components/auth/AuthShell';
 import PasswordField from '@/components/auth/PasswordField';
 import Icon from '@/components/icons/Icon';
+import LangSwitch from '@/components/LangSwitch';
+import { useDict } from '@/lib/i18n/client';
 
 interface Props {
   title: string;
@@ -20,6 +22,8 @@ export default function ForgotForm({ title, storeName, canReset, notice, tenantS
   const [state, formAction, isPending] = useActionState(requestPasswordResetAction, null);
   const [confirmState, confirmAction, isConfirming] = useActionState(confirmPasswordResetAction, null);
   const codeStep = state?.step === 'code';
+  const d = useDict();
+  const t = d.auth.forgot;
 
   return (
     <AuthShell
@@ -27,9 +31,9 @@ export default function ForgotForm({ title, storeName, canReset, notice, tenantS
       subtitle={storeName || undefined}
       top={
         canReset ? (
-          <div className="au-steps" role="list" aria-label="Parolni tiklash qadamlari">
-            <span role="listitem" aria-current={!codeStep ? 'step' : undefined}>1. Login</span>
-            <span role="listitem" aria-current={codeStep ? 'step' : undefined}>2. Kod</span>
+          <div className="au-steps" role="list" aria-label={t.stepsLabel}>
+            <span role="listitem" aria-current={!codeStep ? 'step' : undefined}>{t.step1}</span>
+            <span role="listitem" aria-current={codeStep ? 'step' : undefined}>{t.step2}</span>
           </div>
         ) : undefined
       }
@@ -44,10 +48,10 @@ export default function ForgotForm({ title, storeName, canReset, notice, tenantS
         <form action={confirmAction} className="au-form">
           {tenantSlug && <input type="hidden" name="tenantSlug" value={tenantSlug} />}
           <input type="hidden" name="username" value={state.username ?? ''} />
-          <p className="au-help">Telegram&apos;ga kelgan 6 xonali kodni va yangi parolni kiriting.</p>
+          <p className="au-help">{t.codeHelp}</p>
           <div className="au-group">
             <div className="au-row">
-              <label htmlFor="code">Tasdiqlash kodi</label>
+              <label htmlFor="code">{t.codeLabel}</label>
               <input
                 id="code"
                 name="code"
@@ -66,16 +70,16 @@ export default function ForgotForm({ title, storeName, canReset, notice, tenantS
           </div>
           <div className="au-group">
             <div className="au-row">
-              <label htmlFor="newPassword">Yangi parol</label>
-              <PasswordField id="newPassword" name="newPassword" autoComplete="new-password" minLength={6} placeholder="Kamida 6 belgi" required disabled={isConfirming} />
+              <label htmlFor="newPassword">{d.auth.fields.newPassword}</label>
+              <PasswordField id="newPassword" name="newPassword" autoComplete="new-password" minLength={6} placeholder={d.auth.fields.minChars} required disabled={isConfirming} />
             </div>
             <div className="au-row">
-              <label htmlFor="confirmPassword">Yangi parolni takrorlang</label>
-              <PasswordField id="confirmPassword" name="confirmPassword" autoComplete="new-password" minLength={6} placeholder="Takrorlang" required disabled={isConfirming} />
+              <label htmlFor="confirmPassword">{d.auth.fields.repeatNewPassword}</label>
+              <PasswordField id="confirmPassword" name="confirmPassword" autoComplete="new-password" minLength={6} placeholder={d.auth.fields.repeat} required disabled={isConfirming} />
             </div>
           </div>
           <button type="submit" className="au-btn au-btn--filled au-btn--block" disabled={isConfirming}>
-            {isConfirming ? 'Saqlanmoqda…' : 'Parolni yangilash'}
+            {isConfirming ? d.common.saving : t.updatePassword}
           </button>
         </form>
       )}
@@ -83,13 +87,10 @@ export default function ForgotForm({ title, storeName, canReset, notice, tenantS
       {canReset && !state?.step && (
         <form action={formAction} className="au-form">
           {tenantSlug && <input type="hidden" name="tenantSlug" value={tenantSlug} />}
-          <p className="au-help">
-            Loginni kiriting. Bir martalik tasdiqlash kodi do&apos;konning ulangan Telegram&apos;iga yuboriladi.
-            Telegram ulanmagan bo&apos;lsa, do&apos;kon admini yoki platforma egasiga murojaat qiling.
-          </p>
+          <p className="au-help">{t.requestHelp}</p>
           <div className="au-group">
             <div className="au-row">
-              <label htmlFor="username">Login</label>
+              <label htmlFor="username">{d.auth.fields.username}</label>
               <input
                 id="username"
                 name="username"
@@ -98,7 +99,7 @@ export default function ForgotForm({ title, storeName, canReset, notice, tenantS
                 autoCapitalize="none"
                 autoCorrect="off"
                 spellCheck={false}
-                placeholder="Foydalanuvchi nomi"
+                placeholder={d.auth.fields.usernamePlaceholder}
                 required
                 autoFocus
                 disabled={isPending}
@@ -106,15 +107,16 @@ export default function ForgotForm({ title, storeName, canReset, notice, tenantS
             </div>
           </div>
           <button type="submit" className="au-btn au-btn--filled au-btn--block" disabled={isPending}>
-            {isPending ? 'Yuborilmoqda…' : 'Kod yuborish'}
+            {isPending ? d.common.sending : t.sendCode}
           </button>
         </form>
       )}
 
       <div className="au-links">
         <Link href={loginUrl} className="au-btn au-btn--plain">
-          <Icon name="arrowLeft" size={17} /> Kirish sahifasiga qaytish
+          <Icon name="arrowLeft" size={17} /> {t.backToLogin}
         </Link>
+        <LangSwitch compact />
       </div>
     </AuthShell>
   );

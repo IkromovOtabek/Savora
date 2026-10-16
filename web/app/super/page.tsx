@@ -19,7 +19,8 @@ function fmtSum(n: number) {
   return new Intl.NumberFormat('uz-UZ').format(Math.round(n));
 }
 
-export default async function SuperDashboard() {
+export default async function SuperDashboard({ searchParams }: { searchParams: Promise<{ f?: string }> }) {
+  const sp = await searchParams;
   await requireSuperAdmin();
   const { Organization } = await getMasterModels();
   const orgs = await Organization.find().sort({ createdAt: -1 }).lean();
@@ -113,7 +114,7 @@ export default async function SuperDashboard() {
           </div>
         </section>
       ) : (
-        <OrgList rows={rows} />
+        <OrgList rows={rows} initialFilter={sp?.f} />
       )}
     </>
   );

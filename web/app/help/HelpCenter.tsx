@@ -2,6 +2,8 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import Icon from '@/components/icons/Icon';
+import { useDict } from '@/lib/i18n/client';
+import { tr } from '@/lib/i18n/fmt';
 import { HELP_GROUPS, type HelpArticle, type HelpGroup } from './articles';
 
 /** Qidiruv uchun normallashtirish: kichik harf, apostrof turlari bir xil */
@@ -16,6 +18,8 @@ function haystack(a: HelpArticle): string {
 }
 
 export default function HelpCenter({ articles }: { articles: HelpArticle[] }) {
+  const d = useDict();
+  const H = d.landing.help;
   const [q, setQ] = useState('');
   const [group, setGroup] = useState<HelpGroup | null>(null);
   const [openId, setOpenId] = useState<string | null>(null);
@@ -48,30 +52,30 @@ export default function HelpCenter({ articles }: { articles: HelpArticle[] }) {
             type="search"
             value={q}
             onChange={(e) => setQ(e.target.value)}
-            placeholder="Qidirish: nasiya, IMEI, chek, parol…"
-            aria-label="Yordam maqolalaridan qidirish"
+            placeholder={H.searchPh}
+            aria-label={H.searchAria}
           />
         </label>
-        <div className="hc-chips" role="group" aria-label="Bo'limlar">
-          <button type="button" className="hc-chip" aria-pressed={group === null} onClick={() => setGroup(null)}>Hammasi</button>
+        <div className="hc-chips" role="group" aria-label={H.groupsAria}>
+          <button type="button" className="hc-chip" aria-pressed={group === null} onClick={() => setGroup(null)}>{H.allGroups}</button>
           {HELP_GROUPS.map((g) => (
             <button key={g} type="button" className="hc-chip" aria-pressed={group === g} onClick={() => setGroup(group === g ? null : g)}>
-              {g}
+              {H.groups[g]}
             </button>
           ))}
         </div>
-        {(searching || group) && <span className="hc-count" aria-live="polite">{found.length} ta maqola topildi</span>}
+        {(searching || group) && <span className="hc-count" aria-live="polite">{tr(H.found, { n: found.length })}</span>}
       </div>
 
       {found.length === 0 && (
         <div className="hc-list hc-empty">
-          Hech narsa topilmadi. Boshqa so&apos;z bilan qidiring yoki bizga Telegram orqali yozing.
+          {H.empty}
         </div>
       )}
 
       {groups.map((g) => (
-        <section key={g} className="hc-group" aria-label={g}>
-          <h2>{g}</h2>
+        <section key={g} className="hc-group" aria-label={H.groups[g]}>
+          <h2>{H.groups[g]}</h2>
           <div className="hc-list">
             {found.filter((a) => a.group === g).map((a) => (
               <details

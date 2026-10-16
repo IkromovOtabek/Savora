@@ -5,6 +5,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { ThemeProvider as NavThemeProvider, DefaultTheme, DarkTheme, type Theme as NavTheme } from '@react-navigation/native';
 import { AuthProvider, useAuth } from '@/lib/auth';
 import { ThemeProvider, useTheme } from '@/lib/theme';
+import { I18nProvider } from '@/lib/i18n';
 
 /** Token bekor bo'lsa (401) — qaysi ekranda bo'lmasin, kirish sahifasiga. */
 function AuthGate() {
@@ -46,11 +47,13 @@ function Navigation() {
 export default function RootLayout() {
   return (
     <SafeAreaProvider>
-      <ThemeProvider>
-        <AuthProvider>
-          <Navigation />
-        </AuthProvider>
-      </ThemeProvider>
+      <I18nProvider>
+        <ThemeProvider>
+          <AuthProvider>
+            <Navigation />
+          </AuthProvider>
+        </ThemeProvider>
+      </I18nProvider>
     </SafeAreaProvider>
   );
 }

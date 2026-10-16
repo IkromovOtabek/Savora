@@ -1,0 +1,170 @@
+/* ============================================================
+   Savora — Ro'yxatdan o'tish: yuqorida ixcham panel, chapda bosqichli
+   forma, o'ngda yaratilayotgan do'konning jonli ko'rinishi.
+   Prefiks: rg-  ·  xabar, rozilik va parol tugmasi auth.css dan (au-)
+   ============================================================ */
+
+.rg {
+  min-height: 100vh;
+  min-height: 100dvh;
+  color: var(--ink-1);
+  background:
+    radial-gradient(900px 420px at 100% 0%, color-mix(in srgb, var(--brand) 10%, transparent), transparent 70%),
+    radial-gradient(700px 360px at 0% 100%, color-mix(in srgb, var(--gold) 9%, transparent), transparent 70%),
+    var(--bg-soft);
+}
+
+.rg-bar {
+  max-width: 1160px; margin: 0 auto;
+  display: flex; align-items: center; justify-content: space-between; gap: 16px;
+  padding: 22px 24px;
+}
+.rg-logo { display: inline-flex; align-items: center; gap: 10px; color: var(--ink-1); text-decoration: none; font-size: 20px; font-weight: 800; letter-spacing: -.02em; border-radius: 10px; }
+.rg-logo-mark { width: 32px; height: 32px; border-radius: 9px; overflow: hidden; box-shadow: 0 4px 12px -4px rgba(31, 79, 168, .45); }
+.rg-logo:focus-visible { outline: 3px solid var(--brand-ring); outline-offset: 3px; }
+.rg-bar-r { margin: 0; font-size: 14px; color: var(--ink-3); }
+.rg-bar-r a { color: var(--brand); font-weight: 700; text-decoration: none; margin-left: 4px; }
+.rg-bar-r a:hover { text-decoration: underline; }
+
+.rg-main {
+  max-width: 1160px; margin: 0 auto;
+  display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 28px; align-items: start;
+  padding: 8px 24px 56px;
+}
+
+/* ── Forma kartasi ─────────────────────────────────────── */
+.rg-card {
+  background: var(--surface); border-radius: 24px; padding: 32px 36px 34px;
+  box-shadow: 0 0 0 .5px var(--sep), 0 30px 70px -36px rgba(13, 21, 38, .3);
+}
+
+.rg-steps { list-style: none; margin: 0 0 26px; padding: 0; display: flex; align-items: center; gap: 12px; font-size: 14px; font-weight: 600; color: var(--ink-3); }
+.rg-steps li { display: inline-flex; align-items: center; gap: 9px; }
+.rg-steps li + li::before { content: ""; width: 40px; height: 2px; border-radius: 2px; background: var(--fill-3); margin-right: 3px; }
+.rg-steps li.is-done + li::before { background: var(--brand); }
+.rg-step-n { width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; font-size: 13px; font-weight: 700; background: var(--fill); color: var(--ink-2); }
+.rg-steps .is-on { color: var(--ink-1); }
+.rg-steps .is-on .rg-step-n { background: var(--brand); color: var(--on-brand); box-shadow: 0 0 0 4px var(--brand-ring); }
+.rg-steps .is-done .rg-step-n { background: var(--accent); color: #fff; }
+
+.rg-head { display: grid; gap: 8px; margin-bottom: 24px; }
+.rg-head h1 { margin: 0; font-size: clamp(26px, 3vw, 34px); line-height: 1.15; font-weight: 800; letter-spacing: -.03em; }
+.rg-head p { margin: 0; color: var(--ink-3); font-size: 15px; line-height: 1.5; max-width: 56ch; }
+
+.rg-step { gap: 26px; }
+.rg-set { border: 0; margin: 0; padding: 0; display: grid; gap: 14px; min-width: 0; }
+.rg-set legend { padding: 0; margin-bottom: 14px; font-size: 16px; font-weight: 700; letter-spacing: -.01em; }
+.rg-set legend span { font-weight: 500; color: var(--ink-3); font-size: 14px; }
+.rg-grid2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+
+.rg-field { display: grid; gap: 7px; min-width: 0; }
+.rg-field > label { font-size: 13.5px; font-weight: 600; color: var(--ink-2); }
+.rg-field > input,
+.rg-pwd .au-pwd {
+  height: 48px; border-radius: 12px; background: var(--surface);
+  box-shadow: inset 0 0 0 1px var(--border); transition: box-shadow .15s;
+}
+.rg-field > input { width: 100%; border: 0; outline: 0; padding: 0 14px; font: inherit; font-size: 15px; color: var(--ink-1); }
+.rg-pwd .au-pwd { padding: 0 8px 0 14px; }
+.rg-pwd .au-pwd input { height: 100%; border: 0; outline: 0; background: transparent; font: inherit; font-size: 15px; color: var(--ink-1); }
+.rg-pwd .au-pwd-toggle { margin: 0; }
+.rg-field > input::placeholder, .rg-pwd input::placeholder { color: var(--ink-3); opacity: .8; }
+.rg-field > input:focus, .rg-pwd .au-pwd:focus-within { box-shadow: inset 0 0 0 2px var(--brand), 0 0 0 4px var(--brand-ring); }
+.rg-field > input:disabled { opacity: .55; }
+.rg-hint { margin: 0; font-size: 12.5px; color: var(--ink-3); line-height: 1.45; overflow-wrap: anywhere; }
+.rg-hint b { color: var(--ink-1); font-weight: 600; }
+
+.rg-biz { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 10px; }
+.rg-biz-tile {
+  position: relative; display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 14px; cursor: pointer;
+  background: var(--surface); box-shadow: inset 0 0 0 1px var(--border); transition: box-shadow .15s, background .15s;
+}
+.rg-biz-tile input { position: absolute; opacity: 0; pointer-events: none; }
+.rg-biz-ic { flex: none; width: 36px; height: 36px; border-radius: 10px; display: grid; place-items: center; background: var(--fill); color: var(--ink-2); transition: background .15s, color .15s; }
+.rg-biz-t { display: grid; min-width: 0; line-height: 1.3; }
+.rg-biz-t strong { font-size: 14px; font-weight: 700; }
+.rg-biz-t small { font-size: 12px; color: var(--ink-3); }
+.rg-biz-tile:hover { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--brand) 45%, var(--border)); }
+.rg-biz-tile.is-on { background: var(--brand-soft); box-shadow: inset 0 0 0 2px var(--brand); }
+.rg-biz-tile.is-on .rg-biz-ic { background: var(--brand); color: var(--on-brand); }
+.rg-biz-tile:has(input:focus-visible) { outline: 3px solid var(--brand-ring); outline-offset: 2px; }
+
+.rg-plans { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 12px; }
+.rg-plan {
+  position: relative; display: grid; gap: 8px; align-content: start; padding: 18px; border-radius: 16px; cursor: pointer;
+  background: var(--surface); box-shadow: inset 0 0 0 1px var(--border); transition: box-shadow .15s, background .15s;
+}
+.rg-plan input { position: absolute; opacity: 0; pointer-events: none; }
+.rg-plan:hover { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--brand) 45%, var(--border)); }
+.rg-plan.is-on { background: var(--brand-soft); box-shadow: inset 0 0 0 2px var(--brand); }
+.rg-plan:has(input:focus-visible) { outline: 3px solid var(--brand-ring); outline-offset: 2px; }
+.rg-plan-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.rg-plan-name { font-size: 15px; font-weight: 700; }
+.rg-plan-badge { font-size: 12px; font-weight: 700; padding: 3px 9px; border-radius: 999px; background: var(--gold-soft); color: var(--gold); }
+.rg-plan-price { font-size: 24px; font-weight: 800; letter-spacing: -.03em; font-variant-numeric: tabular-nums; }
+.rg-plan-price small { font-size: 13px; font-weight: 500; color: var(--ink-3); letter-spacing: 0; }
+.rg-plan ul { list-style: none; margin: 4px 0 0; padding: 0; display: grid; gap: 5px; font-size: 13px; color: var(--ink-2); }
+.rg-plan li { display: flex; gap: 6px; align-items: flex-start; }
+.rg-plan li svg { flex: none; margin-top: 3px; color: var(--accent); }
+
+.rg-btn {
+  height: 50px; padding: 0 22px; border: 0; border-radius: 12px; cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  font: inherit; font-size: 16px; font-weight: 700; transition: background .15s, transform .1s;
+}
+.rg-btn:active { transform: scale(.985); }
+.rg-btn:disabled { opacity: .6; cursor: progress; transform: none; }
+.rg-btn:focus-visible { outline: 3px solid var(--brand-ring); outline-offset: 2px; }
+.rg-btn--primary { background: var(--brand-fill); color: var(--on-brand); box-shadow: 0 10px 24px -10px rgba(31, 79, 168, .65); }
+.rg-btn--primary:hover { background: var(--brand-fill-hover); }
+.rg-btn--ghost { background: var(--fill); color: var(--ink-1); }
+.rg-btn--ghost:hover { background: var(--fill-3); }
+.rg-actions { display: grid; grid-template-columns: auto 1fr; gap: 10px; }
+
+/* ── Jonli ko'rinish ───────────────────────────────────── */
+.rg-preview { position: sticky; top: 24px; display: grid; gap: 18px; }
+.rg-shop {
+  border-radius: 22px; padding: 22px; color: #fff;
+  background:
+    radial-gradient(80% 60% at 100% 0%, rgba(255, 255, 255, .14), transparent 70%),
+    linear-gradient(155deg, #2f5fc0 0%, #1f4fa8 50%, #173f8f 100%);
+  box-shadow: 0 24px 50px -24px rgba(31, 79, 168, .6);
+}
+.rg-shop-top { display: flex; align-items: center; gap: 12px; padding-bottom: 16px; border-bottom: 1px solid rgba(255, 255, 255, .16); }
+.rg-shop-ic { flex: none; width: 46px; height: 46px; border-radius: 13px; display: grid; place-items: center; background: rgba(255, 255, 255, .16); }
+.rg-shop-t { display: grid; min-width: 0; line-height: 1.25; }
+.rg-shop-t b { font-size: 18px; font-weight: 800; letter-spacing: -.02em; overflow-wrap: anywhere; }
+.rg-shop-t small { font-size: 13px; color: rgba(255, 255, 255, .75); }
+.rg-shop-kv { margin: 14px 0 0; display: grid; gap: 12px; }
+.rg-shop-kv div { display: grid; gap: 2px; min-width: 0; }
+.rg-shop-kv dt { font-size: 12px; font-weight: 600; color: rgba(255, 255, 255, .65); }
+.rg-shop-kv dd { margin: 0; font-size: 14.5px; font-weight: 600; overflow-wrap: anywhere; }
+.rg-shop-kv dd small { font-weight: 500; color: #f0bf4c; }
+.rg-perks { list-style: none; margin: 0; padding: 0 4px; display: grid; gap: 10px; font-size: 14px; color: var(--ink-2); }
+.rg-perks li { display: flex; gap: 9px; align-items: flex-start; line-height: 1.45; }
+.rg-perks svg { flex: none; margin-top: 3px; color: var(--accent); }
+
+@media (prefers-reduced-motion: no-preference) {
+  .rg-card, .rg-preview { animation: rg-in .7s cubic-bezier(.22, .61, .36, 1) both; }
+  .rg-preview { animation-delay: .1s; }
+}
+@keyframes rg-in { from { opacity: 0; transform: translateY(10px); } }
+
+@media (max-width: 960px) {
+  .rg-main { grid-template-columns: minmax(0, 1fr); }
+  .rg-preview { position: static; order: -1; }
+  .rg-perks { display: none; }
+  .rg-shop { padding: 16px 18px; }
+  .rg-shop-kv { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .rg-shop-kv div:first-child { grid-column: 1 / -1; }
+}
+@media (max-width: 560px) {
+  .rg-bar { padding: 16px; }
+  .rg-bar-r { font-size: 13px; }
+  .rg-main { padding: 4px 16px 40px; gap: 16px; }
+  .rg-card { padding: 22px 18px 24px; border-radius: 20px; }
+  .rg-grid2 { grid-template-columns: minmax(0, 1fr); }
+  .rg-steps li + li::before { width: 18px; }
+  .rg-actions { grid-template-columns: minmax(0, 1fr); }
+  .rg-actions .rg-btn--ghost { order: 2; }
+}

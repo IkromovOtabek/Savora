@@ -2,57 +2,28 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import { useDict } from '@/lib/i18n/client';
+import { tr } from '@/lib/i18n/fmt';
 
-interface FaqItem { q: string; a: string }
+/** Tarif chegarasi — FAQ'dagi «Necha filial va xodim» javobi uchun (matn client'da, o'z tilida yig'iladi) */
+export interface FaqPlanLimit { label: string; maxFilial: number; maxUsers: number }
 
-function buildFaqs(trialDays: number, limits: string): FaqItem[] {
-  return [
-    {
-      q: 'Ma\'lumotlarim xavfsizmi?',
-      a: 'Ha. Har bir do\'kon alohida bazada izolyatsiya qilinadi — boshqa do\'kon sizning ma\'lumotingizni ko\'ra olmaydi. Parollar shifrlangan, xodimlar faqat ruxsat berilgan bo\'limlarni ko\'radi, zaxira nusxa muntazam olinadi. Ma\'lumot sizniki: istalgan vaqtda eksport qilasiz. Batafsil — Maxfiylik siyosatida.',
-    },
-    {
-      q: '2027-yildagi yangi nasiya qoidalari (PQ-294) menga tegishlimi?',
-      a: '1-yanvar 2027 dan nasiya muddati 12 oydan, bitta xarid 250 BHM dan (≈110 mln so\'m) oshmasligi, ustama + komissiya + penya yiliga 50% dan oshmasligi kerak, oldin yopish esa jarimasiz. Choraklik aylanmasi 500 mln so\'mdan oshgan va savdosining yarmi nasiya bo\'lgan do\'konlar Markaziy bank reyestriga kirishi kerak bo\'lishi mumkin. Savora jadval va nasiya ulushini kuzatishga yordam beradi; aniq holatingizni buxgalter yoki yurist bilan tekshiring.',
-    },
-    {
-      q: 'Savora nasiya yoki kredit beradimi?',
-      a: 'Yo\'q. Savora — hisob yuritish dasturi. Nasiyani do\'kon o\'zi beradi, to\'lovlar to\'g\'ridan-to\'g\'ri do\'konga tushadi. Biz savdodan komissiya olmaymiz — faqat oylik obuna.',
-    },
-    {
-      q: 'Bepul sinov tugagach pul yechiladimi?',
-      a: `Yo'q. Ro'yxatdan o'tishda karta talab qilinmaydi. ${trialDays} kun tugagach o'zingiz tarif tanlab to'lovni amalga oshirasiz — avtomatik hech narsa yechilmaydi, ma'lumotlaringiz saqlanib turadi.`,
-    },
-    {
-      q: 'Necha filial va xodim qo\'sha olaman?',
-      a: `Tarifga bog'liq: ${limits}. Istalgan vaqtda tarifni oshirishingiz mumkin.`,
-    },
-    {
-      q: 'Telefondan ishlaydimi?',
-      a: 'Ha. Savora telefon, planshet va kompyuter brauzerida bir xil ishlaydi, Telegram mini-ilova orqali parolsiz kirish mumkin. Ega va filial uchun mobil ilova ham tayyorlanmoqda.',
-    },
-    {
-      q: 'Eski ma\'lumotlarimni (Excel, daftar) ko\'chira olamanmi?',
-      a: 'Ha. Tovarlar ro\'yxati va qarzdorlarni Excel yoki daftardan ko\'chirishda jamoamiz bepul yordam beradi.',
-    },
-    {
-      q: 'Qo\'llab-quvvatlash qanday?',
-      a: 'Telegram va telefon orqali tezkor yordam, Yordam markazida qadamma-qadam qo\'llanmalar. Xodimlaringizni o\'rgatishga ham yordam beramiz.',
-    },
-  ];
-}
-
-export default function Faq({ trialDays, limits }: { trialDays: number; limits: string }) {
+export default function Faq({ trialDays, plans }: { trialDays: number; plans: FaqPlanLimit[] }) {
+  const d = useDict();
+  const L = d.landing;
   const [open, setOpen] = useState<number | null>(0);
-  const faqs = buildFaqs(trialDays, limits);
+
+  const lim = (n: number, unit: string) => (n >= 999 ? tr(L.plans.unlimited, { unit }) : `${n} ${unit}`);
+  const limits = plans.map((p) => `${p.label} — ${lim(p.maxFilial, L.plans.unitBranch)} / ${lim(p.maxUsers, L.plans.unitUsers)}`).join(', ');
+  const faqs = L.faq.items.map((f) => ({ q: f.q, a: tr(f.a, { days: trialDays, limits }) }));
 
   return (
     <section className="section section--soft" id="faq">
       <div className="container">
         <div className="head">
-          <span className="eyebrow">Savollar</span>
-          <h2>Ko&apos;p so&apos;raladigan savollar</h2>
-          <p>Javobini topa olmadingizmi? <Link href="/help" className="lp-inl">Yordam markazi</Link>ga qarang yoki bizga yozing.</p>
+          <span className="eyebrow">{L.faq.eyebrow}</span>
+          <h2>{L.faq.title}</h2>
+          <p>{L.faq.leadBefore}<Link href="/help" className="lp-inl">{L.faq.leadLink}</Link>{L.faq.leadAfter}</p>
         </div>
         <div className="faq-list">
           {faqs.map((f, i) => (

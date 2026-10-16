@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import type { ToastDetail, ToastType } from '@/lib/toast';
 import Icon, { IconName } from '@/components/icons/Icon';
+import { useDict } from '@/lib/i18n/client';
 
 interface ToastItem extends ToastDetail {
   id: number;
@@ -16,16 +17,10 @@ const ICONS: Record<ToastType, IconName> = {
   warn: 'bell',
 };
 
-const TITLES: Record<ToastType, string> = {
-  success: 'Muvaffaqiyatli',
-  error: 'Xatolik',
-  info: 'Eslatma',
-  warn: 'Diqqat',
-};
-
 let counter = 0;
 
 export default function Toaster() {
+  const d = useDict();
   const [items, setItems] = useState<ToastItem[]>([]);
 
   const remove = useCallback((id: number) => {
@@ -53,10 +48,10 @@ export default function Toaster() {
         <div key={t.id} className={`toast-modal toast-modal--${t.type}`}>
           <span className="toast-modal-icon"><Icon name={ICONS[t.type]} size={20} /></span>
           <div className="toast-modal-body">
-            <div className="toast-modal-title">{TITLES[t.type]}</div>
+            <div className="toast-modal-title">{d.ui.toast.titles[t.type]}</div>
             <div className="toast-modal-msg">{t.message}</div>
           </div>
-          <button className="toast-modal-close" onClick={() => remove(t.id)} aria-label="Yopish">
+          <button className="toast-modal-close" onClick={() => remove(t.id)} aria-label={d.common.close}>
             <Icon name="close" size={16} />
           </button>
         </div>

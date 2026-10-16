@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Icon from '@/components/icons/Icon';
 import { startCameraBarcodeScan, scanBarcodeFromImageFile } from '@/lib/barcodeCameraScan';
+import { useDict } from '@/lib/i18n/client';
 
 interface Props {
   onScan: (code: string) => void;
@@ -13,6 +14,8 @@ interface Props {
 
 /** Telefon/noutbuk kamerasi orqali shtrix yoki QR kodni skanerlaydi (barcha zamonaviy brauzerlar). */
 export default function CameraScanButton({ onScan, label, className = '' }: Props) {
+  const d = useDict();
+  const t = d.ui.scan;
   const [open, setOpen] = useState(false);
   const [error, setError] = useState('');
   const [scanning, setScanning] = useState(false);
@@ -61,7 +64,7 @@ export default function CameraScanButton({ onScan, label, className = '' }: Prop
         stopScanRef.current = stopScan;
       } catch {
         if (!cancelled) {
-          setError('Jonli kamera ochilmadi — pastdagi “Rasmga olib o‘qish” tugmasidan foydalaning.');
+          setError(t.liveFailed);
           setScanning(false);
         }
       }
@@ -71,7 +74,7 @@ export default function CameraScanButton({ onScan, label, className = '' }: Prop
       cancelled = true;
       stop();
     };
-  }, [open, onScan, close, stop]);
+  }, [open, onScan, close, stop, t]);
 
   // Fallback: kamera bilan foto olib, rasmdan kod o'qish (har platformada ishlaydi)
   const onPhoto = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -87,12 +90,12 @@ export default function CameraScanButton({ onScan, label, className = '' }: Prop
         onScan(code);
         close();
       } else {
-        setError('Kod topilmadi — yorug‘ joyda, kodni to‘ldirib qayta suratga oling.');
+        setError(t.notFound);
       }
     } finally {
       setPhotoBusy(false);
     }
-  }, [onScan, close]);
+  }, [onScan, close, t]);
 
   return (
     <>
@@ -100,19 +103,19 @@ export default function CameraScanButton({ onScan, label, className = '' }: Prop
         type="button"
         className={`btn btn-ghost btn-sm btn-with-icon ${className}`.trim()}
         onClick={() => setOpen(true)}
-        title="Kamera bilan skanerlash"
-        aria-label={label ? undefined : "Kamera bilan skanerlash"}
+        title={t.title}
+        aria-label={label ? undefined : t.title}
       >
         <Icon name="search" size={16} />
-        {label ?? 'Kamera'}
+        {label ?? t.button}
       </button>
 
       {open && (
         <div className="scan-overlay" role="dialog" aria-modal="true" onClick={close}>
           <div className="scan-modal" onClick={(e) => e.stopPropagation()}>
             <div className="scan-modal-head">
-              <span>Shtrix/QR kodni ramkaga tuting</span>
-              <button type="button" className="scan-close" onClick={close} aria-label="Yopish">
+              <span>{t.frameHint}</span>
+              <button type="button" className="scan-close" onClick={close} aria-label={d.common.close}>
                 <Icon name="close" size={20} />
               </button>
             </div>
@@ -121,7 +124,7 @@ export default function CameraScanButton({ onScan, label, className = '' }: Prop
               <div className="scan-frame" />
             </div>
             {scanning && !error && (
-              <p className="scan-hint">Kod avtomatik o&apos;qiladi. Ishlamasa — “Rasmga olib o‘qish”.</p>
+              <p className="scan-hint">{t.autoHint}</p>
             )}
             {error && <p className="scan-hint scan-hint--warn">{error}</p>}
             <div className="scan-actions">
@@ -133,7 +136,7 @@ export default function CameraScanButton({ onScan, label, className = '' }: Prop
                 style={{ width: '100%', justifyContent: 'center' }}
               >
                 <Icon name="camera" size={18} />
-                {photoBusy ? 'O‘qilmoqda…' : 'Kamera bilan suratga olib o‘qish'}
+                {photoBusy ? t.reading : t.photoRead}
               </button>
               <input
                 ref={fileRef}

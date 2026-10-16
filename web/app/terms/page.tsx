@@ -1,10 +1,11 @@
 import Link from 'next/link';
+import { getDict } from '@/lib/i18n/server';
 import { LegalDoc, Ph, TRIAL_DAYS, type LegalSection } from './legal';
 
-export const metadata = {
-  title: 'Ommaviy oferta — Savora',
-  description: "Savora platformasidan obuna asosida foydalanish bo'yicha ommaviy oferta (xizmat ko'rsatish shartnomasi).",
-};
+export async function generateMetadata() {
+  const d = await getDict();
+  return { title: d.landing.legal.termsMetaTitle, description: d.landing.legal.termsMetaDesc };
+}
 
 /*
  * TODO(yurist): Matn relizdan oldin O'zbekiston huquqi bo'yicha litsenziyali yurist tomonidan
@@ -262,11 +263,12 @@ const SECTIONS: LegalSection[] = [
   },
 ];
 
-export default function TermsPage() {
+export default async function TermsPage() {
+  const d = await getDict();
   return (
     <LegalDoc
-      title="Ommaviy oferta"
-      lead="Savora platformasidan obuna asosida foydalanish shartlari (xizmat ko'rsatish shartnomasi)."
+      title={d.landing.legal.termsTitle}
+      lead={d.landing.legal.termsLead}
       sections={SECTIONS}
     />
   );

@@ -1,7 +1,7 @@
 import { getMasterModels } from './masterDb';
 import { getTenantModels } from './tenantDb';
 import { isOrganizationActive, IOrganization } from './models/master/Organization';
-import { sendTelegram } from './telegram';
+import { sendTelegram, tgEscape } from './telegram';
 import { resolveOrgPlan } from './plans';
 import { fmtDateTime } from './format';
 
@@ -52,7 +52,8 @@ export async function sendDailyExpiryNotifications(): Promise<{ telegramSent: nu
     if (org.notifyExpiryOn === today) continue;
 
     const plan = resolveOrgPlan(org);
-    const text = expiryWarningText(org, plan.monthlyPayment);
+    // expiryWarningText UI'da ham ishlatiladi (React o'zi ekranlaydi) — Telegram HTML uchun shu yerda ekranlanadi
+    const text = tgEscape(expiryWarningText(org, plan.monthlyPayment));
 
     const sent = await sendTelegram(
       `<b>Savora — obuna eslatmasi</b>\n${text}\n\nSuper Admin panelidan muddatni uzaytiring.`,
@@ -65,7 +66,7 @@ export async function sendDailyExpiryNotifications(): Promise<{ telegramSent: nu
       const adminNames = users.filter((u) => u.role === 'admin').map((u) => u.username).join(', ');
       if (adminNames) {
         await sendTelegram(
-          `<b>Do'kon: ${org.name}</b>\n${text}\nAdminlar: ${adminNames}\nBarcha foydalanuvchilarga panelda xabar ko'rsatiladi.`,
+          `<b>Do'kon: ${tgEscape(org.name)}</b>\n${text}\nAdminlar: ${tgEscape(adminNames)}\nBarcha foydalanuvchilarga panelda xabar ko'rsatiladi.`,
         );
       }
     } catch {

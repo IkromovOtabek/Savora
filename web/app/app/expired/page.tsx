@@ -7,14 +7,21 @@ import { fmtDate } from '@/lib/format';
 import PaymentSubmit from '@/components/tenant/PaymentSubmit';
 import Icon from '@/components/icons/Icon';
 import { AuthAlert } from '@/components/auth/AuthShell';
+import { getDict } from '@/lib/i18n/server';
+import { tr } from '@/lib/i18n/fmt';
 
-export const metadata = { title: 'Obuna muddati tugadi — Savora' };
+export async function generateMetadata() {
+  const d = await getDict();
+  return { title: d.auth.expired.metaTitle };
+}
 
 export default async function ExpiredPage() {
   // Do'kon sessiyadan (slug/cookie'dan emas)
   const { user, org } = await requireOrgWithFeatures({ allowExpired: true });
   // Faol bo'lsa — bu sahifa kerak emas
   if (isOrganizationActive(org)) redirect('/app');
+  const d = await getDict();
+  const t = d.auth.expired;
 
   const isAdmin = user.role === 'admin';
   const monthlyPrice = resolveOrgPlan(org).monthlyPayment || 0;
@@ -51,15 +58,17 @@ export default async function ExpiredPage() {
           <span className="au-appicon au-appicon--danger" aria-hidden="true">
             <Icon name="clock" size={28} />
           </span>
-          <h1 className="au-title">Obuna muddati tugadi</h1>
+          <h1 className="au-title">{t.title}</h1>
           <p className="au-sub">
-            <strong>{org.name}</strong> obunasi <span style={{ fontVariantNumeric: 'tabular-nums' }}>{fmtDate(org.expiresAt)}</span> sanasida tugagan
-            {expiredDays > 0 ? ` (${expiredDays} kun oldin)` : ''}. Tizimdan foydalanish to&apos;xtatildi.
+            {t.sub.split(/(\{name\}|\{date\})/).map((part, i) =>
+              part === '{name}' ? <strong key={i}>{org.name}</strong>
+                : part === '{date}' ? <span key={i} style={{ fontVariantNumeric: 'tabular-nums' }}>{fmtDate(org.expiresAt)}</span>
+                  : part
+            )}
+            {expiredDays > 0 ? ` ${tr(t.daysAgo, { n: expiredDays })}` : ''}. {t.stopped}
           </p>
           <p className="au-help" style={{ maxWidth: '52ch', marginTop: 6 }}>
-            {isAdmin
-              ? 'Davom etish uchun obunani uzaytiring — quyida to\'lovni amalga oshiring va chekni yuklang. Tasdiqlangach tizim avtomatik ochiladi.'
-              : 'Do\'kon egasi (admin) obuna to\'lovini amalga oshirishi kerak. To\'lov tasdiqlangach tizim ochiladi. Iltimos, do\'kon egangizga murojaat qiling.'}
+            {isAdmin ? t.adminHelp : t.userHelp}
           </p>
         </div>
       </div>
@@ -67,7 +76,7 @@ export default async function ExpiredPage() {
       {isAdmin ? (
         <PaymentSubmit account={payAccount} monthlyPrice={monthlyPrice} requests={ownRequests} />
       ) : (
-        <AuthAlert tone="warn">To&apos;lovni faqat do&apos;kon admini amalga oshira oladi.</AuthAlert>
+        <AuthAlert tone="warn">{t.adminOnly}</AuthAlert>
       )}
     </div>
   );

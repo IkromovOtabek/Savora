@@ -37,6 +37,9 @@ function optionsFor(kind: SessionKind): SessionOptions {
     // Dev uchun fallback; production'da yuqorida majburiy tekshiruv bor
     password: SESSION_SECRET || 'dev-only-session-secret-change-in-prod-32ch',
     cookieName: COOKIE_BY_KIND[kind],
+    // Muhr (seal) muddati cookie bilan teng — aks holda iron-session 14 kun default oladi
+    // va o'g'irlangan cookie qiymati 8 soatdan keyin ham qayta ishlatilardi
+    ttl: 8 * 60 * 60,
     cookieOptions: {
       secure: process.env.NODE_ENV === 'production',
       httpOnly: true,
@@ -44,6 +47,14 @@ function optionsFor(kind: SessionKind): SessionOptions {
       sameSite: 'lax',
     },
   };
+}
+
+const REMEMBER_SECONDS = 30 * 24 * 60 * 60; // «Eslab qolish» — 30 kun
+
+/** Kirishda «Eslab qolish» belgilangan bo'lsa — sessiya 8 soat o'rniga 30 kun saqlanadi (save() dan oldin chaqiriladi) */
+export function extendSession(session: IronSession<SessionData>, kind: SessionKind) {
+  const base = optionsFor(kind);
+  session.updateConfig({ ...base, ttl: REMEMBER_SECONDS, cookieOptions: { ...base.cookieOptions, maxAge: REMEMBER_SECONDS - 60 } });
 }
 
 /** Zona (x-app-zone) bo'yicha qaysi sessiya cookie'si — super alohida, tenant alohida */

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import CameraScanButton from '@/components/ui/CameraScanButton';
+import { useDict } from '@/lib/i18n/client';
 
 const SCAN_GAP_MS = 80;
 
@@ -34,12 +35,13 @@ export default function BarcodeInputField({
   name,
   defaultValue = '',
   disabled,
-  placeholder = "Skaner yoki qo'lda",
+  placeholder,
   className = '',
   onScan,
   clearOnScan = false,
   defaultScanActive = false,
 }: Props) {
+  const d = useDict();
   const inputRef = useRef<HTMLInputElement>(null);
   const bufferRef = useRef('');
   const lastKeyAtRef = useRef(0);
@@ -149,14 +151,14 @@ export default function BarcodeInputField({
             }
           }}
           disabled={disabled}
-          placeholder={placeholder}
+          placeholder={placeholder ?? d.ui.barcode.placeholder}
           autoComplete="off"
           spellCheck={false}
         />
         {!disabled && <CameraScanButton onScan={applyScan} label="" />}
       </div>
       {scanActive && (
-        <span className="barcode-scan-status barcode-scan-status--ok">Pistalet faol</span>
+        <span className="barcode-scan-status barcode-scan-status--ok">{d.ui.barcode.scanActive}</span>
       )}
     </div>
   );

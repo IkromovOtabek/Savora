@@ -5,6 +5,7 @@ import { useAuth, useCan } from '@/lib/auth';
 import { api, errMsg } from '@/lib/api';
 import { useTheme, tabular } from '@/lib/theme';
 import { fmtMoney, fmtCompact, fmtEyebrow, greeting, isOverdue, isToday, payLabel } from '@/lib/format';
+import { useDict, tr } from '@/lib/i18n';
 import {
   Screen, LargeTitle, IconButton, Group, GroupLink, Cell, Avatar, AmountColumn, Pill, StatCard, ErrorState, InlineError, Loading,
 } from '@/components/ui';
@@ -19,6 +20,7 @@ export default function Home() {
   const { me } = useAuth();
   const router = useRouter();
   const { c } = useTheme();
+  const d = useDict();
   const f = me?.features ?? {};
   const can = useCan();
   const isAdmin = !!me?.user.isAdmin;
@@ -67,55 +69,55 @@ export default function Home() {
         eyebrow={fmtEyebrow()}
         title={me?.org.name ?? 'Savora'}
         subtitle={`${greeting()}, ${me?.user.username ?? ''}`}
-        actions={<IconButton icon="scan-outline" label="Shtrix kod skaner" onPress={() => router.push('/scan')} />}
+        actions={<IconButton icon="scan-outline" label={d.common.barcodeScanner} onPress={() => router.push('/scan')} />}
       />
 
       {error ? <InlineError message={error} onRetry={load} /> : null}
 
       {me && !me.org.active ? (
         <Group>
-          <Cell icon="warning" iconColor={c.sq.a} title="Obuna muddati tugagan" subtitle="Ishni davom ettirish uchun to'lovni amalga oshiring" subtitleLines={2} />
+          <Cell icon="warning" iconColor={c.sq.a} title={d.home.subExpired} subtitle={d.home.subExpiredHint} subtitleLines={2} />
         </Group>
       ) : null}
 
-      <View style={[s.hero, { backgroundColor: c.hero }]} accessible accessibilityLabel={`Bugungi tushum ${fmtMoney(sum?.todayRevenue, { suffix: true })}`}>
-        <Text style={s.heroL}>Bugungi tushum</Text>
+      <View style={[s.hero, { backgroundColor: c.hero }]} accessible accessibilityLabel={tr(d.home.todayRevenueA11y, { v: fmtMoney(sum?.todayRevenue, { suffix: true }) })}>
+        <Text style={s.heroL}>{d.home.todayRevenue}</Text>
         <Text style={[s.heroV, tabular]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.6}>
-          {fmtMoney(sum?.todayRevenue)}<Text style={s.heroSuffix}> so&apos;m</Text>
+          {fmtMoney(sum?.todayRevenue)}<Text style={s.heroSuffix}> {d.format.currency}</Text>
         </Text>
         <View style={s.heroRow}>
-          <Text style={[s.heroR, tabular]}>{sum?.todaySales ?? 0} ta sotuv</Text>
-          <Text style={[s.heroR, tabular]}>Omborda {fmtMoney(sum?.inStock)}</Text>
-          {sum && sum.debtTotal > 0 ? <Text style={[s.heroR, tabular]} numberOfLines={1}>Qarz {fmtCompact(sum.debtTotal)}</Text> : null}
+          <Text style={[s.heroR, tabular]}>{tr(d.home.salesCount, { n: sum?.todaySales ?? 0 })}</Text>
+          <Text style={[s.heroR, tabular]}>{tr(d.home.inStock, { v: fmtMoney(sum?.inStock) })}</Text>
+          {sum && sum.debtTotal > 0 ? <Text style={[s.heroR, tabular]} numberOfLines={1}>{tr(d.home.debt, { v: fmtCompact(sum.debtTotal) })}</Text> : null}
         </View>
       </View>
 
       <View style={s.mini}>
-        <StatCard label="Bugun kutilmoqda" value={fmtCompact(sumOf(today))} note={`${today.length} mijoz`} color={c.gold} />
-        <StatCard label="Muddati o'tgan" value={fmtCompact(sumOf(late))} note={`${late.length} mijoz`} color={c.bad} />
+        <StatCard label={d.home.expectedToday} value={fmtCompact(sumOf(today))} note={tr(d.home.customers, { n: today.length })} color={c.gold} />
+        <StatCard label={d.home.overdue} value={fmtCompact(sumOf(late))} note={tr(d.home.customers, { n: late.length })} color={c.bad} />
       </View>
 
       {tasks.length > 0 ? (
         <Group
-          header="Bugungi vazifalar"
-          headerRight={<GroupLink title="Hammasi" onPress={() => router.push(nasiyaOn ? '/(tabs)/nasiya' : '/(tabs)/sales?type=debt')} />}
+          header={d.home.todayTasks}
+          headerRight={<GroupLink title={d.common.all} onPress={() => router.push(nasiyaOn ? '/(tabs)/nasiya' : '/(tabs)/sales?type=debt')} />}
         >
           {tasks.map((x) => (
             <Cell
               key={x.id}
               left={<Avatar name={x.customer ?? x.product} />}
               title={x.customer ?? x.product}
-              subtitle={[x.installmentMonths ? `${x.installmentMonths} oy` : payLabel(x.paymentType), x.product].join(' · ')}
-              right={<AmountColumn amount={fmtMoney(x.remainingAmount)}><Pill label={isOverdue(x.dueDate) ? 'Kechikkan' : 'Bugun'} tone={isOverdue(x.dueDate) ? 'bad' : 'warn'} /></AmountColumn>}
+              subtitle={[x.installmentMonths ? tr(d.common.months, { n: x.installmentMonths }) : payLabel(x.paymentType), x.product].join(' · ')}
+              right={<AmountColumn amount={fmtMoney(x.remainingAmount)}><Pill label={isOverdue(x.dueDate) ? d.common.overdue : d.common.today} tone={isOverdue(x.dueDate) ? 'bad' : 'warn'} /></AmountColumn>}
               onPress={() => router.push(`/sale/${x.id}`)}
             />
           ))}
         </Group>
       ) : null}
 
-      <Group header="So'nggi sotuvlar" headerRight={<GroupLink title="Hammasi" onPress={() => router.push('/(tabs)/sales')} />}>
+      <Group header={d.home.recentSales} headerRight={<GroupLink title={d.common.all} onPress={() => router.push('/(tabs)/sales')} />}>
         {recent.length === 0 ? (
-          <Cell icon="cart-outline" iconColor={c.sq.g} title="Hozircha sotuv yo'q" subtitle="Pastdagi «Sotish» tugmasi bilan boshlang" />
+          <Cell icon="cart-outline" iconColor={c.sq.g} title={d.home.noSales} subtitle={d.home.noSalesHint} />
         ) : recent.map((x) => (
           <Cell
             key={x.id}
@@ -131,12 +133,12 @@ export default function Home() {
         ))}
       </Group>
 
-      <Group header="Tezkor amallar">
-        {nasiyaOn ? <Cell icon="receipt" iconColor={c.sq.b} title="Barcha sotuvlar" chevron onPress={() => router.push('/(tabs)/sales')} /> : null}
-        <Cell icon="alert-circle" iconColor={c.sq.r} title="Qarzdorlar" value={sum && sum.debtTotal > 0 ? fmtCompact(sum.debtTotal) : undefined} chevron onPress={() => router.push('/(tabs)/sales?type=debt')} />
-        {f.transferred && can('transfer.create') ? <Cell icon="swap-horizontal" iconColor={c.sq.g} title="Filialga berish" chevron onPress={() => router.push('/transfer')} /> : null}
-        {f.kirimChiqim && isAdmin ? <Cell icon="cash" iconColor={c.sq.o} title="Kirim-chiqim" chevron onPress={() => router.push('/kirim-chiqim')} /> : null}
-        {f.users && isAdmin ? <Cell icon="business" iconColor={c.sq.b} title="Filiallar" chevron onPress={() => router.push('/branches')} /> : null}
+      <Group header={d.home.quick}>
+        {nasiyaOn ? <Cell icon="receipt" iconColor={c.sq.b} title={d.home.allSales} chevron onPress={() => router.push('/(tabs)/sales')} /> : null}
+        <Cell icon="alert-circle" iconColor={c.sq.r} title={d.home.debtors} value={sum && sum.debtTotal > 0 ? fmtCompact(sum.debtTotal) : undefined} chevron onPress={() => router.push('/(tabs)/sales?type=debt')} />
+        {f.transferred && can('transfer.create') ? <Cell icon="swap-horizontal" iconColor={c.sq.g} title={d.home.transfer} chevron onPress={() => router.push('/transfer')} /> : null}
+        {f.kirimChiqim && isAdmin ? <Cell icon="cash" iconColor={c.sq.o} title={d.home.kirimChiqim} chevron onPress={() => router.push('/kirim-chiqim')} /> : null}
+        {f.users && isAdmin ? <Cell icon="business" iconColor={c.sq.b} title={d.home.branches} chevron onPress={() => router.push('/branches')} /> : null}
       </Group>
     </Screen>
   );

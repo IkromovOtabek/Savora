@@ -1,10 +1,14 @@
 import { NextResponse } from 'next/server';
 import { authenticateMobile } from '@/lib/mobileAuth';
 import { mobilePermissionDenied } from '@/lib/permissionGuard';
+import { recordAudit } from '@/lib/audit';
 import { getTenantModels } from '@/lib/tenantDb';
 import { getMobileFeatures } from '@/lib/mobileOrg';
 import type { SessionUser } from '@/lib/session';
 import { parseIntegerSum } from '@/lib/security';
+
+/** Izoh uzunlik chegarasi — oshsa 400 */
+const MAX_DESCRIPTION_LEN = 300;
 
 /** Kirim-chiqim — faqat biznes egasi (admin) va modul yoqilgan bo'lsa (web bilan bir xil) */
 async function denyUnlessAllowed(user: SessionUser): Promise<NextResponse | null> {
@@ -65,8 +69,16 @@ export async function POST(req: Request) {
   if (!type) return NextResponse.json({ error: 'Tur noto\'g\'ri.' }, { status: 400 });
   if (amount <= 0) return NextResponse.json({ error: 'Summa noto\'g\'ri.' }, { status: 400 });
   if (!description) return NextResponse.json({ error: 'Izoh kiritilishi shart.' }, { status: 400 });
+  if (description.length > MAX_DESCRIPTION_LEN) return NextResponse.json({ error: 'Izoh juda uzun.' }, { status: 400 });
 
   const { CashFlow } = await getTenantModels(user.dbName);
   const entry = await CashFlow.create({ type, amount, description, recordedBy: user.username });
+  await recordAudit(user, {
+    action: type === 'income' ? 'finance.income' : 'finance.expense',
+    entity: 'finance',
+    entityId: String(entry._id),
+    summary: `${type === 'income' ? 'Kirim' : 'Chiqim'}: ${amount.toLocaleString('uz-UZ')} so'm — ${description} (mobil)`,
+    meta: { type, amount },
+  });
   return NextResponse.json({ id: String(entry._id), type, amount }, { status: 201 });
 }

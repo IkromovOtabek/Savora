@@ -123,6 +123,41 @@ export function reportError(msg: string, err?: unknown, meta?: Meta): void {
   }
 }
 
+// ── Ichki jurnal (DB sink) ─────────────────────────────────────────────
+// Logger'ning o'zi mongoose'ga bog'lanmaydi (client bundle'ga tushib qolmasligi uchun).
+// instrumentation.ts server start'da lib/logSink.ts dagi yozuvchini ro'yxatga oladi.
+export interface LogRecord {
+  level: 'error' | 'warn';
+  msg: string;
+  error?: string;
+  stack?: string;
+  meta?: Meta;
+  at: Date;
+}
+type Sink = (rec: LogRecord) => void;
+const globalForSink = global as unknown as { _savoraLogSink?: Sink };
+
+export function setLogSink(sink: Sink | null): void {
+  globalForSink._savoraLogSink = sink ?? undefined;
+}
+
+function toSink(level: 'error' | 'warn', msg: string, err: unknown, meta?: Meta) {
+  const sink = globalForSink._savoraLogSink;
+  if (!sink) return;
+  try {
+    sink({
+      level,
+      msg,
+      error: err instanceof Error ? err.message : err ? String(err) : undefined,
+      stack: err instanceof Error && err.stack ? err.stack.slice(0, MAX_STACK) : undefined,
+      meta: redact(meta),
+      at: new Date(),
+    });
+  } catch {
+    /* sink hech qachon asosiy oqimni buzmaydi */
+  }
+}
+
 export function logError(msg: string, err?: unknown, meta?: Meta) {
   const errInfo =
     err instanceof Error
@@ -132,10 +167,12 @@ export function logError(msg: string, err?: unknown, meta?: Meta) {
         : {};
   emit('error', msg, { ...meta, ...errInfo });
   reportError(msg, err, meta);
+  toSink('error', msg, err, meta);
 }
 
 export function logWarn(msg: string, meta?: Meta) {
   emit('warn', msg, meta);
+  toSink('warn', msg, undefined, meta);
 }
 
 export function logInfo(msg: string, meta?: Meta) {

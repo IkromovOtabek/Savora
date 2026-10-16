@@ -88,10 +88,11 @@ export function parsePlanTier(v: string): PlanTier {
   return 'pro';
 }
 
-export function fmtPlanPrice(n: number): string {
-  if (n === 0) return 'Bepul';
+/** Narx matni. `labels` — tilga mos «Bepul» va «so'm» (UI lug'atdan beradi; standart — o'zbekcha) */
+export function fmtPlanPrice(n: number, labels?: { free?: string; sum?: string }): string {
+  if (n === 0) return labels?.free ?? 'Bepul';
   // Deterministik (server=client) — client komponentlarda hydration mosligi uchun
-  return Math.round(n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, String.fromCharCode(0xA0)) + ' so\'m';
+  return Math.round(n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, String.fromCharCode(0xA0)) + ' ' + (labels?.sum ?? 'so\'m');
 }
 
 export function yearlyDiscount(preset: PlanPreset): number {

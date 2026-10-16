@@ -1,13 +1,18 @@
 import { requireSuperAdmin } from '@/lib/auth';
 import { getMasterModels } from '@/lib/masterDb';
 import { resolvePublicFileUrl } from '@/lib/storage';
+import { getDict } from '@/lib/i18n/server';
 import PaymentReview from '@/components/super/PaymentReview';
 import { PageTitle } from '@/components/super/ui';
 
-export const metadata = { title: 'To\'lovlar — Super Admin' };
+export async function generateMetadata() {
+  const d = await getDict();
+  return { title: d.superPanel.payments.metaTitle };
+}
 
 export default async function SuperPaymentsPage() {
   await requireSuperAdmin();
+  const d = await getDict();
   const { PaymentRequest, PlatformSettings } = await getMasterModels();
 
   const [requests, settings] = await Promise.all([
@@ -39,7 +44,7 @@ export default async function SuperPaymentsPage() {
 
   return (
     <>
-      <PageTitle title="To'lovlar" sub="Do'konlar yuborgan to'lov cheklari — tekshirib tasdiqlang" />
+      <PageTitle title={d.superPanel.payments.title} sub={d.superPanel.payments.sub} />
       <PaymentReview requests={rows} account={account} />
     </>
   );

@@ -4,6 +4,7 @@ import { useRef, type ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 import CameraScanButton from '@/components/ui/CameraScanButton';
 import Icon from '@/components/icons/Icon';
+import { useDict } from '@/lib/i18n/client';
 
 interface Props {
   /** Bo'sh bo'lsa (filial login yoki bitta filial) — filial tanlovi ko'rsatilmaydi */
@@ -14,6 +15,8 @@ interface Props {
 }
 
 export default function ProductSearch({ branches, initial, children }: Props) {
+  const d = useDict();
+  const t = d.stock.search;
   const router = useRouter();
   const qRef = useRef<HTMLInputElement>(null);
 
@@ -46,12 +49,12 @@ export default function ProductSearch({ branches, initial, children }: Props) {
 
   return (
     <>
-      <form onSubmit={onSubmit} className="st-search" role="search" aria-label="Mahsulot qidiruvi">
+      <form onSubmit={onSubmit} className="st-search" role="search" aria-label={t.label}>
         {/* Holat chiplar orqali tanlanadi (sahifada) — qidiruvda saqlanib qoladi */}
         <input type="hidden" name="status" value={initial.status} />
         <div className="st-search-field">
           <Icon name="search" size={18} />
-          <label htmlFor="q" className="sr-only">Qidiruv (shtrix, IMEI, nom)</label>
+          <label htmlFor="q" className="sr-only">{t.srLabel}</label>
           <input
             key={initial.q}
             ref={qRef}
@@ -59,24 +62,24 @@ export default function ProductSearch({ branches, initial, children }: Props) {
             name="q"
             type="search"
             defaultValue={initial.q}
-            placeholder="Shtrix-kod, IMEI yoki nom…"
+            placeholder={t.placeholder}
             autoComplete="off"
             enterKeyHint="search"
           />
-          <CameraScanButton onScan={onScan} label="Skaner" />
+          <CameraScanButton onScan={onScan} label={t.scanner} />
         </div>
         {/* Mobilda klaviaturadagi "Qidirish" tugmasi yetarli */}
-        <button type="submit" className="btn btn-primary st-search-submit ux-hide-mobile">Qidirish</button>
+        <button type="submit" className="btn btn-primary st-search-submit ux-hide-mobile">{d.common.search}</button>
       </form>
 
-      <nav className="st-filterbar ux-scrollx" aria-label="Filtr: filial va holat">
+      <nav className="st-filterbar ux-scrollx" aria-label={t.filterLabel}>
         {showBranches && (
           <>
-            <label htmlFor="branch" className="sr-only">Filial</label>
+            <label htmlFor="branch" className="sr-only">{d.common.branch}</label>
             <span className={`st-branch-pick${initial.branch ? ' is-on' : ''}`}>
               <Icon name="building" size={15} />
               <select key={initial.branch} id="branch" name="branch" defaultValue={initial.branch} onChange={onBranch}>
-                <option value="">Barcha filiallar</option>
+                <option value="">{t.allBranches}</option>
                 {branches.map((b) => (
                   <option key={b.id} value={b.id}>{b.name}</option>
                 ))}

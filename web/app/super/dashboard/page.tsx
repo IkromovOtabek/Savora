@@ -4,7 +4,7 @@ import { getMasterModels } from '@/lib/masterDb';
 import { isOrganizationActive, isTrialActive, daysUntilExpiry } from '@/lib/models/master/Organization';
 import { resolveOrgPlan, PLAN_PRESETS } from '@/lib/plans';
 import { getOrgDisplayStatus } from '@/lib/organizations';
-import Icon from '@/components/icons/Icon';
+import Icon, { type IconName } from '@/components/icons/Icon';
 import { Avatar, Chevron, HeroStat, Kpi, OrgStatusPill, PageTitle, Pill, Sq } from '@/components/super/ui';
 
 export const metadata = { title: 'Asosiy panel — Super Admin' };
@@ -69,7 +69,7 @@ export default async function SuperDashboardHome() {
     <>
       <PageTitle title="Asosiy panel" sub="Platformaning bugungi holati" />
 
-      {/* Asosiy ob'ekt — MRR (3D) + eng muhim 3 ko'rsatkich */}
+      {/* Asosiy ob'ekt — MRR + darhol e'tibor talab qiladigan holatlar */}
       <div className="sa-hero-row">
         <HeroStat
           label="MRR"
@@ -83,24 +83,22 @@ export default async function SuperDashboardHome() {
             { label: 'Hozir onlayn', value: onlineCount },
           ]}
         />
-        <div className="ux-strip sa-strip-3">
-          <Kpi label="Yangi (shu oy)" value={`+${newThisMonth}`} icon="building" tone="b" deltaTone={newThisMonth > 0 ? 'ok' : undefined} delta={`${recentVisitsSignup} ta saytdan ro'yxat`} />
-          <Kpi
-            label="Kutilayotgan to'lov"
-            value={pendingPayments}
-            icon="clipboard"
-            tone="a"
-            delta={pendingPayments > 0 ? <Link href="/super/payments" className="sa-link" style={{ color: 'var(--brand)' }}>Ko&apos;rib chiqish</Link> : 'Hammasi ko\'rilgan'}
-          />
-          <Kpi label="7 kunda tugaydi" value={expiringSoon.length} icon="bell" tone="r" deltaTone={expiringSoon.length > 0 ? 'warn' : undefined} delta={`Sinovda: ${trialCount}`} />
-        </div>
+        <section className="sa-card sa-attn" aria-labelledby="sa-attn-h">
+          <div className="sa-card-h"><h2 id="sa-attn-h">Diqqat talab qiladi</h2></div>
+          <div className="sa-attn-list">
+            <AttnRow href="/super/payments" icon="clipboard" tone="a" label="Kutilayotgan to'lovlar" hint={pendingPayments > 0 ? "Chekni ko'rib tasdiqlang" : "Hammasi ko'rilgan"} n={pendingPayments} bad={pendingPayments > 0} />
+            <AttnRow href={expiringSoon.length > 0 ? '#sa-expiring' : '/super'} icon="bell" tone="r" label="7 kunda tugaydi" hint="Obunani uzaytirishni eslating" n={expiringSoon.length} bad={expiringSoon.length > 0} />
+            <AttnRow href="/super?f=expired" icon="alert" tone="r" label="Muddati tugagan" hint="Do'kon kira olmayapti" n={expiredCount} bad={expiredCount > 0} />
+            <AttnRow href="/super?f=trial" icon="clock" tone="b" label="Sinov muddatida" hint="To'lovli tarifga o'tkazish imkoniyati" n={trialCount} />
+          </div>
+        </section>
       </div>
 
       {/* Ikkilamchi ko'rsatkichlar — telefonda bitta gorizontal lenta */}
-      <div className="ux-strip sa-strip-3 sa-strip-mini">
-        <div className="sa-card sa-mini"><span>Muddati tugagan</span><b>{expiredCount}</b></div>
-        <div className="sa-card sa-mini"><span>Bugun tashrif</span><b>{todayVisits}</b></div>
-        <div className="sa-card sa-mini"><span>Oylik ro&apos;yxatdan</span><b>{recentVisitsSignup}</b></div>
+      <div className="ux-strip sa-strip-3">
+        <Kpi label="Yangi (shu oy)" value={`+${newThisMonth}`} icon="building" tone="b" deltaTone={newThisMonth > 0 ? 'ok' : undefined} delta={`${recentVisitsSignup} ta saytdan ro'yxat`} />
+        <Kpi label="Bugun tashrif" value={todayVisits} icon="globe" tone="c" delta="saytga kirganlar" />
+        <Kpi label="Oylik ro'yxatdan" value={recentVisitsSignup} icon="signup" tone="v" delta="saytdan o'z-o'zidan" />
       </div>
 
       <div className="sa-two">
@@ -117,7 +115,7 @@ export default async function SuperDashboardHome() {
               <p>Saytga kirganlar shu yerda kunlar bo&apos;yicha ko&apos;rinadi.</p>
             </div>
           ) : (
-          <div className="sa-bars sa-bars--3d" role="img" aria-label="Oxirgi 7 kunlik tashriflar grafigi">
+          <div className="sa-bars" role="img" aria-label="Oxirgi 7 kunlik tashriflar grafigi">
             {days.map((d) => (
               <div key={d.key} className="sa-bar" title={`${d.label}: ${d.visits} tashrif, ${d.signups} ro'yxat`}>
                 <span className="sa-bar-v">{d.visits}</span>
@@ -182,7 +180,7 @@ export default async function SuperDashboardHome() {
         <div className="sa-stack">
           {/* Tez orada tugaydi */}
           {expiringSoon.length > 0 && (
-            <section className="sa-section">
+            <section className="sa-section" id="sa-expiring">
               <div className="sa-ghead">Tez orada tugaydi · 7 kun</div>
               <div className="sa-group">
                 {expiringSoon.slice(0, 8).map(({ org, days: d }) => (
@@ -229,5 +227,19 @@ export default async function SuperDashboardHome() {
         </div>
       </div>
     </>
+  );
+}
+
+/** «Diqqat talab qiladi» qatori: ikonka, nom, izoh va son (noldan katta bo'lsa ajralib turadi) */
+function AttnRow({ href, icon, tone, label, hint, n, bad }: {
+  href: string; icon: IconName; tone: 'a' | 'b' | 'r' | 'c' | 'v'; label: string; hint: string; n: number; bad?: boolean;
+}) {
+  return (
+    <Link href={href} className={`sa-attn-row${bad ? ' is-bad' : ''}`}>
+      <Sq icon={icon} tone={tone} />
+      <span className="sa-cell-t"><b>{label}</b><small>{hint}</small></span>
+      <span className="sa-attn-n">{n}</span>
+      <Chevron />
+    </Link>
   );
 }

@@ -1,6 +1,7 @@
 import { FEATURE_KEYS, resolveOrgFeatures, TENANT_MODULES, isImeiEnabled } from '@/lib/features';
 import { moduleLink, tenantLoginUrl } from '@/lib/urls';
 import { IOrganization } from '@/lib/models/master/Organization';
+import { getDict } from '@/lib/i18n/server';
 import { Pill } from './ui';
 import CopyButton from './CopyButton';
 
@@ -18,36 +19,38 @@ interface Props {
   org: Pick<IOrganization, 'slug' | 'name' | 'plan' | 'features' | 'businessType'>;
 }
 
-export default function OrgLinksPanel({ org }: Props) {
+export default async function OrgLinksPanel({ org }: Props) {
+  const d = await getDict();
+  const s = d.superPanel.orgLinks;
   const features = resolveOrgFeatures(org);
   const phoneShop = isImeiEnabled(org);
 
   const links: { label: string; url: string; desc: string; enabled: boolean }[] = [
     {
-      label: 'Biznes egasi kirishi',
+      label: s.ownerLogin,
       url: tenantLoginUrl(org.slug),
-      desc: 'Login va parol bilan tizimga kirish',
+      desc: s.ownerLoginDesc,
       enabled: true,
     },
     {
-      label: 'Boshqaruv paneli',
+      label: s.panel,
       url: moduleLink(org.slug, '/app'),
-      desc: 'Asosiy dashboard',
+      desc: s.panelDesc,
       enabled: true,
     },
     ...FEATURE_KEYS.map((key) => ({
-      label: TENANT_MODULES[key].label,
+      label: d.catalog.features[key].label,
       url: moduleLink(org.slug, TENANT_MODULES[key].route),
-      desc: TENANT_MODULES[key].description,
+      desc: d.catalog.features[key].description,
       enabled: features[key],
     })),
   ];
 
   if (phoneShop) {
     links.push({
-      label: 'IMEI qidiruv',
+      label: s.imei,
       url: moduleLink(org.slug, '/app/imei'),
-      desc: 'Telefon do\'kon — ko\'p IMEI qidiruv',
+      desc: s.imeiDesc,
       enabled: true,
     });
   }
@@ -62,7 +65,7 @@ export default function OrgLinksPanel({ org }: Props) {
             <span className="sa-link-t">
               <b>
                 {item.label}
-                {!item.enabled && <Pill tone="bad">O&apos;chiq</Pill>}
+                {!item.enabled && <Pill tone="bad">{s.off}</Pill>}
               </b>
               <a href={item.url} target="_blank" rel="noreferrer" className="sa-link-path" title={item.desc}>
                 {shortPath(item.url)}
@@ -73,8 +76,8 @@ export default function OrgLinksPanel({ org }: Props) {
         ))}
       </div>
       <div className="sa-gfoot">
-        {base && <>Manzil: <code className="sa-code">{base}</code> · </>}
-        «Nusxa» to&apos;liq havolani oladi. O&apos;chiq modullar havolasi ishlamaydi.
+        {base && <>{s.base} <code className="sa-code">{base}</code> · </>}
+        {s.foot}
       </div>
     </div>
   );

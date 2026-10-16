@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Icon from '@/components/icons/Icon';
+import { useDict } from '@/lib/i18n/client';
 
 interface Props {
   open: boolean;
@@ -10,6 +11,8 @@ interface Props {
 }
 
 export default function CameraCaptureModal({ open, onClose, onCapture }: Props) {
+  const d = useDict();
+  const t = d.ui.capture;
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const [error, setError] = useState('');
@@ -49,7 +52,7 @@ export default function CameraCaptureModal({ open, onClose, onCapture }: Props) 
         video.srcObject = stream;
         await video.play().catch(() => {});
       } catch {
-        if (!cancelled) setError('Kameraga ruxsat berilmadi yoki kamera topilmadi.');
+        if (!cancelled) setError(t.noAccess);
       }
     })();
 
@@ -57,7 +60,7 @@ export default function CameraCaptureModal({ open, onClose, onCapture }: Props) 
       cancelled = true;
       stop();
     };
-  }, [open, stop]);
+  }, [open, stop, t]);
 
   async function capturePhoto() {
     const video = videoRef.current;
@@ -81,7 +84,7 @@ export default function CameraCaptureModal({ open, onClose, onCapture }: Props) 
       onCapture(file);
       close();
     } catch {
-      setError('Suratga olishda xatolik.');
+      setError(t.failed);
     } finally {
       setCapturing(false);
     }
@@ -93,8 +96,8 @@ export default function CameraCaptureModal({ open, onClose, onCapture }: Props) 
     <div className="scan-overlay" role="dialog" aria-modal="true" onClick={close}>
       <div className="scan-modal" onClick={(e) => e.stopPropagation()}>
         <div className="scan-modal-head">
-          <span>Rasmga oling</span>
-          <button type="button" className="scan-close" onClick={close} aria-label="Yopish">
+          <span>{t.title}</span>
+          <button type="button" className="scan-close" onClick={close} aria-label={d.common.close}>
             <Icon name="close" size={20} />
           </button>
         </div>
@@ -112,7 +115,7 @@ export default function CameraCaptureModal({ open, onClose, onCapture }: Props) 
               disabled={capturing || !!error}
             >
               <Icon name="camera" size={16} />
-              {capturing ? 'Olinmoqda...' : 'Suratga olish'}
+              {capturing ? t.taking : t.take}
             </button>
           </div>
         )}

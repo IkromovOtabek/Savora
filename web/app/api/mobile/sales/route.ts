@@ -1,7 +1,9 @@
 import { NextResponse } from 'next/server';
 import { Types } from 'mongoose';
 import { authenticateMobile } from '@/lib/mobileAuth';
-import { mobilePermissionDenied } from '@/lib/permissionGuard';
+import { mobilePermissionDenied, userCan } from '@/lib/permissionGuard';
+import { permissionDeniedError } from '@/lib/permissions';
+import { recordAudit } from '@/lib/audit';
 import { getTenantModels } from '@/lib/tenantDb';
 import { branchFilter } from '@/lib/branchScope';
 import { getMobileFeatures } from '@/lib/mobileOrg';
@@ -14,6 +16,10 @@ import { pq294MonthsError } from '@/lib/pq294';
 
 type PaymentType = 'cash' | 'debt' | 'installment' | 'bank_credit';
 const PAYMENT_TYPES: PaymentType[] = ['cash', 'debt', 'installment', 'bank_credit'];
+
+/** Matn maydonlari uzunlik chegarasi — oshsa 400 (xotira/DB to'ldirish himoyasi) */
+const MAX_LEN = { customerName: 80, customerPhone: 20, bankName: 80, notes: 500 } as const;
+const tooLong = (v: string, max: number) => v.length > max;
 
 /**
  * Mobil sotuvlar ro'yxati. Filtr:
@@ -31,7 +37,8 @@ export async function GET(req: Request) {
 
   const url = new URL(req.url);
   const type = url.searchParams.get('type') || 'all';
-  const page = Math.max(1, parseInt(url.searchParams.get('page') || '1', 10) || 1);
+  // Sahifa 1..1000 — cheksiz skip() bilan DB'ni qiynamaslik uchun
+  const page = Math.min(1000, Math.max(1, parseInt(url.searchParams.get('page') || '1', 10) || 1));
   const limit = 30;
 
   const filter: Record<string, unknown> = { ...branchFilter(user), status: { $ne: 'cancelled' } };
@@ -96,10 +103,20 @@ export async function POST(req: Request) {
   const paidAmountRaw = paidAmountParsed;
   const installmentMonthsRaw = Number(body.installmentMonths) || 0;
   const customerName = String(body.customerName || '').trim();
-  const customerPhone = String(body.customerPhone || '').trim();
+  const customerPhoneRaw = String(body.customerPhone || '').trim();
   const bankName = String(body.bankName || '').trim();
   const dueDateRaw = String(body.dueDate || '').trim();
   const notes = String(body.notes || '').trim();
+
+  if (tooLong(customerName, MAX_LEN.customerName) || tooLong(customerPhoneRaw, MAX_LEN.customerPhone)
+    || tooLong(bankName, MAX_LEN.bankName) || tooLong(notes, MAX_LEN.notes)) {
+    return NextResponse.json({ error: 'Matn maydoni juda uzun.' }, { status: 400 });
+  }
+  // Telefon faqat raqamlar (9–15 ta) — formatlangan kirishlar bir xil mijozga tushadi
+  const customerPhone = customerPhoneRaw.replace(/\D/g, '');
+  if (customerPhoneRaw && (customerPhone.length < 9 || customerPhone.length > 15)) {
+    return NextResponse.json({ error: 'Telefon raqami noto\'g\'ri (9–15 raqam).' }, { status: 400 });
+  }
 
   if (!Types.ObjectId.isValid(productId)) return NextResponse.json({ error: 'Mahsulot tanlanishi shart.' }, { status: 400 });
   if (totalAmount <= 0) return NextResponse.json({ error: 'Sotuv summasi noto\'g\'ri.' }, { status: 400 });
@@ -120,15 +137,9 @@ export async function POST(req: Request) {
     if (saleQty > available) return NextResponse.json({ error: `Omborda faqat ${available} ta qoldi.` }, { status: 400 });
   }
 
-  let customer: { _id: Types.ObjectId; fullName: string; phone: string } | null = null;
-  if (customerName && customerPhone) {
-    const found = await Customer.findOne({ phone: customerPhone }).lean();
-    if (found) {
-      customer = { _id: found._id, fullName: found.fullName, phone: found.phone };
-    } else {
-      const c = await Customer.create({ fullName: customerName, phone: customerPhone });
-      customer = { _id: c._id, fullName: c.fullName, phone: c.phone };
-    }
+  // Sotuv narxidan arzon sotish — "sale.discount" huquqi kerak (web createSaleAction bilan bir xil)
+  if (product.salePrice > 0 && totalAmount < product.salePrice * saleQty && !(await userCan(user, 'sale.discount'))) {
+    return NextResponse.json(permissionDeniedError('sale.discount'), { status: 403 });
   }
 
   let paidAmount = paymentType === 'cash' ? totalAmount : paidAmountRaw;
@@ -167,6 +178,18 @@ export async function POST(req: Request) {
     ? [{ amount: paidAmount, paidAt: new Date(), note: paymentType === 'cash' ? 'Naqd to\'lov' : 'Boshlang\'ich to\'lov', recordedBy: user.username }]
     : [];
 
+  // Mijoz — barcha tekshiruvlar o'tgach yaratiladi (rad etilgan sotuvdan "yetim" mijoz qolmaydi)
+  let customer: { _id: Types.ObjectId; fullName: string; phone: string } | null = null;
+  if (customerName && customerPhone) {
+    const found = await Customer.findOne({ phone: customerPhone }).lean();
+    if (found) {
+      customer = { _id: found._id, fullName: found.fullName, phone: found.phone };
+    } else {
+      const c = await Customer.create({ fullName: customerName, phone: customerPhone });
+      customer = { _id: c._id, fullName: c.fullName, phone: c.phone };
+    }
+  }
+
   // Atomik: qoldiq tekshiruvi + ayirish bitta so'rovda (parallel sotuvda minusga tushmaydi)
   const reserved = await reserveStock(Product, product._id, saleQty, {
     scope: branchFilter(user),
@@ -197,6 +220,14 @@ export async function POST(req: Request) {
     await releaseStock(Product, product._id, saleQty);
     return NextResponse.json({ error: 'Sotuvda xatolik yuz berdi.' }, { status: 500 });
   }
+
+  await recordAudit(user, {
+    action: 'sale.create',
+    entity: 'sale',
+    entityId: String(sale._id),
+    summary: `Sotuv ${saleNo}: ${product.name} · ${saleQty} ta · ${totalAmount.toLocaleString('uz-UZ')} so'm (${paymentType}) (mobil)`,
+    meta: { saleQty, totalAmount, paymentType },
+  });
 
   return NextResponse.json({ id: String(sale._id), saleNo }, { status: 201 });
 }

@@ -5,6 +5,8 @@ import { getTenantModels } from '@/lib/tenantDb';
 import { getSession } from '@/lib/session';
 import { setRouteCookies } from '@/lib/routeCookies';
 import { cookies } from 'next/headers';
+import { hitRateLimit } from '@/lib/rateLimit';
+import { clientIpFrom, loginRateKeys } from '@/lib/security';
 
 /**
  * Telegram Mini App kirish: client initData yuboradi → tekshiramiz →
@@ -15,6 +17,16 @@ export async function POST(req: Request) {
   const token = process.env.TELEGRAM_BOT_TOKEN;
   if (!token) {
     return NextResponse.json({ ok: false, error: 'Bot sozlanmagan.' }, { status: 503 });
+  }
+
+  // IP bo'yicha cheklov (30/15 daq) — initData'ni qayta-qayta sinab ko'rishga qarshi
+  const rlIp = hitRateLimit(loginRateKeys('tgauth', clientIpFrom(req.headers), 'tgauth').ip, 30);
+  if (!rlIp.ok) {
+    const retryAfter = rlIp.retryAfterSec ?? 0;
+    return NextResponse.json(
+      { ok: false, error: "Juda ko'p urinish. Birozdan so'ng qayta urinib ko'ring.", retryAfter },
+      { status: 429, headers: { 'Retry-After': String(retryAfter) } },
+    );
   }
 
   let initData = '';

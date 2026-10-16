@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, ActivityIndicator, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@/lib/theme';
+import { useDict } from '@/lib/i18n';
 import { Button, type IconName } from './Button';
 
 export function Loading({ full }: { full?: boolean }) {
@@ -29,12 +30,13 @@ export function EmptyState({ icon = 'file-tray-outline', title, message, actionT
 
 export function ErrorState({ message, onRetry, full }: { message?: string | null; onRetry?: () => void; full?: boolean }) {
   const { c } = useTheme();
+  const d = useDict();
   return (
     <View style={[s.wrap, full && { flex: 1, justifyContent: 'center', backgroundColor: c.bg }]}>
       <View style={[s.iconCircle, { backgroundColor: c.badSoft }]}><Ionicons name="cloud-offline-outline" size={28} color={c.bad} /></View>
-      <Text style={[s.title, { color: c.ink }]}>Yuklab bo&apos;lmadi</Text>
-      <Text style={[s.msg, { color: c.ink3 }]}>{message || 'Xatolik yuz berdi.'}</Text>
-      {onRetry ? <Button title="Qayta urinish" icon="refresh" onPress={onRetry} variant="tinted" style={{ marginTop: 8 }} /> : null}
+      <Text style={[s.title, { color: c.ink }]}>{d.common.loadFailed}</Text>
+      <Text style={[s.msg, { color: c.ink3 }]}>{message || d.common.errorGenericDot}</Text>
+      {onRetry ? <Button title={d.common.retry} icon="refresh" onPress={onRetry} variant="tinted" style={{ marginTop: 8 }} /> : null}
     </View>
   );
 }
@@ -42,11 +44,12 @@ export function ErrorState({ message, onRetry, full }: { message?: string | null
 /** Ro'yxat ustidagi ingichka xato satri (ma'lumot bor, lekin yangilash muvaffaqiyatsiz). */
 export function InlineError({ message, onRetry }: { message: string; onRetry?: () => void }) {
   const { c } = useTheme();
+  const d = useDict();
   return (
     <View style={[s.inline, { backgroundColor: c.badSoft }]}>
       <Ionicons name="alert-circle" size={18} color={c.bad} />
       <Text style={[s.inlineT, { color: c.bad }]} numberOfLines={2}>{message}</Text>
-      {onRetry ? <Button title="Qayta" size="sm" variant="plain" onPress={onRetry} /> : null}
+      {onRetry ? <Button title={d.common.retryShort} size="sm" variant="plain" onPress={onRetry} /> : null}
     </View>
   );
 }

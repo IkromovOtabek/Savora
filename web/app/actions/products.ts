@@ -4,17 +4,20 @@ import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { Types } from 'mongoose';
 import { getTenantSession } from '@/lib/tenantSession';
-import { branchFilter } from '@/lib/branchScope';
+import { branchFilter, isBranchScoped } from '@/lib/branchScope';
 import { reserveStock, releaseStock } from '@/lib/stock';
 import { isPhoneShop } from '@/lib/businessTypes';
 import { ProductStatus } from '@/lib/models/tenant/Product';
 import { generateProductCode } from '@/lib/productId';
-import { parseQtyField, resolveStatusAfterSale } from '@/lib/productQuantity';
+import { parseQtyField } from '@/lib/productQuantity';
 import { resolveWarehouseBranchId } from '@/lib/warehouseBranch';
 import { recordAudit } from '@/lib/audit';
 import { markOnboardingStep } from '@/lib/onboarding';
 import { ensureMainBranchId } from '@/lib/mainBranch';
 import { checkPermission, userCan } from '@/lib/permissionGuard';
+import { permissionDeniedError } from '@/lib/permissions';
+import { featureDisabledError } from '@/lib/featureAction';
+import { isOwnUploadUrl } from '@/lib/fileUrl';
 
 type State = { error?: string; success?: string } | null;
 // Mahsulot holati formada: omborda (o'z filialida) yoki sotilgan.
@@ -50,6 +53,14 @@ function parseLocationStatus(v: string): LocationStatus {
   return 'warehouse';
 }
 
+/** Rasm URL tekshiruvi: faqat o'zimizning storage + «Rasm/kamera» moduli yoqilgan bo'lsa */
+function photoUrlError(photoUrl: string, mediaUpload: boolean): State {
+  if (!photoUrl) return null;
+  if (!mediaUpload) return featureDisabledError('mediaUpload');
+  if (!isOwnUploadUrl(photoUrl)) return { error: 'Rasm havolasi noto\'g\'ri. Rasmni formadagi yuklash tugmasi orqali yuklang.' };
+  return null;
+}
+
 function applyLocationStatus(
   product: {
     status: ProductStatus;
@@ -63,18 +74,13 @@ function applyLocationStatus(
   locationStatus: LocationStatus,
   soldPaymentType: 'cash' | 'credit',
   soldBankName: string,
-  creditKassaEnabled: boolean,
-  sellQty: number
+  creditKassaEnabled: boolean
 ): State {
   if (locationStatus === 'sold') {
-    if (product.trackQuantity) {
-      const available = product.quantity - product.soldQuantity;
-      if (sellQty < 1) return { error: 'Sotilgan son kamida 1 bo\'lishi kerak.' };
-      if (sellQty > available) return { error: `Omborda faqat ${available} ta qoldi.` };
-      product.soldQuantity += sellQty;
-      product.status = resolveStatusAfterSale(product.trackQuantity, product.quantity, product.soldQuantity);
-    } else {
-      product.status = 'sold';
+    // Tahrir formasi orqali sotish YO'Q — sotuv (Sale yozuvi, kassa, huquqlar) faqat Sotuv oynasida.
+    // Allaqachon sotilgan mahsulotda faqat to'lov turi yangilanadi.
+    if (product.status !== 'sold') {
+      return { error: 'Sotish faqat Sotuv oynasi orqali amalga oshiriladi.' };
     }
     if (creditKassaEnabled && soldPaymentType === 'credit') {
       if (!soldBankName) return { error: 'Kredit uchun bank tanlanishi shart.' };
@@ -106,7 +112,7 @@ function generateSku(): string {
 }
 
 export async function createProductAction(_prev: State, formData: FormData): Promise<State> {
-  const { user, org, Product, Branch } = await getTenantSession();
+  const { user, org, Product, Branch, features } = await getTenantSession();
   { const denied = await checkPermission(user, 'product.create'); if (denied) return denied; }
   const phoneShop = isPhoneShop(org);
 
@@ -130,6 +136,7 @@ export async function createProductAction(_prev: State, formData: FormData): Pro
   }
   if (purchasePrice === null) return { error: 'Kelish narxi noto\'g\'ri.' };
   if (salePrice === null) return { error: 'Sotuv narxi noto\'g\'ri.' };
+  { const photoErr = photoUrlError(photoUrl, features.mediaUpload); if (photoErr) return photoErr; }
 
   // Mahsulot joriy profilga qo'shiladi (tanlovsiz):
   //  - filial-login → o'z filiali
@@ -180,7 +187,7 @@ export async function createProductAction(_prev: State, formData: FormData): Pro
 }
 
 export async function updateProductAction(_prev: State, formData: FormData): Promise<State> {
-  const { user, org, Product, Branch, CreditBank, features } = await getTenantSession();
+  const { user, org, Product, Sale, CreditBank, features } = await getTenantSession();
   { const denied = await checkPermission(user, 'product.edit'); if (denied) return denied; }
   // Kelish narxini ko'rmaydigan xodim formada uni yubormaydi — mavjud qiymat saqlanadi
   const canViewCost = await userCan(user, 'product.viewCost');
@@ -200,18 +207,32 @@ export async function updateProductAction(_prev: State, formData: FormData): Pro
   const salePrice = parseOptionalPrice(String(formData.get('salePrice') || ''));
   const trackQuantity = formData.get('trackQuantity') === 'on';
   const quantity = trackQuantity ? parseQtyField(String(formData.get('quantity') || '1')) : 1;
-  const sellQty = parseQtyField(String(formData.get('sellQty') || '1'));
 
   if (!productId) return { error: 'Mahsulot topilmadi.' };
   if (!name) return { error: 'Mahsulot nomi kiritilishi shart.' };
   if (phoneShop && (!imeiRaw || imeiRaw.length < 10)) return { error: 'IMEI noto\'g\'ri.' };
   if (purchasePrice === null) return { error: 'Kelish narxi noto\'g\'ri.' };
   if (salePrice === null) return { error: 'Sotuv narxi noto\'g\'ri.' };
+  { const photoErr = photoUrlError(photoUrl, features.mediaUpload); if (photoErr) return photoErr; }
 
   if (!Types.ObjectId.isValid(productId)) return { error: 'Mahsulot topilmadi.' };
   // Filial login faqat o'z filiali mahsulotini tahrirlaydi (IDOR himoyasi)
   const product = await Product.findOne({ _id: productId, ...branchFilter(user) });
   if (!product) return { error: 'Mahsulot topilmadi.' };
+
+  // Tahrir formasi orqali sotish — taqiqlangan (Sale yozuvi va kassa chetlab o'tilardi)
+  if (locationStatus === 'sold' && product.status !== 'sold') {
+    return { error: 'Sotish faqat Sotuv oynasi orqali amalga oshiriladi.' };
+  }
+  // Sotilganni omborga qaytarish = sotuvni bekor qilish bilan teng: "sale.cancel" huquqi kerak,
+  // faol Sale yozuvi bo'lsa — avval o'sha sotuv bekor qilinadi (u o'zi mahsulotni qaytaradi)
+  if (locationStatus === 'warehouse' && product.status === 'sold') {
+    if (!(await userCan(user, 'sale.cancel'))) return permissionDeniedError('sale.cancel');
+    const activeSale = await Sale.exists({ productId: product._id, status: { $ne: 'cancelled' } });
+    if (activeSale) {
+      return { error: 'Bu mahsulotning faol sotuvi bor. Omborga qaytarish uchun Sotuvlar bo\'limida o\'sha sotuvni bekor qiling.' };
+    }
+  }
 
   const prevSalePrice = product.salePrice;
   const prevPurchasePrice = product.purchasePrice;
@@ -255,8 +276,7 @@ export async function updateProductAction(_prev: State, formData: FormData): Pro
     locationStatus,
     soldPaymentType,
     soldBankName,
-    features.creditKassa,
-    sellQty
+    features.creditKassa
   );
   if (locationErr) return locationErr;
 
@@ -300,6 +320,7 @@ export async function updateProductAction(_prev: State, formData: FormData): Pro
 export async function quickMarkSoldAction(_prev: State, formData: FormData): Promise<State> {
   const { user, Product, Sale } = await getTenantSession();
   { const denied = await checkPermission(user, 'sale.create'); if (denied) return denied; }
+  const canEditPrice = await userCan(user, 'sale.editPrice');
   const productId = String(formData.get('productId') || '');
   const qty = parseQtyField(String(formData.get('qty') || '1'));
   const priceRaw = String(formData.get('salePrice') || '').trim();
@@ -315,6 +336,10 @@ export async function quickMarkSoldAction(_prev: State, formData: FormData): Pro
   if (priceRaw) {
     const p = parseOptionalPrice(priceRaw);
     if (p === null || p <= 0) return { error: 'Sotilgan narx noto\'g\'ri.' };
+    // Narxi bor mahsulotda narxni o'zgartirish — "sale.editPrice" huquqi kerak (quickSaleBatchAction bilan bir xil)
+    if (!canEditPrice && found.salePrice > 0 && p !== found.salePrice) return permissionDeniedError('sale.editPrice');
+    // Sotuv narxidan arzon sotish — "sale.discount" huquqi kerak (createSaleAction bilan bir xil)
+    if (found.salePrice > 0 && p < found.salePrice && !(await userCan(user, 'sale.discount'))) return permissionDeniedError('sale.discount');
     salePrice = p;
   }
   if (!salePrice || salePrice <= 0) {
@@ -417,11 +442,14 @@ export async function importProductsAction(_prev: State, formData: FormData): Pr
   { const denied = await checkPermission(user, 'product.create'); if (denied) return denied; }
 
   const csv = String(formData.get('csv') || '').trim();
-  const warehouseBranchId = await resolveWarehouseBranchId(Branch);
+  // Filial-login — faqat O'Z filialiga import qiladi (boshqa filial omboriga yozolmaydi);
+  // admin — asosiy ombor/birinchi faol filial
+  const warehouseBranchId = isBranchScoped(user) ? user.branchId! : await resolveWarehouseBranchId(Branch);
 
   if (!warehouseBranchId) return { error: 'Faol filial topilmadi.' };
   if (!csv) return { error: 'CSV matn kiritilishi shart.' };
 
+  if (!Types.ObjectId.isValid(warehouseBranchId)) return { error: 'Ombor filiali topilmadi.' };
   const branch = await Branch.findOne({ _id: warehouseBranchId, active: true }).lean();
   if (!branch) return { error: 'Ombor filiali topilmadi.' };
 
@@ -486,6 +514,13 @@ export async function importProductsAction(_prev: State, formData: FormData): Pr
       errors.push(`Qator ${i + 1}: saqlash xatosi`);
     }
   }
+
+  await recordAudit(user, {
+    action: 'product.import',
+    entity: 'product',
+    summary: `CSV import: ${imported} ta mahsulot (${branch.name})${errors.length ? `, ${errors.length} ta xato` : ''}`,
+    meta: { imported, errors: errors.length, errorSamples: errors.slice(0, 5) },
+  });
 
   revalidatePath('/app');
   revalidatePath('/app/products');

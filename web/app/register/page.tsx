@@ -3,9 +3,13 @@ import { getAppZone } from '@/lib/tenantContext';
 import { getCurrentUser } from '@/lib/auth';
 import { getPlanPresetEffective } from '@/lib/platformSettings';
 import type { PlanPreset } from '@/lib/plans';
+import { getDict } from '@/lib/i18n/server';
 import RegisterForm from './RegisterForm';
 
-export const metadata = { title: 'Ro\'yxatdan o\'tish — Savora' };
+export async function generateMetadata() {
+  const d = await getDict();
+  return { title: d.auth.register.metaTitle };
+}
 
 // Signup'da tanlanadigan ommaviy tariflar (kelishuv tarifi faqat super admin uchun)
 const PUBLIC_TIERS = ['free', 'starter', 'pro', 'business'] as const;

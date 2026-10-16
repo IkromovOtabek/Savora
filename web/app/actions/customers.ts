@@ -3,13 +3,18 @@
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { getTenantSession } from '@/lib/tenantSession';
-import { checkPermission } from '@/lib/permissionGuard';
+import { userCan } from '@/lib/permissionGuard';
+import { getDict } from '@/lib/i18n/server';
+import { tr } from '@/lib/i18n/fmt';
 
 type State = { error?: string; success?: string } | null;
 
 export async function createCustomerAction(_prev: State, formData: FormData): Promise<State> {
   const { user, Customer } = await getTenantSession();
-  { const denied = await checkPermission(user, 'customers.manage'); if (denied) return denied; }
+  const d = await getDict();
+  if (!(await userCan(user, 'customers.manage'))) {
+    return { error: tr(d.catalog.permissionDeniedNamed, { label: d.catalog.permissions['customers.manage'].label }) };
+  }
 
   const fullName = String(formData.get('fullName') || '').trim();
   const phone = String(formData.get('phone') || '').trim();
@@ -18,8 +23,8 @@ export async function createCustomerAction(_prev: State, formData: FormData): Pr
   const photoUrl = String(formData.get('photoUrl') || '').trim();
   const returnTo = String(formData.get('returnTo') || '');
 
-  if (!fullName) return { error: 'Mijoz ismi kiritilishi shart.' };
-  if (!phone) return { error: 'Telefon raqami kiritilishi shart.' };
+  if (!fullName) return { error: d.crm.customers.errName };
+  if (!phone) return { error: d.crm.customers.errPhone };
 
   try {
     const customer = await Customer.create({
@@ -35,13 +40,16 @@ export async function createCustomerAction(_prev: State, formData: FormData): Pr
     redirect('/app/customers?created=1');
   } catch (err) {
     if (err && typeof err === 'object' && 'digest' in err) throw err;
-    return { error: 'Mijoz yaratishda xatolik.' };
+    return { error: d.crm.customers.errCreate };
   }
 }
 
 export async function updateCustomerAction(_prev: State, formData: FormData): Promise<State> {
   const { user, Customer } = await getTenantSession();
-  { const denied = await checkPermission(user, 'customers.manage'); if (denied) return denied; }
+  const d = await getDict();
+  if (!(await userCan(user, 'customers.manage'))) {
+    return { error: tr(d.catalog.permissionDeniedNamed, { label: d.catalog.permissions['customers.manage'].label }) };
+  }
 
   const customerId = String(formData.get('customerId') || '');
   const fullName = String(formData.get('fullName') || '').trim();
@@ -50,10 +58,10 @@ export async function updateCustomerAction(_prev: State, formData: FormData): Pr
   const notes = String(formData.get('notes') || '').trim();
   const photoUrl = String(formData.get('photoUrl') || '').trim();
 
-  if (!customerId || !fullName || !phone) return { error: 'Ism va telefon majburiy.' };
+  if (!customerId || !fullName || !phone) return { error: d.crm.customers.errNameAndPhone };
 
   const customer = await Customer.findById(customerId);
-  if (!customer) return { error: 'Mijoz topilmadi.' };
+  if (!customer) return { error: d.crm.customers.errNotFound };
 
   customer.fullName = fullName;
   customer.phone = phone;
@@ -64,5 +72,5 @@ export async function updateCustomerAction(_prev: State, formData: FormData): Pr
 
   revalidatePath('/app/customers');
   revalidatePath('/app/sales/new');
-  return { success: 'Mijoz yangilandi.' };
+  return { success: d.crm.customers.updated };
 }

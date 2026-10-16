@@ -1,5 +1,7 @@
-import { IProductHistory, PRODUCT_ACTION_LABELS } from '@/lib/models/tenant/Product';
+import { IProductHistory } from '@/lib/models/tenant/Product';
 import Icon, { IconName } from '@/components/icons/Icon';
+import { getDict } from '@/lib/i18n/server';
+import { tr } from '@/lib/i18n/fmt';
 
 const ACTION_ICON: Record<string, IconName> = {
   created: 'box',
@@ -16,20 +18,22 @@ function fmtDateTime(d: Date | string) {
   });
 }
 
-export default function ProductHistory({ history }: { history: IProductHistory[] }) {
+export default async function ProductHistory({ history }: { history: IProductHistory[] }) {
+  const d = await getDict();
+  const t = d.stock.history;
   const items = [...(history ?? [])].sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime());
 
   return (
     <section className="st-section" aria-labelledby="st-hist-title">
       <div className="st-ghead">
-        <span id="st-hist-title">Amallar tarixi</span>
-        <strong>{items.length} ta amal</strong>
+        <span id="st-hist-title">{t.title}</span>
+        <strong>{tr(t.count, { n: items.length })}</strong>
       </div>
       <div className="st-group">
         {items.length === 0 ? (
           <div className="st-empty">
             <span className="st-empty-ic"><Icon name="history" size={24} /></span>
-            <p>Hali amal yo&apos;q.</p>
+            <p>{t.empty}</p>
           </div>
         ) : (
           <ol className="st-hist-list">
@@ -37,7 +41,7 @@ export default function ProductHistory({ history }: { history: IProductHistory[]
               <li key={i} className={`st-hist-item st-hist-item--${h.action}`}>
                 <span className="st-hist-dot" aria-hidden="true"><Icon name={ACTION_ICON[h.action] ?? 'clock'} size={14} /></span>
                 <div className="st-hist-body">
-                  <div className="st-hist-label">{PRODUCT_ACTION_LABELS[h.action] ?? h.action}</div>
+                  <div className="st-hist-label">{d.stock.actionLabels[h.action] ?? h.action}</div>
                   {h.detail ? <div className="st-hist-detail">{h.detail}</div> : null}
                   <div className="st-hist-meta">
                     <time dateTime={new Date(h.at).toISOString()}>{fmtDateTime(h.at)}</time>

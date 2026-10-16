@@ -5,6 +5,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme, HAIRLINE, tabular } from '@/lib/theme';
+import { useDict, tr } from '@/lib/i18n';
 
 /* ───────── Segmented control ───────── */
 
@@ -63,10 +64,12 @@ export function Switch({ value, onValueChange, disabled }: { value: boolean; onV
 
 /* ───────── Search field ───────── */
 
-export function SearchField({ value, onChangeText, placeholder = 'Qidirish', right, autoFocus }: {
+export function SearchField({ value, onChangeText, placeholder: placeholderProp, right, autoFocus }: {
   value: string; onChangeText: (v: string) => void; placeholder?: string; right?: React.ReactNode; autoFocus?: boolean;
 }) {
   const { c } = useTheme();
+  const d = useDict();
+  const placeholder = placeholderProp ?? d.common.search;
   return (
     <View style={[s.search, { backgroundColor: c.fill }]}>
       <Ionicons name="search" size={17} color={c.ink3} />
@@ -83,7 +86,7 @@ export function SearchField({ value, onChangeText, placeholder = 'Qidirish', rig
         accessibilityLabel={placeholder}
       />
       {value ? (
-        <Pressable onPress={() => onChangeText('')} hitSlop={10} accessibilityLabel="Tozalash">
+        <Pressable onPress={() => onChangeText('')} hitSlop={10} accessibilityLabel={d.common.clear}>
           <Ionicons name="close-circle" size={18} color={c.ink3} />
         </Pressable>
       ) : null}
@@ -132,6 +135,7 @@ export const Field = forwardRef<TextInput, FieldProps>(function Field(
 
 export function Stepper({ value, onChange, min = 1, max }: { value: number; onChange: (v: number) => void; min?: number; max?: number }) {
   const { c } = useTheme();
+  const d = useDict();
   const canDec = value > min;
   const canInc = max === undefined || value < max;
   return (
@@ -139,16 +143,16 @@ export function Stepper({ value, onChange, min = 1, max }: { value: number; onCh
       <Pressable
         onPress={() => canDec && onChange(value - 1)}
         disabled={!canDec}
-        accessibilityLabel="Kamaytirish"
+        accessibilityLabel={d.common.decrease}
         style={({ pressed }) => [s.stepBtn, (!canDec || pressed) && { opacity: canDec ? 0.5 : 0.3 }]}
       >
         <Ionicons name="remove" size={20} color={c.ink} />
       </Pressable>
-      <Text style={[s.stepVal, tabular, { color: c.ink, borderColor: c.sep }]} accessibilityLabel={`Miqdor ${value}`}>{value}</Text>
+      <Text style={[s.stepVal, tabular, { color: c.ink, borderColor: c.sep }]} accessibilityLabel={tr(d.common.qtyA11y, { n: value })}>{value}</Text>
       <Pressable
         onPress={() => canInc && onChange(value + 1)}
         disabled={!canInc}
-        accessibilityLabel="Ko'paytirish"
+        accessibilityLabel={d.common.increase}
         style={({ pressed }) => [s.stepBtn, (!canInc || pressed) && { opacity: canInc ? 0.5 : 0.3 }]}
       >
         <Ionicons name="add" size={20} color={c.ink} />

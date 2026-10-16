@@ -6,12 +6,14 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '@/lib/auth';
 import { errMsg } from '@/lib/api';
 import { useTheme } from '@/lib/theme';
+import { useDict } from '@/lib/i18n';
 import { Field, Button, BrandMark } from '@/components/ui';
 
 export default function LoginScreen() {
   const router = useRouter();
   const { login } = useAuth();
   const { c } = useTheme();
+  const d = useDict();
   const insets = useSafeAreaInsets();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -21,7 +23,7 @@ export default function LoginScreen() {
 
   async function onSubmit() {
     if (!username.trim() || !password) {
-      Alert.alert('Maydonlar', 'Login va parolni kiriting.');
+      Alert.alert(d.login.fieldsTitle, d.login.fieldsMsg);
       return;
     }
     setBusy(true);
@@ -29,7 +31,7 @@ export default function LoginScreen() {
       await login(username.trim(), password);
       router.replace('/(tabs)');
     } catch (e) {
-      Alert.alert('Kirib bo\'lmadi', errMsg(e));
+      Alert.alert(d.login.failTitle, errMsg(e));
     } finally {
       setBusy(false);
     }
@@ -45,14 +47,14 @@ export default function LoginScreen() {
           <View style={s.wrap}>
             <View style={s.logo}><BrandMark size={72} /></View>
             <Text style={[s.title, { color: c.ink }]}>Savora</Text>
-            <Text style={[s.subtitle, { color: c.ink3 }]}>Hisobingizga kiring</Text>
+            <Text style={[s.subtitle, { color: c.ink3 }]}>{d.login.subtitle}</Text>
 
             <View style={{ gap: 14 }}>
               <Field
-                label="Login"
+                label={d.common.login}
                 value={username}
                 onChangeText={setUsername}
-                placeholder="login"
+                placeholder={d.login.loginPlaceholder}
                 autoCapitalize="none"
                 textContentType="username"
                 autoComplete="username"
@@ -61,25 +63,25 @@ export default function LoginScreen() {
               />
               <Field
                 ref={passRef}
-                label="Parol"
+                label={d.common.password}
                 value={password}
                 onChangeText={setPassword}
-                placeholder="parol"
+                placeholder={d.login.passwordPlaceholder}
                 secureTextEntry={!showPass}
                 textContentType="password"
                 autoComplete="password"
                 returnKeyType="go"
                 onSubmitEditing={onSubmit}
                 right={
-                  <Pressable onPress={() => setShowPass((v) => !v)} hitSlop={12} accessibilityLabel={showPass ? 'Parolni yashirish' : 'Parolni ko\'rsatish'}>
+                  <Pressable onPress={() => setShowPass((v) => !v)} hitSlop={12} accessibilityLabel={showPass ? d.login.hidePass : d.login.showPass}>
                     <Ionicons name={showPass ? 'eye-off-outline' : 'eye-outline'} size={20} color={c.ink3} />
                   </Pressable>
                 }
               />
-              <Button title="Kirish" size="lg" full loading={busy} onPress={onSubmit} style={{ marginTop: 8 }} />
+              <Button title={d.login.submit} size="lg" full loading={busy} onPress={onSubmit} style={{ marginTop: 8 }} />
             </View>
 
-            <Text style={[s.foot, { color: c.ink3 }]}>Login va parolni do&apos;kon egasi yoki platforma beradi.</Text>
+            <Text style={[s.foot, { color: c.ink3 }]}>{d.login.foot}</Text>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>

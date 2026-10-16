@@ -10,6 +10,8 @@ import {
 import { toast } from '@/lib/toast';
 import Icon from '@/components/icons/Icon';
 import { fmtDate as fmtDateStable } from '@/lib/format';
+import { useDict } from '@/lib/i18n/client';
+import { tr } from '@/lib/i18n/fmt';
 
 interface ReqRow {
   id: string;
@@ -38,15 +40,10 @@ const STATUS_BADGE: Record<string, string> = {
   approved: 'sa-pill--ok',
   rejected: 'sa-pill--bad',
 };
-const STATUS_LABEL: Record<string, string> = {
-  pending: 'Kutilmoqda',
-  approved: 'Tasdiqlangan',
-  rejected: 'Rad etilgan',
-};
 
-function fmtSum(n: number) {
+function fmtSum(n: number, sum: string) {
   // Deterministik (server=client) — hydration mosligini buzmaslik uchun Intl ishlatilmaydi
-  return Math.round(n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, String.fromCharCode(0xA0)) + ' so\'m';
+  return Math.round(n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, String.fromCharCode(0xA0)) + ' ' + sum;
 }
 function fmtDate(d: string) {
   return fmtDateStable(d);
@@ -54,16 +51,18 @@ function fmtDate(d: string) {
 
 function ReceiptThumb({ url }: { url: string }) {
   const [failed, setFailed] = useState(false);
+  const d = useDict();
+  const s = d.superPanel.payments;
 
   if (failed || !url) {
     return (
       <div className="sa-receipt">
         <span style={{ display: 'grid', gap: 4, justifyItems: 'center' }}>
           <Icon name="box" size={24} />
-          <span>Chek fayli topilmadi</span>
+          <span>{s.receiptMissing}</span>
           {url && (
             <a href={url} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--brand)' }}>
-              Havolani ochish
+              {s.openLink}
             </a>
           )}
         </span>
@@ -72,8 +71,8 @@ function ReceiptThumb({ url }: { url: string }) {
   }
 
   return (
-    <a href={url} target="_blank" rel="noopener noreferrer" className="sa-receipt" aria-label="Chekni kattaroq ochish">
-      <img src={url} alt="To'lov cheki" onError={() => setFailed(true)} />
+    <a href={url} target="_blank" rel="noopener noreferrer" className="sa-receipt" aria-label={s.openReceipt}>
+      <img src={url} alt={s.receiptAlt} onError={() => setFailed(true)} />
     </a>
   );
 }
@@ -81,6 +80,8 @@ function ReceiptThumb({ url }: { url: string }) {
 export default function PaymentReview({ requests, account }: { requests: ReqRow[]; account: Account }) {
   const router = useRouter();
   const [busy, setBusy] = useState<string | null>(null);
+  const d = useDict();
+  const s = d.superPanel.payments;
 
   async function approve(id: string) {
     setBusy(id);
@@ -89,12 +90,12 @@ export default function PaymentReview({ requests, account }: { requests: ReqRow[
     const res = await approvePaymentRequestAction(null, fd);
     setBusy(null);
     if (res?.error) return toast(res.error, 'error');
-    toast(res?.success ?? 'Tasdiqlandi.', 'success');
+    toast(res?.success ?? s.approved, 'success');
     router.refresh();
   }
 
   async function reject(id: string) {
-    const answer = prompt('Rad etish sababi (ixtiyoriy):');
+    const answer = prompt(s.rejectPrompt);
     // "Bekor qilish" bosilsa — rad etilmaydi
     if (answer === null) return;
     const reason = answer;
@@ -105,7 +106,7 @@ export default function PaymentReview({ requests, account }: { requests: ReqRow[
     const res = await rejectPaymentRequestAction(null, fd);
     setBusy(null);
     if (res?.error) return toast(res.error, 'error');
-    toast(res?.success ?? 'Rad etildi.', 'success');
+    toast(res?.success ?? s.rejected, 'success');
     router.refresh();
   }
 
@@ -115,7 +116,7 @@ export default function PaymentReview({ requests, account }: { requests: ReqRow[
     const res = await savePaymentAccountAction(null, new FormData(e.currentTarget));
     setBusy(null);
     if (res?.error) return toast(res.error, 'error');
-    toast(res?.success ?? 'Saqlandi.', 'success');
+    toast(res?.success ?? d.common.saved, 'success');
     router.refresh();
   }
 
@@ -127,15 +128,15 @@ export default function PaymentReview({ requests, account }: { requests: ReqRow[
       {/* Kutilayotgan so'rovlar */}
       <section className="sa-section">
         <div className="sa-ghead">
-          Tekshiruvdagi to&apos;lovlar
-          <span className="sa-count">{pending.length} ta</span>
+          {s.pendingTitle}
+          <span className="sa-count">{tr(d.common.nPcs, { n: pending.length })}</span>
         </div>
         <div className="sa-group">
           {pending.length === 0 ? (
             <div className="ux-empty">
               <span className="ux-empty-ic"><Icon name="check" size={24} /></span>
-              <b>Hammasi ko&apos;rib chiqilgan</b>
-              <p>Do&apos;kon chek yuborsa, shu yerda tasdiqlash uchun paydo bo&apos;ladi.</p>
+              <b>{s.allReviewedTitle}</b>
+              <p>{s.allReviewedText}</p>
             </div>
           ) : (
             pending.map((r) => (
@@ -146,13 +147,13 @@ export default function PaymentReview({ requests, account }: { requests: ReqRow[
                     <strong>{r.orgName}</strong>
                     <span>{r.orgSlug}</span>
                   </div>
-                  <div className="sa-pay-sum">{fmtSum(r.amount)}</div>
+                  <div className="sa-pay-sum">{fmtSum(r.amount, d.common.sum)}</div>
                   <div className="sa-pay-meta">
-                    <span>{r.months} oy</span>
-                    <span>To&apos;lov sanasi: {fmtDate(r.paidAt)}</span>
-                    <span>Yuborildi: {fmtDate(r.createdAt)}</span>
+                    <span>{tr(s.nMonths, { n: r.months })}</span>
+                    <span>{s.paidAt} {fmtDate(r.paidAt)}</span>
+                    <span>{s.sentAt} {fmtDate(r.createdAt)}</span>
                   </div>
-                  {r.note && <div className="sa-pay-meta">Izoh: {r.note}</div>}
+                  {r.note && <div className="sa-pay-meta">{s.noteLabel} {r.note}</div>}
                   {r.flags.length > 0 && (
                     <div className="sa-pay-flags">
                       {r.flags.map((f, i) => (
@@ -162,10 +163,10 @@ export default function PaymentReview({ requests, account }: { requests: ReqRow[
                   )}
                   <div className="sa-pay-actions">
                     <button type="button" className="sa-btn sa-btn--filled sa-btn--sm" disabled={busy === r.id} onClick={() => approve(r.id)}>
-                      <Icon name="check" size={14} strokeWidth={2.6} /> Tasdiqlash
+                      <Icon name="check" size={14} strokeWidth={2.6} /> {s.approve}
                     </button>
                     <button type="button" className="sa-btn sa-btn--danger sa-btn--sm" disabled={busy === r.id} onClick={() => reject(r.id)}>
-                      Rad etish
+                      {s.reject}
                     </button>
                   </div>
                 </div>
@@ -177,50 +178,50 @@ export default function PaymentReview({ requests, account }: { requests: ReqRow[
 
       {/* To'lov rekvizitlari */}
       <section className="sa-section">
-        <div className="sa-ghead">To&apos;lov rekvizitlari</div>
+        <div className="sa-ghead">{s.accountTitle}</div>
         <div className="sa-card">
           <form onSubmit={saveAccount} className="sa-form" style={{ padding: 16 }}>
             <div className="sa-grid-2">
               <div className="sa-field">
-                <label htmlFor="pa-card">Karta / hisob raqami</label>
+                <label htmlFor="pa-card">{s.cardNumber}</label>
                 <input id="pa-card" name="paymentCardNumber" defaultValue={account.paymentCardNumber} placeholder="8600 1234 5678 9012" inputMode="numeric" />
               </div>
               <div className="sa-field">
-                <label htmlFor="pa-holder">Karta egasi</label>
-                <input id="pa-holder" name="paymentCardHolder" defaultValue={account.paymentCardHolder} placeholder="F.I.SH" />
+                <label htmlFor="pa-holder">{s.cardHolder}</label>
+                <input id="pa-holder" name="paymentCardHolder" defaultValue={account.paymentCardHolder} placeholder={s.cardHolderPlaceholder} />
               </div>
             </div>
             <div className="sa-field">
-              <label htmlFor="pa-note">Izoh (do&apos;konga ko&apos;rsatiladi)</label>
-              <input id="pa-note" name="paymentNote" defaultValue={account.paymentNote} placeholder="To'lovdan keyin chekni yuklang" />
+              <label htmlFor="pa-note">{s.noteForStore}</label>
+              <input id="pa-note" name="paymentNote" defaultValue={account.paymentNote} placeholder={s.notePlaceholder} />
             </div>
             <div className="sa-form-actions">
               <button type="submit" className="sa-btn sa-btn--filled" disabled={busy === 'account'}>
-                {busy === 'account' ? 'Saqlanmoqda…' : 'Saqlash'}
+                {busy === 'account' ? d.common.saving : d.common.save}
               </button>
             </div>
           </form>
         </div>
-        <div className="sa-gfoot">Bu ma&apos;lumot do&apos;konlarning to&apos;lov sahifasida ko&apos;rsatiladi.</div>
+        <div className="sa-gfoot">{s.accountFoot}</div>
       </section>
 
       {/* Tarix */}
       {others.length > 0 && (
         <section className="sa-card">
-          <div className="sa-card-h"><h2>Tarix</h2><span className="sa-count">{others.length} ta</span></div>
+          <div className="sa-card-h"><h2>{s.history}</h2><span className="sa-count">{tr(d.common.nPcs, { n: others.length })}</span></div>
           <div className="sa-table-wrap">
             <table className="sa-table">
               <thead>
-                <tr><th>Do&apos;kon</th><th className="sa-td-r">Summa</th><th className="sa-td-r">Oy</th><th>Holat</th><th>Ko&apos;rib chiqdi</th></tr>
+                <tr><th>{d.superPanel.shell.store}</th><th className="sa-td-r">{d.common.amount}</th><th className="sa-td-r">{s.colMonths}</th><th>{d.common.status}</th><th>{s.colReviewedBy}</th></tr>
               </thead>
               <tbody>
                 {others.map((r) => (
                   <tr key={r.id}>
                     <td><span className="sa-td-main">{r.orgName}</span><span className="sa-td-sub">{r.orgSlug}</span></td>
-                    <td className="sa-td-r">{fmtSum(r.amount)}</td>
+                    <td className="sa-td-r">{fmtSum(r.amount, d.common.sum)}</td>
                     <td className="sa-td-r">{r.months}</td>
                     <td>
-                      <span className={`sa-pill ${STATUS_BADGE[r.status]}`}>{STATUS_LABEL[r.status]}</span>
+                      <span className={`sa-pill ${STATUS_BADGE[r.status]}`}>{s.statusLabel[r.status] ?? r.status}</span>
                       {r.reviewNote ? <span className="sa-td-sub">{r.reviewNote}</span> : null}
                     </td>
                     <td>{r.reviewedBy ?? '—'}</td>

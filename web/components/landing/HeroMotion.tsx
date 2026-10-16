@@ -1,21 +1,32 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { useI18n } from '@/lib/i18n/client';
+import { tr, fmtDayMonth, WEEKDAYS } from '@/lib/i18n/fmt';
 
-/** Hero'dagi almashinuvchi so'z — har 2.4 soniyada pastdan yuqoriga siljiydi */
-const WORDS = ['Nasiyani', 'Omborni', 'Kassani', 'Qarzlarni', 'Filiallarni'];
-
+/**
+ * Hero'dagi almashinuvchi so'z — sahifa ochilganda so'zlar bir marta yumshoq almashib,
+ * birinchi so'zga («Nasiyani») qaytadi va to'xtaydi (doimiy harakat chalg'itmasin).
+ */
 export function RotatingWord() {
+  const { d } = useI18n();
+  const WORDS = d.landing.hero.words;
+  const sizer = WORDS.reduce((a, b) => (b.length > a.length ? b : a), '');
   const [i, setI] = useState(0);
   useEffect(() => {
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-    const t = setInterval(() => setI((v) => (v + 1) % WORDS.length), 2400);
+    let steps = 0;
+    const t = setInterval(() => {
+      steps += 1;
+      setI(steps % WORDS.length);
+      if (steps >= WORDS.length) clearInterval(t);
+    }, 2200);
     return () => clearInterval(t);
-  }, []);
+  }, [WORDS.length]);
   return (
     <span className="lp-rot" aria-live="polite">
       {/* Eng uzun so'z kenglikni ushlab turadi — matn sakramaydi */}
-      <span className="lp-rot-sizer" aria-hidden="true">Filiallarni</span>
+      <span className="lp-rot-sizer" aria-hidden="true">{sizer}</span>
       {WORDS.map((w, k) => (
         <span key={w} className={`lp-rot-word${k === i ? ' is-on' : ''}${k === (i + WORDS.length - 1) % WORDS.length ? ' is-out' : ''}`} aria-hidden={k !== i}>
           {w}
@@ -27,27 +38,19 @@ export function RotatingWord() {
 
 const fmt = (n: number) => Math.round(n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
 
-type Feed = { who: string; ini: string; what: string; amount: number; kind: 'naqd' | 'nasiya' | 'tolov' | 'bank' };
+/** Jonli sotuvlar oqimi — `what` matni lug'atda (d.landing.stage.feed[i]) */
+type Feed = { who: string; ini: string; amount: number; kind: 'naqd' | 'nasiya' | 'tolov' | 'bank' };
 const FEED: Feed[] = [
-  { who: 'Aziz Karimov', ini: 'AK', what: 'iPhone 15 · nasiya 6 oy', amount: 11200000, kind: 'nasiya' },
-  { who: 'Dilnoza Yusupova', ini: 'DY', what: 'AirPods Pro 2 · naqd', amount: 2950000, kind: 'naqd' },
-  { who: 'Nodira Alimova', ini: 'NA', what: 'To\'lov · 3/6-oy', amount: 1450000, kind: 'tolov' },
-  { who: 'Sardor Rahimov', ini: 'SR', what: 'Artel muzlatgich · bank', amount: 6800000, kind: 'bank' },
-  { who: 'Jasur Ergashev', ini: 'JE', what: 'Zaryadka 20W ×2 · naqd', amount: 378000, kind: 'naqd' },
-  { who: 'Laylo Sobirova', ini: 'LS', what: 'Redmi 13C · nasiya 3 oy', amount: 1920000, kind: 'nasiya' },
+  { who: 'Aziz Karimov', ini: 'AK', amount: 11200000, kind: 'nasiya' },
+  { who: 'Dilnoza Yusupova', ini: 'DY', amount: 2950000, kind: 'naqd' },
+  { who: 'Nodira Alimova', ini: 'NA', amount: 1450000, kind: 'tolov' },
+  { who: 'Sardor Rahimov', ini: 'SR', amount: 6800000, kind: 'bank' },
+  { who: 'Jasur Ergashev', ini: 'JE', amount: 378000, kind: 'naqd' },
+  { who: 'Laylo Sobirova', ini: 'LS', amount: 1920000, kind: 'nasiya' },
 ];
-const KIND: Record<Feed['kind'], { t: string; cls: string }> = {
-  naqd: { t: 'Naqd', cls: 'ok' },
-  nasiya: { t: 'Nasiya', cls: 'au' },
-  tolov: { t: 'To\'lov', cls: 'br' },
-  bank: { t: 'Bank', cls: 'mut' },
-};
-const TOASTS = [
-  { t: 'AI tavsiya tayyor', s: '3 ta topshiriq · direktor uchun', ic: 'sign' },
-  { t: 'Eslatma yuborildi', s: 'Umid X. · ertaga to\'lov kuni', ic: 'msg' },
-  { t: 'To\'lov qabul qilindi', s: '+1 450 000 so\'m · Click', ic: 'ok' },
-  { t: 'Kam qoldi: Zaryadka 20W', s: 'Omborda 3 dona', ic: 'box' },
-];
+const KIND_CLS: Record<Feed['kind'], string> = { naqd: 'ok', nasiya: 'au', tolov: 'br', bank: 'mut' };
+/** Bildirishnoma ikonkalari — matnlar d.landing.stage.toasts[i] */
+const TOAST_ICONS = ['sign', 'msg', 'ok', 'box'];
 
 function ToastIcon({ k }: { k: string }) {
   const p: Record<string, React.ReactNode> = {
@@ -85,8 +88,12 @@ function Girih() {
   );
 }
 
+const HERO_TICKS = 3;
+
 /** Jonli telefon sahnasi: sotuvlar oqimi, o'sib boruvchi tushum, chiquvchi bildirishnomalar */
 export function HeroStage() {
+  const { locale, d } = useI18n();
+  const S = d.landing.stage;
   const [tick, setTick] = useState(0);
   const [total, setTotal] = useState(21_840_000);
   const [shown, setShown] = useState(21_840_000);
@@ -96,7 +103,13 @@ export function HeroStage() {
     const rm = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     setReduced(rm);
     if (rm) return;
-    const t = setInterval(() => setTick((v) => v + 1), 2600);
+    // Faqat sahifa ochilgandagi qisqa jonlanish: 3 ta yangi sotuv, keyin sahna to'xtaydi
+    let n = 0;
+    const t = setInterval(() => {
+      n += 1;
+      setTick(n);
+      if (n >= HERO_TICKS) clearInterval(t);
+    }, 3000);
     return () => clearInterval(t);
   }, []);
 
@@ -123,9 +136,14 @@ export function HeroStage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [total, reduced]);
 
-  const rows = [0, 1, 2, 3].map((k) => FEED[(((tick - k) % FEED.length) + FEED.length) % FEED.length]);
-  const toast = TOASTS[tick % TOASTS.length];
-  const toast2 = TOASTS[(tick + 2) % TOASTS.length];
+  const rows = [0, 1, 2, 3].map((k) => {
+    const i = (((tick - k) % FEED.length) + FEED.length) % FEED.length;
+    return { ...FEED[i], what: S.feed[i] };
+  });
+  const toastAt = (n: number) => ({ ...S.toasts[n % S.toasts.length], ic: TOAST_ICONS[n % TOAST_ICONS.length] });
+  const toast = toastAt(tick);
+  const toast2 = toastAt(tick + 2);
+  const dateLine = `${WEEKDAYS[locale][4]}, ${fmtDayMonth(new Date(2026, 9, 15), locale)}`.toUpperCase();
   const ring = 38 + ((tick * 9) % 55);
 
   return (
@@ -134,16 +152,16 @@ export function HeroStage() {
       <div className="lp-aurora" aria-hidden="true"><i /><i /><i /></div>
 
       <div className="lp-layer lp-l2">
-        <div className="lp-phone" role="img" aria-label="Savora mobil ilovasi: bugungi tushum va jonli sotuvlar">
+        <div className="lp-phone" role="img" aria-label={S.phoneAria}>
           <div className="lp-phone-scr">
             <div className="lp-ph-status"><b>9:41</b><span className="lp-ph-island" /><span>5G</span></div>
             <div className="lp-ph-body">
-              <div className="lp-ph-eyebrow">PAYSHANBA, 15-OKTABR</div>
-              <div className="lp-ph-title">Mobi Market</div>
+              <div className="lp-ph-eyebrow">{dateLine}</div>
+              <div className="lp-ph-title">{S.shop}</div>
               <div className="lp-ph-hero">
-                <span>Bugungi tushum</span>
+                <span>{S.todayRevenue}</span>
                 <b className="lp-num">{fmt(shown)}</b>
-                <small>▲ 18% kechaga · {37 + tick} sotuv</small>
+                <small>{tr(S.vsYesterday, { n: 37 + tick })}</small>
               </div>
               <div className="lp-ph-mini">
                 <div>
@@ -151,16 +169,16 @@ export function HeroStage() {
                     <circle cx="18" cy="18" r="14" fill="none" stroke="var(--lp-fill)" strokeWidth="5" />
                     <circle cx="18" cy="18" r="14" fill="none" stroke="var(--lp-au)" strokeWidth="5" strokeLinecap="round" strokeDasharray="88" strokeDashoffset={88 - (88 * ring) / 100} transform="rotate(-90 18 18)" className="lp-ring" />
                   </svg>
-                  <span><small>Bugun undirildi</small><b className="lp-num">{ring}%</b></span>
+                  <span><small>{S.collectedToday}</small><b className="lp-num">{ring}%</b></span>
                 </div>
               </div>
-              <div className="lp-ph-sec">Jonli sotuvlar</div>
+              <div className="lp-ph-sec">{S.liveSales}</div>
               <div className="lp-ph-list">
                 {rows.map((r, k) => (
                   <div key={`${tick}-${k}`} className={`lp-ph-row${k === 0 && tick > 0 ? ' is-new' : ''}`}>
                     <span className="lp-av">{r.ini}</span>
                     <span className="lp-ph-t"><b>{r.who}</b><small>{r.what}</small></span>
-                    <span className="lp-ph-a"><b className="lp-num">{fmt(r.amount)}</b><i className={`lp-pill ${KIND[r.kind].cls}`}>{KIND[r.kind].t}</i></span>
+                    <span className="lp-ph-a"><b className="lp-num">{fmt(r.amount)}</b><i className={`lp-pill ${KIND_CLS[r.kind]}`}>{S.kinds[r.kind]}</i></span>
                   </div>
                 ))}
               </div>
@@ -179,7 +197,7 @@ export function HeroStage() {
           <span className="lp-toast-ic au"><ToastIcon k={toast2.ic} /></span>
           <span><b>{toast2.t}</b><small>{toast2.s}</small></span>
         </div>
-        <div className="lp-coin lp-coin-1" aria-hidden="true">so&apos;m</div>
+        <div className="lp-coin lp-coin-1" aria-hidden="true">{d.common.sum}</div>
         <div className="lp-coin lp-coin-2" aria-hidden="true">$</div>
       </div>
     </div>

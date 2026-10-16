@@ -11,6 +11,12 @@
 import mongoose from 'mongoose';
 import bcrypt from 'bcryptjs';
 
+// Production bazasiga demo ma'lumot (va ma'lum parol) tushib qolmasin
+if (process.env.NODE_ENV === 'production' && process.env.SEED_ALLOW !== '1') {
+  console.error('Demo seed production\'da bloklangan. Ataylab kerak bo\'lsa: SEED_ALLOW=1');
+  process.exit(1);
+}
+
 const URI = process.env.MONGO_URI;
 const MASTER = process.env.MASTER_DB_NAME || 'savdopro_master';
 if (!URI) { console.error('MONGO_URI yo\'q (.env)'); process.exit(1); }

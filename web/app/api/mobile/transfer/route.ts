@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { Types } from 'mongoose';
 import { authenticateMobile } from '@/lib/mobileAuth';
 import { mobilePermissionDenied } from '@/lib/permissionGuard';
+import { recordAudit } from '@/lib/audit';
 import { getTenantModels } from '@/lib/tenantDb';
 import { generateTransferNo } from '@/lib/transfers';
 import { parseQtyField } from '@/lib/productQuantity';
@@ -65,7 +66,7 @@ export async function POST(req: Request) {
   const fromBranch = await Branch.findById(fromBranchId).lean();
 
   const transferNo = await generateTransferNo(Transfer);
-  await Transfer.create({
+  const transfer = await Transfer.create({
     transferNo,
     productId: product._id,
     productSnapshot: { name: product.name, imei: product.imei },
@@ -75,6 +76,13 @@ export async function POST(req: Request) {
     toBranchId: new Types.ObjectId(branchId),
     toBranchName: branch.name,
     transferredBy: user.username,
+  });
+  await recordAudit(user, {
+    action: 'transfer.create',
+    entity: 'transfer',
+    entityId: String(transfer._id),
+    summary: `Filialga berildi ${transferNo}: ${product.name} · ${transferQty} ta → ${branch.name} (mobil)`,
+    meta: { quantity: transferQty, toBranchId: branchId },
   });
 
   return NextResponse.json({ ok: true, toBranch: branch.name, quantity: transferQty }, { status: 201 });

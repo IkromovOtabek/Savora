@@ -1,6 +1,7 @@
 import PublicPage, { PublicSection } from '@/components/auth/PublicPage';
+import { getI18n } from '@/lib/i18n/server';
 
-/** Huquqiy hujjatlarning umumiy tahrir sanasi (oferta va maxfiylik bir vaqtda yangilanadi) */
+/** Huquqiy hujjatlarning umumiy tahrir sanasi (oferta va maxfiylik bir vaqtda yangilanadi) — tilga mos: d.landing.legal.updated */
 export const LEGAL_UPDATED = '2026-yil oktabr';
 
 /** Sinov muddati — register action va landing bilan bir xil manba */
@@ -17,12 +18,14 @@ export interface LegalSection {
   body: React.ReactNode;
 }
 
-/** Raqamlangan bo'limlar + mundarija bilan hujjat */
-export function LegalDoc({ title, lead, sections }: { title: string; lead: React.ReactNode; sections: LegalSection[] }) {
+/** Raqamlangan bo'limlar + mundarija bilan hujjat. Huquqiy matn tanasi o'zbekcha — ru'da sahifa boshida eslatma. */
+export async function LegalDoc({ title, lead, sections }: { title: string; lead: React.ReactNode; sections: LegalSection[] }) {
+  const { locale, d } = await getI18n();
   return (
-    <PublicPage title={title} lead={lead} updated={LEGAL_UPDATED}>
-      <nav className="pp-toc" aria-label="Mundarija">
-        <b>Mundarija</b>
+    <PublicPage title={title} lead={lead} updated={d.landing.legal.updated}>
+      {locale === 'ru' && <p className="pp-note" lang="ru">{d.landing.public.legalLangNote}</p>}
+      <nav className="pp-toc" aria-label={d.landing.public.toc}>
+        <b>{d.landing.public.toc}</b>
         <ol>
           {sections.map((s) => (
             <li key={s.id}><a href={`#${s.id}`}>{s.title}</a></li>

@@ -2,7 +2,7 @@ import { getMasterModels } from './masterDb';
 import { getTenantModels } from './tenantDb';
 import { resolveOrgFeatures } from './features';
 import { isOrganizationActive } from './models/master/Organization';
-import { sendTelegramTo } from './telegram';
+import { sendTelegramTo, tgEscape } from './telegram';
 import { computeInstallmentPlan } from './installment';
 
 function money(n: number): string {
@@ -53,12 +53,13 @@ export async function sendDailyInstallmentReminders(): Promise<{
       // Muddati o'tgan va to'liq to'lanmagan oylar (qisman to'langanlar ham) — overdueCount bilan mos
       const overdue = plan.schedule.filter((m) => !m.paid && m.dueDate.getTime() <= now.getTime());
       const overdueSum = overdue.reduce((a, m) => a + m.amount, 0);
-      const cust = s.customerSnapshot?.fullName ?? '—';
-      const phone = s.customerSnapshot?.phone ? ` · ${s.customerSnapshot.phone}` : '';
+      // Mahsulot/mijoz nomi foydalanuvchi kiritgan matn — Telegram HTML uchun ekranlanadi
+      const cust = tgEscape(s.customerSnapshot?.fullName ?? '—');
+      const phone = s.customerSnapshot?.phone ? ` · ${tgEscape(s.customerSnapshot.phone)}` : '';
 
       const txt =
         `⏰ <b>Nasiya to'lov muddati o'tdi</b>\n\n` +
-        `Mahsulot: <b>${s.productSnapshot.name}</b>\n` +
+        `Mahsulot: <b>${tgEscape(s.productSnapshot.name)}</b>\n` +
         `Mijoz: ${cust}${phone}\n` +
         `Muddati o'tgan: <b>${overdue.length} oy</b> — ${money(overdueSum)} so'm\n` +
         `Eng erta muddat: <b>${dateStr(overdue[0].dueDate)}</b>\n` +

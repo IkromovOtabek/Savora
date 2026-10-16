@@ -3,113 +3,26 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { FeatureKey, OrgFeatures } from '@/lib/features';
-import Icon, { IconName } from '@/components/icons/Icon';
+import type { OrgFeatures } from '@/lib/features';
+import Icon from '@/components/icons/Icon';
 import LogoutButton from '@/components/LogoutButton';
 import ThemeToggle from '@/components/ThemeToggle';
 import type { PermissionKey } from '@/lib/permissions';
-
-const NAV_ICONS: Record<string, IconName> = {
-  '/app': 'home',
-  '/app/sales': 'cart',
-  '/app/debts': 'bell',
-  '/app/kassa': 'wallet',
-  '/app/products': 'box',
-  '/app/inventory': 'clipboard',
-  '/app/imei': 'search',
-  '/app/monitoring': 'chart',
-  '/app/users': 'users',
-  '/app/profile': 'settings',
-  '/app/kirim-chiqim': 'repeat',
-  '/app/kredit-kassa': 'plans',
-  '/app/customers': 'user',
-  '/app/branches': 'building',
-  '/app/transferred': 'send',
-  '/app/audit': 'history',
-  '/app/daftar': 'edit',
-  '/app/nasiya': 'clock',
-  '/app/ai': 'sparkles',
-  '/app/tasks': 'check',
-};
-
-type NavLink = {
-  href: string;
-  label: string;
-  /** modul o'chiq bo'lsa yashiriladi */
-  feature?: FeatureKey;
-  /** xodimda huquq bo'lmasa yashiriladi */
-  permission?: PermissionKey;
-  adminOnly?: boolean;
-  imeiOnly?: boolean;
-  exact?: boolean;
-};
-
-type NavGroup = { title: string; links: NavLink[] };
-
-// Bo'limlar bo'yicha guruhlangan menyu. Ko'rinish qoidalari (modul, huquq, admin) o'zgarmagan.
-const GROUPS: NavGroup[] = [
-  {
-    title: 'Savdo',
-    links: [
-      // Bosh sahifa endi admin uchun ham ko'rinadi (dashboard admin'da barcha filiallar bo'yicha ishlaydi)
-      { href: '/app', label: 'Bosh sahifa', exact: true },
-      { href: '/app/sales', label: 'Sotuvlar', feature: 'sales' },
-      { href: '/app/transferred', label: 'Filialga berildi', feature: 'transferred' },
-    ],
-  },
-  {
-    title: 'Mijozlar',
-    links: [
-      { href: '/app/nasiya', label: 'Nasiya', feature: 'nasiya' },
-      { href: '/app/debts', label: 'Qarzdorlik', feature: 'sales' },
-      { href: '/app/customers', label: 'Mijozlar', feature: 'sales', permission: 'customers.manage' },
-      { href: '/app/daftar', label: 'Daftar', feature: 'daftar', permission: 'daftar.manage' },
-    ],
-  },
-  {
-    title: 'Ombor',
-    links: [
-      { href: '/app/products', label: 'Ombor', feature: 'products' },
-      { href: '/app/inventory', label: 'Inventar', feature: 'inventory' },
-      { href: '/app/imei', label: 'IMEI qidirish', imeiOnly: true, adminOnly: true },
-    ],
-  },
-  {
-    title: 'Moliya',
-    links: [
-      { href: '/app/kassa', label: 'Naqd kassa', feature: 'kassa', permission: 'kassa.view' },
-      { href: '/app/kredit-kassa', label: 'Kredit kassa', feature: 'creditKassa', adminOnly: true },
-      { href: '/app/kirim-chiqim', label: 'Kirim-chiqim', feature: 'kirimChiqim', permission: 'kirimChiqim.manage', adminOnly: true },
-      { href: '/app/monitoring', label: 'Hisobot', feature: 'monitoring', permission: 'reports.view' },
-    ],
-  },
-  {
-    title: 'Boshqaruv',
-    links: [
-      { href: '/app/ai', label: 'AI yordamchi', feature: 'ai', permission: 'ai.view' },
-      { href: '/app/tasks', label: 'Topshiriqlar', feature: 'tasks' },
-      { href: '/app/users', label: 'Filiallar', feature: 'users', permission: 'users.manage', adminOnly: true },
-      { href: '/app/audit', label: 'Amallar', feature: 'audit', permission: 'audit.view', adminOnly: true },
-      { href: '/app/profile', label: 'Kabinet' },
-    ],
-  },
-];
-
-// Pastki tab bar — eng muhim 4 ta havola (ko'rinadiganlaridan birinchi 4 tasi), qolgani «Yana» oynasida
-const TAB_ORDER = ['/app', '/app/sales', '/app/products', '/app/debts', '/app/nasiya', '/app/kassa', '/app/monitoring', '/app/transferred'];
-const TAB_LABELS: Record<string, string> = {
-  '/app': 'Asosiy', '/app/sales': 'Sotuvlar', '/app/products': 'Ombor', '/app/debts': 'Qarzlar',
-  '/app/nasiya': 'Nasiya', '/app/kassa': 'Kassa', '/app/monitoring': 'Hisobot', '/app/transferred': 'Berildi',
-};
+import { NAV_GROUPS, NAV_ICONS, TAB_ORDER, TAB_LABELS, applyNavLayout, type NavGroup, type NavLink, type NavLayout } from '@/lib/navConfig';
+import NavEditor from './NavEditor';
+import LangSwitch from '@/components/LangSwitch';
+import { useDict } from '@/lib/i18n/client';
+import { tr } from '@/lib/i18n/fmt';
 
 function isActive(link: NavLink, pathname: string): boolean {
   return link.exact ? pathname === link.href : pathname === link.href || pathname.startsWith(`${link.href}/`);
 }
 
 function Count({ n, onBrand }: { n: number; onBrand?: boolean }) {
+  const d = useDict();
   if (n <= 0) return null;
   return (
-    <span className={`t-nav-count${onBrand ? ' t-nav-count--on' : ''}`} aria-label={`${n} ta`}>
+    <span className={`t-nav-count${onBrand ? ' t-nav-count--on' : ''}`} aria-label={tr(d.common.nPcs, { n })}>
       {n > 99 ? '99+' : n}
     </span>
   );
@@ -126,11 +39,12 @@ function GroupList({
   badges?: Record<string, number>;
   onNavigate?: () => void;
 }) {
+  const d = useDict();
   return (
     <>
       {groups.map((g) => (
         <div className="t-nav-group" key={g.title}>
-          <h5 className="t-nav-group-title">{g.title}</h5>
+          <h5 className="t-nav-group-title">{d.shell.nav.groups[g.title] ?? g.title}</h5>
           <ul className="t-nav-list">
             {g.links.map((link) => {
               const active = isActive(link, pathname);
@@ -143,7 +57,7 @@ function GroupList({
                     className={`t-nav-link${active ? ' is-active' : ''}`}
                   >
                     <Icon name={NAV_ICONS[link.href] ?? 'home'} size={17} className="t-nav-icon" />
-                    <span className="t-nav-label">{link.label}</span>
+                    <span className="t-nav-label">{d.shell.nav.links[link.href] ?? link.label}</span>
                     <Count n={badges?.[link.href] ?? 0} onBrand={active} />
                   </Link>
                 </li>
@@ -164,6 +78,7 @@ export default function TenantNav({
   badges,
   orgName,
   username,
+  layout,
   variant = 'sidebar',
 }: {
   isAdmin: boolean;
@@ -176,11 +91,15 @@ export default function TenantNav({
   /** «Yana» oynasidagi profil qatori uchun */
   orgName?: string;
   username?: string;
+  /** Foydalanuvchining shaxsiy menyu tartibi (User.navLayout) */
+  layout?: NavLayout | null;
   /** 'sidebar' — desktop guruhlangan ro'yxat; 'tabbar' — mobil pastki panel + «Yana» oynasi */
   variant?: 'sidebar' | 'tabbar';
 }) {
   const pathname = usePathname();
+  const d = useDict();
   const [open, setOpen] = useState(false);
+  const [editing, setEditing] = useState(false);
   const sheetRef = useRef<HTMLDivElement>(null);
   const moreBtnRef = useRef<HTMLButtonElement>(null);
 
@@ -192,8 +111,11 @@ export default function TenantNav({
     return true;
   };
 
-  const groups = GROUPS
-    .map((g) => ({ ...g, links: g.links.filter(allowed) }))
+  // Foydalanuvchi tartibi qo'llanadi; ruxsat etilmaganlar olib tashlanadi
+  const ordered = applyNavLayout(NAV_GROUPS, layout).map((g) => ({ ...g, links: g.links.filter(allowed) }));
+  const hiddenSet = new Set(layout?.hidden ?? []);
+  const groups = ordered
+    .map((g) => ({ ...g, links: g.links.filter((l) => !hiddenSet.has(l.href)) }))
     .filter((g) => g.links.length > 0);
 
   const close = useCallback(() => {
@@ -241,19 +163,27 @@ export default function TenantNav({
   }, [open, close]);
 
   if (variant === 'sidebar') {
+    if (editing) {
+      return <NavEditor groups={ordered.filter((g) => g.links.length > 0)} hidden={[...hiddenSet]} onDone={() => setEditing(false)} />;
+    }
     return (
-      <nav className="t-nav" aria-label="Asosiy menyu">
+      <nav className="t-nav" aria-label={d.shell.layout.mainMenu}>
         <GroupList groups={groups} pathname={pathname} badges={badges} />
+        <button type="button" className="t-nav-customize" onClick={() => setEditing(true)}>
+          <Icon name="edit" size={15} />
+          {d.shell.navEditor.title}
+        </button>
       </nav>
     );
   }
 
   // Tabbar — 4 ta asosiy havola + «Yana»
+  // Shaxsiy tartib saqlangan bo'lsa — tab bar ham shu tartibda, aks holda standart TAB_ORDER
   const flat = groups.flatMap((g) => g.links);
-  const tabs = flat
-    .filter((l) => TAB_ORDER.includes(l.href))
-    .sort((a, b) => TAB_ORDER.indexOf(a.href) - TAB_ORDER.indexOf(b.href))
-    .slice(0, 4);
+  const tabs = (layout
+    ? flat.filter((l) => l.href in TAB_LABELS)
+    : flat.filter((l) => TAB_ORDER.includes(l.href)).sort((a, b) => TAB_ORDER.indexOf(a.href) - TAB_ORDER.indexOf(b.href))
+  ).slice(0, 4);
   const tabHrefs = new Set(tabs.map((t) => t.href));
   const restGroups = groups
     .map((g) => ({ ...g, links: g.links.filter((l) => !tabHrefs.has(l.href)) }))
@@ -263,7 +193,7 @@ export default function TenantNav({
 
   return (
     <>
-      <nav className="t-tabbar" aria-label="Pastki menyu">
+      <nav className="t-tabbar" aria-label={d.shell.layout.bottomMenu}>
         {tabs.map((link) => {
           const active = isActive(link, pathname);
           const count = badges?.[link.href] ?? 0;
@@ -276,9 +206,9 @@ export default function TenantNav({
             >
               <span className="t-tab-icon">
                 <Icon name={NAV_ICONS[link.href] ?? 'home'} size={22} />
-                {count > 0 && <span className="t-tab-dot" aria-label={`${count} ta`}>{count > 99 ? '99+' : count}</span>}
+                {count > 0 && <span className="t-tab-dot" aria-label={tr(d.common.nPcs, { n: count })}>{count > 99 ? '99+' : count}</span>}
               </span>
-              <span className="t-tab-label">{TAB_LABELS[link.href] ?? link.label}</span>
+              <span className="t-tab-label">{d.shell.nav.tabs[link.href] ?? d.shell.nav.links[link.href] ?? link.label}</span>
             </Link>
           );
         })}
@@ -292,9 +222,9 @@ export default function TenantNav({
         >
           <span className="t-tab-icon">
             <Icon name="grid" size={22} />
-            {moreCount > 0 && <span className="t-tab-dot" aria-label={`${moreCount} ta`}>{moreCount > 99 ? '99+' : moreCount}</span>}
+            {moreCount > 0 && <span className="t-tab-dot" aria-label={tr(d.common.nPcs, { n: moreCount })}>{moreCount > 99 ? '99+' : moreCount}</span>}
           </span>
-          <span className="t-tab-label">Yana</span>
+          <span className="t-tab-label">{d.common.more}</span>
         </button>
       </nav>
 
@@ -310,8 +240,8 @@ export default function TenantNav({
           >
             <div className="t-sheet-grabber" aria-hidden="true" />
             <div className="t-sheet-head">
-              <h2 id="t-sheet-title" className="t-sheet-title">Menyu</h2>
-              <button type="button" className="t-sheet-close" onClick={close} aria-label="Yopish">
+              <h2 id="t-sheet-title" className="t-sheet-title">{d.common.menu}</h2>
+              <button type="button" className="t-sheet-close" onClick={close} aria-label={d.common.close}>
                 <Icon name="close" size={18} />
               </button>
             </div>
@@ -321,12 +251,13 @@ export default function TenantNav({
                   <span className="t-avatar" aria-hidden="true">{(orgName ?? username ?? 'S').slice(0, 1).toUpperCase()}</span>
                   <span className="t-sheet-org-text">
                     <b>{orgName}</b>
-                    <small>{username}{isAdmin ? ' · Admin' : ' · Xodim'}</small>
+                    <small>{username} · {d.catalog.roles[isAdmin ? 'admin' : 'user']}</small>
                   </span>
                 </div>
               )}
               <GroupList groups={restGroups} pathname={pathname} badges={badges} onNavigate={() => setOpen(false)} />
               <div className="t-sheet-actions">
+                <LangSwitch compact />
                 <ThemeToggle />
                 <LogoutButton className="t-sheet-logout" />
               </div>

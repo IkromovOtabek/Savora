@@ -1,6 +1,7 @@
 import { getTenantModels } from '@/lib/tenantDb';
 import { effectivePermissions, type PermissionKey } from '@/lib/permissions';
 import type { OrgFeatures } from '@/lib/featureKeys';
+import { getDict } from '@/lib/i18n/server';
 import OrgPermissionsMatrixForm, { type MatrixUser } from './OrgPermissionsMatrixForm';
 
 /** Super admin: do'kon loginlari × huquqlar matritsasi (tenant bazasidan) */
@@ -13,6 +14,7 @@ export default async function OrgPermissionsMatrix({
   dbName: string;
   features: OrgFeatures;
 }) {
+  const d = await getDict();
   let users: MatrixUser[] = [];
   try {
     const { User } = await getTenantModels(dbName);
@@ -27,11 +29,11 @@ export default async function OrgPermissionsMatrix({
       permissions: [...effectivePermissions({ role: u.role, permissions: u.permissions })] as PermissionKey[],
     }));
   } catch {
-    return <div className="sa-empty">Ma&apos;lumotlarni yuklab bo&apos;lmadi.</div>;
+    return <div className="sa-empty">{d.superPanel.loadFailed}</div>;
   }
 
   if (users.length === 0) {
-    return <div className="sa-empty">Login yo&apos;q.</div>;
+    return <div className="sa-empty">{d.superPanel.orgPerms.noLogins}</div>;
   }
 
   return <OrgPermissionsMatrixForm orgId={orgId} users={users} features={features} />;

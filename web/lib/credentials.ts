@@ -1,11 +1,19 @@
-/** Vaqtinchalik parol (birinchi kirishda o'zgartiriladi) */
+import crypto from 'crypto';
+
+/** Vaqtinchalik parol (birinchi kirishda o'zgartiriladi) — kriptografik tasodifiy (Math.random emas) */
 export function generateTempPassword(): string {
-  return `${randomDigits(4)}${Math.random().toString(36).slice(2, 6)}`;
+  return `${randomDigits(4)}${randomBase36(4)}`;
 }
 
 function randomDigits(len: number): string {
   let s = '';
-  for (let i = 0; i < len; i++) s += Math.floor(Math.random() * 10);
+  for (let i = 0; i < len; i++) s += crypto.randomInt(0, 10);
+  return s;
+}
+
+function randomBase36(len: number): string {
+  let s = '';
+  for (let i = 0; i < len; i++) s += crypto.randomInt(0, 36).toString(36);
   return s;
 }
 

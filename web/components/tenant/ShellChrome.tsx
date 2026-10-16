@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import Icon from '@/components/icons/Icon';
+import { useDict } from '@/lib/i18n/client';
 
 /**
  * Toolbar sarlavhasi (iOS «katta sarlavha» uslubi): odatda do'kon nomi; sahifaning
@@ -57,11 +58,12 @@ const FAB_HIDDEN = [/^\/app\/sales\/new/, /\/new$/, /\/edit(\/|$)/];
  */
 export function SaleFab() {
   const pathname = usePathname();
+  const d = useDict();
   if (FAB_HIDDEN.some((r) => r.test(pathname))) return null;
   return (
     <Link href="/app/sales/new" className="ux-fab t-shell-fab">
       <Icon name="plus" size={20} />
-      <span>Yangi sotuv</span>
+      <span>{d.shell.layout.newSale}</span>
     </Link>
   );
 }

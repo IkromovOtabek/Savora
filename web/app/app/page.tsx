@@ -17,6 +17,8 @@ import { loadUserPermissions } from '@/lib/permissionGuard';
 import { BUSINESS_TYPES, parseBusinessType } from '@/lib/businessTypes';
 import { getLatestReport } from '@/lib/ai/report';
 import { parseAiResult } from '@/lib/ai/validate';
+import { openTaskFilter, isTaskOverdue } from '@/lib/tasks';
+import { BranchPanel, TopProductsPanel, StaffPanel, LowStockPanel, MyTasksPanel } from '@/components/tenant/DashPanels';
 import '@/components/tenant/styles/ai.css';
 
 export const metadata = { title: 'Boshqaruv — Savora' };
@@ -27,7 +29,7 @@ export default async function TenantDashboard({
   searchParams: Promise<{ module?: string; welcome?: string }>;
 }) {
   const sp = await searchParams;
-  const { user, org, features, Branch, Product, Sale, User, AiReport } = await getTenantSession();
+  const { user, org, features, Branch, Product, Sale, User, AiReport, Task } = await getTenantSession();
 
   const perms = await loadUserPermissions(user);
   // AI tavsiya — faqat bugungi keshdan (dashboard ochilganda AI chaqirilmaydi)
@@ -71,6 +73,67 @@ export default async function TenantDashboard({
         ])
       : Promise.resolve([] as { _id: Date; total: number; count: number }[]),
   ]);
+  const isAdmin = user.role === 'admin';
+  const monthAgo = new Date(todayStart.getTime() - 30 * 864e5);
+  const notCancelled = { status: { $ne: 'cancelled' } };
+
+  // Rolga xos panellar: direktor — filiallar, top mahsulotlar, xodimlar, kam qolgan tovar; xodim — o'z sotuvlari va topshiriqlari
+  const [branchAgg, branchList, topAgg, staffAgg, lowStock, myAgg, myTasks] = await Promise.all([
+    isAdmin && features.sales
+      ? Sale.aggregate<{ _id: unknown; today: number; week: number; count: number }>([
+          { $match: { createdAt: { $gte: weekBounds[0] }, ...notCancelled } },
+          { $group: {
+            _id: '$branchId',
+            today: { $sum: { $cond: [{ $gte: ['$createdAt', todayStart] }, '$paidAmount', 0] } },
+            week: { $sum: '$paidAmount' },
+            count: { $sum: 1 },
+          } },
+        ])
+      : Promise.resolve([]),
+    isAdmin ? Branch.find({ active: true }).select('name').lean() : Promise.resolve([]),
+    isAdmin && features.sales
+      ? Sale.aggregate<{ _id: string; qty: number; revenue: number }>([
+          { $match: { createdAt: { $gte: monthAgo }, ...notCancelled } },
+          { $group: { _id: '$productSnapshot.name', qty: { $sum: { $ifNull: ['$productSnapshot.saleQuantity', 1] } }, revenue: { $sum: '$totalAmount' } } },
+          { $sort: { revenue: -1 } },
+          { $limit: 5 },
+        ])
+      : Promise.resolve([]),
+    isAdmin && features.sales
+      ? Sale.aggregate<{ _id: string; count: number; total: number }>([
+          { $match: { createdAt: { $gte: todayStart }, ...notCancelled } },
+          { $group: { _id: '$soldBy', count: { $sum: 1 }, total: { $sum: '$totalAmount' } } },
+          { $sort: { total: -1 } },
+          { $limit: 6 },
+        ])
+      : Promise.resolve([]),
+    features.products
+      ? Product.find({
+          ...scope, trackQuantity: true, status: 'in_stock',
+          $expr: { $lte: [{ $subtract: ['$quantity', '$soldQuantity'] }, 3] },
+        }).select('name quantity soldQuantity').limit(5).lean()
+      : Promise.resolve([]),
+    !isAdmin && features.sales
+      ? Sale.aggregate<{ count: number; total: number }>([
+          { $match: { ...aggScope, soldBy: user.username, createdAt: { $gte: todayStart }, ...notCancelled } },
+          { $group: { _id: null, count: { $sum: 1 }, total: { $sum: '$totalAmount' } } },
+        ])
+      : Promise.resolve([]),
+    !isAdmin && features.tasks
+      ? Task.find(openTaskFilter(user)).sort({ dueDate: 1, createdAt: -1 }).limit(5).lean().catch(() => [])
+      : Promise.resolve([]),
+  ]);
+
+  const branchName = new Map(branchList.map((b) => [String(b._id), b.name]));
+  const branchRows = branchAgg
+    .map((b) => ({ id: String(b._id), name: branchName.get(String(b._id)) ?? 'Filial', today: b.today, week: b.week, count: b.count }))
+    .sort((a, b) => b.week - a.week);
+  const topRows = topAgg.map((t) => ({ name: t._id || 'Nomsiz', qty: t.qty, revenue: t.revenue }));
+  const staffRows = staffAgg.map((r) => ({ name: r._id, count: r.count, total: r.total }));
+  const lowRows = lowStock.map((p) => ({ id: String(p._id), name: p.name, left: (p.quantity ?? 0) - (p.soldQuantity ?? 0) }));
+  const mine = myAgg[0] ?? { count: 0, total: 0 };
+  const taskRows = myTasks.map((t) => ({ id: String(t._id), title: t.title, priority: t.priority, dueDate: t.dueDate, overdue: isTaskOverdue(t) }));
+
   const week = toDayPoints(weekBounds, weekAgg);
   const weekHasData = week.some((d) => d.total > 0);
   const weekTotal = week.reduce((a, d) => a + d.total, 0);
@@ -113,7 +176,7 @@ export default async function TenantDashboard({
       <div className="t-page-head">
         <div>
           <h1 className="t-page-title">Xayrli kun, {user.username}</h1>
-          <p className="t-page-sub">{dateLabel} · {user.role === 'admin' ? 'barcha filiallar' : 'filialingiz'} bo&apos;yicha</p>
+          <p className="t-page-sub">{dateLabel} · {isAdmin ? 'barcha filiallar' : 'filialingiz'} bo&apos;yicha</p>
         </div>
       </div>
 
@@ -162,15 +225,27 @@ export default async function TenantDashboard({
         </Tilt>
 
         <div className="t-stats ux-strip">
-          <StatCard
-            href={features.sales ? '/app/sales' : undefined}
-            icon="cart"
-            tone=""
-            label="Sotuvlar"
-            value={String(todaySalesCount)}
-            unit="ta"
-            sub="bugungi sotuvlar"
-          />
+          {isAdmin ? (
+            <StatCard
+              href={features.sales ? '/app/sales' : undefined}
+              icon="cart"
+              tone=""
+              label="Sotuvlar"
+              value={String(todaySalesCount)}
+              unit="ta"
+              sub="bugun, barcha filiallar"
+            />
+          ) : (
+            <StatCard
+              href={features.sales ? '/app/sales' : undefined}
+              icon="user"
+              tone=""
+              label="Mening sotuvlarim"
+              value={String(mine.count)}
+              unit="ta"
+              sub={`bugun · ${fmtMoney(mine.total)} so'm`}
+            />
+          )}
           <StatCard
             href={features.sales ? '/app/debts' : undefined}
             icon="clock"
@@ -281,6 +356,22 @@ export default async function TenantDashboard({
           </div>
         </section>
       </div>
+
+      {isAdmin ? (
+        <div className="t-panels">
+          {features.sales && branchList.length > 1 && <BranchPanel rows={branchRows} />}
+          {features.sales && <TopProductsPanel rows={topRows} />}
+          {features.sales && <StaffPanel rows={staffRows} />}
+          {features.products && <LowStockPanel rows={lowRows} />}
+        </div>
+      ) : (
+        (features.tasks || lowRows.length > 0) && (
+          <div className="t-panels">
+            {features.tasks && <MyTasksPanel rows={taskRows} />}
+            {features.products && lowRows.length > 0 && <LowStockPanel rows={lowRows} />}
+          </div>
+        )
+      )}
     </div>
   );
 }

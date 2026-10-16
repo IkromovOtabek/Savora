@@ -1,33 +1,30 @@
-/** Formatlash yordamchilari — muhitdan mustaqil (Intl'siz). */
+/** Formatlash yordamchilari — muhitdan mustaqil (Intl'siz). Tilga bog'liq matn lug'atdan (lib/i18n). */
+import { getDict, tr, type Locale } from './i18n';
 
 export type PayType = 'cash' | 'debt' | 'installment' | 'bank_credit';
 
-/** To'lov turlari — butun ilovada yagona nomlar. */
-export const PAY_LABELS: Record<PayType, string> = {
-  cash: 'Naqd',
-  debt: 'Qarz',
-  installment: 'Nasiya',
-  bank_credit: 'Bank krediti',
-};
-export const payLabel = (t: string) => PAY_LABELS[t as PayType] ?? t;
+/** To'lov turlari — butun ilovada yagona nomlar (joriy til). */
+export const payLabels = (locale?: Locale): Record<PayType, string> => getDict(locale).format.pay;
+export const payLabel = (t: string, locale?: Locale) => payLabels(locale)[t as PayType] ?? t;
 
 const group3 = (s: string) => s.replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
 
 /** 1234567 → "1 234 567" (suffix: true → "1 234 567 so'm"). */
-export function fmtMoney(n: number | null | undefined, opts: { suffix?: boolean | string } = {}): string {
+export function fmtMoney(n: number | null | undefined, opts: { suffix?: boolean | string; locale?: Locale } = {}): string {
   const v = Math.round(Number(n) || 0);
   const s = (v < 0 ? '−' : '') + group3(String(Math.abs(v)));
   if (!opts.suffix) return s;
-  return `${s} ${typeof opts.suffix === 'string' ? opts.suffix : 'so\'m'}`;
+  return `${s} ${typeof opts.suffix === 'string' ? opts.suffix : getDict(opts.locale).format.currency}`;
 }
 
 /** Ixcham: 6 400 000 → "6,4 mln", 1 250 000 000 → "1,3 mlrd". */
-export function fmtCompact(n: number | null | undefined): string {
+export function fmtCompact(n: number | null | undefined, locale?: Locale): string {
   const v = Math.round(Number(n) || 0);
   const a = Math.abs(v);
+  const f = getDict(locale).format;
   const one = (x: number) => (Math.round(x * 10) / 10).toString().replace('.', ',');
-  if (a >= 1e9) return `${one(v / 1e9)} mlrd`;
-  if (a >= 1e6) return `${one(v / 1e6)} mln`;
+  if (a >= 1e9) return `${one(v / 1e9)} ${f.mlrd}`;
+  if (a >= 1e6) return `${one(v / 1e6)} ${f.mln}`;
   return fmtMoney(v);
 }
 
@@ -45,27 +42,26 @@ export function fmtDate(d?: string | Date | null): string {
   return `${p(dt.getDate())}.${p(dt.getMonth() + 1)}.${dt.getFullYear()}`;
 }
 
-const WEEKDAYS = ['Yakshanba', 'Dushanba', 'Seshanba', 'Chorshanba', 'Payshanba', 'Juma', 'Shanba'];
-const MONTHS = ['yanvar', 'fevral', 'mart', 'aprel', 'may', 'iyun', 'iyul', 'avgust', 'sentabr', 'oktabr', 'noyabr', 'dekabr'];
-
-/** "15-oktabr" */
-export function fmtDayMonth(d?: string | Date | null): string {
+/** "15-oktabr" (ru: "15 октября") */
+export function fmtDayMonth(d?: string | Date | null, locale?: Locale): string {
   if (!d) return '—';
   const dt = new Date(d);
   if (Number.isNaN(dt.getTime())) return '—';
-  return `${dt.getDate()}-${MONTHS[dt.getMonth()]}`;
+  const f = getDict(locale).format;
+  return tr(f.dayMonth, { d: dt.getDate(), m: f.months[dt.getMonth()] });
 }
 
 /** "PAYSHANBA, 15-OKTABR" */
-export function fmtEyebrow(d: Date = new Date()): string {
-  return `${WEEKDAYS[d.getDay()]}, ${fmtDayMonth(d)}`.toUpperCase();
+export function fmtEyebrow(d: Date = new Date(), locale?: Locale): string {
+  return `${getDict(locale).format.weekdays[d.getDay()]}, ${fmtDayMonth(d, locale)}`.toUpperCase();
 }
 
-export function greeting(d: Date = new Date()): string {
+export function greeting(d: Date = new Date(), locale?: Locale): string {
   const h = d.getHours();
-  if (h < 11) return 'Xayrli tong';
-  if (h < 18) return 'Xayrli kun';
-  return 'Xayrli kech';
+  const f = getDict(locale).format;
+  if (h < 11) return f.greetingMorning;
+  if (h < 18) return f.greetingDay;
+  return f.greetingEvening;
 }
 
 export function startOfToday(): number {

@@ -23,6 +23,8 @@ export interface IUser {
   resetCodeHash?: string;
   resetCodeExpiresAt?: Date;
   resetAttempts?: number;
+  /** Shaxsiy menyu tartibi (lib/navConfig.ts NavLayout). undefined → standart tartib */
+  navLayout?: { groups: { title: string; hrefs: string[] }[]; hidden: string[] };
   createdAt?: Date;
   updatedAt?: Date;
   comparePassword(candidate: string): Promise<boolean>;
@@ -43,6 +45,7 @@ export const userSchema = new Schema<IUser>(
     resetCodeHash: { type: String, select: false },
     resetCodeExpiresAt: { type: Date, select: false },
     resetAttempts: { type: Number, select: false },
+    navLayout: { type: Schema.Types.Mixed, default: undefined },
   },
   { timestamps: true, collection: 'users' }
 );

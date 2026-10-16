@@ -1,15 +1,17 @@
+import { getDict } from '@/lib/i18n/server';
 import SystemsPanels from '@/components/super/SystemsPanels';
 import { PageTitle } from '@/components/super/ui';
 
-export const metadata = { title: 'Tizimlar — Super Admin' };
+export async function generateMetadata() {
+  const d = await getDict();
+  return { title: d.superPanel.systems.metaTitle };
+}
 
-export default function SuperSystemsPage() {
+export default async function SuperSystemsPage() {
+  const d = await getDict();
   return (
     <>
-      <PageTitle
-        title="Tizimlar"
-        sub="Cron vazifalari, eksport va Telegram — shu yerdan boshqaring. API havolalarini brauzerda ochmang."
-      />
+      <PageTitle title={d.superPanel.systems.title} sub={d.superPanel.systems.sub} />
       <SystemsPanels />
     </>
   );

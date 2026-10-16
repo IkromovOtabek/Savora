@@ -7,11 +7,13 @@ const COOKIE_OPTS = {
   maxAge: 8 * 60 * 60,
 };
 
-export async function setRouteCookies(zone: 'super' | 'tenant', tenantSlug?: string) {
+/** maxAge — sessiya bilan bir xil bo'lishi kerak («Eslab qolish»da 30 kun) */
+export async function setRouteCookies(zone: 'super' | 'tenant', tenantSlug?: string, maxAge = COOKIE_OPTS.maxAge) {
   const store = await cookies();
-  store.set('sp_zone', zone, COOKIE_OPTS);
+  const opts = { ...COOKIE_OPTS, maxAge };
+  store.set('sp_zone', zone, opts);
   if (zone === 'tenant' && tenantSlug) {
-    store.set('sp_tenant', tenantSlug, COOKIE_OPTS);
+    store.set('sp_tenant', tenantSlug, opts);
   } else {
     store.delete('sp_tenant');
   }

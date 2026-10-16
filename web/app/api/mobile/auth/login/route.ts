@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import bcrypt from 'bcryptjs';
 import { getMasterModels } from '@/lib/masterDb';
 import { getTenantModels } from '@/lib/tenantDb';
 import { isOrganizationActive } from '@/lib/models/master/Organization';
@@ -7,6 +8,12 @@ import { clearRateLimit, hitRateLimit } from '@/lib/rateLimit';
 import { clientIpFrom, loginRateKeys } from '@/lib/security';
 import { normalizeSlug } from '@/lib/slug';
 import { lookupUser } from '@/lib/userDirectory';
+
+/**
+ * Foydalanuvchi topilmaganda ham bcrypt.compare bajariladi — javob vaqti bo'yicha
+ * login mavjudligini aniqlab bo'lmasin. Oldindan hisoblangan tasodifiy hash (cost 10).
+ */
+const DUMMY_HASH = '$2a$10$xJiivtZBCMlpoiXARiqiFus5yCCfDyy7iN0Pg045SDbdgfsEUPQt2';
 
 export async function POST(req: Request) {
   let body: { slug?: string; username?: string; password?: string };
@@ -39,16 +46,22 @@ export async function POST(req: Request) {
         const dir = await lookupUser(username);
         return dir ? Organization.findById(dir.organizationId).lean() : null;
       })();
-  // Do'kon topilmasa ham login/parol xatosi — mavjudlikni oshkor qilmaymiz
-  if (!org) return NextResponse.json({ error: 'Login yoki parol noto\'g\'ri.' }, { status: 401 });
-  if (org.status === 'suspended') {
-    return NextResponse.json({ error: 'Do\'kon to\'xtatilgan.' }, { status: 403 });
+  // Do'kon topilmasa ham login/parol xatosi — mavjudlikni oshkor qilmaymiz (vaqtni tenglashtirib)
+  if (!org) {
+    await bcrypt.compare(password, DUMMY_HASH);
+    return NextResponse.json({ error: 'Login yoki parol noto\'g\'ri.' }, { status: 401 });
   }
 
   const { User } = await getTenantModels(org.dbName);
   const user = await User.findOne({ username }).exec();
-  if (!user || !user.active || !(await user.comparePassword(password))) {
+  // Topilmasa ham compare bajariladi — vaqt farqi bo'yicha login mavjudligi sizmasin
+  const passwordOk = user ? await user.comparePassword(password) : await bcrypt.compare(password, DUMMY_HASH);
+  if (!user || !user.active || !passwordOk) {
     return NextResponse.json({ error: 'Login yoki parol noto\'g\'ri.' }, { status: 401 });
+  }
+  // To'xtatilgan do'kon — faqat parol tasdiqlangandan keyin aytiladi (begona odamga holat sizmasin)
+  if (org.status === 'suspended') {
+    return NextResponse.json({ error: 'Do\'kon to\'xtatilgan.' }, { status: 403 });
   }
 
   const sessionUser = {
@@ -65,7 +78,7 @@ export async function POST(req: Request) {
 
   return NextResponse.json({
     token,
-    user: { id: sessionUser.id, username: user.username, role: user.role, fullName: user.fullName ?? null },
+    user: { id: sessionUser.id, username: user.username, role: user.role, fullName: user.fullName ?? null, mustChangePassword: !!user.mustChangePassword },
     org: { name: org.name, slug: org.slug, expiresAt: org.expiresAt, active: isOrganizationActive(org) },
   });
 }

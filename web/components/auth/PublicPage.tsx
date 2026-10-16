@@ -1,11 +1,14 @@
 import Link from 'next/link';
 import BrandMark from '@/components/BrandMark';
 import Icon from '@/components/icons/Icon';
+import LangSwitch from '@/components/LangSwitch';
+import { getDict } from '@/lib/i18n/server';
+import { tr } from '@/lib/i18n/fmt';
 import './auth.css';
 import './public.css';
 
 /** Ommaviy ikkilamchi sahifalar (yordam, bog'lanish, shartlar) — o'qishga qulay maqola */
-export default function PublicPage({
+export default async function PublicPage({
   title,
   lead,
   updated,
@@ -20,6 +23,8 @@ export default function PublicPage({
   wide?: boolean;
   children: React.ReactNode;
 }) {
+  const d = await getDict();
+  const P = d.landing.public;
   return (
     <div className="au-page">
       <header className="au-nav">
@@ -28,25 +33,28 @@ export default function PublicPage({
             <BrandMark size={30} />
             Savora
           </Link>
-          <Link href="/" className="au-btn au-btn--plain au-btn--sm">
-            <Icon name="arrowLeft" size={16} /> Bosh sahifa
-          </Link>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <LangSwitch compact />
+            <Link href="/" className="au-btn au-btn--plain au-btn--sm">
+              <Icon name="arrowLeft" size={16} /> {d.common.home}
+            </Link>
+          </div>
         </div>
       </header>
       <main className={`au-article${wide ? ' au-article--wide' : ''}`}>
         <div className="au-article-head">
           <h1>{title}</h1>
           {lead && <p>{lead}</p>}
-          {updated && <span className="pp-updated">Tahrir: {updated}</span>}
+          {updated && <span className="pp-updated">{tr(P.updated, { date: updated })}</span>}
         </div>
         {children}
       </main>
       <footer className="pp-foot">
-        <nav aria-label="Hujjatlar">
-          <Link href="/help">Yordam</Link>
-          <Link href="/terms">Ommaviy oferta</Link>
-          <Link href="/privacy">Maxfiylik siyosati</Link>
-          <Link href="/contact">Bog&apos;lanish</Link>
+        <nav aria-label={P.docsAria}>
+          <Link href="/help">{P.help}</Link>
+          <Link href="/terms">{P.terms}</Link>
+          <Link href="/privacy">{P.privacy}</Link>
+          <Link href="/contact">{P.contact}</Link>
         </nav>
         <span>© {new Date().getFullYear()} Savora</span>
       </footer>

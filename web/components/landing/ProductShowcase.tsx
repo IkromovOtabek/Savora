@@ -2,15 +2,11 @@
 
 import { useState } from 'react';
 import Icon from '@/components/icons/Icon';
+import { useI18n } from '@/lib/i18n/client';
+import { tr, MONTHS_SHORT } from '@/lib/i18n/fmt';
 
 type TabKey = 'ombor' | 'sotuv' | 'kassa' | 'monitoring';
-
-const TABS: { key: TabKey; label: string }[] = [
-  { key: 'ombor', label: 'Ombor' },
-  { key: 'sotuv', label: 'Sotuv' },
-  { key: 'kassa', label: 'Kassa' },
-  { key: 'monitoring', label: 'Monitoring' },
-];
+const TAB_KEYS: TabKey[] = ['ombor', 'sotuv', 'kassa', 'monitoring'];
 
 /** Brauzer "chrome" ramkasi — skrinshot ko'rinishi uchun */
 function Frame({ url, children }: { url: string; children: React.ReactNode }) {
@@ -27,63 +23,65 @@ function Frame({ url, children }: { url: string; children: React.ReactNode }) {
   );
 }
 
-function StatusBadge({ status }: { status: 'available' | 'sold' | 'transfer' }) {
-  const map = {
-    available: { t: 'Omborda', cls: 'shot-badge--ok' },
-    sold: { t: 'Sotilgan', cls: 'shot-badge--mute' },
-    transfer: { t: 'Filialga', cls: 'shot-badge--info' },
-  } as const;
-  return <span className={`shot-badge ${map[status].cls}`}>{map[status].t}</span>;
-}
+type StockStatus = 'available' | 'sold' | 'transfer';
+const STATUS_CLS: Record<StockStatus, string> = { available: 'shot-badge--ok', sold: 'shot-badge--mute', transfer: 'shot-badge--info' };
 
-const INVENTORY = [
-  { name: 'iPhone 15 Pro 256GB', imei: '353914...8821', price: '14 200 000', status: 'available' as const },
-  { name: 'Samsung S24 Ultra 512GB', imei: '356712...4490', price: '13 850 000', status: 'available' as const },
-  { name: 'Xiaomi 14 256GB', imei: '861234...7732', price: '7 400 000', status: 'sold' as const },
-  { name: 'iPhone 14 128GB', imei: '359201...1108', price: '9 900 000', status: 'transfer' as const },
-  { name: 'Redmi Note 13 Pro', imei: '867455...0021', price: '3 250 000', status: 'available' as const },
+type PayType = 'cash' | 'nasiya' | 'credit';
+const PAY_CLS: Record<PayType, string> = { cash: 'shot-badge--ok', nasiya: 'shot-badge--info', credit: 'shot-badge--warn' };
+
+const INVENTORY: { name: string; imei: string; price: string; status: StockStatus }[] = [
+  { name: 'iPhone 15 Pro 256GB', imei: '353914...8821', price: '14 200 000', status: 'available' },
+  { name: 'Samsung S24 Ultra 512GB', imei: '356712...4490', price: '13 850 000', status: 'available' },
+  { name: 'Xiaomi 14 256GB', imei: '861234...7732', price: '7 400 000', status: 'sold' },
+  { name: 'iPhone 14 128GB', imei: '359201...1108', price: '9 900 000', status: 'transfer' },
+  { name: 'Redmi Note 13 Pro', imei: '867455...0021', price: '3 250 000', status: 'available' },
 ];
 
-const SALES = [
-  { client: 'Akmal Yusupov', product: 'iPhone 15 Pro 256GB', sum: '14 200 000', type: 'Naqd', typeCls: 'shot-badge--ok' },
-  { client: 'Dilnoza Karimova', product: 'Samsung S24 Ultra', sum: '13 850 000', type: 'Nasiya', typeCls: 'shot-badge--info' },
-  { client: 'Sardor Aliyev', product: 'Redmi Note 13 Pro', sum: '3 250 000', type: 'Kredit', typeCls: 'shot-badge--warn' },
-  { client: 'Nigora Tosheva', product: 'AirPods Pro 2', sum: '2 100 000', type: 'Naqd', typeCls: 'shot-badge--ok' },
+const SALES: { client: string; product: string; sum: string; type: PayType }[] = [
+  { client: 'Akmal Yusupov', product: 'iPhone 15 Pro 256GB', sum: '14 200 000', type: 'cash' },
+  { client: 'Dilnoza Karimova', product: 'Samsung S24 Ultra', sum: '13 850 000', type: 'nasiya' },
+  { client: 'Sardor Aliyev', product: 'Redmi Note 13 Pro', sum: '3 250 000', type: 'credit' },
+  { client: 'Nigora Tosheva', product: 'AirPods Pro 2', sum: '2 100 000', type: 'cash' },
 ];
 
-const KASSA = [
-  { bank: 'Naqd kassa', balance: '42 380 000', delta: '+5.2%', up: true },
-  { bank: 'Uzcard / Humo', balance: '18 640 000', delta: '+12.1%', up: true },
-  { bank: 'Kapitalbank kredit', balance: '7 920 000', delta: '−2.4%', up: false },
-  { bank: 'Anor / BNPL', balance: '3 450 000', delta: '+8.0%', up: true },
+/** Kassa kartalari — nomi lug'atdan (key) yoki brend nomi (fixed) */
+const KASSA: { key?: 'kassaCash' | 'kassaCredit'; fixed?: string; balance: string; delta: string; up: boolean }[] = [
+  { key: 'kassaCash', balance: '42 380 000', delta: '+5.2%', up: true },
+  { fixed: 'Uzcard / Humo', balance: '18 640 000', delta: '+12.1%', up: true },
+  { key: 'kassaCredit', balance: '7 920 000', delta: '−2.4%', up: false },
+  { fixed: 'Anor / BNPL', balance: '3 450 000', delta: '+8.0%', up: true },
 ];
 
+/** Oylik foyda ustunlari — oy nomi MONTHS_SHORT[locale][m] */
 const BARS = [
-  { m: 'Yan', h: 48 }, { m: 'Fev', h: 62 }, { m: 'Mar', h: 55 }, { m: 'Apr', h: 78 },
-  { m: 'May', h: 70 }, { m: 'Iyn', h: 92 }, { m: 'Iyl', h: 84 },
+  { m: 0, h: 48 }, { m: 1, h: 62 }, { m: 2, h: 55 }, { m: 3, h: 78 },
+  { m: 4, h: 70 }, { m: 5, h: 92 }, { m: 6, h: 84 },
 ];
 
 export default function ProductShowcase() {
+  const { locale, d } = useI18n();
+  const S = d.landing.showcase;
   const [tab, setTab] = useState<TabKey>('ombor');
+  const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
   return (
     <section className="section" id="demo">
       <div className="container">
         <div className="head">
-          <span className="eyebrow">Mahsulot</span>
-          <h2>Bir tizimda — to&apos;liq nazorat</h2>
-          <p>Ombordan kassagacha, har bir bo&apos;limni jonli ko&apos;rinishda sinab ko&apos;ring.</p>
+          <span className="eyebrow">{S.eyebrow}</span>
+          <h2>{S.title}</h2>
+          <p>{S.lead}</p>
         </div>
 
         <div className="shot-tabs">
-          {TABS.map((t) => (
+          {TAB_KEYS.map((key) => (
             <button
-              key={t.key}
-              className={`shot-tab${tab === t.key ? ' shot-tab--active' : ''}`}
-              onClick={() => setTab(t.key)}
+              key={key}
+              className={`shot-tab${tab === key ? ' shot-tab--active' : ''}`}
+              onClick={() => setTab(key)}
               type="button"
             >
-              {t.label}
+              {S.tabs[key]}
             </button>
           ))}
         </div>
@@ -91,18 +89,18 @@ export default function ProductShowcase() {
         {tab === 'ombor' && (
           <Frame url="dokon1.savora.uz/app/inventory">
             <div className="shot-toolbar">
-              <div className="shot-title">Ombor — 1 248 mahsulot</div>
-              <div className="shot-search" style={{ display: 'flex', alignItems: 'center', gap: 6 }}><Icon name="search" size={14} /> IMEI yoki nom bo&apos;yicha qidirish…</div>
+              <div className="shot-title">{S.stockTitle}</div>
+              <div className="shot-search" style={{ display: 'flex', alignItems: 'center', gap: 6 }}><Icon name="search" size={14} /> {S.stockSearch}</div>
             </div>
             <table className="shot-table">
-              <thead><tr><th>Mahsulot</th><th>IMEI</th><th>Narx (so&apos;m)</th><th>Holat</th></tr></thead>
+              <thead><tr><th>{S.colProduct}</th><th>IMEI</th><th>{S.colPrice}</th><th>{S.colStatus}</th></tr></thead>
               <tbody>
                 {INVENTORY.map((r) => (
                   <tr key={r.imei}>
                     <td className="shot-strong">{r.name}</td>
                     <td className="shot-mono">{r.imei}</td>
                     <td className="shot-strong">{r.price}</td>
-                    <td><StatusBadge status={r.status} /></td>
+                    <td><span className={`shot-badge ${STATUS_CLS[r.status]}`}>{S.status[r.status]}</span></td>
                   </tr>
                 ))}
               </tbody>
@@ -113,18 +111,18 @@ export default function ProductShowcase() {
         {tab === 'sotuv' && (
           <Frame url="dokon1.savora.uz/app/sales">
             <div className="shot-toolbar">
-              <div className="shot-title">Bugungi sotuvlar</div>
-              <div className="shot-pill">Jami: 33 350 000 so&apos;m</div>
+              <div className="shot-title">{S.salesTitle}</div>
+              <div className="shot-pill">{S.salesTotal}</div>
             </div>
             <table className="shot-table">
-              <thead><tr><th>Mijoz</th><th>Mahsulot</th><th>Summa (so&apos;m)</th><th>To&apos;lov</th></tr></thead>
+              <thead><tr><th>{S.colCustomer}</th><th>{S.colProduct}</th><th>{S.colSum}</th><th>{S.colPayment}</th></tr></thead>
               <tbody>
                 {SALES.map((r) => (
                   <tr key={r.client}>
                     <td className="shot-strong">{r.client}</td>
                     <td>{r.product}</td>
                     <td className="shot-strong">{r.sum}</td>
-                    <td><span className={`shot-badge ${r.typeCls}`}>{r.type}</span></td>
+                    <td><span className={`shot-badge ${PAY_CLS[r.type]}`}>{S.payTypes[r.type]}</span></td>
                   </tr>
                 ))}
               </tbody>
@@ -135,17 +133,20 @@ export default function ProductShowcase() {
         {tab === 'kassa' && (
           <Frame url="dokon1.savora.uz/app/kassa">
             <div className="shot-toolbar">
-              <div className="shot-title">Kassa qoldiqlari</div>
-              <div className="shot-pill">Umumiy: 72 390 000 so&apos;m</div>
+              <div className="shot-title">{S.kassaTitle}</div>
+              <div className="shot-pill">{S.kassaTotal}</div>
             </div>
             <div className="shot-cards">
-              {KASSA.map((k) => (
-                <div key={k.bank} className="shot-card">
-                  <div className="shot-card-lbl">{k.bank}</div>
-                  <div className="shot-card-val">{k.balance}</div>
-                  <div className={`shot-card-delta${k.up ? '' : ' is-down'}`}>{k.delta} oylik</div>
-                </div>
-              ))}
+              {KASSA.map((k) => {
+                const name = k.key ? S[k.key] : k.fixed;
+                return (
+                  <div key={name} className="shot-card">
+                    <div className="shot-card-lbl">{name}</div>
+                    <div className="shot-card-val">{k.balance}</div>
+                    <div className={`shot-card-delta${k.up ? '' : ' is-down'}`}>{tr(S.monthly, { delta: k.delta })}</div>
+                  </div>
+                );
+              })}
             </div>
           </Frame>
         )}
@@ -153,19 +154,19 @@ export default function ProductShowcase() {
         {tab === 'monitoring' && (
           <Frame url="dokon1.savora.uz/app/monitoring">
             <div className="shot-toolbar">
-              <div className="shot-title">Oylik foyda dinamikasi</div>
-              <div className="shot-pill shot-pill--ok" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>Foyda: +24% <Icon name="trendingUp" size={13} /></div>
+              <div className="shot-title">{S.monTitle}</div>
+              <div className="shot-pill shot-pill--ok" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>{S.monProfit} <Icon name="trendingUp" size={13} /></div>
             </div>
             <div className="shot-kpis">
-              <div className="shot-kpi"><div className="shot-kpi-l">Kirim</div><div className="shot-kpi-v">218 400 000</div></div>
-              <div className="shot-kpi"><div className="shot-kpi-l">Chiqim</div><div className="shot-kpi-v">164 900 000</div></div>
-              <div className="shot-kpi"><div className="shot-kpi-l">Sof foyda</div><div className="shot-kpi-v shot-kpi-v--ok">53 500 000</div></div>
+              <div className="shot-kpi"><div className="shot-kpi-l">{S.income}</div><div className="shot-kpi-v">218 400 000</div></div>
+              <div className="shot-kpi"><div className="shot-kpi-l">{S.expense}</div><div className="shot-kpi-v">164 900 000</div></div>
+              <div className="shot-kpi"><div className="shot-kpi-l">{S.netProfit}</div><div className="shot-kpi-v shot-kpi-v--ok">53 500 000</div></div>
             </div>
             <div className="shot-chart">
               {BARS.map((b) => (
                 <div key={b.m} className="shot-chart-col">
                   <div className="shot-chart-bar" style={{ height: `${b.h}%` }} />
-                  <span className="shot-chart-m">{b.m}</span>
+                  <span className="shot-chart-m">{cap(MONTHS_SHORT[locale][b.m])}</span>
                 </div>
               ))}
             </div>

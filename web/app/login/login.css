@@ -1,0 +1,167 @@
+/* ============================================================
+   Savora — Kirish sahifasi: chapda kobalt panel (taklif matni),
+   o'ngda och fonda oq karta-forma.
+   Prefiks: lg-  ·  xabarlar, parol tugmasi va spinner auth.css dan (au-)
+   ============================================================ */
+
+.lg {
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: grid;
+  grid-template-columns: minmax(0, 51fr) minmax(0, 49fr);
+  background: var(--bg-soft);
+  color: var(--ink-1);
+}
+
+/* ── Panel ─────────────────────────────────────────────── */
+.lg-panel {
+  position: relative;
+  overflow: hidden;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  padding: 40px clamp(28px, 4vw, 56px);
+  color: #fff;
+  background:
+    radial-gradient(70% 55% at 15% 20%, rgba(255, 255, 255, .10), transparent 70%),
+    radial-gradient(60% 50% at 95% 100%, rgba(58, 104, 196, .55), transparent 70%),
+    linear-gradient(160deg, #2f5fc0 0%, #1f4fa8 48%, #173f8f 100%);
+}
+.dark .lg-panel {
+  background:
+    radial-gradient(70% 55% at 15% 20%, rgba(255, 255, 255, .06), transparent 70%),
+    radial-gradient(60% 50% at 95% 100%, rgba(58, 104, 196, .35), transparent 70%),
+    linear-gradient(160deg, #1d438f 0%, #143479 50%, #0d2559 100%);
+}
+
+.lg-back {
+  justify-self: start;
+  display: inline-flex; align-items: center; gap: 8px;
+  color: rgba(255, 255, 255, .78); text-decoration: none; font-size: 14px; font-weight: 500;
+  padding: 6px 10px; margin: -6px -10px; border-radius: 999px;
+}
+.lg-back:hover { color: #fff; background: rgba(255, 255, 255, .1); }
+.lg-back:focus-visible { outline: 2px solid rgba(255, 255, 255, .7); outline-offset: 2px; }
+
+.lg-pitch { align-self: center; display: grid; gap: 18px; max-width: 560px; }
+.lg-brand {
+  justify-self: start;
+  display: inline-flex; align-items: center; gap: 10px;
+  color: #fff; text-decoration: none;
+  font-weight: 800; font-size: 22px; letter-spacing: -.02em;
+  border-radius: 10px;
+}
+.lg-brand-mark { width: 36px; height: 36px; border-radius: 10px; overflow: hidden; box-shadow: 0 0 0 1px rgba(255, 255, 255, .2); }
+.lg-brand:focus-visible { outline: 2px solid rgba(255, 255, 255, .7); outline-offset: 4px; }
+.lg-pitch h2 {
+  margin: 0;
+  font-size: clamp(30px, 2.8vw, 42px); line-height: 1.16; font-weight: 800; letter-spacing: -.025em;
+  text-wrap: balance;
+}
+.lg-pitch p { margin: 0; max-width: 46ch; font-size: 17px; line-height: 1.6; color: rgba(255, 255, 255, .78); text-wrap: pretty; }
+
+.lg-trust { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 10px 28px; font-size: 14px; font-weight: 500; color: rgba(255, 255, 255, .85); }
+.lg-trust li { display: inline-flex; align-items: center; gap: 8px; }
+.lg-trust li::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: #3ddc97; box-shadow: 0 0 0 3px rgba(61, 220, 151, .18); }
+
+/* ── Forma ustuni ──────────────────────────────────────── */
+.lg-side {
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  gap: 22px;
+  padding: 40px 24px;
+  min-width: 0;
+}
+.lg-card {
+  width: 100%;
+  max-width: 440px;
+  background: var(--surface);
+  border-radius: 20px;
+  padding: 36px 34px 30px;
+  box-shadow: 0 0 0 .5px var(--sep), 0 24px 60px -24px rgba(13, 21, 38, .22);
+}
+
+.lg-head { display: grid; gap: 8px; margin-bottom: 26px; }
+.lg-title { margin: 0; font-size: 26px; line-height: 1.2; font-weight: 800; letter-spacing: -.02em; text-wrap: balance; overflow-wrap: anywhere; }
+.lg-sub { margin: 0; color: var(--ink-3); font-size: 15px; line-height: 1.5; }
+
+.lg-alerts:empty { display: none; }
+.lg-alerts { margin-bottom: 6px; }
+
+.lg-form { display: grid; gap: 18px; }
+.lg-field { display: grid; gap: 8px; }
+.lg-field > label { font-size: 14px; font-weight: 600; color: var(--ink-1); }
+
+.lg-control {
+  position: relative;
+  display: flex; align-items: center;
+  height: 50px;
+  border-radius: 12px;
+  background: var(--surface);
+  box-shadow: inset 0 0 0 1px var(--border);
+  transition: box-shadow .15s;
+}
+.lg-control:hover { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--brand) 40%, var(--border)); }
+.lg-control:focus-within { box-shadow: inset 0 0 0 2px var(--brand), 0 0 0 4px var(--brand-ring); }
+.lg-control-ic { flex: none; margin: 0 10px 0 15px; color: var(--ink-3); pointer-events: none; }
+.lg-control:focus-within .lg-control-ic { color: var(--brand); }
+.lg-control > input,
+.lg-control .au-pwd input {
+  flex: 1; min-width: 0; height: 100%;
+  border: 0; outline: 0; background: transparent;
+  font: inherit; font-size: 15px; color: var(--ink-1);
+  padding: 0 14px 0 0;
+}
+.lg-control .au-pwd { flex: 1; min-width: 0; height: 100%; padding-right: 8px; }
+.lg-control .au-pwd-toggle { margin: 0; }
+.lg-control input::placeholder { color: var(--ink-3); opacity: .8; }
+.lg-control input:disabled { opacity: .55; }
+
+.lg-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: -2px; }
+.lg-check { display: inline-flex; align-items: center; gap: 9px; font-size: 14px; color: var(--ink-2); cursor: pointer; user-select: none; }
+.lg-check input { width: 18px; height: 18px; margin: 0; accent-color: var(--brand); cursor: pointer; }
+.lg-link { color: var(--brand); font-size: 14px; font-weight: 600; text-decoration: none; }
+.lg-link:hover { text-decoration: underline; }
+
+.lg-submit {
+  margin-top: 4px;
+  height: 50px;
+  display: inline-flex; align-items: center; justify-content: center; gap: 10px;
+  border: 0; border-radius: 12px;
+  background: var(--brand-fill); color: var(--on-brand);
+  font: inherit; font-size: 16px; font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 10px 24px -10px rgba(31, 79, 168, .65);
+  transition: background .15s, transform .1s, box-shadow .15s;
+}
+.lg-submit:hover { background: var(--brand-fill-hover); box-shadow: 0 12px 28px -10px rgba(31, 79, 168, .75); }
+.lg-submit:active { transform: scale(.985); }
+.lg-submit:disabled { opacity: .6; cursor: progress; transform: none; }
+.lg-submit:focus-visible { outline: 3px solid var(--brand-ring); outline-offset: 2px; }
+.lg-submit .au-spinner { width: 18px; height: 18px; border-width: 2px; border-color: rgba(255, 255, 255, .35); border-top-color: #fff; }
+
+.lg-note { margin: 20px 0 0; text-align: center; color: var(--ink-3); font-size: 14px; line-height: 1.5; text-wrap: pretty; }
+
+.lg-foot { display: grid; justify-items: center; gap: 6px; text-align: center; font-size: 13px; color: var(--ink-3); }
+.lg-foot nav { display: flex; gap: 16px; }
+.lg-foot a { color: inherit; text-decoration: none; }
+.lg-foot a:hover { color: var(--ink-1); text-decoration: underline; }
+
+/* Bir martalik, yumshoq paydo bo'lish */
+@media (prefers-reduced-motion: no-preference) {
+  .lg-pitch, .lg-card { animation: lg-in .7s cubic-bezier(.22, .61, .36, 1) both; }
+  .lg-card { animation-delay: .08s; }
+}
+@keyframes lg-in { from { opacity: 0; transform: translateY(10px); } }
+
+/* ── Planshet / telefon: panel yuqorida ixcham tasma ───── */
+@media (max-width: 900px) {
+  .lg { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto 1fr; }
+  .lg-panel { grid-template-rows: auto; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 12px; padding: 18px 20px; }
+  .lg-back { grid-column: 2; grid-row: 1; justify-self: end; font-size: 13px; }
+  .lg-pitch { grid-column: 1; grid-row: 1; gap: 0; }
+  .lg-pitch h2, .lg-pitch p, .lg-trust { display: none; }
+  .lg-side { align-content: start; padding: 24px 16px 28px; }
+  .lg-card { padding: 26px 20px 22px; border-radius: 18px; }
+  .lg-title { font-size: 24px; }
+}

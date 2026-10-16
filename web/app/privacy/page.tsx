@@ -1,10 +1,11 @@
 import Link from 'next/link';
+import { getDict } from '@/lib/i18n/server';
 import { LegalDoc, Ph, type LegalSection } from '../terms/legal';
 
-export const metadata = {
-  title: 'Maxfiylik siyosati — Savora',
-  description: "Savora qanday shaxsiy ma'lumotlarni yig'adi, nima uchun ishlatadi, qayerda saqlaydi va sizning huquqlaringiz.",
-};
+export async function generateMetadata() {
+  const d = await getDict();
+  return { title: d.landing.legal.privacyMetaTitle, description: d.landing.legal.privacyMetaDesc };
+}
 
 /*
  * TODO(yurist): Ma'lumot saqlash joyi (lokalizatsiya — "Shaxsga doir ma'lumotlar to'g'risida"gi
@@ -196,11 +197,12 @@ const SECTIONS: LegalSection[] = [
   },
 ];
 
-export default function PrivacyPage() {
+export default async function PrivacyPage() {
+  const d = await getDict();
   return (
     <LegalDoc
-      title="Maxfiylik siyosati"
-      lead="Qanday ma'lumot yig'amiz, nima uchun ishlatamiz va sizning huquqlaringiz."
+      title={d.landing.legal.privacyTitle}
+      lead={d.landing.legal.privacyLead}
       sections={SECTIONS}
     />
   );

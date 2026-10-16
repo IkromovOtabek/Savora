@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useTheme, type as T } from '@/lib/theme';
 import { useLayout } from './Screen';
+import { useDict } from '@/lib/i18n';
 
 interface LargeTitleProps {
   title: string;
@@ -54,8 +55,10 @@ interface NavBarProps {
 }
 
 /** Stack ekranlar uchun yuqori qator: "‹ Orqaga" + (ixtiyoriy) sarlavha + o'ng amal. */
-export function NavBar({ backLabel = 'Orqaga', title, right, onBack }: NavBarProps) {
+export function NavBar({ backLabel: backLabelProp, title, right, onBack }: NavBarProps) {
   const { c } = useTheme();
+  const d = useDict();
+  const backLabel = backLabelProp ?? d.common.back;
   const router = useRouter();
   const back = onBack ?? (() => (router.canGoBack() ? router.back() : router.replace('/(tabs)')));
   return (

@@ -48,14 +48,37 @@ export function normalizePhone(phone: string): string {
   return d;
 }
 
+/**
+ * Faqat O'zbekiston mobil raqami (998 + 9 raqam). Xorijiy/qisqa/uzun raqamlarga
+ * SMS yuborilmaydi — provayder hisobini chet el raqamlariga sarflashning oldi olinadi.
+ */
+export function isValidUzPhone(normalized: string): boolean {
+  return /^998\d{9}$/.test(normalized);
+}
+
+/**
+ * Do'kon nomi kabi foydalanuvchi kiritgan matnni SMS'ga qo'shishdan oldin tozalaydi:
+ * havolalar olib tashlanadi (spam/fishing), yangi qatorlar bo'sh joyga aylanadi,
+ * uzunlik `max` belgi bilan cheklanadi.
+ */
+export function smsSafeText(v: unknown, max = 40): string {
+  return String(v ?? '')
+    .replace(/https?:\/\/\S+/gi, '')
+    .replace(/[\r\n]+/g, ' ')
+    .replace(/\s{2,}/g, ' ')
+    .trim()
+    .slice(0, max);
+}
+
 /** Bitta SMS yuboradi. Muvaffaqiyatda true. */
 export async function sendSms(phone: string, message: string): Promise<boolean> {
   if (!isConfigured()) return false;
-  const token = await getToken();
-  if (!token) return false;
 
   const mobile = normalizePhone(phone);
-  if (mobile.length < 12) return false;
+  if (!isValidUzPhone(mobile)) return false;
+
+  const token = await getToken();
+  if (!token) return false;
 
   try {
     const body = new URLSearchParams({

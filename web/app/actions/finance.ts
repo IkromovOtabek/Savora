@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { getTenantAdminSession } from '@/lib/tenantSession';
 import { recordAudit } from '@/lib/audit';
+import { featureDisabledError } from '@/lib/featureAction';
 
 type State = { error?: string; success?: string } | null;
 
@@ -18,7 +19,8 @@ function fmtSum(n: number): string {
 }
 
 export async function createCreditBankAction(_prev: State, formData: FormData): Promise<State> {
-  const { user, CreditBank } = await getTenantAdminSession();
+  const { CreditBank, features } = await getTenantAdminSession();
+  if (!features.creditKassa) return featureDisabledError('creditKassa');
   const name = String(formData.get('name') || '').trim();
   if (!name) return { error: 'Bank nomi kiritilishi shart.' };
 
@@ -35,7 +37,8 @@ export async function createCreditBankAction(_prev: State, formData: FormData): 
 }
 
 export async function toggleCreditBankAction(formData: FormData): Promise<void> {
-  const { CreditBank } = await getTenantAdminSession();
+  const { CreditBank, features } = await getTenantAdminSession();
+  if (!features.creditKassa) return;
   const bankId = String(formData.get('bankId') || '');
   const active = formData.get('active') === '1';
   if (!bankId) return;
@@ -45,7 +48,8 @@ export async function toggleCreditBankAction(formData: FormData): Promise<void> 
 }
 
 export async function deleteCreditBankAction(formData: FormData): Promise<void> {
-  const { CreditBank } = await getTenantAdminSession();
+  const { CreditBank, features } = await getTenantAdminSession();
+  if (!features.creditKassa) return;
   const bankId = String(formData.get('bankId') || '');
   if (!bankId) return;
 
@@ -54,7 +58,8 @@ export async function deleteCreditBankAction(formData: FormData): Promise<void> 
 }
 
 export async function createCashFlowAction(_prev: State, formData: FormData): Promise<State> {
-  const { user, CashFlow } = await getTenantAdminSession();
+  const { user, CashFlow, features } = await getTenantAdminSession();
+  if (!features.kirimChiqim) return featureDisabledError('kirimChiqim');
   const type = String(formData.get('type') || '') as 'income' | 'expense';
   const description = String(formData.get('description') || '').trim();
   const amount = parseAmount(String(formData.get('amount') || ''));
@@ -80,7 +85,8 @@ export async function createCashFlowAction(_prev: State, formData: FormData): Pr
 }
 
 export async function deleteCashFlowAction(formData: FormData): Promise<void> {
-  const { user, CashFlow } = await getTenantAdminSession();
+  const { user, CashFlow, features } = await getTenantAdminSession();
+  if (!features.kirimChiqim) return;
   const entryId = String(formData.get('entryId') || '');
   if (!entryId) return;
 

@@ -4,10 +4,12 @@ import { View, StyleSheet } from 'react-native';
 import { useAuth } from '@/lib/auth';
 import { useTheme, HAIRLINE } from '@/lib/theme';
 import { Loading, ErrorState } from '@/components/ui';
+import { useDict } from '@/lib/i18n';
 
 export default function TabsLayout() {
   const { loading, me, error, refresh } = useAuth();
   const { c } = useTheme();
+  const d = useDict();
   const router = useRouter();
 
   if (loading) return <Loading full />;
@@ -35,13 +37,13 @@ export default function TabsLayout() {
         sceneStyle: { backgroundColor: c.bg },
       }}
     >
-      <Tabs.Screen name="index" options={{ title: 'Asosiy', tabBarIcon: ({ color, focused }) => <Ionicons name={focused ? 'home' : 'home-outline'} color={color} size={24} /> }} />
-      <Tabs.Screen name="products" options={{ title: me.terms?.items ?? 'Ombor', tabBarIcon: ({ color, focused }) => <Ionicons name={focused ? 'cube' : 'cube-outline'} color={color} size={24} /> }} />
+      <Tabs.Screen name="index" options={{ title: d.tabs.home, tabBarIcon: ({ color, focused }) => <Ionicons name={focused ? 'home' : 'home-outline'} color={color} size={24} /> }} />
+      <Tabs.Screen name="products" options={{ title: me.terms?.items ?? d.terms.items, tabBarIcon: ({ color, focused }) => <Ionicons name={focused ? 'cube' : 'cube-outline'} color={color} size={24} /> }} />
       <Tabs.Screen
         name="sell"
         options={{
-          title: 'Sotish',
-          tabBarAccessibilityLabel: 'Yangi sotuv',
+          title: d.tabs.sell,
+          tabBarAccessibilityLabel: d.tabs.newSale,
           tabBarLabelStyle: { fontSize: 10, fontWeight: '600', color: c.tint },
           tabBarIcon: () => (
             <View style={[s.sell, { backgroundColor: c.tint }]}>
@@ -53,10 +55,10 @@ export default function TabsLayout() {
           tabPress: (e) => { e.preventDefault(); router.push('/sale-new'); },
         }}
       />
-      <Tabs.Screen name="nasiya" options={{ title: 'Nasiya', href: nasiyaOn ? undefined : null, tabBarIcon: ({ color, focused }) => <Ionicons name={focused ? 'time' : 'time-outline'} color={color} size={24} /> }} />
+      <Tabs.Screen name="nasiya" options={{ title: d.tabs.nasiya, href: nasiyaOn ? undefined : null, tabBarIcon: ({ color, focused }) => <Ionicons name={focused ? 'time' : 'time-outline'} color={color} size={24} /> }} />
       {/* Nasiya yoqilmagan bo'lsa — uning o'rnida Sotuvlar */}
-      <Tabs.Screen name="sales" options={{ title: 'Sotuvlar', href: nasiyaOn ? null : undefined, tabBarIcon: ({ color, focused }) => <Ionicons name={focused ? 'cart' : 'cart-outline'} color={color} size={24} /> }} />
-      <Tabs.Screen name="profile" options={{ title: 'Kabinet', tabBarIcon: ({ color, focused }) => <Ionicons name={focused ? 'person-circle' : 'person-circle-outline'} color={color} size={25} /> }} />
+      <Tabs.Screen name="sales" options={{ title: d.tabs.sales, href: nasiyaOn ? null : undefined, tabBarIcon: ({ color, focused }) => <Ionicons name={focused ? 'cart' : 'cart-outline'} color={color} size={24} /> }} />
+      <Tabs.Screen name="profile" options={{ title: d.tabs.profile, tabBarIcon: ({ color, focused }) => <Ionicons name={focused ? 'person-circle' : 'person-circle-outline'} color={color} size={25} /> }} />
     </Tabs>
   );
 }

@@ -9,6 +9,9 @@ import { siteVisitSchema, ISiteVisit } from './models/master/SiteVisit';
 import { imeiBlacklistSchema, IImeiBlacklist } from './models/master/ImeiBlacklist';
 import { telegramAccountSchema, ITelegramAccount } from './models/master/TelegramAccount';
 import { userDirectorySchema, IUserDirectory } from './models/master/UserDirectory';
+import { securityEventSchema, ISecurityEvent } from './models/master/SecurityEvent';
+import { systemLogSchema, ISystemLog } from './models/master/SystemLog';
+import { cronRunSchema, ICronRun } from './models/master/CronRun';
 
 /** Master DB modellari (Organization, SuperAdmin, Review) */
 export async function getMasterModels() {
@@ -40,5 +43,18 @@ export async function getMasterModels() {
   const UserDirectory =
     (conn.models.UserDirectory as Model<IUserDirectory>) ||
     conn.model<IUserDirectory>('UserDirectory', userDirectorySchema);
-  return { conn, Organization, SuperAdmin, PlatformSettings, Review, PaymentRequest, SiteVisit, ImeiBlacklist, TelegramAccount, UserDirectory };
+  // Monitoring: xavfsizlik hodisalari, server xatolari, cron tarixi
+  const SecurityEvent =
+    (conn.models.SecurityEvent as Model<ISecurityEvent>) ||
+    conn.model<ISecurityEvent>('SecurityEvent', securityEventSchema);
+  const SystemLog =
+    (conn.models.SystemLog as Model<ISystemLog>) ||
+    conn.model<ISystemLog>('SystemLog', systemLogSchema);
+  const CronRun =
+    (conn.models.CronRun as Model<ICronRun>) ||
+    conn.model<ICronRun>('CronRun', cronRunSchema);
+  return {
+    conn, Organization, SuperAdmin, PlatformSettings, Review, PaymentRequest, SiteVisit, ImeiBlacklist,
+    TelegramAccount, UserDirectory, SecurityEvent, SystemLog, CronRun,
+  };
 }

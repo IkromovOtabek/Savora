@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { trackSiteVisit, type TrackPayload } from '@/lib/visitAnalytics';
+import { trackSiteVisit, isValidTrackId, type TrackPayload } from '@/lib/visitAnalytics';
 import { hitRateLimit } from '@/lib/rateLimit';
 
 export async function POST(req: Request) {
@@ -24,6 +24,10 @@ export async function POST(req: Request) {
 
   if (!visitorId || !sessionId || !event) {
     return NextResponse.json({ error: 'Missing fields' }, { status: 400 });
+  }
+  // Identifikatorlar client tomonda yaratiladi — uzunlik va belgilar cheklanadi (baza ifloslanmasin)
+  if (!isValidTrackId(visitorId) || !isValidTrackId(sessionId)) {
+    return NextResponse.json({ error: 'Invalid id' }, { status: 400 });
   }
 
   const allowed = ['init', 'heartbeat', 'page', 'api', 'modal_show', 'modal_dismiss'];

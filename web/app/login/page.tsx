@@ -4,9 +4,13 @@ import { getCurrentUser } from '@/lib/auth';
 import { isOrganizationActive } from '@/lib/models/master/Organization';
 import { DB_UNAVAILABLE_MESSAGE, isDbConnectionError } from '@/lib/dbError';
 import { tenantForgotUrl } from '@/lib/urls';
+import { getDict } from '@/lib/i18n/server';
 import LoginForm from './LoginForm';
 
-export const metadata = { title: 'Kirish — Savora' };
+export async function generateMetadata() {
+  const d = await getDict();
+  return { title: d.auth.login.metaTitle };
+}
 
 export default async function LoginPage({
   searchParams,
@@ -20,33 +24,35 @@ export default async function LoginPage({
     redirect(user.role === 'super_admin' ? '/super' : '/app');
   }
 
-  let title = 'Kirish';
+  const d = await getDict();
+  const t = d.auth.login;
+  let title = t.title;
   let subtitle = '';
   let canLogin = false;
   let notice = '';
   let dbError = '';
 
   if (zone === 'super') {
-    title = 'Platforma boshqaruvi';
-    subtitle = 'Super admin kirishi';
+    title = t.superTitle;
+    subtitle = t.superSubtitle;
     canLogin = true;
   } else if (zone === 'tenant') {
     try {
       const org = await resolveTenant();
       if (!org) {
-        title = "Do'kon topilmadi";
-        notice = 'Bunday manzildagi do\'kon mavjud emas. Manzilni tekshiring.';
+        title = t.storeNotFound;
+        notice = t.storeNotFoundNotice;
       } else if (!isOrganizationActive(org)) {
         title = org.name;
-        notice = "Bu do'kon obunasi to'xtatilgan yoki muddati tugagan. Platforma egasiga murojaat qiling.";
+        notice = t.storeInactiveNotice;
       } else {
         title = org.name;
-        subtitle = "Do'kon tizimiga kirish";
+        subtitle = t.storeSubtitle;
         canLogin = true;
       }
     } catch (err) {
       if (isDbConnectionError(err)) {
-        title = "Do'kon tizimi";
+        title = t.storeSystem;
         dbError = DB_UNAVAILABLE_MESSAGE;
       } else {
         throw err;
@@ -55,8 +61,8 @@ export default async function LoginPage({
   } else {
     // Asosiy sayt — biznes egasi/xodim login + parol bilan to'g'ridan-to'g'ri kiradi.
     // Qaysi do'kon ekani username orqali aniqlanadi (global registr) — manzil (slug) so'ralmaydi.
-    title = 'Tizimga kirish';
-    subtitle = 'Login va parolingizni kiriting';
+    title = t.rootTitle;
+    subtitle = t.rootSubtitle;
     canLogin = true;
   }
 
@@ -75,10 +81,11 @@ export default async function LoginPage({
       dbError={dbError}
       blocked={sp?.blocked === '1'}
       welcome={sp?.welcome === '1'}
-      defaultUsername={sp?.u ? decodeURIComponent(sp.u) : undefined}
+      defaultUsername={sp?.u ? String(sp.u).slice(0, 64) : undefined}
       loginZone={loginZone}
       tenantSlug={tenantSlug || undefined}
       forgotUrl={forgotUrl}
+      showRegister={zone === 'root'}
     />
   );
 }

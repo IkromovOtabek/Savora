@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { branchFilter, branchAggMatch, isBranchScoped } from '@/lib/branchScope';
+import { branchFilter, branchAggMatch, isBranchScoped, MATCH_NOTHING } from '@/lib/branchScope';
 
 const BRANCH = '507f1f77bcf86cd799439011';
 
@@ -13,8 +13,11 @@ describe('branchScope — filial izolatsiyasi (xavfsizlik-kritik)', () => {
     expect(branchFilter({ role: 'user', branchId: BRANCH })).toEqual({ branchId: BRANCH });
   });
 
-  it('branchId yo\'q user — filtr bo\'sh (xavfsiz default)', () => {
-    expect(branchFilter({ role: 'user', branchId: undefined })).toEqual({});
+  it('branchId yo\'q user — hech narsaga mos kelmaydi (fail-closed)', () => {
+    expect(branchFilter({ role: 'user', branchId: undefined })).toEqual(MATCH_NOTHING);
+    expect(branchFilter({ role: 'user', branchId: '' })).toEqual({ _id: { $in: [] } });
+    // `{ _id: id, ...branchFilter(user) }` — _id bosib o'tiladi, natija bo'sh
+    expect({ _id: 'abc', ...branchFilter({ role: 'user', branchId: undefined }) }).toEqual({ _id: { $in: [] } });
   });
 
   it('isBranchScoped faqat branchId\'li user uchun true', () => {
@@ -30,7 +33,8 @@ describe('branchScope — filial izolatsiyasi (xavfsizlik-kritik)', () => {
     expect(branchAggMatch({ role: 'admin', branchId: BRANCH })).toEqual({});
   });
 
-  it('branchAggMatch noto\'g\'ri ObjectId\'da bo\'sh qaytaradi', () => {
-    expect(branchAggMatch({ role: 'user', branchId: 'not-an-id' })).toEqual({});
+  it('branchAggMatch noto\'g\'ri/yo\'q ObjectId\'da hech narsaga mos kelmaydi (fail-closed)', () => {
+    expect(branchAggMatch({ role: 'user', branchId: 'not-an-id' })).toEqual(MATCH_NOTHING);
+    expect(branchAggMatch({ role: 'user', branchId: undefined })).toEqual(MATCH_NOTHING);
   });
 });

@@ -3,7 +3,7 @@
  *   node --env-file=.env scripts/seed.mjs
  *
  * Yaratadi:
- *   1) Super admin (master)                → admin / admin123
+ *   1) Super admin (master)                → admin / SEED_ADMIN_PASSWORD (yo'q bo'lsa tasodifiy, bir marta chop etiladi)
  *   2) Demo do'kon "Dokon 1" (barcha modullar yoqilgan)
  *   3) Do'kon admini                        → admin / admin123
  *   4) Filial-login (Chilonzor filiali)     → chilonzor / demo123
@@ -14,12 +14,21 @@
  */
 import mongoose from 'mongoose';
 import bcrypt from 'bcryptjs';
+import crypto from 'crypto';
+
+// Production bazasiga demo ma'lumot (va ma'lum parollar) tushib qolmasin
+if (process.env.NODE_ENV === 'production' && process.env.SEED_ALLOW !== '1') {
+  console.error('Seed production\'da bloklangan. Ataylab kerak bo\'lsa: SEED_ALLOW=1');
+  process.exit(1);
+}
 
 const { Types } = mongoose;
 const URI = process.env.MONGO_URI || 'mongodb://127.0.0.1:27017';
-const MASTER = process.env.MASTER_DB_NAME || 'savora';
+// lib/db.ts bilan bir xil default — aks holda seed boshqa bazaga yozib, login ishlamaydi
+const MASTER = process.env.MASTER_DB_NAME || 'savdopro_master';
 
-const SUPER = { username: 'admin', password: 'admin123' };
+// Super admin paroli: SEED_ADMIN_PASSWORD yoki tasodifiy (bir marta chop etiladi)
+const SUPER = { username: 'admin', password: process.env.SEED_ADMIN_PASSWORD || crypto.randomBytes(9).toString('base64url') };
 const ORG = { name: 'Dokon 1', slug: 'dokon1', dbName: 'biznes_dokon1' };
 const ADMIN = { username: 'admin', password: 'admin123' };
 const BRANCH_LOGIN = { username: 'chilonzor', password: 'demo123' };
@@ -45,7 +54,8 @@ async function main() {
     { $set: { username: SUPER.username, password: superHash, tokenVersion: 0, updatedAt: new Date() }, $setOnInsert: { createdAt: new Date() } },
     { upsert: true }
   );
-  console.log(`OK — Super admin: ${SUPER.username} / ${SUPER.password}`);
+  // Parol faqat shu yerda, bir marta chop etiladi (tasodifiy bo'lsa — saqlab qo'ying)
+  console.log(`OK — Super admin: ${SUPER.username} / ${SUPER.password}${process.env.SEED_ADMIN_PASSWORD ? '' : '   (tasodifiy — saqlab qo\'ying)'}`);
 
   // ── 2) Organization (barcha modullar yoqilgan) ──────────────────
   await base.collection('organizations').updateOne(
@@ -181,7 +191,7 @@ async function main() {
   await base.close();
   console.log('\n✅ DEMO SEED TUGADI\n');
   console.log('Kirish (http://localhost:3000/login) — endi slug shart emas, faqat login+parol:');
-  console.log('   Super admin:   admin / admin123   (http://localhost:3000/super/login)');
+  console.log('   Super admin:   admin / <yuqorida chop etilgan parol>   (http://localhost:3000/super/login)');
   console.log('   Do\'kon egasi:  admin / admin123');
   console.log('   Filial-login:  chilonzor / demo123');
   process.exit(0);

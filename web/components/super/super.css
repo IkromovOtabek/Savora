@@ -146,7 +146,39 @@
 .sa-two { display: grid; grid-template-columns: 1.4fr 1fr; gap: 16px; }
 .sa-stack { display: grid; gap: 20px; min-width: 0; }
 
-.sa-section { display: grid; gap: 6px; min-width: 0; }
+.sa-section { display: grid; gap: 6px; min-width: 0; align-content: start; }
+
+/* Do'kon sahifasi — asosiy faktlar */
+.sa-facts {
+  display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 1px; margin: 0 0 16px;
+  border-radius: 16px; overflow: hidden; background: var(--sa-sep); box-shadow: 0 0 0 .5px var(--sa-sep);
+}
+.sa-facts > div { background: var(--sa-card); padding: 12px 16px; display: grid; gap: 2px; align-content: start; min-width: 0; }
+.sa-facts dt { font-size: 12px; font-weight: 600; color: var(--ink-3); }
+.sa-facts dd { margin: 0; font-size: 18px; font-weight: 700; letter-spacing: -.02em; font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sa-facts small { font-size: 12.5px; color: var(--ink-3); }
+.sa-facts .is-warn small { color: var(--warn); font-weight: 600; }
+.sa-facts .is-bad small { color: var(--danger); font-weight: 600; }
+@media (max-width: 760px) {
+  .sa-facts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .sa-facts > div:nth-child(3) { grid-column: 1 / -1; order: -1; }
+}
+
+/* Asosiy panel — «Diqqat talab qiladi» */
+.sa-attn { display: grid; align-content: start; }
+.sa-attn-list { display: grid; padding: 0 8px 8px; }
+.sa-attn-row {
+  display: flex; align-items: center; gap: 12px; min-height: 56px; padding: 8px 10px; border-radius: 12px;
+  color: var(--ink-1); text-decoration: none; transition: background .12s;
+}
+.sa-attn-row:hover { background: var(--sa-fill-2); }
+.sa-attn-row:focus-visible { outline: 3px solid var(--brand-soft); }
+.sa-attn-row .sa-cell-t { flex: 1; min-width: 0; padding: 0; }
+.sa-attn-n {
+  min-width: 34px; height: 28px; padding: 0 10px; border-radius: 999px; display: grid; place-items: center;
+  font-size: 15px; font-weight: 700; font-variant-numeric: tabular-nums; background: var(--sa-fill); color: var(--ink-2);
+}
+.sa-attn-row.is-bad .sa-attn-n { background: var(--danger-soft); color: var(--danger); }
 .sa-ghead { font-size: 13px; color: var(--ink-3); text-transform: uppercase; letter-spacing: .02em; padding: 0 16px; font-weight: 500; display: flex; justify-content: space-between; gap: 8px; }
 .sa-ghead a { color: var(--brand); text-transform: none; letter-spacing: 0; font-size: 14px; text-decoration: none; }
 .sa-gfoot { font-size: 13px; color: var(--ink-3); padding: 0 16px; line-height: 1.45; text-wrap: pretty; }
@@ -450,14 +482,14 @@ a.sa-cell:active, label.sa-cell:active { background: var(--sa-fill); }
 /* Desktopda gamburger ko'rinmasin (sa-icon-btn display'ini bosib o'tadi) */
 .sa-icon-btn.sa-toolbar-menu { display: none; }
 
-/* KPI ikonkalari — hajmli (ux-clay), label qatoriga moslangan o'lcham */
+/* KPI ikonkalari — tekis (ux-clay), label qatoriga moslangan o'lcham */
 .sa-kpi .sa-clay { width: 28px; height: 28px; border-radius: 9px; }
 .sa-kpi .sa-clay svg { width: 15px; height: 15px; }
-.ux-clay.sa-clay--v { background: linear-gradient(145deg, #8b72e6, #4f37a8); box-shadow: inset 0 2px 1px rgba(255, 255, 255, .4), inset 0 -3px 4px rgba(0, 0, 0, .18), 0 6px 12px -4px rgba(79, 55, 168, .45); }
-.ux-clay.sa-clay--c { background: linear-gradient(145deg, #2fb2d4, #0d6b86); box-shadow: inset 0 2px 1px rgba(255, 255, 255, .4), inset 0 -3px 4px rgba(0, 0, 0, .18), 0 6px 12px -4px rgba(13, 107, 134, .45); }
+.ux-clay.sa-clay--v { color: #6a4fd0; background: rgba(106, 79, 208, .12); }
+.ux-clay.sa-clay--c { color: #0f7f9e; background: rgba(15, 127, 158, .12); }
 
 /* Hero (3D, Tilt stack) + yonidagi lenta */
-.sa-hero-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.7fr); gap: 16px; align-items: stretch; }
+.sa-hero-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr); gap: 16px; align-items: stretch; }
 .sa-hero-row > .ux-strip { align-content: stretch; margin-bottom: 18px; }
 .sa-hero-row .sa-kpi { height: 100%; }
 .sa-hero {
@@ -511,6 +543,11 @@ a.sa-cell:active, label.sa-cell:active { background: var(--sa-fill); }
 .sa-tab[aria-selected="true"] { background: var(--sa-card); color: var(--ink-1); box-shadow: 0 2px 6px rgba(0, 0, 0, .1), 0 0 0 .5px rgba(0, 0, 0, .04); }
 .sa-tab[aria-selected="true"] svg { color: var(--brand); }
 .sa-tab:focus-visible { outline: 3px solid var(--brand-soft); outline-offset: 1px; }
+/* Kontent kengligidagi lentalar: umumiy .ux-scrollx dagi `contain: inline-size` ularni 0 kenglikka siqib qo'yardi
+   (tablar va holat filtri ko'rinmay qolgan). Bu yerda kenglik kontentdan, toshib ketsa — gorizontal aylanadi. */
+.sa-tabs-list.ux-scrollx, .sa-seg--scroll.ux-scrollx { contain: none; width: max-content; min-width: 0; padding-right: 3px; -webkit-mask-image: none; mask-image: none; }
+/* Cheklov konteynerda: u doim to'liq kenglikdagi blok, shuning uchun tablar sahifani (mobilda) kengaytirmaydi */
+.sa-tabs-bar { contain: inline-size; }
 .sa-tabpanel { min-width: 0; max-width: 920px; }
 .sa-tabpanel[hidden] { display: none; }
 .sa-panel-h { display: flex; align-items: center; gap: 12px; padding: 14px 16px; }
@@ -585,3 +622,75 @@ a.sa-cell:active, label.sa-cell:active { background: var(--sa-fill); }
 @media (prefers-reduced-motion: reduce) {
   .sa-side { transition: none; }
 }
+
+/* ── Monitoring (/super/monitoring) ─────────────────── */
+.sa-mon-refresh { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.sa-mon-nav { position: sticky; top: 52px; z-index: 5; display: flex; gap: 6px; overflow-x: auto; padding: 6px 0; margin: -6px 0; background: var(--bg-soft); scrollbar-width: none; }
+.sa-mon-nav::-webkit-scrollbar { display: none; }
+.sa-mon-nav a { flex: none; font-size: 13px; font-weight: 500; color: var(--ink-2); text-decoration: none; padding: 5px 12px; border-radius: 999px; background: var(--sa-fill-2); }
+.sa-mon-nav a:hover { background: var(--sa-fill); color: var(--ink-1); }
+.sa-mon-status { display: grid; gap: 10px; padding: 18px 20px; border-radius: 16px; color: #fff; }
+.sa-mon-status--ok { background: linear-gradient(150deg, #1f8a4c, #146b3a); }
+.sa-mon-status--warn { background: linear-gradient(150deg, #c98a12, #a0650a); }
+.sa-mon-status--bad { background: linear-gradient(150deg, #d64033, #a8261c); }
+.sa-mon-status-h { display: flex; align-items: center; gap: 10px; font-size: 13px; font-weight: 600; opacity: .9; text-transform: uppercase; letter-spacing: .03em; }
+.sa-mon-status-v { font-size: 28px; font-weight: 700; letter-spacing: -.03em; line-height: 1.1; }
+.sa-mon-status ul { margin: 0; padding: 0 0 0 18px; font-size: 14px; line-height: 1.5; opacity: .95; }
+.sa-mon-status p { margin: 0; font-size: 14px; opacity: .9; }
+.sa-mon-kv { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 16px; padding: 9px 16px; font-size: 14px; border-top: .5px solid var(--sa-sep); }
+.sa-mon-kv:first-child { border-top: 0; }
+.sa-mon-kv span { color: var(--ink-3); }
+.sa-mon-kv b { font-weight: 600; text-align: right; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.sa-mon-kv code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12.5px; }
+.sa-mon-check { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 4px 12px; padding: 11px 16px; border-top: .5px solid var(--sa-sep); align-items: start; }
+.sa-mon-check:first-child { border-top: 0; }
+.sa-mon-check b { font-size: 14px; font-weight: 600; }
+.sa-mon-check p { margin: 0; font-size: 13.5px; color: var(--ink-2); line-height: 1.45; text-wrap: pretty; }
+.sa-mon-check small { display: block; font-size: 12.5px; color: var(--ink-3); margin-top: 2px; }
+.sa-mon-check small::before { content: "Tuzatish: "; font-weight: 600; }
+.sa-mon-chk { width: 22px; height: 22px; border-radius: 7px; display: inline-grid; place-items: center; margin-top: 1px; }
+.sa-mon-chk--ok { background: var(--accent-soft); color: var(--accent); }
+.sa-mon-chk--warn { background: var(--sa-warn-soft); color: var(--sa-warn); }
+.sa-mon-chk--bad { background: var(--sa-bad-soft); color: var(--sa-bad); }
+.sa-mon-chk--info { background: var(--sa-fill); color: var(--ink-2); }
+.sa-mon-bar { display: grid; gap: 6px; padding: 12px 16px; border-top: .5px solid var(--sa-sep); }
+.sa-mon-bar:first-child { border-top: 0; }
+.sa-mon-bar-h { display: flex; justify-content: space-between; gap: 10px; font-size: 14px; }
+.sa-mon-bar-h b { font-weight: 600; }
+.sa-mon-bar-h span { color: var(--ink-3); font-variant-numeric: tabular-nums; }
+.sa-prog i.is-warn { background: var(--sa-warn); }
+.sa-prog i.is-bad { background: var(--sa-bad); }
+.sa-mon-log { padding: 10px 16px; border-top: .5px solid var(--sa-sep); display: grid; gap: 3px; }
+.sa-mon-log:first-child { border-top: 0; }
+.sa-mon-log-h { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; font-size: 14px; }
+.sa-mon-log-h b { font-weight: 600; overflow-wrap: anywhere; }
+.sa-mon-log-h time { color: var(--ink-3); font-size: 12.5px; margin-left: auto; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.sa-mon-log-e { font-size: 13px; color: var(--sa-bad); overflow-wrap: anywhere; }
+.sa-mon-log details { font-size: 12.5px; }
+.sa-mon-log summary { cursor: pointer; color: var(--brand); list-style: none; }
+.sa-mon-log summary::-webkit-details-marker { display: none; }
+.sa-mon-log pre { margin: 6px 0 0; padding: 10px 12px; border-radius: 8px; background: var(--sa-fill-2); font-size: 11.5px; line-height: 1.5; overflow-x: auto; max-height: 240px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; white-space: pre-wrap; overflow-wrap: anywhere; }
+.sa-mon-cron { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+.sa-mon-cron .sa-card { padding: 14px 16px; display: grid; gap: 6px; align-content: start; }
+.sa-mon-cron h3 { margin: 0; font-size: 15px; font-weight: 600; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.sa-mon-cron p { margin: 0; font-size: 13px; color: var(--ink-3); line-height: 1.4; }
+.sa-mon-cron dl { margin: 4px 0 0; display: grid; grid-template-columns: auto 1fr; gap: 2px 10px; font-size: 13px; }
+.sa-mon-cron dt { color: var(--ink-3); }
+.sa-mon-cron dd { margin: 0; font-weight: 600; font-variant-numeric: tabular-nums; }
+.sa-mon-cronrun { display: grid; gap: 4px; justify-items: start; margin-top: 4px; }
+.sa-mon-err { font-size: 12.5px; color: var(--sa-bad); }
+.sa-mon-ok { font-size: 12.5px; color: var(--sa-ok); }
+.sa-mon-ip { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13px; }
+.sa-mon-attack td { background: var(--sa-bad-soft) !important; }
+.sa-mon-tag { display: inline-block; font-size: 11px; font-weight: 600; padding: 1px 7px; border-radius: 999px; background: var(--sa-fill); color: var(--ink-2); white-space: nowrap; }
+.sa-mon-tag--bad { background: var(--sa-bad-soft); color: var(--sa-bad); }
+.sa-mon-tag--ok { background: var(--accent-soft); color: var(--accent); }
+.sa-mon-tag--warn { background: var(--sa-warn-soft); color: var(--sa-warn); }
+.sa-mon-tag--off { opacity: .7; }
+.sa-mon-tag--mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-weight: 500; }
+.sa-mon-help { font-size: 13px; color: var(--ink-3); padding: 0 16px; line-height: 1.45; }
+.sa-mon-help code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12.5px; background: var(--sa-fill-2); padding: 1px 6px; border-radius: 5px; }
+.sa-shell .ux-strip.sa-strip-6 { --ux-cols: 6; }
+@media (max-width: 1180px) { .sa-mon-cron { grid-template-columns: repeat(2, minmax(0, 1fr)); } .sa-shell .ux-strip.sa-strip-6 { --ux-cols: 3; } }
+@media (max-width: 860px) { .sa-mon-nav { top: 52px; } }
+@media (max-width: 560px) { .sa-mon-cron { grid-template-columns: minmax(0, 1fr); } .sa-mon-check { grid-template-columns: auto minmax(0, 1fr); } }

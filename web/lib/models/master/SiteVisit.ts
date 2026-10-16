@@ -73,3 +73,5 @@ export const siteVisitSchema = new Schema<ISiteVisit>(
 );
 
 siteVisitSchema.index({ lastSeenAt: -1 });
+// 90 kundan eski tashriflar avtomatik o'chadi (TTL) — IP/UA saqlash muddati cheklanadi
+siteVisitSchema.index({ startedAt: 1 }, { expireAfterSeconds: 90 * 24 * 60 * 60 });

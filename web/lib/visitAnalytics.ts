@@ -4,6 +4,11 @@ import type { IVisitEvent } from '@/lib/models/master/SiteVisit';
 
 const MAX_EVENTS = 80;
 
+/** Client yaratgan visitorId/sessionId: ≤64 belgi, faqat [A-Za-z0-9_-] (sof funksiya — test qilinadi) */
+export function isValidTrackId(id: string): boolean {
+  return id.length > 0 && id.length <= 64 && /^[A-Za-z0-9_-]+$/.test(id);
+}
+
 export function getClientIp(h: Headers): string {
   const forwarded = h.get('x-forwarded-for');
   if (forwarded) return forwarded.split(',')[0]?.trim() || '';

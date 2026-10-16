@@ -5,6 +5,8 @@ import { usePathname } from 'next/navigation';
 import Icon, { type IconName } from '@/components/icons/Icon';
 import BrandMark from '@/components/BrandMark';
 import LogoutButton from '@/components/LogoutButton';
+import { useDict } from '@/lib/i18n/client';
+import { tr } from '@/lib/i18n/fmt';
 
 export interface SuperNavItem {
   href: string;
@@ -27,6 +29,7 @@ export const SUPER_NAV_GROUPS: { title: string; items: SuperNavItem[] }[] = [
     items: [
       { href: '/super/plans', label: 'Tariflar', icon: 'plans' },
       { href: '/super/systems', label: 'Tizimlar', icon: 'settings' },
+      { href: '/super/monitoring', label: 'Monitoring', icon: 'shield' },
       { href: '/super/metrics', label: 'Metrikalar', icon: 'trendingUp' },
       { href: '/super/visitors', label: 'Tashriflar', icon: 'chart' },
     ],
@@ -51,25 +54,27 @@ export default function SuperSidebar({
   onNavigate?: () => void;
 }) {
   const pathname = usePathname();
+  const d = useDict();
+  const s = d.superPanel;
 
   return (
-    <aside className="sa-side" id="sa-sidebar" aria-label="Super admin menyusi">
+    <aside className="sa-side" id="sa-sidebar" aria-label={s.shell.sidebarAria}>
       <Link href="/super/dashboard" className="sa-side-brand" onClick={onNavigate}>
         <BrandMark size={32} />
         <span>
-          <b>Savora</b>
-          <small>Super Admin</small>
+          <b>{d.common.brand}</b>
+          <small>{s.shell.superAdmin}</small>
         </span>
       </Link>
 
       {SUPER_NAV_GROUPS.map((g) => (
-        <nav key={g.title} className="sa-side-group" aria-label={g.title}>
-          <h5>{g.title}</h5>
+        <nav key={g.title} className="sa-side-group" aria-label={s.navGroups[g.title] ?? g.title}>
+          <h5>{s.navGroups[g.title] ?? g.title}</h5>
           {g.items.map((item) => {
             const active = isSuperNavActive(item.href, pathname);
             const count =
               item.href === '/super/payments' && pendingPayments > 0 ? (
-                <span className="sa-side-count sa-side-count--hot" aria-label={`${pendingPayments} ta kutilayotgan to'lov`}>{pendingPayments}</span>
+                <span className="sa-side-count sa-side-count--hot" aria-label={tr(s.shell.pendingPaymentsAria, { n: pendingPayments })}>{pendingPayments}</span>
               ) : item.href === '/super' && orgCount !== undefined ? (
                 <span className="sa-side-count">{orgCount}</span>
               ) : null;
@@ -82,7 +87,7 @@ export default function SuperSidebar({
                 onClick={onNavigate}
               >
                 <Icon name={item.icon} size={18} />
-                {item.label}
+                {s.nav[item.href] ?? item.label}
                 {count}
               </Link>
             );
@@ -92,8 +97,8 @@ export default function SuperSidebar({
 
       <div className="sa-side-foot">
         <div className="sa-side-role">
-          Platforma egasi
-          <small>Super Admin</small>
+          {s.shell.platformOwner}
+          <small>{s.shell.superAdmin}</small>
         </div>
         <LogoutButton iconOnly />
       </div>

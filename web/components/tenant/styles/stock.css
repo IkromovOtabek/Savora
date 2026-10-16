@@ -316,7 +316,7 @@
 .st-idrow { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 16px; border-bottom: .5px solid var(--sep); font-size: 14px; color: var(--ink-3); }
 .st-idrow code { font-family: var(--font-mono); font-size: 13px; color: var(--ink-1); background: var(--fill-2); padding: 3px 8px; border-radius: 6px; }
 
-/* Jonli foyda kartasi — 3D-lite: hajmli ikonka (ux-clay) + yumshoq rangli fon */
+/* Jonli foyda kartasi — tekis ikonka (ux-clay) + yumshoq rangli fon */
 .st-profit {
   display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 10px 14px;
   padding: 14px; border-radius: var(--r-lg); background: var(--fill-2);

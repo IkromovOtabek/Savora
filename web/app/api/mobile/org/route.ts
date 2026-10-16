@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { authenticateMobile } from '@/lib/mobileAuth';
 import { getMasterModels } from '@/lib/masterDb';
+import { recordAudit } from '@/lib/audit';
 import { parseBusinessType, BUSINESS_TYPES, termsFor } from '@/lib/businessTypes';
 
 /** GET — mavjud biznes turlari ro'yxati (tanlash uchun). */
@@ -8,7 +9,8 @@ export async function GET(req: Request) {
   const auth = await authenticateMobile(req);
   if (auth instanceof NextResponse) return auth;
   const user = auth;
-  if (!user) return NextResponse.json({ error: 'Avtorizatsiya kerak.' }, { status: 401 });
+  // Faqat tenant foydalanuvchisi (super_admin'da do'kon konteksti yo'q)
+  if (!user || !user.dbName || !user.organizationId) return NextResponse.json({ error: 'Avtorizatsiya kerak.' }, { status: 401 });
   return NextResponse.json({
     types: (Object.keys(BUSINESS_TYPES) as (keyof typeof BUSINESS_TYPES)[]).map((key) => ({
       key,
@@ -23,7 +25,8 @@ export async function PATCH(req: Request) {
   const auth = await authenticateMobile(req);
   if (auth instanceof NextResponse) return auth;
   const user = auth;
-  if (!user || !user.organizationId) {
+  // Tenant konteksti shart — super_admin yoki dbName'siz token bu yerga kirmaydi
+  if (!user || !user.organizationId || !user.dbName || user.role === 'super_admin') {
     return NextResponse.json({ error: 'Avtorizatsiya kerak.' }, { status: 401 });
   }
   if (user.role !== 'admin') {
@@ -35,6 +38,14 @@ export async function PATCH(req: Request) {
   const bt = parseBusinessType(String(body.businessType || ''));
   const { Organization } = await getMasterModels();
   await Organization.updateOne({ _id: user.organizationId }, { $set: { businessType: bt, updatedAt: new Date() } });
+  // AuditEntity'da 'org' yo'q — do'kon sozlamasi egasi (user) nomidan yoziladi
+  await recordAudit(user, {
+    action: 'org.businessType',
+    entity: 'user',
+    entityId: user.organizationId,
+    summary: `Biznes yo'nalishi o'zgartirildi: ${BUSINESS_TYPES[bt].label} (mobil)`,
+    meta: { businessType: bt },
+  });
 
   return NextResponse.json({
     businessType: bt,

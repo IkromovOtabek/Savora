@@ -11,6 +11,7 @@ import { getSession } from '@/lib/session';
 import { getMasterModels } from '@/lib/masterDb';
 import { getTenantModels } from '@/lib/tenantDb';
 import { setRouteCookies } from '@/lib/routeCookies';
+import { getDict } from '@/lib/i18n/server';
 
 type State = { error?: string } | null;
 
@@ -19,8 +20,9 @@ const TRIAL_DAYS = Number(process.env.TRIAL_DAYS || 14);
 
 export async function registerAction(_prev: State, formData: FormData): Promise<State> {
   const zone = await getAppZone();
+  const { errors: e } = (await getDict()).auth;
   if (zone !== 'root') {
-    return { error: 'Ro\'yxatdan o\'tish faqat asosiy saytdan amalga oshiriladi.' };
+    return { error: e.registerRootOnly };
   }
 
   const name = String(formData.get('name') || '');
@@ -41,24 +43,24 @@ export async function registerAction(_prev: State, formData: FormData): Promise<
 
   // Oferta va maxfiylik siyosatiga rozilik (aksept) — majburiy
   if (formData.get('acceptTerms') !== '1') {
-    return { error: 'Davom etish uchun oferta va maxfiylik siyosatiga rozilik bildiring.' };
+    return { error: e.acceptTerms };
   }
 
   if (adminUsername.length < 3) {
-    return { error: 'Login kamida 3 ta belgidan iborat bo\'lsin (lotin harf, raqam, _).' };
+    return { error: e.usernameShortRules };
   }
   if (!adminPassword || adminPassword.length < 6) {
-    return { error: 'Parol kamida 6 ta belgi.' };
+    return { error: e.passwordShort };
   }
   if (adminPassword !== confirmPassword) {
-    return { error: 'Parollar mos kelmadi.' };
+    return { error: e.passwordMismatch };
   }
 
   // Spam himoyasi: bitta IP'dan sutkasiga 3 tagacha do'kon yaratish (validatsiyadan o'tgan urinishlar)
   const ip = clientIpFrom(await headers());
   const rl = hitRateLimit(`register-ip:${ip}`, 3, 24 * 60 * 60 * 1000);
   if (!rl.ok) {
-    return { error: 'Bu qurilmadan bugun juda ko\'p ro\'yxatdan o\'tildi. Ertaga qayta urinib ko\'ring yoki biz bilan bog\'laning.' };
+    return { error: e.registerRateLimit };
   }
 
   try {
@@ -82,11 +84,11 @@ export async function registerAction(_prev: State, formData: FormData): Promise<
 
     const { Organization } = await getMasterModels();
     const org = await Organization.findById(orgId).lean();
-    if (!org) return { error: 'Do\'kon yaratildi, lekin kirishda xatolik.' };
+    if (!org) return { error: e.storeCreatedLoginFailed };
 
     const { User } = await getTenantModels(org.dbName);
     const tenantUser = await User.findOne({ username: createdUsername, role: 'admin' }).exec();
-    if (!tenantUser) return { error: 'Admin yaratildi, lekin avtomatik kirish muvaffaqiyatsiz.' };
+    if (!tenantUser) return { error: e.adminCreatedLoginFailed };
 
     const session = await getSession('tenant');
     session.user = {
@@ -113,6 +115,10 @@ export async function registerAction(_prev: State, formData: FormData): Promise<
     redirect('/app?welcome=1');
   } catch (err) {
     if (err && typeof err === 'object' && 'digest' in err) throw err;
-    return { error: err instanceof Error ? err.message : 'Xatolik yuz berdi.' };
+    // Mongo dublikat (slug poygasi) — xom xabar baza/kolleksiya nomini oshkor qiladi
+    if (err && typeof err === 'object' && (err as { code?: number }).code === 11000) {
+      return { error: e.slugTaken };
+    }
+    return { error: err instanceof Error ? err.message : d.common.errorGeneric };
   }
 }

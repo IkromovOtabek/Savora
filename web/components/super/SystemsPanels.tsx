@@ -3,6 +3,7 @@
 import { useActionState } from 'react';
 import { runExpireOrgsAction, runExpiryNotifyAction } from '@/app/actions/systems';
 import Icon, { type IconName } from '@/components/icons/Icon';
+import { useDict } from '@/lib/i18n/client';
 import { Alert, Sq, type SqTone } from './ui';
 
 const APP_BASE = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
@@ -25,6 +26,7 @@ function CronPanel({
   tone: SqTone;
 }) {
   const [state, formAction, pending] = useActionState(action, null);
+  const d = useDict();
 
   return (
     <section className="sa-card" id={anchor}>
@@ -43,11 +45,11 @@ function CronPanel({
         <form action={formAction}>
           <button type="submit" className="sa-btn sa-btn--tinted" disabled={pending}>
             <Icon name="clock" size={16} />
-            {pending ? 'Ishlanmoqda…' : 'Hozir ishga tushirish'}
+            {pending ? d.superPanel.systems.running : d.superPanel.systems.runNow}
           </button>
         </form>
         <details className="sa-details">
-          <summary><Icon name="chevron" size={14} /> Cron / terminal buyrug&apos;i</summary>
+          <summary><Icon name="chevron" size={14} /> {d.superPanel.systems.cronCmd}</summary>
           <pre>{curl}</pre>
         </details>
       </div>
@@ -72,6 +74,9 @@ function InfoGroup({ id, title, foot, rows }: { id: string; title: string; foot?
 }
 
 export default function SystemsPanels() {
+  const d = useDict();
+  const s = d.superPanel.systems;
+
   return (
     <div className="sa-stack">
       <div className="sa-two">
@@ -79,8 +84,8 @@ export default function SystemsPanels() {
           anchor="notify"
           icon="bell"
           tone="a"
-          title="Obuna eslatmalari"
-          description="Obunaga 2 kun qolganda Super Admin, do'kon admini va xodimlarga panelda va Telegram'da xabar."
+          title={s.notifyTitle}
+          description={s.notifyDesc}
           action={runExpiryNotifyAction}
           curl={`curl -H "Authorization: Bearer $CRON_SECRET" ${APP_BASE}/api/cron/expiry-notifications\n# yoki: npm run notify`}
         />
@@ -88,8 +93,8 @@ export default function SystemsPanels() {
           anchor="expire"
           icon="clock"
           tone="r"
-          title="Obuna muddati (cron)"
-          description="Muddati o'tgan faol do'konlarni avtomatik «muddati tugagan» holatiga o'tkazadi."
+          title={s.expireTitle}
+          description={s.expireDesc}
           action={runExpireOrgsAction}
           curl={`curl -H "Authorization: Bearer $CRON_SECRET" ${APP_BASE}/api/cron/expire-orgs\n# yoki: npm run expire`}
         />
@@ -97,34 +102,34 @@ export default function SystemsPanels() {
 
       <InfoGroup
         id="modules-savdo"
-        title="Nasiya, kredit, kassa"
-        foot="Har bir do'kon uchun Super Admin → Do'kon → Modullar bo'limidan yoqing."
+        title={s.modulesTitle}
+        foot={s.modulesFoot}
         rows={[
-          <><b>Nasiya sotuvi</b> — sotuvda bo&apos;lib to&apos;lash</>,
-          <><b>Kredit kassa</b> — do&apos;kon egasi bank qo&apos;shadi; sotuv va mahsulot holatida «Kredit»</>,
-          <><b>Kassa</b> — kunlik tushum va kredit kassa hisoboti</>,
-          <><b>Kirim-chiqim</b> — do&apos;kon egasi admin panelida kirim/chiqim jurnali</>,
+          <><b>{s.modNasiya}</b> — {s.modNasiyaDesc}</>,
+          <><b>{s.modCredit}</b> — {s.modCreditDesc}</>,
+          <><b>{s.modKassa}</b> — {s.modKassaDesc}</>,
+          <><b>{s.modKirim}</b> — {s.modKirimDesc}</>,
         ]}
       />
 
       <InfoGroup
         id="export"
-        title="CSV eksport"
-        foot="Do'kon panelida tizimga kirilgan holda ishlaydi — Super Admin to'g'ridan-to'g'ri ocha olmaydi."
+        title={s.exportTitle}
+        foot={s.exportFoot}
         rows={[
-          <>Ombor CSV: do&apos;kon paneli → Ombor (eksport moduli yoqilgan bo&apos;lishi kerak)</>,
-          <>API: <code className="sa-code">GET /api/export/products</code> — do&apos;kon sessiyasi talab qilinadi</>,
-          <>Sotuvlar: <code className="sa-code">GET /api/export/sales</code></>,
+          <>{s.exportProducts}</>,
+          <>{s.exportApi} <code className="sa-code">GET /api/export/products</code> {s.exportApiNote}</>,
+          <>{s.exportSales} <code className="sa-code">GET /api/export/sales</code></>,
         ]}
       />
 
       <InfoGroup
         id="telegram"
-        title="Telegram bot"
-        foot="Yangi sotuv va obuna eslatmalari. .env faylida TELEGRAM_BOT_TOKEN va TELEGRAM_CHAT_ID bo'lishi kerak."
+        title={s.telegramTitle}
+        foot={s.telegramFoot}
         rows={[
-          <>Webhook: <code className="sa-code">POST /api/telegram/webhook</code> (brauzerda GET ishlamaydi — bu normal)</>,
-          <>Webhook <code className="sa-code">setWebhook</code> orqali <code className="sa-code">secret_token=TELEGRAM_WEBHOOK_SECRET</code> parametri bilan ulanadi (busiz production&apos;da so&apos;rovlar rad etiladi)</>,
+          <>{s.webhook} <code className="sa-code">POST /api/telegram/webhook</code> {s.webhookNote}</>,
+          <>{s.webhookSecret1} <code className="sa-code">setWebhook</code> {s.webhookSecret2} <code className="sa-code">secret_token=TELEGRAM_WEBHOOK_SECRET</code> {s.webhookSecret3}</>,
         ]}
       />
     </div>

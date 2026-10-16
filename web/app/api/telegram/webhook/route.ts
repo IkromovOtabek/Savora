@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { sendTelegramTo, sendTelegramWebApp, sendTelegramReplyMenu } from '@/lib/telegram';
+import { sendTelegramTo, sendTelegramWebApp, sendTelegramReplyMenu, tgEscape } from '@/lib/telegram';
 import { getMasterModels } from '@/lib/masterDb';
 import { safeEqual, verifyOrgLinkToken } from '@/lib/security';
-import { logError } from '@/lib/logger';
+import { logError, logInfo } from '@/lib/logger';
+import { recordSecurityEvent, requestMeta } from '@/lib/securityEvents';
 
 const APP_BASE = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
 const MINI_APP_URL = `${APP_BASE}/tg`;
@@ -43,13 +44,21 @@ async function handleLink(chatIdRaw: number | string, token: string): Promise<st
   }
   try {
     const { Organization } = await getMasterModels();
+    const chatId = String(chatIdRaw);
     const org = await Organization.findByIdAndUpdate(
       orgId,
-      { $set: { telegramChatId: String(chatIdRaw) } },
-      { new: true }
+      { $set: { telegramChatId: chatId } },
+      // `new: false` — eski telegramChatId qaytadi (chat almashganini aniqlash uchun)
+      { new: false }
     ).lean();
     if (!org) return 'Do\'kon topilmadi. Iltimos, paneldagi havoladan qaytadan urinib ko\'ring.';
-    return `✅ "${org.name}" Telegram'ga ulandi.\n\nEndi obuna eslatmalari va parolni tiklash kodlari shu yerga keladi.`;
+    const prevChat = org.telegramChatId ? String(org.telegramChatId) : '';
+    if (prevChat && prevChat !== chatId) {
+      // Eski chat egasi ulanish ko'chganini bilsin (best-effort, javobni kutmaymiz)
+      void sendTelegramTo(prevChat, 'Savora: Telegram boshqa chatga ulandi.');
+    }
+    logInfo('telegram org linked', { orgId, chatChanged: !!prevChat && prevChat !== chatId });
+    return `✅ "${tgEscape(org.name)}" Telegram'ga ulandi.\n\nEndi obuna eslatmalari va parolni tiklash kodlari shu yerga keladi.`;
   } catch {
     return 'Ulashda xatolik. Birozdan keyin qayta urinib ko\'ring.';
   }
@@ -73,7 +82,7 @@ async function handleUserLink(telegramUserId: string, code: string): Promise<str
     acc.code = undefined;
     acc.codeExpiresAt = undefined;
     await acc.save();
-    return `✅ "${acc.username}" hisobi bog'landi.\n\nQuyidagi tugma orqali Savora ilovasini oching.`;
+    return `✅ "${tgEscape(acc.username)}" hisobi bog'landi.\n\nQuyidagi tugma orqali Savora ilovasini oching.`;
   } catch {
     return 'Bog\'lashda xatolik. Birozdan keyin qayta urinib ko\'ring.';
   }
@@ -81,6 +90,7 @@ async function handleUserLink(telegramUserId: string, code: string): Promise<str
 
 export async function POST(req: NextRequest) {
   if (!isAuthenticWebhook(req)) {
+    recordSecurityEvent('telegram_forbidden', { ...requestMeta(req.headers), zone: 'api', path: '/api/telegram/webhook' });
     return NextResponse.json({ ok: false }, { status: 401 });
   }
   const token = process.env.TELEGRAM_BOT_TOKEN;
@@ -89,6 +99,7 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
     const chatId = body?.message?.chat?.id;
+    const chatType: string = body?.message?.chat?.type ?? '';
     const fromId = body?.message?.from?.id;
     const text: string = body?.message?.text ?? '';
 
@@ -98,9 +109,14 @@ export async function POST(req: NextRequest) {
     if (chatId && text.startsWith('/start')) {
       const param = text.slice('/start'.length).trim();
       if (param.startsWith('link_')) {
-        const linkToken = param.slice('link_'.length);
-        const reply = await handleLink(chatId, linkToken);
-        await sendTelegramTo(String(chatId), reply);
+        // Do'kon ulash faqat shaxsiy chatda — guruhda token ko'rinib, begona a'zo ulab yuborishi mumkin
+        if (chatType !== 'private') {
+          await sendTelegramTo(String(chatId), 'Do\'konni ulash faqat bot bilan shaxsiy chatda ishlaydi.');
+        } else {
+          const linkToken = param.slice('link_'.length);
+          const reply = await handleLink(chatId, linkToken);
+          await sendTelegramTo(String(chatId), reply);
+        }
       } else if (param.startsWith('lu_') && fromId) {
         const code = param.slice('lu_'.length);
         const reply = await handleUserLink(String(fromId), code);

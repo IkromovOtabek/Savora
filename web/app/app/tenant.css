@@ -86,7 +86,7 @@
   min-width: 0;
   transition: background .15s;
 }
-.t-org:hover, .t-side-user:hover { background: var(--t-fill-2); }
+.t-org:hover, .t-side-user-link:hover { background: var(--t-fill-2); }
 .t-org-mark {
   width: 34px;
   height: 34px;
@@ -108,7 +108,14 @@
 }
 .t-org-text small, .t-side-user-text small { font-size: 12px; color: var(--ink-3); }
 .t-side-scroll { flex: 1; min-height: 0; overflow-y: auto; margin: 0 -4px; padding: 0 4px; scrollbar-width: thin; }
-.t-side-user { border-top: .5px solid var(--t-sep); border-radius: 0 0 12px 12px; padding-top: 12px; }
+.t-side-user { border-top: .5px solid var(--t-sep); border-radius: 0; padding: 10px 0 0; gap: 6px; }
+.t-side-user-link {
+  flex: 1; min-width: 0;
+  display: flex; align-items: center; gap: 10px;
+  padding: 6px 8px; border-radius: 12px;
+  color: inherit; text-decoration: none;
+  transition: background .15s;
+}
 .t-avatar {
   width: 32px;
   height: 32px;
@@ -156,6 +163,46 @@
 .t-nav-link.is-active .t-nav-icon { color: var(--t-on-brand); }
 .t-nav-link.is-active:hover { background: var(--brand); }
 .t-nav-count--on { color: color-mix(in srgb, var(--t-on-brand) 85%, transparent); }
+
+/* Menyuni sozlash (har bir foydalanuvchi o'z tartibi) */
+.t-nav-customize {
+  display: flex; align-items: center; gap: 8px;
+  margin-top: 2px; padding: 7px 10px; border: 0; border-radius: 8px;
+  background: transparent; color: var(--ink-3);
+  font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; text-align: left;
+}
+.t-nav-customize:hover { background: var(--t-fill-2); color: var(--brand); }
+.t-nav-customize:focus-visible { outline: 3px solid var(--brand-soft); }
+.t-nav-edit-hint { margin: 0; padding: 8px 10px; border-radius: 10px; background: var(--brand-soft); color: var(--brand); font-size: 12px; line-height: 1.45; }
+.t-nav-egroup { border-radius: 10px; padding: 4px 0; transition: background .12s; }
+.t-nav-egroup.is-over { background: var(--t-fill-2); }
+.t-nav-egroup.is-dragging, .t-nav-erow.is-dragging { opacity: .4; }
+.t-nav-ehead { display: flex; align-items: center; gap: 2px; cursor: grab; }
+.t-nav-ehead .t-nav-group-title { margin: 0; padding-left: 2px; }
+.t-nav-erow {
+  display: flex; align-items: center; gap: 8px;
+  min-height: 34px; padding: 4px 6px 4px 2px; border-radius: 8px;
+  font-size: 14px; font-weight: 500; color: var(--ink-1);
+  background: var(--surface); box-shadow: inset 0 0 0 .5px var(--t-sep);
+  cursor: grab; user-select: none;
+}
+.t-nav-erow + .t-nav-erow { margin-top: 3px; }
+.t-nav-erow.is-over { box-shadow: inset 0 2px 0 var(--brand), inset 0 0 0 .5px var(--t-sep); }
+.t-nav-erow.is-off .t-nav-label, .t-nav-erow.is-off .t-nav-icon { opacity: .4; }
+.t-nav-erow.is-off .t-nav-label { text-decoration: line-through; }
+.t-nav-grip, .t-nav-eye {
+  flex: none; width: 26px; height: 26px; display: grid; place-items: center;
+  border: 0; border-radius: 6px; background: transparent; color: var(--ink-3); cursor: grab;
+}
+.t-nav-eye { cursor: pointer; margin-left: auto; }
+.t-nav-grip:hover, .t-nav-eye:hover { background: var(--t-fill-2); color: var(--brand); }
+.t-nav-grip:focus-visible, .t-nav-eye:focus-visible { outline: 2px solid var(--brand); outline-offset: 0; }
+.t-nav-edrop { padding: 10px; border-radius: 8px; border: 1px dashed var(--t-sep); color: var(--ink-3); font-size: 12px; text-align: center; }
+.t-nav-eactions { position: sticky; bottom: 0; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 6px; padding: 8px 0 4px; background: var(--t-bar); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); }
+.t-nav--edit { grid-template-columns: minmax(0, 1fr); }
+.t-nav-eactions .t-btn { min-height: 36px; min-width: 0; padding-inline: 8px; font-size: 14px; justify-content: center; }
+.t-nav-reset { grid-column: 1 / -1; border: 0; background: none; color: var(--ink-3); font: inherit; font-size: 12px; padding: 4px; cursor: pointer; }
+.t-nav-reset:hover { color: var(--danger); text-decoration: underline; }
 
 /* ---------- Toolbar ---------- */
 .t-body { display: flex; flex-direction: column; min-width: 0; }
@@ -562,7 +609,6 @@
   display: grid;
   place-items: center;
   background: rgba(255, 255, 255, .16);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .3), 0 4px 10px -4px rgba(0, 0, 0, .35);
 }
 .t-hero-v {
   margin-top: 4px;
@@ -688,6 +734,45 @@ a.t-stat:active { background: var(--t-fill-2); }
 .t-dash-grid { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 16px; align-items: start; }
 .t-dash-grid--one { grid-template-columns: minmax(0, 1fr); }
 @media (max-width: 1100px) { .t-dash-grid { grid-template-columns: minmax(0, 1fr); } }
+
+/* Bosh sahifa — rolga xos panellar (direktor: filiallar, top, xodimlar, kam qolgan; xodim: topshiriqlar) */
+.t-panels { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; align-items: start; }
+.t-panel { padding-bottom: 8px; }
+.t-panel .t-card-head { align-items: center; }
+.t-panel .t-card-head h2 { margin-right: auto; }
+.t-panel-link { flex: none; }
+.t-panel-empty { margin: 0; padding: 14px 16px 10px; color: var(--ink-3); font-size: 14px; }
+
+.t-bars { list-style: none; margin: 0; padding: 6px 8px 0; display: grid; gap: 2px; }
+.t-bars-row { display: grid; gap: 6px; padding: 9px 8px; border-radius: 10px; color: inherit; text-decoration: none; }
+a.t-bars-row:hover { background: var(--t-fill-2); }
+.t-bars-top { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; min-width: 0; }
+.t-bars-l { font-size: 14px; font-weight: 600; color: var(--ink-1); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.t-bars-v { flex: none; font-size: 14px; font-weight: 700; color: var(--ink-1); }
+.t-bars-v small { font-size: 12px; font-weight: 500; color: var(--ink-3); }
+.t-bars-track { height: 6px; border-radius: 999px; background: var(--t-fill-2); overflow: hidden; }
+.t-bars-fill { display: block; height: 100%; border-radius: inherit; background: var(--brand); }
+.t-bars li:first-child .t-bars-fill { background: linear-gradient(90deg, var(--brand), var(--brand-2)); }
+.t-bars-sub { font-size: 12.5px; color: var(--ink-3); }
+
+.t-people { list-style: none; margin: 0; padding: 6px 8px 0; display: grid; gap: 2px; }
+.t-people-row { display: flex; align-items: center; gap: 10px; padding: 8px; border-radius: 10px; }
+.t-avatar--lead { box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--gold); }
+.t-people-t { flex: 1; min-width: 0; display: grid; line-height: 1.25; }
+.t-people-t b { font-size: 14px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.t-people-t small { font-size: 12.5px; color: var(--ink-3); }
+.t-people-v { flex: none; font-size: 14px; font-weight: 700; }
+.t-people-v small { font-size: 12px; font-weight: 500; color: var(--ink-3); }
+
+.t-low { list-style: none; margin: 0; padding: 6px 8px 0; display: grid; gap: 2px; }
+.t-low-row { display: flex; align-items: center; gap: 10px; padding: 9px 8px; border-radius: 10px; color: inherit; text-decoration: none; }
+.t-low-row:hover { background: var(--t-fill-2); }
+.t-low-ic { flex: none; color: var(--brand); }
+.t-low-ic.is-bad { color: var(--t-danger); }
+.t-low-n { flex: 1; min-width: 0; display: grid; font-size: 14px; font-weight: 600; line-height: 1.3; }
+.t-low-n small { font-size: 12.5px; font-weight: 500; color: var(--ink-3); }
+.t-low-n small.is-bad { color: var(--t-danger); }
+.t-low .t-pill { flex: none; }
 
 .t-card { background: var(--surface); border-radius: 16px; box-shadow: var(--shadow-sm); min-width: 0; }
 .t-card-head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; padding: 14px 16px 4px; }

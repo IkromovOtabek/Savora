@@ -1,24 +1,26 @@
 import Link from 'next/link';
 import PublicPage, { PublicSection } from '@/components/auth/PublicPage';
+import { getDict } from '@/lib/i18n/server';
 import { TRIAL_DAYS } from '../terms/legal';
 import { helpArticles } from './articles';
 import HelpCenter from './HelpCenter';
 
-export const metadata = {
-  title: 'Yordam markazi — Savora',
-  description: "Savora bo'yicha qo'llanma: ro'yxatdan o'tish, sotuv, nasiya, PQ-294 (2027) talablari, ombor, kassa, mobil ilova va tariflar.",
-};
+export async function generateMetadata() {
+  const d = await getDict();
+  return { title: d.landing.help.metaTitle, description: d.landing.help.metaDesc };
+}
 
-export default function HelpPage() {
+export default async function HelpPage() {
+  const d = await getDict();
+  const H = d.landing.help;
   const articles = helpArticles(TRIAL_DAYS);
   return (
-    <PublicPage wide title="Yordam markazi" lead="Savora bilan ishlash bo'yicha qisqa, qadamma-qadam qo'llanma.">
+    <PublicPage wide title={H.title} lead={H.lead}>
       <HelpCenter articles={articles} />
 
-      <PublicSection title="Javob topmadingizmi?">
+      <PublicSection title={H.notFoundTitle}>
         <p>
-          Telegram yoki telefon orqali yozing &mdash; <Link href="/contact" className="au-link">Bog&apos;lanish</Link>.
-          Ma&apos;lumotlaringizni ko&apos;chirish va xodimlarni o&apos;rgatishda bepul yordam beramiz.
+          {H.notFoundBefore}<Link href="/contact" className="au-link">{d.landing.public.contact}</Link>{H.notFoundAfter}
         </p>
       </PublicSection>
     </PublicPage>

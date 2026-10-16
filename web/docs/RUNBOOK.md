@@ -5,6 +5,10 @@ Barcha buyruqlar serverda, `/opt/savora/web` papkasidan. Deploy tafsilotlari: [D
 
 ## Tezkor diagnostika (birinchi 2 daqiqa)
 
+**Avval panel:** `https://savora.uz/super/monitoring` — server (RAM/CPU/disk), MongoDB (ping, ulanishlar, hajm),
+zaxira yoshi, xavfsizlik auditi, login/brute-force hodisalari, server xatolari jurnali, cron tarixi, Telegram webhook.
+Sahifa ochilmasa (ilova yiqilgan) — quyidagi buyruqlar:
+
 ```bash
 cd /opt/savora/web
 ./deploy/deploy.sh status                       # konteynerlar + health + oxirgi relizlar

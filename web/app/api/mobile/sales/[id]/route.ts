@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { Types } from 'mongoose';
 import { authenticateMobile } from '@/lib/mobileAuth';
 import { mobilePermissionDenied } from '@/lib/permissionGuard';
+import { recordAudit } from '@/lib/audit';
 import { getTenantModels } from '@/lib/tenantDb';
 import { branchFilter } from '@/lib/branchScope';
 import { applySalePayment } from '@/lib/salePayment';
@@ -81,6 +82,14 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   if (!res) {
     return NextResponse.json({ error: 'To\'lov qo\'shilmadi: qoldiq o\'zgargan. Qayta urinib ko\'ring.' }, { status: 409 });
   }
+
+  await recordAudit(user, {
+    action: 'sale.payment',
+    entity: 'sale',
+    entityId: id,
+    summary: `To'lov ${sale.saleNo}: ${amount.toLocaleString('uz-UZ')} so'm (mobil)`,
+    meta: { amount },
+  });
 
   return NextResponse.json({ ok: true, ...res });
 }

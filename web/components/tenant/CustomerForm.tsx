@@ -5,6 +5,7 @@ import { useToastOnState } from '@/lib/useToastOnState';
 import { createCustomerAction, updateCustomerAction } from '@/app/actions/customers';
 import ImageUploadField from '@/components/ui/ImageUploadField';
 import Icon from '@/components/icons/Icon';
+import { useDict } from '@/lib/i18n/client';
 
 interface Props {
   mode: 'create' | 'edit';
@@ -17,9 +18,11 @@ export default function CustomerForm({ mode, initial, returnTo, mediaEnabled }: 
   const action = mode === 'create' ? createCustomerAction : updateCustomerAction;
   const [state, formAction, isPending] = useActionState(action, null);
   useToastOnState(state);
+  const d = useDict();
+  const f = d.crm.customers.form;
 
   return (
-    <form action={formAction} className="cl-form" aria-label={mode === 'create' ? 'Yangi mijoz' : 'Mijozni tahrirlash'}>
+    <form action={formAction} className="cl-form" aria-label={mode === 'create' ? f.ariaNew : f.ariaEdit}>
       {mode === 'edit' && initial && <input type="hidden" name="customerId" value={initial.id} />}
       {returnTo && <input type="hidden" name="returnTo" value={returnTo} />}
 
@@ -27,28 +30,28 @@ export default function CustomerForm({ mode, initial, returnTo, mediaEnabled }: 
       {state?.success && <div className="auth-alert auth-alert--info" role="status">{state.success}</div>}
 
       <fieldset className="cl-fsec" disabled={isPending}>
-        <legend className="cl-fsec-h"><Icon name="user" size={15} /> Asosiy ma&apos;lumot</legend>
+        <legend className="cl-fsec-h"><Icon name="user" size={15} /> {f.mainInfo}</legend>
         <div className="cl-fsec-body">
           <div className="auth-field">
-            <label htmlFor="fullName">To&apos;liq ism *</label>
+            <label htmlFor="fullName">{f.fullName}</label>
             <input id="fullName" name="fullName" type="text" required defaultValue={initial?.fullName} autoComplete="name" />
           </div>
           <div className="auth-field">
-            <label htmlFor="phone">Telefon *</label>
+            <label htmlFor="phone">{f.phone}</label>
             <input id="phone" name="phone" type="tel" required defaultValue={initial?.phone} placeholder="+998..." inputMode="tel" autoComplete="tel" />
           </div>
         </div>
       </fieldset>
 
       <fieldset className="cl-fsec" disabled={isPending}>
-        <legend className="cl-fsec-h"><Icon name="map" size={15} /> Qo&apos;shimcha</legend>
+        <legend className="cl-fsec-h"><Icon name="map" size={15} /> {f.extra}</legend>
         <div className="cl-fsec-body">
           <div className="auth-field">
-            <label htmlFor="address">Manzil</label>
+            <label htmlFor="address">{d.crm.customers.address}</label>
             <input id="address" name="address" type="text" defaultValue={initial?.address} autoComplete="street-address" />
           </div>
           <div className="auth-field">
-            <label htmlFor="notes">Izoh</label>
+            <label htmlFor="notes">{d.common.note}</label>
             <textarea id="notes" name="notes" rows={3} defaultValue={initial?.notes} className="text-area" />
           </div>
         </div>
@@ -56,7 +59,7 @@ export default function CustomerForm({ mode, initial, returnTo, mediaEnabled }: 
 
       {mediaEnabled && (
         <fieldset className="cl-fsec" disabled={isPending}>
-          <legend className="cl-fsec-h"><Icon name="camera" size={15} /> Rasm</legend>
+          <legend className="cl-fsec-h"><Icon name="camera" size={15} /> {f.photo}</legend>
           <div className="cl-fsec-body">
             <ImageUploadField defaultValue={initial?.photoUrl} disabled={isPending} />
           </div>
@@ -65,7 +68,7 @@ export default function CustomerForm({ mode, initial, returnTo, mediaEnabled }: 
 
       <div className="cl-form-bar">
         <button type="submit" className="btn btn-primary btn-lg" disabled={isPending}>
-          {isPending ? 'Saqlanmoqda...' : mode === 'create' ? 'Mijoz qo\'shish' : 'Saqlash'}
+          {isPending ? d.common.saving : mode === 'create' ? f.submitCreate : d.common.save}
         </button>
       </div>
     </form>

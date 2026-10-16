@@ -26,8 +26,19 @@ export interface RateLimitResult {
  * @param max   oyna ichidagi maksimal urinish (default 6)
  * @param windowMs  oyna (default 15 daqiqa)
  */
+/** Eskirgan yozuvlar shu chegaradan oshganda tozalanadi (Map cheksiz o'smasin — anonim kalitlar: analytics:<ip>, login:<istalgan>) */
+const SWEEP_THRESHOLD = 20_000;
+
+function sweepExpired(now: number): void {
+  if (store.size < SWEEP_THRESHOLD) return;
+  for (const [k, e] of store) {
+    if (now > e.resetAt) store.delete(k);
+  }
+}
+
 export function hitRateLimit(key: string, max = 6, windowMs = 15 * 60 * 1000): RateLimitResult {
   const now = Date.now();
+  sweepExpired(now);
   const entry = store.get(key);
 
   if (!entry || now > entry.resetAt) {
@@ -46,4 +57,19 @@ export function hitRateLimit(key: string, max = 6, windowMs = 15 * 60 * 1000): R
 /** Muvaffaqiyatli kirishdan keyin urinishlarni tozalash */
 export function clearRateLimit(key: string): void {
   store.delete(key);
+}
+
+/** Monitoring uchun: xotiradagi cheklov yozuvlari holati (kalit nomlari chiqarilmaydi) */
+export function rateLimitStats(now = Date.now()): { keys: number; blocked: number; loginKeys: number } {
+  let keys = 0;
+  let blocked = 0;
+  let loginKeys = 0;
+  for (const [key, e] of store) {
+    if (now > e.resetAt) continue;
+    keys++;
+    if (key.startsWith('login')) loginKeys++;
+    // Standart login limiti 6 — shundan oshgan kalit "bloklangan" hisoblanadi
+    if (e.count >= 6) blocked++;
+  }
+  return { keys, blocked, loginKeys };
 }

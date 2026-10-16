@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import Icon from '@/components/icons/Icon';
 import AuthShell, { AuthAlert } from '@/components/auth/AuthShell';
+import { useDict } from '@/lib/i18n/client';
 
 interface TgWebApp {
   initData: string;
@@ -34,6 +35,8 @@ function getInitData(): Promise<string> {
 }
 
 export default function TgEntry() {
+  const d = useDict();
+  const T = d.landing.tg;
   const [phase, setPhase] = useState<'loading' | 'login'>('loading');
   const [initData, setInitData] = useState('');
   const [slug, setSlug] = useState('');
@@ -72,7 +75,7 @@ export default function TgEntry() {
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!slug || !username || !password) { setError("Barcha maydonlarni to'ldiring."); return; }
+    if (!slug || !username || !password) { setError(T.fillAll); return; }
     setBusy(true);
     setError('');
     try {
@@ -82,9 +85,9 @@ export default function TgEntry() {
       });
       const j = await res.json().catch(() => ({}));
       if (j.ok && j.next) { window.location.replace(j.next); return; }
-      setError(j.error || 'Kirishda xatolik.');
+      setError(j.error || T.loginError);
     } catch {
-      setError('Tarmoq xatosi.');
+      setError(T.netError);
     } finally {
       setBusy(false);
     }
@@ -95,7 +98,7 @@ export default function TgEntry() {
     setError('');
     const ok = await tryTelegram(initData);
     if (!ok) {
-      setError('Telegram hisobi bog\'lanmagan — quyida login/parol bilan kiring.');
+      setError(T.notLinked);
       setTgBusy(false);
     }
   }
@@ -103,34 +106,34 @@ export default function TgEntry() {
   if (phase === 'loading') {
     return (
       <main className="au-wrap" aria-busy="true">
-        <div className="au-spinner" role="status" aria-label="Yuklanmoqda" />
+        <div className="au-spinner" role="status" aria-label={d.common.loading} />
       </main>
     );
   }
 
   return (
-    <AuthShell title="Tizimga kirish" subtitle="Savora — Telegram orqali">
+    <AuthShell title={T.title} subtitle={T.subtitle}>
       <form className="au-form" onSubmit={onSubmit}>
         {error && <AuthAlert tone="error">{error}</AuthAlert>}
 
         <div className="au-group">
           <div className="au-row">
-            <label htmlFor="tg-slug">Do&apos;kon manzili</label>
+            <label htmlFor="tg-slug">{T.slug}</label>
             <input id="tg-slug" value={slug} onChange={(e) => setSlug(e.target.value)}
-              placeholder="masalan: diamed" autoCapitalize="none" autoCorrect="off" spellCheck={false} />
+              placeholder={T.slugPh} autoCapitalize="none" autoCorrect="off" spellCheck={false} />
           </div>
           <div className="au-row">
-            <label htmlFor="tg-user">Login</label>
+            <label htmlFor="tg-user">{T.username}</label>
             <input id="tg-user" value={username} onChange={(e) => setUsername(e.target.value)} autoComplete="username"
-              placeholder="Foydalanuvchi nomi yoki telefon" autoCapitalize="none" autoCorrect="off" spellCheck={false} />
+              placeholder={T.usernamePh} autoCapitalize="none" autoCorrect="off" spellCheck={false} />
           </div>
           <div className="au-row">
-            <label htmlFor="tg-pass">Parol</label>
+            <label htmlFor="tg-pass">{T.password}</label>
             <div className="au-pwd">
               <input id="tg-pass" type={showPass ? 'text' : 'password'} autoComplete="current-password"
-                value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Parolingiz" />
+                value={password} onChange={(e) => setPassword(e.target.value)} placeholder={T.passwordPh} />
               <button type="button" className="au-pwd-toggle" onClick={() => setShowPass((v) => !v)}
-                aria-label={showPass ? 'Parolni yashirish' : "Parolni ko'rsatish"} aria-pressed={showPass}>
+                aria-label={showPass ? T.hidePass : T.showPass} aria-pressed={showPass}>
                 <Icon name={showPass ? 'eyeOff' : 'eye'} size={19} />
               </button>
             </div>
@@ -138,20 +141,20 @@ export default function TgEntry() {
         </div>
 
         <button type="submit" className="au-btn au-btn--filled au-btn--block" disabled={busy}>
-          {busy ? 'Kirilmoqda…' : 'Kirish'}
+          {busy ? T.loggingIn : d.common.login}
         </button>
 
-        <div className="au-divider">yoki</div>
+        <div className="au-divider">{T.or}</div>
 
         <button type="button" className="au-btn au-btn--tinted au-btn--block" onClick={onTelegram} disabled={tgBusy}>
           <Icon name="send" size={18} />
-          {tgBusy ? 'Tekshirilmoqda…' : 'Telegram orqali kirish'}
+          {tgBusy ? T.checking : T.viaTelegram}
         </button>
       </form>
 
-      <p className="au-foot">Yangi foydalanuvchimisiz? Ro&apos;yxatdan o&apos;tish uchun murojaat qiling.</p>
+      <p className="au-foot">{T.newUser}</p>
       <div className="au-meta">
-        <span><Icon name="shield" size={12} /> Xavfsiz ulanish</span>
+        <span><Icon name="shield" size={12} /> {T.secure}</span>
         <span><Icon name="phone" size={12} /> Savora</span>
       </div>
     </AuthShell>

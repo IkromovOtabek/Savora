@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { requireSuperAdmin } from '@/lib/auth';
 import { savePlatformPlanOverrides } from '@/lib/platformSettings';
 import { PlanTier } from '@/lib/plans';
+import { getDict } from '@/lib/i18n/server';
 
 type State = { error?: string; success?: string } | null;
 
@@ -37,13 +38,14 @@ export async function updatePlatformPlansAction(_prev: State, formData: FormData
     }
   }
 
+  const d = await getDict();
   try {
     await savePlatformPlanOverrides(overrides);
     revalidatePath('/super/plans');
     revalidatePath('/');
     revalidatePath('/super');
-    return { success: 'Tariflar saqlandi. Marketing sahifasi yangilandi.' };
+    return { success: d.superPanel.actions.plansSaved };
   } catch (err) {
-    return { error: err instanceof Error ? err.message : 'Xatolik yuz berdi.' };
+    return { error: err instanceof Error ? err.message : d.common.errorGeneric };
   }
 }

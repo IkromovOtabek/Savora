@@ -38,9 +38,10 @@ function matches(r: OrgListRow, f: Filter): boolean {
  * Do'konlar ro'yxati: allaqachon yuklangan qatorlar ustida mijoz tomonida qidiruv va holat filtri
  * (yangi so'rov yo'q). Kompyuterda jadval, telefonda ixcham qatorlar.
  */
-export default function OrgList({ rows }: { rows: OrgListRow[] }) {
+export default function OrgList({ rows, initialFilter = 'all' }: { rows: OrgListRow[]; initialFilter?: string }) {
   const [q, setQ] = useState('');
-  const [f, setF] = useState<Filter>('all');
+  // ?f=expired kabi havoladan (Asosiy paneldagi «Diqqat talab qiladi») boshlang'ich filtr
+  const [f, setF] = useState<Filter>(FILTERS.some((x) => x.key === initialFilter) ? (initialFilter as Filter) : 'all');
 
   const counts = useMemo(() => {
     const c: Record<Filter, number> = { all: rows.length, active: 0, trial: 0, expired: 0 };

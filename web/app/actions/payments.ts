@@ -1,7 +1,9 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
+import { Types } from 'mongoose';
 import { requireSuperAdmin } from '@/lib/auth';
+import { ownUploadKeyFromUrl } from '@/lib/fileUrl';
 import { getTenantAdminSession } from '@/lib/tenantSession';
 import { getMasterModels } from '@/lib/masterDb';
 import { resolveOrgPlan } from '@/lib/plans';
@@ -30,6 +32,11 @@ export async function submitPaymentRequestAction(_prev: State, formData: FormDat
 
   if (amount === null) return { error: 'To\'lov summasi noto\'g\'ri.' };
   if (!receiptUrl) return { error: 'Chek (screenshot) yuklanishi shart.' };
+  // Faqat o'zimizning storage'ga `receipts/` papkasiga yuklangan fayl — tashqi/zararli URL rad
+  const receiptKey = ownUploadKeyFromUrl(receiptUrl);
+  if (!receiptKey || !receiptKey.startsWith('receipts/')) {
+    return { error: 'Chek havolasi noto\'g\'ri. Chekni shu sahifadagi yuklash tugmasi orqali yuklang.' };
+  }
   if (!paidAtRaw) return { error: 'To\'lov sanasini kiriting.' };
 
   const paidAt = new Date(paidAtRaw);
@@ -92,16 +99,31 @@ export async function submitPaymentRequestAction(_prev: State, formData: FormDat
 export async function approvePaymentRequestAction(_prev: State, formData: FormData): Promise<State> {
   const sa = await requireSuperAdmin();
   const requestId = String(formData.get('requestId') || '');
-  if (!requestId) return { error: 'So\'rov topilmadi.' };
+  if (!requestId || !Types.ObjectId.isValid(requestId)) return { error: 'So\'rov topilmadi.' };
 
   try {
     const { PaymentRequest, Organization } = await getMasterModels();
-    const req = await PaymentRequest.findById(requestId);
-    if (!req) return { error: 'So\'rov topilmadi.' };
-    if (req.status !== 'pending') return { error: 'Bu so\'rov allaqachon ko\'rib chiqilgan.' };
+    // Atomik: faqat `pending` so'rov bir marta `approved` bo'ladi — ikki parallel tasdiq
+    // (yoki tasdiq + rad) obunani ikki marta uzaytirmaydi (TOCTOU)
+    const req = await PaymentRequest.findOneAndUpdate(
+      { _id: requestId, status: 'pending' },
+      { $set: { status: 'approved', reviewedBy: sa.username, reviewedAt: new Date() } },
+      { new: true }
+    );
+    if (!req) {
+      const exists = await PaymentRequest.exists({ _id: requestId });
+      return { error: exists ? 'Bu so\'rov allaqachon ko\'rib chiqilgan.' : 'So\'rov topilmadi.' };
+    }
 
     const org = await Organization.findById(req.organizationId);
-    if (!org) return { error: 'Do\'kon topilmadi.' };
+    if (!org) {
+      // Do'kon yo'q — so'rovni qayta `pending` ga qaytaramiz (yetim "approved" qolmasin)
+      await PaymentRequest.updateOne(
+        { _id: req._id, status: 'approved' },
+        { $set: { status: 'pending' }, $unset: { reviewedBy: 1, reviewedAt: 1 } }
+      );
+      return { error: 'Do\'kon topilmadi.' };
+    }
 
     // Muddatni hozirgi yoki mavjud tugash sanasidan (qaysi kechroq) uzaytiramiz
     const base = org.expiresAt && org.expiresAt.getTime() > Date.now() ? new Date(org.expiresAt) : new Date();
@@ -109,11 +131,6 @@ export async function approvePaymentRequestAction(_prev: State, formData: FormDa
     org.status = 'active';
     if (org.plan) org.plan.isTrial = false;
     await org.save();
-
-    req.status = 'approved';
-    req.reviewedBy = sa.username;
-    req.reviewedAt = new Date();
-    await req.save();
 
     revalidatePath('/super/payments');
     revalidatePath('/super');
@@ -129,19 +146,27 @@ export async function rejectPaymentRequestAction(_prev: State, formData: FormDat
   const sa = await requireSuperAdmin();
   const requestId = String(formData.get('requestId') || '');
   const reason = String(formData.get('reason') || '').trim();
-  if (!requestId) return { error: 'So\'rov topilmadi.' };
+  if (!requestId || !Types.ObjectId.isValid(requestId)) return { error: 'So\'rov topilmadi.' };
 
   try {
     const { PaymentRequest } = await getMasterModels();
-    const req = await PaymentRequest.findById(requestId);
-    if (!req) return { error: 'So\'rov topilmadi.' };
-    if (req.status !== 'pending') return { error: 'Bu so\'rov allaqachon ko\'rib chiqilgan.' };
-
-    req.status = 'rejected';
-    req.reviewNote = reason || 'Tasdiqlanmadi';
-    req.reviewedBy = sa.username;
-    req.reviewedAt = new Date();
-    await req.save();
+    // Atomik: faqat `pending` so'rov rad etiladi (tasdiq bilan poyga bo'lmasin)
+    const req = await PaymentRequest.findOneAndUpdate(
+      { _id: requestId, status: 'pending' },
+      {
+        $set: {
+          status: 'rejected',
+          reviewNote: reason.slice(0, 300) || 'Tasdiqlanmadi',
+          reviewedBy: sa.username,
+          reviewedAt: new Date(),
+        },
+      },
+      { new: true }
+    );
+    if (!req) {
+      const exists = await PaymentRequest.exists({ _id: requestId });
+      return { error: exists ? 'Bu so\'rov allaqachon ko\'rib chiqilgan.' : 'So\'rov topilmadi.' };
+    }
 
     revalidatePath('/super/payments');
     return { success: 'So\'rov rad etildi.' };

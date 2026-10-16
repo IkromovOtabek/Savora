@@ -1,4 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { LOCALE_COOKIE, LOCALE_COOKIE_MAX_AGE, isLocale } from '@/lib/i18n/config';
+
+/** ?lang=ru|uz — til cookie'sini o'rnatadi (marketing havolalari uchun). Boshqa so'rovlarga tegmaydi. */
+function applyLangParam(req: NextRequest, res: NextResponse): NextResponse {
+  const lang = req.nextUrl.searchParams.get('lang');
+  if (isLocale(lang)) {
+    res.cookies.set(LOCALE_COOKIE, lang, { path: '/', maxAge: LOCALE_COOKIE_MAX_AGE, sameSite: 'lax', secure: process.env.NODE_ENV === 'production' });
+  }
+  return res;
+}
 
 /**
  * Subdomen yoki localhost path → zona aniqlash.
@@ -39,7 +49,7 @@ export function middleware(req: NextRequest) {
       const requestHeaders = new Headers(req.headers);
       requestHeaders.set('x-app-zone', zone);
       requestHeaders.set('x-tenant-slug', '');
-      return NextResponse.rewrite(url, { request: { headers: requestHeaders } });
+      return applyLangParam(req, NextResponse.rewrite(url, { request: { headers: requestHeaders } }));
     }
 
     if (pathname.startsWith('/super')) {
@@ -55,7 +65,7 @@ export function middleware(req: NextRequest) {
         const requestHeaders = new Headers(req.headers);
         requestHeaders.set('x-app-zone', zone);
         requestHeaders.set('x-tenant-slug', slug);
-        return NextResponse.rewrite(url, { request: { headers: requestHeaders } });
+        return applyLangParam(req, NextResponse.rewrite(url, { request: { headers: requestHeaders } }));
       }
     } else if (pathname.startsWith('/app') || pathname === '/login') {
       // Server Action POST /login — referer orqali zonani aniqlash (rewrite tufayli)
@@ -96,9 +106,12 @@ export function middleware(req: NextRequest) {
   requestHeaders.set('x-app-zone', zone);
   requestHeaders.set('x-tenant-slug', slug);
 
-  return NextResponse.next({ request: { headers: requestHeaders } });
+  return applyLangParam(req, NextResponse.next({ request: { headers: requestHeaders } }));
 }
 
 export const config = {
-  matcher: ['/((?!_next/static|_next/image|favicon.ico|.*\\..*).*)'],
+  // Faqat haqiqiy statik aktivlar istisno. `.*\..*` (har qanday nuqta) ishlatilmaydi —
+  // aks holda `/login.x` kabi yo'lda middleware o'tkazib yuborilib, mijoz yuborgan
+  // x-app-zone / x-tenant-slug sarlavhalari serverga yetib borardi.
+  matcher: ['/((?!_next/static|_next/image|favicon\\.ico|sw\\.js|manifest\\.webmanifest|.*\\.(?:png|jpg|jpeg|gif|svg|webp|avif|ico|css|js|map|txt|xml|woff2?|ttf|json)$).*)'],
 };
