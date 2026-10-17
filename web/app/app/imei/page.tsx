@@ -6,7 +6,6 @@ import ImeiBulkSearch from '@/components/tenant/ImeiBulkSearch';
 import ImeiBlacklistManager, { OwnBlacklistRow } from '@/components/tenant/ImeiBlacklistManager';
 import { getTenantSession } from '@/lib/tenantSession';
 import { getMasterModels } from '@/lib/masterDb';
-import { BLACKLIST_REASON_LABELS } from '@/lib/models/master/ImeiBlacklist';
 
 export const metadata = { title: 'IMEI qidiruv — Savora' };
 
@@ -27,7 +26,7 @@ export default async function ImeiPage() {
       rows = docs.map((d) => ({
         id: String(d._id),
         imei: d.imei,
-        reasonLabel: BLACKLIST_REASON_LABELS[d.reason],
+        reason: d.reason,
         customerName: d.customerName,
         customerPhone: d.customerPhone,
         note: d.note,

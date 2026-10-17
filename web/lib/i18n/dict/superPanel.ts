@@ -738,7 +738,7 @@ export const ru: typeof uz = {
     metaTitle: 'Метрики — Суперадмин',
     title: 'Метрики',
     sub: 'Показатели дохода, роста и конверсии',
-    arr: 'ARR (MRR × 12)',
+    arr: 'ARR (годовой доход, MRR × 12)',
     paying: 'Платящие',
     inTrial: 'На пробном',
     arpu: 'ARPU',

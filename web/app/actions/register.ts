@@ -20,7 +20,8 @@ const TRIAL_DAYS = Number(process.env.TRIAL_DAYS || 14);
 
 export async function registerAction(_prev: State, formData: FormData): Promise<State> {
   const zone = await getAppZone();
-  const { errors: e } = (await getDict()).auth;
+  const d = await getDict();
+  const { errors: e } = d.auth;
   if (zone !== 'root') {
     return { error: e.registerRootOnly };
   }

@@ -128,7 +128,7 @@ export default async function OrgDetailPage({
                   orgId={String(org._id)}
                   explain={featureExplain}
                   businessType={org.businessType ?? 'general'}
-                  planLabel={plan.label}
+                  planTier={org.plan.tier}
                 />
               </Panel>
             ),

@@ -47,7 +47,7 @@ export const siteVisitSchema = new Schema<ISiteVisit>(
     utmSource: { type: String, trim: true },
     utmMedium: { type: String, trim: true },
     utmCampaign: { type: String, trim: true },
-    startedAt: { type: Date, required: true, default: Date.now, index: true },
+    startedAt: { type: Date, required: true, default: Date.now },
     lastSeenAt: { type: Date, required: true, default: Date.now },
     activeSeconds: { type: Number, default: 0 },
     signupPromptEligible: { type: Boolean, default: false },

@@ -37,6 +37,7 @@ export const uz = {
     registerRateLimit: "Bu qurilmadan bugun juda ko'p ro'yxatdan o'tildi. Ertaga qayta urinib ko'ring yoki biz bilan bog'laning.",
     storeCreatedLoginFailed: "Do'kon yaratildi, lekin kirishda xatolik.",
     adminCreatedLoginFailed: 'Admin yaratildi, lekin avtomatik kirish muvaffaqiyatsiz.',
+    slugTaken: "Bu do'kon manzili band. Boshqa nom tanlang.",
   },
   reset: {
     codeSent: "Agar bunday foydalanuvchi mavjud bo'lsa va do'kon Telegram'i ulangan bo'lsa, tasdiqlash kodi Telegram'ga yuborildi. Kod 15 daqiqa amal qiladi.",
@@ -225,6 +226,7 @@ export const ru: typeof uz = {
     registerRateLimit: 'С этого устройства сегодня было слишком много регистраций. Попробуйте завтра или свяжитесь с нами.',
     storeCreatedLoginFailed: 'Магазин создан, но не удалось выполнить вход.',
     adminCreatedLoginFailed: 'Администратор создан, но автоматический вход не удался.',
+    slugTaken: 'Этот адрес магазина уже занят. Выберите другое название.',
   },
   reset: {
     codeSent: 'Если такой пользователь существует и к магазину подключён Telegram, код подтверждения отправлен в Telegram. Код действует 15 минут.',

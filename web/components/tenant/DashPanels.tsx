@@ -126,15 +126,15 @@ export async function MyTasksPanel({ rows }: { rows: { id: string; title: string
     <Panel id="t-p-tasks" title={t.tasksTitle} href="/app/tasks" linkLabel={d.shell.dash.all}>
       {rows.length === 0 ? <PanelEmpty text={t.tasksEmpty} /> : (
         <ul className="t-low">
-          {rows.map((t) => (
-            <li key={t.id}>
+          {rows.map((row) => (
+            <li key={row.id}>
               <Link href="/app/tasks" className="t-low-row">
-                <Icon name={t.overdue ? 'alert' : 'check'} size={16} className={`t-low-ic${t.overdue ? ' is-bad' : ''}`} />
+                <Icon name={row.overdue ? 'alert' : 'check'} size={16} className={`t-low-ic${row.overdue ? ' is-bad' : ''}`} />
                 <span className="t-low-n">
-                  {t.title}
-                  {t.dueDate && <small className={t.overdue ? 'is-bad' : undefined}>{t.overdue ? t.overdueAt : t.dueAt}{fmtDate(t.dueDate)}</small>}
+                  {row.title}
+                  {row.dueDate && <small className={row.overdue ? 'is-bad' : undefined}>{row.overdue ? t.overdueAt : t.dueAt}{fmtDate(row.dueDate)}</small>}
                 </span>
-                <span className={`t-pill ${PRIORITY_TONE[t.priority] ?? ''}`}>{d.shell.taskPriorities[t.priority] ?? t.priority}</span>
+                <span className={`t-pill ${PRIORITY_TONE[row.priority] ?? ''}`}>{d.shell.taskPriorities[row.priority] ?? row.priority}</span>
               </Link>
             </li>
           ))}

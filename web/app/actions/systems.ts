@@ -22,7 +22,7 @@ export async function runExpireOrgsAction(): Promise<Result> {
   const d = await getDict();
   const run = await runCronJob('expire-orgs', async () => ({ expired: await expireOverdueOrganizations() }), 'manual');
   if (!run.ok) return { error: tr(d.superPanel.actions.cronError, { e: run.error ?? '' }) };
-  return { success: tr(d.superPanel.actions.expiredMarked, { n: run.result?.expired ?? 0 }), data: run.result };
+  return { success: tr(d.superPanel.actions.expiredMarked, { n: Number(run.result?.expired ?? 0) }), data: run.result };
 }
 
 export async function runExpiryNotifyAction(): Promise<Result> {
@@ -32,7 +32,7 @@ export async function runExpiryNotifyAction(): Promise<Result> {
   const run = await runCronJob('expiry-notifications', async () => ({ ...(await sendDailyExpiryNotifications()) }), 'manual');
   if (!run.ok) return { error: tr(d.superPanel.actions.cronError, { e: run.error ?? '' }) };
   return {
-    success: tr(d.superPanel.actions.notifySent, { n: run.result?.orgs ?? 0, tg: run.result?.telegramSent ?? 0 }),
+    success: tr(d.superPanel.actions.notifySent, { n: Number(run.result?.orgs ?? 0), tg: Number(run.result?.telegramSent ?? 0) }),
     data: run.result,
   };
 }
