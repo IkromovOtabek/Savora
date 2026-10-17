@@ -4,6 +4,8 @@ import { revalidatePath } from 'next/cache';
 import { getTenantAdminSession } from '@/lib/tenantSession';
 import { recordAudit } from '@/lib/audit';
 import { featureDisabledError } from '@/lib/featureAction';
+import { getDict } from '@/lib/i18n/server';
+import { tr } from '@/lib/i18n/fmt';
 
 type State = { error?: string; success?: string } | null;
 
@@ -21,18 +23,19 @@ function fmtSum(n: number): string {
 export async function createCreditBankAction(_prev: State, formData: FormData): Promise<State> {
   const { CreditBank, features } = await getTenantAdminSession();
   if (!features.creditKassa) return featureDisabledError('creditKassa');
+  const m = (await getDict()).sales.actions;
   const name = String(formData.get('name') || '').trim();
-  if (!name) return { error: 'Bank nomi kiritilishi shart.' };
+  if (!name) return { error: m.bankNameRequired };
 
   const dup = await CreditBank.findOne({ name: new RegExp(`^${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i') }).lean();
-  if (dup) return { error: 'Bu bank allaqachon mavjud.' };
+  if (dup) return { error: m.bankExists };
 
   try {
     await CreditBank.create({ name, active: true });
     revalidatePath('/app/kredit-kassa');
-    return { success: `"${name}" qo'shildi.` };
+    return { success: tr(m.bankAdded, { name }) };
   } catch {
-    return { error: 'Bank qo\'shishda xatolik.' };
+    return { error: m.bankAddFailed };
   }
 }
 
@@ -60,13 +63,14 @@ export async function deleteCreditBankAction(formData: FormData): Promise<void> 
 export async function createCashFlowAction(_prev: State, formData: FormData): Promise<State> {
   const { user, CashFlow, features } = await getTenantAdminSession();
   if (!features.kirimChiqim) return featureDisabledError('kirimChiqim');
+  const m = (await getDict()).sales.actions;
   const type = String(formData.get('type') || '') as 'income' | 'expense';
   const description = String(formData.get('description') || '').trim();
   const amount = parseAmount(String(formData.get('amount') || ''));
 
-  if (type !== 'income' && type !== 'expense') return { error: 'Tur noto\'g\'ri.' };
-  if (!description) return { error: 'Izoh kiritilishi shart.' };
-  if (amount === null) return { error: 'Summa noto\'g\'ri.' };
+  if (type !== 'income' && type !== 'expense') return { error: m.badType };
+  if (!description) return { error: m.descriptionRequired };
+  if (amount === null) return { error: m.badAmount };
 
   try {
     const entry = await CashFlow.create({ type, amount, description, recordedBy: user.username });
@@ -78,9 +82,9 @@ export async function createCashFlowAction(_prev: State, formData: FormData): Pr
       meta: { type, amount },
     });
     revalidatePath('/app/kirim-chiqim');
-    return { success: type === 'income' ? 'Kirim qo\'shildi.' : 'Chiqim qo\'shildi.' };
+    return { success: type === 'income' ? m.incomeAdded : m.expenseAdded };
   } catch {
-    return { error: 'Saqlashda xatolik.' };
+    return { error: m.saveFailed };
   }
 }
 

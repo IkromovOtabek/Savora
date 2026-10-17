@@ -12,6 +12,7 @@ import Icon from '@/components/icons/Icon';
 import { fmtDate as fmtDateStable } from '@/lib/format';
 import { useDict } from '@/lib/i18n/client';
 import { tr } from '@/lib/i18n/fmt';
+import { isOwnUploadUrl } from '@/lib/fileUrl';
 
 interface ReqRow {
   id: string;
@@ -49,7 +50,10 @@ function fmtDate(d: string) {
   return fmtDateStable(d);
 }
 
-function ReceiptThumb({ url }: { url: string }) {
+function ReceiptThumb({ url: rawUrl }: { url: string }) {
+  // Faqat o'zimizning storage'dan kelgan havola ko'rsatiladi — `javascript:`/tashqi
+  // manzil super admin panelida havola/rasm in'ektsiyasi bo'lardi
+  const url = isOwnUploadUrl(rawUrl) ? rawUrl : '';
   const [failed, setFailed] = useState(false);
   const d = useDict();
   const s = d.superPanel.payments;

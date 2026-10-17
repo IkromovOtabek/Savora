@@ -1,14 +1,20 @@
 import Link from 'next/link';
 import { getTenantSession } from '@/lib/tenantSession';
 import { branchFilter, isBranchScoped } from '@/lib/branchScope';
-import { PRODUCT_STATUS_LABELS } from '@/lib/models/tenant/Product';
 import { fmtMoney } from '@/lib/format';
 import Icon from '@/components/icons/Icon';
 import Tilt from '@/components/ui/Tilt';
+import { getDict } from '@/lib/i18n/server';
+import { tr } from '@/lib/i18n/fmt';
 
-export const metadata = { title: 'Inventarizatsiya — Savora' };
+export async function generateMetadata() {
+  const d = await getDict();
+  return { title: d.stock.inventory.metaTitle };
+}
 
 export default async function InventoryPage() {
+  const d = await getDict();
+  const t = d.stock.inventory;
   const { user, Product, Branch } = await getTenantSession();
 
   const branchScopeFilter = branchFilter(user);
@@ -53,12 +59,12 @@ export default async function InventoryPage() {
     <>
       <div className="t-page-head">
         <div>
-          <h1 className="t-page-title">Inventarizatsiya</h1>
-          <p className="t-page-sub">Ombordagi qoldiq — filial bo&apos;yicha</p>
+          <h1 className="t-page-title">{t.title}</h1>
+          <p className="t-page-sub">{t.subtitle}</p>
         </div>
         <div className="t-page-actions ux-hide-mobile">
           <Link href="/app/products" className="btn btn-ghost btn-with-icon">
-            <Icon name="box" size={18} /> Omborga o&apos;tish
+            <Icon name="box" size={18} /> {t.goToStock}
           </Link>
         </div>
       </div>
@@ -67,21 +73,21 @@ export default async function InventoryPage() {
       <Tilt as="section" stack max={4} className="st-inv-hero">
         <div className="st-inv-hero-top">
           <div>
-            <div className="st-inv-hero-l">Sotuv qiymati</div>
-            <div className="st-inv-hero-v ux-z">{fmtMoney(totalValue)} <small>so&apos;m</small></div>
-            <div className="st-inv-hero-s">Omborda turgan barcha mahsulotlar sotuv narxida</div>
+            <div className="st-inv-hero-l">{t.saleValue}</div>
+            <div className="st-inv-hero-v ux-z">{fmtMoney(totalValue)} <small>{d.common.sum}</small></div>
+            <div className="st-inv-hero-s">{t.saleValueHint}</div>
           </div>
           <dl className="st-inv-kpis">
             <div>
-              <dt>Mahsulot</dt>
-              <dd>{totalProducts} <small>tur</small></dd>
+              <dt>{d.common.product}</dt>
+              <dd>{totalProducts} <small>{t.types}</small></dd>
             </div>
             <div>
-              <dt>Qoldiq</dt>
-              <dd>{totalUnits} <small>dona</small></dd>
+              <dt>{d.common.remaining}</dt>
+              <dd>{totalUnits} <small>{d.stock.unit}</small></dd>
             </div>
             <div>
-              <dt>Filial</dt>
+              <dt>{d.common.branch}</dt>
               <dd>{branches.length}</dd>
             </div>
           </dl>
@@ -90,13 +96,13 @@ export default async function InventoryPage() {
         {shareBase > 0 && (
           <div className="st-inv-share">
             <div className="st-inv-share-h">
-              <span>Filiallar ulushi</span>
-              <span>{totalValue > 0 ? 'qiymat bo\'yicha' : 'dona bo\'yicha'}</span>
+              <span>{t.shareTitle}</span>
+              <span>{totalValue > 0 ? t.byValue : t.byUnits}</span>
             </div>
             <div
               className="st-dist-bar st-dist-bar--hero"
               role="img"
-              aria-label={`Filiallar ulushi: ${filled.map((b) => `${b.branch.name} ${Math.round(shareOf(b))}%`).join(', ')}`}
+              aria-label={tr(t.shareAria, { list: filled.map((b) => `${b.branch.name} ${Math.round(shareOf(b))}%`).join(', ') })}
             >
               {filled.map((b, i) => (
                 <span
@@ -123,9 +129,9 @@ export default async function InventoryPage() {
         <div className="st-group st-section">
           <div className="ux-empty">
             <span className="ux-empty-ic"><Icon name="clipboard" size={26} /></span>
-            <b>Omborda qoldiq yo&apos;q</b>
-            <p>Mahsulot qo&apos;shilgach, filiallar bo&apos;yicha qoldiq shu yerda hisoblanadi.</p>
-            <Link href="/app/products" className="btn btn-tinted">Omborga o&apos;tish</Link>
+            <b>{t.emptyTitle}</b>
+            <p>{t.emptyHint}</p>
+            <Link href="/app/products" className="btn btn-tinted">{t.goToStock}</Link>
           </div>
         </div>
       ) : (
@@ -134,7 +140,7 @@ export default async function InventoryPage() {
             <section key={String(branch._id)} aria-label={branch.name}>
               <div className="st-ghead">
                 <span>{branch.name}</span>
-                <strong>{count === units ? `${count} ta` : `${count} tur · ${units} dona`} · {fmtMoney(tv)} so&apos;m</strong>
+                <strong>{count === units ? tr(d.common.nPcs, { n: count }) : tr(t.typesUnits, { count, units })} · {fmtMoney(tv)} {d.common.sum}</strong>
               </div>
               <div className="st-group">
                 {items.slice(0, PREVIEW).map((p) => {
@@ -143,11 +149,11 @@ export default async function InventoryPage() {
                     <Link key={String(p._id)} href={`/app/products/${p._id}`} className="st-cell">
                       <span className="st-cell-t">
                         <b>{p.name}</b>
-                        <small><code className="st-mono">{p.barcode || p.imei || '—'}</code> · {PRODUCT_STATUS_LABELS[p.status]}</small>
+                        <small><code className="st-mono">{p.barcode || p.imei || '—'}</code> · {d.stock.status[p.status]}</small>
                       </span>
                       <span className="st-cell-v">
                         {fmtMoney(p.salePrice)}
-                        {p.trackQuantity && <small className="st-cell-sub">× {u} dona</small>}
+                        {p.trackQuantity && <small className="st-cell-sub">× {u} {d.stock.unit}</small>}
                       </span>
                       <span className="st-cell-chev" aria-hidden="true"><Icon name="chevron" size={16} /></span>
                     </Link>
@@ -155,7 +161,7 @@ export default async function InventoryPage() {
                 })}
                 {items.length > PREVIEW && (
                   <Link href={`/app/products?branch=${branch._id}`} className="st-cell st-cell--more">
-                    Yana {items.length - PREVIEW} ta — barchasini ko&apos;rish
+                    {tr(t.more, { n: items.length - PREVIEW })}
                   </Link>
                 )}
               </div>
@@ -164,13 +170,13 @@ export default async function InventoryPage() {
 
           {empty.length > 0 && (
             <section aria-labelledby="st-inv-empty">
-              <div className="st-ghead"><span id="st-inv-empty">Mahsulotsiz filiallar</span><strong>{empty.length} ta</strong></div>
+              <div className="st-ghead"><span id="st-inv-empty">{t.emptyBranches}</span><strong>{tr(d.common.nPcs, { n: empty.length })}</strong></div>
               <div className="st-group">
                 {empty.map(({ branch }) => (
                   <div key={String(branch._id)} className="st-cell st-cell--quiet">
                     <span className="st-cell-ic" aria-hidden="true"><Icon name="building" size={15} /></span>
                     <span className="st-cell-t"><b>{branch.name}</b></span>
-                    <span className="st-cell-v st-muted">0 ta</span>
+                    <span className="st-cell-v st-muted">{tr(d.common.nPcs, { n: 0 })}</span>
                   </div>
                 ))}
               </div>

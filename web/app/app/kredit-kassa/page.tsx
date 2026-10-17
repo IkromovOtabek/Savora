@@ -1,10 +1,15 @@
 import { getTenantAdminSession } from '@/lib/tenantSession';
 import CreditKassaPanel from '@/components/tenant/CreditKassaPanel';
+import { getDict } from '@/lib/i18n/server';
 
-export const metadata = { title: 'Kredit kassa — Savora' };
+export async function generateMetadata() {
+  const d = await getDict();
+  return { title: d.sales.creditKassa.metaTitle };
+}
 
 export default async function CreditKassaPage() {
   const { CreditBank, Sale } = await getTenantAdminSession();
+  const d = await getDict();
   const banks = await CreditBank.find().sort({ name: 1 }).lean();
 
   const creditSales = await Sale.find({
@@ -45,8 +50,8 @@ export default async function CreditKassaPage() {
     <>
       <div className="t-page-head">
         <div>
-          <h1 className="t-page-title">Kredit kassa</h1>
-          <p className="t-page-sub">Banklar bo&apos;yicha bank krediti sotuvlar va qoldiq</p>
+          <h1 className="t-page-title">{d.sales.creditKassa.title}</h1>
+          <p className="t-page-sub">{d.sales.creditKassa.sub}</p>
         </div>
       </div>
       <CreditKassaPanel

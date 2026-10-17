@@ -6,6 +6,7 @@ import { useAuth } from '@/lib/auth';
 import { useResource } from '@/lib/hooks';
 import { useTheme } from '@/lib/theme';
 import { Screen, NavBar, LargeTitle, Group, Cell, Loading, ErrorState } from '@/components/ui';
+import { useDict } from '@/lib/i18n';
 
 interface BType { key: string; label: string; description: string }
 
@@ -13,6 +14,7 @@ export default function BusinessType() {
   const router = useRouter();
   const { me, refresh } = useAuth();
   const { c } = useTheme();
+  const d = useDict();
   const current = me?.org.businessType;
   const res = useResource<{ types: BType[] }>('/api/mobile/org');
   const [saving, setSaving] = useState<string | null>(null);
@@ -25,15 +27,15 @@ export default function BusinessType() {
       await refresh();
       router.back();
     } catch (e) {
-      Alert.alert('Xatolik', errMsg(e));
+      Alert.alert(d.common.error, errMsg(e));
     } finally { setSaving(null); }
   }
 
   return (
-    <Screen header={<NavBar backLabel="Kabinet" />}>
-      <LargeTitle title="Biznes yo'nalishi" />
+    <Screen header={<NavBar backLabel={d.profile.title} />}>
+      <LargeTitle title={d.businessType.title} />
       {res.loading ? <Loading /> : !res.data ? <ErrorState message={res.error} onRetry={res.retry} /> : (
-        <Group footer="Yo'nalishga qarab ilovadagi atamalar (mahsulot, menyu, dori...) o'zgaradi.">
+        <Group footer={d.businessType.footer}>
           {res.data.types.map((tp) => (
             <Cell
               key={tp.key}

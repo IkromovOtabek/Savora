@@ -3,6 +3,7 @@
 import { useEffect } from 'react';
 import Link from 'next/link';
 import Icon from '@/components/icons/Icon';
+import { useDict } from '@/lib/i18n/client';
 
 export default function AppError({
   error,
@@ -11,6 +12,8 @@ export default function AppError({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
+  const d = useDict();
+  const t = d.shell.error;
   useEffect(() => {
     console.error(error);
   }, [error]);
@@ -23,16 +26,12 @@ export default function AppError({
   return (
     <div className="t-error" role="alert">
       <span className="t-error-icon"><Icon name="alert" size={26} /></span>
-      <h1>{isDb ? 'Baza ulanmadi' : 'Nimadir xato ketdi'}</h1>
-      <p>
-        {isDb
-          ? "Ma'lumotlar bazasiga ulanib bo'lmadi. Birozdan so'ng qayta urinib ko'ring yoki administratorga xabar bering."
-          : "Sahifani ochishda kutilmagan xatolik yuz berdi. Ma'lumotlaringiz joyida — qayta urinib ko'ring."}
-      </p>
-      {error.digest && <code>Xato kodi: {error.digest}</code>}
+      <h1>{isDb ? t.dbTitle : t.title}</h1>
+      <p>{isDb ? t.dbText : t.text}</p>
+      {error.digest && <code>{t.code}{error.digest}</code>}
       <div className="t-error-actions">
-        <button type="button" className="t-btn t-btn--filled" onClick={reset}>Qayta urinish</button>
-        <Link href="/app" className="t-btn t-btn--gray">Bosh sahifaga qaytish</Link>
+        <button type="button" className="t-btn t-btn--filled" onClick={reset}>{d.common.retry}</button>
+        <Link href="/app" className="t-btn t-btn--gray">{t.backHome}</Link>
       </div>
     </div>
   );

@@ -1,7 +1,11 @@
-import { FeatureKey, TENANT_MODULES } from './features';
+import type { FeatureKey } from './features';
+import { getDict } from './i18n/server';
+import { tr } from './i18n/fmt';
 
 type ActionState = { error?: string; success?: string } | null;
 
-export function featureDisabledError(key: FeatureKey): ActionState {
-  return { error: `«${TENANT_MODULES[key].label}» moduli faol emas. Platforma egasiga murojaat qiling.` };
+/** Modul o'chiq bo'lganda action xabari — joriy tilda (server action ichida chaqiriladi) */
+export async function featureDisabledError(key: FeatureKey): Promise<ActionState> {
+  const d = await getDict();
+  return { error: tr(d.catalog.featureDisabledNamed, { label: d.catalog.features[key].label }) };
 }

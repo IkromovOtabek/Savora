@@ -5,23 +5,28 @@ import { fmtMoney } from '@/lib/format';
 import type { FlowLine, FlowTotals } from '@/lib/inventoryFlow';
 import Icon from '@/components/icons/Icon';
 import { FlowSplit } from '@/components/tenant/KirimChiqimCards';
+import { useDict } from '@/lib/i18n/client';
+import { tr } from '@/lib/i18n/fmt';
 import '@/components/tenant/styles/finance.css';
 
 type Tab = 'stock' | 'sold';
 
 function FlowTable({ lines, kind }: { lines: FlowLine[]; kind: Tab }) {
-  const saleLabel = kind === 'stock' ? 'Kutilgan sotuv' : 'Sotuv';
-  const profitLabel = kind === 'stock' ? 'Kutilgan foyda' : 'Foyda';
+  const d = useDict();
+  const k = d.sales.kirimChiqim;
+  const saleLabel = kind === 'stock' ? k.expectedSale : d.common.sale;
+  const profitLabel = kind === 'stock' ? k.expectedProfit : k.profit;
+  const idLabel = kind === 'stock' ? 'ID' : k.saleNo;
   return (
     <div className="table-wrap">
       <table className="data-table fn-table">
         <thead>
           <tr>
-            <th>{kind === 'stock' ? 'ID' : 'Sotuv №'}</th>
-            <th>Mahsulot</th>
-            <th>Filial</th>
-            <th className="fn-right">Soni</th>
-            <th className="fn-right">Tannarx</th>
+            <th>{idLabel}</th>
+            <th>{d.common.product}</th>
+            <th>{d.common.branch}</th>
+            <th className="fn-right">{k.qty}</th>
+            <th className="fn-right">{k.cost}</th>
             <th className="fn-right">{saleLabel}</th>
             <th className="fn-right">{profitLabel}</th>
           </tr>
@@ -29,11 +34,11 @@ function FlowTable({ lines, kind }: { lines: FlowLine[]; kind: Tab }) {
         <tbody>
           {lines.map((l) => (
             <tr key={l.id}>
-              <td data-label={kind === 'stock' ? 'ID' : 'Sotuv №'}><code className="fn-code">{l.productId}</code></td>
-              <td data-label="Mahsulot"><span className="cell-main">{l.name}</span></td>
-              <td data-label="Filial">{l.branchName}</td>
-              <td data-label="Soni" className="fn-right">{l.qty} ta</td>
-              <td data-label="Tannarx" className="fn-right">{fmtMoney(l.cost)}</td>
+              <td data-label={idLabel}><code className="fn-code">{l.productId}</code></td>
+              <td data-label={d.common.product}><span className="cell-main">{l.name}</span></td>
+              <td data-label={d.common.branch}>{l.branchName}</td>
+              <td data-label={k.qty} className="fn-right">{tr(d.common.nPcs, { n: l.qty })}</td>
+              <td data-label={k.cost} className="fn-right">{fmtMoney(l.cost)}</td>
               <td data-label={saleLabel} className="fn-right">{fmtMoney(l.revenue)}</td>
               <td data-label={profitLabel} className={`fn-right ${l.profit >= 0 ? 'fn-in' : 'fn-out'}`}>
                 <strong>{fmtMoney(l.profit)}</strong>
@@ -57,6 +62,8 @@ export default function KirimChiqimPanel({
 }) {
   const [tab, setTab] = useState<Tab>('sold');
   const [q, setQ] = useState('');
+  const d = useDict();
+  const k = d.sales.kirimChiqim;
 
   const lines = tab === 'stock' ? stockLines : soldLines;
   const filtered = useMemo(() => {
@@ -77,28 +84,28 @@ export default function KirimChiqimPanel({
         foyda={totals.profit}
       />
 
-      <section className="fn-panel" aria-label="Mahsulotlar ro'yxati">
+      <section className="fn-panel" aria-label={k.listAria}>
         <div className="fn-panel-head" style={{ flexWrap: 'wrap' }}>
-          <div className="fn-seg" role="tablist" aria-label="Ro'yxat turi" style={{ flex: '1 1 260px' }}>
+          <div className="fn-seg" role="tablist" aria-label={k.listTypeAria} style={{ flex: '1 1 260px' }}>
             <button
               type="button" role="tab" id="kc-tab-sold" aria-controls="kc-panel"
               aria-selected={tab === 'sold'} className="fn-seg-btn" onClick={() => setTab('sold')}
             >
-              Sotilgan <span className="fn-seg-count">{soldLines.length}</span>
+              {k.sold} <span className="fn-seg-count">{soldLines.length}</span>
             </button>
             <button
               type="button" role="tab" id="kc-tab-stock" aria-controls="kc-panel"
               aria-selected={tab === 'stock'} className="fn-seg-btn" onClick={() => setTab('stock')}
             >
-              Omborda <span className="fn-seg-count">{stockLines.length}</span>
+              {k.inStock} <span className="fn-seg-count">{stockLines.length}</span>
             </button>
           </div>
           <div className="fn-search" style={{ flex: '1 1 220px', minHeight: 40 }}>
             <Icon name="search" size={16} />
-            <label htmlFor="kc-filter" className="sr-only">Ro&apos;yxatdan izlash</label>
+            <label htmlFor="kc-filter" className="sr-only">{k.searchLabel}</label>
             <input
               id="kc-filter" type="search" value={q} onChange={(e) => setQ(e.target.value)}
-              placeholder="Mahsulot, ID yoki filial"
+              placeholder={k.searchPh}
             />
           </div>
         </div>
@@ -108,9 +115,9 @@ export default function KirimChiqimPanel({
             <div className="fn-empty">
               <span className="fn-empty-icon"><Icon name={tab === 'stock' ? 'box' : 'cart'} size={26} /></span>
               <strong>
-                {q.trim() ? 'Hech narsa topilmadi' : tab === 'stock' ? 'Omborda mahsulot yo\'q' : 'Sotilgan mahsulot yo\'q'}
+                {q.trim() ? d.common.nothingFound : tab === 'stock' ? k.noStock : k.noSold}
               </strong>
-              {q.trim() && <p>Boshqa so&apos;z bilan izlab ko&apos;ring.</p>}
+              {q.trim() && <p>{k.tryOther}</p>}
             </div>
           ) : (
             <FlowTable lines={filtered} kind={tab} />

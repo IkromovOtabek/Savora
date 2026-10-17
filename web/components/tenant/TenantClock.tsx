@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Icon from '@/components/icons/Icon';
+import { useDict } from '@/lib/i18n/client';
 import '@/components/tenant/styles/admin.css';
 
 function formatTime(date: Date): string {
@@ -13,6 +14,7 @@ function formatTime(date: Date): string {
 
 export default function TenantClock() {
   const [time, setTime] = useState('');
+  const d = useDict();
 
   useEffect(() => {
     const tick = () => setTime(formatTime(new Date()));
@@ -22,7 +24,7 @@ export default function TenantClock() {
   }, []);
 
   return (
-    <div className="ad-clock" role="timer" aria-label="Joriy vaqt">
+    <div className="ad-clock" role="timer" aria-label={d.shell.clock.label}>
       <Icon name="clock" size={14} />
       <span suppressHydrationWarning>
         {time || '--:--:--'}

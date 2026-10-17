@@ -3,12 +3,19 @@ import { getTenantSession } from '@/lib/tenantSession';
 import Icon from '@/components/icons/Icon';
 import { isBranchScoped } from '@/lib/branchScope';
 import NaxtKassaCards, { KassaCard } from '@/components/tenant/NaxtKassaCards';
+import { getDict } from '@/lib/i18n/server';
+import { plural, tr } from '@/lib/i18n/fmt';
 import '@/components/tenant/styles/finance.css';
 
-export const metadata = { title: 'Naqd kassa — Savora' };
+export async function generateMetadata() {
+  const d = await getDict();
+  return { title: d.sales.kassa.metaTitle };
+}
 
 export default async function KassaPage() {
   const { user, Sale, Branch, CashFlow } = await getTenantSession();
+  const d = await getDict();
+  const k = d.sales.kassa;
 
   const allBranches = await Branch.find({ active: true }).sort({ createdAt: 1 }).lean();
   // Filial login — faqat o'z filiali kassasi
@@ -44,7 +51,7 @@ export default async function KassaPage() {
   const total: KassaCard = {
     id: 'all',
     // Filial login bitta filialni ko'radi — "barcha filiallar" deyish noto'g'ri
-    name: isBranchScoped(user) ? 'Filialingiz kassasi' : 'Jami — barcha filiallar',
+    name: isBranchScoped(user) ? k.yourBranchKassa : k.totalAllBranches,
     naxtSotuv: naxtSotuvTotal,
     adminOlgan: adminTotal,
     qolgan: naxtSotuvTotal - adminTotal,
@@ -54,16 +61,16 @@ export default async function KassaPage() {
     <>
       <div className="t-page-head">
         <div>
-          <h1 className="t-page-title">Naqd kassa</h1>
+          <h1 className="t-page-title">{k.title}</h1>
           <p className="t-page-sub">
-            {isBranchScoped(user) ? 'Filialingiz' : `${branches.length} ta filial`} bo&apos;yicha naqd tushum va qoldiq
+            {tr(k.sub, { scope: isBranchScoped(user) ? k.yourBranch : tr(plural(branches.length, d.sales.nBranches), { n: branches.length }) })}
           </p>
         </div>
       </div>
       <NaxtKassaCards total={total} cards={cards} />
       {/* Kompyuterda yuqori paneldagi "Yangi sotuv" yetarli; telefonda — pastki o'ng tugma */}
       <Link href="/app/sales/new" className="ux-fab">
-        <Icon name="plus" size={20} /> Sotuv
+        <Icon name="plus" size={20} /> {d.common.sale}
       </Link>
     </>
   );

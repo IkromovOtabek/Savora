@@ -3,6 +3,8 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import { fmtMoney } from '@/lib/format';
 import { smoothPath, type DayPoint } from '@/lib/weekBuckets';
+import { useDict } from '@/lib/i18n/client';
+import { tr } from '@/lib/i18n/fmt';
 
 const PL = 8;
 const PR = 50;
@@ -10,9 +12,9 @@ const PT = 44;
 const PB = 30;
 
 /** O'qdagi qisqa yozuv: 1 200 000 → "1,2 mln", 350 000 → "350 ming" */
-function short(n: number): string {
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(n >= 10_000_000 ? 0 : 1).replace('.', ',').replace(',0', '')} mln`;
-  if (n >= 1_000) return `${Math.round(n / 1_000)} ming`;
+function short(n: number, u: { mln: string; thousand: string }): string {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(n >= 10_000_000 ? 0 : 1).replace('.', ',').replace(',0', '')} ${u.mln}`;
+  if (n >= 1_000) return `${Math.round(n / 1_000)} ${u.thousand}`;
   return String(Math.round(n));
 }
 
@@ -32,6 +34,8 @@ function niceMax(v: number): number {
  */
 export default function WeekChart({ points }: { points: DayPoint[] }) {
   const gid = useId().replace(/:/g, '');
+  const d = useDict();
+  const u = d.shell.weekChart;
   const boxRef = useRef<HTMLDivElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
   const [w, setW] = useState(600);
@@ -93,7 +97,7 @@ export default function WeekChart({ points }: { points: DayPoint[] }) {
         className="t-chart-svg"
         role="img"
         tabIndex={0}
-        aria-label={`Oxirgi 7 kun tushumi: jami ${fmtMoney(weekTotal)} so'm. Tanlangan: ${ap.label} ${ap.date} — ${fmtMoney(ap.total)} so'm. Kunlarni o'q tugmalari bilan almashtiring.`}
+        aria-label={tr(u.aria, { total: fmtMoney(weekTotal), day: ap.label, date: ap.date, sum: fmtMoney(ap.total) })}
         onPointerMove={(e) => pick(e.clientX)}
         onPointerDown={(e) => pick(e.clientX)}
         onPointerLeave={() => setSel(null)}
@@ -123,7 +127,7 @@ export default function WeekChart({ points }: { points: DayPoint[] }) {
         {[0, max / 2, max].map((v, i) => (
           <g key={i}>
             <line x1={PL} x2={W - PR + 6} y1={y(v)} y2={y(v)} className="t-chart-grid" strokeDasharray={v ? '2 5' : undefined} />
-            <text x={W - PR + 12} y={y(v) + 4} className="t-chart-ax">{short(v)}</text>
+            <text x={W - PR + 12} y={y(v) + 4} className="t-chart-ax">{short(v, u)}</text>
           </g>
         ))}
         {points.map((p, i) => (
@@ -140,7 +144,7 @@ export default function WeekChart({ points }: { points: DayPoint[] }) {
         <circle cx={ax - 1.6} cy={ay - 1.8} r={1.8} className="t-chart-dot-hi" />
         <g transform={`translate(${tipX.toFixed(1)},6)`} className="t-chart-tip">
           <rect width={tipW} height={28} rx={9} />
-          <text x={11} y={18.5} className="t-chart-tip-t">{ap.label} · {short(ap.total)}</text>
+          <text x={11} y={18.5} className="t-chart-tip-t">{ap.label} · {short(ap.total, u)}</text>
           {delta !== null && (
             <text x={tipW - 10} y={18.5} textAnchor="end" className={`t-chart-tip-d${delta >= 0 ? ' is-up' : ' is-down'}`}>
               {delta >= 0 ? '+' : ''}{delta}%
@@ -149,7 +153,7 @@ export default function WeekChart({ points }: { points: DayPoint[] }) {
         </g>
       </svg>
       <div className="t-chart-foot">
-        <span><b className="t-num">{fmtMoney(ap.total)}</b> so&apos;m · {ap.count} ta sotuv · {ap.date}</span>
+        <span><b className="t-num">{fmtMoney(ap.total)}</b> {d.common.sum} · {tr(d.shell.dash.nSales, { n: ap.count })} · {ap.date}</span>
       </div>
     </div>
   );

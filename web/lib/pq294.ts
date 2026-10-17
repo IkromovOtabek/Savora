@@ -6,6 +6,10 @@
  * Landing, yordam markazi va (kelajakda) sotuv formasi shu yagona manbadan foydalanadi.
  */
 
+import type { Locale } from './i18n/config';
+import { getDictionary } from './i18n/dict';
+import { tr } from './i18n/fmt';
+
 export const PQ294_EFFECTIVE = '2027-01-01';
 
 /** Maksimal muddat, oy */
@@ -78,7 +82,7 @@ export function pq294InForce(now: Date = new Date()): boolean {
  * Sotuvdagi nasiya muddati tekshiruvi: 2027-01-01 dan 12 oydan uzun nasiya rad etiladi.
  * Undan oldin — null (ruxsat), UI esa ogohlantirish ko'rsatadi.
  */
-export function pq294MonthsError(months: number | undefined, now: Date = new Date()): string | null {
+export function pq294MonthsError(months: number | undefined, now: Date = new Date(), locale: Locale = 'uz'): string | null {
   if (!months || !pq294InForce(now) || months <= PQ294_MAX_MONTHS) return null;
-  return `2027-yil 1-yanvardan nasiya muddati ${PQ294_MAX_MONTHS} oydan oshmasligi kerak (PQ-294).`;
+  return tr(getDictionary(locale).sales.pq294.monthsError, { n: PQ294_MAX_MONTHS });
 }

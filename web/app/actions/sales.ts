@@ -21,6 +21,8 @@ import { logError } from '@/lib/logger';
 import { checkPermission, userCan } from '@/lib/permissionGuard';
 import { permissionDeniedError } from '@/lib/permissions';
 import { pq294MonthsError } from '@/lib/pq294';
+import { getI18n } from '@/lib/i18n/server';
+import { tr } from '@/lib/i18n/fmt';
 
 type State = { error?: string; success?: string } | null;
 
@@ -134,10 +136,11 @@ export type QuickSaleLine = { productId: string; qty: number; salePrice?: number
 /** Tez sotuv — bir nechta mahsulotni naqd sotish */
 export async function quickSaleBatchAction(items: QuickSaleLine[]): Promise<State> {
   const { user, Product, Sale, features } = await getTenantSession();
+  const m = (await getI18n()).d.sales.actions;
   if (!features.sales) return featureDisabledError('sales');
   { const denied = await checkPermission(user, 'sale.create'); if (denied) return denied; }
   const canEditPrice = await userCan(user, 'sale.editPrice');
-  if (!items.length) return { error: 'Sotish uchun mahsulot tanlanmagan.' };
+  if (!items.length) return { error: m.noProductsSelected };
 
   const scope = branchFilter(user);
   let soldCount = 0;
@@ -146,27 +149,27 @@ export async function quickSaleBatchAction(items: QuickSaleLine[]): Promise<Stat
   try {
     for (const item of items) {
       if (!item.productId || !Types.ObjectId.isValid(item.productId)) {
-        return { error: 'Mahsulot identifikatori noto\'g\'ri.' };
+        return { error: m.badProductId };
       }
 
       const found = await Product.findOne({ _id: item.productId, ...scope }).lean();
-      if (!found) return { error: 'Mahsulot topilmadi yoki ruxsat yo\'q.' };
+      if (!found) return { error: m.productNotFoundOrDenied };
       if (found.status !== 'in_stock') {
-        return { error: `"${found.name}" omborda emas yoki allaqachon sotilgan.` };
+        return { error: tr(m.productNotInStock, { name: found.name }) };
       }
 
       const saleQty = found.trackQuantity ? parseQtyField(String(item.qty || 1)) : 1;
-      if (saleQty < 1) return { error: 'Sotiladigan son noto\'g\'ri.' };
+      if (saleQty < 1) return { error: m.badQty };
 
       let salePrice = found.salePrice;
       if (item.salePrice != null && item.salePrice > 0) {
-        if (!Number.isSafeInteger(item.salePrice)) return { error: 'Narx butun so\'mda bo\'lishi kerak.' };
+        if (!Number.isSafeInteger(item.salePrice)) return { error: m.priceWhole };
         // Narxi bor mahsulotda narxni o'zgartirish — "sale.editPrice" huquqi kerak
         if (!canEditPrice && found.salePrice > 0 && item.salePrice !== found.salePrice) return permissionDeniedError('sale.editPrice');
         salePrice = item.salePrice;
       }
       if (!salePrice || salePrice <= 0) {
-        return { error: `"${found.name}" uchun sotuv narxini kiriting.` };
+        return { error: tr(m.enterPriceFor, { name: found.name }) };
       }
 
       const now = new Date();
@@ -184,7 +187,7 @@ export async function quickSaleBatchAction(items: QuickSaleLine[]): Promise<Stat
         },
       });
       if (!product) {
-        return { error: `"${found.name}" omborda yetarli emas yoki allaqachon sotilgan.` };
+        return { error: tr(m.notEnoughStockFor, { name: found.name }) };
       }
 
       try {
@@ -231,15 +234,17 @@ export async function quickSaleBatchAction(items: QuickSaleLine[]): Promise<Stat
     revalidatePath('/app');
     revalidatePath('/app/products');
     revalidatePath('/app/sales');
-    return { success: `${soldCount} ta sotildi · ${soldTotal.toLocaleString('uz-UZ')} so'm` };
+    return { success: tr(m.quickSold, { n: soldCount, sum: soldTotal.toLocaleString('uz-UZ') }) };
   } catch (err) {
     logError('quickSaleBatchAction failed', err, { user: user.username, dbName: user.dbName });
-    return { error: 'Sotishda xatolik yuz berdi.' };
+    return { error: m.sellFailed };
   }
 }
 
 export async function createSaleAction(_prev: State, formData: FormData): Promise<State> {
   const { user, Product, Customer, Sale, CreditBank, features } = await getTenantSession();
+  const { locale, d } = await getI18n();
+  const m = d.sales.actions;
   if (!features.sales) return featureDisabledError('sales');
   { const denied = await checkPermission(user, 'sale.create'); if (denied) return denied; }
 
@@ -256,26 +261,26 @@ export async function createSaleAction(_prev: State, formData: FormData): Promis
   const bankName = String(formData.get('bankName') || '').trim();
   const dueDateRaw = String(formData.get('dueDate') || '').trim();
 
-  if (!productId || !Types.ObjectId.isValid(productId)) return { error: 'Mahsulot tanlanishi shart.' };
-  if (totalAmount === null || totalAmount <= 0) return { error: 'Sotuv summasi noto\'g\'ri.' };
+  if (!productId || !Types.ObjectId.isValid(productId)) return { error: m.productRequired };
+  if (totalAmount === null || totalAmount <= 0) return { error: m.badTotal };
   // Rasm: faqat o'zimizning storage URL'i + «Rasm/kamera» moduli yoqilgan bo'lsa
   if (photoUrl) {
     if (!features.mediaUpload) return featureDisabledError('mediaUpload');
-    if (!isOwnUploadUrl(photoUrl)) return { error: 'Rasm havolasi noto\'g\'ri. Rasmni formadagi yuklash tugmasi orqali yuklang.' };
+    if (!isOwnUploadUrl(photoUrl)) return { error: m.badPhotoUrl };
   }
 
-  if (paidAmountRaw === null) return { error: 'To\'langan summa noto\'g\'ri (butun so\'mda kiriting).' };
+  if (paidAmountRaw === null) return { error: m.badPaid };
 
   // Filial login faqat o'z filiali mahsulotini sotadi (IDOR himoyasi)
   const product = await Product.findOne({ _id: productId, ...branchFilter(user) }).lean();
   if (!product || product.status !== 'in_stock') {
-    return { error: 'Mahsulot omborda emas yoki allaqachon sotilgan.' };
+    return { error: m.notInStock };
   }
 
   const saleQty = product.trackQuantity ? parseQtyField(saleQtyRaw) : 1;
   if (product.trackQuantity) {
     const available = product.quantity - product.soldQuantity;
-    if (saleQty > available) return { error: `Omborda faqat ${available} ta qoldi.` };
+    if (saleQty > available) return { error: tr(m.onlyNLeft, { n: available }) };
   }
   // Sotuv narxidan arzon sotish — "sale.discount" huquqi kerak
   if (product.salePrice > 0 && totalAmount < product.salePrice * saleQty && !(await userCan(user, 'sale.discount'))) return permissionDeniedError('sale.discount');
@@ -293,21 +298,21 @@ export async function createSaleAction(_prev: State, formData: FormData): Promis
   }
 
   let paidAmount = paymentType === 'cash' ? totalAmount : (paidAmountRaw ?? 0);
-  if (paidAmount > totalAmount) return { error: 'To\'langan summa jami summadan oshmasligi kerak.' };
+  if (paidAmount > totalAmount) return { error: m.paidExceeds };
 
   if (paymentType === 'installment' && !features.variant && !features.nasiya) {
-    return { error: 'Nasiya (bo\'lib to\'lash) moduli yoqilmagan.' };
+    return { error: m.nasiyaDisabled };
   }
   if (paymentType === 'bank_credit' && !features.creditKassa) {
-    return { error: 'Kredit kassa moduli yoqilmagan.' };
+    return { error: m.creditKassaDisabled };
   }
 
   if (paymentType === 'bank_credit' && !bankName) {
-    return { error: 'Bank tanlanishi shart.' };
+    return { error: m.bankRequired };
   }
   if (paymentType === 'bank_credit' && features.creditKassa) {
     const bank = await CreditBank.findOne({ name: bankName, active: true }).lean();
-    if (!bank) return { error: 'Tanlangan bank topilmadi yoki faol emas.' };
+    if (!bank) return { error: m.bankNotFound };
   }
 
   let installmentMonths: number | undefined;
@@ -315,8 +320,8 @@ export async function createSaleAction(_prev: State, formData: FormData): Promis
     installmentMonths = Number.isFinite(installmentMonthsRaw) && installmentMonthsRaw >= 1
       ? Math.min(60, Math.floor(installmentMonthsRaw))
       : undefined;
-    if (!installmentMonths) return { error: 'Nasiya oylari kiritilishi shart (1–60).' };
-    const pqErr = pq294MonthsError(installmentMonths);
+    if (!installmentMonths) return { error: m.monthsRequired };
+    const pqErr = pq294MonthsError(installmentMonths, new Date(), locale);
     if (pqErr) return { error: pqErr };
   }
 
@@ -346,7 +351,7 @@ export async function createSaleAction(_prev: State, formData: FormData): Promis
     history: { action: 'sold', detail: `${saleQty} ta`, by: user.username, at: new Date() },
   });
   if (!reserved) {
-    return { error: 'Mahsulot omborda yetarli emas yoki allaqachon sotilgan.' };
+    return { error: m.notEnoughStock };
   }
 
   try {
@@ -417,27 +422,28 @@ export async function createSaleAction(_prev: State, formData: FormData): Promis
   } catch (err) {
     if (err && typeof err === 'object' && 'digest' in err) throw err;
     logError('createSaleAction failed', err, { user: user.username, dbName: user.dbName });
-    return { error: 'Sotuvda xatolik yuz berdi.' };
+    return { error: m.saleFailed };
   }
 }
 
 export async function addSalePaymentAction(_prev: State, formData: FormData): Promise<State> {
   const { user, Sale } = await getTenantSession();
+  const m = (await getI18n()).d.sales.actions;
   { const denied = await checkPermission(user, 'payment.accept'); if (denied) return denied; }
 
   const saleId = String(formData.get('saleId') || '');
   const amount = parsePrice(String(formData.get('amount') || ''));
   const note = String(formData.get('note') || '').trim();
 
-  if (!saleId || !Types.ObjectId.isValid(saleId)) return { error: 'Sotuv topilmadi.' };
-  if (amount === null || amount <= 0) return { error: 'To\'lov summasi noto\'g\'ri.' };
+  if (!saleId || !Types.ObjectId.isValid(saleId)) return { error: m.saleNotFound };
+  if (amount === null || amount <= 0) return { error: m.badPaymentAmount };
 
   // Filial login faqat o'z filiali sotuviga to'lov qo'shadi
   const sale = await Sale.findOne({ _id: saleId, ...branchFilter(user) }).lean();
-  if (!sale) return { error: 'Sotuv topilmadi.' };
-  if (sale.status === 'cancelled') return { error: 'Bekor qilingan sotuvga to\'lov qo\'shib bo\'lmaydi.' };
-  if (sale.status === 'paid') return { error: 'Bu sotuv allaqachon to\'liq to\'langan.' };
-  if (amount > sale.remainingAmount) return { error: `Qoldiq: ${sale.remainingAmount.toLocaleString('uz-UZ')} so'm.` };
+  if (!sale) return { error: m.saleNotFound };
+  if (sale.status === 'cancelled') return { error: m.cancelledNoPayment };
+  if (sale.status === 'paid') return { error: m.alreadyPaid };
+  if (amount > sale.remainingAmount) return { error: tr(m.remainingIs, { sum: sale.remainingAmount.toLocaleString('uz-UZ') }) };
 
   // Atomik: qoldiq sharti bilan bitta yozuv — ikki parallel to'lov ortiqcha to'lovga olib kelmaydi
   const res = await applySalePayment(Sale, saleId, amount, {
@@ -445,7 +451,7 @@ export async function addSalePaymentAction(_prev: State, formData: FormData): Pr
     note: note || undefined,
     recordedBy: user.username,
   });
-  if (!res) return { error: 'To\'lov qo\'shilmadi: qoldiq o\'zgargan. Sahifani yangilab qayta urinib ko\'ring.' };
+  if (!res) return { error: m.paymentConflict };
 
   await recordAudit(user, {
     action: 'sale.payment',
@@ -458,16 +464,17 @@ export async function addSalePaymentAction(_prev: State, formData: FormData): Pr
   revalidatePath('/app/sales');
   revalidatePath(`/app/sales/${saleId}`);
   revalidatePath('/app');
-  return { success: 'To\'lov qo\'shildi.' };
+  return { success: m.paymentAdded };
 }
 
 export async function cancelSaleAction(_prev: State, formData: FormData): Promise<State> {
   // Admin — doim; filial login — faqat "sale.cancel" huquqi bo'lsa va faqat o'z filiali sotuvini
   const { user, Product, Sale } = await getTenantSession();
+  const m = (await getI18n()).d.sales.actions;
   { const denied = await checkPermission(user, 'sale.cancel'); if (denied) return denied; }
 
   const saleId = String(formData.get('saleId') || '');
-  if (!saleId || !Types.ObjectId.isValid(saleId)) return { error: 'Sotuv topilmadi.' };
+  if (!saleId || !Types.ObjectId.isValid(saleId)) return { error: m.saleNotFound };
 
   // Idempotent: faqat bekor qilinmagan sotuv bir marta "cancelled" ga o'tadi —
   // ikki marta bosilsa ham mahsulot omborga ikki marta qaytmaydi.
@@ -479,7 +486,7 @@ export async function cancelSaleAction(_prev: State, formData: FormData): Promis
   ).lean();
   if (!sale) {
     const exists = await Sale.exists({ _id: saleId, ...scope });
-    return { error: exists ? 'Allaqachon bekor qilingan.' : 'Sotuv topilmadi.' };
+    return { error: exists ? m.alreadyCancelled : m.saleNotFound };
   }
 
   if (sale.productId) {
@@ -504,5 +511,5 @@ export async function cancelSaleAction(_prev: State, formData: FormData): Promis
   revalidatePath(`/app/sales/${saleId}`);
   revalidatePath('/app/products');
   revalidatePath('/app');
-  return { success: 'Sotuv bekor qilindi. Mahsulot omborga qaytdi.' };
+  return { success: m.saleCancelled };
 }

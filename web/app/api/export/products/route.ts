@@ -5,25 +5,28 @@ import { isFeatureEnabled } from '@/lib/features';
 import { loadUserPermissions } from '@/lib/permissionGuard';
 import { branchFilter } from '@/lib/branchScope';
 import { csvCell } from '@/lib/security';
+import { getDict } from '@/lib/i18n/server';
 
 const MAX_ROWS = 20000;
 
 export async function GET() {
   // To'liq tekshiruv: sessiya + tokenVersion/faol user + do'kon holati (sessiya do'koni)
   const ctx = await getApiTenantContext();
-  if (!ctx) return NextResponse.json({ error: 'Avtorizatsiya kerak.' }, { status: 401 });
+  const x = (await getDict()).stock.export;
+  if (!ctx) return NextResponse.json({ error: x.authRequired }, { status: 401 });
   const { user, org } = ctx;
   if (!isFeatureEnabled(org, 'export')) {
-    return NextResponse.json({ error: 'Export moduli faol emas' }, { status: 403 });
+    return NextResponse.json({ error: x.moduleOff }, { status: 403 });
   }
   const perms = await loadUserPermissions(user);
-  if (!perms.has('export.data')) return NextResponse.json({ error: 'Eksport huquqi yo\'q' }, { status: 403 });
+  if (!perms.has('export.data')) return NextResponse.json({ error: x.noPermission }, { status: 403 });
 
   const { Product } = await getTenantModels(user.dbName!);
   // Filial login faqat o'z filiali mahsulotlarini yuklab oladi
   const cursor = Product.find(branchFilter(user)).sort({ createdAt: -1 }).limit(MAX_ROWS).lean().cursor();
 
-  const header = 'IMEI,Nom,Rang,Holat,Kelish,Sotuv,Izoh';
+  // Ustun sarlavhalari — tilga qarab (d.stock.export.productsHeader)
+  const header = x.productsHeader.join(',');
   const canViewCost = perms.has('product.viewCost');
   const encoder = new TextEncoder();
   const stream = new ReadableStream<Uint8Array>({

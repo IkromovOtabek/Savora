@@ -4,6 +4,7 @@ import { api, errMsg } from '@/lib/api';
 import { useResource } from '@/lib/hooks';
 import { useTheme } from '@/lib/theme';
 import { fmtPhoneLocal, phoneLocal, phoneE164 } from '@/lib/format';
+import { useDict, tr } from '@/lib/i18n';
 import {
   Screen, NavBar, LargeTitle, Group, Cell, Field, Button, Pill, Loading, ErrorState, InlineError, EmptyState,
 } from '@/components/ui';
@@ -12,6 +13,7 @@ interface B { id: string; name: string; address: string | null; isMain: boolean 
 
 export default function Branches() {
   const { c } = useTheme();
+  const d = useDict();
   const res = useResource<{ items: B[] }>('/api/mobile/branches');
   const [open, setOpen] = useState(false);
   const [name, setName] = useState('');
@@ -23,10 +25,10 @@ export default function Branches() {
   const [tried, setTried] = useState(false);
 
   const err = {
-    name: !name.trim() ? 'Filial nomini kiriting' : null,
-    username: username.trim().length < 3 ? 'Login kamida 3 belgi' : null,
-    password: password.length < 6 ? 'Parol kamida 6 belgi' : null,
-    phone: phone && phoneLocal(phone).length !== 9 ? 'Telefon 9 ta raqam' : null,
+    name: !name.trim() ? d.branches.errName : null,
+    username: username.trim().length < 3 ? d.branches.errLogin : null,
+    password: password.length < 6 ? d.branches.errPass : null,
+    phone: phone && phoneLocal(phone).length !== 9 ? d.branches.errPhone : null,
   };
 
   async function create() {
@@ -38,10 +40,10 @@ export default function Branches() {
         method: 'POST',
         body: { name: name.trim(), address: address.trim(), phone: phone ? phoneE164(phone) : '', username: username.trim(), password },
       });
-      Alert.alert('Qo\'shildi', `${name.trim()} filiali va logini yaratildi.`);
+      Alert.alert(d.branches.added, tr(d.branches.addedMsg, { name: name.trim() }));
       setOpen(false); setName(''); setAddress(''); setPhone(''); setUsername(''); setPassword(''); setTried(false);
       res.reloadSilently();
-    } catch (e) { Alert.alert('Xatolik', errMsg(e)); }
+    } catch (e) { Alert.alert(d.common.error, errMsg(e)); }
     finally { setBusy(false); }
   }
 
@@ -49,26 +51,26 @@ export default function Branches() {
   return (
     <Screen
       keyboard
-      header={<NavBar right={<Button title={open ? 'Yopish' : 'Qo\'shish'} variant="plain" icon={open ? undefined : 'add'} onPress={() => setOpen((o) => !o)} />} />}
+      header={<NavBar right={<Button title={open ? d.common.close : d.common.add} variant="plain" icon={open ? undefined : 'add'} onPress={() => setOpen((o) => !o)} />} />}
       refreshing={res.refreshing}
       onRefresh={res.refresh}
     >
-      <LargeTitle title="Filiallar" subtitle={res.data ? `${items.length} ta` : undefined} />
+      <LargeTitle title={d.branches.title} subtitle={res.data ? tr(d.common.count, { n: items.length }) : undefined} />
 
       {open ? (
         <View style={{ gap: 12 }}>
-          <Field label="Filial nomi" value={name} onChangeText={setName} placeholder="Masalan: Chilonzor" error={tried ? err.name : null} />
-          <Field label="Manzil (ixtiyoriy)" value={address} onChangeText={setAddress} placeholder="Ko'cha, uy" />
-          <Field label="Telefon (ixtiyoriy)" prefix="+998" value={fmtPhoneLocal(phone)} onChangeText={(v) => setPhone(phoneLocal(v))} placeholder="90 123 45 67" keyboardType="phone-pad" maxLength={12} error={tried ? err.phone : null} />
-          <Field label="Login" value={username} onChangeText={setUsername} placeholder="filial login" autoCapitalize="none" error={tried ? err.username : null} />
-          <Field label="Parol" value={password} onChangeText={setPassword} placeholder="kamida 6 belgi" secureTextEntry error={tried ? err.password : null} />
-          <Button title="Filial yaratish" full loading={busy} onPress={create} />
+          <Field label={d.branches.nameLabel} value={name} onChangeText={setName} placeholder={d.branches.namePlaceholder} error={tried ? err.name : null} />
+          <Field label={d.branches.address} value={address} onChangeText={setAddress} placeholder={d.branches.addressPlaceholder} />
+          <Field label={d.branches.phone} prefix="+998" value={fmtPhoneLocal(phone)} onChangeText={(v) => setPhone(phoneLocal(v))} placeholder={d.common.phonePlaceholder} keyboardType="phone-pad" maxLength={12} error={tried ? err.phone : null} />
+          <Field label={d.common.login} value={username} onChangeText={setUsername} placeholder={d.branches.loginPlaceholder} autoCapitalize="none" error={tried ? err.username : null} />
+          <Field label={d.common.password} value={password} onChangeText={setPassword} placeholder={d.branches.passPlaceholder} secureTextEntry error={tried ? err.password : null} />
+          <Button title={d.branches.create} full loading={busy} onPress={create} />
         </View>
       ) : null}
 
       {res.loading && !res.data ? <Loading />
         : !res.data ? <ErrorState message={res.error} onRetry={res.retry} />
-        : items.length === 0 ? <EmptyState icon="business-outline" title="Filial yo'q" actionTitle="Filial qo'shish" onAction={() => setOpen(true)} />
+        : items.length === 0 ? <EmptyState icon="business-outline" title={d.branches.empty} actionTitle={d.branches.addBranch} onAction={() => setOpen(true)} />
         : (
           <>
             {res.error ? <InlineError message={res.error} onRetry={res.refresh} /> : null}
@@ -80,7 +82,7 @@ export default function Branches() {
                   iconColor={b.isMain ? c.sq.b : c.sq.g}
                   title={b.name}
                   subtitle={b.address ?? undefined}
-                  right={b.isMain ? <Pill label="Asosiy" tone="br" /> : undefined}
+                  right={b.isMain ? <Pill label={d.branches.main} tone="br" /> : undefined}
                 />
               ))}
             </Group>

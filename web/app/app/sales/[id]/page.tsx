@@ -3,7 +3,6 @@ import Link from 'next/link';
 import BackLink from '@/components/ui/BackLink';
 import Icon from '@/components/icons/Icon';
 import { getTenantSession } from '@/lib/tenantSession';
-import { PAYMENT_TYPE_LABELS, SALE_STATUS_LABELS } from '@/lib/models/tenant/Sale';
 import { fmtDate, fmtDateTime, fmtMoney } from '@/lib/format';
 import { computeDebtInfo } from '@/lib/debts';
 import { computeInstallmentPlan } from '@/lib/installment';
@@ -15,8 +14,13 @@ import Tilt from '@/components/ui/Tilt';
 import { Types } from 'mongoose';
 import { branchFilter } from '@/lib/branchScope';
 import { loadUserPermissions } from '@/lib/permissionGuard';
+import { getDict } from '@/lib/i18n/server';
+import { plural, tr } from '@/lib/i18n/fmt';
 
-export const metadata = { title: 'Sotuv — Savora' };
+export async function generateMetadata() {
+  const d = await getDict();
+  return { title: d.sales.detail.metaTitle };
+}
 
 const RING_R = 40;
 const RING_C = 2 * Math.PI * RING_R;
@@ -37,6 +41,8 @@ export default async function SaleDetailPage({
   const { id } = await params;
   const sp = await searchParams;
   const { user, Sale } = await getTenantSession();
+  const d = await getDict();
+  const k = d.sales.detail;
   if (!Types.ObjectId.isValid(id)) notFound();
 
   // Filial login faqat o'z filiali sotuvini ko'radi
@@ -56,31 +62,40 @@ export default async function SaleDetailPage({
   const customerName = sale.customerSnapshot?.fullName;
   const customerPhone = sale.customerSnapshot?.phone;
   const qty = sale.productSnapshot.saleQuantity ?? 1;
+  // Qarz muddati yorlig'i — lib/debts holatidan joriy tilda
+  const debtLabel = !debtInfo ? '' : debtInfo.daysLeft === null ? d.sales.debtLabel.noDate
+    : debtInfo.daysLeft < 0 ? tr(plural(-debtInfo.daysLeft, d.sales.nDaysLate), { n: -debtInfo.daysLeft })
+    : debtInfo.daysLeft === 0 ? d.sales.debtLabel.dueToday
+    : tr(plural(debtInfo.daysLeft, d.sales.nDaysLeft), { n: debtInfo.daysLeft });
+  /** Avtomatik to'lov izohlari (DB'da o'zbekcha) — joriy tilda ko'rsatiladi */
+  const payNote = (note?: string) => note === "Naqd to'lov" ? d.sales.paymentNotes.cash
+    : note === "Boshlang'ich to'lov" ? d.sales.paymentNotes.down
+    : note || d.common.payment;
   const heroCls = cancelled ? ' sl-hero--cancelled' : sale.paymentType === 'installment' ? ' sl-hero--installment' : '';
 
   return (
     <>
       <div className="t-page-head">
         <div>
-          <BackLink href="/app/sales">Barcha sotuvlar</BackLink>
+          <BackLink href="/app/sales">{k.allSales}</BackLink>
           <h1 className="t-page-title">{sale.saleNo}</h1>
           <p className="t-page-sub">{fmtDateTime(sale.createdAt!)} · {sale.soldBy}</p>
           <div className="sl-head-pills">
-            <span className={`sl-pill sl-pill--${sale.status}`}><span className="sl-dot" />{SALE_STATUS_LABELS[sale.status]}</span>
-            <span className={`sl-pill sl-pill--${sale.paymentType}`}>{PAYMENT_TYPE_LABELS[sale.paymentType]}</span>
+            <span className={`sl-pill sl-pill--${sale.status}`}><span className="sl-dot" />{d.sales.saleStatus[sale.status]}</span>
+            <span className={`sl-pill sl-pill--${sale.paymentType}`}>{d.sales.paymentTypesFull[sale.paymentType]}</span>
           </div>
         </div>
         <div className="t-page-actions sl-head-actions">
           {canPay && (
             <a href="#tolov" className="btn btn-primary btn-with-icon">
               <Icon name="wallet" size={16} />
-              To&apos;lov qabul
+              {k.acceptShort}
             </a>
           )}
           {!cancelled && (
             <Link href={`/app/sales/${id}/receipt`} className="btn btn-ghost btn-with-icon" target="_blank">
               <Icon name="clipboard" size={16} />
-              Chek
+              {k.receipt}
             </Link>
           )}
         </div>
@@ -88,7 +103,7 @@ export default async function SaleDetailPage({
 
       {sp?.created === '1' && (
         <>
-          <div className="t-note t-note--info">Sotuv muvaffaqiyatli yakunlandi.</div>
+          <div className="t-note t-note--info">{k.created}</div>
           <SaleReviewTrigger saleId={id} />
         </>
       )}
@@ -96,16 +111,16 @@ export default async function SaleDetailPage({
       <div className="sl-detail">
         <div className="sl-detail-main">
           <Tilt stack className={`sl-hero${heroCls}`} max={5}>
-            <div className="sl-hero-in" role="group" aria-label="To'lov holati">
+            <div className="sl-hero-in" role="group" aria-label={k.paymentStatusAria}>
               <div className="sl-hero-top">
                 <div className="sl-hero-sum">
-                  <span className="sl-hero-l">Jami summa</span>
-                  <span className="sl-hero-v ux-z">{fmtMoney(sale.totalAmount)} <small>so&apos;m</small></span>
+                  <span className="sl-hero-l">{k.totalSum}</span>
+                  <span className="sl-hero-v ux-z">{fmtMoney(sale.totalAmount)} <small>{d.common.sum}</small></span>
                   <span className="sl-hero-sub">
-                    {qty > 1 ? `${qty} × ${fmtMoney(Math.round(sale.totalAmount / qty))} so'm` : sale.productSnapshot.name}
+                    {qty > 1 ? `${qty} × ${fmtMoney(Math.round(sale.totalAmount / qty))} ${d.common.sum}` : sale.productSnapshot.name}
                   </span>
                 </div>
-                <div className="sl-ring ux-z" role="img" aria-label={`${pct}% to'langan`}>
+                <div className="sl-ring ux-z" role="img" aria-label={tr(k.pctPaid, { pct })}>
                   <svg viewBox="0 0 100 100">
                     <circle className="sl-ring-track" cx="50" cy="50" r={RING_R} fill="none" strokeWidth="9" />
                     <circle
@@ -115,20 +130,20 @@ export default async function SaleDetailPage({
                       strokeDashoffset={RING_C * (1 - pct / 100)}
                     />
                   </svg>
-                  <span className="sl-ring-txt"><span><b>{pct}%</b><small>to&apos;langan</small></span></span>
+                  <span className="sl-ring-txt"><span><b>{pct}%</b><small>{k.paidWord}</small></span></span>
                 </div>
               </div>
               <div className="sl-hero-grid">
                 <div className="sl-hero-cell">
-                  <span>To&apos;langan</span>
+                  <span>{d.common.paid}</span>
                   <strong>{fmtMoney(sale.paidAmount)}</strong>
                 </div>
                 <div className="sl-hero-cell">
-                  <span>Qoldiq</span>
+                  <span>{d.common.remaining}</span>
                   <strong>{fmtMoney(sale.remainingAmount)}</strong>
                 </div>
                 <div className="sl-hero-cell">
-                  <span>{plan ? 'Oylik to\'lov' : 'Muddat'}</span>
+                  <span>{plan ? d.sales.monthlyPayment : k.term}</span>
                   <strong>
                     {plan ? fmtMoney(plan.monthly) : sale.dueDate ? fmtDate(sale.dueDate) : '—'}
                   </strong>
@@ -145,12 +160,12 @@ export default async function SaleDetailPage({
 
           <section className="sl-card" aria-labelledby="sl-pays-h">
             <div className="sl-card-head">
-              <h2 id="sl-pays-h">To&apos;lovlar tarixi</h2>
-              <small>{sale.payments.length} ta</small>
+              <h2 id="sl-pays-h">{k.paymentsHistory}</h2>
+              <small>{tr(d.common.nPcs, { n: sale.payments.length })}</small>
             </div>
             {sale.payments.length === 0 ? (
               <div className="sl-empty" style={{ padding: '20px 18px 26px' }}>
-                <p>Hali to&apos;lov qabul qilinmagan.</p>
+                <p>{k.noPayments}</p>
               </div>
             ) : (
               <ul className="sl-pays">
@@ -158,7 +173,7 @@ export default async function SaleDetailPage({
                   <li key={i} className="sl-pay">
                     <span className="sl-pay-ic" aria-hidden><Icon name="check" size={16} /></span>
                     <div className="sl-pay-main">
-                      <b>{p.note || 'To\'lov'}</b>
+                      <b>{payNote(p.note)}</b>
                       <span>{fmtDateTime(p.paidAt)}{p.recordedBy ? ` · ${p.recordedBy}` : ''}</span>
                     </div>
                     <span className="sl-pay-amt">+{fmtMoney(p.amount)}</span>
@@ -171,43 +186,43 @@ export default async function SaleDetailPage({
 
         <aside className="sl-detail-side">
           <section className="sl-card" aria-labelledby="sl-cust-h">
-            <div className="sl-card-head"><h2 id="sl-cust-h">Mijoz</h2></div>
+            <div className="sl-card-head"><h2 id="sl-cust-h">{d.common.customer}</h2></div>
             {customerName || customerPhone ? (
               <div className="sl-person">
                 <span className="sl-av" aria-hidden>{initials(customerName ?? '')}</span>
                 <div>
                   <b>{customerName ?? '—'}</b>
-                  {customerPhone ? <a href={`tel:${customerPhone}`}>{customerPhone}</a> : <small>Telefon yo&apos;q</small>}
+                  {customerPhone ? <a href={`tel:${customerPhone}`}>{customerPhone}</a> : <small>{d.sales.noPhone}</small>}
                 </div>
               </div>
             ) : (
               <div className="sl-person">
                 <span className="sl-av sl-av--cancelled" aria-hidden><Icon name="user" size={18} /></span>
-                <div><b>Noma&apos;lum mijoz</b><small>Naqd sotuvda mijoz kiritilmagan</small></div>
+                <div><b>{k.unknownCustomer}</b><small>{k.cashNoCustomer}</small></div>
               </div>
             )}
           </section>
 
           <section className="sl-card" aria-labelledby="sl-prod-h">
-            <div className="sl-card-head"><h2 id="sl-prod-h">Mahsulot va to&apos;lov</h2></div>
+            <div className="sl-card-head"><h2 id="sl-prod-h">{k.productAndPayment}</h2></div>
             <ul className="sl-kv">
-              <li><span>Mahsulot</span><Link href={`/app/products/${sale.productId}`}>{sale.productSnapshot.name}</Link></li>
-              {sale.productSnapshot.imei && <li><span>IMEI / kod</span><code>{sale.productSnapshot.imei}</code></li>}
-              {qty > 1 && <li><span>Soni</span><span>{qty} ta</span></li>}
-              <li><span>To&apos;lov turi</span><span>{PAYMENT_TYPE_LABELS[sale.paymentType]}</span></li>
+              <li><span>{d.common.product}</span><Link href={`/app/products/${sale.productId}`}>{sale.productSnapshot.name}</Link></li>
+              {sale.productSnapshot.imei && <li><span>{k.imeiCode}</span><code>{sale.productSnapshot.imei}</code></li>}
+              {qty > 1 && <li><span>{k.qty}</span><span>{tr(d.common.nPcs, { n: qty })}</span></li>}
+              <li><span>{d.sales.paymentType}</span><span>{d.sales.paymentTypesFull[sale.paymentType]}</span></li>
               {sale.paymentType === 'bank_credit' && sale.bankName && (
-                <li><span>Bank</span><span>{sale.bankName}</span></li>
+                <li><span>{k.bank}</span><span>{sale.bankName}</span></li>
               )}
-              {sale.installmentMonths && <li><span>Nasiya</span><span>{sale.installmentMonths} oy</span></li>}
+              {sale.installmentMonths && <li><span>{d.common.installment}</span><span>{tr(d.common.nMonths, { n: sale.installmentMonths })}</span></li>}
               {sale.dueDate && debtInfo && (
                 <li>
-                  <span>To&apos;lov muddati</span>
+                  <span>{d.sales.dueDate}</span>
                   <span className={debtInfo.state === 'overdue' ? 'sl-danger-txt' : undefined}>
-                    {fmtDate(sale.dueDate)} · {debtInfo.label}
+                    {fmtDate(sale.dueDate)} · {debtLabel}
                   </span>
                 </li>
               )}
-              {sale.notes && <li><span>Izoh</span><span>{sale.notes}</span></li>}
+              {sale.notes && <li><span>{d.common.note}</span><span>{sale.notes}</span></li>}
             </ul>
           </section>
 

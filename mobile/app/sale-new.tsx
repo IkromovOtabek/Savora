@@ -6,7 +6,8 @@ import { useAuth } from '@/lib/auth';
 import { useDebounced, usePaged } from '@/lib/hooks';
 import { takePicked, type PickedProduct } from '@/lib/pick';
 import { useTheme, tabular } from '@/lib/theme';
-import { digits, grouped, fmtMoney, fmtPhoneLocal, phoneLocal, phoneE164, PAY_LABELS, type PayType } from '@/lib/format';
+import { digits, grouped, fmtMoney, fmtPhoneLocal, phoneLocal, phoneE164, payLabels, type PayType } from '@/lib/format';
+import { useDict, tr } from '@/lib/i18n';
 import {
   Screen, NavBar, LargeTitle, SearchField, Group, Cell, AmountColumn, Pill, Button, IconButton, SegmentedControl,
   Field, Chips, Stepper, Loading, EmptyState, ErrorState,
@@ -19,6 +20,7 @@ export default function SaleNew() {
   const params = useLocalSearchParams<{ productId?: string; name?: string; price?: string; track?: string; available?: string; pay?: string }>();
   const { me } = useAuth();
   const { c } = useTheme();
+  const d = useDict();
   const f = me?.features ?? {};
   const nasiyaOn = !!(f.variant || f.nasiya);
 
@@ -67,18 +69,18 @@ export default function SaleNew() {
   const phone = phoneLocal(custPhone);
 
   const errors = {
-    total: totalN <= 0 ? 'Summani kiriting' : null,
-    paid: pay !== 'cash' && paidN > totalN ? 'Jami summadan oshmasin' : null,
-    months: pay === 'installment' && (monthsN < 1 || monthsN > 60) ? '1 dan 60 oygacha' : null,
-    name: needCustomer && !custName.trim() ? 'Mijoz ismini kiriting' : null,
-    phone: needCustomer && phone.length !== 9 ? 'Telefon 9 ta raqam: 90 123 45 67' : null,
+    total: totalN <= 0 ? d.saleNew.errTotal : null,
+    paid: pay !== 'cash' && paidN > totalN ? d.saleNew.errPaid : null,
+    months: pay === 'installment' && (monthsN < 1 || monthsN > 60) ? d.saleNew.errMonths : null,
+    name: needCustomer && !custName.trim() ? d.saleNew.errName : null,
+    phone: needCustomer && phone.length !== 9 ? d.saleNew.errPhone : null,
   };
   const show = (k: keyof typeof errors) => (tried ? errors[k] : null);
   const valid = !Object.values(errors).some(Boolean);
 
   async function submit() {
     setTried(true);
-    if (!picked) { Alert.alert('Mahsulot', 'Mahsulot tanlang.'); return; }
+    if (!picked) { Alert.alert(d.saleNew.pickTitle, d.saleNew.pickMsg); return; }
     if (!valid) return;
     setBusy(true);
     try {
@@ -98,24 +100,24 @@ export default function SaleNew() {
       });
       router.replace(`/sale/${r.id}`);
     } catch (e) {
-      Alert.alert('Sotuv amalga oshmadi', errMsg(e, 'Sotuvda xatolik'));
+      Alert.alert(d.saleNew.failTitle, errMsg(e, d.saleNew.failFallback));
     } finally { setBusy(false); }
   }
 
   /* ───── 1-qadam: mahsulot tanlash ───── */
   if (!picked) {
     return (
-      <Screen keyboard header={<NavBar backLabel="Bekor qilish" />}>
-        <LargeTitle title="Yangi sotuv" subtitle="Mahsulotni tanlang yoki skaner qiling" />
+      <Screen keyboard header={<NavBar backLabel={d.common.cancel} />}>
+        <LargeTitle title={d.saleNew.title} subtitle={d.saleNew.subtitle} />
         <SearchField
           value={q}
           onChangeText={setQ}
-          placeholder="Mahsulot nomi yoki kodi"
-          right={<IconButton icon="barcode-outline" label="Skaner" tone="plain" onPress={() => router.push('/scan?mode=pick')} />}
+          placeholder={d.saleNew.searchPlaceholder}
+          right={<IconButton icon="barcode-outline" label={d.common.scanner} tone="plain" onPress={() => router.push('/scan?mode=pick')} />}
         />
         {list.loading && list.items.length === 0 ? <Loading />
           : list.error && list.items.length === 0 ? <ErrorState message={list.error} onRetry={list.retry} />
-          : list.items.length === 0 ? <EmptyState icon="search" title="Mahsulot topilmadi" message={dq ? `«${dq}» bo'yicha hech narsa yo'q.` : 'Omborda sotuvdagi mahsulot yo\'q.'} />
+          : list.items.length === 0 ? <EmptyState icon="search" title={d.saleNew.notFound} message={dq ? tr(d.saleNew.notFoundQ, { q: dq }) : d.saleNew.notFoundEmpty} />
           : (
             <Group>
               {list.items.map((p) => {
@@ -126,8 +128,8 @@ export default function SaleNew() {
                     icon="cube"
                     iconColor={ok ? c.sq.b : c.sq.g}
                     title={p.name}
-                    subtitle={p.trackQuantity ? `${fmtMoney(p.available)} dona qoldi` : undefined}
-                    right={<AmountColumn amount={fmtMoney(p.salePrice)}>{ok ? null : <Pill label="Sotuvda emas" tone="mut" />}</AmountColumn>}
+                    subtitle={p.trackQuantity ? tr(d.saleNew.leftPcs, { n: fmtMoney(p.available) }) : undefined}
+                    right={<AmountColumn amount={fmtMoney(p.salePrice)}>{ok ? null : <Pill label={d.saleNew.notInSale} tone="mut" />}</AmountColumn>}
                     disabled={!ok}
                     onPress={() => choose(p)}
                   />
@@ -135,7 +137,7 @@ export default function SaleNew() {
               })}
             </Group>
           )}
-        {list.loadingMore ? <ActivityIndicator color={c.tint} /> : list.hasMore ? <Button title="Ko'proq ko'rsatish" variant="plain" onPress={list.loadMore} style={{ alignSelf: 'center' }} /> : null}
+        {list.loadingMore ? <ActivityIndicator color={c.tint} /> : list.hasMore ? <Button title={d.common.showMore} variant="plain" onPress={list.loadMore} style={{ alignSelf: 'center' }} /> : null}
       </Screen>
     );
   }
@@ -147,68 +149,68 @@ export default function SaleNew() {
   return (
     <Screen
       keyboard
-      header={<NavBar backLabel="Bekor qilish" />}
-      footer={<Button title="Sotuvni yakunlash" value={fmtMoney(totalN)} size="lg" full loading={busy} onPress={submit} />}
+      header={<NavBar backLabel={d.common.cancel} />}
+      footer={<Button title={d.saleNew.finish} value={fmtMoney(totalN)} size="lg" full loading={busy} onPress={submit} />}
     >
-      <LargeTitle title="Yangi sotuv" />
+      <LargeTitle title={d.saleNew.title} />
 
       <Group>
         <Cell
           icon="cube"
           iconColor={c.sq.b}
           title={picked.name}
-          subtitle={`${fmtMoney(picked.salePrice, { suffix: true })}${picked.trackQuantity ? ` · ${fmtMoney(picked.available)} dona bor` : ''}`}
-          right={<Button title="O'zgartirish" size="sm" variant="tinted" onPress={() => setPicked(null)} />}
+          subtitle={`${fmtMoney(picked.salePrice, { suffix: true })}${picked.trackQuantity ? tr(d.saleNew.available, { n: fmtMoney(picked.available) }) : ''}`}
+          right={<Button title={d.common.change} size="sm" variant="tinted" onPress={() => setPicked(null)} />}
         />
         {picked.trackQuantity ? (
-          <Cell title="Miqdor" right={<Stepper value={qty} onChange={changeQty} min={1} max={Math.max(1, picked.available)} />} />
+          <Cell title={d.common.qty} right={<Stepper value={qty} onChange={changeQty} min={1} max={Math.max(1, picked.available)} />} />
         ) : null}
       </Group>
 
       <View style={{ gap: 8 }}>
-        <Text style={[s.label, { color: c.ink3 }]}>To&apos;lov turi</Text>
-        <SegmentedControl options={payTypes.map((k) => ({ key: k, label: PAY_LABELS[k] }))} value={pay} onChange={setPay} />
+        <Text style={[s.label, { color: c.ink3 }]}>{d.saleNew.payType}</Text>
+        <SegmentedControl options={payTypes.map((k) => ({ key: k, label: payLabels()[k] }))} value={pay} onChange={setPay} />
       </View>
 
       <Field
-        label="Sotuv summasi"
+        label={d.saleNew.amount}
         value={grouped(total)}
         onChangeText={(v) => { setTotal(digits(v)); setTotalEdited(true); }}
         keyboardType="numeric"
         placeholder="0"
-        suffix="so'm"
+        suffix={d.format.currency}
         error={show('total')}
       />
 
       {needCustomer ? (
         <Field
-          label={pay === 'installment' ? 'Boshlang\'ich to\'lov' : 'Hozir to\'langan (ixtiyoriy)'}
+          label={pay === 'installment' ? d.saleNew.down : d.saleNew.paidNow}
           value={grouped(paid)}
           onChangeText={(v) => setPaid(digits(v))}
           keyboardType="numeric"
           placeholder="0"
-          suffix="so'm"
+          suffix={d.format.currency}
           error={show('paid')}
         />
       ) : null}
 
       {pay === 'installment' ? (
         <View style={{ gap: 8 }}>
-          <Text style={[s.label, { color: c.ink3 }]}>Muddat (oy)</Text>
-          <Chips options={MONTH_PRESETS.map((m) => ({ key: m, label: `${m} oy` }))} value={MONTH_PRESETS.includes(monthsN) ? monthsN : null} onChange={(m) => setMonths(String(m))} />
-          <Field value={months} onChangeText={(v) => setMonths(digits(v).slice(0, 2))} keyboardType="numeric" placeholder="Boshqa muddat" suffix="oy" error={show('months')} />
+          <Text style={[s.label, { color: c.ink3 }]}>{d.saleNew.term}</Text>
+          <Chips options={MONTH_PRESETS.map((m) => ({ key: m, label: tr(d.common.months, { n: m }) }))} value={MONTH_PRESETS.includes(monthsN) ? monthsN : null} onChange={(m) => setMonths(String(m))} />
+          <Field value={months} onChangeText={(v) => setMonths(digits(v).slice(0, 2))} keyboardType="numeric" placeholder={d.saleNew.otherTerm} suffix={d.saleNew.monthSuffix} error={show('months')} />
         </View>
       ) : null}
 
       {needCustomer ? (
         <>
-          <Field label="Mijoz ismi" value={custName} onChangeText={setCustName} placeholder="Ism Familiya" autoCapitalize="words" textContentType="name" error={show('name')} />
+          <Field label={d.saleNew.custName} value={custName} onChangeText={setCustName} placeholder={d.saleNew.custPlaceholder} autoCapitalize="words" textContentType="name" error={show('name')} />
           <Field
-            label="Telefon"
+            label={d.common.phone}
             prefix="+998"
             value={fmtPhoneLocal(custPhone)}
             onChangeText={(v) => setCustPhone(phoneLocal(v))}
-            placeholder="90 123 45 67"
+            placeholder={d.common.phonePlaceholder}
             keyboardType="phone-pad"
             textContentType="telephoneNumber"
             maxLength={12}
@@ -217,13 +219,13 @@ export default function SaleNew() {
         </>
       ) : null}
 
-      <Field label="Izoh (ixtiyoriy)" value={notes} onChangeText={setNotes} placeholder="Qo'shimcha ma'lumot" />
+      <Field label={d.common.noteOptional} value={notes} onChangeText={setNotes} placeholder={d.saleNew.notesPlaceholder} />
 
-      <Group header="Xulosa">
-        <Cell title="Jami" value={fmtMoney(totalN, { suffix: true })} valueStrong />
-        {needCustomer ? <Cell title="Hozir to'lanadi" value={fmtMoney(paidN, { suffix: true })} valueColor={c.ok} /> : null}
-        {needCustomer ? <Cell title="Qoldiq" value={fmtMoney(left, { suffix: true })} valueColor={left > 0 ? c.bad : c.ok} /> : null}
-        {monthly > 0 ? <Cell title="Oylik (taxminan)" right={<Text style={[s.gold, tabular, { color: c.gold }]}>{fmtMoney(monthly, { suffix: true })}</Text>} /> : null}
+      <Group header={d.saleNew.summary}>
+        <Cell title={d.common.total} value={fmtMoney(totalN, { suffix: true })} valueStrong />
+        {needCustomer ? <Cell title={d.saleNew.payNow} value={fmtMoney(paidN, { suffix: true })} valueColor={c.ok} /> : null}
+        {needCustomer ? <Cell title={d.common.remaining} value={fmtMoney(left, { suffix: true })} valueColor={left > 0 ? c.bad : c.ok} /> : null}
+        {monthly > 0 ? <Cell title={d.saleNew.monthly} right={<Text style={[s.gold, tabular, { color: c.gold }]}>{fmtMoney(monthly, { suffix: true })}</Text>} /> : null}
       </Group>
     </Screen>
   );

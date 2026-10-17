@@ -3,6 +3,7 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import { toast } from '@/lib/toast';
 import Icon from '@/components/icons/Icon';
+import { useDict } from '@/lib/i18n/client';
 
 interface Props {
   phone?: string;
@@ -29,6 +30,7 @@ function normalizePhone(raw?: string): string | null {
 
 export default function DebtReminderButton({ phone, text, prominent }: Props) {
   const [open, setOpen] = useState(false);
+  const d = useDict();
   const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
   const btnRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -86,24 +88,24 @@ export default function DebtReminderButton({ phone, text, prominent }: Props) {
         aria-expanded={open}
         aria-controls={open ? menuId : undefined}
       >
-        <Icon name="bell" size={14} /> Eslatma
+        <Icon name="bell" size={14} /> {d.sales.debts.reminder}
       </button>
       {open && pos && (
         <div id={menuId} role="menu" className="dr-menu cl-menu" ref={menuRef} style={{ position: 'fixed', top: pos.top, left: pos.left }}>
           {num ? (
             <>
               <a role="menuitem" className="dr-item cl-menu-item" href={`https://wa.me/${num}?text=${enc}`} target="_blank" rel="noopener noreferrer" onClick={() => setOpen(false)}>
-                <Icon name="send" size={15} /> WhatsApp orqali
+                <Icon name="send" size={15} /> {d.sales.debts.viaWhatsapp}
               </a>
               <a role="menuitem" className="dr-item cl-menu-item" href={`https://t.me/+${num}`} target="_blank" rel="noopener noreferrer" onClick={() => setOpen(false)}>
-                <Icon name="send" size={15} /> Telegram orqali
+                <Icon name="send" size={15} /> {d.sales.debts.viaTelegram}
               </a>
               <a role="menuitem" className="dr-item cl-menu-item" href={`sms:+${num}?body=${enc}`} onClick={() => setOpen(false)}>
-                <Icon name="phone" size={15} /> SMS orqali
+                <Icon name="phone" size={15} /> {d.sales.debts.viaSms}
               </a>
             </>
           ) : (
-            <div className="dr-empty cl-menu-empty">Telefon raqami yo&apos;q</div>
+            <div className="dr-empty cl-menu-empty">{d.sales.debts.noPhoneNumber}</div>
           )}
           <button
             type="button"
@@ -111,13 +113,13 @@ export default function DebtReminderButton({ phone, text, prominent }: Props) {
             className="dr-item cl-menu-item"
             onClick={() => {
               navigator.clipboard?.writeText(text).then(
-                () => toast('Matn nusxalandi', 'success'),
-                () => toast('Nusxalab bo\'lmadi', 'error'),
+                () => toast(d.sales.debts.textCopied, 'success'),
+                () => toast(d.sales.debts.copyFailed, 'error'),
               );
               setOpen(false);
             }}
           >
-            <Icon name="clipboard" size={15} /> Matnni nusxalash
+            <Icon name="clipboard" size={15} /> {d.sales.debts.copyText}
           </button>
         </div>
       )}

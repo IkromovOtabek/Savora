@@ -2,8 +2,9 @@
 
 import { revalidatePath } from 'next/cache';
 import { getTenantSession } from '@/lib/tenantSession';
-import { featureDisabledError } from '@/lib/featureAction';
-import { checkPermission } from '@/lib/permissionGuard';
+import { userCan } from '@/lib/permissionGuard';
+import { getDict } from '@/lib/i18n/server';
+import { tr } from '@/lib/i18n/fmt';
 import { recordAudit } from '@/lib/audit';
 import { runAnalysis } from '@/lib/ai/report';
 import { AI_DAILY_LIMIT } from '@/lib/ai/types';
@@ -15,16 +16,17 @@ export async function rerunAiAnalysisAction(_prev: State, _formData: FormData): 
   void _formData;
   const models = await getTenantSession();
   const { user, org, features } = models;
-  if (!features.ai) return featureDisabledError('ai');
-  { const denied = await checkPermission(user, 'ai.view'); if (denied) return denied; }
+  const d = await getDict();
+  if (!features.ai) return { error: tr(d.crm.featureDisabled, { label: d.catalog.features.ai.label }) };
+  if (!(await userCan(user, 'ai.view'))) return { error: tr(d.catalog.permissionDeniedNamed, { label: d.catalog.permissions['ai.view'].label }) };
 
   try {
     const out = await runAnalysis(models, user, { businessType: org.businessType });
     if (out.status === 'limited') {
-      return { error: `Bugungi tahlil limiti tugadi (${AI_DAILY_LIMIT} ta). Ertaga qayta urinib ko'ring.` };
+      return { error: tr(d.crm.ai.limitReached, { n: AI_DAILY_LIMIT }) };
     }
     if (out.status === 'cached') {
-      return { success: 'Ma\'lumotlar o\'zgarmagan — oxirgi tahlil dolzarb.' };
+      return { success: d.crm.ai.cached };
     }
     await recordAudit(user, {
       action: 'ai.analyze',
@@ -33,9 +35,9 @@ export async function rerunAiAnalysisAction(_prev: State, _formData: FormData): 
       summary: `AI tahlil: ${out.report.source === 'ai' ? out.report.model : 'qoidalar asosida'}`,
     });
   } catch {
-    return { error: 'Tahlil qilishda xatolik. Keyinroq urinib ko\'ring.' };
+    return { error: d.crm.ai.errAnalyze };
   }
   revalidatePath('/app/ai');
   revalidatePath('/app');
-  return { success: 'Tahlil yangilandi.' };
+  return { success: d.crm.ai.updated };
 }

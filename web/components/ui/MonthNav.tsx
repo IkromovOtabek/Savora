@@ -1,11 +1,12 @@
 import Link from 'next/link';
+import { getI18n } from '@/lib/i18n/server';
+import { MONTHS, tr } from '@/lib/i18n/fmt';
+import type { Locale } from '@/lib/i18n/config';
 
-const MONTHS = ['yanvar', 'fevral', 'mart', 'aprel', 'may', 'iyun', 'iyul', 'avgust', 'sentabr', 'oktabr', 'noyabr', 'dekabr'];
-
-/** "2026-10" → "oktabr, 2026" (brauzer tiliga bog'liq emas — ruscha chiqmaydi) */
-export function monthLabel(ym: string): string {
+/** "2026-10" → "oktabr, 2026" / "октябрь, 2026" (brauzer tiliga bog'liq emas) */
+export function monthLabel(ym: string, locale: Locale = 'uz'): string {
   const [y, m] = ym.split('-').map(Number);
-  return `${MONTHS[(m || 1) - 1]}, ${y}`;
+  return `${MONTHS[locale][(m || 1) - 1]}, ${y}`;
 }
 
 function shift(ym: string, d: number): string {
@@ -18,16 +19,17 @@ function shift(ym: string, d: number): string {
  * Oy navigatsiyasi: ‹ oktabr, 2026 › — brauzerning o'z oy tanlagichi o'rniga.
  * href(ym) — shu oy uchun manzil (boshqa query parametrlarini sahifa o'zi qo'shadi).
  */
-export default function MonthNav({ value, current, href }: { value: string; current: string; href: (ym: string) => string }) {
+export default async function MonthNav({ value, current, href }: { value: string; current: string; href: (ym: string) => string }) {
+  const { locale, d } = await getI18n();
   const prev = shift(value, -1);
   const next = shift(value, 1);
   const isFuture = next > current;
   return (
-    <nav className="ux-month" aria-label="Oy tanlash">
-      <Link href={href(prev)} aria-label={`Oldingi oy: ${monthLabel(prev)}`}>‹</Link>
-      <span className="ux-month-cur" aria-current="date">{monthLabel(value)}</span>
-      <Link href={href(next)} aria-label={`Keyingi oy: ${monthLabel(next)}`} aria-disabled={isFuture ? 'true' : undefined} tabIndex={isFuture ? -1 : undefined}>›</Link>
-      {value !== current && <Link href={href(current)}>Shu oy</Link>}
+    <nav className="ux-month" aria-label={d.sales.monthNav.aria}>
+      <Link href={href(prev)} aria-label={tr(d.sales.monthNav.prev, { m: monthLabel(prev, locale) })}>‹</Link>
+      <span className="ux-month-cur" aria-current="date">{monthLabel(value, locale)}</span>
+      <Link href={href(next)} aria-label={tr(d.sales.monthNav.next, { m: monthLabel(next, locale) })} aria-disabled={isFuture ? 'true' : undefined} tabIndex={isFuture ? -1 : undefined}>›</Link>
+      {value !== current && <Link href={href(current)}>{d.common.thisMonth}</Link>}
     </nav>
   );
 }

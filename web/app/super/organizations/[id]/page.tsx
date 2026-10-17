@@ -1,10 +1,11 @@
 import { notFound } from 'next/navigation';
-import { requireSuperAdmin } from '@/lib/auth';
 import { getMasterModels } from '@/lib/masterDb';
 import { explainOrgFeatures, resolveOrgFeatures } from '@/lib/features';
-import { BUSINESS_TYPES } from '@/lib/businessTypes';
+import { isBusinessType } from '@/lib/businessTypes';
 import { resolveOrgPlan, fmtPlanPrice } from '@/lib/plans';
 import { getOrgAdminCredentials, getOrgDisplayStatus } from '@/lib/organizations';
+import { getDict } from '@/lib/i18n/server';
+import { tr } from '@/lib/i18n/fmt';
 import OrgEditForm from '@/components/super/OrgEditForm';
 import OrgModulesForm from '@/components/super/OrgModulesForm';
 import OrgLinksPanel from '@/components/super/OrgLinksPanel';
@@ -33,7 +34,10 @@ function Panel({ title, sub, icon, iconBg, children }: { title: string; sub: str
   );
 }
 
-export const metadata = { title: "Do'kon boshqaruvi — Super Admin" };
+export async function generateMetadata() {
+  const d = await getDict();
+  return { title: d.superPanel.org.metaTitle };
+}
 
 export default async function OrgDetailPage({
   params,
@@ -44,8 +48,9 @@ export default async function OrgDetailPage({
 }) {
   const { id } = await params;
   const sp = await searchParams;
-  // Layout xavfsizlik chegarasi emas (soft-navigatsiyada qayta render bo'lmaydi) — sahifa o'zi tekshiradi
-  await requireSuperAdmin();
+  const d = await getDict();
+  const s = d.superPanel;
+  const t = s.org;
   const { Organization } = await getMasterModels();
   const org = await Organization.findById(id).lean();
   if (!org) notFound();
@@ -53,7 +58,7 @@ export default async function OrgDetailPage({
   const expiresValue = new Date(org.expiresAt).toISOString().slice(0, 10);
   const features = resolveOrgFeatures(org);
   const featureExplain = explainOrgFeatures(org);
-  const typeLabel = BUSINESS_TYPES[org.businessType as keyof typeof BUSINESS_TYPES]?.label ?? 'Umumiy savdo';
+  const typeLabel = d.catalog.businessTypes[isBusinessType(org.businessType) ? org.businessType : 'general'].label;
   const plan = resolveOrgPlan(org);
   const credentials = await getOrgAdminCredentials(org);
   const status = getOrgDisplayStatus(org);
@@ -62,27 +67,27 @@ export default async function OrgDetailPage({
   return (
     <>
       <PageTitle
-        back={{ href: '/super', label: "Do'konlar" }}
+        back={{ href: '/super', label: s.orgs.title }}
         title={org.name}
         sub={<>{typeLabel} · {org.slug}</>}
-        actions={<OrgStatusPill status={status} />}
+        actions={<OrgStatusPill status={{ key: status.key, label: s.status[status.key] }} />}
       />
 
       {/* Asosiy faktlar — bir qarashda: tarif, to'lov, muddat, limitlar */}
       <dl className="sa-facts">
-        <div><dt>Tarif</dt><dd>{plan.label}</dd></div>
-        <div><dt>Oylik to&apos;lov</dt><dd>{fmtPlanPrice(plan.monthlyPayment)}</dd></div>
+        <div><dt>{t.plan}</dt><dd>{d.catalog.planTiers[plan.tier]}</dd></div>
+        <div><dt>{t.monthlyPayment}</dt><dd>{fmtPlanPrice(plan.monthlyPayment, { free: s.free, sum: d.common.sum })}</dd></div>
         <div className={daysLeft < 0 ? 'is-bad' : daysLeft <= 7 ? 'is-warn' : undefined}>
-          <dt>Obuna muddati</dt>
+          <dt>{t.subscriptionUntil}</dt>
           <dd>{new Date(org.expiresAt).toLocaleDateString('uz-UZ')}</dd>
-          <small>{daysLeft < 0 ? `${-daysLeft} kun oldin tugagan` : daysLeft === 0 ? 'Bugun tugaydi' : `${daysLeft} kun qoldi`}</small>
+          <small>{daysLeft < 0 ? tr(s.expiredDaysAgo, { n: -daysLeft }) : daysLeft === 0 ? s.todayEnds : tr(s.nDaysLeft, { n: daysLeft })}</small>
         </div>
-        <div><dt>Filial limiti</dt><dd>{plan.maxFilial}</dd></div>
-        <div><dt>Xodim limiti</dt><dd>{plan.maxUsers}</dd></div>
+        <div><dt>{t.branchLimit}</dt><dd>{plan.maxFilial}</dd></div>
+        <div><dt>{t.userLimit}</dt><dd>{plan.maxUsers}</dd></div>
       </dl>
 
       {sp?.created === '1' && (
-        <Alert tone="ok">Do&apos;kon yaratildi. Modullarni yoqing va «Havolalar» bo&apos;limidagi havolalarni mijozga bering.</Alert>
+        <Alert tone="ok">{t.created}</Alert>
       )}
 
       <OrgTabs
@@ -90,10 +95,10 @@ export default async function OrgDetailPage({
         tabs={[
           {
             id: 'sozlamalar',
-            label: 'Sozlamalar',
+            label: t.tabSettings,
             icon: 'settings',
             content: (
-              <Panel title="Do'kon sozlamalari" sub="Nomi, tarif, holat va obuna muddati" icon="settings" iconBg="#8a93a8">
+              <Panel title={t.settingsTitle} sub={t.settingsSub} icon="settings" iconBg="#8a93a8">
                 <OrgEditForm
                   orgId={String(org._id)}
                   initial={{
@@ -120,45 +125,45 @@ export default async function OrgDetailPage({
           },
           {
             id: 'modullar',
-            label: 'Modullar',
+            label: t.tabModules,
             icon: 'grid',
             content: (
-              <Panel title="Modullar" sub="Tarif → biznes turi preseti → qo'lda o'zgartirish" icon="grid" iconBg="#1a8a52">
+              <Panel title={t.tabModules} sub={t.modulesSub} icon="grid" iconBg="#1a8a52">
                 <OrgModulesForm
                   orgId={String(org._id)}
                   explain={featureExplain}
                   businessType={org.businessType ?? 'general'}
-                  planTier={org.plan.tier}
+                  planTier={plan.tier}
                 />
               </Panel>
             ),
           },
           {
             id: 'huquqlar',
-            label: 'Huquqlar',
+            label: t.tabPerms,
             icon: 'key',
             content: (
-              <Panel title="Huquqlar" sub="Loginlar bo'yicha ruxsatlar (filial loginlari)" icon="key" iconBg="#d69a17">
+              <Panel title={t.tabPerms} sub={t.permsSub} icon="key" iconBg="#d69a17">
                 <OrgPermissionsMatrix orgId={String(org._id)} dbName={org.dbName} features={features} />
               </Panel>
             ),
           },
           {
             id: 'havolalar',
-            label: 'Havolalar',
+            label: t.tabLinks,
             icon: 'globe',
             content: (
-              <Panel title="Havolalar" sub={`${org.name} · ${typeLabel}`} icon="globe" iconBg="#1f4fa8">
+              <Panel title={t.tabLinks} sub={`${org.name} · ${typeLabel}`} icon="globe" iconBg="#1f4fa8">
                 <OrgLinksPanel org={org} />
               </Panel>
             ),
           },
           {
             id: 'jamoa',
-            label: 'Xodimlar',
+            label: t.tabTeam,
             icon: 'users',
             content: (
-              <Panel title="Xodimlar va filiallar" sub="Faqat ko'rish" icon="users" iconBg="#1287a8">
+              <Panel title={t.teamTitle} sub={t.viewOnly} icon="users" iconBg="#1287a8">
                 <OrgTenantSummary dbName={org.dbName} />
               </Panel>
             ),

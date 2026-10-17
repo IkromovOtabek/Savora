@@ -3,6 +3,7 @@
 import { getTenantSession } from '@/lib/tenantSession';
 import { getMasterModels } from '@/lib/masterDb';
 import { generateLinkCode } from '@/lib/telegramAuth';
+import { getDict } from '@/lib/i18n/server';
 
 const CODE_TTL_MS = 10 * 60 * 1000; // 10 daqiqa
 
@@ -14,8 +15,9 @@ export interface TgLinkState {
 
 /** Joriy foydalanuvchi uchun Telegram bog'lash deep-link kodi yaratadi. */
 export async function createTelegramLinkAction(): Promise<TgLinkState> {
+  const t = (await getDict()).shell.actions;
   const botUser = (process.env.TELEGRAM_BOT_USERNAME || '').replace(/^@/, '');
-  if (!botUser) return { error: 'Bot sozlanmagan. Platforma egasiga murojaat qiling.' };
+  if (!botUser) return { error: t.botNotConfigured };
 
   try {
     const { user, org } = await getTenantSession();
@@ -38,7 +40,7 @@ export async function createTelegramLinkAction(): Promise<TgLinkState> {
 
     return { ok: true, link: `https://t.me/${botUser}?start=lu_${code}` };
   } catch {
-    return { error: 'Havola yaratilmadi. Qayta urinib ko\'ring.' };
+    return { error: t.linkFailed };
   }
 }
 

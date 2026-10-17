@@ -199,6 +199,15 @@ export const uz = {
       { q: "Qo'llab-quvvatlash qanday?", a: "Telegram va telefon orqali tezkor yordam, Yordam markazida qadamma-qadam qo'llanmalar. Xodimlaringizni o'rgatishga ham yordam beramiz." },
     ],
   },
+  signupPrompt: {
+    title: "Do'koningizni raqamlashtiring",
+    lead: "Savora bilan ombor, sotuv, kassa va filiallarni bir joydan boshqaring.",
+    trial: '7 kun bepul',
+    trialTail: "sinab ko'ring — karta talab qilinmaydi.",
+    points: ['Tez sotuv — skaner pistalet', "Ko'p filial va xodimlar", 'Qarz va kassa hisoboti'],
+    start: 'Bepul boshlash',
+    later: 'Keyinroq',
+  },
   cta: {
     title: 'Nasiyani nazorat qiling, pulni vaqtida oling',
     /** {days} — sinov muddati */
@@ -537,6 +546,15 @@ export const ru: typeof uz = {
       { q: 'Могу ли я перенести старые данные (Excel, тетрадь)?', a: 'Да. Наша команда бесплатно поможет перенести список товаров и должников из Excel или тетради.' },
       { q: 'Какая поддержка?', a: 'Оперативная помощь через Telegram и по телефону, пошаговые инструкции в Центре помощи. Поможем и с обучением ваших сотрудников.' },
     ],
+  },
+  signupPrompt: {
+    title: 'Переведите магазин в цифру',
+    lead: 'Управляйте складом, продажами, кассой и филиалами в одном месте с Savora.',
+    trial: '7 дней бесплатно',
+    trialTail: '— карта не требуется.',
+    points: ['Быстрая продажа со сканером', 'Несколько филиалов и сотрудников', 'Отчёты по долгам и кассе'],
+    start: 'Начать бесплатно',
+    later: 'Позже',
   },
   cta: {
     title: 'Контролируйте рассрочку, получайте деньги вовремя',

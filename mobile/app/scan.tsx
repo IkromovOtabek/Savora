@@ -7,6 +7,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { api, errMsg } from '@/lib/api';
 import { putPicked, type PickedProduct } from '@/lib/pick';
 import { Screen, NavBar, EmptyState, Button, Loading } from '@/components/ui';
+import { useDict, tr } from '@/lib/i18n';
 
 interface Item extends PickedProduct { imei: string; barcode: string | null }
 
@@ -16,6 +17,7 @@ export default function Scan() {
   const pickMode = mode === 'pick';
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
+  const d = useDict();
   const [permission, requestPermission] = useCameraPermissions();
   const [busy, setBusy] = useState(false);
   const [torch, setTorch] = useState(false);
@@ -35,7 +37,7 @@ export default function Scan() {
       if (hit) {
         if (pickMode) {
           if (hit.status !== 'in_stock' || hit.available <= 0) {
-            Alert.alert('Sotuvda emas', `«${hit.name}» omborda qolmagan.`, [{ text: 'Qayta skanerlash', onPress: unlock }]);
+            Alert.alert(d.scan.notInSale, tr(d.scan.notInSaleMsg, { name: hit.name }), [{ text: d.scan.rescan, onPress: unlock }]);
             return;
           }
           putPicked({ id: hit.id, name: hit.name, salePrice: hit.salePrice, available: hit.available, trackQuantity: hit.trackQuantity, status: hit.status });
@@ -44,31 +46,29 @@ export default function Scan() {
           router.replace(`/product/${hit.id}`);
         }
       } else {
-        Alert.alert('Topilmadi', `«${code}» bo'yicha mahsulot yo'q.`, [
-          { text: 'Qayta skanerlash', style: 'cancel', onPress: unlock },
-          ...(pickMode ? [] : [{ text: 'Yangi qo\'shish', onPress: () => router.replace(`/product-new?code=${encodeURIComponent(code)}`) }]),
+        Alert.alert(d.common.notFound, tr(d.scan.notFoundMsg, { code }), [
+          { text: d.scan.rescan, style: 'cancel', onPress: unlock },
+          ...(pickMode ? [] : [{ text: d.scan.addNew, onPress: () => router.replace(`/product-new?code=${encodeURIComponent(code)}`) }]),
         ]);
       }
     } catch (e) {
-      Alert.alert('Xatolik', errMsg(e, 'Qidirishda xatolik'), [{ text: 'Qayta urinish', onPress: unlock }]);
+      Alert.alert(d.common.error, errMsg(e, d.scan.searchError), [{ text: d.common.retry, onPress: unlock }]);
     }
-  }, [router, pickMode]);
+  }, [router, pickMode, d]);
 
   if (!permission) return <Loading full />;
 
   if (!permission.granted) {
     const blocked = !permission.canAskAgain;
     return (
-      <Screen header={<NavBar backLabel="Yopish" />}>
+      <Screen header={<NavBar backLabel={d.common.close} />}>
         <EmptyState
           icon="camera-outline"
-          title="Kamera ruxsati kerak"
-          message={blocked
-            ? 'Kamera ruxsati o\'chirilgan. Sozlamalarda Savora uchun kamerani yoqing.'
-            : 'Shtrix kodni skaner qilish uchun kameradan foydalanishga ruxsat bering.'}
+          title={d.scan.permTitle}
+          message={blocked ? d.scan.permBlocked : d.scan.permAsk}
         />
         <Button
-          title={blocked ? 'Sozlamalarni ochish' : 'Ruxsat berish'}
+          title={blocked ? d.scan.openSettings : d.scan.grant}
           size="lg"
           full
           onPress={() => (blocked ? Linking.openSettings() : requestPermission())}
@@ -88,11 +88,11 @@ export default function Scan() {
         onBarcodeScanned={busy ? undefined : onScan}
       />
       <View style={[s.top, { paddingTop: insets.top + 8 }]}>
-        <Pressable style={({ pressed }) => [s.round, pressed && { opacity: 0.5 }]} onPress={() => setTorch((t) => !t)} hitSlop={8} accessibilityLabel="Chiroq">
+        <Pressable style={({ pressed }) => [s.round, pressed && { opacity: 0.5 }]} onPress={() => setTorch((t) => !t)} hitSlop={8} accessibilityLabel={d.scan.torch}>
           <Ionicons name={torch ? 'flash' : 'flash-outline'} size={22} color="#fff" />
         </Pressable>
-        <Text style={s.title}>{pickMode ? 'Sotish uchun skaner' : 'Skaner'}</Text>
-        <Pressable style={({ pressed }) => [s.round, pressed && { opacity: 0.5 }]} onPress={() => router.back()} hitSlop={8} accessibilityLabel="Yopish">
+        <Text style={s.title}>{pickMode ? d.scan.titlePick : d.scan.title}</Text>
+        <Pressable style={({ pressed }) => [s.round, pressed && { opacity: 0.5 }]} onPress={() => router.back()} hitSlop={8} accessibilityLabel={d.common.close}>
           <Ionicons name="close" size={24} color="#fff" />
         </Pressable>
       </View>
@@ -100,7 +100,7 @@ export default function Scan() {
         <View style={[s.frame, { width: frameW, height: frameW * 0.55 }]} />
       </View>
       <View style={[s.hint, { bottom: insets.bottom + 40 }]}>
-        <Text style={s.hintT}>{busy ? 'Qidirilmoqda…' : 'Shtrix kodni ramka ichiga tuting'}</Text>
+        <Text style={s.hintT}>{busy ? d.scan.searching : d.scan.hint}</Text>
       </View>
     </View>
   );

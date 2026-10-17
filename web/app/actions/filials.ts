@@ -6,6 +6,8 @@ import { markOnboardingStep } from '@/lib/onboarding';
 import { recordAudit } from '@/lib/audit';
 import { addOrgUser, updateOrgUserByBranch, removeOrgUserByBranch } from '@/lib/orgUsers';
 import { reserveUsername, releaseUsername, isUsernameAvailable, UsernameTakenError } from '@/lib/userDirectory';
+import { getDict } from '@/lib/i18n/server';
+import { tr } from '@/lib/i18n/fmt';
 
 type State = { error?: string; success?: string } | null;
 
@@ -16,6 +18,8 @@ function normalizeLogin(v: string): string {
 /** Filial yaratish — filial + uning login/paroli birga yaratiladi */
 export async function createFilialAction(_prev: State, formData: FormData): Promise<State> {
   const { user, User, Branch, org } = await getTenantAdminSession();
+  const d = await getDict();
+  const T = d.crm.team;
 
   // Yumshoq chegara: filial qo'shish bloklanmaydi. Limitdan oshsa — sahifada
   // "tarifni yangilang" yo'naltiruvchi karta ko'rsatiladi (client tiqilib qolmaydi).
@@ -26,14 +30,14 @@ export async function createFilialAction(_prev: State, formData: FormData): Prom
   const username = normalizeLogin(String(formData.get('username') || ''));
   const password = String(formData.get('password') || '');
 
-  if (!name) return { error: 'Filial nomi kiritilishi shart.' };
-  if (username.length < 3) return { error: 'Login kamida 3 ta belgidan iborat bo\'lishi kerak.' };
-  if (password.length < 6) return { error: 'Parol kamida 6 ta belgidan iborat bo\'lishi kerak.' };
+  if (!name) return { error: T.errBranchName };
+  if (username.length < 3) return { error: T.errLoginShort };
+  if (password.length < 6) return { error: T.errPasswordShort };
 
   const dup = await User.findOne({ username }).lean();
-  if (dup) return { error: 'Bu login allaqachon band.' };
+  if (dup) return { error: T.errLoginTaken };
   // Global (butun platforma bo'yicha) band emasligini tekshiramiz — slug'siz login uchun shart.
-  if (!(await isUsernameAvailable(username))) return { error: 'Bu login boshqa do\'konda band.' };
+  if (!(await isUsernameAvailable(username))) return { error: T.errLoginTakenGlobal };
 
   try {
     const branch = await Branch.create({ name, address: address || undefined, phone: phone || undefined, active: true });
@@ -59,7 +63,7 @@ export async function createFilialAction(_prev: State, formData: FormData): Prom
     } catch (e) {
       await User.deleteOne({ _id: u._id });
       await Branch.findByIdAndDelete(branch._id);
-      return { error: e instanceof UsernameTakenError ? e.message : 'Filial yaratishda xatolik.' };
+      return { error: e instanceof UsernameTakenError ? T.errLoginTakenGlobal : T.errCreate };
     }
     await markOnboardingStep(user.organizationId, 'branchCreated');
     await addOrgUser(user.organizationId, { username, name, role: 'user', branchId: String(branch._id) });
@@ -72,15 +76,17 @@ export async function createFilialAction(_prev: State, formData: FormData): Prom
     revalidatePath('/app');
     revalidatePath('/app/users');
     revalidatePath('/app/products');
-    return { success: `${name} filiali yaratildi. Login: ${username}` };
+    return { success: tr(T.created, { name, username }) };
   } catch {
-    return { error: 'Filial yaratishda xatolik.' };
+    return { error: T.errCreate };
   }
 }
 
 /** Filial yangilash — filial + login (parol, holat) */
 export async function updateFilialAction(_prev: State, formData: FormData): Promise<State> {
   const { user, User, Branch } = await getTenantAdminSession();
+  const d = await getDict();
+  const T = d.crm.team;
 
   const branchId = String(formData.get('branchId') || '');
   const name = String(formData.get('name') || '').trim();
@@ -89,10 +95,10 @@ export async function updateFilialAction(_prev: State, formData: FormData): Prom
   const active = formData.get('active') === 'on';
   const newPassword = String(formData.get('newPassword') || '');
 
-  if (!branchId || !name) return { error: 'Filial nomi kiritilishi shart.' };
+  if (!branchId || !name) return { error: T.errBranchName };
 
   const branch = await Branch.findById(branchId);
-  if (!branch) return { error: 'Filial topilmadi.' };
+  if (!branch) return { error: T.errNotFound };
 
   branch.name = name;
   branch.address = address || undefined;
@@ -110,7 +116,7 @@ export async function updateFilialAction(_prev: State, formData: FormData): Prom
       u.tokenVersion = (u.tokenVersion ?? 0) + 1;
       u.mustChangePassword = false;
     } else if (newPassword && newPassword.length < 6) {
-      return { error: 'Yangi parol kamida 6 ta belgidan iborat bo\'lishi kerak.' };
+      return { error: T.errNewPasswordShort };
     }
     await u.save();
   }
@@ -130,23 +136,23 @@ export async function updateFilialAction(_prev: State, formData: FormData): Prom
   revalidatePath('/app');
   revalidatePath('/app/users');
   revalidatePath('/app/products');
-  return { success: 'Filial saqlandi.' };
+  return { success: T.saved };
 }
 
 /** Filialni o'chirish — login va filial yo'q qilinadi (mahsulot bo'lsa bloklanadi) */
 export async function deleteFilialAction(_prev: State, formData: FormData): Promise<State> {
   const { user, User, Branch, Product, Sale } = await getTenantAdminSession();
+  const d = await getDict();
+  const T = d.crm.team;
   const branchId = String(formData.get('branchId') || '');
-  if (!branchId) return { error: 'Filial topilmadi.' };
+  if (!branchId) return { error: T.errNotFound };
 
   const [productCount, saleCount] = await Promise.all([
     Product.countDocuments({ branchId }),
     Sale.countDocuments({ branchId }),
   ]);
   if (productCount > 0 || saleCount > 0) {
-    return {
-      error: `Bu filialda ${productCount} ta mahsulot va ${saleCount} ta sotuv bor. O'chirish o'rniga uni "nofaol" qiling.`,
-    };
+    return { error: tr(T.errHasData, { products: productCount, sales: saleCount }) };
   }
 
   const branch = await Branch.findByIdAndDelete(branchId).lean();
@@ -163,5 +169,5 @@ export async function deleteFilialAction(_prev: State, formData: FormData): Prom
   });
   revalidatePath('/app');
   revalidatePath('/app/users');
-  return { success: 'Filial o\'chirildi.' };
+  return { success: T.deleted };
 }

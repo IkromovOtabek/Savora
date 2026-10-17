@@ -3,16 +3,21 @@ import { userCan } from '@/lib/permissionGuard';
 import { branchFilter, isBranchScoped } from '@/lib/branchScope';
 import { statsFromSales, monthRange } from '@/lib/monitoring';
 import { PAYMENT_TYPE_LABELS, PaymentType } from '@/lib/models/tenant/Sale';
+import { getI18n } from '@/lib/i18n/server';
+import { tr, fmtMonthYear } from '@/lib/i18n/fmt';
 import { fmtMoney } from '@/lib/format';
 import MonitoringChart from '@/components/tenant/MonitoringChart';
 import type { BranchMonthFlow } from '@/lib/inventoryFlow';
 import Icon from '@/components/icons/Icon';
 import Tilt from '@/components/ui/Tilt';
 import MoreMenu from '@/components/ui/MoreMenu';
-import MonthNav, { monthLabel as ymLabel } from '@/components/ui/MonthNav';
+import MonthNav from '@/components/ui/MonthNav';
 import '@/components/tenant/styles/finance.css';
 
-export const metadata = { title: 'Hisobot — Savora' };
+export async function generateMetadata() {
+  const { d } = await getI18n();
+  return { title: d.shell.monitoring.metaTitle };
+}
 
 export default async function MonitoringPage({
   searchParams,
@@ -25,6 +30,8 @@ export default async function MonitoringPage({
   const { start, end } = monthRange(y, m);
 
   const { user, Sale, Branch, Product, features } = await getTenantSession();
+  const { locale, d } = await getI18n();
+  const t = d.shell.monitoring;
   const canExport = features.export && (await userCan(user, 'export.data'));
 
   // Filial login — faqat o'z filiali hisoboti; admin — barcha filiallar taqqoslamasi
@@ -117,8 +124,8 @@ export default async function MonitoringPage({
   };
   const curMonth = ym(y, m);
   const nowMonth = ym(now.getFullYear(), now.getMonth() + 1);
-  // Brauzer/Node tiliga bog'liq bo'lmagan o'zbekcha yorliq ("oktabr, 2026")
-  const monthLabel = ymLabel(curMonth);
+  // Brauzer/Node tiliga bog'liq bo'lmagan yorliq — joriy interfeys tilida
+  const monthLabel = fmtMonthYear(new Date(y, m - 1, 1), locale);
 
   const paymentTotal = Object.values(byPayment).reduce((s, v) => s + v, 0);
   const paymentTypes = Object.keys(PAYMENT_TYPE_LABELS) as PaymentType[];
@@ -128,62 +135,62 @@ export default async function MonitoringPage({
     <div className="fn-page">
       <div className="t-page-head" style={{ marginBottom: 0 }}>
         <div>
-          <h1 className="t-page-title">Hisobot</h1>
-          <p className="t-page-sub">Oylik sotuv, foyda va to&apos;lov turlari</p>
+          <h1 className="t-page-title">{t.title}</h1>
+          <p className="t-page-sub">{t.subtitle}</p>
         </div>
         <div className="fn-head-tools">
           <MonthNav value={curMonth} current={nowMonth} href={(v) => `/app/monitoring?month=${v}`} />
           {canExport && (
-            <MoreMenu label="Yuklab olish">
-              <a href="/api/export/sales"><Icon name="download" size={18} /> Sotuvlar — CSV</a>
-              <a href="/api/export/products"><Icon name="download" size={18} /> Ombor — CSV</a>
+            <MoreMenu label={d.common.download}>
+              <a href="/api/export/sales"><Icon name="download" size={18} /> {t.salesCsv}</a>
+              <a href="/api/export/products"><Icon name="download" size={18} /> {t.productsCsv}</a>
             </MoreMenu>
           )}
         </div>
       </div>
 
-      <section className="fn-bento" aria-label="Oy ko'rsatkichlari">
+      <section className="fn-bento" aria-label={t.monthKpis}>
         <Tilt stack className="fn-hero">
           <div className="fn-hero-top">
-            <span className="fn-hero-label">Aylanma</span>
+            <span className="fn-hero-label">{t.turnover}</span>
             <span className="fn-hero-chip"><Icon name="chart" size={14} /> {monthLabel}</span>
           </div>
-          <div className="fn-hero-value fn-num ux-z">{fmtMoney(monthStats.revenue)}<span className="fn-cur">so&apos;m</span></div>
+          <div className="fn-hero-value fn-num ux-z">{fmtMoney(monthStats.revenue)}<span className="fn-cur">{d.common.sum}</span></div>
           <div className="fn-hero-grid">
             <div className="fn-hero-stat">
-              <span className="fn-hero-stat-l">Tranzaksiyalar</span>
-              <span className="fn-hero-stat-v fn-num">{monthStats.salesCount} ta</span>
+              <span className="fn-hero-stat-l">{t.transactions}</span>
+              <span className="fn-hero-stat-v fn-num">{tr(d.common.nPcs, { n: monthStats.salesCount })}</span>
             </div>
             <div className="fn-hero-stat">
-              <span className="fn-hero-stat-l">To&apos;langan</span>
+              <span className="fn-hero-stat-l">{d.common.paid}</span>
               <span className="fn-hero-stat-v fn-num">{fmtMoney(monthStats.paid)}</span>
             </div>
             <div className="fn-hero-stat">
-              <span className="fn-hero-stat-l">Qoldiq (qarz)</span>
+              <span className="fn-hero-stat-l">{t.remainingDebt}</span>
               <span className="fn-hero-stat-v fn-num">{fmtMoney(monthStats.debt)}</span>
             </div>
           </div>
         </Tilt>
         <div className="ux-strip fn-bento-tiles">
           <div className="fn-tile">
-            <span className="fn-tile-head"><span className="ux-clay ux-clay--green"><Icon name="sparkles" size={15} /></span> Foyda</span>
+            <span className="fn-tile-head"><span className="ux-clay ux-clay--green"><Icon name="sparkles" size={15} /></span> {t.profit}</span>
             <span className={`fn-tile-v ${monthProfit >= 0 ? 'fn-in' : 'fn-out'}`}>{fmtMoney(monthProfit)}</span>
-            <span className="fn-tile-s">Sotuv − tannarx</span>
+            <span className="fn-tile-s">{t.profitSub}</span>
           </div>
           <div className="fn-tile">
-            <span className="fn-tile-head"><span className="ux-clay"><Icon name="cart" size={15} /></span> Sotilgan</span>
-            <span className="fn-tile-v">{monthSoldQty} ta</span>
-            <span className="fn-tile-s">Sotuvlardagi mahsulot soni</span>
+            <span className="fn-tile-head"><span className="ux-clay"><Icon name="cart" size={15} /></span> {t.sold}</span>
+            <span className="fn-tile-v">{tr(d.common.nPcs, { n: monthSoldQty })}</span>
+            <span className="fn-tile-s">{t.soldSub}</span>
           </div>
           <div className="fn-tile">
-            <span className="fn-tile-head"><span className="ux-clay ux-clay--gold"><Icon name="box" size={15} /></span> Omborga kirgan</span>
-            <span className="fn-tile-v">{monthIncomingQty} ta</span>
-            <span className="fn-tile-s">Shu oyda qo&apos;shilgan mahsulotlar</span>
+            <span className="fn-tile-head"><span className="ux-clay ux-clay--gold"><Icon name="box" size={15} /></span> {t.incoming}</span>
+            <span className="fn-tile-v">{tr(d.common.nPcs, { n: monthIncomingQty })}</span>
+            <span className="fn-tile-s">{t.incomingSub}</span>
           </div>
           <div className="fn-tile">
-            <span className="fn-tile-head"><span className="ux-clay ux-clay--red"><Icon name="wallet" size={15} /></span> Xarid summa</span>
+            <span className="fn-tile-head"><span className="ux-clay ux-clay--red"><Icon name="wallet" size={15} /></span> {t.purchaseSum}</span>
             <span className="fn-tile-v">{fmtMoney(monthIncomingSum)}</span>
-            <span className="fn-tile-s">Omborga kirgan mahsulot tannarxi</span>
+            <span className="fn-tile-s">{t.purchaseSumSub}</span>
           </div>
         </div>
       </section>
@@ -191,8 +198,8 @@ export default async function MonitoringPage({
       <div className="fn-two">
         <section className="fn-panel" aria-labelledby="mon-rank">
           <div className="fn-panel-head">
-            <h2 id="mon-rank">Filiallar reytingi</h2>
-            <small>Sotuv summasi bo&apos;yicha</small>
+            <h2 id="mon-rank">{t.branchRank}</h2>
+            <small>{t.bySaleSum}</small>
           </div>
           <div className="fn-panel-body">
             <MonitoringChart rows={branchFlows} />
@@ -201,22 +208,22 @@ export default async function MonitoringPage({
 
         <section className="fn-panel" aria-labelledby="mon-pay">
           <div className="fn-panel-head">
-            <h2 id="mon-pay">To&apos;lov turi</h2>
-            <small>{fmtMoney(paymentTotal)} so&apos;m</small>
+            <h2 id="mon-pay">{t.paymentType}</h2>
+            <small>{fmtMoney(paymentTotal)} {d.common.sum}</small>
           </div>
           <div className="fn-panel-body">
             <div className="fn-mix" aria-hidden="true">
-              {paymentTypes.map((t) =>
-                (byPayment[t] ?? 0) > 0 ? <i key={t} className={`fn-c-${t}`} style={{ width: `${share(byPayment[t])}%` }} /> : null,
+              {paymentTypes.map((pt) =>
+                (byPayment[pt] ?? 0) > 0 ? <i key={pt} className={`fn-c-${pt}`} style={{ width: `${share(byPayment[pt])}%` }} /> : null,
               )}
             </div>
             <ul className="fn-mix-list">
-              {paymentTypes.map((t) => (
-                <li key={t} className="fn-mix-row">
-                  <i className={`fn-c-${t}`} aria-hidden="true" />
-                  <span>{PAYMENT_TYPE_LABELS[t]}</span>
-                  <strong>{fmtMoney(byPayment[t] ?? 0)}</strong>
-                  <small>{Math.round(share(byPayment[t] ?? 0))}%</small>
+              {paymentTypes.map((pt) => (
+                <li key={pt} className="fn-mix-row">
+                  <i className={`fn-c-${pt}`} aria-hidden="true" />
+                  <span>{d.shell.paymentTypes[pt] ?? PAYMENT_TYPE_LABELS[pt]}</span>
+                  <strong>{fmtMoney(byPayment[pt] ?? 0)}</strong>
+                  <small>{Math.round(share(byPayment[pt] ?? 0))}%</small>
                 </li>
               ))}
             </ul>
@@ -226,27 +233,27 @@ export default async function MonitoringPage({
 
       <section className="fn-panel" aria-labelledby="mon-table">
         <div className="fn-panel-head">
-          <h2 id="mon-table">Filiallar bo&apos;yicha jadval</h2>
-          <small>{branchFlows.length} ta filial</small>
+          <h2 id="mon-table">{t.branchTable}</h2>
+          <small>{tr(t.nBranches, { n: branchFlows.length })}</small>
         </div>
         {branchFlows.length === 0 ? (
           <div className="ux-empty">
             <span className="ux-empty-ic"><Icon name="store" size={26} /></span>
-            <b>Faol filial yo&apos;q</b>
-            <p>Hisobot filiallar bo&apos;yicha yuritiladi.</p>
+            <b>{t.noActiveBranch}</b>
+            <p>{t.noActiveBranchText}</p>
           </div>
         ) : (
           <div className="table-wrap">
             <table className="data-table fn-table">
               <thead>
                 <tr>
-                  <th>Filial</th>
-                  <th className="fn-right">Sotilgan (ta)</th>
-                  <th className="fn-right">Omborga kirgan (ta)</th>
-                  <th className="fn-right">Sotuv summa</th>
-                  <th className="fn-right">Xarid summa</th>
-                  <th className="fn-right">Foyda</th>
-                  <th className="fn-right">Tranzaksiya</th>
+                  <th>{d.common.branch}</th>
+                  <th className="fn-right">{t.soldQty}</th>
+                  <th className="fn-right">{t.incomingQty}</th>
+                  <th className="fn-right">{t.saleSum}</th>
+                  <th className="fn-right">{t.purchaseSum}</th>
+                  <th className="fn-right">{t.profit}</th>
+                  <th className="fn-right">{t.transaction}</th>
                 </tr>
               </thead>
               <tbody>
@@ -254,13 +261,13 @@ export default async function MonitoringPage({
                   const saleRow = branchStats.find((s) => s.name === b.name);
                   return (
                     <tr key={b.branchId}>
-                      <td data-label="Filial"><span className="cell-main">{b.name}</span></td>
-                      <td data-label="Sotilgan (ta)" className="fn-right">{b.kirimQty}</td>
-                      <td data-label="Omborga kirgan (ta)" className="fn-right">{b.chiqimQty}</td>
-                      <td data-label="Sotuv summa" className="fn-right">{fmtMoney(b.kirimSum)}</td>
-                      <td data-label="Xarid summa" className="fn-right">{fmtMoney(b.chiqimSum)}</td>
-                      <td data-label="Foyda" className={`fn-right ${b.profit >= 0 ? 'fn-in' : 'fn-out'}`}><strong>{fmtMoney(b.profit)}</strong></td>
-                      <td data-label="Tranzaksiya" className="fn-right">{saleRow?.salesCount ?? 0}</td>
+                      <td data-label={d.common.branch}><span className="cell-main">{b.name}</span></td>
+                      <td data-label={t.soldQty} className="fn-right">{b.kirimQty}</td>
+                      <td data-label={t.incomingQty} className="fn-right">{b.chiqimQty}</td>
+                      <td data-label={t.saleSum} className="fn-right">{fmtMoney(b.kirimSum)}</td>
+                      <td data-label={t.purchaseSum} className="fn-right">{fmtMoney(b.chiqimSum)}</td>
+                      <td data-label={t.profit} className={`fn-right ${b.profit >= 0 ? 'fn-in' : 'fn-out'}`}><strong>{fmtMoney(b.profit)}</strong></td>
+                      <td data-label={t.transaction} className="fn-right">{saleRow?.salesCount ?? 0}</td>
                     </tr>
                   );
                 })}

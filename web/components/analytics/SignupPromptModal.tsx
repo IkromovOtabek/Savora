@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import Icon from '@/components/icons/Icon';
 import { LOCALHOST_LINKS } from '@/lib/urls';
+import { useDict } from '@/lib/i18n/client';
 
 interface Props {
   open: boolean;
@@ -10,34 +11,36 @@ interface Props {
 }
 
 export default function SignupPromptModal({ open, onClose }: Props) {
+  const d = useDict();
+  const t = d.landing.signupPrompt;
   if (!open) return null;
 
   return (
     <div className="u-modal-overlay signup-prompt-overlay" onClick={onClose}>
       <div className="u-modal signup-prompt-modal" onClick={(e) => e.stopPropagation()}>
         <div className="u-modal-head">
-          <h3>Do&apos;koningizni raqamlashtiring</h3>
-          <button type="button" className="u-icon-btn" onClick={onClose} aria-label="Yopish">
+          <h3>{t.title}</h3>
+          <button type="button" className="u-icon-btn" onClick={onClose} aria-label={d.common.close}>
             <Icon name="close" size={18} />
           </button>
         </div>
         <div className="signup-prompt-body">
           <p>
-            Savora bilan ombor, sotuv, kassa va filiallarni bir joydan boshqaring.
-            <strong> 7 kun bepul</strong> sinab ko&apos;ring — karta talab qilinmaydi.
+            {t.lead}
+            <strong> {t.trial}</strong> {t.trialTail}
           </p>
           <ul className="signup-prompt-list">
-            <li><Icon name="check" size={14} /> Tez sotuv — skaner pistalet</li>
-            <li><Icon name="check" size={14} /> Ko&apos;p filial va xodimlar</li>
-            <li><Icon name="check" size={14} /> Qarz va kassa hisoboti</li>
+            {t.points.map((p) => (
+              <li key={p}><Icon name="check" size={14} /> {p}</li>
+            ))}
           </ul>
           <div className="signup-prompt-actions">
             <Link href={LOCALHOST_LINKS.register} className="btn btn-primary btn-with-icon">
               <Icon name="signup" size={16} />
-              Bepul boshlash
+              {t.start}
             </Link>
             <button type="button" className="btn btn-ghost" onClick={onClose}>
-              Keyinroq
+              {t.later}
             </button>
           </div>
         </div>

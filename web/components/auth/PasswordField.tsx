@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import Icon from '@/components/icons/Icon';
+import { useDict } from '@/lib/i18n/client';
 import './auth.css';
 
 interface Props {
@@ -18,6 +19,7 @@ interface Props {
 /** iOS uslubidagi parol maydoni — o'ngda ko'z tugmasi (ko'rsatish/yashirish) */
 export default function PasswordField({ id, name, autoComplete, required, minLength, disabled, defaultValue, placeholder }: Props) {
   const [show, setShow] = useState(false);
+  const d = useDict();
 
   return (
     <div className="au-pwd">
@@ -39,7 +41,7 @@ export default function PasswordField({ id, name, autoComplete, required, minLen
         type="button"
         className="au-pwd-toggle"
         onClick={() => setShow((v) => !v)}
-        aria-label={show ? 'Parolni yashirish' : "Parolni ko'rsatish"}
+        aria-label={show ? d.auth.fields.hidePassword : d.auth.fields.showPassword}
         aria-pressed={show}
         aria-controls={id}
       >

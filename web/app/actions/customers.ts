@@ -6,11 +6,12 @@ import { getTenantSession } from '@/lib/tenantSession';
 import { userCan } from '@/lib/permissionGuard';
 import { getDict } from '@/lib/i18n/server';
 import { tr } from '@/lib/i18n/fmt';
+import { isOwnUploadUrl } from '@/lib/fileUrl';
 
 type State = { error?: string; success?: string } | null;
 
 export async function createCustomerAction(_prev: State, formData: FormData): Promise<State> {
-  const { user, Customer } = await getTenantSession();
+  const { user, features, Customer } = await getTenantSession();
   const d = await getDict();
   if (!(await userCan(user, 'customers.manage'))) {
     return { error: tr(d.catalog.permissionDeniedNamed, { label: d.catalog.permissions['customers.manage'].label }) };
@@ -21,6 +22,11 @@ export async function createCustomerAction(_prev: State, formData: FormData): Pr
   const address = String(formData.get('address') || '').trim();
   const notes = String(formData.get('notes') || '').trim();
   const photoUrl = String(formData.get('photoUrl') || '').trim();
+  if (photoUrl) {
+    // Tashqi/`javascript:` havola saqlanmasin; rasm — faqat mediaUpload modulida
+    if (!features.mediaUpload) return { error: tr(d.crm.featureDisabled, { label: d.catalog.features.mediaUpload.label }) };
+    if (!isOwnUploadUrl(photoUrl)) return { error: d.crm.customers.errPhotoUrl };
+  }
   const returnTo = String(formData.get('returnTo') || '');
 
   if (!fullName) return { error: d.crm.customers.errName };
@@ -45,7 +51,7 @@ export async function createCustomerAction(_prev: State, formData: FormData): Pr
 }
 
 export async function updateCustomerAction(_prev: State, formData: FormData): Promise<State> {
-  const { user, Customer } = await getTenantSession();
+  const { user, features, Customer } = await getTenantSession();
   const d = await getDict();
   if (!(await userCan(user, 'customers.manage'))) {
     return { error: tr(d.catalog.permissionDeniedNamed, { label: d.catalog.permissions['customers.manage'].label }) };
@@ -57,6 +63,11 @@ export async function updateCustomerAction(_prev: State, formData: FormData): Pr
   const address = String(formData.get('address') || '').trim();
   const notes = String(formData.get('notes') || '').trim();
   const photoUrl = String(formData.get('photoUrl') || '').trim();
+  if (photoUrl) {
+    // Tashqi/`javascript:` havola saqlanmasin; rasm — faqat mediaUpload modulida
+    if (!features.mediaUpload) return { error: tr(d.crm.featureDisabled, { label: d.catalog.features.mediaUpload.label }) };
+    if (!isOwnUploadUrl(photoUrl)) return { error: d.crm.customers.errPhotoUrl };
+  }
 
   if (!customerId || !fullName || !phone) return { error: d.crm.customers.errNameAndPhone };
 

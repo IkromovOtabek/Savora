@@ -5,6 +5,7 @@ import { requireSuperAdmin } from '@/lib/auth';
 import { updateOrganization, type OrgStatus } from '@/lib/orgUpdate';
 import { parsePlanTier } from '@/lib/plans';
 import { parseBusinessType } from '@/lib/businessTypes';
+import { getDict } from '@/lib/i18n/server';
 
 type State = { error?: string; success?: string } | null;
 
@@ -31,9 +32,11 @@ function parsePlanFields(formData: FormData) {
 
 export async function updateOrganizationAction(_prev: State, formData: FormData): Promise<State> {
   await requireSuperAdmin();
+  const d = await getDict();
+  const t = d.shell.actions;
 
   const orgId = String(formData.get('orgId') || '');
-  if (!orgId) return { error: 'Do\'kon ID topilmadi.' };
+  if (!orgId) return { error: t.orgIdMissing };
 
   const name = String(formData.get('name') || '');
   const ownerName = String(formData.get('ownerName') || '');
@@ -48,7 +51,7 @@ export async function updateOrganizationAction(_prev: State, formData: FormData)
     expiresAt = new Date(expiresRaw);
     if (Number.isNaN(expiresAt.getTime())) throw new Error();
   } catch {
-    return { error: 'Muddat sanasi noto\'g\'ri.' };
+    return { error: t.expiryInvalid };
   }
 
   try {
@@ -67,8 +70,8 @@ export async function updateOrganizationAction(_prev: State, formData: FormData)
     });
     revalidatePath('/super');
     revalidatePath(`/super/organizations/${orgId}`);
-    return { success: 'O\'zgarishlar saqlandi.' };
+    return { success: t.changesSaved };
   } catch (err) {
-    return { error: err instanceof Error ? err.message : 'Xatolik yuz berdi.' };
+    return { error: err instanceof Error ? err.message : d.common.errorGeneric };
   }
 }

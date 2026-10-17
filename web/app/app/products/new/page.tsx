@@ -2,8 +2,12 @@ import { getTenantSession } from '@/lib/tenantSession';
 import { isImeiEnabled } from '@/lib/features';
 import ProductForm from '@/components/tenant/ProductForm';
 import { requirePermission } from '@/lib/permissionGuard';
+import { getDict } from '@/lib/i18n/server';
 
-export const metadata = { title: 'Yangi mahsulot — Savora' };
+export async function generateMetadata() {
+  const d = await getDict();
+  return { title: d.stock.newPage.metaTitle };
+}
 
 export default async function NewProductPage() {
   await requirePermission('product.create');

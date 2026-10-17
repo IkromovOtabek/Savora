@@ -8,40 +8,43 @@ import { parseQtyField } from '@/lib/productQuantity';
 import { checkPermission } from '@/lib/permissionGuard';
 import { branchFilter } from '@/lib/branchScope';
 import { transferStock } from '@/lib/stock';
+import { getDict } from '@/lib/i18n/server';
+import { tr } from '@/lib/i18n/fmt';
 
 type State = { error?: string; success?: string } | null;
 
 export async function transferProductAction(_prev: State, formData: FormData): Promise<State> {
   const { user, Product, Branch, Transfer } = await getTenantSession();
   { const denied = await checkPermission(user, 'transfer.create'); if (denied) return denied; }
+  const m = (await getDict()).stock.msg;
 
   const productId = String(formData.get('productId') || '');
   const branchId = String(formData.get('branchId') || '');
   const qty = parseQtyField(String(formData.get('qty') || '1'));
 
   if (!Types.ObjectId.isValid(productId) || !Types.ObjectId.isValid(branchId)) {
-    return { error: 'Mahsulot va filial tanlanishi shart.' };
+    return { error: m.selectRequired };
   }
 
   // Filial login faqat o'z filiali mahsulotini beradi (IDOR himoyasi)
   const scope = branchFilter(user);
   const found = await Product.findOne({ _id: productId, ...scope }).lean();
   if (!found || found.status !== 'in_stock') {
-    return { error: 'Faqat ombordagi mahsulot beriladi.' };
+    return { error: m.onlyInStock };
   }
 
   const branch = await Branch.findOne({ _id: branchId, active: true }).lean();
-  if (!branch) return { error: 'Filial topilmadi.' };
+  if (!branch) return { error: m.branchNotFound };
   if (String(found.branchId) === branchId) {
-    return { error: 'Mahsulot allaqachon shu filialda.' };
+    return { error: m.sameBranch };
   }
 
   let transferQty = 1;
   if (found.trackQuantity) {
     const available = found.quantity - found.soldQuantity;
-    if (available < 1) return { error: 'Omborda qoldiq yo\'q.' };
+    if (available < 1) return { error: m.noStock };
     transferQty = Math.min(qty, available);
-    if (transferQty < 1) return { error: 'Beriladigan son noto\'g\'ri.' };
+    if (transferQty < 1) return { error: m.transferQtyInvalid };
   }
 
   // Atomik: qoldiq sharti + ayirish/ko'chirish bitta so'rovda
@@ -50,7 +53,7 @@ export async function transferProductAction(_prev: State, formData: FormData): P
     trackQuantity: !!found.trackQuantity,
     history: { action: 'transferred', detail: `${transferQty} ta · ${branch.name}`, by: user.username, at: new Date() },
   });
-  if (!moved) return { error: 'Mahsulot holati o\'zgargan yoki qoldiq yetarli emas. Qayta urinib ko\'ring.' };
+  if (!moved) return { error: m.stateChanged };
   const product = moved.product;
   const fromBranchId = moved.fromBranchId;
   const fromBranch = await Branch.findById(fromBranchId).lean();
@@ -72,9 +75,9 @@ export async function transferProductAction(_prev: State, formData: FormData): P
     revalidatePath('/app/products');
     revalidatePath('/app/transferred');
     revalidatePath(`/app/products/${productId}`);
-    return { success: `${transferQty} ta ${branch.name} filialiga berildi.` };
+    return { success: tr(m.transferredN, { n: transferQty, branch: branch.name }) };
   } catch {
-    return { error: 'Saqlashda xatolik.' };
+    return { error: m.saveFailed };
   }
 }
 

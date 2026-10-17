@@ -3,13 +3,18 @@ import { requireSuperAdmin } from '@/lib/auth';
 import { getMasterModels } from '@/lib/masterDb';
 import { getOrgDisplayStatus } from '@/lib/organizations';
 import { isOrganizationActive, isTrialActive, daysUntilExpiry } from '@/lib/models/master/Organization';
-import { BUSINESS_TYPES } from '@/lib/businessTypes';
-import { resolveOrgPlan, fmtPlanPrice, PLAN_PRESETS } from '@/lib/plans';
+import { isBusinessType } from '@/lib/businessTypes';
+import { resolveOrgPlan, fmtPlanPrice, type PlanTier } from '@/lib/plans';
+import { getDict } from '@/lib/i18n/server';
+import { tr } from '@/lib/i18n/fmt';
 import Icon from '@/components/icons/Icon';
 import OrgList, { type OrgListRow } from '@/components/super/OrgList';
 import { Avatar, Chevron, HeroStat, Kpi, PageTitle, Pill } from '@/components/super/ui';
 
-export const metadata = { title: "Do'konlar — Super Admin" };
+export async function generateMetadata() {
+  const d = await getDict();
+  return { title: d.superPanel.orgs.metaTitle };
+}
 
 function fmtDate(d: Date) {
   return new Date(d).toLocaleDateString('uz-UZ', { day: '2-digit', month: '2-digit', year: 'numeric' });
@@ -22,6 +27,9 @@ function fmtSum(n: number) {
 export default async function SuperDashboard({ searchParams }: { searchParams: Promise<{ f?: string }> }) {
   const sp = await searchParams;
   await requireSuperAdmin();
+  const d = await getDict();
+  const s = d.superPanel;
+  const priceLabels = { free: s.free, sum: d.common.sum };
   const { Organization } = await getMasterModels();
   const orgs = await Organization.find().sort({ createdAt: -1 }).lean();
 
@@ -45,60 +53,64 @@ export default async function SuperDashboard({ searchParams }: { searchParams: P
   monthStart.setHours(0, 0, 0, 0);
   const newThisMonth = orgs.filter((o) => o.createdAt && new Date(o.createdAt) >= monthStart).length;
 
-  const rows: OrgListRow[] = orgs.map((org) => ({
-    id: String(org._id),
-    name: org.name,
-    slug: org.slug,
-    ownerName: org.ownerName ?? '',
-    typeLabel: BUSINESS_TYPES[org.businessType as keyof typeof BUSINESS_TYPES]?.label ?? 'Umumiy',
-    planLabel: PLAN_PRESETS[org.plan.tier as keyof typeof PLAN_PRESETS]?.label ?? org.plan.tier,
-    isTrial: Boolean(org.plan?.isTrial),
-    price: fmtPlanPrice(resolveOrgPlan(org).monthlyPayment),
-    status: getOrgDisplayStatus(org),
-    expires: fmtDate(org.expiresAt),
-  }));
+  const rows: OrgListRow[] = orgs.map((org) => {
+    const st = getOrgDisplayStatus(org);
+    const plan = resolveOrgPlan(org);
+    return {
+      id: String(org._id),
+      name: org.name,
+      slug: org.slug,
+      ownerName: org.ownerName ?? '',
+      typeLabel: d.catalog.businessTypes[isBusinessType(org.businessType) ? org.businessType : 'general'].label,
+      planLabel: d.catalog.planTiers[plan.tier as PlanTier] ?? org.plan.tier,
+      isTrial: Boolean(org.plan?.isTrial),
+      price: fmtPlanPrice(plan.monthlyPayment, priceLabels),
+      status: { key: st.key, label: s.status[st.key] },
+      expires: fmtDate(org.expiresAt),
+    };
+  });
 
   return (
     <>
-      <PageTitle title="Do'konlar" sub="Mijoz bizneslar, ularning tarifi va obuna holati — bir joyda" />
+      <PageTitle title={s.orgs.title} sub={s.orgs.sub} />
 
       <div className="sa-hero-row">
         <HeroStat
-          label="MRR"
+          label={s.mrr}
           value={fmtSum(mrr)}
-          unit="so'm"
+          unit={d.common.sum}
           icon="wallet"
-          sub="Oylik takroriy daromad"
+          sub={s.mrrSub}
           items={[
-            { label: 'Faol do\'konlar', value: activeCount },
-            { label: 'Jami', value: orgs.length },
-            { label: 'Shu oyda', value: `+${newThisMonth}` },
+            { label: s.activeStores, value: activeCount },
+            { label: d.common.total, value: orgs.length },
+            { label: s.orgs.thisMonth, value: `+${newThisMonth}` },
           ]}
         />
         <div className="ux-strip sa-strip-3">
-          <Kpi label="Sinovda" value={trialCount} icon="clock" tone="c" />
-          <Kpi label="7 kunda tugaydi" value={expiringSoon.length} icon="bell" tone="a" />
-          <Kpi label="Muddati tugagan" value={expiredCount} icon="alert" tone="r" deltaTone={expiredCount > 0 ? 'bad' : undefined} delta={expiredCount > 0 ? 'Uzaytirish kerak' : undefined} />
+          <Kpi label={s.orgs.inTrial} value={trialCount} icon="clock" tone="c" />
+          <Kpi label={s.orgs.expires7} value={expiringSoon.length} icon="bell" tone="a" />
+          <Kpi label={s.orgs.expired} value={expiredCount} icon="alert" tone="r" deltaTone={expiredCount > 0 ? 'bad' : undefined} delta={expiredCount > 0 ? s.orgs.needExtend : undefined} />
         </div>
       </div>
 
       {expiringSoon.length > 0 && (
         <section className="sa-section">
-          <div className="sa-ghead">Tez orada tugaydi · 7 kun</div>
+          <div className="sa-ghead">{s.expiringSoon7}</div>
           <div className="sa-group">
             {expiringSoon.map(({ org, days }) => (
               <Link key={String(org._id)} href={`/super/organizations/${org._id}`} className="sa-cell sa-cell--av">
                 <Avatar name={org.name} />
                 <span className="sa-cell-t">
-                  <b>{org.name}{org.plan?.isTrial ? ' · sinov' : ''}</b>
-                  <small>{org.slug} · {fmtDate(org.expiresAt)} · {fmtPlanPrice(resolveOrgPlan(org).monthlyPayment)}/oy</small>
+                  <b>{org.name}{org.plan?.isTrial ? ` · ${s.trial}` : ''}</b>
+                  <small>{org.slug} · {fmtDate(org.expiresAt)} · {fmtPlanPrice(resolveOrgPlan(org).monthlyPayment, priceLabels)}{s.perMonth}</small>
                 </span>
-                <Pill tone={days <= 2 ? 'bad' : 'warn'}>{days === 0 ? 'Bugun' : `${days} kun`}</Pill>
+                <Pill tone={days <= 2 ? 'bad' : 'warn'}>{days === 0 ? d.common.today : tr(d.common.nDays, { n: days })}</Pill>
                 <Chevron />
               </Link>
             ))}
           </div>
-          <div className="sa-gfoot">Do&apos;kon sahifasida muddatni uzaytiring.</div>
+          <div className="sa-gfoot">{s.orgs.extendHint}</div>
         </section>
       )}
 
@@ -106,10 +118,10 @@ export default async function SuperDashboard({ searchParams }: { searchParams: P
         <section className="sa-card">
           <div className="ux-empty">
             <span className="ux-empty-ic"><Icon name="store" size={26} /></span>
-            <b>Hozircha do&apos;kon yo&apos;q</b>
-            <p>Birinchi mijoz biznesini yarating — havolalar va login avtomatik tayyorlanadi.</p>
+            <b>{s.orgs.emptyTitle}</b>
+            <p>{s.orgs.emptyText}</p>
             <Link href="/super/organizations/new" className="sa-btn sa-btn--filled">
-              <Icon name="plus" size={16} /> Birinchi do&apos;konni yaratish
+              <Icon name="plus" size={16} /> {s.orgs.createFirst}
             </Link>
           </div>
         </section>

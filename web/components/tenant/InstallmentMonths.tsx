@@ -7,6 +7,8 @@ import { fmtMoney, fmtDate } from '@/lib/format';
 import { InstallmentMonth, INSTALLMENT_STATE_META } from '@/lib/installment';
 import PriceInput from '@/components/ui/PriceInput';
 import Icon from '@/components/icons/Icon';
+import { useDict } from '@/lib/i18n/client';
+import { tr } from '@/lib/i18n/fmt';
 
 /**
  * Nasiya oylari (vertikal timeline) — bosilganda to'lov modali ochiladi (To'liq / Qisman).
@@ -27,6 +29,7 @@ export default function InstallmentMonths({
   const [partial, setPartial] = useState(false);
   const [state, formAction, isPending] = useActionState(addSalePaymentAction, null);
   useToastOnState(state);
+  const d = useDict();
 
   function close() {
     setOpenMonth(null);
@@ -58,26 +61,27 @@ export default function InstallmentMonths({
 
   return (
     <>
-      <ol className="sl-tl" aria-label="Oylik to'lovlar">
+      <ol className="sl-tl" aria-label={d.sales.installment.monthsAria}>
         {schedule.map((m) => {
           const clickable = canPay && !m.paid;
           const isNext = m.month === nextMonth;
           const meta = INSTALLMENT_STATE_META[m.state];
+          const stateLabel = d.sales.installmentState[m.state];
           const pct = m.amount > 0 ? Math.min(100, Math.round((m.paidAmount / m.amount) * 100)) : 0;
           const inner = (
             <>
               <span className="sl-tl-t">
-                <b>{m.month}-oy{isNext && <em className="sl-tl-next">Navbatdagi</em>}</b>
+                <b>{tr(d.sales.monthN, { n: m.month })}{isNext && <em className="sl-tl-next">{d.sales.installment.nextTag}</em>}</b>
                 <span>
                   {fmtDate(m.dueDate)}
-                  {m.state === 'partial' ? ` · to'landi ${fmtMoney(m.paidAmount)}` : ''}
+                  {m.state === 'partial' ? ` · ${tr(d.sales.installment.paidPart, { sum: fmtMoney(m.paidAmount) })}` : ''}
                 </span>
               </span>
               <span className="sl-tl-r">
                 <strong>{fmtMoney(m.amount)}</strong>
                 {clickable
-                  ? <span className={`sl-tl-cta${isNext ? ' sl-tl-cta--main' : ''}`}>To&apos;lash{isNext ? '' : ' →'}</span>
-                  : <span className={`sl-pill ${meta.cls}`}>{meta.label}</span>}
+                  ? <span className={`sl-tl-cta${isNext ? ' sl-tl-cta--main' : ''}`}>{d.sales.installment.pay}{isNext ? '' : ' →'}</span>
+                  : <span className={`sl-pill ${meta.cls}`}>{stateLabel}</span>}
               </span>
               {m.state === 'partial' && <span className="sl-tl-mini" aria-hidden><i style={{ width: `${pct}%` }} /></span>}
             </>
@@ -92,7 +96,7 @@ export default function InstallmentMonths({
                   type="button"
                   className="sl-tl-body"
                   onClick={() => { setOpenMonth(m); setPartial(false); }}
-                  aria-label={`${m.month}-oy, ${fmtMoney(m.amount)} so'm, ${meta.label} — to'lash`}
+                  aria-label={tr(d.sales.installment.monthAria, { month: m.month, sum: fmtMoney(m.amount), state: stateLabel })}
                 >
                   {inner}
                 </button>
@@ -108,24 +112,24 @@ export default function InstallmentMonths({
         <div className="rv-overlay" onClick={close}>
           <div className="rv-modal inst-modal" role="dialog" aria-modal="true" aria-labelledby="inst-modal-title" onClick={(e) => e.stopPropagation()}>
             <div className="inst-modal-head">
-              <h3 id="inst-modal-title">{openMonth.month}-oy to&apos;lovi</h3>
-              <button type="button" className="inst-modal-close" onClick={close} aria-label="Yopish"><Icon name="close" size={16} /></button>
+              <h3 id="inst-modal-title">{tr(d.sales.installment.monthPayment, { month: openMonth.month })}</h3>
+              <button type="button" className="inst-modal-close" onClick={close} aria-label={d.common.close}><Icon name="close" size={16} /></button>
             </div>
 
             <div className="inst-modal-rows">
               <div className="inst-modal-row">
-                <span>Oylik to&apos;lov</span>
-                <strong>{fmtMoney(openMonth.amount)} so&apos;m</strong>
+                <span>{d.sales.monthlyPayment}</span>
+                <strong>{fmtMoney(openMonth.amount)} {d.common.sum}</strong>
               </div>
               {openMonth.paidAmount > 0 && (
                 <div className="inst-modal-row">
-                  <span>Shu oyga to&apos;langan</span>
-                  <strong style={{ color: 'var(--accent)' }}>{fmtMoney(openMonth.paidAmount)} so&apos;m</strong>
+                  <span>{d.sales.installment.paidThisMonth}</span>
+                  <strong style={{ color: 'var(--accent)' }}>{fmtMoney(openMonth.paidAmount)} {d.common.sum}</strong>
                 </div>
               )}
               <div className="inst-modal-row">
-                <span>Qolgan summa</span>
-                <strong style={{ color: 'var(--danger)' }}>{fmtMoney(remaining)} so&apos;m</strong>
+                <span>{d.sales.installment.remainingSum}</span>
+                <strong style={{ color: 'var(--danger)' }}>{fmtMoney(remaining)} {d.common.sum}</strong>
               </div>
             </div>
 
@@ -138,7 +142,7 @@ export default function InstallmentMonths({
                   <input type="hidden" name="amount" value={fullAmount} />
                   <input type="hidden" name="note" value={`${openMonth.month}-oy to'lovi`} />
                   <button type="submit" className="btn btn-primary inst-btn-full" disabled={isPending}>
-                    {isPending ? '...' : `To'liq — ${fmtMoney(fullAmount)} so'm`}
+                    {isPending ? '...' : tr(d.sales.installment.fullPay, { sum: fmtMoney(fullAmount) })}
                   </button>
                 </form>
                 <button
@@ -147,21 +151,21 @@ export default function InstallmentMonths({
                   onClick={() => setPartial(true)}
                   disabled={isPending}
                 >
-                  Qisman to&apos;lov
+                  {d.sales.installment.partialPay}
                 </button>
               </div>
             ) : (
               <form action={formAction} className="inst-modal-partial">
                 <input type="hidden" name="saleId" value={saleId} />
                 <input type="hidden" name="note" value={`${openMonth.month}-oy (qisman)`} />
-                <label htmlFor="inst-amount">Summa</label>
+                <label htmlFor="inst-amount">{d.common.amount}</label>
                 <PriceInput id="inst-amount" name="amount" required disabled={isPending} placeholder={String(fullAmount)} />
                 <div className="inst-partial-actions">
                   <button type="button" className="btn btn-ghost" onClick={() => setPartial(false)} disabled={isPending}>
-                    Orqaga
+                    {d.common.back}
                   </button>
                   <button type="submit" className="btn btn-primary" disabled={isPending}>
-                    {isPending ? '...' : 'To\'lash'}
+                    {isPending ? '...' : d.sales.installment.pay}
                   </button>
                 </div>
               </form>

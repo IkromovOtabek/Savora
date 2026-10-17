@@ -3,6 +3,8 @@
 import Link from 'next/link';
 import { useMemo, useState } from 'react';
 import Icon from '@/components/icons/Icon';
+import { useDict } from '@/lib/i18n/client';
+import { tr } from '@/lib/i18n/fmt';
 import { Avatar, Chevron, OrgStatusPill, Pill } from './ui';
 
 export interface OrgListRow {
@@ -20,12 +22,7 @@ export interface OrgListRow {
 
 type Filter = 'all' | 'active' | 'trial' | 'expired';
 
-const FILTERS: { key: Filter; label: string }[] = [
-  { key: 'all', label: 'Barchasi' },
-  { key: 'active', label: 'Faol' },
-  { key: 'trial', label: 'Sinovda' },
-  { key: 'expired', label: 'Tugagan' },
-];
+const FILTERS: Filter[] = ['all', 'active', 'trial', 'expired'];
 
 function matches(r: OrgListRow, f: Filter): boolean {
   if (f === 'active') return r.status.key === 'active';
@@ -39,13 +36,15 @@ function matches(r: OrgListRow, f: Filter): boolean {
  * (yangi so'rov yo'q). Kompyuterda jadval, telefonda ixcham qatorlar.
  */
 export default function OrgList({ rows, initialFilter = 'all' }: { rows: OrgListRow[]; initialFilter?: string }) {
+  const d = useDict();
+  const s = d.superPanel.orgList;
   const [q, setQ] = useState('');
   // ?f=expired kabi havoladan (Asosiy paneldagi «Diqqat talab qiladi») boshlang'ich filtr
-  const [f, setF] = useState<Filter>(FILTERS.some((x) => x.key === initialFilter) ? (initialFilter as Filter) : 'all');
+  const [f, setF] = useState<Filter>(FILTERS.some((x) => x === initialFilter) ? (initialFilter as Filter) : 'all');
 
   const counts = useMemo(() => {
     const c: Record<Filter, number> = { all: rows.length, active: 0, trial: 0, expired: 0 };
-    for (const r of rows) for (const x of FILTERS) if (x.key !== 'all' && matches(r, x.key)) c[x.key]++;
+    for (const r of rows) for (const x of FILTERS) if (x !== 'all' && matches(r, x)) c[x]++;
     return c;
   }, [rows]);
 
@@ -57,30 +56,33 @@ export default function OrgList({ rows, initialFilter = 'all' }: { rows: OrgList
       || r.ownerName.toLowerCase().includes(needle)));
   }, [rows, q, f]);
 
+  // Holat nomi — joriy tildan (serverdan kelgan label o'rniga)
+  const statusOf = (r: OrgListRow) => ({ key: r.status.key, label: d.superPanel.status[r.status.key] });
+
   return (
     <section className="sa-card">
       <div className="sa-card-h sa-list-h">
         <div>
-          <h2>Barcha do&apos;konlar</h2>
-          <p>{shown.length === rows.length ? `${rows.length} ta biznes` : `${shown.length} / ${rows.length} ta biznes`}</p>
+          <h2>{s.title}</h2>
+          <p>{shown.length === rows.length ? tr(s.nBiz, { n: rows.length }) : tr(s.nOfBiz, { n: shown.length, total: rows.length })}</p>
         </div>
         <div className="sa-list-tools">
           <div className="sa-searchbox">
             <Icon name="search" size={16} />
-            <label htmlFor="org-q" className="sr-only">Do&apos;kon qidirish</label>
+            <label htmlFor="org-q" className="sr-only">{s.searchLabel}</label>
             <input
               id="org-q"
               type="search"
               value={q}
               onChange={(e) => setQ(e.target.value)}
-              placeholder="Nomi yoki egasi bo'yicha…"
+              placeholder={s.searchPlaceholder}
               autoComplete="off"
             />
           </div>
-          <div className="sa-seg sa-seg--scroll ux-scrollx" role="group" aria-label="Holat bo'yicha">
+          <div className="sa-seg sa-seg--scroll ux-scrollx" role="group" aria-label={s.filterAria}>
             {FILTERS.map((x) => (
-              <button key={x.key} type="button" aria-pressed={f === x.key} onClick={() => setF(x.key)}>
-                {x.label} <span className="sa-seg-n">{counts[x.key]}</span>
+              <button key={x} type="button" aria-pressed={f === x} onClick={() => setF(x)}>
+                {s.filters[x]} <span className="sa-seg-n">{counts[x]}</span>
               </button>
             ))}
           </div>
@@ -90,10 +92,10 @@ export default function OrgList({ rows, initialFilter = 'all' }: { rows: OrgList
       {shown.length === 0 ? (
         <div className="ux-empty">
           <span className="ux-empty-ic"><Icon name="search" size={24} /></span>
-          <b>Hech narsa topilmadi</b>
-          <p>Boshqa so&apos;z bilan qidiring yoki filtrni «Barchasi» ga qaytaring.</p>
+          <b>{d.common.nothingFound}</b>
+          <p>{s.notFoundHint}</p>
           <button type="button" className="sa-btn sa-btn--tinted sa-btn--sm" onClick={() => { setQ(''); setF('all'); }}>
-            Filtrni tozalash
+            {s.clearFilter}
           </button>
         </div>
       ) : (
@@ -102,13 +104,13 @@ export default function OrgList({ rows, initialFilter = 'all' }: { rows: OrgList
             <table className="sa-table">
               <thead>
                 <tr>
-                  <th>Do&apos;kon</th>
-                  <th>Turi</th>
-                  <th>Tarif</th>
-                  <th className="sa-td-r">To&apos;lov/oy</th>
-                  <th>Holat</th>
-                  <th>Muddat</th>
-                  <th aria-label="Amallar" />
+                  <th>{s.colStore}</th>
+                  <th>{s.colType}</th>
+                  <th>{s.colPlan}</th>
+                  <th className="sa-td-r">{s.colPrice}</th>
+                  <th>{s.colStatus}</th>
+                  <th>{s.colExpires}</th>
+                  <th aria-label={d.common.actions} />
                 </tr>
               </thead>
               <tbody>
@@ -119,12 +121,12 @@ export default function OrgList({ rows, initialFilter = 'all' }: { rows: OrgList
                       <span className="sa-td-sub">{r.slug}{r.ownerName ? ` · ${r.ownerName}` : ''}</span>
                     </td>
                     <td>{r.typeLabel}</td>
-                    <td>{r.planLabel}{r.isTrial ? <> <Pill tone="br">sinov</Pill></> : null}</td>
+                    <td>{r.planLabel}{r.isTrial ? <> <Pill tone="br">{d.superPanel.trial}</Pill></> : null}</td>
                     <td className="sa-td-r">{r.price}</td>
-                    <td><OrgStatusPill status={r.status} /></td>
+                    <td><OrgStatusPill status={statusOf(r)} /></td>
                     <td>{r.expires}</td>
                     <td className="sa-td-r">
-                      <Link href={`/super/organizations/${r.id}`} className="sa-btn sa-btn--tinted sa-btn--sm">Boshqarish</Link>
+                      <Link href={`/super/organizations/${r.id}`} className="sa-btn sa-btn--tinted sa-btn--sm">{s.manage}</Link>
                     </td>
                   </tr>
                 ))}
@@ -139,9 +141,9 @@ export default function OrgList({ rows, initialFilter = 'all' }: { rows: OrgList
                 <Avatar name={r.name} />
                 <span className="sa-cell-t">
                   <b>{r.name}</b>
-                  <small>{r.planLabel}{r.isTrial ? ' · sinov' : ''} · {r.price} · {r.expires}</small>
+                  <small>{r.planLabel}{r.isTrial ? ` · ${d.superPanel.trial}` : ''} · {r.price} · {r.expires}</small>
                 </span>
-                <OrgStatusPill status={r.status} />
+                <OrgStatusPill status={statusOf(r)} />
                 <Chevron />
               </Link>
             ))}

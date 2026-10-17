@@ -7,6 +7,9 @@ import { featureDisabledError } from '@/lib/featureAction';
 import { branchFilter } from '@/lib/branchScope';
 import { checkPermission, userCan } from '@/lib/permissionGuard';
 import type { LedgerType } from '@/lib/models/tenant/LedgerEntry';
+import { parseIntegerSum } from '@/lib/security';
+import { normalizePhone, isValidUzPhone } from '@/lib/sms';
+import { getDict } from '@/lib/i18n/server';
 
 type State = { error?: string; success?: string } | null;
 
@@ -14,20 +17,28 @@ export async function createDaftarAction(_prev: State, formData: FormData): Prom
   const { user, features, LedgerEntry } = await getTenantSession();
   if (!features.daftar) return featureDisabledError('daftar');
   { const denied = await checkPermission(user, 'daftar.manage'); if (denied) return denied; }
+  const m = (await getDict()).sales.actions;
 
   const type = (String(formData.get('type') || 'given') === 'taken' ? 'taken' : 'given') as LedgerType;
   const personName = String(formData.get('personName') || '').trim();
-  const personPhone = String(formData.get('personPhone') || '').trim();
-  const amount = Number(String(formData.get('amount') || '').replace(/\D/g, ''));
+  const personPhoneRaw = String(formData.get('personPhone') || '').trim();
+  // Bu raqamga cron SMS yuboradi — faqat O'zbekiston mobil raqami (998 + 9 raqam) qabul qilinadi
+  const personPhone = personPhoneRaw ? normalizePhone(personPhoneRaw) : '';
+  const amount = parseIntegerSum(formData.get('amount')) ?? 0;
   const dueDateRaw = String(formData.get('dueDate') || '');
   const note = String(formData.get('note') || '').trim();
 
-  if (!personName) return { error: 'Ism kiritilishi shart.' };
-  if (!personPhone) return { error: 'Telefon raqami shart.' };
-  if (!amount || amount <= 0) return { error: "Summa noto'g'ri." };
-  if (!dueDateRaw) return { error: 'Qaytarish kuni tanlanishi shart.' };
+  if (!personName) return { error: m.nameRequired };
+  if (personName.length > 80) return { error: m.nameTooLong80 };
+  if (note.length > 300) return { error: m.noteTooLong300 };
+  if (!personPhone) return { error: m.phoneRequired };
+  if (!isValidUzPhone(personPhone)) return { error: m.badPhone };
+  if (!amount || amount <= 0) return { error: m.badAmount };
+  if (!dueDateRaw) return { error: m.dueRequired };
   const dueDate = new Date(dueDateRaw);
-  if (isNaN(dueDate.getTime())) return { error: "Sana noto'g'ri." };
+  if (isNaN(dueDate.getTime())) return { error: m.badDate };
+  const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
+  if (dueDate < todayStart) return { error: m.duePast };
 
   try {
     await LedgerEntry.create({
@@ -46,7 +57,7 @@ export async function createDaftarAction(_prev: State, formData: FormData): Prom
     redirect('/app/daftar?created=1');
   } catch (err) {
     if (err && typeof err === 'object' && 'digest' in err) throw err;
-    return { error: 'Saqlashda xatolik.' };
+    return { error: m.saveFailed };
   }
 }
 

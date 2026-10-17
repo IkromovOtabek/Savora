@@ -287,9 +287,9 @@ export const uz = {
 
   /** Server action xabarlari (app/actions/products.ts, transfer.ts, imeiBlacklist.ts) */
   msg: {
-    sellQtyMin: "Sotilgan son kamida 1 bo'lishi kerak.",
-    /** {n} — qoldiq */
-    onlyLeft: 'Omborda faqat {n} ta qoldi.',
+    photoUrlInvalid: "Rasm havolasi noto'g'ri. Rasmni formadagi yuklash tugmasi orqali yuklang.",
+    sellOnlyViaSales: 'Sotish faqat Sotuv oynasi orqali amalga oshiriladi.',
+    activeSaleExists: "Bu mahsulotning faol sotuvi bor. Omborga qaytarish uchun Sotuvlar bo'limida o'sha sotuvni bekor qiling.",
     bankRequired: 'Kredit uchun bank tanlanishi shart.',
     nameRequired: 'Mahsulot nomi kiritilishi shart.',
     imeiMin: "IMEI kamida 10 ta belgidan iborat bo'lishi kerak.",
@@ -610,8 +610,9 @@ export const ru: typeof uz = {
   },
 
   msg: {
-    sellQtyMin: 'Количество продажи должно быть не меньше 1.',
-    onlyLeft: 'На складе осталось только {n} шт.',
+    photoUrlInvalid: 'Неверная ссылка на фото. Загрузите фото через кнопку загрузки в форме.',
+    sellOnlyViaSales: 'Продажа выполняется только через окно «Продажа».',
+    activeSaleExists: 'У этого товара есть активная продажа. Чтобы вернуть его на склад, сначала отмените эту продажу в разделе «Продажи».',
     bankRequired: 'Для кредита нужно выбрать банк.',
     nameRequired: 'Укажите название товара.',
     imeiMin: 'IMEI должен содержать не менее 10 символов.',

@@ -9,6 +9,8 @@ import { getMasterModels } from '@/lib/masterDb';
 import { resolveOrgPlan } from '@/lib/plans';
 import { logError } from '@/lib/logger';
 import { addMonthsClamped } from '@/lib/dates';
+import { getDict } from '@/lib/i18n/server';
+import { tr } from '@/lib/i18n/fmt';
 
 type State = { error?: string; success?: string } | null;
 
@@ -23,6 +25,7 @@ function parseAmount(v: string): number | null {
 export async function submitPaymentRequestAction(_prev: State, formData: FormData): Promise<State> {
   // Muddati tugagan do'kon ham to'lov yubora olishi shart
   const { user, org } = await getTenantAdminSession({ allowExpired: true });
+  const m = (await getDict()).sales.actions;
 
   const amount = parseAmount(String(formData.get('amount') || ''));
   const paidAtRaw = String(formData.get('paidAt') || '').trim();
@@ -30,17 +33,17 @@ export async function submitPaymentRequestAction(_prev: State, formData: FormDat
   const receiptUrl = String(formData.get('receiptUrl') || '').trim();
   const note = String(formData.get('note') || '').trim();
 
-  if (amount === null) return { error: 'To\'lov summasi noto\'g\'ri.' };
-  if (!receiptUrl) return { error: 'Chek (screenshot) yuklanishi shart.' };
+  if (amount === null) return { error: m.badPaymentAmount };
+  if (!receiptUrl) return { error: m.receiptRequired };
   // Faqat o'zimizning storage'ga `receipts/` papkasiga yuklangan fayl — tashqi/zararli URL rad
   const receiptKey = ownUploadKeyFromUrl(receiptUrl);
   if (!receiptKey || !receiptKey.startsWith('receipts/')) {
-    return { error: 'Chek havolasi noto\'g\'ri. Chekni shu sahifadagi yuklash tugmasi orqali yuklang.' };
+    return { error: m.badReceiptUrl };
   }
-  if (!paidAtRaw) return { error: 'To\'lov sanasini kiriting.' };
+  if (!paidAtRaw) return { error: m.enterPayDate };
 
   const paidAt = new Date(paidAtRaw);
-  if (Number.isNaN(paidAt.getTime())) return { error: 'To\'lov sanasi noto\'g\'ri.' };
+  if (Number.isNaN(paidAt.getTime())) return { error: m.badPayDate };
 
   try {
     const { PaymentRequest } = await getMasterModels();
@@ -71,7 +74,7 @@ export async function submitPaymentRequestAction(_prev: State, formData: FormDat
     // Kutilayotgan so'rov bo'lsa — yangisini bloklash
     const pending = await PaymentRequest.findOne({ organizationId: org._id, status: 'pending' }).lean();
     if (pending) {
-      return { error: 'Sizda allaqachon tekshiruvdagi to\'lov so\'rovi bor. Tasdiqlangach yangisini yuboring.' };
+      return { error: m.pendingExists };
     }
 
     await PaymentRequest.create({
@@ -88,18 +91,19 @@ export async function submitPaymentRequestAction(_prev: State, formData: FormDat
     });
 
     revalidatePath('/app/profile');
-    return { success: 'To\'lov so\'rovi yuborildi. Tasdiqlangach obuna uzaytiriladi.' };
+    return { success: m.requestSent };
   } catch (err) {
     logError('submitPaymentRequestAction failed', err, { org: org.slug, user: user.username });
-    return { error: 'So\'rov yuborishda xatolik.' };
+    return { error: m.requestFailed };
   }
 }
 
 /** Super admin — to'lovni tasdiqlaydi → obuna uzayadi */
 export async function approvePaymentRequestAction(_prev: State, formData: FormData): Promise<State> {
   const sa = await requireSuperAdmin();
+  const m = (await getDict()).sales.actions;
   const requestId = String(formData.get('requestId') || '');
-  if (!requestId || !Types.ObjectId.isValid(requestId)) return { error: 'So\'rov topilmadi.' };
+  if (!requestId || !Types.ObjectId.isValid(requestId)) return { error: m.requestNotFound };
 
   try {
     const { PaymentRequest, Organization } = await getMasterModels();
@@ -112,7 +116,7 @@ export async function approvePaymentRequestAction(_prev: State, formData: FormDa
     );
     if (!req) {
       const exists = await PaymentRequest.exists({ _id: requestId });
-      return { error: exists ? 'Bu so\'rov allaqachon ko\'rib chiqilgan.' : 'So\'rov topilmadi.' };
+      return { error: exists ? m.requestReviewed : m.requestNotFound };
     }
 
     const org = await Organization.findById(req.organizationId);
@@ -122,7 +126,7 @@ export async function approvePaymentRequestAction(_prev: State, formData: FormDa
         { _id: req._id, status: 'approved' },
         { $set: { status: 'pending' }, $unset: { reviewedBy: 1, reviewedAt: 1 } }
       );
-      return { error: 'Do\'kon topilmadi.' };
+      return { error: m.orgNotFound };
     }
 
     // Muddatni hozirgi yoki mavjud tugash sanasidan (qaysi kechroq) uzaytiramiz
@@ -134,19 +138,20 @@ export async function approvePaymentRequestAction(_prev: State, formData: FormDa
 
     revalidatePath('/super/payments');
     revalidatePath('/super');
-    return { success: `${org.name} obunasi ${req.months} oyga uzaytirildi (${base.toLocaleDateString('uz-UZ')}).` };
+    return { success: tr(m.subscriptionExtended, { org: org.name, months: req.months, date: base.toLocaleDateString('uz-UZ') }) };
   } catch (err) {
     logError('approvePaymentRequestAction failed', err, { requestId });
-    return { error: 'Tasdiqlashda xatolik.' };
+    return { error: m.approveFailed };
   }
 }
 
 /** Super admin — to'lovni rad etadi */
 export async function rejectPaymentRequestAction(_prev: State, formData: FormData): Promise<State> {
   const sa = await requireSuperAdmin();
+  const m = (await getDict()).sales.actions;
   const requestId = String(formData.get('requestId') || '');
   const reason = String(formData.get('reason') || '').trim();
-  if (!requestId || !Types.ObjectId.isValid(requestId)) return { error: 'So\'rov topilmadi.' };
+  if (!requestId || !Types.ObjectId.isValid(requestId)) return { error: m.requestNotFound };
 
   try {
     const { PaymentRequest } = await getMasterModels();
@@ -165,20 +170,21 @@ export async function rejectPaymentRequestAction(_prev: State, formData: FormDat
     );
     if (!req) {
       const exists = await PaymentRequest.exists({ _id: requestId });
-      return { error: exists ? 'Bu so\'rov allaqachon ko\'rib chiqilgan.' : 'So\'rov topilmadi.' };
+      return { error: exists ? m.requestReviewed : m.requestNotFound };
     }
 
     revalidatePath('/super/payments');
-    return { success: 'So\'rov rad etildi.' };
+    return { success: m.requestRejected };
   } catch (err) {
     logError('rejectPaymentRequestAction failed', err, { requestId });
-    return { error: 'Xatolik.' };
+    return { error: m.genericError };
   }
 }
 
 /** Super admin — to'lov hisob raqamini saqlaydi */
 export async function savePaymentAccountAction(_prev: State, formData: FormData): Promise<State> {
   await requireSuperAdmin();
+  const m = (await getDict()).sales.actions;
   const paymentCardNumber = String(formData.get('paymentCardNumber') || '').trim();
   const paymentCardHolder = String(formData.get('paymentCardHolder') || '').trim();
   const paymentNote = String(formData.get('paymentNote') || '').trim();
@@ -191,9 +197,9 @@ export async function savePaymentAccountAction(_prev: State, formData: FormData)
       { upsert: true }
     );
     revalidatePath('/super/payments');
-    return { success: 'To\'lov rekvizitlari saqlandi.' };
+    return { success: m.accountSaved };
   } catch (err) {
     logError('savePaymentAccountAction failed', err);
-    return { error: 'Saqlashda xatolik.' };
+    return { error: m.saveFailed };
   }
 }

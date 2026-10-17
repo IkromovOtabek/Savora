@@ -1,6 +1,9 @@
-export default function AppLoading() {
+import { getDict } from '@/lib/i18n/server';
+
+export default async function AppLoading() {
+  const d = await getDict();
   return (
-    <div className="t-skel" role="status" aria-busy="true" aria-label="Yuklanmoqda">
+    <div className="t-skel" role="status" aria-busy="true" aria-label={d.common.loading}>
       <div className="t-skel-block t-skel-title" />
       <div className="t-skel-block t-skel-sub" />
       <div className="t-skel-kpis">

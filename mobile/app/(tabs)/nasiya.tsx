@@ -4,6 +4,7 @@ import { useFocusEffect, useRouter } from 'expo-router';
 import { useDebounced, usePaged } from '@/lib/hooks';
 import { useTheme } from '@/lib/theme';
 import { fmtMoney, fmtCompact, isOverdue, isToday, digits } from '@/lib/format';
+import { useDict, tr, type Dict } from '@/lib/i18n';
 import {
   Screen, useLayout, LargeTitle, SearchField, SegmentedControl, Cell, Avatar, AmountColumn, Pill, ProgressBar, Button,
   listCellStyle, Loading, EmptyState, ErrorState, InlineError, IconButton, type Tone,
@@ -16,17 +17,18 @@ interface Sale {
 }
 type Seg = 'all' | 'today' | 'late';
 
-function stateOf(s: Sale): { label: string; tone: Tone } {
-  if (s.status === 'paid' || s.remainingAmount <= 0) return { label: 'To\'landi', tone: 'ok' };
-  if (isOverdue(s.dueDate)) return { label: 'Kechikkan', tone: 'bad' };
-  if (isToday(s.dueDate)) return { label: 'Bugun', tone: 'warn' };
-  return { label: 'Faol', tone: 'br' };
+function stateOf(s: Sale, d: Dict): { label: string; tone: Tone } {
+  if (s.status === 'paid' || s.remainingAmount <= 0) return { label: d.common.paid, tone: 'ok' };
+  if (isOverdue(s.dueDate)) return { label: d.common.overdue, tone: 'bad' };
+  if (isToday(s.dueDate)) return { label: d.common.today, tone: 'warn' };
+  return { label: d.nasiya.active, tone: 'br' };
 }
 
 export default function Nasiya() {
   const router = useRouter();
   const { c } = useTheme();
   const L = useLayout();
+  const d = useDict();
   const [q, setQ] = useState('');
   const [seg, setSeg] = useState<Seg>('all');
   const dq = useDebounced(q.trim().toLowerCase(), 300);
@@ -53,13 +55,13 @@ export default function Nasiya() {
   const header = (
     <View style={{ gap: 12, paddingBottom: 14 }}>
       <LargeTitle
-        title="Nasiya"
-        subtitle={list.loading ? ' ' : `${fmtMoney(list.total)} ta${!list.hasMore ? ` · ${fmtCompact(remainingSum)} so'm qoldiq` : ''}`}
-        actions={<IconButton icon="add" label="Yangi nasiya" onPress={() => router.push('/sale-new?pay=installment')} />}
+        title={d.nasiya.title}
+        subtitle={list.loading ? ' ' : `${tr(d.common.count, { n: fmtMoney(list.total) })}${!list.hasMore ? tr(d.nasiya.remainingSuffix, { v: fmtCompact(remainingSum) }) : ''}`}
+        actions={<IconButton icon="add" label={d.nasiya.newNasiya} onPress={() => router.push('/sale-new?pay=installment')} />}
       />
-      <SearchField value={q} onChangeText={setQ} placeholder="Ism, telefon yoki №" />
+      <SearchField value={q} onChangeText={setQ} placeholder={d.nasiya.searchPlaceholder} />
       <SegmentedControl
-        options={[{ key: 'all', label: 'Hammasi' }, { key: 'today', label: 'Bugun' }, { key: 'late', label: 'Kechikkan' }]}
+        options={[{ key: 'all', label: d.common.all }, { key: 'today', label: d.common.today }, { key: 'late', label: d.common.overdue }]}
         value={seg}
         onChange={setSeg}
       />
@@ -82,16 +84,16 @@ export default function Nasiya() {
         ListEmptyComponent={
           list.loading ? <Loading />
             : list.error ? <ErrorState message={list.error} onRetry={list.retry} />
-            : filtered ? <EmptyState icon="search" title="Topilmadi" message={list.hasMore ? 'Yuklangan ro\'yxatda mos yozuv yo\'q.' : 'Boshqa so\'z bilan qidirib ko\'ring.'} />
-            : <EmptyState icon="time-outline" title="Nasiya savdosi yo'q" message="Nasiya sotuvlari shu yerda ko'rinadi." actionTitle="Nasiyaga sotish" onAction={() => router.push('/sale-new?pay=installment')} />
+            : filtered ? <EmptyState icon="search" title={d.common.notFound} message={list.hasMore ? d.nasiya.notFoundLoaded : d.nasiya.notFoundOther} />
+            : <EmptyState icon="time-outline" title={d.nasiya.empty} message={d.nasiya.emptyMsg} actionTitle={d.nasiya.sellNasiya} onAction={() => router.push('/sale-new?pay=installment')} />
         }
         ListFooterComponent={
           list.loadingMore ? <ActivityIndicator color={c.tint} style={{ marginVertical: 16 }} />
-            : filtered && list.hasMore ? <Button title="Ko'proq yuklash" variant="plain" onPress={list.loadMore} style={{ alignSelf: 'center', marginTop: 8 }} />
+            : filtered && list.hasMore ? <Button title={d.common.loadMore} variant="plain" onPress={list.loadMore} style={{ alignSelf: 'center', marginTop: 8 }} />
             : null
         }
         renderItem={({ item, index }) => {
-          const st = stateOf(item);
+          const st = stateOf(item, d);
           const pct = item.totalAmount > 0 ? item.paidAmount / item.totalAmount : 0;
           return (
             <Cell
@@ -99,7 +101,7 @@ export default function Nasiya() {
               style={listCellStyle(c, index, shown.length)}
               left={<Avatar name={item.customer ?? item.product} />}
               title={item.customer ?? item.product}
-              subtitle={[item.installmentMonths ? `${item.installmentMonths} oy` : null, item.product].filter(Boolean).join(' · ')}
+              subtitle={[item.installmentMonths ? tr(d.common.months, { n: item.installmentMonths }) : null, item.product].filter(Boolean).join(' · ')}
               right={<AmountColumn amount={fmtMoney(item.remainingAmount)} color={st.tone === 'bad' ? c.bad : undefined}><Pill label={st.label} tone={st.tone} /></AmountColumn>}
               onPress={() => router.push(`/sale/${item.id}`)}
             >

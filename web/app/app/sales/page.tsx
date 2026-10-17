@@ -7,24 +7,13 @@ import Icon from '@/components/icons/Icon';
 import MoreMenu from '@/components/ui/MoreMenu';
 import Tilt from '@/components/ui/Tilt';
 import { loadUserPermissions } from '@/lib/permissionGuard';
+import { getDict } from '@/lib/i18n/server';
+import { plural, tr } from '@/lib/i18n/fmt';
 
-export const metadata = { title: 'Sotuvlar — Savora' };
-
-/** Ro'yxatdagi qisqa to'lov turi yorliqlari (yagona atamalar) */
-const TYPE_SHORT: Record<PaymentType, string> = {
-  cash: 'Naqd',
-  debt: 'Qarz',
-  installment: 'Nasiya',
-  bank_credit: 'Bank krediti',
-};
-
-/** `short` — mobilda segment kesilmasligi uchun qisqa yorliq */
-const STATUS_SEG: { key?: SaleStatus; label: string; short?: string }[] = [
-  { label: 'Barchasi' },
-  { key: 'paid', label: "To'langan" },
-  { key: 'partial', label: 'Qarzdor' },
-  { key: 'cancelled', label: 'Bekor qilingan', short: 'Bekor' },
-];
+export async function generateMetadata() {
+  const d = await getDict();
+  return { title: d.sales.list.metaTitle };
+}
 
 function initials(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean);
@@ -41,6 +30,17 @@ export default async function SalesPage({
 }) {
   const sp = await searchParams;
   const { user, Sale, Product, Branch, features } = await getTenantSession();
+  const d = await getDict();
+  const k = d.sales.list;
+  const TYPE_SHORT = d.sales.paymentTypes;
+  const nSales = (n: number) => tr(plural(n, d.sales.nSales), { n });
+  /** `short` — mobilda segment kesilmasligi uchun qisqa yorliq */
+  const STATUS_SEG: { key?: SaleStatus; label: string; short?: string }[] = [
+    { label: d.common.all },
+    { key: 'paid', label: d.common.paid },
+    { key: 'partial', label: k.segPartial },
+    { key: 'cancelled', label: d.sales.saleStatus.cancelled, short: k.segCancelledShort },
+  ];
 
   const perms = await loadUserPermissions(user);
   const canViewCost = perms.has('product.viewCost');
@@ -145,56 +145,56 @@ export default async function SalesPage({
     <>
       <div className="t-page-head">
         <div>
-          <h1 className="t-page-title">Sotuvlar</h1>
+          <h1 className="t-page-title">{d.common.sales}</h1>
           <p className="t-page-sub ux-hide-mobile">
-            Bugun: <strong>{todaySales} ta</strong> · Qarzdorlik: <strong>{fmtMoney(debtTotal[0]?.total ?? 0)} so&apos;m</strong>
+            {d.common.today}: <strong>{tr(d.common.nPcs, { n: todaySales })}</strong> · {k.debt}: <strong>{fmtMoney(debtTotal[0]?.total ?? 0)} {d.common.sum}</strong>
           </p>
         </div>
         <div className="t-page-actions sl-list-actions">
           <Link href="/app/sales/new" className="btn btn-primary btn-with-icon ux-hide-mobile">
             <Icon name="plus" size={16} />
-            Yangi sotuv
+            {k.newSale}
           </Link>
           {canExport && (
-            <MoreMenu label="Sotuvlar bo'yicha boshqa amallar">
+            <MoreMenu label={k.moreActions}>
               <a href="/api/export/sales">
                 <Icon name="download" size={18} />
-                CSV yuklab olish
+                {k.csvDownload}
               </a>
             </MoreMenu>
           )}
         </div>
       </div>
 
-      <section className="ux-strip sl-strip" aria-label="Sotuvlar xulosasi">
+      <section className="ux-strip sl-strip" aria-label={k.summaryAria}>
         <Tilt className="sl-stat sl-stat--hero" max={5}>
-          <span className="sl-stat-l"><Icon name="trendingUp" size={16} />Bugun</span>
-          <span className="sl-stat-v ux-z">{fmtMoney(today.sum)} <small>so&apos;m</small></span>
-          <span className="sl-stat-d">{todaySales} ta sotuv</span>
+          <span className="sl-stat-l"><Icon name="trendingUp" size={16} />{d.common.today}</span>
+          <span className="sl-stat-v ux-z">{fmtMoney(today.sum)} <small>{d.common.sum}</small></span>
+          <span className="sl-stat-d">{nSales(todaySales)}</span>
         </Tilt>
         <div className="sl-stat">
-          <span className="sl-stat-l"><span className="ux-clay sl-clay" aria-hidden><Icon name="chart" size={16} /></span>So&apos;nggi 7 kun</span>
-          <span className="sl-stat-v">{fmtMoney(week.sum)} <small>so&apos;m</small></span>
-          <span className="sl-stat-d">{week.n} ta sotuv</span>
+          <span className="sl-stat-l"><span className="ux-clay sl-clay" aria-hidden><Icon name="chart" size={16} /></span>{k.last7}</span>
+          <span className="sl-stat-v">{fmtMoney(week.sum)} <small>{d.common.sum}</small></span>
+          <span className="sl-stat-d">{nSales(week.n)}</span>
         </div>
         <div className="sl-stat">
-          <span className="sl-stat-l"><span className="ux-clay ux-clay--green sl-clay" aria-hidden><Icon name="cart" size={16} /></span>Jami</span>
-          <span className="sl-stat-v">{fmtMoney(all.sum)} <small>so&apos;m</small></span>
-          <span className="sl-stat-d">{all.n} ta sotuv</span>
+          <span className="sl-stat-l"><span className="ux-clay ux-clay--green sl-clay" aria-hidden><Icon name="cart" size={16} /></span>{d.common.total}</span>
+          <span className="sl-stat-v">{fmtMoney(all.sum)} <small>{d.common.sum}</small></span>
+          <span className="sl-stat-d">{nSales(all.n)}</span>
         </div>
         <Link
           href={href('partial', activeType)}
           className="sl-stat sl-stat--gold sl-stat--link"
-          aria-label={`Qarzdorlik: ${fmtMoney(debtTotal[0]?.total ?? 0)} so'm — qarzdor sotuvlarni ko'rsatish`}
+          aria-label={tr(k.debtAria, { sum: fmtMoney(debtTotal[0]?.total ?? 0) })}
         >
-          <span className="sl-stat-l"><span className="ux-clay ux-clay--gold sl-clay" aria-hidden><Icon name="wallet" size={16} /></span>Qarzdorlik</span>
-          <span className="sl-stat-v">{fmtMoney(debtTotal[0]?.total ?? 0)} <small>so&apos;m</small></span>
-          <span className="sl-stat-d">Qoldiq to&apos;lovlar</span>
+          <span className="sl-stat-l"><span className="ux-clay ux-clay--gold sl-clay" aria-hidden><Icon name="wallet" size={16} /></span>{k.debt}</span>
+          <span className="sl-stat-v">{fmtMoney(debtTotal[0]?.total ?? 0)} <small>{d.common.sum}</small></span>
+          <span className="sl-stat-d">{k.remainingPayments}</span>
         </Link>
       </section>
 
       <div className="sl-toolbar">
-        <nav className="sl-seg" aria-label="Holat bo'yicha filtr">
+        <nav className="sl-seg" aria-label={d.sales.statusFilterAria}>
           {STATUS_SEG.map((s) => (
             <Link
               key={s.label}
@@ -211,9 +211,9 @@ export default async function SalesPage({
             </Link>
           ))}
         </nav>
-        <nav className="sl-chips ux-scrollx" aria-label="To'lov turi bo'yicha filtr">
+        <nav className="sl-chips ux-scrollx" aria-label={k.typeFilterAria}>
           <Link href={href(activeStatus)} className="sl-chip" aria-current={!activeType ? 'page' : undefined}>
-            Barcha turlar <b>{all.n}</b>
+            {k.allTypes} <b>{all.n}</b>
           </Link>
           {typeChips.map((t) => (
             <Link key={t} href={href(activeStatus, t)} className="sl-chip" aria-current={activeType === t ? 'page' : undefined}>
@@ -227,12 +227,12 @@ export default async function SalesPage({
         {rows.length === 0 ? (
           <div className="ux-empty sl-empty">
             <div className="ux-empty-ic"><Icon name="cart" size={28} /></div>
-            <b>{filtered ? 'Bu filtr bo\'yicha sotuv yo\'q' : 'Hali sotuv yo\'q'}</b>
-            <p>{filtered ? 'Boshqa holat yoki to\'lov turini tanlab ko\'ring.' : 'Birinchi sotuvni rasmiylashtiring — u shu yerda paydo bo\'ladi.'}</p>
+            <b>{filtered ? k.emptyFiltered : k.emptyNone}</b>
+            <p>{filtered ? k.emptyFilteredHint : k.emptyNoneHint}</p>
             {filtered ? (
-              <Link href="/app/sales" className="btn btn-ghost">Filtrni tozalash</Link>
+              <Link href="/app/sales" className="btn btn-ghost">{d.sales.clearFilter}</Link>
             ) : (
-              <Link href="/app/sales/new" className="btn btn-primary">Birinchi sotuvni qilish</Link>
+              <Link href="/app/sales/new" className="btn btn-primary">{k.firstSale}</Link>
             )}
           </div>
         ) : (
@@ -247,7 +247,7 @@ export default async function SalesPage({
                         {r.name}{r.qty > 1 ? ` × ${r.qty}` : ''}
                       </Link>
                       <span className={`sl-pill sl-pill--${r.cancelled ? 'cancelled' : r.type}`}>
-                        {r.cancelled ? 'Bekor qilingan' : TYPE_SHORT[r.type]}
+                        {r.cancelled ? d.sales.saleStatus.cancelled : TYPE_SHORT[r.type]}
                       </span>
                     </div>
                     {/* Asosiy 2-qator: mijoz · sana. Qolgani (raqam, filial, IMEI, rang) faqat keng ekranda */}
@@ -262,20 +262,20 @@ export default async function SalesPage({
                     </div>
                   </div>
                   <div className="sl-row-amt">
-                    <strong>{fmtMoney(r.total)} <small>so&apos;m</small></strong>
+                    <strong>{fmtMoney(r.total)} <small>{d.common.sum}</small></strong>
                     {!r.cancelled && r.remaining > 0 ? (
-                      <span className="sl-rem">Qoldiq {fmtMoney(r.remaining)}</span>
+                      <span className="sl-rem">{d.common.remaining} {fmtMoney(r.remaining)}</span>
                     ) : r.qty > 1 ? (
                       <span>{r.qty} × {fmtMoney(r.unit)}</span>
                     ) : null}
-                    {canViewCost && <span className="sl-row-x">Olingan: {fmtMoney(r.purchase)}</span>}
+                    {canViewCost && <span className="sl-row-x">{tr(k.purchased, { sum: fmtMoney(r.purchase) })}</span>}
                   </div>
                 </li>
               ))}
             </ul>
             {rows.length >= 200 && (
               <p className="sl-foot-note">
-                Oxirgi 200 ta sotuv ko&apos;rsatilmoqda.{canExport ? ' To\'liq ro\'yxat uchun CSV yuklab oling (⋯ menyusi).' : ''}
+                {k.footNote}{canExport ? ` ${k.footCsv}` : ''}
               </p>
             )}
           </>
@@ -284,7 +284,7 @@ export default async function SalesPage({
 
       <Link href="/app/sales/new" className="ux-fab">
         <Icon name="plus" size={20} />
-        Yangi sotuv
+        {k.newSale}
       </Link>
     </>
   );

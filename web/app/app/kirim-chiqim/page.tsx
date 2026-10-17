@@ -1,11 +1,18 @@
 import { getTenantAdminSession } from '@/lib/tenantSession';
 import { lineFromProduct } from '@/lib/inventoryFlow';
 import KirimChiqimCards, { BranchFlowCard } from '@/components/tenant/KirimChiqimCards';
+import { getDict } from '@/lib/i18n/server';
+import { plural, tr } from '@/lib/i18n/fmt';
 
-export const metadata = { title: 'Kirim-Chiqim — Savora' };
+export async function generateMetadata() {
+  const d = await getDict();
+  return { title: d.sales.kirimChiqim.metaTitle };
+}
 
 export default async function KirimChiqimPage() {
   const { Product, Branch, Sale } = await getTenantAdminSession();
+  const d = await getDict();
+  const k = d.sales.kirimChiqim;
   const branches = await Branch.find({ active: true }).sort({ createdAt: 1 }).lean();
   const branchIds = branches.map((b) => b._id);
 
@@ -44,7 +51,7 @@ export default async function KirimChiqimPage() {
 
   const cards = [...map.values()];
   const total: BranchFlowCard = {
-    id: 'all', name: 'JAMI (BARCHA FILIALLAR)',
+    id: 'all', name: k.totalAll,
     kirimValue: cards.reduce((s, c) => s + c.kirimValue, 0),
     kirimCount: cards.reduce((s, c) => s + c.kirimCount, 0),
     chiqimValue: cards.reduce((s, c) => s + c.chiqimValue, 0),
@@ -56,8 +63,8 @@ export default async function KirimChiqimPage() {
     <>
       <div className="t-page-head">
         <div>
-          <h1 className="t-page-title">Kirim-chiqim</h1>
-          <p className="t-page-sub">Ombordagi mahsulotlar qiymati va sotuvlar — {branches.length} ta filial</p>
+          <h1 className="t-page-title">{k.title}</h1>
+          <p className="t-page-sub">{tr(k.sub, { branches: tr(plural(branches.length, d.sales.nBranches), { n: branches.length }) })}</p>
         </div>
       </div>
       <KirimChiqimCards total={total} cards={cards} />

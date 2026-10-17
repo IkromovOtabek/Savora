@@ -65,6 +65,7 @@ export const uz = {
     errCreate: 'Mijoz yaratishda xatolik.',
     errNameAndPhone: 'Ism va telefon majburiy.',
     errNotFound: 'Mijoz topilmadi.',
+    errPhotoUrl: "Rasm havolasi noto'g'ri. Rasmni formadagi yuklash tugmasi orqali yuklang.",
     updated: 'Mijoz yangilandi.',
   },
 
@@ -449,6 +450,7 @@ export const ru: typeof uz = {
     errCreate: 'Ошибка при создании клиента.',
     errNameAndPhone: 'Имя и телефон обязательны.',
     errNotFound: 'Клиент не найден.',
+    errPhotoUrl: 'Неверная ссылка на фото. Загрузите фото через кнопку загрузки в форме.',
     updated: 'Клиент обновлён.',
   },
 

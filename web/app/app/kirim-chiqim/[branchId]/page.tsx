@@ -4,11 +4,13 @@ import { getTenantAdminSession } from '@/lib/tenantSession';
 import { aggregateFlowTotals, lineFromProduct } from '@/lib/inventoryFlow';
 import KirimChiqimPanel from '@/components/tenant/KirimChiqimPanel';
 import BackLink from '@/components/ui/BackLink';
+import { getDict } from '@/lib/i18n/server';
 
 export async function generateMetadata({ params }: { params: Promise<{ branchId: string }> }) {
   const { branchId } = await params;
-  if (branchId === 'all') return { title: 'Kirim-Chiqim — barcha filiallar — Savora' };
-  return { title: 'Kirim-Chiqim — batafsil — Savora' };
+  const d = await getDict();
+  if (branchId === 'all') return { title: d.sales.kirimChiqim.allMetaTitle };
+  return { title: d.sales.kirimChiqim.detailMetaTitle };
 }
 
 export default async function KirimChiqimDetailPage({
@@ -18,6 +20,8 @@ export default async function KirimChiqimDetailPage({
 }) {
   const { branchId } = await params;
   const { Product, Branch, Sale } = await getTenantAdminSession();
+  const d = await getDict();
+  const k = d.sales.kirimChiqim;
 
   const branches = await Branch.find({ active: true }).sort({ createdAt: 1 }).lean();
   const branchMap = Object.fromEntries(branches.map((b) => [String(b._id), b.name]));
@@ -60,7 +64,7 @@ export default async function KirimChiqimDetailPage({
   });
 
   const totals = aggregateFlowTotals(stockLines, soldLines);
-  const title = isAll ? 'Barcha filiallar' : branch!.name;
+  const title = isAll ? k.allBranches : branch!.name;
 
   return (
     <>
@@ -68,16 +72,16 @@ export default async function KirimChiqimDetailPage({
         <div>
           <div style={{ marginBottom: 8 }}>
             <BackLink href="/app/kirim-chiqim" className="btn btn-plain btn-sm">
-              Kirim-chiqim
+              {k.title}
             </BackLink>
           </div>
           <h1 className="t-page-title">{title}</h1>
-          <p className="t-page-sub">Ombordagi va sotilgan mahsulotlar batafsil</p>
+          <p className="t-page-sub">{k.detailSub}</p>
         </div>
         {!isAll && (
           <div className="t-page-actions">
             <Link href={`/app/products?branch=${branchId}&status=sold`} className="btn btn-ghost">
-              Omborda ko&apos;rish
+              {k.viewInStock}
             </Link>
           </div>
         )}

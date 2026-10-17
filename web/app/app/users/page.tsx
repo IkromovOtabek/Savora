@@ -1,11 +1,16 @@
 import { getTenantAdminSession, getOrgWithPlan } from '@/lib/tenantSession';
 import FilialManager from '@/components/tenant/FilialManager';
 import { effectivePermissions } from '@/lib/permissions';
+import { getDict } from '@/lib/i18n/server';
 
-export const metadata = { title: 'Filiallar — Savora' };
+export async function generateMetadata() {
+  const d = await getDict();
+  return { title: d.crm.team.metaTitle };
+}
 
 export default async function UsersPage() {
   const { user, User, Branch, features } = await getTenantAdminSession();
+  const d = await getDict();
   const fullOrg = user.organizationId ? await getOrgWithPlan(user.organizationId) : null;
   const maxFilial = fullOrg?.plan.maxFilial ?? 1;
 
@@ -42,8 +47,8 @@ export default async function UsersPage() {
     <>
       <div className="t-page-head">
         <div>
-          <h1 className="t-page-title">Filiallar va jamoa</h1>
-          <p className="t-page-sub">Filial loginlari, huquqlar va tarif limiti</p>
+          <h1 className="t-page-title">{d.crm.team.title}</h1>
+          <p className="t-page-sub">{d.crm.team.sub}</p>
         </div>
       </div>
       <FilialManager rows={rows} maxFilial={maxFilial} activeBranchCount={activeBranches} features={features} />

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Icon from '@/components/icons/Icon';
+import { useDict } from '@/lib/i18n/client';
 import '@/components/auth/auth.css';
 
 type Theme = 'light' | 'dark';
@@ -16,6 +17,7 @@ function applyTheme(t: Theme) {
 export default function ThemeToggle() {
   const [theme, setTheme] = useState<Theme>('light');
   const [mounted, setMounted] = useState(false);
+  const d = useDict();
 
   useEffect(() => {
     const stored = (typeof localStorage !== 'undefined' && localStorage.getItem('theme')) as Theme | null;
@@ -38,8 +40,8 @@ export default function ThemeToggle() {
       type="button"
       className="theme-toggle au-round"
       onClick={toggle}
-      title={theme === 'dark' ? 'Yorug‘ rejim' : 'Qorong‘i rejim'}
-      aria-label={theme === 'dark' ? 'Yorug‘ rejimga o‘tish' : 'Qorong‘i rejimga o‘tish'}
+      title={theme === 'dark' ? d.common.lightMode : d.common.darkMode}
+      aria-label={theme === 'dark' ? d.common.toLightMode : d.common.toDarkMode}
     >
       <Icon name={theme === 'dark' ? 'sun' : 'moon'} size={17} />
     </button>

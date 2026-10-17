@@ -11,19 +11,25 @@ import ExpiryBanner from '@/components/ExpiryBanner';
 import LogoutButton from '@/components/LogoutButton';
 import Icon, { type IconName } from '@/components/icons/Icon';
 import { getTelegramLinkStatus } from '@/app/actions/telegramLink';
+import LangSwitch from '@/components/LangSwitch';
+import { getDict, type Dict } from '@/lib/i18n/server';
+import { tr } from '@/lib/i18n/fmt';
 import '@/components/tenant/styles/admin.css';
 
-export const metadata = { title: 'Kabinet — Savora' };
+export async function generateMetadata() {
+  const d = await getDict();
+  return { title: d.shell.profile.metaTitle };
+}
 
 /** Qolgan kunlar halqasi (30 kunlik shkala) */
-function DaysRing({ days }: { days: number }) {
+function DaysRing({ days, d }: { days: number; d: Dict }) {
   const r = 26;
   const c = 2 * Math.PI * r;
   const shown = Math.max(0, days);
   const pct = Math.min(1, shown / 30);
   const tone = shown <= 3 ? ' ad-ring--over' : shown <= 7 ? ' ad-ring--warn' : '';
   return (
-    <div className={`ad-ring${tone}`} role="img" aria-label={`${shown} kun qoldi`}>
+    <div className={`ad-ring${tone}`} role="img" aria-label={tr(d.shell.profile.daysLeft, { n: shown })}>
       <svg viewBox="0 0 64 64" aria-hidden="true">
         <circle className="ad-ring-track" cx="32" cy="32" r={r} fill="none" strokeWidth="6" />
         <circle
@@ -34,7 +40,7 @@ function DaysRing({ days }: { days: number }) {
       </svg>
       <div className="ad-ring-c" aria-hidden="true">
         <b>{shown}</b>
-        <small>kun</small>
+        <small>{d.common.day}</small>
       </div>
     </div>
   );
@@ -48,6 +54,8 @@ function initials(name: string): string {
 
 export default async function ProfilePage() {
   const { user, org, User } = await getTenantSession();
+  const d = await getDict();
+  const t = d.shell.profile;
   const dbUser = await User.findById(user.id).lean();
 
   const isAdmin = user.role === 'admin';
@@ -88,18 +96,19 @@ export default async function ProfilePage() {
   const trial = isTrialActive(org);
 
   const jump: { href: string; label: string; icon: IconName; tone: string }[] = [
-    { href: '#hisob', label: 'Hisob', icon: 'user', tone: '' },
-    { href: '#xavfsizlik', label: 'Xavfsizlik', icon: 'lock', tone: ' ad-sq--muted' },
-    ...(isAdmin ? [{ href: '#obuna-tolovi', label: 'Obuna va to\'lov', icon: 'wallet' as IconName, tone: ' ad-sq--gold' }] : []),
-    { href: '#telegram', label: 'Telegram', icon: 'send', tone: ' ad-sq--tg' },
+    { href: '#hisob', label: t.account, icon: 'user', tone: '' },
+    { href: '#xavfsizlik', label: t.security, icon: 'lock', tone: ' ad-sq--muted' },
+    ...(isAdmin ? [{ href: '#obuna-tolovi', label: t.subscription, icon: 'wallet' as IconName, tone: ' ad-sq--gold' }] : []),
+    { href: '#telegram', label: t.telegram, icon: 'send', tone: ' ad-sq--tg' },
+    { href: '#sozlamalar', label: d.common.settings, icon: 'settings', tone: ' ad-sq--muted' },
   ];
 
   return (
     <>
       <div className="t-page-head">
         <div>
-          <h1 className="t-page-title">Kabinet</h1>
-          <p className="t-page-sub">Hisob, xavfsizlik, obuna va Telegram sozlamalari</p>
+          <h1 className="t-page-title">{t.title}</h1>
+          <p className="t-page-sub">{t.subtitle}</p>
         </div>
       </div>
 
@@ -115,24 +124,24 @@ export default async function ProfilePage() {
               </span>
               <div>
                 <h2 className="ad-account-name">{displayName}</h2>
-                <span className="ad-account-sub">@{user.username} · {isAdmin ? 'Admin' : 'Filial'}</span>
+                <span className="ad-account-sub">@{user.username} · {isAdmin ? d.catalog.roles.admin : d.common.branch}</span>
                 <span className="ad-account-sub">{org.name}</span>
               </div>
             </div>
             <div className="ad-account-plan">
-              <DaysRing days={days} />
+              <DaysRing days={days} d={d} />
               <div>
                 <b>
-                  {plan.label} tarif
-                  {trial && <span className="ad-pill ad-pill--brand">Sinov</span>}
+                  {tr(t.planLabel, { plan: d.catalog.planTiers[plan.tier] ?? plan.label })}
+                  {trial && <span className="ad-pill ad-pill--brand">{t.trial}</span>}
                 </b>
-                <small>Muddati: {fmtDate(org.expiresAt)}</small>
-                {monthlyPrice > 0 && <small className="ad-num">{fmtMoney(monthlyPrice)} so&apos;m / oy</small>}
+                <small>{tr(t.expiresAt, { date: fmtDate(org.expiresAt) })}</small>
+                {monthlyPrice > 0 && <small className="ad-num">{fmtMoney(monthlyPrice)} {d.common.sum} {t.perMonth}</small>}
               </div>
             </div>
           </div>
 
-          <nav className="ad-group ad-jump" aria-label="Kabinet bo'limlari">
+          <nav className="ad-group ad-jump" aria-label={t.sections}>
             {jump.map((j) => (
               <a key={j.href} href={j.href} className="ad-cell">
                 <span className={`ad-sq${j.tone}`} aria-hidden="true"><Icon name={j.icon} size={16} /></span>
@@ -145,7 +154,7 @@ export default async function ProfilePage() {
 
         <div className="ad-settings-main">
           {/* Telefon/planshet: bo'limlarga tez o'tish (kompyuterda chap menyu bor) */}
-          <nav className="ad-jump-m ux-scrollx" aria-label="Kabinet bo'limlari">
+          <nav className="ad-jump-m ux-scrollx" aria-label={t.sections}>
             {jump.map((j) => (
               <a key={j.href} href={j.href} className="ad-chip">
                 <Icon name={j.icon} size={15} /> {j.label}
@@ -161,7 +170,7 @@ export default async function ProfilePage() {
 
           {isAdmin && (
             <section aria-labelledby="sec-obuna">
-              <div className="ad-sec-head"><h2 id="sec-obuna">Obuna va to&apos;lov</h2></div>
+              <div className="ad-sec-head"><h2 id="sec-obuna">{t.subscription}</h2></div>
               <div className="ad-pay">
                 <PaymentSubmit account={payAccount} monthlyPrice={monthlyPrice} requests={ownRequests} />
               </div>
@@ -169,24 +178,36 @@ export default async function ProfilePage() {
           )}
 
           <section id="telegram" aria-labelledby="sec-telegram">
-            <div className="ad-sec-head"><h2 id="sec-telegram">Telegram</h2></div>
+            <div className="ad-sec-head"><h2 id="sec-telegram">{t.telegram}</h2></div>
             <div className="ad-group">
               <TelegramAppLink linked={tgLinked} />
               {isAdmin && <TelegramConnect orgId={org._id} connected={!!org.telegramChatId} />}
             </div>
-            <p className="ad-sec-foot">
-              Mini App — shaxsiy hisobingiz uchun. Do&apos;kon bildirishnomalari — obuna eslatmalari va parolni tiklash kodlari uchun.
-            </p>
+            <p className="ad-sec-foot">{t.telegramFoot}</p>
+          </section>
+
+          <section id="sozlamalar" aria-labelledby="sec-sozlamalar">
+            <div className="ad-sec-head"><h2 id="sec-sozlamalar">{d.common.settings}</h2></div>
+            <div className="ad-group">
+              <div className="ad-cell">
+                <span className="ad-sq ad-sq--muted" aria-hidden="true"><Icon name="settings" size={16} /></span>
+                <span className="ad-cell-t">
+                  <b>{t.uiLanguage}</b>
+                  <small>{t.uiLanguageSub}</small>
+                </span>
+                <span className="ad-cell-a"><LangSwitch /></span>
+              </div>
+            </div>
           </section>
 
           <section aria-labelledby="sec-session">
-            <div className="ad-sec-head"><h2 id="sec-session">Sessiya</h2></div>
+            <div className="ad-sec-head"><h2 id="sec-session">{t.session}</h2></div>
             <div className="ad-group ad-danger-zone">
               <div className="ad-cell">
                 <span className="ad-sq ad-sq--danger" aria-hidden="true"><Icon name="logout" size={16} /></span>
                 <span className="ad-cell-t">
-                  <b>Hisobdan chiqish</b>
-                  <small>Shu qurilmadagi sessiya yopiladi</small>
+                  <b>{t.logoutTitle}</b>
+                  <small>{t.logoutSub}</small>
                 </span>
                 <span className="ad-cell-a"><LogoutButton className="btn-danger btn-sm" /></span>
               </div>

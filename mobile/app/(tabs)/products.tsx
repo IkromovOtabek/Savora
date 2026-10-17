@@ -5,6 +5,7 @@ import { useAuth, useCan } from '@/lib/auth';
 import { useDebounced, usePaged } from '@/lib/hooks';
 import { useTheme } from '@/lib/theme';
 import { fmtMoney } from '@/lib/format';
+import { useDict, tr } from '@/lib/i18n';
 import {
   Screen, useLayout, LargeTitle, SearchField, Cell, AmountColumn, Pill, IconButton, listCellStyle,
   Loading, EmptyState, ErrorState, InlineError,
@@ -21,6 +22,7 @@ export default function Products() {
   const can = useCan();
   const { c } = useTheme();
   const L = useLayout();
+  const d = useDict();
   const t = me?.terms;
   const [q, setQ] = useState('');
   const dq = useDebounced(q.trim(), 300);
@@ -35,19 +37,19 @@ export default function Products() {
   const header = (
     <View style={{ gap: 12, paddingBottom: 14 }}>
       <LargeTitle
-        title={t?.items ?? 'Ombor'}
-        subtitle={list.loading && list.items.length === 0 ? ' ' : `${fmtMoney(list.total)} ta`}
+        title={t?.items ?? d.terms.items}
+        subtitle={list.loading && list.items.length === 0 ? ' ' : tr(d.common.count, { n: fmtMoney(list.total) })}
         actions={
           <>
-            <IconButton icon="barcode-outline" label="Skaner" onPress={() => router.push('/scan')} />
-            {can('product.create') ? <IconButton icon="add" label={t?.addItem ?? 'Mahsulot qo\'shish'} onPress={() => router.push('/product-new')} /> : null}
+            <IconButton icon="barcode-outline" label={d.common.scanner} onPress={() => router.push('/scan')} />
+            {can('product.create') ? <IconButton icon="add" label={t?.addItem ?? d.terms.addItem} onPress={() => router.push('/product-new')} /> : null}
           </>
         }
       />
       <SearchField
         value={q}
         onChangeText={setQ}
-        placeholder={`Nomi yoki ${(t?.codeLabel ?? 'kod').toLowerCase()}`}
+        placeholder={tr(d.products.searchPlaceholder, { code: (t?.codeLabel ?? d.terms.code).toLowerCase() })}
         right={list.loading && list.items.length > 0 ? <ActivityIndicator size="small" color={c.ink3} /> : null}
       />
       {list.error && list.items.length > 0 ? <InlineError message={list.error} onRetry={list.refresh} /> : null}
@@ -69,8 +71,8 @@ export default function Products() {
         ListEmptyComponent={
           list.loading ? <Loading />
             : list.error ? <ErrorState message={list.error} onRetry={list.retry} />
-            : dq ? <EmptyState icon="search" title="Topilmadi" message={`«${dq}» bo'yicha hech narsa yo'q.`} />
-            : <EmptyState icon="cube-outline" title={`${t?.item ?? 'Mahsulot'} yo'q`} message="Birinchisini qo'shing yoki shtrix kodni skaner qiling." actionTitle={t?.addItem ?? 'Mahsulot qo\'shish'} onAction={() => router.push('/product-new')} />
+            : dq ? <EmptyState icon="search" title={d.common.notFound} message={tr(d.products.notFoundMsg, { q: dq })} />
+            : <EmptyState icon="cube-outline" title={tr(d.products.emptyTitle, { item: t?.item ?? d.terms.item })} message={d.products.emptyMsg} actionTitle={t?.addItem ?? d.terms.addItem} onAction={() => router.push('/product-new')} />
         }
         ListFooterComponent={list.loadingMore ? <ActivityIndicator color={c.tint} style={{ marginVertical: 16 }} /> : null}
         renderItem={({ item, index }) => {
@@ -82,12 +84,12 @@ export default function Products() {
               icon="cube"
               iconColor={item.available > 0 ? c.sq.b : c.sq.g}
               title={item.name}
-              subtitle={code ?? (item.trackQuantity ? 'Miqdorli' : undefined)}
+              subtitle={code ?? (item.trackQuantity ? d.products.tracked : undefined)}
               right={
                 <AmountColumn amount={fmtMoney(item.salePrice)}>
                   {item.available > 0
-                    ? <Pill label={item.trackQuantity ? `${fmtMoney(item.available)} dona` : 'Sotuvda'} tone="ok" />
-                    : <Pill label="Tugagan" tone="bad" />}
+                    ? <Pill label={item.trackQuantity ? tr(d.common.pcs, { n: fmtMoney(item.available) }) : d.products.inSale} tone="ok" />
+                    : <Pill label={d.products.soldOut} tone="bad" />}
                 </AmountColumn>
               }
               chevron

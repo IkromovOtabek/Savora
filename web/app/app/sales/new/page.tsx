@@ -4,8 +4,12 @@ import { isPhoneShop } from '@/lib/businessTypes';
 import { getStockQty } from '@/lib/productQuantity';
 import SaleForm from '@/components/tenant/SaleForm';
 import { requirePermission } from '@/lib/permissionGuard';
+import { getDict } from '@/lib/i18n/server';
 
-export const metadata = { title: 'Yangi sotuv — Savora' };
+export async function generateMetadata() {
+  const d = await getDict();
+  return { title: d.sales.newSale.metaTitle };
+}
 
 export default async function NewSalePage({
   searchParams,

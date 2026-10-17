@@ -7,6 +7,8 @@ import BarcodeInputField from '@/components/ui/BarcodeInputField';
 import Icon from '@/components/icons/Icon';
 import { fmtMoney } from '@/lib/format';
 import { toast } from '@/lib/toast';
+import { useDict } from '@/lib/i18n/client';
+import { tr } from '@/lib/i18n/fmt';
 import './styles/sales.css';
 
 interface CartLine extends ScannedProduct {
@@ -25,6 +27,7 @@ function needsPrice(line: CartLine): boolean {
 
 export default function QuickSaleModal({ open, onClose }: Props) {
   const router = useRouter();
+  const d = useDict();
   const [cart, setCart] = useState<CartLine[]>([]);
   const [lookupError, setLookupError] = useState('');
   const [sellError, setSellError] = useState('');
@@ -60,12 +63,12 @@ export default function QuickSaleModal({ open, onClose }: Props) {
       if (idx >= 0) {
         const line = prev[idx];
         if (!line.trackQuantity) {
-          setLookupError(`"${product.name}" allaqachon ro'yxatda.`);
+          setLookupError(tr(d.sales.quickSale.alreadyInCart, { name: product.name }));
           return prev;
         }
         const nextQty = line.qty + 1;
         if (nextQty > line.available) {
-          setLookupError(`"${product.name}" uchun maksimum ${line.available} ta.`);
+          setLookupError(tr(d.sales.quickSale.maxN, { name: product.name, n: line.available }));
           return prev;
         }
         const next = [...prev];
@@ -74,21 +77,21 @@ export default function QuickSaleModal({ open, onClose }: Props) {
       }
       return [...prev, { ...product, qty: 1, priceInput: product.salePrice > 0 ? String(product.salePrice) : '' }];
     });
-  }, []);
+  }, [d]);
 
   const handleScan = useCallback((code: string) => {
     setLookupError('');
     startSearch(async () => {
       const product = await lookupProductByScan(code);
       if (!product) {
-        setLookupError('Mahsulot topilmadi yoki omborda emas.');
-        toast('Mahsulot topilmadi', 'error');
+        setLookupError(d.sales.productNotFound);
+        toast(d.sales.quickSale.notFoundToast, 'error');
         return;
       }
       addProduct(product);
-      toast(`${product.name} qo'shildi`, 'success');
+      toast(tr(d.sales.quickSale.added, { name: product.name }), 'success');
     });
-  }, [addProduct]);
+  }, [addProduct, d]);
 
   function updateQty(id: string, qty: number) {
     setCart((prev) => prev.map((line) => {
@@ -124,7 +127,7 @@ export default function QuickSaleModal({ open, onClose }: Props) {
       if (needsPrice(line)) {
         const price = Number(line.priceInput);
         if (!price || price <= 0) {
-          setSellError(`"${line.name}" uchun sotuv narxini kiriting.`);
+          setSellError(tr(d.sales.actions.enterPriceFor, { name: line.name }));
           return;
         }
       }
@@ -140,7 +143,7 @@ export default function QuickSaleModal({ open, onClose }: Props) {
       return;
     }
 
-    toast(res?.success ?? 'Sotildi.', 'success');
+    toast(res?.success ?? d.sales.quickSale.sold, 'success');
     setCart([]);
     onClose();
     router.refresh();
@@ -152,18 +155,18 @@ export default function QuickSaleModal({ open, onClose }: Props) {
     <div className="u-modal-overlay" onClick={() => !busy && onClose()}>
       <div className="u-modal u-modal--wide quick-sale-modal" role="dialog" aria-modal="true" aria-labelledby="quick-sale-title" onClick={(e) => e.stopPropagation()}>
         <div className="u-modal-head">
-          <h3 id="quick-sale-title">Tez sotuv</h3>
-          <button type="button" className="u-icon-btn" onClick={onClose} disabled={busy} aria-label="Yopish">
+          <h3 id="quick-sale-title">{d.sales.quickSale.title}</h3>
+          <button type="button" className="u-icon-btn" onClick={onClose} disabled={busy} aria-label={d.common.close}>
             <Icon name="close" size={18} />
           </button>
         </div>
 
         <div className="quick-sale-body">
           <div className="auth-field" style={{ margin: 0 }}>
-            <label htmlFor="quick-sale-scan">Skaner (pistolet)</label>
+            <label htmlFor="quick-sale-scan">{d.sales.quickSale.scanner}</label>
             <BarcodeInputField
               id="quick-sale-scan"
-              placeholder="Shtrix kodni skaner qiling..."
+              placeholder={d.sales.quickSale.scanPlaceholder}
               onScan={handleScan}
               clearOnScan
               defaultScanActive
@@ -176,16 +179,16 @@ export default function QuickSaleModal({ open, onClose }: Props) {
           )}
 
           {searching && (
-            <p className="quick-sale-hint" aria-live="polite">Qidirilmoqda...</p>
+            <p className="quick-sale-hint" aria-live="polite">{d.sales.searching}</p>
           )}
 
           {cart.length === 0 ? (
             <div className="sl-cart-empty">
               <Icon name="cart" size={32} />
-              <p>Mahsulot skaner qiling — savat shu yerda paydo bo&apos;ladi.</p>
+              <p>{d.sales.quickSale.emptyCart}</p>
             </div>
           ) : (
-            <ul className="sl-cart" aria-label="Savat">
+            <ul className="sl-cart" aria-label={d.sales.quickSale.cartAria}>
               {cart.map((line) => {
                 const unitPrice = needsPrice(line) ? Number(line.priceInput) || 0 : line.salePrice;
                 return (
@@ -193,7 +196,7 @@ export default function QuickSaleModal({ open, onClose }: Props) {
                     <div className="sl-cart-name">
                       <b>{line.name}</b>
                       <span>
-                        {line.barcode && <>Shtrix: {line.barcode}</>}
+                        {line.barcode && <>{tr(d.sales.quickSale.barcode, { code: line.barcode })}</>}
                         {line.barcode && line.imei && ' · '}
                         {line.imei && <code>{line.imei}</code>}
                       </span>
@@ -207,16 +210,16 @@ export default function QuickSaleModal({ open, onClose }: Props) {
                           value={line.priceInput}
                           onChange={(e) => updatePrice(line.id, e.target.value)}
                           className="quick-sale-price-input"
-                          placeholder="Narx"
-                          aria-label={`${line.name} narxi`}
+                          placeholder={d.common.price}
+                          aria-label={tr(d.sales.quickSale.priceAria, { name: line.name })}
                           disabled={busy}
                         />
                       ) : null}
                       {line.trackQuantity ? (
                         <div className="sl-qty">
-                          <button type="button" disabled={line.qty <= 1 || busy} onClick={() => updateQty(line.id, line.qty - 1)} aria-label="Kamaytirish">−</button>
+                          <button type="button" disabled={line.qty <= 1 || busy} onClick={() => updateQty(line.id, line.qty - 1)} aria-label={d.sales.newSale.decrease}>−</button>
                           <span aria-live="polite">{line.qty}</span>
-                          <button type="button" disabled={line.qty >= line.available || busy} onClick={() => updateQty(line.id, line.qty + 1)} aria-label="Ko'paytirish">+</button>
+                          <button type="button" disabled={line.qty >= line.available || busy} onClick={() => updateQty(line.id, line.qty + 1)} aria-label={d.sales.newSale.increase}>+</button>
                         </div>
                       ) : null}
                     </div>
@@ -224,7 +227,7 @@ export default function QuickSaleModal({ open, onClose }: Props) {
                       {fmtMoney(unitPrice * line.qty)}
                       {line.qty > 1 && <small>{line.qty} × {fmtMoney(unitPrice)}</small>}
                     </div>
-                    <button type="button" className="icon-btn sl-cart-del" title="O'chirish" aria-label={`${line.name} — savatdan olib tashlash`} onClick={() => removeLine(line.id)} disabled={busy}>
+                    <button type="button" className="icon-btn sl-cart-del" title={d.common.delete} aria-label={tr(d.sales.quickSale.removeAria, { name: line.name })} onClick={() => removeLine(line.id)} disabled={busy}>
                       <Icon name="close" size={16} />
                     </button>
                   </li>
@@ -235,14 +238,14 @@ export default function QuickSaleModal({ open, onClose }: Props) {
 
           <div className="quick-sale-foot">
             <div className="sl-cart-total">
-              <span>Jami</span>
-              <strong>{fmtMoney(total)} so&apos;m</strong>
+              <span>{d.common.total}</span>
+              <strong>{fmtMoney(total)} {d.common.sum}</strong>
             </div>
             <div className="u-modal-actions" style={{ margin: 0 }}>
-              <button type="button" className="btn btn-ghost" onClick={onClose} disabled={busy}>Bekor</button>
+              <button type="button" className="btn btn-ghost" onClick={onClose} disabled={busy}>{d.sales.quickSale.cancelShort}</button>
               <button type="button" className="btn btn-primary btn-with-icon" onClick={handleSell} disabled={busy || !cart.length}>
                 <Icon name="cart" size={16} />
-                {busy ? 'Sotilmoqda...' : 'Sotish'}
+                {busy ? d.sales.newSale.selling : d.sales.quickSale.sell}
               </button>
             </div>
           </div>

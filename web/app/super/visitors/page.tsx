@@ -2,11 +2,16 @@ import { requireSuperAdmin } from '@/lib/auth';
 import { getMasterModels } from '@/lib/masterDb';
 import { parseDeviceLabel } from '@/lib/visitAnalytics';
 import type { IVisitEvent } from '@/lib/models/master/SiteVisit';
+import { getDict } from '@/lib/i18n/server';
+import { tr } from '@/lib/i18n/fmt';
 import Link from 'next/link';
 import Icon from '@/components/icons/Icon';
 import { Kpi, PageTitle, Pill } from '@/components/super/ui';
 
-export const metadata = { title: 'Tashriflar — Super Admin' };
+export async function generateMetadata() {
+  const d = await getDict();
+  return { title: d.superPanel.visitors.metaTitle };
+}
 
 const ONLINE_MS = 5 * 60 * 1000;
 
@@ -27,9 +32,9 @@ function dayLabel(key: string): string {
   const [y, m, d] = key.split('-');
   return `${d}.${m}.${y}`;
 }
-function deviceType(ua?: string): string {
-  if (!ua) return 'Noma\'lum';
-  return /Mobi|Android|iPhone|iPod/i.test(ua) ? 'Mobil' : /iPad|Tablet/i.test(ua) ? 'Planshet' : 'Kompyuter';
+function deviceType(ua?: string): 'unknown' | 'mobile' | 'tablet' | 'desktop' {
+  if (!ua) return 'unknown';
+  return /Mobi|Android|iPhone|iPod/i.test(ua) ? 'mobile' : /iPad|Tablet/i.test(ua) ? 'tablet' : 'desktop';
 }
 function pageCount(events: IVisitEvent[]): number {
   const pages = events.filter((e) => e.type === 'page').length;
@@ -43,6 +48,8 @@ export default async function SuperVisitorsPage({
 }) {
   await requireSuperAdmin();
   const sp = await searchParams;
+  const d = await getDict();
+  const s = d.superPanel.visitors;
   const { SiteVisit } = await getMasterModels();
 
   // Tanlangan kun (default — bugun)
@@ -63,10 +70,10 @@ export default async function SuperVisitorsPage({
   // So'nggi 14 kun jadvali
   const days: { key: string; visits: number; signups: number; logins: number }[] = [];
   for (let i = 0; i < 14; i++) {
-    const d = new Date(Date.now() - i * 24 * 60 * 60 * 1000);
-    days.push({ key: dayKey(d), visits: 0, signups: 0, logins: 0 });
+    const dt = new Date(Date.now() - i * 24 * 60 * 60 * 1000);
+    days.push({ key: dayKey(dt), visits: 0, signups: 0, logins: 0 });
   }
-  const dayMap = new Map(days.map((d) => [d.key, d]));
+  const dayMap = new Map(days.map((x) => [x.key, x]));
   for (const v of last14) {
     const row = dayMap.get(dayKey(new Date(v.startedAt)));
     if (row) { row.visits++; if (v.signedUp) row.signups++; }
@@ -78,55 +85,55 @@ export default async function SuperVisitorsPage({
   return (
     <>
       <PageTitle
-        title="Tashriflar"
-        sub="Kim tashrif buyurdi, qaysi qurilmadan, nechta sahifa ko'rdi va hozir onlaynmi"
+        title={s.title}
+        sub={s.sub}
         actions={
-          <nav className="ux-month sa-daynav" aria-label="Kun tanlash">
-            <Link href={`/super/visitors?date=${shiftDay(selectedDay, -1)}`} aria-label="Oldingi kun">
+          <nav className="ux-month sa-daynav" aria-label={s.dayNavAria}>
+            <Link href={`/super/visitors?date=${shiftDay(selectedDay, -1)}`} aria-label={s.prevDay}>
               <Icon name="chevron" size={16} strokeWidth={2.4} className="sa-rot90" />
             </Link>
             <span className="ux-month-cur" aria-current="date">
-              {selectedDay === today ? 'Bugun' : selectedDay === shiftDay(today, -1) ? 'Kecha' : dayLabel(selectedDay)}
+              {selectedDay === today ? d.common.today : selectedDay === shiftDay(today, -1) ? d.common.yesterday : dayLabel(selectedDay)}
             </span>
             <Link
               href={`/super/visitors?date=${shiftDay(selectedDay, 1)}`}
-              aria-label="Keyingi kun"
+              aria-label={s.nextDay}
               aria-disabled={selectedDay >= today ? 'true' : undefined}
               tabIndex={selectedDay >= today ? -1 : undefined}
             >
               <Icon name="chevron" size={16} strokeWidth={2.4} className="sa-rot-90" />
             </Link>
-            {selectedDay !== today && <Link href="/super/visitors">Bugun</Link>}
+            {selectedDay !== today && <Link href="/super/visitors">{d.common.today}</Link>}
           </nav>
         }
       />
 
       <div className="ux-strip">
-        <Kpi label="Tashriflar" value={dayVisits.length} icon="chart" tone="b" delta={selectedDay === today ? 'Bugun' : dayLabel(selectedDay)} />
-        <Kpi label="Hozir onlayn" value={onlineCount} icon="globe" tone="o" delta="So'nggi 5 daqiqa" deltaTone={onlineCount > 0 ? 'ok' : undefined} />
-        <Kpi label="Ro'yxatdan o'tdi" value={signedToday} icon="signup" tone="v" />
-        <Kpi label="Do'kon foydalanuvchisi" value={knownToday} icon="store" tone="a" />
+        <Kpi label={s.title} value={dayVisits.length} icon="chart" tone="b" delta={selectedDay === today ? d.common.today : dayLabel(selectedDay)} />
+        <Kpi label={s.onlineNow} value={onlineCount} icon="globe" tone="o" delta={s.last5min} deltaTone={onlineCount > 0 ? 'ok' : undefined} />
+        <Kpi label={s.signedUp} value={signedToday} icon="signup" tone="v" />
+        <Kpi label={s.storeUser} value={knownToday} icon="store" tone="a" />
       </div>
 
       {/* Tanlangan kun tashriflari */}
       <section className="sa-card">
         <div className="sa-card-h">
           <div>
-            <h2>Tashriflar ro&apos;yxati</h2>
-            <p>{dayVisits.length} ta sessiya{onlineCount > 0 ? ` · ${onlineCount} onlayn` : ''}</p>
+            <h2>{s.listTitle}</h2>
+            <p>{tr(s.nSessions, { n: dayVisits.length })}{onlineCount > 0 ? tr(s.nOnline, { n: onlineCount }) : ''}</p>
           </div>
         </div>
         <div className="sa-table-wrap">
           <table className="sa-table">
             <thead>
               <tr>
-                <th>Holat</th>
-                <th>Foydalanuvchi</th>
-                <th>Qurilma</th>
-                <th>OS / brauzer</th>
-                <th className="sa-td-c">Sahifalar</th>
-                <th>Kirdi</th>
-                <th>Chiqdi</th>
+                <th>{s.colStatus}</th>
+                <th>{s.colUser}</th>
+                <th>{s.colDevice}</th>
+                <th>{s.colOs}</th>
+                <th className="sa-td-c">{s.colPages}</th>
+                <th>{s.colIn}</th>
+                <th>{s.colOut}</th>
               </tr>
             </thead>
             <tbody>
@@ -134,14 +141,14 @@ export default async function SuperVisitorsPage({
                 <tr><td colSpan={7}>
                   <div className="ux-empty">
                     <span className="ux-empty-ic"><Icon name="chart" size={24} /></span>
-                    <b>Bu kuni tashrif yo&apos;q</b>
-                    <p>Pastdagi «So&apos;nggi 14 kun» ro&apos;yxatidan boshqa kunni tanlang.</p>
+                    <b>{s.noVisitsTitle}</b>
+                    <p>{s.noVisitsText}</p>
                   </div>
                 </td></tr>
               ) : dayVisits.map((v) => {
                 const online = new Date(v.lastSeenAt).getTime() >= onlineCutoff.getTime();
                 const known = v.signedUp || !!v.organizationSlug;
-                const statusLabel = online ? 'Onlayn' : known ? 'Chiqdi' : 'Faolsiz';
+                const statusLabel = online ? s.stOnline : known ? s.stLeft : s.stIdle;
                 return (
                   <tr key={v.sessionId}>
                     <td>
@@ -150,9 +157,9 @@ export default async function SuperVisitorsPage({
                     <td>
                       {v.organizationSlug
                         ? <span className="sa-td-main">{v.organizationSlug}</span>
-                        : <span className="sa-td-sub" style={{ fontStyle: 'italic', margin: 0 }}>Mehmon</span>}
+                        : <span className="sa-td-sub" style={{ fontStyle: 'italic', margin: 0 }}>{s.guest}</span>}
                     </td>
-                    <td>{deviceType(v.userAgent)}</td>
+                    <td>{s.device[deviceType(v.userAgent)]}</td>
                     <td>{parseDeviceLabel(v.userAgent)}</td>
                     <td className="sa-td-c"><Pill tone="br">{pageCount(v.events)}</Pill></td>
                     <td>{timeOnly(v.startedAt)}</td>
@@ -167,27 +174,27 @@ export default async function SuperVisitorsPage({
 
       {/* So'nggi 14 kun */}
       <section className="sa-card">
-        <div className="sa-card-h"><div><h2>So&apos;nggi 14 kun</h2><p>Kunni bosing — o&apos;sha kun tashriflari ochiladi</p></div></div>
+        <div className="sa-card-h"><div><h2>{s.last14}</h2><p>{s.last14Text}</p></div></div>
         <div className="sa-table-wrap">
           <table className="sa-table">
             <thead>
               <tr>
-                <th>Sana</th>
-                <th className="sa-td-r">Tashriflar</th>
-                <th className="sa-td-r">Ro&apos;yxatdan</th>
-                <th className="sa-td-r">Kirish</th>
+                <th>{d.common.date}</th>
+                <th className="sa-td-r">{s.title}</th>
+                <th className="sa-td-r">{s.colSignups}</th>
+                <th className="sa-td-r">{s.colLogins}</th>
               </tr>
             </thead>
             <tbody>
-              {days.map((d) => (
-                <tr key={d.key} aria-current={d.key === selectedDay ? 'date' : undefined} className={d.key === selectedDay ? 'sa-tr-on' : undefined}>
+              {days.map((x) => (
+                <tr key={x.key} aria-current={x.key === selectedDay ? 'date' : undefined} className={x.key === selectedDay ? 'sa-tr-on' : undefined}>
                   <td>
-                    <Link href={`/super/visitors?date=${d.key}`} className="sa-td-main">{dayLabel(d.key)}</Link>
-                    {d.key === today && <> <Pill tone="ok">bugun</Pill></>}
+                    <Link href={`/super/visitors?date=${x.key}`} className="sa-td-main">{dayLabel(x.key)}</Link>
+                    {x.key === today && <> <Pill tone="ok">{s.todayPill}</Pill></>}
                   </td>
-                  <td className="sa-td-r"><b>{d.visits}</b></td>
-                  <td className="sa-td-r" style={{ color: d.signups ? 'var(--accent)' : 'var(--ink-3)' }}>{d.signups}</td>
-                  <td className="sa-td-r" style={{ color: 'var(--ink-3)' }}>{d.logins}</td>
+                  <td className="sa-td-r"><b>{x.visits}</b></td>
+                  <td className="sa-td-r" style={{ color: x.signups ? 'var(--accent)' : 'var(--ink-3)' }}>{x.signups}</td>
+                  <td className="sa-td-r" style={{ color: 'var(--ink-3)' }}>{x.logins}</td>
                 </tr>
               ))}
             </tbody>

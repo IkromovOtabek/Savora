@@ -9,10 +9,13 @@ import KassaDateFilter from '@/components/tenant/KassaDateFilter';
 import BackLink from '@/components/ui/BackLink';
 import Icon from '@/components/icons/Icon';
 import Tilt from '@/components/ui/Tilt';
+import { getDict } from '@/lib/i18n/server';
+import { plural, tr } from '@/lib/i18n/fmt';
 import '@/components/tenant/styles/finance.css';
 
-export async function generateMetadata({ params }: { params: Promise<{ branchId: string }> }) {
-  return { title: 'Naqd kassa — batafsil — Savora' };
+export async function generateMetadata() {
+  const d = await getDict();
+  return { title: d.sales.kassa.detailMetaTitle };
 }
 
 export default async function KassaBranchPage({
@@ -25,6 +28,8 @@ export default async function KassaBranchPage({
   const { branchId } = await params;
   const sp = await searchParams;
   const { user, Sale, Branch } = await getTenantSession();
+  const d = await getDict();
+  const k = d.sales.kassa;
 
   if (!Types.ObjectId.isValid(branchId)) notFound();
   // Filial login faqat o'z filiali kassasini ko'radi
@@ -59,35 +64,35 @@ export default async function KassaBranchPage({
         <div>
           <div style={{ marginBottom: 8 }}>
             <BackLink href="/app/kassa" className="btn btn-plain btn-sm">
-              Naqd kassa
+              {k.title}
             </BackLink>
           </div>
           <h1 className="t-page-title">{branch.name}</h1>
-          <p className="t-page-sub">Naqd to&apos;lovlar · {fmtDate(start)}</p>
+          <p className="t-page-sub">{k.cashPayments} · {fmtDate(start)}</p>
         </div>
       </div>
       {/* Kompyuterda yuqori paneldagi "Yangi sotuv" yetarli; telefonda — pastki o'ng tugma */}
       <Link href="/app/sales/new" className="ux-fab">
-        <Icon name="plus" size={20} /> Sotuv
+        <Icon name="plus" size={20} /> {d.common.sale}
       </Link>
 
       <KassaDateFilter initialDate={label} basePath={`/app/kassa/${branchId}`} today={today} />
 
       <Tilt stack as="section" className="fn-hero">
         <div className="fn-hero-top">
-          <span className="fn-hero-label">Kunlik naqd tushum</span>
+          <span className="fn-hero-label">{k.dailyCash}</span>
           <span className="fn-hero-chip">
-            <Icon name="clock" size={14} /> {label === today ? 'Bugun' : fmtDate(start)}
+            <Icon name="clock" size={14} /> {label === today ? d.common.today : fmtDate(start)}
           </span>
         </div>
-        <div className="fn-hero-value fn-num ux-z">{fmtMoney(total)}<span className="fn-cur">so&apos;m</span></div>
+        <div className="fn-hero-value fn-num ux-z">{fmtMoney(total)}<span className="fn-cur">{d.common.sum}</span></div>
         <div className="fn-hero-grid">
           <div className="fn-hero-stat">
-            <span className="fn-hero-stat-l">To&apos;lovlar soni</span>
-            <span className="fn-hero-stat-v fn-num">{rows.length} ta</span>
+            <span className="fn-hero-stat-l">{k.paymentsCount}</span>
+            <span className="fn-hero-stat-v fn-num">{tr(d.common.nPcs, { n: rows.length })}</span>
           </div>
           <div className="fn-hero-stat">
-            <span className="fn-hero-stat-l">O&apos;rtacha to&apos;lov</span>
+            <span className="fn-hero-stat-l">{k.avgPayment}</span>
             <span className="fn-hero-stat-v fn-num">{fmtMoney(avg)}</span>
           </div>
         </div>
@@ -95,15 +100,15 @@ export default async function KassaBranchPage({
 
       <section className="fn-panel" aria-labelledby="kassa-tl">
         <div className="fn-panel-head">
-          <h2 id="kassa-tl">Kun davomida</h2>
-          <small>{rows.length} ta to&apos;lov</small>
+          <h2 id="kassa-tl">{k.duringDay}</h2>
+          <small>{tr(plural(rows.length, d.sales.nPayments), { n: rows.length })}</small>
         </div>
         {timeline.length === 0 ? (
           <div className="ux-empty">
             <span className="ux-empty-ic"><Icon name="wallet" size={26} /></span>
-            <b>Bu kunda naqd tushum yo&apos;q</b>
-            <p>Boshqa sanani tanlang yoki yangi sotuv qo&apos;shing.</p>
-            <Link href="/app/sales/new" className="btn btn-tinted btn-sm">Sotuv qo&apos;shish</Link>
+            <b>{k.emptyTitle}</b>
+            <p>{k.emptyHint}</p>
+            <Link href="/app/sales/new" className="btn btn-tinted btn-sm">{k.addSale}</Link>
           </div>
         ) : (
           <ol className="fn-timeline">

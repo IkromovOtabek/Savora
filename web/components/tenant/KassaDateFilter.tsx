@@ -3,7 +3,9 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import Icon from '@/components/icons/Icon';
-import { monthLabel } from '@/components/ui/MonthNav';
+import { useI18n } from '@/lib/i18n/client';
+import { MONTHS, MONTHS_GENITIVE, tr } from '@/lib/i18n/fmt';
+import type { Locale } from '@/lib/i18n/config';
 import '@/components/tenant/styles/finance.css';
 
 /** YYYY-MM-DD ga `days` kun qo'shadi (UTC — server/client bir xil natija) */
@@ -14,11 +16,12 @@ function shiftDay(date: string, days: number): string {
   return d.toISOString().slice(0, 10);
 }
 
-/** "2026-10-16" → "16-oktabr, 2026" (brauzer tiliga bog'liq emas — ruscha chiqmaydi) */
-function dayLabel(date: string): string {
+/** "2026-10-16" → "16-oktabr, 2026" / "16 октября 2026" (brauzer tiliga bog'liq emas) */
+function dayLabel(date: string, locale: Locale): string {
   const [y, m, d] = date.split('-');
   if (!y || !m || !d) return date;
-  return `${Number(d)}-${monthLabel(`${y}-${m}`)}`;
+  const mi = (Number(m) || 1) - 1;
+  return locale === 'ru' ? `${Number(d)} ${MONTHS_GENITIVE.ru[mi]} ${y}` : `${Number(d)}-${MONTHS.uz[mi]}, ${y}`;
 }
 
 export default function KassaDateFilter({
@@ -32,6 +35,7 @@ export default function KassaDateFilter({
   today?: string;
 }) {
   const router = useRouter();
+  const { locale, d } = useI18n();
   const todayStr = today ?? initialDate;
   const yesterday = shiftDay(todayStr, -1);
   const prev = shiftDay(initialDate, -1);
@@ -41,9 +45,9 @@ export default function KassaDateFilter({
   const isOther = initialDate !== todayStr && initialDate !== yesterday;
 
   return (
-    <nav className="fn-datebar" aria-label="Sana tanlash">
+    <nav className="fn-datebar" aria-label={d.sales.kassa.dateAria}>
       <div className="fn-pills">
-        <Link href={href(prev)} className="fn-pill" aria-label="Oldingi kun">
+        <Link href={href(prev)} className="fn-pill" aria-label={d.sales.kassa.prevDay}>
           <Icon name="chevron" size={18} className="fn-l" />
         </Link>
         <Link
@@ -51,17 +55,17 @@ export default function KassaDateFilter({
           className={`fn-pill${initialDate === yesterday ? ' fn-pill--on' : ''}`}
           aria-current={initialDate === yesterday ? 'date' : undefined}
         >
-          Kecha
+          {d.common.yesterday}
         </Link>
         <Link
           href={href(todayStr)}
           className={`fn-pill${initialDate === todayStr ? ' fn-pill--on' : ''}`}
           aria-current={initialDate === todayStr ? 'date' : undefined}
         >
-          Bugun
+          {d.common.today}
         </Link>
         {canNext ? (
-          <Link href={href(next)} className="fn-pill" aria-label="Keyingi kun">
+          <Link href={href(next)} className="fn-pill" aria-label={d.sales.kassa.nextDay}>
             <Icon name="chevron" size={18} className="fn-r" />
           </Link>
         ) : (
@@ -76,8 +80,8 @@ export default function KassaDateFilter({
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
           <rect x="3" y="5" width="18" height="16" rx="3" /><path d="M3 10h18M8 3v4M16 3v4" />
         </svg>
-        <span className="fn-datepick-text">{dayLabel(initialDate)}</span>
-        <span className="sr-only">Boshqa sanani tanlash, tanlangan: {dayLabel(initialDate)}</span>
+        <span className="fn-datepick-text">{dayLabel(initialDate, locale)}</span>
+        <span className="sr-only">{tr(d.sales.kassa.otherDate, { date: dayLabel(initialDate, locale) })}</span>
         <input
           key={initialDate}
           type="date"

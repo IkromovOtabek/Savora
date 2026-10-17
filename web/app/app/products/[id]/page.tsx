@@ -2,7 +2,7 @@ import { notFound } from 'next/navigation';
 import { Types } from 'mongoose';
 import { getTenantSession } from '@/lib/tenantSession';
 import { isImeiEnabled } from '@/lib/features';
-import { PRODUCT_STATUS_LABELS, ProductStatus } from '@/lib/models/tenant/Product';
+import { ProductStatus } from '@/lib/models/tenant/Product';
 import ProductForm from '@/components/tenant/ProductForm';
 import DeleteProductButton from '@/components/tenant/DeleteProductButton';
 import ProductHistory from '@/components/tenant/ProductHistory';
@@ -12,12 +12,17 @@ import BackLink from '@/components/ui/BackLink';
 import Icon from '@/components/icons/Icon';
 import Tilt from '@/components/ui/Tilt';
 import MoreMenu from '@/components/ui/MoreMenu';
+import { getDict } from '@/lib/i18n/server';
+import { tr } from '@/lib/i18n/fmt';
 
 function fmtMoney(n: number) {
   return new Intl.NumberFormat('uz-UZ').format(n);
 }
 
-export const metadata = { title: 'Mahsulot — Savora' };
+export async function generateMetadata() {
+  const d = await getDict();
+  return { title: d.stock.detail.metaTitle };
+}
 
 export default async function ProductDetailPage({
   params,
@@ -28,6 +33,8 @@ export default async function ProductDetailPage({
 }) {
   const { id } = await params;
   const sp = await searchParams;
+  const d = await getDict();
+  const t = d.stock.detail;
   const { user, Product, Branch, CreditBank, org, features } = await getTenantSession();
   const isAdmin = user.role === 'admin';
 
@@ -62,15 +69,15 @@ export default async function ProductDetailPage({
   return (
     <div className="st-detail">
       <div className="st-back">
-        <BackLink href="/app/products" className="btn btn-plain btn-sm">Ombor</BackLink>
+        <BackLink href="/app/products" className="btn btn-plain btn-sm">{d.stock.form.back}</BackLink>
       </div>
 
       {sp?.created === '1' && (
-        <div className="auth-alert auth-alert--info" role="status">Mahsulot muvaffaqiyatli qo&apos;shildi.</div>
+        <div className="auth-alert auth-alert--info" role="status">{t.createdOk}</div>
       )}
       {sp?.deleteBlocked === '1' && (
         <div className="auth-alert auth-alert--error" role="alert">
-          Bu mahsulotning sotuv tarixi bor — o&apos;chirib bo&apos;lmaydi. Kerak bo&apos;lsa, sotuvni bekor qiling yoki mahsulotni tahrirlang.
+          {t.deleteBlocked}
         </div>
       )}
 
@@ -86,10 +93,10 @@ export default async function ProductDetailPage({
         </div>
         <div className="st-hero-body">
           <div className="st-hero-top">
-            <span className={`st-pill st-pill--${status}`}>{PRODUCT_STATUS_LABELS[status] ?? status}</span>
+            <span className={`st-pill st-pill--${status}`}>{d.stock.status[status] ?? status}</span>
             {trackQuantity && (
               <span className={`st-qty${available === 0 ? ' st-qty--zero' : available <= 2 ? ' st-qty--low' : ''}`}>
-                {available}<small>/{product.quantity ?? 0} qoldi</small>
+                {available}<small>/{product.quantity ?? 0} {t.left}</small>
               </span>
             )}
           </div>
@@ -97,37 +104,37 @@ export default async function ProductDetailPage({
           <div className="st-hero-codes">
             {product.productId && <span>ID <code className="st-mono">{product.productId}</code></span>}
             {showImei && product.imei && <span>IMEI <code className="st-mono">{product.imei}</code></span>}
-            {!showImei && product.barcode && <span>Kod <code className="st-mono">{product.barcode}</code></span>}
+            {!showImei && product.barcode && <span>{t.code} <code className="st-mono">{product.barcode}</code></span>}
           </div>
           <div className="st-hero-price ux-z">
             {salePrice > 0 ? (
-              <><b>{fmtMoney(salePrice)}</b><span>so&apos;m · sotuv narxi</span></>
+              <><b>{fmtMoney(salePrice)}</b><span>{t.salePriceSuffix}</span></>
             ) : (
-              <span>Sotuv narxi kiritilmagan</span>
+              <span>{t.noSalePrice}</span>
             )}
           </div>
         </div>
 
         <dl className="st-facts" style={{ margin: 0 }}>
           <div className="st-fact">
-            <dt className="st-fact-l">Filial</dt>
+            <dt className="st-fact-l">{d.common.branch}</dt>
             <dd className="st-fact-v" style={{ margin: 0 }}>{branchName}</dd>
           </div>
           {trackQuantity && (
             <div className="st-fact">
-              <dt className="st-fact-l">Sotilgan</dt>
-              <dd className="st-fact-v" style={{ margin: 0 }}>{product.soldQuantity ?? 0} ta</dd>
+              <dt className="st-fact-l">{t.sold}</dt>
+              <dd className="st-fact-v" style={{ margin: 0 }}>{tr(d.common.nPcs, { n: product.soldQuantity ?? 0 })}</dd>
             </div>
           )}
           {canViewCost && (
             <div className="st-fact">
-              <dt className="st-fact-l">Kelish narxi</dt>
+              <dt className="st-fact-l">{t.purchasePrice}</dt>
               <dd className="st-fact-v" style={{ margin: 0 }}>{fmtMoney(product.purchasePrice ?? 0)}</dd>
             </div>
           )}
           {canViewCost && salePrice > 0 && (
             <div className="st-fact">
-              <dt className="st-fact-l">Foyda (1 dona)</dt>
+              <dt className="st-fact-l">{t.profitUnit}</dt>
               <dd className={`st-fact-v ${profit >= 0 ? 'st-fact-v--ok' : 'st-fact-v--bad'}`} style={{ margin: 0 }}>
                 {profit > 0 ? '+' : ''}{fmtMoney(profit)}
               </dd>
@@ -135,13 +142,13 @@ export default async function ProductDetailPage({
           )}
           {product.color && (
             <div className="st-fact">
-              <dt className="st-fact-l">Rang</dt>
+              <dt className="st-fact-l">{t.color}</dt>
               <dd className="st-fact-v" style={{ margin: 0 }}>{product.color}</dd>
             </div>
           )}
           {product.createdAt && (
             <div className="st-fact">
-              <dt className="st-fact-l">Qo&apos;shilgan</dt>
+              <dt className="st-fact-l">{t.addedAt}</dt>
               <dd className="st-fact-v" style={{ margin: 0 }}>
                 {new Date(product.createdAt).toLocaleDateString('uz-UZ', { day: '2-digit', month: '2-digit', year: 'numeric' })}
               </dd>
@@ -150,7 +157,7 @@ export default async function ProductDetailPage({
         </dl>
       </Tilt>
 
-      <div className="st-actionbar" role="toolbar" aria-label="Mahsulot amallari">
+      <div className="st-actionbar" role="toolbar" aria-label={t.toolbarLabel}>
         {status === 'in_stock' && (canSell || canTransfer) && (
           <ProductRowActions
             variant="bar"
@@ -169,12 +176,12 @@ export default async function ProductDetailPage({
           />
         )}
         <a href="#st-edit" className="btn btn-tinted btn-with-icon">
-          <Icon name="edit" size={17} /> Tahrirlash
+          <Icon name="edit" size={17} /> {d.common.edit}
         </a>
         {/* O'chirish — xavfli amal: asosiy panelda emas, ⋯ ichida "Xavfli zona"ga olib boradi */}
         {canDelete && (
-          <MoreMenu label="Boshqa amallar">
-            <a href="#st-danger" className="ux-danger"><Icon name="trash" size={18} /> O&apos;chirish</a>
+          <MoreMenu label={t.moreLabel}>
+            <a href="#st-danger" className="ux-danger"><Icon name="trash" size={18} /> {d.common.delete}</a>
           </MoreMenu>
         )}
       </div>

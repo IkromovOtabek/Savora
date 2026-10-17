@@ -2,32 +2,44 @@ import { Suspense } from 'react';
 import Link from 'next/link';
 import { getTenantSession } from '@/lib/tenantSession';
 import { loadUserPermissions } from '@/lib/permissionGuard';
-import { getOrCreateTodayReport, toReportView, usedToday, fallbackReasonLabel } from '@/lib/ai/report';
-import { AI_DAILY_LIMIT, AI_HEALTH_LABELS, AI_ROLE_LABELS, type AiHealth, type AiPriority, type AiSnapshot } from '@/lib/ai/types';
+import { getOrCreateTodayReport, toReportView, usedToday } from '@/lib/ai/report';
+import { AI_DAILY_LIMIT, type AiHealth, type AiPriority, type AiSnapshot } from '@/lib/ai/types';
 import { fmtDateTime, fmtMoney } from '@/lib/format';
+import { getDict, type Dict } from '@/lib/i18n/server';
+import { tr } from '@/lib/i18n/fmt';
 import Icon from '@/components/icons/Icon';
 import Tilt from '@/components/ui/Tilt';
 import { AiRerunButton, AiTaskButton } from '@/components/tenant/TaskUi';
 import '@/components/tenant/styles/ai.css';
 
-export const metadata = { title: 'AI yordamchi — Savora' };
+export async function generateMetadata() {
+  const d = await getDict();
+  return { title: d.crm.ai.metaTitle };
+}
 // Tahlil 30 soniyagacha davom etishi mumkin
 export const maxDuration = 60;
 
 const PRIORITY_TONE: Record<AiPriority, string> = { yuqori: 'bad', 'o\'rta': 'warn', past: 'mut' };
-const PRIORITY_LABEL: Record<AiPriority, string> = { yuqori: 'Yuqori', 'o\'rta': 'O\'rta', past: 'Past' };
 const HEALTH_TONE: Record<AiHealth, string> = { yaxshi: 'ok', 'o\'rta': 'warn', xavfli: 'bad' };
 
-export default function AiPage() {
+/** Qoidalar/AI sababi → lug'atdagi izoh (noma'lum sabab — umumiy) */
+function fallbackNote(d: Dict, reason?: string): string | null {
+  if (!reason) return null;
+  const f = d.crm.ai.fallback;
+  return reason in f ? f[reason as keyof typeof f] : f.other;
+}
+
+export default async function AiPage() {
+  const d = await getDict();
   return (
     <div className="ai-page">
       <div className="t-page-head">
         <div>
-          <h1 className="t-page-title">AI yordamchi</h1>
-          <p className="t-page-sub">Oxirgi 30 kun bo&apos;yicha tahlil, tavsiyalar va topshiriqlar</p>
+          <h1 className="t-page-title">{d.crm.ai.title}</h1>
+          <p className="t-page-sub">{d.crm.ai.sub}</p>
         </div>
       </div>
-      <Suspense fallback={<AiSkeleton />}>
+      <Suspense fallback={<AiSkeleton text={d.crm.ai.analyzing} />}>
         <AiReportSection />
       </Suspense>
     </div>
@@ -37,6 +49,8 @@ export default function AiPage() {
 async function AiReportSection() {
   const models = await getTenantSession();
   const { user, org, features } = models;
+  const d = await getDict();
+  const A = d.crm.ai;
   const perms = await loadUserPermissions(user);
   const { report, limited } = await getOrCreateTodayReport(models, user, { businessType: org.businessType });
   const used = await usedToday(models.conn);
@@ -45,8 +59,8 @@ async function AiReportSection() {
     return (
       <div className="t-card ux-empty">
         <span className="ux-empty-ic" aria-hidden="true"><Icon name="sparkles" size={26} /></span>
-        <b>Tahlil hozircha mavjud emas</b>
-        <p>{limited ? `Bugungi tahlil limiti tugadi (${AI_DAILY_LIMIT} ta). Ertaga qayta urinib ko'ring.` : 'Keyinroq qayta urinib ko\'ring.'}</p>
+        <b>{A.unavailableTitle}</b>
+        <p>{limited ? tr(A.limitReached, { n: AI_DAILY_LIMIT }) : A.tryLater}</p>
       </div>
     );
   }
@@ -56,7 +70,7 @@ async function AiReportSection() {
   const r = view.result;
   const canAddTasks = features.tasks && perms.has('tasks.manage');
   const isAi = view.source === 'ai';
-  const note = isAi ? null : fallbackReasonLabel(view.fallbackReason);
+  const note = isAi ? null : fallbackNote(d, view.fallbackReason);
   const wow = snap?.week?.changePct ?? null;
 
   return (
@@ -65,41 +79,41 @@ async function AiReportSection() {
         <Tilt stack className={`ai-hero ai-hero--${HEALTH_TONE[r.health]}`} as="section" max={4}>
           <div className="ai-hero-row">
             <span className="ai-hero-ic" aria-hidden="true"><Icon name="sparkles" size={18} /></span>
-            <span className="ai-hero-l">Biznes holati</span>
-            <span className={`ai-badge ai-badge--${isAi ? 'ai' : 'rules'}`}>{isAi ? 'AI' : 'Qoidalar asosida'}</span>
+            <span className="ai-hero-l">{A.businessState}</span>
+            <span className={`ai-badge ai-badge--${isAi ? 'ai' : 'rules'}`}>{isAi ? 'AI' : A.rulesBased}</span>
           </div>
           <div className="ai-hero-health ux-z">
             <span className={`ai-dot ai-dot--${HEALTH_TONE[r.health]}`} aria-hidden="true" />
-            {AI_HEALTH_LABELS[r.health]}
+            {A.health[r.health]}
           </div>
           <p className="ai-hero-sum">{r.summary}</p>
           <div className="ai-hero-foot">
-            <span className="ai-hero-meta">Yangilandi: {fmtDateTime(view.createdAt)} · bugun {used}/{AI_DAILY_LIMIT}</span>
+            <span className="ai-hero-meta">{tr(A.updatedAt, { date: fmtDateTime(view.createdAt), used, limit: AI_DAILY_LIMIT })}</span>
             <AiRerunButton disabled={used >= AI_DAILY_LIMIT} />
           </div>
           {note && <p className="ai-hero-note">{note}</p>}
-          {limited && <p className="ai-hero-note">Bugungi limit tugadi — oxirgi tahlil ko&apos;rsatilmoqda.</p>}
+          {limited && <p className="ai-hero-note">{A.limitNote}</p>}
         </Tilt>
 
         {snap?.revenue && (
           <div className="ai-kpis ux-strip">
-            <Kpi icon="cart" label="30 kunlik savdo" value={fmtMoney(snap.revenue.total)} unit="so'm" sub={`${snap.revenue.salesCount} ta sotuv`} />
-            <Kpi icon="wallet" tone="green" label="O'rtacha chek" value={fmtMoney(snap.revenue.avgCheck)} unit="so'm" sub="bitta sotuv" />
+            <Kpi icon="cart" label={A.kpiSales} value={fmtMoney(snap.revenue.total)} unit={d.common.sum} sub={tr(A.kpiSalesSub, { n: snap.revenue.salesCount })} />
+            <Kpi icon="wallet" tone="green" label={A.kpiAvgCheck} value={fmtMoney(snap.revenue.avgCheck)} unit={d.common.sum} sub={A.kpiAvgCheckSub} />
             <Kpi
               icon="chart"
               tone={wow !== null && wow < 0 ? 'red' : 'gold'}
-              label="Hafta"
+              label={A.kpiWeek}
               value={wow === null ? '—' : `${wow > 0 ? '+' : ''}${wow}`}
               unit={wow === null ? '' : '%'}
-              sub="oldingi haftaga nisbatan"
+              sub={A.kpiWeekSub}
             />
             <Kpi
               icon="clock"
               tone={snap.nasiya.overdue.share > 0.15 ? 'red' : 'gray'}
-              label="Muddati o'tgan"
+              label={A.kpiOverdue}
               value={String(Math.round(snap.nasiya.overdue.share * 100))}
               unit="%"
-              sub={`${fmtMoney(snap.nasiya.overdue.amount)} so'm`}
+              sub={`${fmtMoney(snap.nasiya.overdue.amount)} ${d.common.sum}`}
             />
           </div>
         )}
@@ -107,7 +121,7 @@ async function AiReportSection() {
 
       {r.insights.length > 0 && (
         <section aria-labelledby="ai-ins-h">
-          <div className="t-group-head"><h2 id="ai-ins-h">Kuzatuvlar</h2></div>
+          <div className="t-group-head"><h2 id="ai-ins-h">{A.insights}</h2></div>
           <div className="ai-insights">
             {r.insights.map((it, i) => (
               <article key={i} className="ai-insight t-card">
@@ -122,16 +136,16 @@ async function AiReportSection() {
 
       <div className="ai-cols">
         <section aria-labelledby="ai-rec-h">
-          <div className="t-group-head"><h2 id="ai-rec-h">Tavsiyalar</h2></div>
+          <div className="t-group-head"><h2 id="ai-rec-h">{A.recommendations}</h2></div>
           {r.recommendations.length === 0 ? (
-            <div className="t-card ux-empty"><b>Hozircha tavsiya yo&apos;q</b><p>Ko&apos;rsatkichlar me&apos;yorda.</p></div>
+            <div className="t-card ux-empty"><b>{A.noRecTitle}</b><p>{A.noRecText}</p></div>
           ) : (
             <ol className="ai-recs t-card">
               {r.recommendations.map((rec, i) => (
                 <li key={i} className="ai-rec">
                   <div className="ai-rec-h">
                     <b>{rec.title}</b>
-                    <span className={`ai-pill ai-pill--${PRIORITY_TONE[rec.priority]}`}>{PRIORITY_LABEL[rec.priority]}</span>
+                    <span className={`ai-pill ai-pill--${PRIORITY_TONE[rec.priority]}`}>{d.crm.tasks.priority[rec.priority]}</span>
                   </div>
                   <p>{rec.detail}</p>
                   {rec.impact && <small className="ai-rec-impact"><Icon name="chart" size={13} /> {rec.impact}</small>}
@@ -143,11 +157,11 @@ async function AiReportSection() {
 
         <section aria-labelledby="ai-task-h">
           <div className="t-group-head">
-            <h2 id="ai-task-h">Taklif etilgan topshiriqlar</h2>
-            {features.tasks && <Link href="/app/tasks" className="t-link">Topshiriqlar</Link>}
+            <h2 id="ai-task-h">{A.suggestedTasks}</h2>
+            {features.tasks && <Link href="/app/tasks" className="t-link">{d.crm.tasks.title}</Link>}
           </div>
           {r.tasks.length === 0 ? (
-            <div className="t-card ux-empty"><b>Topshiriq taklif qilinmadi</b></div>
+            <div className="t-card ux-empty"><b>{A.noTasks}</b></div>
           ) : (
             <ul className="ai-tasks t-card">
               {r.tasks.map((t, i) => {
@@ -157,10 +171,10 @@ async function AiReportSection() {
                     <div className="ai-task-main">
                       <b>{t.title}</b>
                       {t.detail && <p>{t.detail}</p>}
-                      <small>{AI_ROLE_LABELS[t.role]} · {t.dueInDays === 0 ? 'bugun' : `${t.dueInDays} kun ichida`}</small>
+                      <small>{d.crm.tasks.roles[t.role]} · {t.dueInDays === 0 ? A.dueToday : tr(A.dueInDays, { n: t.dueInDays })}</small>
                     </div>
                     {canAddTasks && (added ? (
-                      <Link href="/app/tasks" className="btn btn-ghost btn-sm btn-with-icon"><Icon name="check" size={14} /> Qo&apos;shilgan</Link>
+                      <Link href="/app/tasks" className="btn btn-ghost btn-sm btn-with-icon"><Icon name="check" size={14} /> {A.added}</Link>
                     ) : (
                       <AiTaskButton reportId={view.id} index={i} />
                     ))}
@@ -173,8 +187,7 @@ async function AiReportSection() {
       </div>
 
       <p className="ai-privacy">
-        <Icon name="lock" size={14} /> Tahlil uchun faqat umumiy ko&apos;rsatkichlar (summa, son, mahsulot va filial nomlari) ishlatiladi —
-        mijoz ismi, telefoni va IMEI tashqariga yuborilmaydi.
+        <Icon name="lock" size={14} /> {A.privacy}
       </p>
     </>
   );
@@ -196,11 +209,11 @@ function Kpi({ icon, label, value, unit, sub, tone }: {
   );
 }
 
-function AiSkeleton() {
+function AiSkeleton({ text }: { text: string }) {
   return (
     <div className="ai-skel" role="status" aria-live="polite">
       <div className="ai-skel-hero t-skel-block" />
-      <p className="ai-skel-t"><Icon name="sparkles" size={16} className="ai-spin" /> Ko&apos;rsatkichlar tahlil qilinmoqda… (30 soniyagacha)</p>
+      <p className="ai-skel-t"><Icon name="sparkles" size={16} className="ai-spin" /> {text}</p>
       <div className="ai-skel-row">
         <div className="t-skel-block" /><div className="t-skel-block" /><div className="t-skel-block" />
       </div>

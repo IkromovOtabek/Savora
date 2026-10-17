@@ -12,9 +12,14 @@ import LimitBanner from '@/components/tenant/LimitBanner';
 import { loadUserPermissions } from '@/lib/permissionGuard';
 import Icon from '@/components/icons/Icon';
 import MoreMenu from '@/components/ui/MoreMenu';
+import { getDict } from '@/lib/i18n/server';
+import { tr } from '@/lib/i18n/fmt';
 // import ProductImportForm from '@/components/tenant/ProductImportForm'; // CSV Import vaqtincha yashirilgan
 
-export const metadata = { title: 'Ombor — Savora' };
+export async function generateMetadata() {
+  const d = await getDict();
+  return { title: d.stock.list.metaTitle };
+}
 
 const PAGE_SIZE = 50;
 
@@ -33,6 +38,8 @@ export default async function ProductsPage({
   searchParams: Promise<{ q?: string; branch?: string; status?: string; page?: string; created?: string; deleted?: string }>;
 }) {
   const sp = await searchParams;
+  const d = await getDict();
+  const t = d.stock.list;
   const { user, Product, Branch, org, features } = await getTenantSession();
   const showImei = isImeiEnabled(org);
   const perms = await loadUserPermissions(user);
@@ -123,67 +130,67 @@ export default async function ProductsPage({
   // Bo'sh omborda nol kartalar o'rniga darhol bo'sh holat ko'rinadi
   const showStats = total > 0 || hasFilter;
   // Izoh endi kartaning title'ida (sichqoncha) va ekran o'quvchisi uchun sr-only matnda
-  const pageHint = perPageNote ? `Shu sahifadagi ${products.length} ta mahsulot bo'yicha` : undefined;
+  const pageHint = perPageNote ? tr(t.pageHint, { n: products.length }) : undefined;
 
   return (
     <>
-      {isAdmin && <LimitBanner label="Mahsulotlar" current={orgProductCount} max={maxProducts} />}
+      {isAdmin && <LimitBanner label={d.common.products} current={orgProductCount} max={maxProducts} />}
       <div className="t-page-head st-head">
         <div>
-          <h1 className="t-page-title">Ombor</h1>
+          <h1 className="t-page-title">{t.title}</h1>
           <p className="t-page-sub">
-            Qoldiqdagi mahsulotlar
-            {totalPages > 1 ? ` · ${page}-sahifa (${totalPages} ta)` : ''}
+            {t.subtitle}
+            {totalPages > 1 ? tr(t.pageOf, { page, total: totalPages }) : ''}
           </p>
         </div>
         <div className="t-page-actions">
           {canCreate && (
             <Link href="/app/products/new" className="btn btn-primary btn-with-icon ux-hide-mobile">
-              <Icon name="plus" size={18} /> Mahsulot qo&apos;shish
+              <Icon name="plus" size={18} /> {t.addProduct}
             </Link>
           )}
-          <MoreMenu label="Ombor amallari">
-            <Link href="/app/inventory"><Icon name="clipboard" size={18} /> Inventarizatsiya</Link>
+          <MoreMenu label={t.menuLabel}>
+            <Link href="/app/inventory"><Icon name="clipboard" size={18} /> {t.inventory}</Link>
             {canExport && (
-              <a href="/api/export/products"><Icon name="download" size={18} /> CSV yuklab olish</a>
+              <a href="/api/export/products"><Icon name="download" size={18} /> {t.exportCsv}</a>
             )}
           </MoreMenu>
         </div>
       </div>
 
-      {sp?.created === '1' && <div className="auth-alert auth-alert--info st-alert" role="status">Mahsulot qo&apos;shildi.</div>}
-      {sp?.deleted === '1' && <div className="auth-alert auth-alert--info st-alert" role="status">Mahsulot o&apos;chirildi.</div>}
+      {sp?.created === '1' && <div className="auth-alert auth-alert--info st-alert" role="status">{t.created}</div>}
+      {sp?.deleted === '1' && <div className="auth-alert auth-alert--info st-alert" role="status">{t.deleted}</div>}
 
       {showStats && (
         <section
           className="ux-strip st-strip"
           style={{ '--ux-cols': scoped ? 3 : 4 } as CSSProperties}
-          aria-label="Ombor xulosasi"
+          aria-label={t.summaryLabel}
         >
           <div className="ux-stat">
-            <div className="ux-stat-l"><span className="ux-clay st-clay-sm" aria-hidden="true"><Icon name="box" size={15} /></span>Jami</div>
-            <div className="ux-stat-v">{fmtMoney(total)}<small>ta</small></div>
+            <div className="ux-stat-l"><span className="ux-clay st-clay-sm" aria-hidden="true"><Icon name="box" size={15} /></span>{d.common.total}</div>
+            <div className="ux-stat-v">{fmtMoney(total)}<small>{d.common.pcs}</small></div>
           </div>
           <div className="ux-stat" title={pageHint}>
-            <div className="ux-stat-l"><span className="ux-clay ux-clay--green st-clay-sm" aria-hidden="true"><Icon name="check" size={15} /></span>Omborda</div>
+            <div className="ux-stat-l"><span className="ux-clay ux-clay--green st-clay-sm" aria-hidden="true"><Icon name="check" size={15} /></span>{t.inStock}</div>
             <div className="ux-stat-v">{pageInStock}{perPageNote && <small>/ {products.length}</small>}</div>
             {pageHint && <span className="sr-only">{pageHint}</span>}
           </div>
           <div
             className="ux-stat"
-            title={`Qoldig'i ${LOW_STOCK} ta yoki undan kam (son bilan hisoblanadigan) mahsulotlar${pageHint ? `. ${pageHint}` : ''}`}
+            title={`${tr(t.lowStockTitle, { n: LOW_STOCK })}${pageHint ? `. ${pageHint}` : ''}`}
           >
             <div className="ux-stat-l">
               <span className={`ux-clay ${pageLow > 0 ? 'ux-clay--gold' : 'ux-clay--gray'} st-clay-sm`} aria-hidden="true"><Icon name="alert" size={15} /></span>
-              Kam qolgan
+              {t.lowStock}
               <span className="st-info" aria-hidden="true">i</span>
             </div>
             <div className="ux-stat-v">{pageLow}</div>
-            <span className="sr-only">Qoldig&apos;i {LOW_STOCK} ta yoki undan kam mahsulotlar. {pageHint}</span>
+            <span className="sr-only">{tr(t.lowStockSr, { n: LOW_STOCK })} {pageHint}</span>
           </div>
           {!scoped && (
             <div className="ux-stat" title={pageHint}>
-              <div className="ux-stat-l"><span className="ux-clay ux-clay--gold st-clay-sm" aria-hidden="true"><Icon name="building" size={15} /></span>Filiallarda</div>
+              <div className="ux-stat-l"><span className="ux-clay ux-clay--gold st-clay-sm" aria-hidden="true"><Icon name="building" size={15} /></span>{t.inBranches}</div>
               <div className="ux-stat-v">{pageInBranches}</div>
               {pageHint && <span className="sr-only">{pageHint}</span>}
             </div>
@@ -195,10 +202,10 @@ export default async function ProductsPage({
         branches={scoped ? [] : branches.map((b) => ({ id: String(b._id), name: b.name }))}
         initial={{ q: sp.q ?? '', branch: sp.branch ?? '', status: activeStatus }}
       >
-        <Link href={statusUrl('')} className="st-chip" aria-current={activeStatus === '' ? 'page' : undefined}>Barchasi</Link>
+        <Link href={statusUrl('')} className="st-chip" aria-current={activeStatus === '' ? 'page' : undefined}>{d.common.all}</Link>
         {statusChips.map((s) => (
           <Link key={s} href={statusUrl(s)} className="st-chip" aria-current={activeStatus === s ? 'page' : undefined}>
-            {PRODUCT_STATUS_LABELS[s]}
+            {d.stock.status[s]}
           </Link>
         ))}
       </ProductSearch>
@@ -211,19 +218,19 @@ export default async function ProductsPage({
         {products.length === 0 ? (
           <div className="ux-empty">
             <span className="ux-empty-ic"><Icon name={q ? 'search' : 'box'} size={26} /></span>
-            <b>{q ? 'Hech narsa topilmadi' : hasFilter ? 'Mahsulot topilmadi' : 'Ombor hozircha bo\'sh'}</b>
+            <b>{q ? d.common.nothingFound : hasFilter ? t.emptyFilter : t.emptyNoProducts}</b>
             <p>
               {q
-                ? `"${q}" bo'yicha mahsulot yo'q. Shtrix-kod, IMEI yoki nomni tekshirib ko'ring.`
+                ? tr(t.emptyQueryHint, { q })
                 : hasFilter
-                  ? 'Tanlangan filtr bo\'yicha omborda mahsulot yo\'q.'
-                  : 'Birinchi mahsulotni qo\'shing — u shu yerda ko\'rinadi.'}
+                  ? t.emptyFilterHint
+                  : t.emptyHint}
             </p>
             {hasFilter ? (
-              <Link href="/app/products" className="btn btn-tinted">Filtrni tozalash</Link>
+              <Link href="/app/products" className="btn btn-tinted">{t.clearFilter}</Link>
             ) : canCreate && (
               <Link href="/app/products/new" className="btn btn-primary btn-with-icon">
-                <Icon name="plus" size={18} /> Mahsulot qo&apos;shish
+                <Icon name="plus" size={18} /> {t.addProduct}
               </Link>
             )}
           </div>
@@ -231,10 +238,10 @@ export default async function ProductsPage({
           <>
             <div className="st-list-head" aria-hidden="true">
               <span />
-              <span>Mahsulot</span>
-              <span>Filial</span>
-              <span>Son · holat</span>
-              <span className="r">Narx</span>
+              <span>{d.common.product}</span>
+              <span>{d.common.branch}</span>
+              <span>{t.colQtyStatus}</span>
+              <span className="r">{d.common.price}</span>
               <span />
             </div>
             <ul className="st-list">
@@ -248,11 +255,11 @@ export default async function ProductsPage({
                   ? avail === 0 ? ' st-qty--zero' : avail <= LOW_STOCK ? ' st-qty--low' : ''
                   : '';
                 const qtyPill = p.trackQuantity ? (
-                  <span className={`st-qty${qtyCls}`} title="Qoldiq / umumiy">
+                  <span className={`st-qty${qtyCls}`} title={t.qtyTitle}>
                     {avail}<small>/{p.quantity ?? 0}</small>
                   </span>
                 ) : (
-                  <span className="st-qty">1 <small>dona</small></span>
+                  <span className="st-qty">1 <small>{d.stock.unit}</small></span>
                 );
                 return (
                   <li key={String(p._id)} className="st-row">
@@ -281,13 +288,13 @@ export default async function ProductsPage({
                       {qtyPill}
                       {p.status !== 'in_stock' && (
                         <span className={`st-pill st-pill--${p.status}`}>
-                          {PRODUCT_STATUS_LABELS[p.status as ProductStatus]}
+                          {d.stock.status[p.status as ProductStatus]}
                         </span>
                       )}
                     </div>
                     <div className="st-row-price r">
-                      {p.salePrice > 0 ? <b>{fmtMoney(p.salePrice)}</b> : <b className="st-noprice">Narx yo&apos;q</b>}
-                      {canViewCost && <small>Kelish: {fmtMoney(p.purchasePrice)}</small>}
+                      {p.salePrice > 0 ? <b>{fmtMoney(p.salePrice)}</b> : <b className="st-noprice">{t.noPrice}</b>}
+                      {canViewCost && <small>{tr(t.cost, { sum: fmtMoney(p.purchasePrice) })}</small>}
                     </div>
                     <div className="st-row-actions">
                       <ProductRowActions
@@ -311,13 +318,13 @@ export default async function ProductsPage({
             </ul>
 
             {totalPages > 1 && (
-              <nav className="st-pager" aria-label="Sahifalar">
+              <nav className="st-pager" aria-label={t.pagerLabel}>
                 {page > 1 && (
-                  <Link href={pageUrl(page - 1)} className="btn btn-ghost btn-sm">← Oldingi</Link>
+                  <Link href={pageUrl(page - 1)} className="btn btn-ghost btn-sm">{t.prevPage}</Link>
                 )}
                 <span className="st-pager-info">{page} / {totalPages}</span>
                 {page < totalPages && (
-                  <Link href={pageUrl(page + 1)} className="btn btn-ghost btn-sm">Keyingi →</Link>
+                  <Link href={pageUrl(page + 1)} className="btn btn-ghost btn-sm">{t.nextPage}</Link>
                 )}
               </nav>
             )}
@@ -326,8 +333,8 @@ export default async function ProductsPage({
       </div>
 
       {canCreate && (
-        <Link href="/app/products/new" className="ux-fab" aria-label="Mahsulot qo'shish">
-          <Icon name="plus" size={20} /> Mahsulot
+        <Link href="/app/products/new" className="ux-fab" aria-label={t.addProduct}>
+          <Icon name="plus" size={20} /> {t.fab}
         </Link>
       )}
     </>

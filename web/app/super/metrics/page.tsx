@@ -1,16 +1,21 @@
 import { requireSuperAdmin } from '@/lib/auth';
 import { getMasterModels } from '@/lib/masterDb';
 import { isOrganizationActive, isTrialActive } from '@/lib/models/master/Organization';
-import { resolveOrgPlan, PLAN_PRESETS } from '@/lib/plans';
+import { resolveOrgPlan, parsePlanTier } from '@/lib/plans';
 import { fmtMoney } from '@/lib/format';
+import { getI18n } from '@/lib/i18n/server';
+import { MONTHS_SHORT, tr } from '@/lib/i18n/fmt';
 import { HeroStat, Kpi, PageTitle } from '@/components/super/ui';
 
-export const metadata = { title: 'Metrikalar — Super Admin' };
-
-const MONTHS_UZ = ['Yan', 'Fev', 'Mar', 'Apr', 'May', 'Iyn', 'Iyl', 'Avg', 'Sen', 'Okt', 'Noy', 'Dek'];
+export async function generateMetadata() {
+  const { d } = await getI18n();
+  return { title: d.superPanel.metrics.metaTitle };
+}
 
 export default async function SuperMetricsPage() {
   await requireSuperAdmin();
+  const { locale, d } = await getI18n();
+  const s = d.superPanel.metrics;
   const { Organization } = await getMasterModels();
   const orgs = await Organization.find().lean();
 
@@ -20,7 +25,7 @@ export default async function SuperMetricsPage() {
   const paying = active.filter((o) => !o.plan?.isTrial && o.plan?.tier !== 'free');
   const expired = orgs.filter((o) => o.status === 'expired' || !isOrganizationActive(o));
 
-  const mrr = paying.reduce((s, o) => s + (resolveOrgPlan(o).monthlyPayment || 0), 0);
+  const mrr = paying.reduce((sum, o) => sum + (resolveOrgPlan(o).monthlyPayment || 0), 0);
   const arr = mrr * 12;
   const arpu = paying.length ? Math.round(mrr / paying.length) : 0;
 
@@ -34,10 +39,10 @@ export default async function SuperMetricsPage() {
   const now = new Date();
   const buckets: { label: string; count: number }[] = [];
   for (let i = 5; i >= 0; i--) {
-    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const from = new Date(now.getFullYear(), now.getMonth() - i, 1);
     const next = new Date(now.getFullYear(), now.getMonth() - i + 1, 1);
-    const count = orgs.filter((o) => o.createdAt && new Date(o.createdAt) >= d && new Date(o.createdAt) < next).length;
-    buckets.push({ label: MONTHS_UZ[d.getMonth()], count });
+    const count = orgs.filter((o) => o.createdAt && new Date(o.createdAt) >= from && new Date(o.createdAt) < next).length;
+    buckets.push({ label: MONTHS_SHORT[locale][from.getMonth()], count });
   }
   const maxCount = Math.max(1, ...buckets.map((b) => b.count));
 
@@ -56,37 +61,37 @@ export default async function SuperMetricsPage() {
 
   return (
     <>
-      <PageTitle title="Metrikalar" sub="Daromad, o'sish va konversiya ko'rsatkichlari" />
+      <PageTitle title={s.title} sub={s.sub} />
 
       <div className="sa-hero-row">
         <HeroStat
-          label="MRR"
+          label={d.superPanel.mrr}
           value={fmtMoney(mrr)}
-          unit="so'm"
+          unit={d.common.sum}
           icon="wallet"
-          sub="Oylik takroriy daromad"
+          sub={d.superPanel.mrrSub}
           items={[
-            { label: 'ARR (MRR × 12)', value: fmtMoney(arr) },
-            { label: 'To\'lovchi', value: paying.length },
-            { label: 'Sinovda', value: trial.length },
+            { label: s.arr, value: fmtMoney(arr) },
+            { label: s.paying, value: paying.length },
+            { label: s.inTrial, value: trial.length },
           ]}
         />
         <div className="ux-strip sa-strip-3">
-          <Kpi label="ARPU" value={fmtMoney(arpu)} unit="so'm" icon="user" tone="v" delta="O'rtacha to'lov (bir do'kon)" />
+          <Kpi label={s.arpu} value={fmtMoney(arpu)} unit={d.common.sum} icon="user" tone="v" delta={s.arpuSub} />
           <Kpi
-            label="Oylik o'sish"
+            label={s.monthlyGrowth}
             value={`${growth >= 0 ? '+' : ''}${growth}%`}
             icon="trendingUp"
             tone={growth >= 0 ? 'o' : 'r'}
-            delta="Yangi ro'yxatlar, o'tgan oyga nisbatan"
+            delta={s.growthSub}
             deltaTone={growth >= 0 ? 'ok' : 'bad'}
           />
           <Kpi
-            label="Tark etganlar"
+            label={s.churn}
             value={`${churnRate}%`}
             icon="alert"
             tone={churnRate > 0 ? 'a' : 'g'}
-            delta={`Muddati tugagan: ${expired.length}`}
+            delta={tr(s.churnSub, { n: expired.length })}
             deltaTone={churnRate > 0 ? 'warn' : undefined}
           />
         </div>
@@ -96,11 +101,11 @@ export default async function SuperMetricsPage() {
         <section className="sa-card">
           <div className="sa-card-h">
             <div>
-              <h2>O&apos;sish · oxirgi 6 oy</h2>
-              <p>Har oy yangi ro&apos;yxatdan o&apos;tgan do&apos;konlar</p>
+              <h2>{s.growthTitle}</h2>
+              <p>{s.growthText}</p>
             </div>
           </div>
-          <div className="sa-bars sa-bars--3d" role="img" aria-label="Oxirgi 6 oylik yangi ro'yxatlar grafigi">
+          <div className="sa-bars sa-bars--3d" role="img" aria-label={s.growthAria}>
             {buckets.map((b, i) => (
               <div key={`${b.label}-${i}`} className="sa-bar">
                 <span className="sa-bar-v">{b.count}</span>
@@ -114,25 +119,25 @@ export default async function SuperMetricsPage() {
         </section>
 
         <section className="sa-section">
-          <div className="sa-ghead">Sinov → to&apos;lov konversiyasi</div>
+          <div className="sa-ghead">{s.conversionTitle}</div>
           <div className="sa-group">
             <div className="sa-cell">
-              <span className="sa-cell-t"><b>Konversiya</b><small>To&apos;lovchi / (to&apos;lovchi + sinovda)</small></span>
+              <span className="sa-cell-t"><b>{s.conversion}</b><small>{s.conversionFormula}</small></span>
               <span className="sa-cell-v"><b>{conversion}%</b></span>
             </div>
           </div>
-          <div className="sa-ghead" style={{ marginTop: 14 }}>Faol do&apos;konlar · tarif bo&apos;yicha <span>{active.length}</span></div>
+          <div className="sa-ghead" style={{ marginTop: 14 }}>{s.activeByPlan} <span>{active.length}</span></div>
           <div className="sa-group">
             {[...byTier.entries()].sort((a, b) => b[1] - a[1]).map(([tier, count]) => (
               <div key={tier} className="sa-cell">
                 <span className="sa-cell-t">
-                  <b>{PLAN_PRESETS[tier as keyof typeof PLAN_PRESETS]?.label ?? tier}</b>
+                  <b>{d.catalog.planTiers[parsePlanTier(tier)]}</b>
                   <span className="sa-prog" style={{ marginTop: 6 }}><i style={{ width: `${Math.round((count / activeTotal) * 100)}%` }} /></span>
                 </span>
                 <span className="sa-cell-v">{count}</span>
               </div>
             ))}
-            {byTier.size === 0 && <div className="sa-empty">Ma&apos;lumot yo&apos;q</div>}
+            {byTier.size === 0 && <div className="sa-empty">{d.common.noData}</div>}
           </div>
         </section>
       </div>

@@ -6,6 +6,8 @@ import { useRouter } from 'next/navigation';
 import { fmtMoney } from '@/lib/format';
 import Icon from '@/components/icons/Icon';
 import Tilt from '@/components/ui/Tilt';
+import { useDict } from '@/lib/i18n/client';
+import { tr } from '@/lib/i18n/fmt';
 import '@/components/tenant/styles/finance.css';
 
 export interface BranchFlowCard {
@@ -25,8 +27,8 @@ export function FlowSplit({
   chiqimValue,
   chiqimCount,
   foyda,
-  kirimLabel = 'Kirim — omborda',
-  chiqimLabel = 'Chiqim — sotilgan',
+  kirimLabel,
+  chiqimLabel,
 }: {
   kirimValue: number;
   kirimCount: number;
@@ -36,28 +38,30 @@ export function FlowSplit({
   kirimLabel?: string;
   chiqimLabel?: string;
 }) {
+  const d = useDict();
+  const k = d.sales.kirimChiqim;
   return (
     /* 3D-lite: sahifaning asosiy ob'ekti — engil egiladi, ikonkalar hajmli */
     <Tilt as="section" max={3} className="fn-flow">
       <div className="fn-flow-side">
         <span className="fn-flow-label">
           <span className="ux-clay" aria-hidden="true"><Icon name="box" size={15} /></span>
-          {kirimLabel}
+          {kirimLabel ?? k.kirimLabel}
         </span>
-        <span className="fn-flow-value fn-num ux-z">{fmtMoney(kirimValue)}<span className="fn-cur">so&apos;m</span></span>
-        <span className="fn-flow-sub">{kirimCount} ta · tannarx bo&apos;yicha</span>
+        <span className="fn-flow-value fn-num ux-z">{fmtMoney(kirimValue)}<span className="fn-cur">{d.common.sum}</span></span>
+        <span className="fn-flow-sub">{tr(k.byCost, { n: kirimCount })}</span>
       </div>
       <div className="fn-flow-side">
         <span className="fn-flow-label">
           <span className="ux-clay ux-clay--green" aria-hidden="true"><Icon name="cart" size={15} /></span>
-          {chiqimLabel}
+          {chiqimLabel ?? k.chiqimLabel}
         </span>
-        <span className="fn-flow-value fn-num fn-in ux-z">{fmtMoney(chiqimValue)}<span className="fn-cur">so&apos;m</span></span>
-        <span className="fn-flow-sub">{chiqimCount} ta · sotuv tushumi</span>
+        <span className="fn-flow-value fn-num fn-in ux-z">{fmtMoney(chiqimValue)}<span className="fn-cur">{d.common.sum}</span></span>
+        <span className="fn-flow-sub">{tr(k.byRevenue, { n: chiqimCount })}</span>
       </div>
       <div className="fn-flow-net">
-        <span>Foyda (sotuv − tannarx)</span>
-        <strong className={foyda >= 0 ? 'fn-in' : 'fn-out'}>{fmtMoney(foyda)} so&apos;m</strong>
+        <span>{k.netProfit}</span>
+        <strong className={foyda >= 0 ? 'fn-in' : 'fn-out'}>{fmtMoney(foyda)} {d.common.sum}</strong>
       </div>
     </Tilt>
   );
@@ -66,6 +70,8 @@ export function FlowSplit({
 export default function KirimChiqimCards({ total, cards }: { total: BranchFlowCard; cards: BranchFlowCard[] }) {
   const router = useRouter();
   const [q, setQ] = useState('');
+  const d = useDict();
+  const k = d.sales.kirimChiqim;
 
   function onSearch(e: React.FormEvent) {
     e.preventDefault();
@@ -84,30 +90,30 @@ export default function KirimChiqimCards({ total, cards }: { total: BranchFlowCa
       <form className="fn-search" onSubmit={onSearch} role="search">
         <Icon name="search" size={18} />
         <label htmlFor="kc-imei" className="sr-only">
-          IMEI bo&apos;yicha izlash
+          {k.imeiSearch}
         </label>
         <input
           id="kc-imei"
           type="search"
           value={q}
           onChange={(e) => setQ(e.target.value)}
-          placeholder="IMEI bo'yicha izlash"
+          placeholder={k.imeiSearch}
           inputMode="search"
         />
-        {q.trim() && <button type="submit" className="btn btn-tinted btn-sm">Izlash</button>}
+        {q.trim() && <button type="submit" className="btn btn-tinted btn-sm">{k.searchBtn}</button>}
       </form>
 
       <h2 className="fn-section-title">
-        <span>Filiallar</span>
-        <span><Link href="/app/kirim-chiqim/all" className="cell-link">Barcha filiallar batafsil</Link></span>
+        <span>{d.common.branches}</span>
+        <span><Link href="/app/kirim-chiqim/all" className="cell-link">{k.allBranchesDetail}</Link></span>
       </h2>
 
       <div className="fn-panel">
         {ranked.length === 0 ? (
           <div className="ux-empty">
             <span className="ux-empty-ic"><Icon name="store" size={26} /></span>
-            <b>Faol filial yo&apos;q</b>
-            <p>Kirim-chiqim filiallar bo&apos;yicha hisoblanadi.</p>
+            <b>{d.sales.noActiveBranch}</b>
+            <p>{k.noBranchHint}</p>
           </div>
         ) : (
           <ol className="fn-rank">
@@ -121,13 +127,13 @@ export default function KirimChiqimCards({ total, cards }: { total: BranchFlowCa
                       <i className="fn-split-in" style={{ width: `${(Math.max(0, c.chiqimValue) / maxSold) * 100}%` }} />
                     </span>
                     <span className="fn-rank-meta">
-                      <span>Omborda: {fmtMoney(c.kirimValue)} · {c.kirimCount} ta</span>
-                      <span>Sotilgan: {c.chiqimCount} ta</span>
+                      <span>{tr(k.inStockMeta, { sum: fmtMoney(c.kirimValue), n: c.kirimCount })}</span>
+                      <span>{tr(k.soldMeta, { n: c.chiqimCount })}</span>
                     </span>
                   </span>
                   <span className="fn-rank-end">
                     <strong className="fn-in">{fmtMoney(c.chiqimValue)}</strong>
-                    <small>Foyda {fmtMoney(c.foyda)}</small>
+                    <small>{tr(k.profitShort, { sum: fmtMoney(c.foyda) })}</small>
                   </span>
                   <Icon name="chevron" size={16} className="fn-r fn-pass-chev" />
                 </Link>

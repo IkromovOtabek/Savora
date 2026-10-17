@@ -4,23 +4,14 @@ import { fmtDate } from '@/lib/format';
 import { searchPattern } from '@/lib/security';
 import Icon from '@/components/icons/Icon';
 import type { AuditEntity } from '@/lib/models/tenant/AuditLog';
+import { getI18n } from '@/lib/i18n/server';
+import { tr, WEEKDAYS } from '@/lib/i18n/fmt';
 import '@/components/tenant/styles/admin.css';
 
-export const metadata = { title: 'Amallar — Savora' };
-
-const ENTITY_LABELS: Record<AuditEntity, string> = {
-  product: 'Mahsulot',
-  sale: 'Sotuv',
-  user: 'Xodim',
-  branch: 'Filial',
-  customer: 'Mijoz',
-  finance: 'Kirim/Chiqim',
-  transfer: "Ko'chirish",
-  creditBank: 'Bank',
-  auth: 'Kirish',
-  task: 'Topshiriq',
-  ai: 'AI yordamchi',
-};
+export async function generateMetadata() {
+  const { d } = await getI18n();
+  return { title: d.crm.audit.metaTitle };
+}
 
 /** Obyekt sahifasi bor bo'limlar — yozuvdan to'g'ridan-to'g'ri ochish uchun */
 const ENTITY_HREF: Partial<Record<AuditEntity, string>> = {
@@ -29,15 +20,8 @@ const ENTITY_HREF: Partial<Record<AuditEntity, string>> = {
   customer: '/app/customers/',
 };
 
-const FILTERS: { key: string; label: string }[] = [
-  { key: '', label: 'Barchasi' },
-  { key: 'product', label: 'Mahsulot' },
-  { key: 'sale', label: 'Sotuv' },
-  { key: 'finance', label: 'Kirim/Chiqim' },
-  { key: 'user', label: 'Xodim' },
-];
-
-const WEEKDAYS = ['Yakshanba', 'Dushanba', 'Seshanba', 'Chorshanba', 'Payshanba', 'Juma', 'Shanba'];
+/** Tez filtr chiplari ('' — barchasi); nomlari lug'atdan (d.crm.audit.entities) */
+const FILTERS: readonly ('' | AuditEntity)[] = ['', 'product', 'sale', 'finance', 'user'];
 
 /** Xavfli amallarni ajratib ko'rsatish uchun */
 function isDanger(action: string): boolean {
@@ -67,9 +51,11 @@ export default async function AuditPage({
 }) {
   const sp = await searchParams;
   const { AuditLog } = await getTenantAdminSession();
+  const { locale, d } = await getI18n();
+  const A = d.crm.audit;
 
   const filter: Record<string, unknown> = {};
-  if (sp.entity && FILTERS.some((f) => f.key === sp.entity)) filter.entity = sp.entity;
+  if (sp.entity && FILTERS.some((f) => f === sp.entity)) filter.entity = sp.entity;
   if (sp.q?.trim()) filter.by = new RegExp(searchPattern(sp.q), 'i');
 
   const logs = await AuditLog.find(filter).sort({ at: -1 }).limit(300).lean();
@@ -91,66 +77,66 @@ export default async function AuditPage({
     const key = dayKey(at);
     let day = days[days.length - 1];
     if (!day || day.key !== key) {
-      const title = key === todayKey ? 'Bugun' : key === yesterdayKey ? 'Kecha' : `${WEEKDAYS[at.getDay()]}, ${fmtDate(at)}`;
+      const title = key === todayKey ? d.common.today : key === yesterdayKey ? d.common.yesterday : `${WEEKDAYS[locale][at.getDay()]}, ${fmtDate(at)}`;
       day = { key, title, items: [] };
       days.push(day);
     }
     day.items.push(l);
   }
 
-  const activeEntity = sp.entity && FILTERS.some((f) => f.key === sp.entity) ? sp.entity : '';
+  const activeEntity = sp.entity && FILTERS.some((f) => f === sp.entity) ? sp.entity : '';
   const searching = Boolean(sp.q?.trim());
 
   return (
     <>
       <div className="t-page-head">
         <div>
-          <h1 className="t-page-title">Amallar</h1>
-          <p className="t-page-sub">Kim, qachon, nima qildi · oxirgi {logs.length} yozuv</p>
+          <h1 className="t-page-title">{A.title}</h1>
+          <p className="t-page-sub">{tr(A.sub, { n: logs.length })}</p>
         </div>
       </div>
 
       <div className="ad-audit-kpis">
         <div className="ad-stat">
-          <span className="ad-stat-l"><Icon name="clock" size={15} /> Bugun</span>
+          <span className="ad-stat-l"><Icon name="clock" size={15} /> {d.common.today}</span>
           <span className="ad-stat-v">{todayCount}</span>
         </div>
         <div className={`ad-stat${dangerCount > 0 ? ' ad-stat--danger' : ''}`}>
-          <span className="ad-stat-l"><Icon name="alert" size={15} /> Xavfli<span className="ad-hide-sm"> amallar</span></span>
+          <span className="ad-stat-l"><Icon name="alert" size={15} /> {A.dangerShort}<span className="ad-hide-sm">{A.dangerLong}</span></span>
           <span className="ad-stat-v">{dangerCount}</span>
         </div>
         <div className="ad-stat">
-          <span className="ad-stat-l"><Icon name="users" size={15} /> Xodimlar</span>
+          <span className="ad-stat-l"><Icon name="users" size={15} /> {A.actors}</span>
           <span className="ad-stat-v">{actorCount}</span>
         </div>
       </div>
 
       <form className="ad-filters" role="search" action="/app/audit">
-        <nav className="ad-chips ux-scrollx" aria-label="Bo'lim bo'yicha saralash">
+        <nav className="ad-chips ux-scrollx" aria-label={A.filterAria}>
           {FILTERS.map((f) => (
             <Link
-              key={f.key || 'all'}
-              href={auditHref(sp, f.key)}
+              key={f || 'all'}
+              href={auditHref(sp, f)}
               className="ad-chip"
-              aria-current={activeEntity === f.key ? 'page' : undefined}
+              aria-current={activeEntity === f ? 'page' : undefined}
             >
-              {f.label}
+              {f ? A.entities[f] : d.common.all}
             </Link>
           ))}
         </nav>
         <div className="ad-search">
           <Icon name="search" size={16} className="ad-search-ic" />
-          <label htmlFor="audit-q" className="sr-only">Xodim loginini qidirish</label>
+          <label htmlFor="audit-q" className="sr-only">{A.searchLabel}</label>
           <input
             id="audit-q"
             type="search"
             name="q"
             defaultValue={sp.q ?? ''}
-            placeholder="Xodim loginini qidirish…"
+            placeholder={A.searchPlaceholder}
             autoComplete="off"
           />
           {activeEntity && <input type="hidden" name="entity" value={activeEntity} />}
-          <button className="btn btn-sm btn-ghost" type="submit">Qidirish</button>
+          <button className="btn btn-sm btn-ghost" type="submit">{d.common.search}</button>
         </div>
       </form>
 
@@ -160,28 +146,28 @@ export default async function AuditPage({
             <span className="ad-empty-ic"><Icon name="history" size={26} /></span>
             {searching || activeEntity ? (
               <>
-                <h3>Hech narsa topilmadi</h3>
-                <p>Boshqa bo&apos;limni tanlang yoki qidiruvni tozalang.</p>
-                <Link href="/app/audit" className="btn btn-tinted btn-sm">Filtrni tozalash</Link>
+                <h3>{d.common.nothingFound}</h3>
+                <p>{A.notFoundText}</p>
+                <Link href="/app/audit" className="btn btn-tinted btn-sm">{A.clearFilter}</Link>
               </>
             ) : (
               <>
-                <h3>Hali amallar yo&apos;q</h3>
-                <p>Xodimlar sotuv, mahsulot yoki kassa bilan ishlaganda har bir amal shu yerda ko&apos;rinadi.</p>
+                <h3>{A.emptyTitle}</h3>
+                <p>{A.emptyText}</p>
               </>
             )}
           </div>
         </div>
       ) : (
         <div className="ad-timeline">
-          {days.map((d) => (
-            <section key={d.key} aria-labelledby={`day-${d.key}`}>
+          {days.map((day) => (
+            <section key={day.key} aria-labelledby={`day-${day.key}`}>
               <div className="ad-day-head">
-                <h2 id={`day-${d.key}`}>{d.title}</h2>
-                <span>{d.items.length} ta amal</span>
+                <h2 id={`day-${day.key}`}>{day.title}</h2>
+                <span>{tr(A.nActions, { n: day.items.length })}</span>
               </div>
               <ol className="ad-group ad-ev">
-                {d.items.map((l) => {
+                {day.items.map((l) => {
                   const danger = isDanger(l.action);
                   const base = ENTITY_HREF[l.entity];
                   const href = base && l.entityId && !l.action.includes('delete') ? `${base}${l.entityId}` : null;
@@ -201,11 +187,11 @@ export default async function AuditPage({
                           <b>{l.by}</b> · {l.summary}
                         </p>
                         <div className="ad-ev-meta">
-                          <span className={`ad-pill${danger ? ' ad-pill--danger' : ''}`}>{ENTITY_LABELS[l.entity] ?? l.entity}</span>
-                          <span>{l.byRole === 'admin' ? 'Admin' : 'Xodim'}</span>
+                          <span className={`ad-pill${danger ? ' ad-pill--danger' : ''}`}>{A.entities[l.entity] ?? l.entity}</span>
+                          <span>{l.byRole === 'admin' ? d.common.admin : d.common.employee}</span>
                           {href && (
                             <Link href={href}>
-                              Ochish <Icon name="chevron" size={12} className="ad-chev" />
+                              {d.common.open} <Icon name="chevron" size={12} className="ad-chev" />
                             </Link>
                           )}
                         </div>

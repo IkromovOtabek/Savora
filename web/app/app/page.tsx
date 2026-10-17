@@ -1,7 +1,6 @@
 import Link from 'next/link';
 import { getTenantSession } from '@/lib/tenantSession';
 import { branchFilter, branchAggMatch } from '@/lib/branchScope';
-import { PAYMENT_TYPE_LABELS, SALE_STATUS_LABELS, PaymentType, SaleStatus } from '@/lib/models/tenant/Sale';
 import { fmtDateTime, fmtMoney } from '@/lib/format';
 import Icon from '@/components/icons/Icon';
 import OnboardingChecklist from '@/components/tenant/OnboardingChecklist';
@@ -14,14 +13,19 @@ import WeekChart from '@/components/tenant/WeekChart';
 import Tilt from '@/components/ui/Tilt';
 import type { IconName } from '@/components/icons/Icon';
 import { loadUserPermissions } from '@/lib/permissionGuard';
-import { BUSINESS_TYPES, parseBusinessType } from '@/lib/businessTypes';
+import { parseBusinessType } from '@/lib/businessTypes';
+import { getI18n } from '@/lib/i18n/server';
+import { tr, fmtDayMonth, WEEKDAYS, WEEKDAYS_SHORT } from '@/lib/i18n/fmt';
 import { getLatestReport } from '@/lib/ai/report';
 import { parseAiResult } from '@/lib/ai/validate';
 import { openTaskFilter, isTaskOverdue } from '@/lib/tasks';
 import { BranchPanel, TopProductsPanel, StaffPanel, LowStockPanel, MyTasksPanel } from '@/components/tenant/DashPanels';
 import '@/components/tenant/styles/ai.css';
 
-export const metadata = { title: 'Boshqaruv — Savora' };
+export async function generateMetadata() {
+  const { d } = await getI18n();
+  return { title: d.shell.dash.metaTitle };
+}
 
 export default async function TenantDashboard({
   searchParams,
@@ -30,6 +34,8 @@ export default async function TenantDashboard({
 }) {
   const sp = await searchParams;
   const { user, org, features, Branch, Product, Sale, User, AiReport, Task } = await getTenantSession();
+  const { locale, d } = await getI18n();
+  const t = d.shell.dash;
 
   const perms = await loadUserPermissions(user);
   // AI tavsiya — faqat bugungi keshdan (dashboard ochilganda AI chaqirilmaydi)
@@ -39,10 +45,10 @@ export default async function TenantDashboard({
         const res = parseAiResult(r.result);
         const rec = res?.recommendations[0];
         if (rec) return { title: rec.title, detail: rec.detail, source: r.source };
-        return res ? { title: 'Bugungi xulosa', detail: res.summary, source: r.source } : null;
+        return res ? { title: t.aiSummary, detail: res.summary, source: r.source } : null;
       }).catch(() => null)
     : null;
-  const bizLabel = BUSINESS_TYPES[parseBusinessType(org.businessType ?? 'general')].label;
+  const bizLabel = d.catalog.businessTypes[parseBusinessType(org.businessType ?? 'general')].label;
 
   const todayStart = new Date();
   todayStart.setHours(0, 0, 0, 0);
@@ -126,15 +132,16 @@ export default async function TenantDashboard({
 
   const branchName = new Map(branchList.map((b) => [String(b._id), b.name]));
   const branchRows = branchAgg
-    .map((b) => ({ id: String(b._id), name: branchName.get(String(b._id)) ?? 'Filial', today: b.today, week: b.week, count: b.count }))
+    .map((b) => ({ id: String(b._id), name: branchName.get(String(b._id)) ?? d.common.branch, today: b.today, week: b.week, count: b.count }))
     .sort((a, b) => b.week - a.week);
-  const topRows = topAgg.map((t) => ({ name: t._id || 'Nomsiz', qty: t.qty, revenue: t.revenue }));
+  const topRows = topAgg.map((r) => ({ name: r._id || t.unnamed, qty: r.qty, revenue: r.revenue }));
   const staffRows = staffAgg.map((r) => ({ name: r._id, count: r.count, total: r.total }));
   const lowRows = lowStock.map((p) => ({ id: String(p._id), name: p.name, left: (p.quantity ?? 0) - (p.soldQuantity ?? 0) }));
   const mine = myAgg[0] ?? { count: 0, total: 0 };
-  const taskRows = myTasks.map((t) => ({ id: String(t._id), title: t.title, priority: t.priority, dueDate: t.dueDate, overdue: isTaskOverdue(t) }));
+  const taskRows = myTasks.map((x) => ({ id: String(x._id), title: x.title, priority: x.priority, dueDate: x.dueDate, overdue: isTaskOverdue(x) }));
 
-  const week = toDayPoints(weekBounds, weekAgg);
+  // Hafta kuni qisqa nomi — joriy tilda (weekBounds[i] = i-kun boshi)
+  const week = toDayPoints(weekBounds, weekAgg).map((p, i) => ({ ...p, label: WEEKDAYS_SHORT[locale][weekBounds[i].getDay()] }));
   const weekHasData = week.some((d) => d.total > 0);
   const weekTotal = week.reduce((a, d) => a + d.total, 0);
   const yesterday = week[week.length - 2]?.total ?? 0;
@@ -164,7 +171,7 @@ export default async function TenantDashboard({
   }
 
   const now = new Date();
-  const dateLabel = `${now.getDate()}-${UZ_MONTHS[now.getMonth()]}, ${UZ_WEEKDAYS[now.getDay()]}`;
+  const dateLabel = `${fmtDayMonth(now, locale)}, ${WEEKDAYS[locale][now.getDay()].toLowerCase()}`;
   const showSaleCta = features.sales && perms.has('sale.create');
   const canAddProduct = features.products && perms.has('product.create');
   const canKassa = features.kassa && perms.has('kassa.view');
@@ -175,22 +182,22 @@ export default async function TenantDashboard({
     <div className="t-dash">
       <div className="t-page-head">
         <div>
-          <h1 className="t-page-title">Xayrli kun, {user.username}</h1>
-          <p className="t-page-sub">{dateLabel} · {isAdmin ? 'barcha filiallar' : 'filialingiz'} bo&apos;yicha</p>
+          <h1 className="t-page-title">{tr(t.greeting, { name: user.username })}</h1>
+          <p className="t-page-sub">{dateLabel} · {isAdmin ? t.scopeAll : t.scopeBranch}</p>
         </div>
       </div>
 
       {sp?.welcome === '1' && (
         <div className="t-note t-note--info">
-          Do&apos;koningiz yaratildi! Siz admin sifatida tizimga kirdingiz.
-          {' '}{org.plan?.isTrial ? 'Sinov muddati boshlandi.' : org.plan?.tier === 'free' ? 'Bepul tarifda ishlayapsiz.' : ''}
-          {' '}Modullar «{bizLabel}» yo&apos;nalishiga mos sozlandi.
+          {t.welcome}
+          {' '}{org.plan?.isTrial ? t.trialStarted : org.plan?.tier === 'free' ? t.freePlan : ''}
+          {' '}{tr(t.modulesTuned, { type: bizLabel })}
         </div>
       )}
 
       {sp?.module === 'disabled' && (
         <div className="t-note t-note--warn">
-          Bu bo&apos;lim o&apos;chirilgan. Platforma egasiga murojaat qiling.
+          {t.moduleDisabled}
         </div>
       )}
 
@@ -207,19 +214,19 @@ export default async function TenantDashboard({
         <Tilt stack className="t-hero" as="section">
           <div className="t-hero-l">
             <span className="t-hero-ic" aria-hidden="true"><Icon name="wallet" size={18} /></span>
-            Bugungi tushum
+            {t.todayRevenue}
           </div>
-          <div className="t-hero-v t-num ux-z">{fmtMoney(todayRevenue)}<small>so&apos;m</small></div>
+          <div className="t-hero-v t-num ux-z">{fmtMoney(todayRevenue)}<small>{d.common.sum}</small></div>
           <div className="t-hero-foot">
             {revenueDelta !== null ? (
               <span className={`t-hero-delta ${revenueDelta >= 0 ? 'is-up' : 'is-down'}`}>
                 <span aria-hidden="true">{revenueDelta >= 0 ? '▲' : '▼'}</span> {Math.abs(revenueDelta)}%
-                <span className="t-hero-delta-l"> kechagiga nisbatan</span>
+                <span className="t-hero-delta-l"> {t.vsYesterday}</span>
               </span>
             ) : (
-              <span className="t-hero-note">{todayRevenue > 0 ? "Kecha tushum bo'lmagan" : "Bugun hali tushum yo'q"}</span>
+              <span className="t-hero-note">{todayRevenue > 0 ? t.noRevenueYesterday : t.noRevenueToday}</span>
             )}
-            {features.sales && <span className="t-hero-note">7 kun: <b className="t-num">{fmtMoney(weekTotal)}</b> so&apos;m</span>}
+            {features.sales && <span className="t-hero-note">{t.weekLabel}: <b className="t-num">{fmtMoney(weekTotal)}</b> {d.common.sum}</span>}
           </div>
           {features.sales && weekHasData && <HeroSpark values={week.map((d) => d.total)} />}
         </Tilt>
@@ -230,72 +237,72 @@ export default async function TenantDashboard({
               href={features.sales ? '/app/sales' : undefined}
               icon="cart"
               tone=""
-              label="Sotuvlar"
+              label={d.common.sales}
               value={String(todaySalesCount)}
-              unit="ta"
-              sub="bugun, barcha filiallar"
+              unit={d.common.pcs}
+              sub={t.todayAllBranches}
             />
           ) : (
             <StatCard
               href={features.sales ? '/app/sales' : undefined}
               icon="user"
               tone=""
-              label="Mening sotuvlarim"
+              label={t.mySales}
               value={String(mine.count)}
-              unit="ta"
-              sub={`bugun · ${fmtMoney(mine.total)} so'm`}
+              unit={d.common.pcs}
+              sub={tr(t.todaySum, { sum: fmtMoney(mine.total) })}
             />
           )}
           <StatCard
             href={features.sales ? '/app/debts' : undefined}
             icon="clock"
             tone="gold"
-            label="Qarz va nasiya"
+            label={t.debtAndInstallment}
             value={fmtMoney(debtTotal)}
-            unit="so'm"
-            sub="jami qoldiq"
+            unit={d.common.sum}
+            sub={t.totalRemaining}
           />
           <StatCard
             href={features.products ? '/app/products' : undefined}
             icon="box"
             tone="gray"
-            label="Omborda"
+            label={t.inStock}
             value={String(inStock)}
-            unit="ta"
-            sub="sotuvga tayyor mahsulot"
+            unit={d.common.pcs}
+            sub={t.readyForSale}
           />
         </div>
       </div>
 
       {quickCount > 0 && (
-        <nav className="t-qa-row" aria-label="Tezkor amallar" data-n={quickCount} style={{ '--qa-n': quickCount } as React.CSSProperties}>
+        <nav className="t-qa-row" aria-label={t.quickActions} data-n={quickCount} style={{ '--qa-n': quickCount } as React.CSSProperties}>
           {showSaleCta && <QuickSaleTrigger />}
           {canAddProduct && (
             <Link href="/app/products/new" className="t-qa">
               <span className="t-qa-ic"><Icon name="box" size={20} /></span>
-              <span className="t-qa-t">Mahsulot<small>Omborga qo&apos;shish</small></span>
+              <span className="t-qa-t">{t.qaProduct}<small>{t.qaProductSub}</small></span>
             </Link>
           )}
           {canKassa && (
             <Link href="/app/kassa" className="t-qa">
               <span className="t-qa-ic"><Icon name="wallet" size={20} /></span>
-              <span className="t-qa-t">Kassa<small>Kunlik hisob</small></span>
+              <span className="t-qa-t">{t.qaKassa}<small>{t.qaKassaSub}</small></span>
             </Link>
           )}
           {canReports && (
             <Link href="/app/monitoring" className="t-qa">
               <span className="t-qa-ic"><Icon name="chart" size={20} /></span>
-              <span className="t-qa-t">Hisobot<small>Oylik tahlil</small></span>
+              <span className="t-qa-t">{t.qaReport}<small>{t.qaReportSub}</small></span>
             </Link>
           )}
         </nav>
       )}
 
       {aiTip && (
-        <Link href="/app/ai" className="t-card ai-dash" aria-label={`AI tavsiya: ${aiTip.title}`}>
+        <Link href="/app/ai" className="t-card ai-dash" aria-label={`${t.aiTip}: ${aiTip.title}`}>
           <span className="ai-dash-ic" aria-hidden="true"><Icon name="sparkles" size={20} /></span>
           <span className="ai-dash-t">
-            <small>AI tavsiya{aiTip.source === 'rules' ? ' · qoidalar asosida' : ''}</small>
+            <small>{t.aiTip}{aiTip.source === 'rules' ? ` · ${t.aiRules}` : ''}</small>
             <b>{aiTip.title}</b>
             <span>{aiTip.detail}</span>
           </span>
@@ -307,17 +314,17 @@ export default async function TenantDashboard({
         {features.sales && (
           <section className="t-card t-week" aria-labelledby="t-week-h">
             <div className="t-card-head">
-              <h2 id="t-week-h">Haftalik tushum</h2>
-              {weekHasData && <span className="t-card-meta t-num">{fmtMoney(weekTotal)} so&apos;m</span>}
+              <h2 id="t-week-h">{t.weekRevenue}</h2>
+              {weekHasData && <span className="t-card-meta t-num">{fmtMoney(weekTotal)} {d.common.sum}</span>}
             </div>
             {weekHasData ? (
               <WeekChart points={week} />
             ) : (
               <div className="ux-empty t-week-empty">
                 <span className="ux-empty-ic" aria-hidden="true"><Icon name="chart" size={26} /></span>
-                <b>Bu hafta hali tushum yo&apos;q</b>
-                <p>Birinchi sotuvdan so&apos;ng bu yerda kunlik tushum grafigi paydo bo&apos;ladi.</p>
-                {showSaleCta && <Link href="/app/sales/new" className="t-btn t-btn--filled">Sotuv qilish</Link>}
+                <b>{t.weekEmptyTitle}</b>
+                <p>{t.weekEmptyText}</p>
+                {showSaleCta && <Link href="/app/sales/new" className="t-btn t-btn--filled">{t.makeSale}</Link>}
               </div>
             )}
           </section>
@@ -325,14 +332,14 @@ export default async function TenantDashboard({
 
         <section aria-labelledby="t-recent-h">
           <div className="t-group-head">
-            <h2 id="t-recent-h">So&apos;nggi sotuvlar</h2>
-            {features.sales && <Link href="/app/sales" className="t-link">Hammasi</Link>}
+            <h2 id="t-recent-h">{t.recentSales}</h2>
+            {features.sales && <Link href="/app/sales" className="t-link">{t.all}</Link>}
           </div>
           <div className="t-group">
             {recentSales.length === 0 ? (
               <div className="t-empty">
-                <p>Hozircha sotuv yo&apos;q.</p>
-                {showSaleCta && <Link href="/app/sales/new" className="t-btn t-btn--filled">Sotuv qilish</Link>}
+                <p>{t.noSalesYet}</p>
+                {showSaleCta && <Link href="/app/sales/new" className="t-btn t-btn--filled">{t.makeSale}</Link>}
               </div>
             ) : (
               recentSales.map((s) => (
@@ -342,12 +349,12 @@ export default async function TenantDashboard({
                   </span>
                   <span className="t-cell-t">
                     <b>{s.customerSnapshot?.fullName ?? s.productSnapshot?.name ?? s.saleNo}</b>
-                    <small>{s.saleNo} · {PAYMENT_TYPE_LABELS[s.paymentType as PaymentType]} · {fmtDateTime(s.createdAt ?? now)}</small>
+                    <small>{s.saleNo} · {d.shell.paymentTypes[s.paymentType] ?? s.paymentType} · {fmtDateTime(s.createdAt ?? now)}</small>
                   </span>
                   <span className="t-cell-a">
                     <span className="t-num">{fmtMoney(s.totalAmount)}</span>
                     <span className={`t-pill ${s.status === 'paid' ? 't-pill--ok' : 't-pill--warn'}`}>
-                      {SALE_STATUS_LABELS[s.status as SaleStatus]}
+                      {d.shell.saleStatuses[s.status] ?? s.status}
                     </span>
                   </span>
                 </Link>
@@ -375,9 +382,6 @@ export default async function TenantDashboard({
     </div>
   );
 }
-
-const UZ_MONTHS = ['yanvar', 'fevral', 'mart', 'aprel', 'may', 'iyun', 'iyul', 'avgust', 'sentabr', 'oktabr', 'noyabr', 'dekabr'];
-const UZ_WEEKDAYS = ['yakshanba', 'dushanba', 'seshanba', 'chorshanba', 'payshanba', 'juma', 'shanba'];
 
 /** Ixcham ko'rsatkich kartasi (tekis, 3D emas — faqat hajmli ikonka). Havola bo'lsa butun karta bosiladi. */
 function StatCard({

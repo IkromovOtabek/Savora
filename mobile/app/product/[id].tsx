@@ -5,6 +5,7 @@ import { useAuth, useCan } from '@/lib/auth';
 import { useResource } from '@/lib/hooks';
 import { useTheme, MONO } from '@/lib/theme';
 import { fmtMoney, fmtDate } from '@/lib/format';
+import { useDict, tr } from '@/lib/i18n';
 import {
   Screen, NavBar, LargeTitle, Group, Cell, Pill, Button, Loading, ErrorState, InlineError, type Tone,
 } from '@/components/ui';
@@ -18,20 +19,15 @@ interface Detail {
   history: { action: string; detail: string | null; by: string | null; at: string }[];
 }
 
-const STATUS: Record<string, { t: string; tone: Tone }> = {
-  in_stock: { t: 'Sotuvda', tone: 'ok' },
-  sold: { t: 'Sotilgan', tone: 'bad' },
-  reserved: { t: 'Band', tone: 'warn' },
-  defective: { t: 'Nuqsonli', tone: 'mut' },
-  transferred: { t: 'O\'tkazilgan', tone: 'mut' },
-};
-const ACTION: Record<string, string> = { created: 'Qo\'shildi', sold: 'Sotildi', transferred: 'O\'tkazildi', returned: 'Qaytarildi', edited: 'Tahrirlandi', restocked: 'To\'ldirildi' };
+/** Holat rangi — matni lug'atda (d.productDetail.status) */
+const STATUS_TONE: Record<string, Tone> = { in_stock: 'ok', sold: 'bad', reserved: 'warn', defective: 'mut', transferred: 'mut' };
 
 export default function ProductDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const { me } = useAuth();
   const { c } = useTheme();
+  const d = useDict();
   const terms = me?.terms;
   const f = me?.features ?? {};
   const can = useCan();
@@ -40,11 +36,13 @@ export default function ProductDetail() {
   useFocusEffect(useCallback(() => { if (first.current) { first.current = false; return; } res.reloadSilently(); }, [res.reloadSilently]));
 
   const p = res.data;
-  const backLabel = terms?.items ?? 'Ombor';
+  const backLabel = terms?.items ?? d.terms.items;
   if (res.loading && !p) return <Screen header={<NavBar backLabel={backLabel} />}><Loading /></Screen>;
   if (!p) return <Screen header={<NavBar backLabel={backLabel} />}><ErrorState message={res.error} onRetry={res.retry} /></Screen>;
 
-  const st = STATUS[p.status] ?? { t: p.status, tone: 'mut' as Tone };
+  const statusLabels: Record<string, string> = d.productDetail.status;
+  const st = { t: statusLabels[p.status] ?? p.status, tone: STATUS_TONE[p.status] ?? ('mut' as Tone) };
+  const actionLabels: Record<string, string> = d.productDetail.action;
   const canSell = p.status === 'in_stock' && p.available > 0;
   const q = (o: Record<string, string | number | boolean>) =>
     Object.entries(o).map(([k, v]) => `${k}=${encodeURIComponent(String(v))}`).join('&');
@@ -58,8 +56,8 @@ export default function ProductDetail() {
       onRefresh={res.refresh}
       footer={canSell ? (
         <View style={{ flexDirection: 'row', gap: 10 }}>
-          {can('sale.create') ? <Button title="Sotish" icon="cart" size="lg" style={{ flex: 1 }} onPress={() => router.push(sellHref as never)} /> : null}
-          {f.transferred && can('transfer.create') ? <Button title="Berish" icon="swap-horizontal" variant="tinted" size="lg" style={{ flex: 1 }} onPress={() => router.push(transferHref as never)} /> : null}
+          {can('sale.create') ? <Button title={d.productDetail.sell} icon="cart" size="lg" style={{ flex: 1 }} onPress={() => router.push(sellHref as never)} /> : null}
+          {f.transferred && can('transfer.create') ? <Button title={d.productDetail.give} icon="swap-horizontal" variant="tinted" size="lg" style={{ flex: 1 }} onPress={() => router.push(transferHref as never)} /> : null}
         </View>
       ) : undefined}
     >
@@ -72,27 +70,27 @@ export default function ProductDetail() {
 
       {res.error ? <InlineError message={res.error} onRetry={res.refresh} /> : null}
 
-      <Group header="Narx">
-        <Cell title="Sotuv narxi" value={fmtMoney(p.salePrice, { suffix: true })} valueStrong />
-        {!p.costHidden ? <Cell title="Kelish narxi" value={fmtMoney(p.purchasePrice, { suffix: true })} /> : null}
-        {!p.costHidden ? <Cell title="Foyda" value={fmtMoney(p.profit, { suffix: true })} valueColor={p.profit >= 0 ? c.ok : c.bad} /> : null}
+      <Group header={d.productDetail.price}>
+        <Cell title={d.productDetail.sellPrice} value={fmtMoney(p.salePrice, { suffix: true })} valueStrong />
+        {!p.costHidden ? <Cell title={d.productDetail.buyPrice} value={fmtMoney(p.purchasePrice, { suffix: true })} /> : null}
+        {!p.costHidden ? <Cell title={d.productDetail.profit} value={fmtMoney(p.profit, { suffix: true })} valueColor={p.profit >= 0 ? c.ok : c.bad} /> : null}
       </Group>
 
-      <Group header="Ma'lumot">
-        <Cell title={terms?.codeLabel ?? 'Kod'} value={p.imei} valueMono={MONO} />
-        {p.barcode ? <Cell title="Shtrix kod" value={p.barcode} valueMono={MONO} /> : null}
-        {p.branch ? <Cell title="Filial" value={p.branch} /> : null}
-        {p.trackQuantity ? <Cell title="Qoldiq" value={`${fmtMoney(p.available)} / ${fmtMoney(p.quantity)} dona`} valueColor={p.available > 0 ? undefined : c.bad} /> : null}
-        <Cell title="Qo'shilgan" value={fmtDate(p.createdAt)} />
-        {p.notes ? <Cell title="Izoh" value={p.notes} wrapValue /> : null}
+      <Group header={d.common.info}>
+        <Cell title={terms?.codeLabel ?? d.productDetail.code} value={p.imei} valueMono={MONO} />
+        {p.barcode ? <Cell title={d.productDetail.barcode} value={p.barcode} valueMono={MONO} /> : null}
+        {p.branch ? <Cell title={d.common.branch} value={p.branch} /> : null}
+        {p.trackQuantity ? <Cell title={d.common.remaining} value={tr(d.productDetail.remainingVal, { a: fmtMoney(p.available), b: fmtMoney(p.quantity) })} valueColor={p.available > 0 ? undefined : c.bad} /> : null}
+        <Cell title={d.productDetail.added} value={fmtDate(p.createdAt)} />
+        {p.notes ? <Cell title={d.common.note} value={p.notes} wrapValue /> : null}
       </Group>
 
       {p.history.length > 0 ? (
-        <Group header="Tarix">
+        <Group header={d.productDetail.history}>
           {p.history.map((h, i) => (
             <Cell
               key={i}
-              title={ACTION[h.action] ?? h.action}
+              title={actionLabels[h.action] ?? h.action}
               subtitle={[h.detail, h.by].filter(Boolean).join(' · ') || undefined}
               subtitleLines={2}
               value={fmtDate(h.at)}

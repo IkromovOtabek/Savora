@@ -169,6 +169,8 @@ export const uz = {
   permissionDenied: "Bu amal uchun huquqingiz yo'q. Do'kon egasiga murojaat qiling.",
   /** {label} — huquq nomi */
   permissionDeniedNamed: "«{label}» huquqi yo'q. Do'kon egasiga murojaat qiling.",
+  /** {label} — modul nomi */
+  featureDisabledNamed: '«{label}» moduli faol emas. Platforma egasiga murojaat qiling.',
   businessTypes: businessTypesUz,
   terms: termsUz,
   roles: { admin: "Do'kon egasi", user: 'Xodim', super_admin: 'Super admin' } as Record<'admin' | 'user' | 'super_admin', string>,
@@ -182,6 +184,7 @@ export const ru: typeof uz = {
   permissionGroups: { savdo: 'Продажи', ombor: 'Склад', moliya: 'Финансы', boshqaruv: 'Управление' },
   permissionDenied: 'У вас нет прав на это действие. Обратитесь к владельцу магазина.',
   permissionDeniedNamed: 'Нет права «{label}». Обратитесь к владельцу магазина.',
+  featureDisabledNamed: 'Модуль «{label}» не подключён. Обратитесь к владельцу платформы.',
   businessTypes: businessTypesRu,
   terms: termsRu,
   roles: { admin: 'Владелец магазина', user: 'Сотрудник', super_admin: 'Суперадмин' },

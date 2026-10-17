@@ -7,16 +7,16 @@ import { toast } from '@/lib/toast';
 import Icon, { type IconName } from '@/components/icons/Icon';
 import type { OrgFeatures } from '@/lib/featureKeys';
 import {
-  PERMISSION_GROUP_LABELS,
   PERMISSION_KEYS,
   PERMISSIONS,
   ROLE_DEFAULT_PERMISSIONS,
   type PermissionGroup,
   type PermissionKey,
 } from '@/lib/permissions';
+import { useDict } from '@/lib/i18n/client';
 import '@/components/tenant/styles/admin.css';
 
-const GROUPS = Object.keys(PERMISSION_GROUP_LABELS) as PermissionGroup[];
+const GROUPS: readonly PermissionGroup[] = ['savdo', 'ombor', 'moliya', 'boshqaruv'];
 
 const GROUP_ICONS: Record<PermissionGroup, { icon: IconName; tone: string }> = {
   savdo: { icon: 'cart', tone: '' },
@@ -42,6 +42,8 @@ export default function PermissionEditor({
   onDone: () => void;
 }) {
   const router = useRouter();
+  const d = useDict();
+  const P = d.crm.team.perm;
   const [checked, setChecked] = useState<Set<PermissionKey>>(new Set(initial));
   const [busy, setBusy] = useState(false);
 
@@ -63,7 +65,7 @@ export default function PermissionEditor({
     const res = await updateUserPermissionsAction(null, fd);
     setBusy(false);
     if (res?.error) { toast(res.error, 'error'); return; }
-    toast(res?.success ?? 'Saqlandi.', 'success');
+    toast(res?.success ?? d.common.saved, 'success');
     onDone();
     router.refresh();
   }
@@ -75,12 +77,12 @@ export default function PermissionEditor({
     <div className="ad-perm">
       <div className="ad-perm-intro">
         <p>
-          <strong>{name}</strong> — {isDefault ? 'hozir rol standarti amal qilmoqda.' : 'maxsus huquqlar berilgan.'}
-          {' '}Modul o&apos;chiq bo&apos;lsa, huquq bo&apos;lsa ham bo&apos;lim ko&apos;rinmaydi.
+          <strong>{name}</strong> — {isDefault ? P.introDefault : P.introCustom}
+          {' '}{P.introNote}
         </p>
         <div className="ad-perm-count" aria-live="polite">
           <b>{onCount}/{assignable.length}</b>
-          <small>yoqilgan</small>
+          <small>{P.enabled}</small>
         </div>
       </div>
 
@@ -94,7 +96,7 @@ export default function PermissionEditor({
           return (
             <section key={g} aria-labelledby={`perm-g-${g}`}>
               <div className="ad-sec-head">
-                <h2 id={`perm-g-${g}`}>{PERMISSION_GROUP_LABELS[g]}</h2>
+                <h2 id={`perm-g-${g}`}>{d.catalog.permissionGroups[g]}</h2>
                 <span>{groupOn}/{groupTotal}</span>
               </div>
               <div className="ad-group">
@@ -114,13 +116,13 @@ export default function PermissionEditor({
                       </span>
                       <span className="ad-cell-t">
                         <b>
-                          {p.label}
+                          {d.catalog.permissions[k].label}
                           <span className="ad-perm-tags">
-                            {isStd && <span className="ad-pill">standart</span>}
-                            {featureOff && <span className="ad-pill ad-pill--warn">modul o&apos;chiq</span>}
+                            {isStd && <span className="ad-pill">{P.standardTag}</span>}
+                            {featureOff && <span className="ad-pill ad-pill--warn">{P.moduleOff}</span>}
                           </span>
                         </b>
-                        <small>{p.adminOnly ? 'Faqat do\'kon egasi' : p.description}</small>
+                        <small>{p.adminOnly ? P.adminOnly : d.catalog.permissions[k].description}</small>
                       </span>
                       <input
                         id={id}
@@ -147,13 +149,13 @@ export default function PermissionEditor({
           onClick={() => submit(true)}
           disabled={busy}
         >
-          <Icon name="repeat" size={15} /> Standartga qaytarish
+          <Icon name="repeat" size={15} /> {P.resetToDefault}
         </button>
         <button type="button" className="btn btn-ghost btn-sm" onClick={onDone} disabled={busy}>
-          Bekor qilish
+          {d.common.cancel}
         </button>
         <button type="button" className="btn btn-primary btn-sm" onClick={() => submit(false)} disabled={busy}>
-          {busy ? 'Saqlanmoqda…' : 'Saqlash'}
+          {busy ? d.common.saving : d.common.save}
         </button>
       </div>
     </div>

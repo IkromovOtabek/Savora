@@ -4,6 +4,7 @@ import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { usePaged } from '@/lib/hooks';
 import { useTheme } from '@/lib/theme';
 import { fmtMoney, payLabel, fmtDate } from '@/lib/format';
+import { useDict, tr } from '@/lib/i18n';
 import {
   Screen, useLayout, LargeTitle, SegmentedControl, Cell, AmountColumn, Pill, listCellStyle,
   Loading, EmptyState, ErrorState, InlineError, type Tone,
@@ -20,6 +21,7 @@ export default function Sales() {
   const router = useRouter();
   const { c } = useTheme();
   const L = useLayout();
+  const d = useDict();
   const params = useLocalSearchParams<{ type?: string }>();
   const [type, setType] = useState<'all' | 'debt'>(params.type === 'debt' ? 'debt' : 'all');
   useEffect(() => { if (params.type === 'debt' || params.type === 'all') setType(params.type); }, [params.type]);
@@ -30,9 +32,9 @@ export default function Sales() {
 
   const header = (
     <View style={{ gap: 14, paddingBottom: 14 }}>
-      <LargeTitle title="Sotuvlar" subtitle={list.loading ? ' ' : `${fmtMoney(list.total)} ta`} />
+      <LargeTitle title={d.sales.title} subtitle={list.loading ? ' ' : tr(d.common.count, { n: fmtMoney(list.total) })} />
       <SegmentedControl
-        options={[{ key: 'all', label: 'Barchasi' }, { key: 'debt', label: 'Qarzdorlar' }]}
+        options={[{ key: 'all', label: d.sales.all }, { key: 'debt', label: d.sales.debtors }]}
         value={type}
         onChange={setType}
       />
@@ -53,7 +55,7 @@ export default function Sales() {
         ListEmptyComponent={
           list.loading ? <Loading />
             : list.error ? <ErrorState message={list.error} onRetry={list.retry} />
-            : <EmptyState icon="cart-outline" title={type === 'debt' ? 'Qarzdor sotuv yo\'q' : 'Sotuv topilmadi'} message={type === 'debt' ? 'Barcha qarzlar to\'langan.' : 'Birinchi sotuvni «Sotish» tugmasi bilan qiling.'} />
+            : <EmptyState icon="cart-outline" title={type === 'debt' ? d.sales.emptyDebt : d.sales.empty} message={type === 'debt' ? d.sales.emptyDebtMsg : d.sales.emptyMsg} />
         }
         ListFooterComponent={list.loadingMore ? <ActivityIndicator color={c.tint} style={{ marginVertical: 16 }} /> : null}
         renderItem={({ item, index }) => (
@@ -65,7 +67,7 @@ export default function Sales() {
             right={
               <AmountColumn amount={fmtMoney(item.totalAmount)}>
                 {item.remainingAmount > 0
-                  ? <Pill label={`Qoldiq ${fmtMoney(item.remainingAmount)}`} tone="bad" />
+                  ? <Pill label={tr(d.sales.remaining, { v: fmtMoney(item.remainingAmount) })} tone="bad" />
                   : <Pill label={payLabel(item.paymentType)} tone={PAY_TONE[item.paymentType] ?? 'mut'} />}
               </AmountColumn>
             }

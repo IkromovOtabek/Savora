@@ -11,6 +11,8 @@ import Tilt from '@/components/ui/Tilt';
 import MoreMenu from '@/components/ui/MoreMenu';
 import type { OrgFeatures } from '@/lib/featureKeys';
 import type { PermissionKey } from '@/lib/permissions';
+import { useDict } from '@/lib/i18n/client';
+import { tr } from '@/lib/i18n/fmt';
 import '@/components/tenant/styles/admin.css';
 
 interface Row {
@@ -52,6 +54,8 @@ export default function FilialManager({
   features: OrgFeatures;
 }) {
   const router = useRouter();
+  const d = useDict();
+  const t = d.crm.team;
   const [modal, setModal] = useState<Modal>(null);
   const [busy, setBusy] = useState(false);
   /** Ikki bosqichli o'chirish: birinchi bosishda shu qatorga tasdiq chiqadi */
@@ -77,7 +81,7 @@ export default function FilialManager({
     const res = await action(new FormData(form));
     setBusy(false);
     if (res?.error) { toast(res.error, 'error'); return; }
-    toast(res?.success ?? 'Saqlandi.', 'success');
+    toast(res?.success ?? d.common.saved, 'success');
     setModal(null);
     router.refresh();
   }
@@ -91,7 +95,7 @@ export default function FilialManager({
     const res = await deleteFilialAction(null, fd);
     setBusy(false);
     if (res?.error) { toast(res.error, 'error'); return; }
-    toast(res?.success ?? 'O\'chirildi.', 'success');
+    toast(res?.success ?? d.common.deleted, 'success');
     router.refresh();
   }
 
@@ -106,12 +110,12 @@ export default function FilialManager({
       {/* ===== Xulosa: tarif limiti (3D asosiy ob'ekt) + loginlar ===== */}
       <div className="ad-team-summary">
         <Tilt stack className={`ad-hero${atLimit ? ' ad-hero--over' : ''}`}>
-          <span className="ad-hero-l"><Icon name="store" size={15} /> Filiallar · tarif limiti</span>
+          <span className="ad-hero-l"><Icon name="store" size={15} /> {t.limitLabel}</span>
           <span className="ad-hero-v ux-z">{activeBranchCount}<small> / {maxFilial}</small></span>
           <div
             className={`ad-meter ad-meter--hero${meterTone}`}
             role="meter"
-            aria-label="Filiallar limiti"
+            aria-label={t.limitAria}
             aria-valuemin={0}
             aria-valuemax={maxFilial}
             aria-valuenow={activeBranchCount}
@@ -120,20 +124,20 @@ export default function FilialManager({
           </div>
           <span className="ad-hero-s">
             {atLimit
-              ? <>Limitga yetdi · <a href="/app/profile#obuna-tolovi">Tarifni yangilash</a></>
-              : `Yana ${Math.max(0, maxFilial - activeBranchCount)} ta filial ochish mumkin`}
+              ? <>{t.limitReached} · <a href="/app/profile#obuna-tolovi">{t.upgradePlan}</a></>
+              : tr(t.canOpenMore, { n: Math.max(0, maxFilial - activeBranchCount) })}
           </span>
         </Tilt>
         <div className="ad-team-stats">
           <div className="ad-stat">
-            <span className="ad-stat-l"><Icon name="users" size={15} /> Faol loginlar</span>
+            <span className="ad-stat-l"><Icon name="users" size={15} /> {t.activeLogins}</span>
             <span className="ad-stat-v">{activeLogins}</span>
-            <span className="ad-stat-sub">Jami {rows.length} ta login</span>
+            <span className="ad-stat-sub">{tr(t.totalLogins, { n: rows.length })}</span>
           </div>
           <div className="ad-stat">
-            <span className="ad-stat-l"><Icon name="lock" size={15} /> O&apos;chirilgan</span>
+            <span className="ad-stat-l"><Icon name="lock" size={15} /> {t.disabled}</span>
             <span className="ad-stat-v">{offLogins}</span>
-            <span className="ad-stat-sub">Tizimga kira olmaydi</span>
+            <span className="ad-stat-sub">{t.cannotLogin}</span>
           </div>
         </div>
       </div>
@@ -141,8 +145,8 @@ export default function FilialManager({
       {/* ===== Jamoa kartalari ===== */}
       <section id="filial" className="ad-team" aria-labelledby="ad-team-title">
         <div className="ad-sec-head">
-          <h2 id="ad-team-title">Jamoa</h2>
-          <span>{rows.length} ta login</span>
+          <h2 id="ad-team-title">{t.teamTitle}</h2>
+          <span>{tr(t.nLogins, { n: rows.length })}</span>
         </div>
 
         <ul className="ad-team-grid" role="list">
@@ -165,39 +169,39 @@ export default function FilialManager({
 
                 <div className="ad-member-pills">
                   <span className={`ad-pill ${isAdmin ? 'ad-pill--brand' : ''}`}>
-                    {isAdmin ? 'Admin' : 'Filial'}
+                    {isAdmin ? t.roleAdmin : t.roleBranch}
                   </span>
                   <span className={`ad-pill ${r.active ? 'ad-pill--ok' : 'ad-pill--danger'}`}>
                     <span className="ad-dot" aria-hidden="true" />
-                    {r.active ? 'Faol' : 'O\'chiq'}
+                    {r.active ? d.common.active : t.off}
                   </span>
                   <span className="ad-pill">
                     <Icon name="key" size={12} />
-                    {isAdmin ? 'Barcha huquqlar' : `${r.permissions.length} ta huquq${r.permissionsDefault ? ' · standart' : ''}`}
+                    {isAdmin ? t.allPermissions : `${tr(t.nPermissions, { n: r.permissions.length })}${r.permissionsDefault ? ` · ${t.standard}` : ''}`}
                   </span>
-                  {r.isSelf && <span className="ad-pill ad-pill--gold">Siz</span>}
+                  {r.isSelf && <span className="ad-pill ad-pill--gold">{t.you}</span>}
                 </div>
 
                 <div className="ad-member-meta">
                   {!isAdmin && (
                     <>
-                      <div><Icon name="phone" size={14} /><span>{r.phone || 'Telefon kiritilmagan'}</span></div>
-                      <div><Icon name="map" size={14} /><span>{r.address || 'Manzil kiritilmagan'}</span></div>
+                      <div><Icon name="phone" size={14} /><span>{r.phone || t.noPhone}</span></div>
+                      <div><Icon name="map" size={14} /><span>{r.address || t.noAddress}</span></div>
                     </>
                   )}
-                  <div><Icon name="clock" size={14} /><span>Yaratilgan: {fmtDate(r.createdAt)}</span></div>
+                  <div><Icon name="clock" size={14} /><span>{tr(t.createdAt, { date: fmtDate(r.createdAt) })}</span></div>
                 </div>
 
                 {!isAdmin && (
                   <div className="ad-member-actions" aria-live="polite">
                     {confirming ? (
                       <div className="ad-confirm">
-                        <span className="ad-confirm-q">O&apos;chirilsinmi?</span>
+                        <span className="ad-confirm-q">{t.deleteQ}</span>
                         <button type="button" className="btn btn-ghost btn-sm" onClick={() => setConfirmId(null)} disabled={busy}>
-                          Yo&apos;q
+                          {d.common.no}
                         </button>
                         <button type="button" className="btn btn-danger-fill btn-sm" onClick={() => remove(r)} disabled={busy} autoFocus>
-                          {busy ? 'O\'chirilmoqda…' : 'Ha, o\'chirish'}
+                          {busy ? d.common.deleting : t.yesDelete}
                         </button>
                       </div>
                     ) : (
@@ -207,7 +211,7 @@ export default function FilialManager({
                           className="btn btn-tinted btn-sm btn-with-icon"
                           onClick={() => setModal({ type: 'perms', row: r })}
                         >
-                          <Icon name="key" size={15} /> Huquqlar
+                          <Icon name="key" size={15} /> {t.permissionsBtn}
                         </button>
                         <button
                           type="button"
@@ -215,10 +219,10 @@ export default function FilialManager({
                           disabled={!canEdit}
                           onClick={() => setModal({ type: 'edit', row: r })}
                         >
-                          <Icon name="edit" size={15} /> Tahrirlash
+                          <Icon name="edit" size={15} /> {d.common.edit}
                         </button>
                         {canDelete && (
-                          <MoreMenu label={`${r.name}: ko'proq amallar`}>
+                          <MoreMenu label={tr(t.moreAria, { name: r.name })}>
                             <button
                               type="button"
                               role="menuitem"
@@ -226,7 +230,7 @@ export default function FilialManager({
                               disabled={busy}
                               onClick={() => setConfirmId(r.id)}
                             >
-                              <Icon name="trash" size={16} /> Filialni o&apos;chirish
+                              <Icon name="trash" size={16} /> {t.deleteBranch}
                             </button>
                           </MoreMenu>
                         )}
@@ -241,8 +245,8 @@ export default function FilialManager({
           <li className="ad-member-add-wrap ux-hide-mobile">
             <button type="button" className="ad-member-add" onClick={() => setModal({ type: 'create' })}>
               <span className="ad-member-add-ic"><Icon name="plus" size={22} /></span>
-              <b>Yangi filial qo&apos;shish</b>
-              <small>{atLimit ? 'Tarif limitiga yetdingiz' : 'Filial va uning loginini yarating'}</small>
+              <b>{t.addNew}</b>
+              <small>{atLimit ? t.addNewLimit : t.addNewHint}</small>
             </button>
           </li>
         </ul>
@@ -251,7 +255,7 @@ export default function FilialManager({
       {/* Telefonda asosiy amal — pastki o'ng FAB (tab bar ustida) */}
       {!modal && (
         <button type="button" className="ux-fab" onClick={() => setModal({ type: 'create' })}>
-          <Icon name="plus" size={18} /> Yangi filial
+          <Icon name="plus" size={18} /> {t.newBranch}
         </button>
       )}
 
@@ -266,42 +270,42 @@ export default function FilialManager({
             onClick={(e) => e.stopPropagation()}
           >
             <div className="u-modal-head">
-              <h3 id="ad-create-title">Yangi filial</h3>
-              <button type="button" className="u-icon-btn" aria-label="Yopish" onClick={() => setModal(null)} disabled={busy}>
+              <h3 id="ad-create-title">{t.newBranch}</h3>
+              <button type="button" className="u-icon-btn" aria-label={d.common.close} onClick={() => setModal(null)} disabled={busy}>
                 <Icon name="close" size={18} />
               </button>
             </div>
             <form onSubmit={(e) => { e.preventDefault(); run((fd) => createFilialAction(null, fd), e.currentTarget); }}>
               <fieldset className="ad-fieldset">
-                <legend>Filial</legend>
+                <legend>{t.branchLegend}</legend>
                 <div className="auth-field">
-                  <label htmlFor="fc-name">Filial nomi *</label>
-                  <input id="fc-name" name="name" required disabled={busy} placeholder="Masalan: Chilonzor" autoFocus />
+                  <label htmlFor="fc-name">{t.branchName}</label>
+                  <input id="fc-name" name="name" required disabled={busy} placeholder={t.branchNamePlaceholder} autoFocus />
                 </div>
                 <div className="auth-field">
-                  <label htmlFor="fc-phone">Telefon</label>
+                  <label htmlFor="fc-phone">{t.phone}</label>
                   <input id="fc-phone" name="phone" type="tel" inputMode="tel" disabled={busy} placeholder="+998..." />
                 </div>
                 <div className="auth-field">
-                  <label htmlFor="fc-address">Manzil</label>
+                  <label htmlFor="fc-address">{t.address}</label>
                   <input id="fc-address" name="address" disabled={busy} />
                 </div>
               </fieldset>
               <fieldset className="ad-fieldset">
-                <legend>Kirish ma&apos;lumotlari</legend>
+                <legend>{t.loginLegend}</legend>
                 <div className="auth-field">
-                  <label htmlFor="fc-username">Login *</label>
+                  <label htmlFor="fc-username">{t.login}</label>
                   <input id="fc-username" name="username" required disabled={busy} placeholder="chilonzor" autoComplete="off" autoCapitalize="none" />
                 </div>
                 <div className="auth-field">
-                  <label htmlFor="fc-password">Parol *</label>
-                  <input id="fc-password" name="password" type="text" required disabled={busy} placeholder="kamida 6 belgi" autoComplete="off" />
+                  <label htmlFor="fc-password">{t.password}</label>
+                  <input id="fc-password" name="password" type="text" required disabled={busy} placeholder={t.passwordPlaceholder} autoComplete="off" />
                 </div>
-                <p className="ad-hint">Login va parolni filial xodimiga bering. Huquqlarni keyin «Huquqlar» tugmasi orqali sozlaysiz.</p>
+                <p className="ad-hint">{t.loginHint}</p>
               </fieldset>
               <div className="u-modal-actions">
-                <button type="button" className="btn btn-ghost btn-sm" onClick={() => setModal(null)} disabled={busy}>Bekor qilish</button>
-                <button type="submit" className="btn btn-primary btn-sm" disabled={busy}>{busy ? 'Saqlanmoqda…' : 'Yaratish'}</button>
+                <button type="button" className="btn btn-ghost btn-sm" onClick={() => setModal(null)} disabled={busy}>{d.common.cancel}</button>
+                <button type="submit" className="btn btn-primary btn-sm" disabled={busy}>{busy ? d.common.saving : d.common.create}</button>
               </div>
             </form>
           </div>
@@ -319,8 +323,8 @@ export default function FilialManager({
             onClick={(e) => e.stopPropagation()}
           >
             <div className="u-modal-head">
-              <h3 id="ad-perms-title">Huquqlar — {modal.row.name}</h3>
-              <button type="button" className="u-icon-btn" aria-label="Yopish" onClick={() => setModal(null)}>
+              <h3 id="ad-perms-title">{tr(t.permissionsTitle, { name: modal.row.name })}</h3>
+              <button type="button" className="u-icon-btn" aria-label={d.common.close} onClick={() => setModal(null)}>
                 <Icon name="close" size={18} />
               </button>
             </div>
@@ -347,38 +351,38 @@ export default function FilialManager({
             onClick={(e) => e.stopPropagation()}
           >
             <div className="u-modal-head">
-              <h3 id="ad-edit-title">Filialni tahrirlash</h3>
-              <button type="button" className="u-icon-btn" aria-label="Yopish" onClick={() => setModal(null)} disabled={busy}>
+              <h3 id="ad-edit-title">{t.editBranch}</h3>
+              <button type="button" className="u-icon-btn" aria-label={d.common.close} onClick={() => setModal(null)} disabled={busy}>
                 <Icon name="close" size={18} />
               </button>
             </div>
             <form onSubmit={(e) => { e.preventDefault(); run((fd) => updateFilialAction(null, fd), e.currentTarget); }}>
               <input type="hidden" name="branchId" value={modal.row.branchId} />
               <fieldset className="ad-fieldset">
-                <legend>Filial</legend>
+                <legend>{t.branchLegend}</legend>
                 <div className="auth-field">
-                  <label htmlFor="fe-name">Filial nomi *</label>
+                  <label htmlFor="fe-name">{t.branchName}</label>
                   <input id="fe-name" name="name" required defaultValue={modal.row.name} disabled={busy} />
                 </div>
                 <div className="auth-field">
-                  <label htmlFor="fe-phone">Telefon</label>
+                  <label htmlFor="fe-phone">{t.phone}</label>
                   <input id="fe-phone" name="phone" type="tel" inputMode="tel" defaultValue={modal.row.phone} disabled={busy} />
                 </div>
                 <div className="auth-field">
-                  <label htmlFor="fe-address">Manzil</label>
+                  <label htmlFor="fe-address">{t.address}</label>
                   <input id="fe-address" name="address" defaultValue={modal.row.address} disabled={busy} />
                 </div>
               </fieldset>
               <fieldset className="ad-fieldset">
-                <legend>Kirish — @{modal.row.username}</legend>
+                <legend>{tr(t.loginLegendUser, { username: modal.row.username })}</legend>
                 <div className="auth-field">
-                  <label htmlFor="fe-password">Yangi parol (ixtiyoriy)</label>
-                  <input id="fe-password" name="newPassword" type="text" disabled={busy} placeholder="o'zgartirmaslik uchun bo'sh qoldiring" autoComplete="off" />
+                  <label htmlFor="fe-password">{t.newPassword}</label>
+                  <input id="fe-password" name="newPassword" type="text" disabled={busy} placeholder={t.newPasswordPlaceholder} autoComplete="off" />
                 </div>
                 <label className="ad-toggle-row" htmlFor="fe-active">
                   <span>
-                    <b>Faol</b>
-                    <small>O&apos;chirilsa, filial logini tizimga kira olmaydi</small>
+                    <b>{t.activeLabel}</b>
+                    <small>{t.activeHint}</small>
                   </span>
                   <input
                     id="fe-active"
@@ -392,8 +396,8 @@ export default function FilialManager({
                 </label>
               </fieldset>
               <div className="u-modal-actions">
-                <button type="button" className="btn btn-ghost btn-sm" onClick={() => setModal(null)} disabled={busy}>Bekor qilish</button>
-                <button type="submit" className="btn btn-primary btn-sm" disabled={busy}>{busy ? 'Saqlanmoqda…' : 'Saqlash'}</button>
+                <button type="button" className="btn btn-ghost btn-sm" onClick={() => setModal(null)} disabled={busy}>{d.common.cancel}</button>
+                <button type="submit" className="btn btn-primary btn-sm" disabled={busy}>{busy ? d.common.saving : d.common.save}</button>
               </div>
             </form>
           </div>

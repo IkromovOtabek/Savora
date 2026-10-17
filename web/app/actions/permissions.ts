@@ -6,9 +6,11 @@ import { requireSuperAdmin } from '@/lib/auth';
 import { getTenantAdminSession } from '@/lib/tenantSession';
 import { getTenantModels } from '@/lib/tenantDb';
 import { getMasterModels } from '@/lib/masterDb';
-import { checkPermission } from '@/lib/permissionGuard';
+import { userCan } from '@/lib/permissionGuard';
 import { normalizeUserPermissions, PERMISSIONS, type PermissionKey } from '@/lib/permissions';
 import { recordAudit } from '@/lib/audit';
+import { getDict, type Dict } from '@/lib/i18n/server';
+import { tr } from '@/lib/i18n/fmt';
 
 type State = { error?: string; success?: string } | null;
 
@@ -23,11 +25,12 @@ async function savePermissions(
   userId: string,
   raw: readonly unknown[],
   reset: boolean,
+  d: Dict,
 ): Promise<{ ok: true; username: string; list: PermissionKey[] | undefined } | { ok: false; error: string }> {
-  if (!isValidObjectId(userId)) return { ok: false, error: 'Foydalanuvchi topilmadi.' };
+  if (!isValidObjectId(userId)) return { ok: false, error: d.crm.team.errUserNotFound };
   const target = await User.findById(userId);
-  if (!target) return { ok: false, error: 'Foydalanuvchi topilmadi.' };
-  if (target.role !== 'user') return { ok: false, error: 'Do\'kon egasi (admin) doim barcha huquqlarga ega.' };
+  if (!target) return { ok: false, error: d.crm.team.errUserNotFound };
+  if (target.role !== 'user') return { ok: false, error: d.crm.team.errAdminAlways };
 
   const list = reset ? undefined : normalizeUserPermissions(raw);
   target.set('permissions', list);
@@ -44,11 +47,12 @@ function summaryOf(list: PermissionKey[] | undefined): string {
 /** Do'kon egasi — filial login huquqlarini o'zgartiradi (/app/users) */
 export async function updateUserPermissionsAction(_prev: State, formData: FormData): Promise<State> {
   const { user, User } = await getTenantAdminSession();
-  { const denied = await checkPermission(user, 'users.manage'); if (denied) return denied; }
+  const d = await getDict();
+  if (!(await userCan(user, 'users.manage'))) return { error: tr(d.catalog.permissionDeniedNamed, { label: d.catalog.permissions['users.manage'].label }) };
 
   const userId = String(formData.get('userId') || '');
   const reset = formData.get('reset') === '1';
-  const res = await savePermissions(User, userId, formData.getAll('perm'), reset);
+  const res = await savePermissions(User, userId, formData.getAll('perm'), reset, d);
   if (!res.ok) return { error: res.error };
 
   await recordAudit(user, {
@@ -59,7 +63,7 @@ export async function updateUserPermissionsAction(_prev: State, formData: FormDa
     meta: { permissions: res.list ?? null },
   });
   revalidatePath('/app/users');
-  return { success: reset ? 'Huquqlar standartga qaytarildi.' : 'Huquqlar saqlandi.' };
+  return { success: reset ? d.crm.team.permsReset : d.crm.team.permsSaved };
 }
 
 /**
@@ -68,19 +72,20 @@ export async function updateUserPermissionsAction(_prev: State, formData: FormDa
  */
 export async function superUpdateOrgPermissionsAction(_prev: State, formData: FormData): Promise<State> {
   const admin = await requireSuperAdmin();
+  const d = await getDict();
 
   const orgId = String(formData.get('orgId') || '');
-  if (!orgId || !isValidObjectId(orgId)) return { error: 'Do\'kon ID noto\'g\'ri.' };
+  if (!orgId || !isValidObjectId(orgId)) return { error: d.crm.team.errOrgId };
   const { Organization } = await getMasterModels();
   const org = await Organization.findById(orgId).select('dbName').lean();
-  if (!org) return { error: 'Do\'kon topilmadi.' };
+  if (!org) return { error: d.crm.team.errOrgNotFound };
 
   const { User } = await getTenantModels(org.dbName);
   const resetUser = String(formData.get('resetUser') || '');
   const userIds = [...new Set(formData.getAll('userId').map(String))];
   let saved = 0;
   for (const userId of userIds) {
-    const res = await savePermissions(User, userId, formData.getAll(`perm_${userId}`), resetUser === userId);
+    const res = await savePermissions(User, userId, formData.getAll(`perm_${userId}`), resetUser === userId, d);
     if (!res.ok) return { error: res.error };
     saved++;
     await recordAudit(
@@ -96,5 +101,5 @@ export async function superUpdateOrgPermissionsAction(_prev: State, formData: Fo
   }
 
   revalidatePath(`/super/organizations/${orgId}`);
-  return { success: saved ? `${saved} ta login huquqlari saqlandi.` : 'Saqlanadigan filial login yo\'q.' };
+  return { success: saved ? tr(d.crm.team.permsSavedN, { n: saved }) : d.crm.team.noBranchLogins };
 }
