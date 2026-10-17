@@ -11,6 +11,7 @@
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",
     "seed": "node --env-file=.env scripts/seed.mjs",
+    "super-admin": "node --env-file=.env scripts/super-admin.mjs",
     "migrate:dbs": "node --env-file=.env scripts/migrate-tenant-dbs.mjs",
     "directory:build": "node --env-file=.env scripts/build-user-directory.mjs",
     "expire": "node --env-file=.env scripts/expire-orgs.mjs",

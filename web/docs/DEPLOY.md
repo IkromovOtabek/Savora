@@ -156,12 +156,12 @@ chmod +x deploy/deploy.sh
 curl -s https://savora.uz/api/health
 ```
 
-Birinchi super admin / boshlang'ich ma'lumot (bir marta, host'da Node 20 bo'lsa):
+Birinchi super admin (yoki parol unutilganda tiklash) — faqat `superadmins` ga yozadi, demo ma'lumot yaratmaydi:
 ```bash
-sudo apt -y install nodejs npm || true   # yoki nvm orqali Node 20
-npm ci --omit=dev && npm run seed        # .env dagi MONGO_URI=mongodb://127.0.0.1:27017
+npm run super-admin                              # admin / tasodifiy parol, bir marta chop etiladi
+SUPER_ADMIN_PASSWORD='KuchliParol' npm run super-admin
 ```
-Seed'dan keyin **standart parolni darhol o'zgartiring**.
+`npm run seed` — faqat lokal/demo uchun (demo do'kon va ma'lum parollar yaratadi), production'da `SEED_ALLOW=1` siz bloklangan.
 
 ## B variant — Docker'siz (Node 20 + pm2)
 
