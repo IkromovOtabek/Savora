@@ -84,6 +84,10 @@ splash = Image.new('RGBA', (W, W), (0, 0, 0, 0))
 draw_mark(splash, scale=W * 0.7 / 100, offset=(W * 0.15, W * 0.15))
 save(splash, 'splash-icon.png')
 
+# 3b) Native splash uchun shaffof rasm — «Oltin nuqta» animatsiyasi bo'sh qorong'i fondan boshlanadi
+#     (rasmsiz Android 12+ o'rniga ilova ikonkasini ko'rsatadi, shuning uchun shaffof rasm beriladi)
+save(Image.new('RGBA', (W, W), (0, 0, 0, 0)), 'splash-blank.png')
+
 # 4) Android monochrome — faqat oq silhouette
 mono = Image.new('RGBA', (W, W), (0, 0, 0, 0))
 d = ImageDraw.Draw(mono)
