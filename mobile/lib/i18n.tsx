@@ -112,6 +112,13 @@ const uz = {
     fieldsTitle: 'Maydonlar',
     fieldsMsg: 'Login va parolni kiriting.',
     failTitle: 'Kirib bo\'lmadi',
+    heroTitle: 'Savdo, ombor va nasiya — bir joyda',
+    heroSub: 'Do\'koningiz hisobiga kiring va kunni nazorat ostida boshlang.',
+    language: 'Til',
+  },
+  splash: {
+    tagline: 'Do\'koningiz — cho\'ntagingizda',
+    loading: 'Ma\'lumotlar yuklanmoqda…',
   },
   home: {
     todayRevenue: 'Bugungi tushum',
@@ -485,6 +492,13 @@ const ru: Dict = {
     fieldsTitle: 'Поля',
     fieldsMsg: 'Введите логин и пароль.',
     failTitle: 'Не удалось войти',
+    heroTitle: 'Продажи, склад и рассрочка — в одном месте',
+    heroSub: 'Войдите в аккаунт магазина и начните день под контролем.',
+    language: 'Язык',
+  },
+  splash: {
+    tagline: 'Ваш магазин — в кармане',
+    loading: 'Загружаем данные…',
   },
   home: {
     todayRevenue: 'Выручка за сегодня',

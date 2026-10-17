@@ -1,11 +1,16 @@
-import { useEffect, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import * as SplashScreen from 'expo-splash-screen';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { ThemeProvider as NavThemeProvider, DefaultTheme, DarkTheme, type Theme as NavTheme } from '@react-navigation/native';
 import { AuthProvider, useAuth } from '@/lib/auth';
 import { ThemeProvider, useTheme } from '@/lib/theme';
 import { I18nProvider } from '@/lib/i18n';
+import { AnimatedSplash } from '@/components/AnimatedSplash';
+
+// Native splash JS animatsiyasi boshlanguncha turadi (AnimatedSplash onLayout'da yopadi)
+SplashScreen.preventAutoHideAsync().catch(() => { /* allaqachon yopilgan */ });
 
 /** Token bekor bo'lsa (401) — qaysi ekranda bo'lmasin, kirish sahifasiga. */
 function AuthGate() {
@@ -17,6 +22,20 @@ function AuthGate() {
     if (segments[0] !== 'login') router.replace('/login');
   }, [loading, me, error, segments, router]);
   return null;
+}
+
+/** Ochilish animatsiyasi: sessiya tekshiruvi tugamaguncha va animatsiya oxirigacha ustida turadi. */
+function SplashGate() {
+  const { loading } = useAuth();
+  const [visible, setVisible] = useState(true);
+  const onDone = useCallback(() => setVisible(false), []);
+  if (!visible) return null;
+  return (
+    <>
+      <StatusBar style="light" />
+      <AnimatedSplash ready={!loading} onDone={onDone} />
+    </>
+  );
 }
 
 function Navigation() {
@@ -40,6 +59,7 @@ function Navigation() {
         <Stack.Screen name="(tabs)" options={{ animation: 'fade' }} />
         <Stack.Screen name="scan" options={{ presentation: 'fullScreenModal', contentStyle: { backgroundColor: '#000' } }} />
       </Stack>
+      <SplashGate />
     </NavThemeProvider>
   );
 }
