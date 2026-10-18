@@ -27,7 +27,7 @@ export function Button({
 }: ButtonProps) {
   const { c } = useTheme();
   const pal = {
-    filled: { bg: c.tint, fg: c.onTint },
+    filled: { bg: c.tintFill, fg: c.onTint },
     tinted: { bg: c.tintSoft, fg: c.tint },
     gray: { bg: c.fill, fg: c.ink },
     plain: { bg: 'transparent', fg: c.tint },

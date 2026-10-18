@@ -46,7 +46,7 @@ export default function TabsLayout() {
           tabBarAccessibilityLabel: d.tabs.newSale,
           tabBarLabelStyle: { fontSize: 10, fontWeight: '600', color: c.tint },
           tabBarIcon: () => (
-            <View style={[s.sell, { backgroundColor: c.tint }]}>
+            <View style={[s.sell, { backgroundColor: c.tintFill }]}>
               <Ionicons name="scan" color="#fff" size={18} />
             </View>
           ),

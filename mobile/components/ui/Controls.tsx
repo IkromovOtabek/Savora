@@ -28,7 +28,7 @@ export function SegmentedControl<K extends string>({ options, value, onChange, s
             accessibilityState={{ selected: on }}
             style={[
               s.segBtn,
-              on && [{ backgroundColor: dark ? 'rgba(160,170,200,0.32)' : c.cell }, !dark && s.segShadow],
+              on && [{ backgroundColor: dark ? c.fill3 : c.cell }, !dark && s.segShadow],
             ]}
           >
             <Text
@@ -177,7 +177,7 @@ export function Chips<K extends string | number>({ options, value, onChange }: {
             onPress={() => onChange(o.key)}
             accessibilityRole="button"
             accessibilityState={{ selected: on }}
-            style={({ pressed }) => [s.chip, { backgroundColor: on ? c.tint : c.fill }, pressed && { opacity: 0.5 }]}
+            style={({ pressed }) => [s.chip, { backgroundColor: on ? c.tintFill : c.fill }, pressed && { opacity: 0.5 }]}
           >
             <Text style={[s.chipT, tabular, { color: on ? c.onTint : c.ink }]}>{o.label}</Text>
           </Pressable>
@@ -188,18 +188,18 @@ export function Chips<K extends string | number>({ options, value, onChange }: {
 }
 
 const s = StyleSheet.create({
-  seg: { flexDirection: 'row', padding: 2, borderRadius: 9 },
-  segBtn: { flex: 1, minHeight: 32, borderRadius: 7, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 6 },
+  seg: { flexDirection: 'row', padding: 4, borderRadius: 14 },
+  segBtn: { flex: 1, minHeight: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 6 },
   segShadow: { shadowColor: '#000', shadowOpacity: 0.12, shadowRadius: 4, shadowOffset: { width: 0, height: 2 }, elevation: 2 },
   segT: { fontSize: 13 },
-  search: { flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 10, paddingHorizontal: 10, minHeight: 40 },
+  search: { flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 12, paddingHorizontal: 12, minHeight: 44 },
   searchInput: { flex: 1, fontSize: 16, paddingVertical: 8 },
   label: { fontSize: 13, fontWeight: '500' },
-  inputWrap: { flexDirection: 'row', alignItems: 'center', borderRadius: 10, paddingHorizontal: 12, minHeight: 46, borderWidth: 1, gap: 6 },
+  inputWrap: { flexDirection: 'row', alignItems: 'center', borderRadius: 12, paddingHorizontal: 12, minHeight: 46, borderWidth: 1, gap: 6 },
   input: { flex: 1, fontSize: 16, paddingVertical: 11 },
   affix: { fontSize: 16 },
   help: { fontSize: 12.5 },
-  stepper: { flexDirection: 'row', alignItems: 'center', borderRadius: 9, overflow: 'hidden' },
+  stepper: { flexDirection: 'row', alignItems: 'center', borderRadius: 12, overflow: 'hidden' },
   stepBtn: { width: 44, height: 36, alignItems: 'center', justifyContent: 'center' },
   stepVal: { minWidth: 40, textAlign: 'center', fontSize: 15, fontWeight: '600', lineHeight: 36, borderLeftWidth: HAIRLINE, borderRightWidth: HAIRLINE },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },

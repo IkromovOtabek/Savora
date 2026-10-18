@@ -165,7 +165,7 @@ const s = StyleSheet.create({
   gheadRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', paddingHorizontal: 16, paddingBottom: 6, gap: 10 },
   ghead: { fontSize: 13, fontWeight: '500', letterSpacing: 0.2, flexShrink: 1 },
   gfoot: { fontSize: 13, paddingHorizontal: 16, paddingTop: 6, lineHeight: 18 },
-  group: { borderRadius: 14, overflow: 'hidden' },
+  group: { borderRadius: 20, overflow: 'hidden' },
   cell: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingLeft: 16, paddingRight: 14, minHeight: 48 },
   sep: { position: 'absolute', top: 0, right: 0, height: HAIRLINE },
   t: { flex: 1, minWidth: 0, paddingVertical: 11 },

@@ -122,7 +122,7 @@ const s = StyleSheet.create({
   avT: { color: '#fff', fontWeight: '600' },
   prog: { height: 4, borderRadius: 4, overflow: 'hidden' },
   ringCenter: { alignItems: 'center', justifyContent: 'center' },
-  card: { borderRadius: 16 },
+  card: { borderRadius: 20 },
   stat: { flex: 1, padding: 12, gap: 2, minWidth: 0 },
   statL: { fontSize: 12, fontWeight: '500' },
   statV: { fontSize: 18, fontWeight: '700', letterSpacing: -0.4 },

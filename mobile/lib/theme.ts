@@ -7,9 +7,10 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
  * Kobalt urg'u (tint), oltin (gold) faqat nasiya/pul urg'ulari uchun.
  */
 export interface Palette {
-  bg: string; cell: string; fill: string; fill2: string; sep: string; bar: string;
+  bg: string; cell: string; fill: string; fill2: string; fill3: string; sep: string; bar: string;
   ink: string; ink2: string; ink3: string;
-  tint: string; tintSoft: string;
+  /** tint — matn/ikonka urg'usi; tintFill — oq matnli to'ldirilgan fon (kontrast ≥ 4.5:1) */
+  tint: string; tintSoft: string; tintFill: string;
   gold: string; goldSoft: string;
   ok: string; okSoft: string;
   bad: string; badSoft: string;
@@ -23,10 +24,10 @@ export interface Palette {
 }
 
 export const light: Palette = {
-  bg: '#F2F4F9', cell: '#FFFFFF', fill: 'rgba(118,128,160,0.14)', fill2: 'rgba(118,128,160,0.08)',
-  sep: 'rgba(60,70,100,0.18)', bar: 'rgba(248,249,252,0.94)',
+  bg: '#F1F2F5', cell: '#FFFFFF', fill: 'rgba(118,128,160,0.14)', fill2: 'rgba(118,128,160,0.08)', fill3: 'rgba(118,128,160,0.22)',
+  sep: 'rgba(60,70,100,0.14)', bar: '#FFFFFF',
   ink: '#0D1526', ink2: 'rgba(40,50,75,0.75)', ink3: 'rgba(55,65,95,0.62)',
-  tint: '#1F4FA8', tintSoft: 'rgba(31,79,168,0.12)',
+  tint: '#1F4FA8', tintSoft: 'rgba(31,79,168,0.12)', tintFill: '#1F4FA8',
   gold: '#B98410', goldSoft: 'rgba(224,165,38,0.16)',
   ok: '#17804C', okSoft: 'rgba(26,138,82,0.13)',
   bad: '#C7332A', badSoft: 'rgba(208,54,43,0.12)',
@@ -37,11 +38,12 @@ export const light: Palette = {
   shadow: '#0D1526',
 };
 
+/** Qorong'i — asosiy mavzu: neytral ko'mir-kulrang sirtlar (web panel bilan bir xil) */
 export const dark: Palette = {
-  bg: '#05080F', cell: '#141A28', fill: 'rgba(140,150,180,0.22)', fill2: 'rgba(140,150,180,0.12)',
-  sep: 'rgba(150,160,190,0.22)', bar: 'rgba(20,26,40,0.94)',
-  ink: '#EEF2FA', ink2: 'rgba(225,232,245,0.75)', ink3: 'rgba(210,218,235,0.58)',
-  tint: '#5B8EF2', tintSoft: 'rgba(91,142,242,0.18)',
+  bg: '#202123', cell: '#2C2D30', fill: 'rgba(255,255,255,0.08)', fill2: 'rgba(255,255,255,0.05)', fill3: 'rgba(255,255,255,0.13)',
+  sep: 'rgba(255,255,255,0.08)', bar: '#2A2B2E',
+  ink: '#F4F5F7', ink2: 'rgba(244,245,247,0.8)', ink3: '#A3A6AD',
+  tint: '#6B9BFF', tintSoft: 'rgba(91,142,255,0.16)', tintFill: '#2F6BE6',
   gold: '#F0BF4C', goldSoft: 'rgba(240,191,76,0.18)',
   ok: '#3FD38A', okSoft: 'rgba(63,211,138,0.16)',
   bad: '#FF6B5F', badSoft: 'rgba(255,107,95,0.16)',
@@ -53,7 +55,7 @@ export const dark: Palette = {
 };
 
 export const space = { xs: 4, sm: 8, md: 12, lg: 16, xl: 20, xxl: 28 } as const;
-export const radius = { sm: 8, md: 10, lg: 14, xl: 16, xxl: 20, pill: 999 } as const;
+export const radius = { sm: 10, md: 12, lg: 16, xl: 20, xxl: 24, pill: 999 } as const;
 
 /** Tipografiya — tizim shrifti (iOS'da SF Pro). */
 export const type = {
@@ -93,17 +95,18 @@ const ThemeContext = createContext<Theme | null>(null);
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const scheme = useColorScheme();
-  const [mode, setModeState] = useState<ThemeMode>('system');
+  // Sukut — qorong'i (asosiy mavzu); foydalanuvchi tanlovi AsyncStorage'dan tiklanadi
+  const [mode, setModeState] = useState<ThemeMode>('dark');
 
   useEffect(() => {
     AsyncStorage.getItem(MODE_KEY)
       .then((v) => { if (v === 'light' || v === 'dark' || v === 'system') setModeState(v); })
-      .catch(() => { /* saqlangan tanlov o'qilmasa — tizim rejimi */ });
+      .catch(() => { /* saqlangan tanlov o'qilmasa — qorong'i */ });
   }, []);
 
   const setMode = useCallback((m: ThemeMode) => {
     setModeState(m);
-    AsyncStorage.setItem(MODE_KEY, m).catch(() => { /* keyingi ochilishda tizim rejimi */ });
+    AsyncStorage.setItem(MODE_KEY, m).catch(() => { /* keyingi ochilishda sukut (qorong'i) */ });
   }, []);
 
   const isDark = mode === 'system' ? scheme === 'dark' : mode === 'dark';
