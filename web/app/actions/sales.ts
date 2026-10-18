@@ -12,6 +12,7 @@ import { featureDisabledError } from '@/lib/featureAction';
 import { isOwnUploadUrl } from '@/lib/fileUrl';
 import { parseQtyField, getStockQty } from '@/lib/productQuantity';
 import { reserveStock, releaseStock } from '@/lib/stock';
+import { runWithCompensation } from '@/lib/compensate';
 import { addMonthsClamped } from '@/lib/dates';
 import { applySalePayment } from '@/lib/salePayment';
 import { recordAudit } from '@/lib/audit';
@@ -160,96 +161,105 @@ export async function quickSaleBatchAction(items: QuickSaleLine[]): Promise<Stat
   const lines = parsed.data;
 
   const scope = branchFilter(user);
-  let soldCount = 0;
-  let soldTotal = 0;
 
-  try {
-    for (const item of lines) {
-      const found = await Product.findOne({ _id: item.productId, ...scope }).lean();
-      if (!found) return { error: m.productNotFoundOrDenied };
-      if (found.status !== 'in_stock') {
-        return { error: tr(m.productNotInStock, { name: found.name }) };
+  // "Hammasi yoki hech biri": biror qator o'tmasa, oldingi qatorlar bekor qilinadi
+  // (sotuv yozuvi o'chadi, mahsulot omborga qaytadi). Audit faqat to'liq muvaffaqiyatdan keyin.
+  let failMsg: string | null = null;
+  const outcome = await runWithCompensation(lines, async (item) => {
+    const found = await Product.findOne({ _id: item.productId, ...scope }).lean();
+    if (!found) { failMsg = m.productNotFoundOrDenied; return null; }
+    if (found.status !== 'in_stock') { failMsg = tr(m.productNotInStock, { name: found.name }); return null; }
+
+    const saleQty = found.trackQuantity ? (item.qty ?? 1) : 1;
+
+    let salePrice = found.salePrice;
+    if (item.salePrice > 0) {
+      // Narxi bor mahsulotda narxni o'zgartirish — "sale.editPrice" huquqi kerak
+      if (!canEditPrice && found.salePrice > 0 && item.salePrice !== found.salePrice) {
+        failMsg = permissionDeniedError('sale.editPrice').error;
+        return null;
       }
-
-      const saleQty = found.trackQuantity ? (item.qty ?? 1) : 1;
-
-      let salePrice = found.salePrice;
-      if (item.salePrice > 0) {
-        // Narxi bor mahsulotda narxni o'zgartirish — "sale.editPrice" huquqi kerak
-        if (!canEditPrice && found.salePrice > 0 && item.salePrice !== found.salePrice) return permissionDeniedError('sale.editPrice');
-        salePrice = item.salePrice;
-      }
-      if (!salePrice || salePrice <= 0) {
-        return { error: tr(m.enterPriceFor, { name: found.name }) };
-      }
-
-      const now = new Date();
-      const lineTotal = salePrice * saleQty;
-
-      // Atomik: qoldiq tekshiruvi + ayirish bitta so'rovda (parallel sotuvda minusga tushmaydi)
-      const product = await reserveStock(Product, found._id, saleQty, {
-        scope,
-        set: { salePrice, soldPaymentType: 'cash' },
-        history: {
-          action: 'sold',
-          detail: `${saleQty} ta · ${lineTotal.toLocaleString('uz-UZ')} so'm`,
-          by: user.username,
-          at: now,
-        },
-      });
-      if (!product) {
-        return { error: tr(m.notEnoughStockFor, { name: found.name }) };
-      }
-
-      try {
-        const saleNo = await generateSaleNo(Sale);
-        await Sale.create({
-          saleNo,
-          productId: product._id,
-          productSnapshot: {
-            name: product.name,
-            imei: product.imei,
-            brand: product.brand,
-            deviceModel: product.deviceModel,
-            purchasePrice: product.purchasePrice,
-            saleQuantity: saleQty,
-          },
-          branchId: product.branchId,
-          paymentType: 'cash',
-          totalAmount: lineTotal,
-          paidAmount: lineTotal,
-          remainingAmount: 0,
-          status: 'paid',
-          payments: [{ amount: lineTotal, paidAt: now, recordedBy: user.username }],
-          soldBy: user.username,
-        });
-      } catch (err) {
-        // Kompensatsiya: sotuv yozilmasa — mahsulot omborga qaytadi
-        await releaseStock(Product, product._id, saleQty);
-        throw err;
-      }
-
-      await recordAudit(user, {
-        action: 'sale.quick',
-        entity: 'sale',
-        entityId: String(product._id),
-        summary: `Tez sotuv: ${product.name} · ${saleQty} ta · ${lineTotal.toLocaleString('uz-UZ')} so'm`,
-        meta: { saleQty, totalAmount: lineTotal },
-      });
-
-      soldCount += saleQty;
-      soldTotal += lineTotal;
+      salePrice = item.salePrice;
     }
+    if (!salePrice || salePrice <= 0) { failMsg = tr(m.enterPriceFor, { name: found.name }); return null; }
 
-    await markOnboardingStep(user.organizationId, 'saleMade');
-    revalidatePath('/app');
-    revalidatePath('/app/products');
-    revalidatePath('/app/sales');
-    return { success: tr(m.quickSold, { n: soldCount, sum: soldTotal.toLocaleString('uz-UZ') }) };
-  } catch (err) {
-    logError('quickSaleBatchAction failed', err, { user: user.username, dbName: user.dbName });
-    return { error: m.sellFailed };
+    const now = new Date();
+    const lineTotal = salePrice * saleQty;
+
+    // Atomik: qoldiq tekshiruvi + ayirish bitta so'rovda (parallel sotuvda minusga tushmaydi)
+    const product = await reserveStock(Product, found._id, saleQty, {
+      scope,
+      set: { salePrice, soldPaymentType: 'cash' },
+      history: {
+        action: 'sold',
+        detail: `${saleQty} ta · ${lineTotal.toLocaleString('uz-UZ')} so'm`,
+        by: user.username,
+        at: now,
+      },
+    });
+    if (!product) { failMsg = tr(m.notEnoughStockFor, { name: found.name }); return null; }
+    const restock = async () => {
+      await releaseStock(Product, product._id, saleQty, { action: 'returned', detail: 'Tez sotuv yakunlanmadi', by: user.username, at: new Date() });
+      // Narx o'zgartirilgan bo'lsa — eski katalog narxi tiklanadi
+      if (salePrice !== found.salePrice) await Product.updateOne({ _id: product._id }, { $set: { salePrice: found.salePrice } });
+    };
+
+    let saleId: unknown;
+    try {
+      const saleNo = await generateSaleNo(Sale);
+      const sale = await Sale.create({
+        saleNo,
+        productId: product._id,
+        productSnapshot: {
+          name: product.name,
+          imei: product.imei,
+          brand: product.brand,
+          deviceModel: product.deviceModel,
+          purchasePrice: product.purchasePrice,
+          saleQuantity: saleQty,
+        },
+        branchId: product.branchId,
+        paymentType: 'cash',
+        totalAmount: lineTotal,
+        paidAmount: lineTotal,
+        remainingAmount: 0,
+        status: 'paid',
+        payments: [{ amount: lineTotal, paidAt: now, recordedBy: user.username }],
+        soldBy: user.username,
+      });
+      saleId = sale._id;
+    } catch (err) {
+      await restock();
+      throw err;
+    }
+    return {
+      result: { productId: String(product._id), name: product.name, saleQty, lineTotal },
+      undo: async () => { await Sale.deleteOne({ _id: saleId }); await restock(); },
+    };
+  });
+
+  if (!outcome.ok) {
+    if (outcome.error) logError('quickSaleBatchAction failed', outcome.error, { user: user.username, dbName: user.dbName });
+    return { error: failMsg ?? m.sellFailed };
   }
+
+  for (const r of outcome.results) {
+    await recordAudit(user, {
+      action: 'sale.quick',
+      entity: 'sale',
+      entityId: r.productId,
+      summary: `Tez sotuv: ${r.name} · ${r.saleQty} ta · ${r.lineTotal.toLocaleString('uz-UZ')} so'm`,
+      meta: { saleQty: r.saleQty, totalAmount: r.lineTotal },
+    });
+  }
+  const soldCount = outcome.results.reduce((s, r) => s + r.saleQty, 0);
+  const soldTotal = outcome.results.reduce((s, r) => s + r.lineTotal, 0);
+
+  await markOnboardingStep(user.organizationId, 'saleMade');
+  revalidatePath('/app');
+  revalidatePath('/app/products');
+  revalidatePath('/app/sales');
+  return { success: tr(m.quickSold, { n: soldCount, sum: soldTotal.toLocaleString('uz-UZ') }) };
 }
 
 export async function createSaleAction(_prev: State, formData: FormData): Promise<State> {

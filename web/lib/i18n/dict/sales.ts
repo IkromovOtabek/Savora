@@ -346,7 +346,6 @@ export const uz = {
     keysTitle: 'Klaviatura',
     keyNav: 'Savatchada harakatlanish',
     keyQty: 'Miqdorni o\'zgartirish',
-    partialFail: "{n} ta sotildi, qolganida xatolik. Sotuvlar ro'yxatini tekshiring.",
   },
 
   shifts: {
@@ -997,7 +996,6 @@ export const ru: typeof uz = {
     keysTitle: 'Клавиатура',
     keyNav: 'Навигация по корзине',
     keyQty: 'Изменить количество',
-    partialFail: 'Продано {n} шт., в остальных ошибка. Проверьте список продаж.',
   },
 
   shifts: {

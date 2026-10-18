@@ -14,6 +14,7 @@ import { logError } from '@/lib/logger';
 import { featureDisabledError } from '@/lib/featureAction';
 import { checkPermission, userCan } from '@/lib/permissionGuard';
 import { permissionDeniedError } from '@/lib/permissions';
+import { runWithCompensation } from '@/lib/compensate';
 import { allocateDiscount, discountAmount, unitPriceFor } from '@/lib/posCart';
 import { parseInput, zId, zMoney, zOneOf, zOptInt, zText } from '@/lib/validation';
 import { getI18n } from '@/lib/i18n/server';
@@ -94,69 +95,77 @@ export async function posSaleAction(input: PosSaleInput): Promise<State> {
   const lineDisc = allocateDiscount(lineTotals, disc);
   const customer = customerName ? { fullName: customerName, phone: customerPhone || undefined } : undefined;
 
-  // 2) Sotish: har qator atomik zaxiralanadi; sotuv yozilmasa — mahsulot qaytadi
-  let soldCount = 0;
-  let soldTotal = 0;
-  try {
-    for (let i = 0; i < prepared.length; i++) {
-      const { found, qty, unit } = prepared[i];
-      const total = lineTotals[i] - lineDisc[i];
-      const now = new Date();
-      const product = await reserveStock(Product, found._id, qty, {
-        scope,
-        set: { soldPaymentType: 'cash' },
-        history: { action: 'sold', detail: `${qty} ta · ${total.toLocaleString('uz-UZ')} so'm`, by: user.username, at: now },
-      });
-      if (!product) return { error: tr(m.notEnoughStockFor, { name: found.name }) };
+  // 2) Sotish — "hammasi yoki hech biri": biror qator o'tmasa, oldingilari bekor qilinadi
+  //    (sotuv yozuvi o'chadi, mahsulot omborga qaytadi). Audit faqat to'liq muvaffaqiyatdan keyin.
+  let shortOf: string | null = null;
+  const outcome = await runWithCompensation(prepared, async ({ found, qty, unit }, i) => {
+    const total = lineTotals[i] - lineDisc[i];
+    const now = new Date();
+    const product = await reserveStock(Product, found._id, qty, {
+      scope,
+      set: { soldPaymentType: 'cash' },
+      history: { action: 'sold', detail: `${qty} ta · ${total.toLocaleString('uz-UZ')} so'm`, by: user.username, at: now },
+    });
+    if (!product) { shortOf = found.name; return null; }
+    const restock = () => releaseStock(Product, product._id, qty, { action: 'returned', detail: 'Kassa: sotuv yakunlanmadi', by: user.username, at: new Date() });
 
-      try {
-        const saleNo = await generateSaleNo(Sale);
-        await Sale.create({
-          saleNo,
-          productId: product._id,
-          productSnapshot: {
-            name: product.name,
-            imei: product.imei,
-            brand: product.brand,
-            deviceModel: product.deviceModel,
-            purchasePrice: product.purchasePrice,
-            saleQuantity: qty,
-          },
-          ...(customer ? { customerSnapshot: customer } : {}),
-          branchId: product.branchId,
-          paymentType: 'cash',
-          totalAmount: total,
-          paidAmount: total,
-          remainingAmount: 0,
-          status: 'paid',
-          payments: [{ amount: total, paidAt: now, recordedBy: user.username }],
-          notes: note || undefined,
-          soldBy: user.username,
-        });
-      } catch (err) {
-        await releaseStock(Product, product._id, qty);
-        throw err;
-      }
-
-      await recordAudit(user, {
-        action: 'sale.pos',
-        entity: 'sale',
-        entityId: String(product._id),
-        summary: `Kassa: ${product.name} · ${qty} ta × ${unit.toLocaleString('uz-UZ')}${lineDisc[i] ? ` − ${lineDisc[i].toLocaleString('uz-UZ')} chegirma` : ''} = ${total.toLocaleString('uz-UZ')} so'm${wholesale ? ' (ulgurji)' : ''}`,
-        meta: { qty, unit, discount: lineDisc[i], total, wholesale },
+    let saleId: unknown;
+    try {
+      const saleNo = await generateSaleNo(Sale);
+      const sale = await Sale.create({
+        saleNo,
+        productId: product._id,
+        productSnapshot: {
+          name: product.name,
+          imei: product.imei,
+          brand: product.brand,
+          deviceModel: product.deviceModel,
+          purchasePrice: product.purchasePrice,
+          saleQuantity: qty,
+        },
+        ...(customer ? { customerSnapshot: customer } : {}),
+        branchId: product.branchId,
+        paymentType: 'cash',
+        totalAmount: total,
+        paidAmount: total,
+        remainingAmount: 0,
+        status: 'paid',
+        payments: [{ amount: total, paidAt: now, recordedBy: user.username }],
+        notes: note || undefined,
+        soldBy: user.username,
       });
-      soldCount += qty;
-      soldTotal += total;
+      saleId = sale._id;
+    } catch (err) {
+      await restock();
+      throw err;
     }
+    return {
+      result: { productId: String(product._id), name: product.name, qty, unit, discount: lineDisc[i], total },
+      undo: async () => { await Sale.deleteOne({ _id: saleId }); await restock(); },
+    };
+  });
 
-    await markOnboardingStep(user.organizationId, 'saleMade');
-    revalidatePath('/app');
-    revalidatePath('/app/products');
-    revalidatePath('/app/sales');
-    revalidatePath('/app/shifts');
-    return { success: tr(m.quickSold, { n: soldCount, sum: soldTotal.toLocaleString('uz-UZ') }) };
-  } catch (err) {
-    logError('posSaleAction failed', err, { user: user.username, dbName: user.dbName });
-    return { error: soldCount > 0 ? tr(k.partialFail, { n: soldCount }) : m.sellFailed };
+  if (!outcome.ok) {
+    if (outcome.error) logError('posSaleAction failed', outcome.error, { user: user.username, dbName: user.dbName });
+    return { error: shortOf ? tr(m.notEnoughStockFor, { name: shortOf }) : m.sellFailed };
   }
+
+  for (const r of outcome.results) {
+    await recordAudit(user, {
+      action: 'sale.pos',
+      entity: 'sale',
+      entityId: r.productId,
+      summary: `Kassa: ${r.name} · ${r.qty} ta × ${r.unit.toLocaleString('uz-UZ')}${r.discount ? ` − ${r.discount.toLocaleString('uz-UZ')} chegirma` : ''} = ${r.total.toLocaleString('uz-UZ')} so'm${wholesale ? ' (ulgurji)' : ''}`,
+      meta: { qty: r.qty, unit: r.unit, discount: r.discount, total: r.total, wholesale },
+    });
+  }
+  const soldCount = outcome.results.reduce((s, r) => s + r.qty, 0);
+  const soldTotal = outcome.results.reduce((s, r) => s + r.total, 0);
+
+  await markOnboardingStep(user.organizationId, 'saleMade');
+  revalidatePath('/app');
+  revalidatePath('/app/products');
+  revalidatePath('/app/sales');
+  revalidatePath('/app/shifts');
+  return { success: tr(m.quickSold, { n: soldCount, sum: soldTotal.toLocaleString('uz-UZ') }) };
 }
