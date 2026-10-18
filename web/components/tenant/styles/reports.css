@@ -1,0 +1,22 @@
+/* ==========================================================================
+   HISOBOTLAR — /app/reports, /app/reports/*   ·   Prefiks: rp-
+   ========================================================================== */
+
+.rp-cards { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 14px; }
+.rp-card {
+  height: 100%; display: grid; align-content: start; gap: 8px; padding: 18px; border-radius: 20px;
+  background: var(--surface); box-shadow: var(--shadow-sm); color: var(--ink-1); text-decoration: none;
+  transition: transform .15s ease, box-shadow .15s ease;
+}
+.rp-card:hover { transform: translateY(-2px); box-shadow: var(--shadow); }
+.rp-card:focus-visible { outline: 3px solid var(--brand-ring); outline-offset: 2px; }
+.rp-card-ic { width: 42px; height: 42px; border-radius: 13px; display: grid; place-items: center; background: var(--brand-soft); color: var(--brand); margin-bottom: 4px; }
+.rp-card b { font-size: 17px; letter-spacing: -.02em; }
+.rp-card > span:not([class]) { font-size: 14px; line-height: 1.45; color: var(--ink-3); }
+.rp-card-go { display: inline-flex; align-items: center; gap: 6px; margin-top: 6px; font-size: 14px; font-weight: 700; color: var(--brand); }
+
+.rp-empty { padding: 40px 20px; text-align: center; color: var(--ink-3); border: 1.5px dashed var(--fill-3); border-radius: 20px; }
+.rp-table-wrap { background: var(--surface); border-radius: var(--r-xl); box-shadow: var(--shadow-sm); }
+.rp-table-wrap tfoot th { border-top: 1px solid var(--sep); color: var(--ink-1); font-size: 14px; }
+.rp-share { display: inline-block; vertical-align: middle; width: 56px; height: 6px; margin-right: 8px; border-radius: 99px; background: var(--fill); overflow: hidden; }
+.rp-share span { display: block; height: 100%; border-radius: 99px; background: var(--brand-fill); }

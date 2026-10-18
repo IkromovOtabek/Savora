@@ -10,6 +10,8 @@ import InstallmentAlert, { OverdueInstallment } from '@/components/tenant/Instal
 import { computeInstallmentPlan } from '@/lib/installment';
 import { dayBoundaries, toDayPoints, smoothPath } from '@/lib/weekBuckets';
 import WeekChart from '@/components/tenant/WeekChart';
+import { parsePeriod, periodRange } from '@/lib/period';
+import PeriodSeg from '@/components/tenant/PeriodSeg';
 import Tilt from '@/components/ui/Tilt';
 import type { IconName } from '@/components/icons/Icon';
 import { loadUserPermissions } from '@/lib/permissionGuard';
@@ -30,7 +32,7 @@ export async function generateMetadata() {
 export default async function TenantDashboard({
   searchParams,
 }: {
-  searchParams: Promise<{ module?: string; welcome?: string }>;
+  searchParams: Promise<{ module?: string; welcome?: string; p?: string }>;
 }) {
   const sp = await searchParams;
   const { user, org, features, Branch, Product, Sale, User, AiReport, Task } = await getTenantSession();
@@ -57,6 +59,11 @@ export default async function TenantDashboard({
   const scope = branchFilter(user);
   const aggScope = branchAggMatch(user);
 
+  // Tanlangan davr (Kecha · Bugun · Hafta · Oy · Yil) — admin panellari va davr ko'rsatkichlari
+  const period = parsePeriod(sp?.p);
+  const { start: pStart, end: pEnd } = periodRange(period, todayStart);
+  const inPeriod = { createdAt: { $gte: pStart, $lt: pEnd } };
+
   // Haftalik grafik — oxirgi 7 kun, kunlik chegaralar server vaqti bo'yicha (todayStart bilan bir xil)
   const weekBounds = dayBoundaries(todayStart, 7);
 
@@ -80,11 +87,10 @@ export default async function TenantDashboard({
       : Promise.resolve([] as { _id: Date; total: number; count: number }[]),
   ]);
   const isAdmin = user.role === 'admin';
-  const monthAgo = new Date(todayStart.getTime() - 30 * 864e5);
   const notCancelled = { status: { $ne: 'cancelled' } };
 
   // Rolga xos panellar: direktor — filiallar, top mahsulotlar, xodimlar, kam qolgan tovar; xodim — o'z sotuvlari va topshiriqlari
-  const [branchAgg, branchList, topAgg, staffAgg, lowStock, myAgg, myTasks] = await Promise.all([
+  const [branchAgg, branchList, topAgg, staffAgg, lowStock, myAgg, myTasks, periodAgg] = await Promise.all([
     isAdmin && features.sales
       ? Sale.aggregate<{ _id: unknown; today: number; week: number; count: number }>([
           { $match: { createdAt: { $gte: weekBounds[0] }, ...notCancelled } },
@@ -99,7 +105,7 @@ export default async function TenantDashboard({
     isAdmin ? Branch.find({ active: true }).select('name').lean() : Promise.resolve([]),
     isAdmin && features.sales
       ? Sale.aggregate<{ _id: string; qty: number; revenue: number }>([
-          { $match: { createdAt: { $gte: monthAgo }, ...notCancelled } },
+          { $match: { ...inPeriod, ...notCancelled } },
           { $group: { _id: '$productSnapshot.name', qty: { $sum: { $ifNull: ['$productSnapshot.saleQuantity', 1] } }, revenue: { $sum: '$totalAmount' } } },
           { $sort: { revenue: -1 } },
           { $limit: 5 },
@@ -107,7 +113,7 @@ export default async function TenantDashboard({
       : Promise.resolve([]),
     isAdmin && features.sales
       ? Sale.aggregate<{ _id: string; count: number; total: number }>([
-          { $match: { createdAt: { $gte: todayStart }, ...notCancelled } },
+          { $match: { ...inPeriod, ...notCancelled } },
           { $group: { _id: '$soldBy', count: { $sum: 1 }, total: { $sum: '$totalAmount' } } },
           { $sort: { total: -1 } },
           { $limit: 6 },
@@ -128,7 +134,14 @@ export default async function TenantDashboard({
     !isAdmin && features.tasks
       ? Task.find(openTaskFilter(user)).sort({ dueDate: 1, createdAt: -1 }).limit(5).lean().catch(() => [])
       : Promise.resolve([]),
+    isAdmin && features.sales
+      ? Sale.aggregate<{ revenue: number; count: number; refunds: number }>([
+          { $match: { ...inPeriod, ...notCancelled } },
+          { $group: { _id: null, revenue: { $sum: '$totalAmount' }, count: { $sum: 1 }, refunds: { $sum: { $sum: { $ifNull: ['$returns.refundAmount', []] } } } } },
+        ])
+      : Promise.resolve([]),
   ]);
+  const pStats = periodAgg[0] ?? { revenue: 0, count: 0, refunds: 0 };
 
   const branchName = new Map(branchList.map((b) => [String(b._id), b.name]));
   const branchRows = branchAgg
@@ -364,11 +377,26 @@ export default async function TenantDashboard({
         </section>
       </div>
 
+      {isAdmin && features.sales && (
+        <section className="t-period" aria-labelledby="t-period-h">
+          <div className="t-period-head">
+            <h2 id="t-period-h">{t.period.title}</h2>
+            <PeriodSeg basePath="/app" current={period} />
+          </div>
+          <div className="ux-strip t-period-strip">
+            <div className="ux-stat"><div className="ux-stat-l">{t.period.revenue}</div><div className="ux-stat-v t-num">{fmtMoney(pStats.revenue)}<small>{d.common.sum}</small></div></div>
+            <div className="ux-stat"><div className="ux-stat-l">{t.period.count}</div><div className="ux-stat-v t-num">{pStats.count}</div></div>
+            <div className="ux-stat"><div className="ux-stat-l">{t.period.avg}</div><div className="ux-stat-v t-num">{fmtMoney(pStats.count ? Math.round(pStats.revenue / pStats.count) : 0)}<small>{d.common.sum}</small></div></div>
+            <div className="ux-stat"><div className="ux-stat-l">{t.period.refunds}</div><div className="ux-stat-v t-num">{fmtMoney(pStats.refunds)}<small>{d.common.sum}</small></div></div>
+          </div>
+        </section>
+      )}
+
       {isAdmin ? (
         <div className="t-panels">
           {features.sales && branchList.length > 1 && <BranchPanel rows={branchRows} />}
-          {features.sales && <TopProductsPanel rows={topRows} />}
-          {features.sales && <StaffPanel rows={staffRows} />}
+          {features.sales && <TopProductsPanel rows={topRows} meta={t.period[period]} />}
+          {features.sales && <StaffPanel rows={staffRows} meta={t.period[period]} />}
           {features.products && <LowStockPanel rows={lowRows} />}
         </div>
       ) : (

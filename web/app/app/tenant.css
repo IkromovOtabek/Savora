@@ -1093,3 +1093,17 @@ a.t-cell:active { background: var(--t-fill); }
   border: 1.5px dashed var(--fill-3);
   border-radius: 20px;
 }
+
+/* ---------- Davr tanlagich va davr ko'rsatkichlari (BILLZ: Kecha · Bugun · Hafta · Oy · Yil) ---------- */
+.t-period { display: grid; gap: 12px; margin: 8px 0 18px; }
+.t-period-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.t-period-head h2 { margin: 0; font-size: 19px; font-weight: 800; letter-spacing: -.02em; }
+.t-period-seg { display: inline-flex; gap: 2px; padding: 4px; border-radius: 14px; background: var(--fill-2); max-width: 100%; overflow-x: auto; scrollbar-width: none; }
+.t-period-seg::-webkit-scrollbar { display: none; }
+.t-period-seg a {
+  min-height: 36px; padding: 0 16px; display: inline-flex; align-items: center; border-radius: 10px;
+  font-size: 14px; font-weight: 600; color: var(--ink-2); text-decoration: none; white-space: nowrap;
+}
+.t-period-seg a:hover { color: var(--ink-1); }
+.t-period-seg a[aria-current="page"] { background: var(--fill-3); color: var(--ink-1); font-weight: 700; }
+.t-period-strip .ux-stat-v small { margin-left: 4px; }

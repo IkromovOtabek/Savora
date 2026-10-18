@@ -30,6 +30,7 @@ export const NAV_ICONS: Record<string, IconName> = {
   '/app/pos': 'basket',
   '/app/revaluation': 'trendingUp',
   '/app/write-off': 'trash',
+  '/app/reports': 'grid',
   '/app/products': 'box',
   '/app/inventory': 'clipboard',
   '/app/imei': 'search',
@@ -101,6 +102,7 @@ export const NAV_GROUPS: NavGroup[] = [
   {
     title: 'Hisobotlar',
     links: [
+      { href: '/app/reports', label: 'Barcha hisobotlar', feature: 'monitoring', permission: 'reports.view' },
       { href: '/app/monitoring', label: 'Hisobot', feature: 'monitoring', permission: 'reports.view' },
       { href: '/app/ai', label: 'AI yordamchi', feature: 'ai', permission: 'ai.view' },
     ],

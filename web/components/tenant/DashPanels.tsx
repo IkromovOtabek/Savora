@@ -63,11 +63,11 @@ export async function BranchPanel({ rows }: { rows: { id: string; name: string; 
   );
 }
 
-export async function TopProductsPanel({ rows }: { rows: { name: string; qty: number; revenue: number }[] }) {
+export async function TopProductsPanel({ rows, meta }: { rows: { name: string; qty: number; revenue: number }[]; meta?: string }) {
   const d = await getDict();
   const t = d.shell.panels;
   return (
-    <Panel id="t-p-top" title={t.topTitle} meta={t.topMeta} href="/app/monitoring" linkLabel={d.catalog.features.monitoring.label}>
+    <Panel id="t-p-top" title={t.topTitle} meta={meta ?? t.topMeta} href="/app/monitoring" linkLabel={d.catalog.features.monitoring.label}>
       {rows.length === 0 ? <PanelEmpty text={t.topEmpty} /> : (
         <BarList unit={d.common.sum} rows={rows.map((r) => ({ key: r.name, label: r.name, value: r.revenue, sub: tr(t.nUnits, { n: r.qty }) }))} />
       )}
@@ -75,11 +75,11 @@ export async function TopProductsPanel({ rows }: { rows: { name: string; qty: nu
   );
 }
 
-export async function StaffPanel({ rows }: { rows: { name: string; count: number; total: number }[] }) {
+export async function StaffPanel({ rows, meta }: { rows: { name: string; count: number; total: number }[]; meta?: string }) {
   const d = await getDict();
   const t = d.shell.panels;
   return (
-    <Panel id="t-p-staff" title={t.staffTitle} href="/app/audit" linkLabel={d.catalog.features.audit.label}>
+    <Panel id="t-p-staff" title={meta ? t.staffTop : t.staffTitle} meta={meta} href="/app/reports/sellers" linkLabel={d.catalog.features.audit.label}>
       {rows.length === 0 ? <PanelEmpty text={t.staffEmpty} /> : (
         <ul className="t-people">
           {rows.map((r, i) => (
