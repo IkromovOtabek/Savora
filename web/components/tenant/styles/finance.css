@@ -175,6 +175,7 @@ a.fn-tl-title:hover { color: var(--brand); }
 a.fn-tl-title:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; border-radius: 4px; }
 .fn-tl-sub { font-size: 13px; color: var(--ink-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .fn-tl-amount { font-weight: 700; font-size: 15px; font-variant-numeric: tabular-nums; white-space: nowrap; color: var(--accent); }
+.fn-tl-amount--out { color: var(--danger); }
 
 /* ── Kirim / chiqim bo'lingan sarlavha ───────────────────── */
 .fn-flow {

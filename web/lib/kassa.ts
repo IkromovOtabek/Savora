@@ -11,6 +11,8 @@ export interface KassaPaymentRow {
   recordedBy?: string;
   productName: string;
   imei: string;
+  /** Qisman qaytarish — mijozga naqd qaytarilgan pul (amount manfiy) */
+  isRefund?: boolean;
 }
 
 /** Berilgan kun uchun kassa tushumlari (sotuv to'lovlari) */
@@ -43,6 +45,25 @@ export function extractKassaPayments(
           recordedBy: p.recordedBy,
           productName: sale.productSnapshot.name,
           imei: sale.productSnapshot.imei,
+        });
+      }
+    }
+    // Qisman qaytarish: mijozga naqd qaytarilgan pul — shu kun kassasidan chiqim (manfiy)
+    for (const r of sale.returns ?? []) {
+      const at = new Date(r.returnedAt);
+      if (r.refundAmount > 0 && at >= dayStart && at < dayEnd) {
+        rows.push({
+          saleId: String(sale._id),
+          saleNo: sale.saleNo,
+          customerName: sale.customerSnapshot?.fullName ?? '—',
+          paymentType: 'cash',
+          amount: -r.refundAmount,
+          paidAt: at,
+          note: r.reason,
+          recordedBy: r.by,
+          productName: sale.productSnapshot.name,
+          imei: sale.productSnapshot.imei,
+          isRefund: true,
         });
       }
     }

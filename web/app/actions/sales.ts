@@ -23,6 +23,7 @@ import { permissionDeniedError } from '@/lib/permissions';
 import { pq294MonthsError } from '@/lib/pq294';
 import { getI18n } from '@/lib/i18n/server';
 import { tr } from '@/lib/i18n/fmt';
+import { computePartialReturn } from '@/lib/saleReturn';
 
 type State = { error?: string; success?: string } | null;
 
@@ -512,4 +513,109 @@ export async function cancelSaleAction(_prev: State, formData: FormData): Promis
   revalidatePath('/app/products');
   revalidatePath('/app');
   return { success: m.saleCancelled };
+}
+
+/**
+ * Qisman qaytarish — sotuvdan bir necha dona omborga qaytadi, summa kamayadi.
+ * Avval qarz kamayadi, ortig'i mijozga naqd qaytariladi (kunlik kassada chiqim bo'lib ko'rinadi).
+ * Huquq: "sale.cancel" (omborga qaytarish = bekor qilishning bir qismi).
+ */
+export async function returnSaleItemsAction(_prev: State, formData: FormData): Promise<State> {
+  const { user, Product, Sale } = await getTenantSession();
+  const m = (await getI18n()).d.sales.actions;
+  { const denied = await checkPermission(user, 'sale.cancel'); if (denied) return denied; }
+
+  const saleId = String(formData.get('saleId') || '');
+  const returnQty = Number(String(formData.get('qty') || '').trim());
+  const reason = String(formData.get('reason') || '').trim().slice(0, 300);
+  if (!saleId || !Types.ObjectId.isValid(saleId)) return { error: m.saleNotFound };
+
+  const scope = branchFilter(user);
+  const sale = await Sale.findOne({ _id: saleId, ...scope }).lean();
+  if (!sale) return { error: m.saleNotFound };
+
+  const qty = sale.productSnapshot?.saleQuantity ?? 1;
+  const res = computePartialReturn({
+    qty,
+    totalAmount: sale.totalAmount,
+    paidAmount: sale.paidAmount,
+    remainingAmount: sale.remainingAmount,
+    paymentType: sale.paymentType,
+    status: sale.status,
+  }, returnQty);
+  if (!res.ok) {
+    const err = {
+      cancelled: m.alreadyCancelled,
+      bankCredit: m.returnBankCredit,
+      badQty: m.returnBadQty,
+      useCancel: m.returnUseCancel,
+    }[res.error];
+    return { error: err };
+  }
+  const c = res.calc;
+  const now = new Date();
+
+  // Optimistik qulf: sotuv o'qilgandan beri o'zgarmagan bo'lsagina yoziladi —
+  // ikki marta bosish yoki parallel to'lov ikki marta qaytarishga olib kelmaydi.
+  const updated = await Sale.findOneAndUpdate(
+    {
+      _id: saleId,
+      ...scope,
+      status: { $ne: 'cancelled' },
+      totalAmount: sale.totalAmount,
+      paidAmount: sale.paidAmount,
+      remainingAmount: sale.remainingAmount,
+      'productSnapshot.saleQuantity': qty, // qisman qaytarish faqat qty > 1 da — maydon doim bor
+    },
+    {
+      $set: {
+        'productSnapshot.saleQuantity': c.newQty,
+        totalAmount: c.newTotal,
+        paidAmount: c.newPaid,
+        remainingAmount: c.newRemaining,
+        status: c.newStatus,
+      },
+      $push: {
+        returns: {
+          qty: returnQty,
+          amount: c.amount,
+          debtReduced: c.debtReduced,
+          refundAmount: c.refundAmount,
+          reason: reason || undefined,
+          returnedAt: now,
+          by: user.username,
+        },
+      },
+    },
+    { new: true }
+  ).lean();
+  if (!updated) return { error: m.returnConflict };
+
+  if (sale.productId) {
+    await releaseStock(Product, sale.productId, returnQty, {
+      action: 'returned',
+      detail: `Sotuv ${sale.saleNo}: ${returnQty} dona qaytarildi`,
+      by: user.username,
+      at: now,
+    });
+  }
+
+  await recordAudit(user, {
+    action: 'sale.return',
+    entity: 'sale',
+    entityId: saleId,
+    summary: `Qaytarish: ${sale.saleNo} · ${returnQty} dona · ${c.amount.toLocaleString('uz-UZ')} so'm (naqd qaytarildi ${c.refundAmount.toLocaleString('uz-UZ')} so'm)`,
+    meta: { qty: returnQty, amount: c.amount, debtReduced: c.debtReduced, refundAmount: c.refundAmount, reason },
+  });
+
+  revalidatePath('/app/sales');
+  revalidatePath(`/app/sales/${saleId}`);
+  revalidatePath('/app/products');
+  revalidatePath('/app/kassa');
+  revalidatePath('/app');
+  return {
+    success: c.refundAmount > 0
+      ? tr(m.returnedRefund, { n: returnQty, sum: c.refundAmount.toLocaleString('uz-UZ') })
+      : tr(m.returnedNoRefund, { n: returnQty }),
+  };
 }

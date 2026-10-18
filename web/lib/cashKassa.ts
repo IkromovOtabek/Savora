@@ -27,7 +27,9 @@ export function sumCashFromSales(sales: (ISale & { _id: unknown })[]): Map<strin
         branchCash += p.amount;
       }
     }
-    if (branchCash > 0) {
+    // Qisman qaytarishda mijozga naqd qaytarilgan pul kassadan chiqadi
+    for (const r of sale.returns ?? []) branchCash -= r.refundAmount ?? 0;
+    if (branchCash !== 0) {
       map.set(branchId, (map.get(branchId) ?? 0) + branchCash);
     }
   }

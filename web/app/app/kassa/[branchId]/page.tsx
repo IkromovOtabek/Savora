@@ -45,17 +45,20 @@ export default async function KassaBranchPage({
     $or: [
       { createdAt: { $gte: new Date(start.getTime() - 90 * 24 * 60 * 60 * 1000) } },
       { 'payments.paidAt': { $gte: start, $lt: end } },
+      { 'returns.returnedAt': { $gte: start, $lt: end } },
     ],
   }).lean();
 
   const allRows = extractKassaPayments(sales, start, end);
   const rows = allRows.filter((r) => r.paymentType === 'cash');
   const total = rows.reduce((s, r) => s + r.amount, 0);
+  const payRows = rows.filter((r) => !r.isRefund);
 
   const today = new Date().toISOString().slice(0, 10);
   // Vaqt chizig'i — kun ichida xronologik tartibda
   const timeline = [...rows].sort((a, b) => new Date(a.paidAt).getTime() - new Date(b.paidAt).getTime());
-  const avg = rows.length > 0 ? Math.round(total / rows.length) : 0;
+  const payTotal = payRows.reduce((s, r) => s + r.amount, 0);
+  const avg = payRows.length > 0 ? Math.round(payTotal / payRows.length) : 0;
   const hhmm = (d: Date | string) => fmtDateTime(d).slice(-5);
 
   return (
@@ -89,7 +92,7 @@ export default async function KassaBranchPage({
         <div className="fn-hero-grid">
           <div className="fn-hero-stat">
             <span className="fn-hero-stat-l">{k.paymentsCount}</span>
-            <span className="fn-hero-stat-v fn-num">{tr(d.common.nPcs, { n: rows.length })}</span>
+            <span className="fn-hero-stat-v fn-num">{tr(d.common.nPcs, { n: payRows.length })}</span>
           </div>
           <div className="fn-hero-stat">
             <span className="fn-hero-stat-l">{k.avgPayment}</span>
@@ -118,9 +121,11 @@ export default async function KassaBranchPage({
                 <span className="fn-tl-dot" aria-hidden="true" />
                 <div className="fn-tl-main">
                   <Link href={`/app/sales/${r.saleId}`} className="fn-tl-title">{r.saleNo}</Link>
-                  <span className="fn-tl-sub">{r.productName} · {r.customerName}</span>
+                  <span className="fn-tl-sub">{r.isRefund ? `${k.refundRow} · ` : ''}{r.productName} · {r.customerName}</span>
                 </div>
-                <span className="fn-tl-amount">+{fmtMoney(r.amount)}</span>
+                <span className={`fn-tl-amount${r.isRefund ? ' fn-tl-amount--out' : ''}`}>
+                  {r.isRefund ? '−' : '+'}{fmtMoney(Math.abs(r.amount))}
+                </span>
               </li>
             ))}
           </ol>

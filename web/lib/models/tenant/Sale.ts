@@ -10,6 +10,20 @@ export interface ISalePayment {
   recordedBy?: string;
 }
 
+/** Qisman qaytarish yozuvi — sotuvdan bir necha dona qaytarilganda (to'liq qaytarish = bekor qilish) */
+export interface ISaleReturn {
+  qty: number;
+  /** Qaytgan mahsulot qiymati (sotuv narxi bo'yicha) */
+  amount: number;
+  /** Shundan qarzdan kamaytirilgani */
+  debtReduced: number;
+  /** Shundan mijozga naqd qaytarilgani (kassadan chiqim) */
+  refundAmount: number;
+  reason?: string;
+  returnedAt: Date;
+  by: string;
+}
+
 export interface IProductSnapshot {
   name: string;
   imei: string;
@@ -44,6 +58,7 @@ export interface ISale {
   /** Nasiya muddat o'tgan eslatmasi oxirgi yuborilgan sana (kunlik dedup uchun) */
   lastInstallmentNotifiedAt?: Date;
   payments: ISalePayment[];
+  returns?: ISaleReturn[];
   soldBy: string;
   notes?: string;
   photoUrl?: string;
@@ -85,6 +100,15 @@ export const saleSchema = new Schema<ISale>(
       note: { type: String, trim: true },
       recordedBy: { type: String, trim: true },
     }],
+    returns: [{
+      qty: { type: Number, required: true, min: 1 },
+      amount: { type: Number, required: true, min: 0 },
+      debtReduced: { type: Number, required: true, min: 0, default: 0 },
+      refundAmount: { type: Number, required: true, min: 0, default: 0 },
+      reason: { type: String, trim: true },
+      returnedAt: { type: Date, required: true, default: Date.now },
+      by: { type: String, required: true, trim: true },
+    }],
     soldBy: { type: String, required: true, trim: true },
     notes: { type: String, trim: true },
     photoUrl: { type: String, trim: true },
@@ -97,6 +121,7 @@ saleSchema.index({ branchId: 1, createdAt: -1 }); // filial bo'yicha scoping/his
 saleSchema.index({ status: 1, paymentType: 1 });
 saleSchema.index({ status: 1, dueDate: 1 });
 saleSchema.index({ 'productSnapshot.imei': 1 });
+saleSchema.index({ branchId: 1, 'returns.returnedAt': -1 }); // kunlik kassa (qaytarilgan pul)
 
 export const PAYMENT_TYPE_LABELS: Record<PaymentType, string> = {
   cash: 'Naqd',

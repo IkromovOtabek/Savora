@@ -9,6 +9,7 @@ import { computeInstallmentPlan } from '@/lib/installment';
 import InstallmentPlan from '@/components/tenant/InstallmentPlan';
 import SalePaymentForm from '@/components/tenant/SalePaymentForm';
 import CancelSaleButton from '@/components/tenant/CancelSaleButton';
+import ReturnSaleForm from '@/components/tenant/ReturnSaleForm';
 import SaleReviewTrigger from '@/components/tenant/SaleReviewTrigger';
 import Tilt from '@/components/ui/Tilt';
 import { Types } from 'mongoose';
@@ -52,6 +53,9 @@ export default async function SaleDetailPage({
   const perms = await loadUserPermissions(user);
   const canPay = sale.status === 'partial' && perms.has('payment.accept');
   const canCancel = perms.has('sale.cancel') && sale.status !== 'cancelled';
+  // Qisman qaytarish — bir nechta dona sotilganda (bank kreditida emas)
+  const canReturn = canCancel && sale.paymentType !== 'bank_credit' && (sale.productSnapshot.saleQuantity ?? 1) > 1;
+  const returns = sale.returns ?? [];
 
   // Nasiya (variant) sotuvi bo'lsa — oylik to'lov jadvali
   const plan = sale.paymentType === 'installment' ? computeInstallmentPlan(sale) : null;
@@ -182,6 +186,32 @@ export default async function SaleDetailPage({
               </ul>
             )}
           </section>
+
+          {returns.length > 0 && (
+            <section className="sl-card" aria-labelledby="sl-returns-h">
+              <div className="sl-card-head">
+                <h2 id="sl-returns-h">{d.sales.returnForm.historyTitle}</h2>
+                <small>{tr(d.common.nPcs, { n: returns.length })}</small>
+              </div>
+              <ul className="sl-pays">
+                {returns.map((r, i) => (
+                  <li key={i} className="sl-pay">
+                    <span className="sl-pay-ic sl-pay-ic--return" aria-hidden><Icon name="repeat" size={16} /></span>
+                    <div className="sl-pay-main">
+                      <b>{tr(d.sales.returnForm.historyLine, { n: r.qty, sum: fmtMoney(r.amount) })}</b>
+                      <span>
+                        {fmtDateTime(r.returnedAt)} · {r.by}
+                        {r.refundAmount > 0 ? ` · ${tr(d.sales.returnForm.refundLine, { sum: fmtMoney(r.refundAmount) })}` : ''}
+                        {r.debtReduced > 0 ? ` · ${tr(d.sales.returnForm.debtLine, { sum: fmtMoney(r.debtReduced) })}` : ''}
+                        {r.reason ? ` · ${r.reason}` : ''}
+                      </span>
+                    </div>
+                    <span className="sl-pay-amt sl-pay-amt--return">−{fmtMoney(r.amount)}</span>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
         </div>
 
         <aside className="sl-detail-side">
@@ -230,6 +260,11 @@ export default async function SaleDetailPage({
           {canPay && !plan && (
             <div id="tolov">
               <SalePaymentForm saleId={String(sale._id)} remaining={sale.remainingAmount} />
+            </div>
+          )}
+          {canReturn && (
+            <div id="qaytarish">
+              <ReturnSaleForm saleId={String(sale._id)} qty={sale.productSnapshot.saleQuantity ?? 1} totalAmount={sale.totalAmount} />
             </div>
           )}
           {canCancel && (
