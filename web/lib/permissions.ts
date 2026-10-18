@@ -23,6 +23,7 @@ export const PERMISSION_KEYS = [
   'product.delete',
   'product.viewCost',
   'transfer.create',
+  'suppliers.manage',
   'kassa.view',
   'kirimChiqim.manage',
   'reports.view',
@@ -61,6 +62,8 @@ export const PERMISSIONS: Record<PermissionKey, PermissionDef> = {
   'product.delete': { key: 'product.delete', label: 'Mahsulotni o\'chirish', description: 'Ombordan butunlay o\'chirish', group: 'ombor', feature: 'products' },
   'product.viewCost': { key: 'product.viewCost', label: 'Kelish narxini ko\'rish', description: 'Kelish narxi va foyda (ro\'yxat, batafsil, CSV)', group: 'ombor', feature: 'products' },
   'transfer.create': { key: 'transfer.create', label: 'Filialga berish', description: 'Mahsulotni boshqa filialga o\'tkazish', group: 'ombor', feature: 'products' },
+  // Yetkazib beruvchilar va ularga qarz — pul masalasi, standartda faqat egasi (filialga berish mumkin)
+  'suppliers.manage': { key: 'suppliers.manage', label: 'Yetkazib beruvchilar', description: 'Yetkazib beruvchilar, ulardan olingan tovar va to\'lovlar', group: 'ombor', feature: 'products' },
   'kassa.view': { key: 'kassa.view', label: 'Kassani ko\'rish', description: 'Naqd kassa va kunlik tushum', group: 'moliya', feature: 'kassa' },
   // Kirim-chiqim — barcha filiallar bo'yicha umumiy moliya, shuning uchun faqat egasi
   'kirimChiqim.manage': { key: 'kirimChiqim.manage', label: 'Kirim-chiqim', description: 'Kirim/chiqim jurnalini ko\'rish va yozish (barcha filiallar)', group: 'moliya', feature: 'kirimChiqim', adminOnly: true },

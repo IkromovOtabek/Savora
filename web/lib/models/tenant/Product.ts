@@ -42,6 +42,8 @@ export interface IProduct {
   notes?: string;
   photoUrl?: string;
   createdBy?: string;
+  /** Yetkazib beruvchi (ixtiyoriy) */
+  supplierId?: Types.ObjectId;
   /** Sotilgan sana */
   soldAt?: Date;
   /** Bajarilgan amallar tarixi */
@@ -89,6 +91,7 @@ export const productSchema = new Schema<IProduct>(
     notes: { type: String, trim: true },
     photoUrl: { type: String, trim: true },
     createdBy: { type: String, trim: true },
+    supplierId: { type: Schema.Types.ObjectId, ref: 'Supplier' },
     soldAt: { type: Date },
     history: { type: [productHistorySchema], default: [] },
   },

@@ -1,7 +1,7 @@
 import { getTenantSession } from '@/lib/tenantSession';
 import { isImeiEnabled } from '@/lib/features';
 import ProductForm from '@/components/tenant/ProductForm';
-import { requirePermission } from '@/lib/permissionGuard';
+import { requirePermission, userCan } from '@/lib/permissionGuard';
 import { getDict } from '@/lib/i18n/server';
 
 export async function generateMetadata() {
@@ -11,11 +11,15 @@ export async function generateMetadata() {
 
 export default async function NewProductPage() {
   await requirePermission('product.create');
-  const { user, Branch, org, features } = await getTenantSession();
+  const { user, Branch, org, features, Supplier } = await getTenantSession();
   const isAdmin = user.role === 'admin';
   // Admin barcha filialni tanlaydi; filial-login uchun faqat o'z filiali
   const query = isAdmin ? { active: true } : { active: true, _id: user.branchId };
   const branches = await Branch.find(query).sort({ name: 1 }).lean();
+  // Yetkazib beruvchi tanlovi — faqat "suppliers.manage" huquqi bo'lsa
+  const suppliers = (await userCan(user, 'suppliers.manage'))
+    ? await Supplier.find({}, { name: 1 }).sort({ name: 1 }).limit(500).lean()
+    : undefined;
 
   return (
     <ProductForm
@@ -25,6 +29,7 @@ export default async function NewProductPage() {
       isAdmin={isAdmin}
       currentBranchId={user.branchId}
       branches={branches.map((b) => ({ id: String(b._id), name: b.name }))}
+      suppliers={suppliers?.map((x) => ({ id: String(x._id), name: x.name }))}
     />
   );
 }

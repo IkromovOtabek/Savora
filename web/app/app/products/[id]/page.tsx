@@ -35,7 +35,7 @@ export default async function ProductDetailPage({
   const sp = await searchParams;
   const d = await getDict();
   const t = d.stock.detail;
-  const { user, Product, Branch, CreditBank, org, features } = await getTenantSession();
+  const { user, Product, Branch, CreditBank, org, features, Supplier } = await getTenantSession();
   const isAdmin = user.role === 'admin';
 
   if (!Types.ObjectId.isValid(id)) notFound();
@@ -46,6 +46,9 @@ export default async function ProductDetailPage({
 
   const perms = await loadUserPermissions(user);
   const canViewCost = perms.has('product.viewCost');
+  const suppliers = perms.has('suppliers.manage')
+    ? await Supplier.find({}, { name: 1 }).sort({ name: 1 }).limit(500).lean()
+    : undefined;
 
   const branches = await Branch.find({ active: true }).sort({ name: 1 }).lean();
   const creditBanks = features.creditKassa
@@ -195,6 +198,7 @@ export default async function ProductDetailPage({
           creditBanks={creditBanks.map((b) => ({ id: String(b._id), name: b.name }))}
           isAdmin={isAdmin}
           canViewCost={canViewCost}
+          suppliers={suppliers?.map((x) => ({ id: String(x._id), name: x.name }))}
           currentBranchId={user.branchId}
           branches={branches.map((b) => ({ id: String(b._id), name: b.name }))}
           initial={{
@@ -213,6 +217,7 @@ export default async function ProductDetailPage({
             purchasePrice: canViewCost ? product.purchasePrice : 0,
             salePrice: product.salePrice,
             productId: product.productId,
+            supplierId: product.supplierId ? String(product.supplierId) : undefined,
             trackQuantity: product.trackQuantity ?? false,
             quantity: product.quantity ?? 1,
             soldQuantity: product.soldQuantity ?? 0,

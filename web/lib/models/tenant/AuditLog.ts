@@ -10,6 +10,7 @@ export type AuditEntity =
   | 'user'
   | 'branch'
   | 'customer'
+  | 'supplier'
   | 'finance'
   | 'transfer'
   | 'creditBank'
@@ -37,7 +38,7 @@ export const auditLogSchema = new Schema<IAuditLog>(
     action: { type: String, required: true, trim: true },
     entity: {
       type: String,
-      enum: ['product', 'sale', 'user', 'branch', 'customer', 'finance', 'transfer', 'creditBank', 'auth', 'task', 'ai'],
+      enum: ['product', 'sale', 'user', 'branch', 'customer', 'supplier', 'finance', 'transfer', 'creditBank', 'auth', 'task', 'ai'],
       required: true,
     },
     entityId: { type: String, trim: true },

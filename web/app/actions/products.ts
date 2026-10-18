@@ -20,12 +20,33 @@ import { featureDisabledError } from '@/lib/featureAction';
 import { isOwnUploadUrl } from '@/lib/fileUrl';
 import { getDict, type Dict } from '@/lib/i18n/server';
 import { tr } from '@/lib/i18n/fmt';
+import { logError } from '@/lib/logger';
 
 type State = { error?: string; success?: string } | null;
 // Mahsulot holati formada: omborda (o'z filialida) yoki sotilgan.
 // Boshqa filialga o'tkazish — alohida "Filialga berish" (transfer) orqali.
 type LocationStatus = 'warehouse' | 'sold';
 type Msg = Dict['stock']['msg'];
+
+/**
+ * Formadagi yetkazib beruvchi tanlovi:
+ *  - maydon umuman yo'q (huquqsiz — forma ko'rsatmaydi) → 'keep' (o'zgartirilmaydi)
+ *  - '' → null (bog'lanish olib tashlanadi)
+ *  - mavjud id → ObjectId; noma'lum id → 'invalid'
+ */
+async function readSupplierChoice(
+  formData: FormData,
+  user: Parameters<typeof userCan>[0],
+  Supplier: Awaited<ReturnType<typeof getTenantSession>>['Supplier'],
+): Promise<Types.ObjectId | null | 'keep' | 'invalid'> {
+  if (!formData.has('supplierId')) return 'keep';
+  if (!(await userCan(user, 'suppliers.manage'))) return 'keep';
+  const raw = String(formData.get('supplierId') || '');
+  if (!raw) return null;
+  if (!Types.ObjectId.isValid(raw)) return 'invalid';
+  const exists = await Supplier.exists({ _id: raw });
+  return exists ? new Types.ObjectId(raw) : 'invalid';
+}
 
 /** Narx — faqat butun so'm (kasr/manfiy → null) */
 function parsePrice(v: string): number | null {
@@ -116,7 +137,7 @@ function generateSku(): string {
 }
 
 export async function createProductAction(_prev: State, formData: FormData): Promise<State> {
-  const { user, org, Product, Branch, features } = await getTenantSession();
+  const { user, org, Product, Branch, features, Supplier, SupplierEntry } = await getTenantSession();
   { const denied = await checkPermission(user, 'product.create'); if (denied) return denied; }
   const m = (await getDict()).stock.msg;
   const phoneShop = isPhoneShop(org);
@@ -142,6 +163,10 @@ export async function createProductAction(_prev: State, formData: FormData): Pro
   if (purchasePrice === null) return { error: m.purchaseInvalid };
   if (salePrice === null) return { error: m.saleInvalid };
   { const photoErr = await photoUrlError(photoUrl, features.mediaUpload, m); if (photoErr) return photoErr; }
+  const supplierChoice = await readSupplierChoice(formData, user, Supplier);
+  if (supplierChoice === 'invalid') return { error: (await getDict()).stock.suppliers.msg.badSupplier };
+  const supplierId = supplierChoice instanceof Types.ObjectId ? supplierChoice : undefined;
+  const supplierDebt = !!supplierId && formData.get('supplierDebt') === 'on' && purchasePrice > 0;
 
   // Mahsulot joriy profilga qo'shiladi (tanlovsiz):
   //  - filial-login → o'z filiali
@@ -173,8 +198,26 @@ export async function createProductAction(_prev: State, formData: FormData): Pro
       notes: notes || undefined,
       photoUrl: photoUrl || undefined,
       createdBy: user.username,
+      supplierId,
       history: [{ action: 'created', detail: branch.name, by: user.username, at: new Date() }],
     });
+    // Tovar qarzga olingan bo'lsa — yetkazib beruvchiga qarz yoziladi (kelish narxi × son)
+    if (supplierDebt && supplierId) {
+      try {
+        await SupplierEntry.create({
+          supplierId,
+          type: 'purchase',
+          amount: purchasePrice * quantity,
+          note: quantity > 1 ? `${name} × ${quantity}` : name,
+          productId: product._id,
+          at: new Date(),
+          by: user.username,
+        });
+      } catch (err) {
+        // Mahsulot saqlandi — qarz yozuvi tushmasa ham oqim buzilmaydi (qo'lda qo'shish mumkin)
+        logError('supplier debt entry failed', err, { user: user.username, dbName: user.dbName });
+      }
+    }
     await recordAudit(user, {
       action: 'product.create',
       entity: 'product',
@@ -192,7 +235,7 @@ export async function createProductAction(_prev: State, formData: FormData): Pro
 }
 
 export async function updateProductAction(_prev: State, formData: FormData): Promise<State> {
-  const { user, org, Product, Sale, CreditBank, features } = await getTenantSession();
+  const { user, org, Product, Sale, CreditBank, features, Supplier } = await getTenantSession();
   { const denied = await checkPermission(user, 'product.edit'); if (denied) return denied; }
   const m = (await getDict()).stock.msg;
   // Kelish narxini ko'rmaydigan xodim formada uni yubormaydi — mavjud qiymat saqlanadi
@@ -253,6 +296,10 @@ export async function updateProductAction(_prev: State, formData: FormData): Pro
     const dup = await Product.findOne({ imei: imeiRaw, _id: { $ne: productId } }).lean();
     if (dup) return { error: m.imeiDupOther };
   }
+
+  const supplierChoice = await readSupplierChoice(formData, user, Supplier);
+  if (supplierChoice === 'invalid') return { error: (await getDict()).stock.suppliers.msg.badSupplier };
+  if (supplierChoice !== 'keep') product.supplierId = supplierChoice ?? undefined;
 
   product.name = name;
   if (phoneShop) product.imei = imeiRaw;

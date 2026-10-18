@@ -35,6 +35,7 @@ export const NAV_ICONS: Record<string, IconName> = {
   '/app/kirim-chiqim': 'repeat',
   '/app/kredit-kassa': 'plans',
   '/app/customers': 'user',
+  '/app/suppliers': 'store',
   '/app/branches': 'building',
   '/app/transferred': 'send',
   '/app/audit': 'history',
@@ -69,6 +70,7 @@ export const NAV_GROUPS: NavGroup[] = [
     links: [
       { href: '/app/products', label: 'Ombor', feature: 'products' },
       { href: '/app/inventory', label: 'Inventar', feature: 'inventory' },
+      { href: '/app/suppliers', label: 'Yetkazib beruvchilar', feature: 'products', permission: 'suppliers.manage' },
       { href: '/app/imei', label: 'IMEI qidirish', imeiOnly: true, adminOnly: true },
     ],
   },

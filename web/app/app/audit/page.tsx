@@ -18,6 +18,7 @@ const ENTITY_HREF: Partial<Record<AuditEntity, string>> = {
   product: '/app/products/',
   sale: '/app/sales/',
   customer: '/app/customers/',
+  supplier: '/app/suppliers/',
 };
 
 /** Tez filtr chiplari ('' — barchasi); nomlari lug'atdan (d.crm.audit.entities) */

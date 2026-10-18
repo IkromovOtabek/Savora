@@ -38,6 +38,8 @@ interface Props {
   creditBanks?: { id: string; name: string }[];
   /** "product.viewCost" huquqi — yo'q bo'lsa tahrirda kelish narxi ko'rsatilmaydi (server mavjudini saqlaydi) */
   canViewCost?: boolean;
+  /** Yetkazib beruvchilar ("suppliers.manage" huquqi bo'lsa) — bo'lmasa maydon ko'rsatilmaydi */
+  suppliers?: { id: string; name: string }[];
   initial?: {
     id: string;
     name: string;
@@ -56,6 +58,7 @@ interface Props {
     trackQuantity?: boolean;
     quantity?: number;
     soldQuantity?: number;
+    supplierId?: string;
   };
 }
 
@@ -69,6 +72,7 @@ export default function ProductForm({
   creditKassaEnabled = false,
   creditBanks = [],
   canViewCost = true,
+  suppliers,
   initial,
 }: Props) {
   const d = useDict();
@@ -86,6 +90,8 @@ export default function ProductForm({
     initial?.soldPaymentType ?? 'cash'
   );
   const [trackQuantity, setTrackQuantity] = useState(initial?.trackQuantity ?? false);
+  const [qtyRaw, setQtyRaw] = useState(String(initial?.quantity ?? 1));
+  const [supplierId, setSupplierId] = useState(initial?.supplierId ?? '');
   const activeCreditBanks = creditBanks.filter(Boolean);
 
   // Narxlar — faqat jonli foyda ko'rinishi uchun (forma baribir shu inputlardan yuboriladi)
@@ -295,7 +301,8 @@ export default function ProductForm({
                       type="number"
                       min={1}
                       required
-                      defaultValue={initial?.quantity ?? 1}
+                      value={qtyRaw}
+                      onChange={(e) => setQtyRaw(e.target.value)}
                       disabled={isPending}
                     />
                     {mode === 'edit' && initial?.trackQuantity && (
@@ -421,6 +428,24 @@ export default function ProductForm({
                   <div className="auth-field">
                     <span className="st-profit-l">{t.photo}</span>
                     <ImageUploadField defaultValue={initial?.photoUrl} disabled={isPending} />
+                  </div>
+                )}
+                {suppliers && suppliers.length > 0 && (
+                  <div className="auth-field">
+                    <label htmlFor="supplierId">{d.stock.suppliers.productField}</label>
+                    <select id="supplierId" name="supplierId" value={supplierId} onChange={(e) => setSupplierId(e.target.value)} disabled={isPending}>
+                      <option value="">{d.stock.suppliers.productNone}</option>
+                      {suppliers.map((sp) => <option key={sp.id} value={sp.id}>{sp.name}</option>)}
+                    </select>
+                    {isCreate && supplierId && purchaseNum > 0 && (
+                      <label className="st-switch-row">
+                        <span className="st-switch-row-t">
+                          <b>{tr(d.stock.suppliers.productAsDebt, { sum: fmt(purchaseNum * (trackQuantity ? Math.max(1, Math.floor(Number(qtyRaw)) || 1) : 1)) })}</b>
+                          <small>{d.stock.suppliers.productAsDebtHint}</small>
+                        </span>
+                        <input type="checkbox" role="switch" className="st-switch" name="supplierDebt" disabled={isPending} />
+                      </label>
+                    )}
                   </div>
                 )}
                 <div className="auth-field">
