@@ -62,6 +62,11 @@ export interface ISale {
   soldBy: string;
   notes?: string;
   photoUrl?: string;
+  /** Oflayn POS: qurilma bergan noyob kalit — bir sotuv ikki marta yozilmasin (idempotentlik) */
+  clientSaleId?: string;
+  /** Oflayn qilingan va keyin sinxronlangan sotuv */
+  offline?: boolean;
+  syncedAt?: Date;
   createdAt?: Date;
   updatedAt?: Date;
 }
@@ -112,6 +117,9 @@ export const saleSchema = new Schema<ISale>(
     soldBy: { type: String, required: true, trim: true },
     notes: { type: String, trim: true },
     photoUrl: { type: String, trim: true },
+    clientSaleId: { type: String, trim: true, maxlength: 64 },
+    offline: { type: Boolean },
+    syncedAt: { type: Date },
   },
   { timestamps: true, collection: 'sales' }
 );
@@ -122,6 +130,8 @@ saleSchema.index({ status: 1, paymentType: 1 });
 saleSchema.index({ status: 1, dueDate: 1 });
 saleSchema.index({ 'productSnapshot.imei': 1 });
 saleSchema.index({ branchId: 1, 'returns.returnedAt': -1 }); // kunlik kassa (qaytarilgan pul)
+// Faqat oflayn sotuvlarda bor — partial unique (null'lar to'qnashmaydi)
+saleSchema.index({ clientSaleId: 1 }, { unique: true, partialFilterExpression: { clientSaleId: { $type: 'string' } } });
 
 export const PAYMENT_TYPE_LABELS: Record<PaymentType, string> = {
   cash: 'Naqd',

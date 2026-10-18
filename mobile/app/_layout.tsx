@@ -8,6 +8,7 @@ import { AuthProvider, useAuth } from '@/lib/auth';
 import { ThemeProvider, useTheme } from '@/lib/theme';
 import { I18nProvider } from '@/lib/i18n';
 import { AnimatedSplash } from '@/components/AnimatedSplash';
+import { OfflinePosProvider } from '@/lib/offlinePos';
 
 // Native splash JS animatsiyasi boshlanguncha turadi (AnimatedSplash onLayout'da yopadi)
 SplashScreen.preventAutoHideAsync().catch(() => { /* allaqachon yopilgan */ });
@@ -57,6 +58,7 @@ function Navigation() {
         <Stack.Screen name="index" />
         <Stack.Screen name="login" options={{ animation: 'fade' }} />
         <Stack.Screen name="(tabs)" options={{ animation: 'fade' }} />
+        <Stack.Screen name="offline-sales" />
         <Stack.Screen name="scan" options={{ presentation: 'fullScreenModal', contentStyle: { backgroundColor: '#000' } }} />
       </Stack>
       <SplashGate />
@@ -70,7 +72,9 @@ export default function RootLayout() {
       <I18nProvider>
         <ThemeProvider>
           <AuthProvider>
-            <Navigation />
+            <OfflinePosProvider>
+              <Navigation />
+            </OfflinePosProvider>
           </AuthProvider>
         </ThemeProvider>
       </I18nProvider>

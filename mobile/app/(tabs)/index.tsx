@@ -9,6 +9,7 @@ import { useDict, tr } from '@/lib/i18n';
 import {
   Screen, LargeTitle, IconButton, Group, GroupLink, Cell, Avatar, AmountColumn, Pill, StatCard, ErrorState, InlineError, Loading,
 } from '@/components/ui';
+import { OfflineBanner } from '@/components/OfflineBanner';
 
 interface Summary { inStock: number; todaySales: number; todayRevenue: number; debtTotal: number }
 interface Sale {
@@ -61,7 +62,7 @@ export default function Home() {
   const tasks = [...late, ...today].slice(0, 4);
 
   if (loading) return <Screen><Loading /></Screen>;
-  if (!sum && error) return <Screen onRefresh={() => { setRefreshing(true); load(); }} refreshing={refreshing}><ErrorState message={error} onRetry={() => { setLoading(true); load(); }} /></Screen>;
+  if (!sum && error) return <Screen onRefresh={() => { setRefreshing(true); load(); }} refreshing={refreshing}><OfflineBanner /><ErrorState message={error} onRetry={() => { setLoading(true); load(); }} /></Screen>;
 
   return (
     <Screen refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} gap={16}>
@@ -72,6 +73,7 @@ export default function Home() {
         actions={<IconButton icon="scan-outline" label={d.common.barcodeScanner} onPress={() => router.push('/scan')} />}
       />
 
+      <OfflineBanner />
       {error ? <InlineError message={error} onRetry={load} /> : null}
 
       {me && !me.org.active ? (

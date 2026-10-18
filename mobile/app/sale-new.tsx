@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { View, Text, Alert, ActivityIndicator, StyleSheet } from 'react-native';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { api, errMsg } from '@/lib/api';
@@ -6,7 +6,9 @@ import { useAuth } from '@/lib/auth';
 import { useDebounced, usePaged } from '@/lib/hooks';
 import { takePicked, type PickedProduct } from '@/lib/pick';
 import { useTheme, tabular } from '@/lib/theme';
-import { digits, grouped, fmtMoney, fmtPhoneLocal, phoneLocal, phoneE164, payLabels, type PayType } from '@/lib/format';
+import { digits, grouped, fmtMoney, fmtDateTime, fmtPhoneLocal, phoneLocal, phoneE164, payLabels, type PayType } from '@/lib/format';
+import { useOfflinePos } from '@/lib/offlinePos';
+import { isNetworkError, searchCatalog, toPicked } from '@/lib/offline';
 import { useDict, tr } from '@/lib/i18n';
 import {
   Screen, NavBar, LargeTitle, SearchField, Group, Cell, AmountColumn, Pill, Button, IconButton, SegmentedControl,
@@ -50,6 +52,16 @@ export default function SaleNew() {
 
   const list = usePaged<PickedProduct>(picked ? null : `/api/mobile/products?q=${encodeURIComponent(dq)}`);
 
+  // Oflayn: server ro'yxati tarmoq xatosi bilan tugasa — qurilmadagi katalogdan qidiramiz
+  const pos = useOfflinePos();
+  // usePaged xatoni matn qilib beradi — tarmoq xatosi api.ts dagi aynan shu matnlar
+  const listNetErr = !!list.error && (list.error === d.api.offline || list.error === d.api.timeout);
+  const listOffline = listNetErr && list.items.length === 0 && !!pos.catalog;
+  const offlineItems = useMemo(
+    () => (listOffline ? searchCatalog(pos.catalog, dq).map(toPicked) : []),
+    [listOffline, pos.catalog, dq],
+  );
+
   const choose = useCallback((p: PickedProduct) => {
     setPicked(p); setQty(1); setTotal(String(p.salePrice)); setTotalEdited(false);
   }, []);
@@ -83,24 +95,43 @@ export default function SaleNew() {
     if (!picked) { Alert.alert(d.saleNew.pickTitle, d.saleNew.pickMsg); return; }
     if (!valid) return;
     setBusy(true);
+    const body = {
+      productId: picked.id,
+      paymentType: pay,
+      totalAmount: totalN,
+      paidAmount: paidN,
+      installmentMonths: pay === 'installment' ? monthsN : undefined,
+      customerName: needCustomer ? custName.trim() : '',
+      customerPhone: needCustomer ? phoneE164(phone) : '',
+      saleQty: picked.trackQuantity ? qty : undefined,
+      notes: notes.trim() || undefined,
+    };
     try {
-      const r = await api<{ id: string }>('/api/mobile/sales', {
-        method: 'POST',
-        body: {
-          productId: picked.id,
-          paymentType: pay,
-          totalAmount: totalN,
-          paidAmount: paidN,
-          installmentMonths: pay === 'installment' ? monthsN : undefined,
-          customerName: needCustomer ? custName.trim() : '',
-          customerPhone: needCustomer ? phoneE164(phone) : '',
-          saleQty: picked.trackQuantity ? qty : undefined,
-          notes: notes.trim() || undefined,
-        },
-      });
+      const r = await api<{ id: string }>('/api/mobile/sales', { method: 'POST', body });
       router.replace(`/sale/${r.id}`);
     } catch (e) {
-      Alert.alert(d.saleNew.failTitle, errMsg(e, d.saleNew.failFallback));
+      if (!isNetworkError(e)) {
+        Alert.alert(d.saleNew.failTitle, errMsg(e, d.saleNew.failFallback));
+        return;
+      }
+      // Internet yo'q: naqd sotuv telefonda saqlanadi va keyin yuboriladi; qarz/nasiya — yo'q
+      pos.markOffline();
+      if (pay !== 'cash') {
+        Alert.alert(d.offline.bannerTitle, d.offline.cashOnly);
+        return;
+      }
+      try {
+        await pos.enqueue({
+          productId: picked.id,
+          name: picked.name,
+          qty: picked.trackQuantity ? qty : 1,
+          totalAmount: totalN,
+          notes: notes.trim(),
+        });
+        Alert.alert(d.offline.savedTitle, d.offline.savedMsg, [{ text: 'OK', onPress: () => router.back() }]);
+      } catch (err) {
+        Alert.alert(d.saleNew.failTitle, errMsg(err, d.saleNew.failFallback));
+      }
     } finally { setBusy(false); }
   }
 
@@ -115,8 +146,36 @@ export default function SaleNew() {
           placeholder={d.saleNew.searchPlaceholder}
           right={<IconButton icon="barcode-outline" label={d.common.scanner} tone="plain" onPress={() => router.push('/scan?mode=pick')} />}
         />
+        {listOffline ? (
+          <Text style={[s.offline, { color: c.warn }]}>
+            {d.offline.bannerTitle}. {tr(d.offline.bannerCatalog, { time: fmtDateTime(pos.catalog?.savedAt) })}
+          </Text>
+        ) : null}
         {list.loading && list.items.length === 0 ? <Loading />
-          : list.error && list.items.length === 0 ? <ErrorState message={list.error} onRetry={list.retry} />
+          : listOffline ? (
+            offlineItems.length === 0
+              ? <EmptyState icon="search" title={d.saleNew.notFound} message={dq ? tr(d.saleNew.notFoundQ, { q: dq }) : d.saleNew.notFoundEmpty} />
+              : (
+                <Group>
+                  {offlineItems.map((p) => {
+                    const ok = p.available > 0;
+                    return (
+                      <Cell
+                        key={p.id}
+                        icon="cube"
+                        iconColor={ok ? c.sq.b : c.sq.g}
+                        title={p.name}
+                        subtitle={p.trackQuantity ? tr(d.saleNew.leftPcs, { n: fmtMoney(p.available) }) : undefined}
+                        right={<AmountColumn amount={fmtMoney(p.salePrice)}>{ok ? null : <Pill label={d.saleNew.notInSale} tone="mut" />}</AmountColumn>}
+                        disabled={!ok}
+                        onPress={() => choose(p)}
+                      />
+                    );
+                  })}
+                </Group>
+              )
+          )
+          : list.error && list.items.length === 0 ? <ErrorState message={listNetErr ? d.offline.noCatalog : list.error} onRetry={list.retry} />
           : list.items.length === 0 ? <EmptyState icon="search" title={d.saleNew.notFound} message={dq ? tr(d.saleNew.notFoundQ, { q: dq }) : d.saleNew.notFoundEmpty} />
           : (
             <Group>
@@ -233,5 +292,6 @@ export default function SaleNew() {
 
 const s = StyleSheet.create({
   label: { fontSize: 13, fontWeight: '500' },
+  offline: { fontSize: 13, fontWeight: '500', lineHeight: 18 },
   gold: { fontSize: 15, fontWeight: '600' },
 });

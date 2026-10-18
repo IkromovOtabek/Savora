@@ -1,5 +1,21 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { api, setToken, clearToken, getToken, setUnauthorizedHandler, ApiError, errMsg } from './api';
+
+/** Oxirgi muvaffaqiyatli profil — internetsiz ochilganda ilova (oflayn sotuv) ishlashi uchun */
+const ME_CACHE_KEY = 'savora_me_cache';
+async function cacheMe(me: MeResponse | null) {
+  try {
+    if (me) await AsyncStorage.setItem(ME_CACHE_KEY, JSON.stringify(me));
+    else await AsyncStorage.removeItem(ME_CACHE_KEY);
+  } catch { /* kesh ixtiyoriy */ }
+}
+async function cachedMe(): Promise<MeResponse | null> {
+  try {
+    const raw = await AsyncStorage.getItem(ME_CACHE_KEY);
+    return raw ? (JSON.parse(raw) as MeResponse) : null;
+  } catch { return null; }
+}
 
 export interface Terms {
   item: string;    // "Mahsulot" / "Taom" / "Dori" ...
@@ -26,6 +42,8 @@ interface AuthState {
   me: MeResponse | null;
   /** Token bor, lekin profil yuklanmadi (tarmoq xatosi) — chiqarib yubormaymiz. */
   error: string | null;
+  /** Profil serverdan emas, qurilmadagi keshdan (internet yo'q) */
+  fromCache: boolean;
   login: (username: string, password: string, slug?: string) => Promise<void>;
   logout: () => Promise<void>;
   refresh: () => Promise<void>;
@@ -37,26 +55,34 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [me, setMe] = useState<MeResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [fromCache, setFromCache] = useState(false);
 
   const refresh = useCallback(async () => {
     const token = await getToken();
-    if (!token) { setMe(null); setError(null); return; }
+    if (!token) { setMe(null); setError(null); setFromCache(false); return; }
     try {
       const data = await api<MeResponse>('/api/mobile/me');
-      setMe(data); setError(null);
+      setMe(data); setError(null); setFromCache(false);
+      void cacheMe(data);
     } catch (e) {
       if (e instanceof ApiError && (e.status === 401 || e.status === 404)) {
         await clearToken();
-        setMe(null); setError(null);
+        void cacheMe(null);
+        setMe(null); setError(null); setFromCache(false);
+      } else if (e instanceof ApiError && e.status === 0) {
+        // Internet yo'q — oxirgi profil bilan ishlaymiz (oflayn sotuv mumkin bo'lsin)
+        const cached = await cachedMe();
+        if (cached) { setMe((cur) => cur ?? cached); setFromCache(true); setError(null); }
+        else setError(errMsg(e));
       } else {
-        // Tarmoq xatosi — tokenni saqlab qolamiz, foydalanuvchi qayta urinadi
+        // Boshqa xato — tokenni saqlab qolamiz, foydalanuvchi qayta urinadi
         setError(errMsg(e));
       }
     }
   }, []);
 
   useEffect(() => {
-    setUnauthorizedHandler(() => { setMe(null); setError(null); });
+    setUnauthorizedHandler(() => { setMe(null); setError(null); void cacheMe(null); });
     (async () => { await refresh(); setLoading(false); })();
     return () => setUnauthorizedHandler(null);
   }, [refresh]);
@@ -72,11 +98,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const logout = useCallback(async () => {
     await clearToken();
-    setMe(null); setError(null);
+    void cacheMe(null);
+    setMe(null); setError(null); setFromCache(false);
   }, []);
 
   return (
-    <AuthContext.Provider value={{ loading, me, error, login, logout, refresh }}>
+    <AuthContext.Provider value={{ loading, me, error, fromCache, login, logout, refresh }}>
       {children}
     </AuthContext.Provider>
   );

@@ -42,6 +42,15 @@ export function fmtDate(d?: string | Date | null): string {
   return `${p(dt.getDate())}.${p(dt.getMonth() + 1)}.${dt.getFullYear()}`;
 }
 
+/** "18.10.2026, 14:05" — oflayn sotuv vaqti, katalog sanasi */
+export function fmtDateTime(d?: string | Date | null): string {
+  if (!d) return '—';
+  const dt = new Date(d);
+  if (Number.isNaN(dt.getTime())) return '—';
+  const p = (x: number) => String(x).padStart(2, '0');
+  return `${fmtDate(dt)}, ${p(dt.getHours())}:${p(dt.getMinutes())}`;
+}
+
 /** "15-oktabr" (ru: "15 октября") */
 export function fmtDayMonth(d?: string | Date | null, locale?: Locale): string {
   if (!d) return '—';

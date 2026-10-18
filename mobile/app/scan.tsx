@@ -5,6 +5,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { Ionicons } from '@expo/vector-icons';
 import { api, errMsg } from '@/lib/api';
+import { useOfflinePos } from '@/lib/offlinePos';
+import { findByCode, isNetworkError, toPicked } from '@/lib/offline';
 import { putPicked, type PickedProduct } from '@/lib/pick';
 import { Screen, NavBar, EmptyState, Button, Loading } from '@/components/ui';
 import { useDict, tr } from '@/lib/i18n';
@@ -18,6 +20,7 @@ export default function Scan() {
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
   const d = useDict();
+  const pos = useOfflinePos();
   const [permission, requestPermission] = useCameraPermissions();
   const [busy, setBusy] = useState(false);
   const [torch, setTorch] = useState(false);
@@ -52,9 +55,21 @@ export default function Scan() {
         ]);
       }
     } catch (e) {
+      // Internet yo'q, sotish rejimi — qurilmadagi oflayn katalogdan qidiramiz
+      const local = pickMode && isNetworkError(e) ? findByCode(pos.catalog, code) : null;
+      if (local) {
+        if (local.available <= 0) {
+          Alert.alert(d.scan.notInSale, tr(d.scan.notInSaleMsg, { name: local.name }), [{ text: d.scan.rescan, onPress: unlock }]);
+          return;
+        }
+        pos.markOffline();
+        putPicked(toPicked(local));
+        router.back();
+        return;
+      }
       Alert.alert(d.common.error, errMsg(e, d.scan.searchError), [{ text: d.common.retry, onPress: unlock }]);
     }
-  }, [router, pickMode, d]);
+  }, [router, pickMode, d, pos]);
 
   if (!permission) return <Loading full />;
 

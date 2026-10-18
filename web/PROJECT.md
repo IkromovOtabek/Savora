@@ -236,7 +236,10 @@ xodimlar bitta filial login/paroli bilan ishlaydi. (`createEmployeeAction`, `Emp
   yetkazib beruvchi(+yozuvlar). Tiklash UI hali yo'q.
 - ✅ **Qisman qaytarish** (2026-10) — `returnSaleItemsAction`, `lib/saleReturn.ts`; naqd qaytarilgan pul kassada chiqim.
 - ✅ **Yetkazib beruvchilar** (2026-10) — `/app/suppliers`, qarz hisobi, mahsulotga bog'lash, huquq `suppliers.manage`.
-- **Offline-first POS** — PWA bor; keyingisi offline sotuv + sinxronlash.
+- ✅ **Offline POS (mobil)** (2026-10) — internetsiz NAQD sotuv: katalog telefonda (`GET /api/mobile/pos/catalog`),
+  navbat AsyncStorage'da, `POST /api/mobile/pos/sync` idempotent (`Sale.clientSaleId` unikal), ombor ziddiyati →
+  "Oflayn sotuvlar" ekranida qo'lda hal qilinadi. Mantiq: `lib/posSync.ts`, mobil: `lib/offline.ts`, `lib/offlinePos.tsx`.
+  Qarz/nasiya oflaynda yo'q. Veb PWA'da oflayn sotuv yo'q.
 
 ---
 
