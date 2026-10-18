@@ -155,6 +155,9 @@ export function validateEnv(env: Env, production = env.NODE_ENV === 'production'
     else if (production && u.protocol !== 'https:') warnings.push('ERROR_WEBHOOK_URL https emas — xato tafsilotlari shifrlanmasdan yuboriladi.');
   }
 
+  const sentry = val(env, 'SENTRY_DSN');
+  if (sentry && !isHttpUrl(sentry)) warnings.push("SENTRY_DSN noto'g'ri URL — Sentry ishlamaydi.");
+
   if (!production) {
     // Dev: hech narsa server ishini to'xtatmaydi
     return { errors: [], warnings: [...errors, ...warnings] };

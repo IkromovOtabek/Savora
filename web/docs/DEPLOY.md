@@ -109,6 +109,8 @@ openssl rand -hex 32      # TELEGRAM_WEBHOOK_SECRET
 | `ESKIZ_EMAIL`, `ESKIZ_PASSWORD`, `ESKIZ_FROM` | yo'q | Eskiz.uz SMS (Daftar eslatmalari). |
 | `R2_*` | tavsiya | Cloudflare R2 — rasmlar. Bo'lmasa `uploads` volume'ga yoziladi. |
 | `ERROR_WEBHOOK_URL` | yo'q | Xatolar JSON POST qilinadigan manzil (Slack/Discord/n8n). |
+| `SENTRY_DSN` | yo'q | Sentry — server xatolari (`logError` va ushlanmagan xatolar). Bo'sh bo'lsa paket yuklanmaydi. |
+| `NEXT_PUBLIC_SENTRY_DSN` | yo'q | Sentry — brauzer xatolari. **Build vaqtida** o'qiladi (CSP `connect-src` ga ham qo'shiladi). |
 | `CSP_MODE` | yo'q | `enforce` (standart) / `report-only` / `off`. **Build vaqtida** o'qiladi. |
 | `BACKUP_DIR`, `BACKUP_KEEP_DAYS` | yo'q | Zaxira joyi va saqlash muddati (BACKUP.md). |
 | `MONGO_CACHE_GB` | yo'q | MongoDB RAM keshi, standart 0.5. |

@@ -4,8 +4,9 @@
  * - Production: har log — bitta qatorli JSON (docker logs / journald / Loki uchun qulay).
  * - Dev: o'qish oson bo'lishi uchun qisqa matn + meta.
  * - Xatolar (`logError`) qo'shimcha ravishda `reportError()` orqali ixtiyoriy
- *   ERROR_WEBHOOK_URL ga POST qilinadi (Slack/Discord/n8n/Telegram-relay va h.k.) —
- *   qo'shimcha paket (Sentry) shart emas.
+ *   ERROR_WEBHOOK_URL ga POST qilinadi (Slack/Discord/n8n/Telegram-relay va h.k.).
+ * - SENTRY_DSN berilgan bo'lsa — lib/sentry.ts ro'yxatga olgan "reporter" orqali Sentry'ga ham
+ *   (logger Sentry paketini o'zi import qilmaydi — sink kabi ilgak).
  *
  * Maxfiylik: meta ichidagi parol/token/secret/cookie kalitlari avtomatik yashiriladi.
  */
@@ -158,6 +159,24 @@ function toSink(level: 'error' | 'warn', msg: string, err: unknown, meta?: Meta)
   }
 }
 
+// ── Tashqi xato kuzatuvi (Sentry) ilgagi ───────────────────────────────
+type Reporter = (msg: string, err: unknown, meta?: Meta) => void;
+const globalForReporter = global as unknown as { _savoraErrReporter?: Reporter };
+
+export function setErrorReporter(fn: Reporter | null): void {
+  globalForReporter._savoraErrReporter = fn ?? undefined;
+}
+
+function toReporter(msg: string, err: unknown, meta?: Meta) {
+  const fn = globalForReporter._savoraErrReporter;
+  if (!fn) return;
+  try {
+    fn(msg, err, redact(meta));
+  } catch {
+    /* reporter hech qachon asosiy oqimni buzmaydi */
+  }
+}
+
 export function logError(msg: string, err?: unknown, meta?: Meta) {
   const errInfo =
     err instanceof Error
@@ -168,6 +187,7 @@ export function logError(msg: string, err?: unknown, meta?: Meta) {
   emit('error', msg, { ...meta, ...errInfo });
   reportError(msg, err, meta);
   toSink('error', msg, err, meta);
+  toReporter(msg, err, meta);
 }
 
 export function logWarn(msg: string, meta?: Meta) {

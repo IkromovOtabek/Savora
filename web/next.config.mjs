@@ -25,6 +25,14 @@ const isProd = process.env.NODE_ENV === 'production';
  */
 const CSP_MODE = process.env.CSP_MODE || 'enforce'; // enforce | report-only | off
 const ROOT_DOMAIN = (process.env.ROOT_DOMAIN || '').trim();
+// Brauzer Sentry'ga xato yuboradi — DSN host'i connect-src ga (faqat NEXT_PUBLIC_SENTRY_DSN bo'lsa)
+const SENTRY_CONNECT = (() => {
+  try {
+    return process.env.NEXT_PUBLIC_SENTRY_DSN ? [new URL(process.env.NEXT_PUBLIC_SENTRY_DSN).origin] : [];
+  } catch {
+    return [];
+  }
+})();
 const TELEGRAM_FRAME_ANCESTORS = "'self' https://web.telegram.org https://*.telegram.org https://telegram.org";
 
 function buildCsp(frameAncestors) {
@@ -39,7 +47,7 @@ function buildCsp(frameAncestors) {
     'style-src': ["'self'", "'unsafe-inline'"],
     'img-src': ["'self'", 'data:', 'blob:', 'https:'],
     'font-src': ["'self'", 'data:'],
-    'connect-src': ["'self'", 'https://telegram.org', ...(isProd ? [] : ['ws:', 'wss:'])],
+    'connect-src': ["'self'", 'https://telegram.org', ...SENTRY_CONNECT, ...(isProd ? [] : ['ws:', 'wss:'])],
     'media-src': ["'self'", 'blob:'],
     'worker-src': ["'self'", 'blob:'],
     'manifest-src': ["'self'"],
