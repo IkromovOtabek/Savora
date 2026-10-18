@@ -123,16 +123,31 @@ export default function Profile() {
         </View>
       </Group>
 
-      <Group header={d.profile.actions}>
+      {/* Amallar — web menyusi kabi bo'limlarga guruhlangan (BILLZ) */}
+      <Group header={d.profile.secProducts}>
         {can('product.create') ? <Cell icon="add-circle" iconColor={c.sq.b} title={t?.addItem ?? d.terms.addItem} chevron onPress={() => router.push('/product-new')} /> : null}
         <Cell icon="barcode" iconColor={c.sq.o} title={d.common.barcodeScanner} chevron onPress={() => router.push('/scan')} />
-        <Cell icon="receipt" iconColor={c.sq.b} title={d.profile.sales} chevron onPress={() => router.push('/(tabs)/sales')} />
-        {f.tasks ? <Cell icon="checkmark-done" iconColor={c.sq.o} title={d.profile.tasks} chevron onPress={() => router.push('/tasks')} /> : null}
-        {f.kirimChiqim && isAdmin ? <Cell icon="cash" iconColor={c.sq.o} title={d.profile.kirimChiqim} chevron onPress={() => router.push('/kirim-chiqim')} /> : null}
-        {f.users && isAdmin ? <Cell icon="business" iconColor={c.sq.b} title={d.profile.branches} chevron onPress={() => router.push('/branches')} /> : null}
         {f.transferred && can('transfer.create') ? <Cell icon="swap-horizontal" iconColor={c.sq.g} title={d.profile.transfer} chevron onPress={() => router.push('/transfer')} /> : null}
-        {isAdmin ? <Cell icon="briefcase" iconColor={c.sq.a} title={d.profile.businessType} value={org?.businessTypeLabel} chevron onPress={() => router.push('/business-type')} /> : null}
       </Group>
+
+      <Group header={d.profile.secSales}>
+        <Cell icon="receipt" iconColor={c.sq.b} title={d.profile.sales} chevron onPress={() => router.push('/(tabs)/sales')} />
+        {f.kassa && can('kassa.view') ? <Cell icon="time" iconColor={c.sq.o} title={d.profile.shifts} chevron onPress={() => router.push('/shifts')} /> : null}
+      </Group>
+
+      {f.kirimChiqim && isAdmin ? (
+        <Group header={d.profile.secFinance}>
+          <Cell icon="cash" iconColor={c.sq.o} title={d.profile.kirimChiqim} chevron onPress={() => router.push('/kirim-chiqim')} />
+        </Group>
+      ) : null}
+
+      {f.tasks || isAdmin ? (
+        <Group header={d.profile.secManage}>
+          {f.tasks ? <Cell icon="checkmark-done" iconColor={c.sq.o} title={d.profile.tasks} chevron onPress={() => router.push('/tasks')} /> : null}
+          {f.users && isAdmin ? <Cell icon="business" iconColor={c.sq.b} title={d.profile.branches} chevron onPress={() => router.push('/branches')} /> : null}
+          {isAdmin ? <Cell icon="briefcase" iconColor={c.sq.a} title={d.profile.businessType} value={org?.businessTypeLabel} chevron onPress={() => router.push('/business-type')} /> : null}
+        </Group>
+      ) : null}
 
       <Group footer={`Savora Mobile v${Constants.expoConfig?.version ?? '1.0.0'}`}>
         <Cell icon="log-out" iconColor={c.sq.r} title={d.profile.logout} destructive onPress={onLogout} />

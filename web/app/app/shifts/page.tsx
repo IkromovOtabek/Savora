@@ -1,7 +1,8 @@
 import { getTenantSession } from '@/lib/tenantSession';
 import { isBranchScoped } from '@/lib/branchScope';
 import { userCan } from '@/lib/permissionGuard';
-import { computeShiftTotals, type ShiftTotals } from '@/lib/cashShift';
+import { type ShiftTotals } from '@/lib/cashShift';
+import { shiftTotalsNow } from '@/lib/cashShiftOps';
 import { fmtDateTime, fmtMoney } from '@/lib/format';
 import { OpenShiftForm, CloseShiftForm, ShiftCashOpForm } from '@/components/tenant/ShiftForms';
 import Icon from '@/components/icons/Icon';
@@ -33,14 +34,9 @@ export default async function ShiftsPage() {
 
   // Ochiq smenalar: joriy kassa — ochilishdan hozirgacha bo'lgan naqd harakatlar
   const now = new Date();
-  const openRows: { s: (typeof open)[number]; t: ShiftTotals }[] = await Promise.all(open.map(async (s) => {
-    const from = new Date(s.openedAt);
-    const [sales, flows] = await Promise.all([
-      Sale.find({ branchId: s.branchId, $or: [{ 'payments.paidAt': { $gte: from } }, { 'returns.returnedAt': { $gte: from } }] }).lean(),
-      CashFlow.find({ branchId: s.branchId, createdAt: { $gte: from } }).select('type amount createdAt').lean(),
-    ]);
-    return { s, t: computeShiftTotals(sales, flows, s.openingCash, from, now) };
-  }));
+  const openRows: { s: (typeof open)[number]; t: ShiftTotals }[] = await Promise.all(
+    open.map(async (s) => ({ s, t: await shiftTotalsNow({ Sale, CashFlow }, s, now) })),
+  );
 
   const openBranchIds = new Set(open.map((s) => String(s.branchId)));
   const freeBranches = branches.filter((b) => !openBranchIds.has(String(b._id))).map((b) => ({ id: String(b._id), name: b.name }));
