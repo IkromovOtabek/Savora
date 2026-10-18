@@ -73,3 +73,7 @@
   .sh-money { justify-items: start; text-align: left; }
   .sh-close-grid { grid-template-columns: minmax(0, 1fr); }
 }
+.sh-acts { display: grid; gap: 8px; }
+.sh-op-seg { display: inline-flex; gap: 4px; padding: 4px; border-radius: 12px; background: var(--fill); width: fit-content; }
+.sh-op-seg button { min-height: 34px; padding: 0 14px; border: 0; border-radius: 9px; background: transparent; color: var(--ink-2); font-weight: 600; cursor: pointer; }
+.sh-op-seg button[aria-checked="true"] { background: var(--fill-3); color: var(--ink-1); }

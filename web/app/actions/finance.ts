@@ -7,7 +7,7 @@ import { featureDisabledError } from '@/lib/featureAction';
 import { getDict } from '@/lib/i18n/server';
 import { tr } from '@/lib/i18n/fmt';
 import { z } from 'zod';
-import { formToObject, parseInput, zId, zMoney, zOneOf, zReqText } from '@/lib/validation';
+import { formToObject, parseInput, zId, zMoney, zOneOf, zOptId, zReqText, zText } from '@/lib/validation';
 import { softDeleteOne } from '@/lib/softDelete';
 
 type State = { error?: string; success?: string } | null;
@@ -107,4 +107,81 @@ export async function deleteCashFlowAction(formData: FormData): Promise<void> {
       : `Kirim/chiqim o'chirildi: ${entryId}`,
   });
   revalidatePath('/app/kirim-chiqim');
+  revalidatePath('/app/finance');
+  revalidatePath('/app/finance/state');
+}
+
+/** Moliyaviy yozuv (web): turi, summa, toifa, izoh, ixtiyoriy filial */
+export async function createFinanceTxAction(_prev: State, formData: FormData): Promise<State> {
+  const { user, CashFlow, Branch, FinanceCategory, features } = await getTenantAdminSession();
+  if (!features.kirimChiqim) return featureDisabledError('kirimChiqim');
+  const d = await getDict();
+  const m = d.sales.actions;
+  const f = d.sales.fin;
+  const parsed = parseInput(z.object({
+    type: zOneOf(['income', 'expense'] as const, m.badType),
+    amount: zMoney(m.badAmount, { min: 1 }),
+    category: zText(60),
+    description: zReqText(300, m.descriptionRequired, d.common.tooLong),
+    branchId: zOptId(f.branch),
+  }), formToObject(formData), m.badAmount);
+  if (!parsed.ok) return { error: parsed.error };
+  const { type, amount, category, description, branchId } = parsed.data;
+
+  if (category && !(await FinanceCategory.exists({ name: category, type, active: true }))) return { error: f.badCategory };
+  if (branchId && !(await Branch.exists({ _id: branchId, active: true }))) return { error: f.branch };
+
+  try {
+    const entry = await CashFlow.create({
+      type, amount, description, recordedBy: user.username,
+      ...(category ? { category } : {}),
+      ...(branchId ? { branchId } : {}),
+    });
+    await recordAudit(user, {
+      action: type === 'income' ? 'finance.income' : 'finance.expense',
+      entity: 'finance',
+      entityId: String(entry._id),
+      summary: `${type === 'income' ? 'Kirim' : 'Chiqim'}${category ? ` (${category})` : ''}: ${fmtSum(amount)} — ${description}`,
+      meta: { type, amount, category, branchId },
+    });
+    revalidatePath('/app/finance');
+    revalidatePath('/app/finance/state');
+    return { success: f.added };
+  } catch {
+    return { error: m.saveFailed };
+  }
+}
+
+export async function createFinanceCategoryAction(_prev: State, formData: FormData): Promise<State> {
+  const { user, FinanceCategory, features } = await getTenantAdminSession();
+  if (!features.kirimChiqim) return featureDisabledError('kirimChiqim');
+  const d = await getDict();
+  const f = d.sales.fin;
+  const parsed = parseInput(z.object({
+    name: zReqText(60, f.catBad, d.common.tooLong),
+    type: zOneOf(['income', 'expense'] as const, f.catBad),
+  }), formToObject(formData), f.catBad);
+  if (!parsed.ok) return { error: parsed.error };
+  const { name, type } = parsed.data;
+  try {
+    await FinanceCategory.create({ name, type, active: true });
+  } catch (e) {
+    if ((e as { code?: number }).code === 11000) return { error: f.catExists };
+    return { error: d.sales.actions.saveFailed };
+  }
+  await recordAudit(user, { action: 'finance.category', entity: 'finance', summary: `Toifa qo'shildi: ${name} (${type})` });
+  revalidatePath('/app/finance/categories');
+  revalidatePath('/app/finance');
+  return { success: tr(f.catAdded, { name }) };
+}
+
+export async function toggleFinanceCategoryAction(formData: FormData): Promise<void> {
+  const { FinanceCategory, features } = await getTenantAdminSession();
+  if (!features.kirimChiqim) return;
+  const id = parseInput(zId('bad'), formData.get('categoryId'));
+  if (!id.ok) return;
+  // Tizim toifalari (kassa operatsiyalari) o'chirilmaydi
+  await FinanceCategory.updateOne({ _id: id.data, system: { $ne: true } }, { $set: { active: formData.get('active') === '1' } });
+  revalidatePath('/app/finance/categories');
+  revalidatePath('/app/finance');
 }

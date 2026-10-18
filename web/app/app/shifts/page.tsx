@@ -3,7 +3,7 @@ import { isBranchScoped } from '@/lib/branchScope';
 import { userCan } from '@/lib/permissionGuard';
 import { computeShiftTotals, type ShiftTotals } from '@/lib/cashShift';
 import { fmtDateTime, fmtMoney } from '@/lib/format';
-import { OpenShiftForm, CloseShiftForm } from '@/components/tenant/ShiftForms';
+import { OpenShiftForm, CloseShiftForm, ShiftCashOpForm } from '@/components/tenant/ShiftForms';
 import Icon from '@/components/icons/Icon';
 import { getDict } from '@/lib/i18n/server';
 import { tr } from '@/lib/i18n/fmt';
@@ -37,7 +37,7 @@ export default async function ShiftsPage() {
     const from = new Date(s.openedAt);
     const [sales, flows] = await Promise.all([
       Sale.find({ branchId: s.branchId, $or: [{ 'payments.paidAt': { $gte: from } }, { 'returns.returnedAt': { $gte: from } }] }).lean(),
-      CashFlow.find({ branchId: s.branchId, type: 'expense', createdAt: { $gte: from } }).select('type amount createdAt').lean(),
+      CashFlow.find({ branchId: s.branchId, createdAt: { $gte: from } }).select('type amount createdAt').lean(),
     ]);
     return { s, t: computeShiftTotals(sales, flows, s.openingCash, from, now) };
   }));
@@ -105,12 +105,19 @@ export default async function ShiftsPage() {
                       <div><dt>{k.cashIn}</dt><dd className="sh-plus">+ {fmtMoney(t.cashIn)}</dd></div>
                       <div><dt>{k.refunds}</dt><dd>− {fmtMoney(t.refunds)}</dd></div>
                       <div><dt>{k.withdrawals}</dt><dd>− {fmtMoney(t.withdrawals)}</dd></div>
+                      <div><dt>{k.deposits}</dt><dd className="sh-plus">+ {fmtMoney(t.deposits)}</dd></div>
                     </dl>
                     {canShift && (
-                      <details className="sh-details">
-                        <summary className="btn btn-ghost btn-sm">{k.closeBtn}</summary>
-                        <CloseShiftForm shiftId={String(s._id)} expected={t.current} />
-                      </details>
+                      <div className="sh-acts">
+                        <details className="sh-details">
+                          <summary className="btn btn-ghost btn-sm">{k.cashOps}</summary>
+                          <ShiftCashOpForm shiftId={String(s._id)} />
+                        </details>
+                        <details className="sh-details">
+                          <summary className="btn btn-ghost btn-sm">{k.closeBtn}</summary>
+                          <CloseShiftForm shiftId={String(s._id)} expected={t.current} />
+                        </details>
+                      </div>
                     )}
                   </li>
                 ))}

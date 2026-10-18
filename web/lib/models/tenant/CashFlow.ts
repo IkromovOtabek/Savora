@@ -10,6 +10,10 @@ export interface ICashFlow {
   recordedBy: string;
   /** Admin pul olgan filial (ixtiyoriy) */
   branchId?: Types.ObjectId;
+  /** Moliyaviy toifa nomi (FinanceCategory.name) — ixtiyoriy */
+  category?: string;
+  /** Kassa smenasi ichidagi operatsiya (pul kiritish/olish) bo'lsa — smena */
+  shiftId?: Types.ObjectId;
   createdAt?: Date;
   updatedAt?: Date;
 }
@@ -21,6 +25,8 @@ export const cashFlowSchema = new Schema<ICashFlow>(
     description: { type: String, required: true, trim: true },
     recordedBy: { type: String, required: true, trim: true },
     branchId: { type: Schema.Types.ObjectId, ref: 'Branch' },
+    category: { type: String, trim: true, maxlength: 60 },
+    shiftId: { type: Schema.Types.ObjectId, ref: 'CashShift' },
   },
   { timestamps: true, collection: 'cash_flows' }
 );
@@ -30,6 +36,8 @@ cashFlowSchema.plugin(softDeletePlugin);
 
 cashFlowSchema.index({ createdAt: -1 });
 cashFlowSchema.index({ type: 1, createdAt: -1 });
+cashFlowSchema.index({ branchId: 1, createdAt: -1 });
+cashFlowSchema.index({ shiftId: 1 }, { sparse: true });
 
 export const CASH_FLOW_TYPE_LABELS: Record<CashFlowType, string> = {
   income: 'Kirim',

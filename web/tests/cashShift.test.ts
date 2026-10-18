@@ -42,11 +42,11 @@ describe('computeShiftTotals', () => {
     ];
     const flows = [
       { type: 'expense' as const, amount: 250_000, createdAt: at(16) },
-      { type: 'income' as const, amount: 999_999, createdAt: at(16) },
+      { type: 'income' as const, amount: 300_000, createdAt: at(17) },
       { type: 'expense' as const, amount: 100_000, createdAt: at(21) },
     ];
     const t = computeShiftTotals(sales, flows, 200_000, from, to);
-    expect(t).toEqual({ cashIn: 1_300_000, refunds: 150_000, withdrawals: 250_000, current: 200_000 + 1_300_000 - 150_000 - 250_000 });
+    expect(t).toEqual({ cashIn: 1_300_000, refunds: 150_000, withdrawals: 250_000, deposits: 300_000, current: 200_000 + 1_300_000 - 150_000 - 250_000 + 300_000 });
   });
 
   it('harakat bo\'lmasa joriy summa = ochilish summasi', () => {

@@ -31,6 +31,9 @@ export const NAV_ICONS: Record<string, IconName> = {
   '/app/revaluation': 'trendingUp',
   '/app/write-off': 'trash',
   '/app/reports': 'grid',
+  '/app/finance': 'repeat',
+  '/app/finance/state': 'wallet',
+  '/app/finance/categories': 'clipboard',
   '/app/products': 'box',
   '/app/inventory': 'clipboard',
   '/app/imei': 'search',
@@ -110,6 +113,9 @@ export const NAV_GROUPS: NavGroup[] = [
   {
     title: 'Moliya',
     links: [
+      { href: '/app/finance', label: 'Tranzaksiyalar', feature: 'kirimChiqim', permission: 'kirimChiqim.manage', adminOnly: true, exact: true },
+      { href: '/app/finance/state', label: 'Hisoblar holati', feature: 'kirimChiqim', permission: 'kirimChiqim.manage', adminOnly: true },
+      { href: '/app/finance/categories', label: 'Toifalar', feature: 'kirimChiqim', permission: 'kirimChiqim.manage', adminOnly: true },
       { href: '/app/kirim-chiqim', label: 'Kirim-chiqim', feature: 'kirimChiqim', permission: 'kirimChiqim.manage', adminOnly: true },
       { href: '/app/kredit-kassa', label: 'Kredit kassa', feature: 'creditKassa', adminOnly: true },
     ],

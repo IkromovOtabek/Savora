@@ -51,7 +51,7 @@ describe('applyNavLayout', () => {
       hidden: [],
     });
     const o = order(res);
-    expect(o[0]).toBe('Moliya:/app/kassa,/app/kirim-chiqim,/app/kredit-kassa');
+    expect(o[0]).toBe('Moliya:/app/kassa,/app/finance,/app/finance/state,/app/finance/categories,/app/kirim-chiqim,/app/kredit-kassa');
     expect(o[1]).toBe('Sotuvlar:/app/monitoring,/app,/app/pos,/app/sales,/app/shifts');
     // Qolgan guruhlar standart tartibda oxirida, barcha havolalar saqlanadi
     expect(res.map((g) => g.title)).toEqual(['Moliya', 'Sotuvlar', 'Mahsulotlar', 'Mijozlar', 'Hisobotlar', 'Boshqaruv', 'Sozlamalar']);

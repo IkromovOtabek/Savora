@@ -9,7 +9,8 @@ import { checkPermission } from '@/lib/permissionGuard';
 import { isBranchScoped } from '@/lib/branchScope';
 import { nextDocNo } from '@/lib/counters';
 import { computeShiftTotals, isDuplicateKeyError } from '@/lib/cashShift';
-import { formToObject, parseInput, zId, zMoney, zText } from '@/lib/validation';
+import { formToObject, parseInput, zId, zMoney, zOneOf, zText } from '@/lib/validation';
+import { SHIFT_DEPOSIT_CATEGORY, SHIFT_WITHDRAW_CATEGORY } from '@/lib/models/tenant/FinanceCategory';
 import { getDict } from '@/lib/i18n/server';
 import { tr } from '@/lib/i18n/fmt';
 import { fmtMoney } from '@/lib/format';
@@ -80,7 +81,7 @@ export async function closeShiftAction(_prev: State, formData: FormData): Promis
       branchId: shift.branchId,
       $or: [{ 'payments.paidAt': { $gte: from } }, { 'returns.returnedAt': { $gte: from } }],
     }).lean(),
-    CashFlow.find({ branchId: shift.branchId, type: 'expense', createdAt: { $gte: from } }).select('type amount createdAt').lean(),
+    CashFlow.find({ branchId: shift.branchId, createdAt: { $gte: from } }).select('type amount createdAt').lean(),
   ]);
   const totals = computeShiftTotals(sales, flows, shift.openingCash, from, closedAt);
   const difference = countedCash - totals.current;
@@ -107,4 +108,58 @@ export async function closeShiftAction(_prev: State, formData: FormData): Promis
   });
   revalidatePath('/app/shifts');
   return { success: tr(k.closed, { no: shift.shiftNo }) };
+}
+
+/** Smena ichida kassa operatsiyasi: kassaga pul qo'shish yoki olish (CashFlow + filial + smena) */
+export async function shiftCashOpAction(_prev: State, formData: FormData): Promise<State> {
+  const { user, features, Sale, CashFlow, CashShift } = await getTenantSession();
+  if (!features.kassa) return featureDisabledError('kassa');
+  const denied = await checkPermission(user, 'kassa.shift');
+  if (denied) return denied;
+  const k = (await getDict()).sales.shifts;
+
+  const parsed = parseInput(z.object({
+    shiftId: zId(k.notFound),
+    type: zOneOf(['income', 'expense'] as const, k.badAmount),
+    amount: zMoney(k.badAmount, { min: 1 }),
+    note: zText(300),
+  }), formToObject(formData), k.badAmount);
+  if (!parsed.ok) return { error: parsed.error };
+  const { shiftId, type, amount, note } = parsed.data;
+
+  const shift = await CashShift.findOne({ _id: shiftId, status: 'open' }).lean();
+  if (!shift) return { error: k.notFound };
+  if (isBranchScoped(user) && String(shift.branchId) !== user.branchId) return { error: k.notFound };
+
+  // Olishda — kassadagi puldan oshmasin
+  if (type === 'expense') {
+    const from = new Date(shift.openedAt);
+    const now = new Date();
+    const [sales, flows] = await Promise.all([
+      Sale.find({ branchId: shift.branchId, $or: [{ 'payments.paidAt': { $gte: from } }, { 'returns.returnedAt': { $gte: from } }] }).lean(),
+      CashFlow.find({ branchId: shift.branchId, createdAt: { $gte: from } }).select('type amount createdAt').lean(),
+    ]);
+    const { current } = computeShiftTotals(sales, flows, shift.openingCash, from, now);
+    if (amount > current) return { error: tr(k.opTooMuch, { v: fmtMoney(current) }) };
+  }
+
+  const entry = await CashFlow.create({
+    type,
+    amount,
+    description: note || (type === 'income' ? k.deposits : k.withdrawals),
+    category: type === 'income' ? SHIFT_DEPOSIT_CATEGORY : SHIFT_WITHDRAW_CATEGORY,
+    branchId: shift.branchId,
+    shiftId: shift._id,
+    recordedBy: user.username,
+  });
+  await recordAudit(user, {
+    action: type === 'income' ? 'shift.deposit' : 'shift.withdraw',
+    entity: 'finance',
+    entityId: String(entry._id),
+    summary: `Smena ${shift.shiftNo}: ${type === 'income' ? 'kassaga qo\'shildi' : 'kassadan olindi'} ${fmtMoney(amount)} so'm${note ? ` — ${note}` : ''}`,
+    meta: { shiftId, type, amount },
+  });
+  revalidatePath('/app/shifts');
+  revalidatePath('/app/finance');
+  return { success: k.opDone };
 }

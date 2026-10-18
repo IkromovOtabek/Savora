@@ -1,7 +1,7 @@
 'use client';
 
 import { useActionState, useState } from 'react';
-import { openShiftAction, closeShiftAction } from '@/app/actions/cashShift';
+import { openShiftAction, closeShiftAction, shiftCashOpAction } from '@/app/actions/cashShift';
 import { useToastOnState } from '@/lib/useToastOnState';
 import PriceInput from '@/components/ui/PriceInput';
 import Icon from '@/components/icons/Icon';
@@ -74,6 +74,38 @@ export function CloseShiftForm({ shiftId, expected }: { shiftId: string; expecte
             : tr(diff < 0 ? k.shortage : k.surplus, { v: `${fmtMoney(Math.abs(diff))} ${d.common.sum}` })}
         </span>
         <button type="submit" className="btn btn-primary" disabled={pending}>{k.closeBtn}</button>
+      </div>
+    </form>
+  );
+}
+
+/** Smena ichida kassa operatsiyasi: pul qo'shish yoki olish */
+export function ShiftCashOpForm({ shiftId }: { shiftId: string }) {
+  const k = useDict().sales.shifts;
+  const [state, action, pending] = useActionState(shiftCashOpAction, null);
+  const [type, setType] = useState<'income' | 'expense'>('expense');
+  useToastOnState(state);
+  return (
+    <form action={action} className="sh-close">
+      <input type="hidden" name="shiftId" value={shiftId} />
+      <input type="hidden" name="type" value={type} />
+      <div className="sh-op-seg" role="radiogroup" aria-label={k.cashOps}>
+        <button type="button" role="radio" aria-checked={type === 'expense'} onClick={() => setType('expense')}>{k.opWithdraw}</button>
+        <button type="button" role="radio" aria-checked={type === 'income'} onClick={() => setType('income')}>{k.opDeposit}</button>
+      </div>
+      <div className="sh-close-grid">
+        <div className="auth-field">
+          <label htmlFor={`sh-op-a-${shiftId}`}>{k.opAmount}</label>
+          <PriceInput id={`sh-op-a-${shiftId}`} name="amount" required placeholder="0" />
+        </div>
+        <div className="auth-field">
+          <label htmlFor={`sh-op-n-${shiftId}`}>{k.opNote}</label>
+          <input id={`sh-op-n-${shiftId}`} name="note" maxLength={300} autoComplete="off" />
+        </div>
+      </div>
+      <div className="sh-close-foot">
+        <span />
+        <button type="submit" className="btn btn-primary" disabled={pending}>{k.opSave}</button>
       </div>
     </form>
   );

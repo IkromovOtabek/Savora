@@ -7,8 +7,10 @@ export interface ShiftTotals {
   cashIn: number;
   /** Mijozga naqd qaytarilgan pul */
   refunds: number;
-  /** Admin filial kassasidan olgan pul (Kirim-chiqim → chiqim) */
+  /** Kassadan olingan pul (filialga bog'langan chiqim / smena operatsiyasi) */
   withdrawals: number;
+  /** Kassaga kiritilgan pul (filialga bog'langan kirim / smena operatsiyasi) */
+  deposits: number;
   /** Hozir kassada bo'lishi kerak bo'lgan naqd */
   current: number;
 }
@@ -32,11 +34,14 @@ export function computeShiftTotals(
     else cashIn += row.amount;
   }
   let withdrawals = 0;
+  let deposits = 0;
   for (const f of cashFlows) {
     const at = f.createdAt ? new Date(f.createdAt) : null;
-    if (f.type === 'expense' && at && at >= from && at < to) withdrawals += f.amount;
+    if (!at || at < from || at >= to) continue;
+    if (f.type === 'expense') withdrawals += f.amount;
+    else if (f.type === 'income') deposits += f.amount;
   }
-  return { cashIn, refunds, withdrawals, current: openingCash + cashIn - refunds - withdrawals };
+  return { cashIn, refunds, withdrawals, deposits, current: openingCash + cashIn - refunds - withdrawals + deposits };
 }
 
 /** Mongo duplicate key (11000) — shu filialda ochiq smena allaqachon bor */
