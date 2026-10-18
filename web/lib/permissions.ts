@@ -25,6 +25,7 @@ export const PERMISSION_KEYS = [
   'transfer.create',
   'suppliers.manage',
   'kassa.view',
+  'kassa.shift',
   'kirimChiqim.manage',
   'reports.view',
   'customers.manage',
@@ -65,6 +66,7 @@ export const PERMISSIONS: Record<PermissionKey, PermissionDef> = {
   // Yetkazib beruvchilar va ularga qarz — pul masalasi, standartda faqat egasi (filialga berish mumkin)
   'suppliers.manage': { key: 'suppliers.manage', label: 'Yetkazib beruvchilar', description: 'Yetkazib beruvchilar, ulardan olingan tovar va to\'lovlar', group: 'ombor', feature: 'products' },
   'kassa.view': { key: 'kassa.view', label: 'Kassani ko\'rish', description: 'Naqd kassa va kunlik tushum', group: 'moliya', feature: 'kassa' },
+  'kassa.shift': { key: 'kassa.shift', label: 'Smena ochish/yopish', description: 'Kassa smenasini ochish va yopishda pulni sanab topshirish', group: 'moliya', feature: 'kassa' },
   // Kirim-chiqim — barcha filiallar bo'yicha umumiy moliya, shuning uchun faqat egasi
   'kirimChiqim.manage': { key: 'kirimChiqim.manage', label: 'Kirim-chiqim', description: 'Kirim/chiqim jurnalini ko\'rish va yozish (barcha filiallar)', group: 'moliya', feature: 'kirimChiqim', adminOnly: true },
   'reports.view': { key: 'reports.view', label: 'Hisobotni ko\'rish', description: 'Foyda va sotuv statistikasi', group: 'moliya', feature: 'monitoring' },
@@ -101,6 +103,7 @@ export const ROLE_DEFAULT_PERMISSIONS: Record<TenantRole, readonly PermissionKey
     'product.viewCost',
     'transfer.create',
     'kassa.view',
+    'kassa.shift',
     'reports.view',
     'customers.manage',
     'daftar.manage',

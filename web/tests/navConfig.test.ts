@@ -52,7 +52,7 @@ describe('applyNavLayout', () => {
     });
     const o = order(res);
     expect(o[0]).toBe('Moliya:/app/kassa,/app/kirim-chiqim,/app/kredit-kassa');
-    expect(o[1]).toBe('Sotuvlar:/app/monitoring,/app,/app/sales');
+    expect(o[1]).toBe('Sotuvlar:/app/monitoring,/app,/app/sales,/app/shifts');
     // Qolgan guruhlar standart tartibda oxirida, barcha havolalar saqlanadi
     expect(res.map((g) => g.title)).toEqual(['Moliya', 'Sotuvlar', 'Mahsulotlar', 'Mijozlar', 'Hisobotlar', 'Boshqaruv', 'Sozlamalar']);
     const all = res.flatMap((g) => g.links.map((l) => l.href)).sort();

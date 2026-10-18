@@ -26,6 +26,7 @@ export const NAV_ICONS: Record<string, IconName> = {
   '/app/sales': 'cart',
   '/app/debts': 'bell',
   '/app/kassa': 'wallet',
+  '/app/shifts': 'clock',
   '/app/products': 'box',
   '/app/inventory': 'clipboard',
   '/app/imei': 'search',
@@ -79,6 +80,7 @@ export const NAV_GROUPS: NavGroup[] = [
       { href: '/app', label: 'Bosh sahifa', exact: true },
       { href: '/app/sales', label: 'Sotuvlar', feature: 'sales' },
       { href: '/app/kassa', label: 'Naqd kassa', feature: 'kassa', permission: 'kassa.view' },
+      { href: '/app/shifts', label: 'Kassa smenalari', feature: 'kassa', permission: 'kassa.view' },
     ],
   },
   {

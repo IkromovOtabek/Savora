@@ -1,0 +1,75 @@
+/* ==========================================================================
+   KASSA SMENALARI — /app/shifts
+   Prefiks: sh-  ·  Faqat globals.css tokenlari
+   ========================================================================== */
+
+.sh-h { display: flex; align-items: center; gap: 8px; margin: 0 0 10px; font-size: 17px; font-weight: 700; letter-spacing: -.02em; }
+.sh-h span { font-size: 13px; font-weight: 600; color: var(--ink-3); background: var(--fill); border-radius: var(--r-pill); padding: 1px 9px; }
+.sh-h--history { margin-top: 28px; }
+
+.sh-empty { border: 1.5px dashed var(--fill-3); border-radius: 20px; }
+
+/* O'ng ustun: smena ochish kartasi */
+.sh-rail { align-self: start; }
+.sh-open {
+  background: var(--surface); border-radius: var(--r-xl); box-shadow: var(--shadow-sm);
+  padding: 18px; display: grid; gap: 14px;
+}
+.sh-card-title { margin: 0; font-size: 17px; font-weight: 700; letter-spacing: -.02em; }
+.sh-branch-one { display: flex; align-items: center; gap: 8px; margin: 0; padding: 10px 12px; border-radius: var(--r); background: var(--fill-2); font-weight: 600; }
+.sh-branch-one svg { color: var(--brand); }
+.sh-allopen { display: flex; align-items: center; gap: 8px; margin: 0; padding: 14px 16px; border-radius: var(--r-xl); background: var(--accent-soft); color: var(--accent); font-weight: 600; font-size: 14px; }
+
+/* Ochiq smena qatori — alohida karta */
+.sh-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.sh-row { background: var(--surface); border-radius: 18px; box-shadow: var(--shadow-sm); padding: 14px 18px; display: grid; gap: 12px; }
+.sh-row-grid {
+  display: grid; align-items: center; gap: 10px 18px;
+  grid-template-columns: 76px minmax(110px, 1fr) minmax(170px, 1.4fr) minmax(120px, auto) minmax(130px, auto);
+}
+.sh-no { font-family: var(--font-mono); font-size: 13px; font-weight: 600; color: var(--ink-2); }
+.sh-branch { font-weight: 700; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sh-status { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.sh-status > span:last-child { display: grid; min-width: 0; }
+.sh-status b { font-size: 14px; }
+.sh-status small { font-size: 12.5px; color: var(--ink-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sh-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 4px var(--accent-soft); flex: none; }
+.sh-money { display: grid; justify-items: end; text-align: right; font-variant-numeric: tabular-nums; }
+.sh-money small { font-size: 12px; color: var(--ink-3); font-weight: 500; }
+.sh-money b { font-size: 16px; font-weight: 700; white-space: nowrap; }
+.sh-money b small { font-size: 12px; color: var(--ink-3); }
+.sh-money--main b { font-size: 19px; color: var(--brand); }
+
+.sh-breakdown { display: flex; flex-wrap: wrap; gap: 8px; margin: 0; }
+.sh-breakdown > div { display: flex; gap: 8px; align-items: baseline; padding: 6px 12px; border-radius: var(--r-pill); background: var(--fill-2); font-size: 13px; }
+.sh-breakdown dt { color: var(--ink-3); }
+.sh-breakdown dd { margin: 0; font-weight: 700; font-variant-numeric: tabular-nums; }
+.sh-plus { color: var(--accent); }
+
+/* Yopish — ochiladigan forma */
+.sh-details summary { list-style: none; width: fit-content; cursor: pointer; }
+.sh-details summary::-webkit-details-marker { display: none; }
+.sh-details[open] summary { margin-bottom: 12px; }
+.sh-close { display: grid; gap: 12px; padding: 14px; border-radius: 14px; background: var(--fill-2); }
+.sh-close-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px; }
+.sh-close-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.sh-diff { font-size: 14px; font-weight: 700; color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.sh-diff--ok { color: var(--accent); }
+.sh-diff--bad { color: var(--danger); }
+.sh-diff--warn { color: var(--warn); }
+
+/* Tarix jadvali */
+.sh-table-wrap { background: var(--surface); border-radius: var(--r-xl); box-shadow: var(--shadow-sm); }
+.sh-table td { vertical-align: top; }
+.sh-pill { display: inline-block; padding: 3px 10px; border-radius: var(--r-pill); font-size: 12.5px; font-weight: 700; white-space: nowrap; }
+.sh-pill--ok { background: var(--accent-soft); color: var(--accent); }
+.sh-pill--bad { background: var(--danger-soft); color: var(--danger); }
+.sh-pill--warn { background: var(--warn-soft); color: var(--warn); }
+
+@media (max-width: 900px) {
+  .sh-row-grid { grid-template-columns: minmax(0, 1fr) auto; }
+  .sh-no { grid-column: 1 / -1; }
+  .sh-status { grid-column: 1 / -1; }
+  .sh-money { justify-items: start; text-align: left; }
+  .sh-close-grid { grid-template-columns: minmax(0, 1fr); }
+}
