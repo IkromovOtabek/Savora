@@ -28,6 +28,8 @@ export const NAV_ICONS: Record<string, IconName> = {
   '/app/kassa': 'wallet',
   '/app/shifts': 'clock',
   '/app/pos': 'basket',
+  '/app/revaluation': 'trendingUp',
+  '/app/write-off': 'trash',
   '/app/products': 'box',
   '/app/inventory': 'clipboard',
   '/app/imei': 'search',
@@ -69,6 +71,8 @@ export const NAV_GROUPS: NavGroup[] = [
     links: [
       { href: '/app/products', label: 'Ombor', feature: 'products' },
       { href: '/app/inventory', label: 'Inventar', feature: 'inventory' },
+      { href: '/app/revaluation', label: 'Qayta baholash', feature: 'products', permission: 'stock.adjust' },
+      { href: '/app/write-off', label: 'Hisobdan chiqarish', feature: 'products', permission: 'stock.adjust' },
       { href: '/app/transferred', label: 'Filialga berildi', feature: 'transferred' },
       { href: '/app/suppliers', label: 'Yetkazib beruvchilar', feature: 'products', permission: 'suppliers.manage' },
       { href: '/app/imei', label: 'IMEI qidirish', imeiOnly: true, adminOnly: true },

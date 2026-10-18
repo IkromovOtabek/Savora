@@ -11,7 +11,9 @@ export type ProductActionType =
   | 'transferred'
   | 'returned'
   | 'edited'
-  | 'restocked';
+  | 'restocked'
+  | 'revalued'
+  | 'writtenOff';
 
 export interface IProductHistory {
   action: ProductActionType;
@@ -59,7 +61,7 @@ const productHistorySchema = new Schema<IProductHistory>(
   {
     action: {
       type: String,
-      enum: ['created', 'sold', 'transferred', 'returned', 'edited', 'restocked'],
+      enum: ['created', 'sold', 'transferred', 'returned', 'edited', 'restocked', 'revalued', 'writtenOff'],
       required: true,
     },
     detail: { type: String, trim: true },
@@ -124,6 +126,8 @@ export const PRODUCT_ACTION_LABELS: Record<ProductActionType, string> = {
   returned: 'Omborga qaytarildi',
   edited: 'Ma\'lumotlar tahrirlandi',
   restocked: 'Son to\'ldirildi',
+  revalued: 'Narx qayta baholandi',
+  writtenOff: 'Hisobdan chiqarildi',
 };
 
 export type ProductDoc = IProduct & { _id: Types.ObjectId };

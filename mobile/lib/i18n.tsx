@@ -230,7 +230,7 @@ const uz = {
   },
   productDetail: {
     status: { in_stock: 'Sotuvda', sold: 'Sotilgan', reserved: 'Band', defective: 'Nuqsonli', transferred: 'O\'tkazilgan' },
-    action: { created: 'Qo\'shildi', sold: 'Sotildi', transferred: 'O\'tkazildi', returned: 'Qaytarildi', edited: 'Tahrirlandi', restocked: 'To\'ldirildi' },
+    action: { created: 'Qo\'shildi', sold: 'Sotildi', transferred: 'O\'tkazildi', returned: 'Qaytarildi', edited: 'Tahrirlandi', restocked: 'To\'ldirildi', revalued: 'Qayta baholandi', writtenOff: 'Hisobdan chiqarildi' },
     sell: 'Sotish',
     give: 'Berish',
     price: 'Narx',
@@ -650,7 +650,7 @@ const ru: Dict = {
   },
   productDetail: {
     status: { in_stock: 'В продаже', sold: 'Продан', reserved: 'Забронирован', defective: 'Брак', transferred: 'Передан' },
-    action: { created: 'Добавлен', sold: 'Продан', transferred: 'Передан', returned: 'Возвращён', edited: 'Изменён', restocked: 'Пополнен' },
+    action: { created: 'Добавлен', sold: 'Продан', transferred: 'Передан', returned: 'Возвращён', edited: 'Изменён', restocked: 'Пополнен', revalued: 'Переоценён', writtenOff: 'Списан' },
     sell: 'Продать',
     give: 'Передать',
     price: 'Цена',
