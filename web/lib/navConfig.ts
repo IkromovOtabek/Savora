@@ -34,6 +34,7 @@ export const NAV_ICONS: Record<string, IconName> = {
   '/app/finance': 'repeat',
   '/app/finance/state': 'wallet',
   '/app/finance/categories': 'clipboard',
+  '/app/roles': 'shield',
   '/app/products': 'box',
   '/app/inventory': 'clipboard',
   '/app/imei': 'search',
@@ -124,6 +125,7 @@ export const NAV_GROUPS: NavGroup[] = [
     title: 'Boshqaruv',
     links: [
       { href: '/app/users', label: 'Filiallar', feature: 'users', permission: 'users.manage', adminOnly: true },
+      { href: '/app/roles', label: 'Rollar', feature: 'users', permission: 'users.manage', adminOnly: true },
       { href: '/app/tasks', label: 'Topshiriqlar', feature: 'tasks' },
       { href: '/app/audit', label: 'Amallar', feature: 'audit', permission: 'audit.view', adminOnly: true },
     ],

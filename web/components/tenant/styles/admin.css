@@ -485,3 +485,18 @@ a.ad-onb-step:focus-visible { outline: 3px solid var(--brand-ring); outline-offs
   .ad-member-actions .ux-more-btn { height: 44px; width: 44px; }
   .ad-team { padding-bottom: 72px; } /* FAB oxirgi kartani yopmasin */
 }
+
+/* ---------- Rollar (/app/roles) ---------- */
+.rl-wrap { display: grid; grid-template-columns: minmax(260px, 360px) minmax(0, 1fr); gap: 20px; align-items: start; }
+.rl-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.rl-card { display: flex; align-items: center; gap: 10px; padding: 12px 14px; border-radius: 16px; background: var(--surface); box-shadow: var(--shadow-sm); }
+.rl-card.is-on { box-shadow: 0 0 0 2px var(--brand), var(--shadow-sm); }
+.rl-ic { width: 38px; height: 38px; border-radius: 12px; display: grid; place-items: center; background: var(--brand-soft); color: var(--brand); flex: none; }
+.rl-t { flex: 1; display: grid; min-width: 0; }
+.rl-t small { font-size: 12.5px; color: var(--ink-3); }
+.rl-new { width: 100%; min-height: 48px; display: flex; align-items: center; justify-content: center; gap: 8px; border: 1.5px dashed var(--fill-3); border-radius: 16px; background: transparent; color: var(--brand); font: inherit; font-weight: 700; cursor: pointer; }
+.rl-new:hover { background: var(--fill-2); }
+.rl-editor { padding: 18px; border-radius: 20px; background: var(--surface); box-shadow: var(--shadow-sm); display: grid; gap: 16px; }
+.rl-foot { display: flex; justify-content: flex-end; gap: 10px; }
+.ad-role-pick { margin-bottom: 14px; }
+@media (max-width: 900px) { .rl-wrap { grid-template-columns: minmax(0, 1fr); } }

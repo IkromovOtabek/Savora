@@ -52,6 +52,23 @@ export async function updateUserPermissionsAction(_prev: State, formData: FormDa
 
   const userId = String(formData.get('userId') || '');
   const reset = formData.get('reset') === '1';
+
+  // Rol biriktirish: roleId berilgan (bo'sh emas) — huquqlar roldan olinadi
+  const roleId = String(formData.get('roleId') || '');
+  if (roleId) {
+    const { Role } = await getTenantModels(user.dbName!);
+    if (!isValidObjectId(roleId) || !isValidObjectId(userId)) return { error: d.crm.team.roles.notFound };
+    const role = await Role.findById(roleId).select('name').lean();
+    if (!role) return { error: d.crm.team.roles.notFound };
+    const target = await User.findOneAndUpdate({ _id: userId, role: 'user' }, { $set: { roleId: role._id } }).select('username').lean();
+    if (!target) return { error: d.crm.team.errUserNotFound };
+    await recordAudit(user, { action: 'user.role', entity: 'user', entityId: userId, summary: `Rol biriktirildi: ${target.username} — ${role.name}` });
+    revalidatePath('/app/users');
+    return { success: tr(d.crm.team.roles.assigned, { name: role.name }) };
+  }
+  // Shaxsiy sozlash — rol bog'lanishi olib tashlanadi
+  if (isValidObjectId(userId)) await User.updateOne({ _id: userId, role: 'user' }, { $unset: { roleId: 1 } });
+
   const res = await savePermissions(User, userId, formData.getAll('perm'), reset, d);
   if (!res.ok) return { error: res.error };
 

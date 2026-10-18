@@ -20,9 +20,14 @@ export async function loadUserPermissions(
   if (user.role === 'admin') return new Set(PERMISSION_KEYS);
   if (user.role !== 'user' || !user.dbName) return new Set();
   try {
-    const { User } = await getTenantModels(user.dbName);
-    const u = await User.findById(user.id).select('role permissions').lean();
+    const { User, Role } = await getTenantModels(user.dbName);
+    const u = await User.findById(user.id).select('role permissions roleId').lean();
     if (!u) return new Set();
+    // Rol biriktirilgan bo'lsa — huquqlar roldan (rol o'chirilgan bo'lsa shaxsiy ro'yxatga qaytadi)
+    if (u.roleId) {
+      const role = await Role.findById(u.roleId).select('permissions').lean();
+      if (role) return effectivePermissions({ role: u.role, permissions: role.permissions });
+    }
     return effectivePermissions({ role: u.role, permissions: u.permissions });
   } catch {
     // Xatoda — eng xavfsiz holat: huquq yo'q

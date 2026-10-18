@@ -17,6 +17,8 @@ export interface IUser {
   mustChangePassword?: boolean;
   /** Huquqlar (lib/permissions.ts). undefined → rol standarti; admin doim hammasiga ega */
   permissions?: string[];
+  /** Biriktirilgan rol (roles) — bo'lsa huquqlar roldan olinadi, permissions e'tiborsiz */
+  roleId?: Types.ObjectId;
   tokenVersion: number;
   active: boolean;
   /** Parol tiklash: bir martalik kod xeshi (SHA-256), muddati va noto'g'ri urinishlar soni */
@@ -40,6 +42,7 @@ export const userSchema = new Schema<IUser>(
     mustChangePassword: { type: Boolean, default: false },
     // default: undefined — massiv bo'lmasa rol standarti amal qiladi (Mongoose [] qilib qo'ymasin)
     permissions: { type: [String], default: undefined },
+    roleId: { type: Schema.Types.ObjectId, ref: 'Role' },
     tokenVersion: { type: Number, default: 0 },
     active: { type: Boolean, default: true },
     resetCodeHash: { type: String, select: false },

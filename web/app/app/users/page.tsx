@@ -1,6 +1,7 @@
 import { getTenantAdminSession, getOrgWithPlan } from '@/lib/tenantSession';
 import FilialManager from '@/components/tenant/FilialManager';
 import { effectivePermissions } from '@/lib/permissions';
+import { ensureDefaultRoles } from '@/lib/roles';
 import { getDict } from '@/lib/i18n/server';
 
 export async function generateMetadata() {
@@ -9,15 +10,18 @@ export async function generateMetadata() {
 }
 
 export default async function UsersPage() {
-  const { user, User, Branch, features } = await getTenantAdminSession();
+  const { user, User, Branch, Role, features } = await getTenantAdminSession();
   const d = await getDict();
   const fullOrg = user.organizationId ? await getOrgWithPlan(user.organizationId) : null;
   const maxFilial = fullOrg?.plan.maxFilial ?? 1;
 
-  const [branches, users] = await Promise.all([
+  await ensureDefaultRoles(Role);
+  const [branches, users, roles] = await Promise.all([
     Branch.find().sort({ createdAt: 1 }).lean(),
     User.find().sort({ createdAt: 1 }).lean(),
+    Role.find().sort({ name: 1 }).lean(),
   ]);
+  const roleById = new Map(roles.map((r) => [String(r._id), r]));
 
   // Asosiy ombor (isMain) filial emas — sanoqqa kirmaydi
   const activeBranches = branches.filter((b) => b.active && !b.isMain).length;
@@ -38,8 +42,11 @@ export default async function UsersPage() {
       branchId: u.branchId ? String(u.branchId) : undefined,
       phone: branch?.phone ?? '',
       address: branch?.address ?? '',
-      permissions: [...effectivePermissions({ role: u.role, permissions: u.permissions })],
-      permissionsDefault: u.role === 'admin' || !Array.isArray(u.permissions),
+      // Rol biriktirilgan bo'lsa — huquqlar roldan (lib/permissionGuard bilan bir xil qoida)
+      permissions: [...effectivePermissions({ role: u.role, permissions: (u.roleId && roleById.get(String(u.roleId))?.permissions) || u.permissions })],
+      permissionsDefault: u.role === 'admin' || (!u.roleId && !Array.isArray(u.permissions)),
+      roleId: u.roleId && roleById.has(String(u.roleId)) ? String(u.roleId) : undefined,
+      roleName: u.roleId ? roleById.get(String(u.roleId))?.name : undefined,
     };
   });
 
@@ -51,7 +58,7 @@ export default async function UsersPage() {
           <p className="t-page-sub">{d.crm.team.sub}</p>
         </div>
       </div>
-      <FilialManager rows={rows} maxFilial={maxFilial} activeBranchCount={activeBranches} features={features} />
+      <FilialManager rows={rows} maxFilial={maxFilial} activeBranchCount={activeBranches} features={features} roles={roles.map((r) => ({ id: String(r._id), name: r.name, permissions: r.permissions }))} />
     </>
   );
 }

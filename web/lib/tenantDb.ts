@@ -16,8 +16,9 @@ import { supplierSchema, ISupplier, supplierEntrySchema, ISupplierEntry } from '
 import { cashShiftSchema, ICashShift } from './models/tenant/CashShift';
 import { stockAdjustmentSchema, IStockAdjustment } from './models/tenant/StockAdjustment';
 import { financeCategorySchema, IFinanceCategory } from './models/tenant/FinanceCategory';
+import { roleSchema, IRole } from './models/tenant/Role';
 
-const TENANT_MODELS_VERSION = 14;
+const TENANT_MODELS_VERSION = 15;
 
 type TenantModelsMap = Map<string, ReturnType<typeof registerModels>>;
 const globalForTenant = global as unknown as { _savdoproTenantCache?: TenantModelsMap };
@@ -59,7 +60,8 @@ function registerModels(conn: import('mongoose').Connection) {
     (conn.models.StockAdjustment as Model<IStockAdjustment>) || conn.model<IStockAdjustment>('StockAdjustment', stockAdjustmentSchema);
   const FinanceCategory =
     (conn.models.FinanceCategory as Model<IFinanceCategory>) || conn.model<IFinanceCategory>('FinanceCategory', financeCategorySchema);
-  return { conn, User, Branch, Product, Customer, Sale, CreditBank, CashFlow, Transfer, AuditLog, LedgerEntry, Task, AiReport, Supplier, SupplierEntry, CashShift, StockAdjustment, FinanceCategory };
+  const Role = (conn.models.Role as Model<IRole>) || conn.model<IRole>('Role', roleSchema);
+  return { conn, User, Branch, Product, Customer, Sale, CreditBank, CashFlow, Transfer, AuditLog, LedgerEntry, Task, AiReport, Supplier, SupplierEntry, CashShift, StockAdjustment, FinanceCategory, Role };
 }
 
 /**

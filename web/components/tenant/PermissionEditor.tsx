@@ -14,6 +14,7 @@ import {
   type PermissionKey,
 } from '@/lib/permissions';
 import { useDict } from '@/lib/i18n/client';
+import { tr } from '@/lib/i18n/fmt';
 import '@/components/tenant/styles/admin.css';
 
 const GROUPS: readonly PermissionGroup[] = ['savdo', 'ombor', 'moliya', 'boshqaruv'];
@@ -33,6 +34,8 @@ export default function PermissionEditor({
   isDefault,
   features,
   onDone,
+  roles = [],
+  initialRoleId,
 }: {
   userId: string;
   name: string;
@@ -40,11 +43,23 @@ export default function PermissionEditor({
   isDefault: boolean;
   features: OrgFeatures;
   onDone: () => void;
+  /** Rol shablonlari (/app/roles) — tanlansa huquqlar roldan olinadi */
+  roles?: { id: string; name: string; permissions: string[] }[];
+  initialRoleId?: string;
 }) {
   const router = useRouter();
   const d = useDict();
   const P = d.crm.team.perm;
   const [checked, setChecked] = useState<Set<PermissionKey>>(new Set(initial));
+  const [roleId, setRoleId] = useState(initialRoleId ?? '');
+  const role = roles.find((r) => r.id === roleId);
+  const R = d.crm.team.roles;
+
+  function pickRole(id: string) {
+    setRoleId(id);
+    const r = roles.find((x) => x.id === id);
+    if (r) setChecked(new Set(r.permissions as PermissionKey[]));
+  }
   const [busy, setBusy] = useState(false);
 
   function toggle(key: PermissionKey) {
@@ -60,6 +75,7 @@ export default function PermissionEditor({
     setBusy(true);
     const fd = new FormData();
     fd.set('userId', userId);
+    if (roleId && !reset) fd.set('roleId', roleId);
     if (reset) fd.set('reset', '1');
     for (const k of checked) fd.append('perm', k);
     const res = await updateUserPermissionsAction(null, fd);
@@ -85,6 +101,17 @@ export default function PermissionEditor({
           <small>{P.enabled}</small>
         </div>
       </div>
+
+      {roles.length > 0 && (
+        <div className="auth-field ad-role-pick">
+          <label htmlFor="perm-role">{R.roleLabel}</label>
+          <select id="perm-role" value={roleId} onChange={(e) => pickRole(e.target.value)} disabled={busy}>
+            <option value="">{R.custom}</option>
+            {roles.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
+          </select>
+          {role && <span className="field-hint">{tr(R.fromRole, { name: role.name })}</span>}
+        </div>
+      )}
 
       <div className="ad-perm-groups">
         {GROUPS.map((g) => {
@@ -131,7 +158,7 @@ export default function PermissionEditor({
                         role="switch"
                         checked={p.adminOnly ? false : checked.has(k)}
                         onChange={() => toggle(k)}
-                        disabled={busy || p.adminOnly}
+                        disabled={busy || p.adminOnly || !!role}
                       />
                     </label>
                   );

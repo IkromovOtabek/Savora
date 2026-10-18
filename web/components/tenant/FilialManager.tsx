@@ -29,6 +29,8 @@ interface Row {
   /** Amaldagi huquqlar va rol standartimi */
   permissions: PermissionKey[];
   permissionsDefault: boolean;
+  roleId?: string;
+  roleName?: string;
 }
 
 type ActResult = { error?: string; success?: string } | null;
@@ -47,11 +49,13 @@ export default function FilialManager({
   maxFilial,
   activeBranchCount,
   features,
+  roles = [],
 }: {
   rows: Row[];
   maxFilial: number;
   activeBranchCount: number;
   features: OrgFeatures;
+  roles?: { id: string; name: string; permissions: string[] }[];
 }) {
   const router = useRouter();
   const d = useDict();
@@ -177,7 +181,7 @@ export default function FilialManager({
                   </span>
                   <span className="ad-pill">
                     <Icon name="key" size={12} />
-                    {isAdmin ? t.allPermissions : `${tr(t.nPermissions, { n: r.permissions.length })}${r.permissionsDefault ? ` · ${t.standard}` : ''}`}
+                    {isAdmin ? t.allPermissions : r.roleName ? `${r.roleName} · ${tr(t.nPermissions, { n: r.permissions.length })}` : `${tr(t.nPermissions, { n: r.permissions.length })}${r.permissionsDefault ? ` · ${t.standard}` : ''}`}
                   </span>
                   {r.isSelf && <span className="ad-pill ad-pill--gold">{t.you}</span>}
                 </div>
@@ -333,6 +337,8 @@ export default function FilialManager({
               name={modal.row.name}
               initial={modal.row.permissions}
               isDefault={modal.row.permissionsDefault}
+              roles={roles}
+              initialRoleId={modal.row.roleId}
               features={features}
               onDone={() => setModal(null)}
             />
