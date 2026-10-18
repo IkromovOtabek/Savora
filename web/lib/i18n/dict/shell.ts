@@ -7,7 +7,7 @@ type NavText = { groups: Record<string, string>; links: Record<string, string>; 
 type OnbTips = Partial<Record<BusinessType, { product?: string; sale?: string }>>;
 
 const navUz: NavText = {
-  groups: { Savdo: 'Savdo', Mijozlar: 'Mijozlar', Ombor: 'Ombor', Moliya: 'Moliya', Boshqaruv: 'Boshqaruv' },
+  groups: { Mahsulotlar: 'Mahsulotlar', Sotuvlar: 'Sotuvlar', Mijozlar: 'Mijozlar', Hisobotlar: 'Hisobotlar', Moliya: 'Moliya', Boshqaruv: 'Boshqaruv', Sozlamalar: 'Sozlamalar' },
   links: {
     '/app': 'Bosh sahifa',
     '/app/sales': 'Sotuvlar',
@@ -37,7 +37,7 @@ const navUz: NavText = {
 };
 
 const navRu: NavText = {
-  groups: { Savdo: 'Продажи', Mijozlar: 'Клиенты', Ombor: 'Склад', Moliya: 'Финансы', Boshqaruv: 'Управление' },
+  groups: { Mahsulotlar: 'Товары', Sotuvlar: 'Продажи', Mijozlar: 'Клиенты', Hisobotlar: 'Отчёты', Moliya: 'Финансы', Boshqaruv: 'Управление', Sozlamalar: 'Настройки' },
   links: {
     '/app': 'Главная',
     '/app/sales': 'Продажи',

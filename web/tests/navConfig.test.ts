@@ -16,6 +16,20 @@ describe('sanitizeNavLayout', () => {
     expect(res).toEqual({ groups: [{ title: 'Moliya', hrefs: ['/app/monitoring'] }], hidden: ['/app/daftar'] });
   });
 
+  it("eski (Savdo/Ombor) tuzilmadagi tartibni tashlaydi, yashirilganlarni saqlaydi", () => {
+    const res = sanitizeNavLayout({
+      groups: [
+        { title: 'Savdo', hrefs: ['/app', '/app/sales'] },
+        { title: 'Moliya', hrefs: ['/app/kassa', '/app/monitoring'] },
+        { title: 'Ombor', hrefs: ['/app/products'] },
+      ],
+      hidden: ['/app/daftar'],
+    });
+    expect(res).toEqual({ groups: [], hidden: ['/app/daftar'] });
+    // Natijada standart 7 bo'lim, barcha havolalar joyida
+    expect(applyNavLayout(NAV_GROUPS, res).map((g) => g.title)).toEqual(NAV_GROUPS.map((g) => g.title));
+  });
+
   it('yaroqsiz kirishga null qaytaradi', () => {
     expect(sanitizeNavLayout(null)).toBeNull();
     expect(sanitizeNavLayout('x')).toBeNull();
@@ -32,15 +46,15 @@ describe('applyNavLayout', () => {
     const res = applyNavLayout(NAV_GROUPS, {
       groups: [
         { title: 'Moliya', hrefs: ['/app/kassa'] },
-        { title: 'Savdo', hrefs: ['/app/monitoring', '/app'] },
+        { title: 'Sotuvlar', hrefs: ['/app/monitoring', '/app'] },
       ],
       hidden: [],
     });
     const o = order(res);
-    expect(o[0]).toBe('Moliya:/app/kassa,/app/kredit-kassa,/app/kirim-chiqim');
-    expect(o[1]).toBe('Savdo:/app/monitoring,/app,/app/sales,/app/transferred');
+    expect(o[0]).toBe('Moliya:/app/kassa,/app/kirim-chiqim,/app/kredit-kassa');
+    expect(o[1]).toBe('Sotuvlar:/app/monitoring,/app,/app/sales');
     // Qolgan guruhlar standart tartibda oxirida, barcha havolalar saqlanadi
-    expect(res.map((g) => g.title)).toEqual(['Moliya', 'Savdo', 'Mijozlar', 'Ombor', 'Boshqaruv']);
+    expect(res.map((g) => g.title)).toEqual(['Moliya', 'Sotuvlar', 'Mahsulotlar', 'Mijozlar', 'Hisobotlar', 'Boshqaruv', 'Sozlamalar']);
     const all = res.flatMap((g) => g.links.map((l) => l.href)).sort();
     expect(all).toEqual(NAV_GROUPS.flatMap((g) => g.links.map((l) => l.href)).sort());
   });

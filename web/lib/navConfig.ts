@@ -47,65 +47,84 @@ export const NAV_ICONS: Record<string, IconName> = {
 
 /** Tor (ikonli) menyuda har bir bo'lim bitta ikonka bilan ko'rinadi */
 export const GROUP_ICONS: Record<string, IconName> = {
-  Savdo: 'cart',
+  Mahsulotlar: 'box',
+  Sotuvlar: 'cart',
   Mijozlar: 'user',
-  Ombor: 'box',
+  Hisobotlar: 'chart',
   Moliya: 'wallet',
-  Boshqaruv: 'settings',
+  Boshqaruv: 'users',
+  Sozlamalar: 'settings',
 };
 
 /** Menyu ko'rinishi cookie'si: 'wide' — yozuvli keng menyu, aks holda tor ikonli panel */
 export const NAV_MODE_COOKIE = 'savora_nav';
 
-// Bo'limlar bo'yicha guruhlangan standart menyu. Ko'rinish qoidalari (modul, huquq, admin) shu yerda.
+// Bo'limlar bo'yicha guruhlangan standart menyu (BILLZ tartibidagi 7 bo'lim).
+// Ko'rinish qoidalari (modul, huquq, admin) shu yerda.
 export const NAV_GROUPS: NavGroup[] = [
   {
-    title: 'Savdo',
-    links: [
-      // Bosh sahifa admin uchun ham ko'rinadi (dashboard admin'da barcha filiallar bo'yicha ishlaydi)
-      { href: '/app', label: 'Bosh sahifa', exact: true },
-      { href: '/app/sales', label: 'Sotuvlar', feature: 'sales' },
-      { href: '/app/transferred', label: 'Filialga berildi', feature: 'transferred' },
-    ],
-  },
-  {
-    title: 'Mijozlar',
-    links: [
-      { href: '/app/nasiya', label: 'Nasiya', feature: 'nasiya' },
-      { href: '/app/debts', label: 'Qarzdorlik', feature: 'sales' },
-      { href: '/app/customers', label: 'Mijozlar', feature: 'sales', permission: 'customers.manage' },
-      { href: '/app/daftar', label: 'Daftar', feature: 'daftar', permission: 'daftar.manage' },
-    ],
-  },
-  {
-    title: 'Ombor',
+    title: 'Mahsulotlar',
     links: [
       { href: '/app/products', label: 'Ombor', feature: 'products' },
       { href: '/app/inventory', label: 'Inventar', feature: 'inventory' },
+      { href: '/app/transferred', label: 'Filialga berildi', feature: 'transferred' },
       { href: '/app/suppliers', label: 'Yetkazib beruvchilar', feature: 'products', permission: 'suppliers.manage' },
       { href: '/app/imei', label: 'IMEI qidirish', imeiOnly: true, adminOnly: true },
     ],
   },
   {
+    title: 'Sotuvlar',
+    links: [
+      // Bosh sahifa admin uchun ham ko'rinadi (dashboard admin'da barcha filiallar bo'yicha ishlaydi)
+      { href: '/app', label: 'Bosh sahifa', exact: true },
+      { href: '/app/sales', label: 'Sotuvlar', feature: 'sales' },
+      { href: '/app/kassa', label: 'Naqd kassa', feature: 'kassa', permission: 'kassa.view' },
+    ],
+  },
+  {
+    title: 'Mijozlar',
+    links: [
+      { href: '/app/customers', label: 'Mijozlar', feature: 'sales', permission: 'customers.manage' },
+      { href: '/app/debts', label: 'Qarzdorlik', feature: 'sales' },
+      { href: '/app/nasiya', label: 'Nasiya', feature: 'nasiya' },
+      { href: '/app/daftar', label: 'Daftar', feature: 'daftar', permission: 'daftar.manage' },
+    ],
+  },
+  {
+    title: 'Hisobotlar',
+    links: [
+      { href: '/app/monitoring', label: 'Hisobot', feature: 'monitoring', permission: 'reports.view' },
+      { href: '/app/ai', label: 'AI yordamchi', feature: 'ai', permission: 'ai.view' },
+    ],
+  },
+  {
     title: 'Moliya',
     links: [
-      { href: '/app/kassa', label: 'Naqd kassa', feature: 'kassa', permission: 'kassa.view' },
-      { href: '/app/kredit-kassa', label: 'Kredit kassa', feature: 'creditKassa', adminOnly: true },
       { href: '/app/kirim-chiqim', label: 'Kirim-chiqim', feature: 'kirimChiqim', permission: 'kirimChiqim.manage', adminOnly: true },
-      { href: '/app/monitoring', label: 'Hisobot', feature: 'monitoring', permission: 'reports.view' },
+      { href: '/app/kredit-kassa', label: 'Kredit kassa', feature: 'creditKassa', adminOnly: true },
     ],
   },
   {
     title: 'Boshqaruv',
     links: [
-      { href: '/app/ai', label: 'AI yordamchi', feature: 'ai', permission: 'ai.view' },
-      { href: '/app/tasks', label: 'Topshiriqlar', feature: 'tasks' },
       { href: '/app/users', label: 'Filiallar', feature: 'users', permission: 'users.manage', adminOnly: true },
+      { href: '/app/tasks', label: 'Topshiriqlar', feature: 'tasks' },
       { href: '/app/audit', label: 'Amallar', feature: 'audit', permission: 'audit.view', adminOnly: true },
+    ],
+  },
+  {
+    title: 'Sozlamalar',
+    links: [
       { href: '/app/profile', label: 'Kabinet' },
     ],
   },
 ];
+
+/**
+ * Eski (5 bo'limli) menyu tuzilmasidagi bo'lim nomlari. Saqlangan tartibda shulardan biri bo'lsa —
+ * bo'limlar tartibi yangi standartga qaytariladi, faqat yashirilgan havolalar saqlanadi.
+ */
+const LEGACY_TITLES = new Set(['Savdo', 'Ombor']);
 
 // Pastki tab bar — standart tartib (foydalanuvchi o'z tartibini saqlamagan bo'lsa)
 export const TAB_ORDER = ['/app', '/app/sales', '/app/products', '/app/debts', '/app/nasiya', '/app/kassa', '/app/monitoring', '/app/transferred'];
@@ -131,6 +150,7 @@ export function sanitizeNavLayout(raw: unknown): NavLayout | null {
   if (!raw || typeof raw !== 'object') return null;
   const r = raw as { groups?: unknown; hidden?: unknown };
   if (!Array.isArray(r.groups)) return null;
+  const legacy = r.groups.some((g) => !!g && typeof g === 'object' && LEGACY_TITLES.has((g as { title?: unknown }).title as string));
 
   const seenTitles = new Set<string>();
   const seenHrefs = new Set<string>();
@@ -155,7 +175,8 @@ export function sanitizeNavLayout(raw: unknown): NavLayout | null {
     ? [...new Set(r.hidden.filter((h): h is string => typeof h === 'string' && KNOWN_HREFS.has(h) && !NAV_PROTECTED.has(h)))]
     : [];
 
-  return { groups, hidden };
+  // Eski tuzilmadagi tartib yangi bo'limlarga mos kelmaydi — standart tartib + yashirilganlar
+  return { groups: legacy ? [] : groups, hidden };
 }
 
 /**
