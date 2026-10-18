@@ -21,6 +21,7 @@ import { isOwnUploadUrl } from '@/lib/fileUrl';
 import { getDict, type Dict } from '@/lib/i18n/server';
 import { tr } from '@/lib/i18n/fmt';
 import { logError } from '@/lib/logger';
+import { softDeleteOne } from '@/lib/softDelete';
 
 type State = { error?: string; success?: string } | null;
 // Mahsulot holati formada: omborda (o'z filialida) yoki sotilgan.
@@ -477,7 +478,8 @@ export async function deleteProductAction(formData: FormData): Promise<void> {
   const hasSales = await Sale.exists({ productId });
   if (hasSales) redirect(`/app/products/${productId}?deleteBlocked=1`);
 
-  const deleted = await Product.findOneAndDelete({ _id: productId, ...branchFilter(user) }).lean();
+  // Soft-delete: IMEI/kod bo'shatiladi (shu IMEI bilan qayta qo'shish mumkin), asl qiymat deletedValues'da
+  const deleted = await softDeleteOne(Product, { _id: productId, ...branchFilter(user) }, user.username, ['imei', 'productId']);
   if (!deleted) redirect('/app/products');
   await recordAudit(user, {
     action: 'product.delete',

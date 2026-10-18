@@ -11,6 +11,7 @@ import { getDict } from '@/lib/i18n/server';
 import { tr } from '@/lib/i18n/fmt';
 import { z } from 'zod';
 import { formToObject, parseInput, zId, zMoney, zOneOf, zReqText, zText } from '@/lib/validation';
+import { softDeleteOne } from '@/lib/softDelete';
 
 type State = { error?: string; success?: string } | null;
 type Dict = Awaited<ReturnType<typeof getDict>>;
@@ -90,7 +91,7 @@ export async function deleteSupplierAction(_prev: State, formData: FormData): Pr
   ]);
   if (hasEntries || hasProducts) return { error: m.deleteBlocked };
 
-  const s = await Supplier.findOneAndDelete({ _id: id }).lean();
+  const s = await softDeleteOne(Supplier, { _id: id }, user.username);
   if (!s) return { error: m.notFound };
   await recordAudit(user, { action: 'supplier.delete', entity: 'supplier', entityId: id, summary: `Yetkazib beruvchi o'chirildi: ${s.name}` });
 
@@ -148,7 +149,7 @@ export async function deleteSupplierEntryAction(_prev: State, formData: FormData
   if (!parsed.ok) return { error: parsed.error };
   const entryId = parsed.data;
 
-  const e = await SupplierEntry.findOneAndDelete({ _id: entryId }).lean();
+  const e = await softDeleteOne(SupplierEntry, { _id: entryId }, user.username);
   if (!e) return { error: m.entryNotFound };
   const supplier = await Supplier.findById(e.supplierId, { name: 1 }).lean();
   await recordAudit(user, {

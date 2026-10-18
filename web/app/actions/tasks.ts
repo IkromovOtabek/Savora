@@ -18,6 +18,7 @@ import {
   type TaskPriority,
 } from '@/lib/models/tenant/Task';
 import type { AiPriority } from '@/lib/ai/types';
+import { softDeleteOne } from '@/lib/softDelete';
 
 type State = { error?: string; success?: string } | null;
 
@@ -243,7 +244,7 @@ export async function deleteTaskAction(formData: FormData): Promise<void> {
   if (!(await userCan(user, 'tasks.manage'))) return;
   const id = String(formData.get('id') || '');
   if (!isValidObjectId(id)) return;
-  const t = await Task.findOneAndDelete({ $and: [{ _id: id }, taskScope(user)] }).lean();
+  const t = await softDeleteOne(Task, { $and: [{ _id: id }, taskScope(user)] }, user.username);
   if (!t) return;
   await recordAudit(user, {
     action: 'task.delete',

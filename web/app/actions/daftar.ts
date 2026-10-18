@@ -11,6 +11,7 @@ import { normalizePhone, isValidUzPhone } from '@/lib/sms';
 import { getDict } from '@/lib/i18n/server';
 import { z } from 'zod';
 import { formToObject, parseInput, zDate, zId, zMoney, zReqText, zText, zField } from '@/lib/validation';
+import { softDeleteOne } from '@/lib/softDelete';
 
 type State = { error?: string; success?: string } | null;
 
@@ -74,6 +75,6 @@ export async function deleteDaftarAction(formData: FormData): Promise<void> {
   if (!features.daftar || !(await userCan(user, 'daftar.manage'))) return;
   const parsed = parseInput(zId('bad'), formData.get('id'));
   if (!parsed.ok) return;
-  await LedgerEntry.deleteOne({ _id: parsed.data, ...branchFilter(user) });
+  await softDeleteOne(LedgerEntry, { _id: parsed.data, ...branchFilter(user) }, user.username);
   revalidatePath('/app/daftar');
 }

@@ -1,4 +1,5 @@
 import { Schema, Types } from 'mongoose';
+import { softDeletePlugin } from '../../softDelete';
 
 /**
  * Topshiriq — jamoa uchun vazifa (qo'lda yoki AI tavsiyasidan).
@@ -54,6 +55,9 @@ export const taskSchema = new Schema<ITask>(
   },
   { timestamps: true, collection: 'tasks' }
 );
+
+// O'chirish — soft-delete (deletedAt); o'chirilganlar so'rovlardan avtomatik yashiriladi
+taskSchema.plugin(softDeletePlugin);
 
 taskSchema.index({ status: 1, dueDate: 1 });
 taskSchema.index({ branchId: 1, status: 1 });

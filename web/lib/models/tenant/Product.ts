@@ -1,4 +1,5 @@
 import { Schema, Types } from 'mongoose';
+import { softDeletePlugin } from '../../softDelete';
 
 export type ProductStatus = 'in_stock' | 'sold' | 'reserved' | 'defective' | 'transferred';
 export type SoldPaymentType = 'cash' | 'credit';
@@ -97,6 +98,9 @@ export const productSchema = new Schema<IProduct>(
   },
   { timestamps: true, collection: 'products' }
 );
+
+// O'chirish — soft-delete (deletedAt); o'chirilganlar so'rovlardan avtomatik yashiriladi
+productSchema.plugin(softDeletePlugin);
 
 productSchema.index({ branchId: 1, status: 1 });
 productSchema.index({ barcode: 1 }, { sparse: true });

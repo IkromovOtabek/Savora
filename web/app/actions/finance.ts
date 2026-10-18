@@ -8,6 +8,7 @@ import { getDict } from '@/lib/i18n/server';
 import { tr } from '@/lib/i18n/fmt';
 import { z } from 'zod';
 import { formToObject, parseInput, zId, zMoney, zOneOf, zReqText } from '@/lib/validation';
+import { softDeleteOne } from '@/lib/softDelete';
 
 type State = { error?: string; success?: string } | null;
 
@@ -96,7 +97,7 @@ export async function deleteCashFlowAction(formData: FormData): Promise<void> {
   if (!id.ok) return;
   const entryId = id.data;
 
-  const deleted = await CashFlow.findByIdAndDelete(entryId).lean();
+  const deleted = await softDeleteOne(CashFlow, { _id: entryId }, user.username);
   await recordAudit(user, {
     action: 'finance.delete',
     entity: 'finance',

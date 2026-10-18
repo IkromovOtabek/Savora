@@ -1,4 +1,5 @@
 import { Schema, Types } from 'mongoose';
+import { softDeletePlugin } from '../../softDelete';
 
 /** Daftar yozuvi — shaxsiy qarz oldi-berdi. */
 export type LedgerType = 'given' | 'taken'; // given = qarz berdim; taken = qarz oldim
@@ -38,6 +39,9 @@ export const ledgerEntrySchema = new Schema<ILedgerEntry>(
   },
   { timestamps: true, collection: 'ledger_entries' }
 );
+
+// O'chirish — soft-delete (deletedAt); o'chirilganlar so'rovlardan avtomatik yashiriladi
+ledgerEntrySchema.plugin(softDeletePlugin);
 
 ledgerEntrySchema.index({ status: 1, dueDate: 1 });
 ledgerEntrySchema.index({ branchId: 1, createdAt: -1 });

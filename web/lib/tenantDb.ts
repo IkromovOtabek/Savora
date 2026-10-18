@@ -14,7 +14,7 @@ import { taskSchema, ITask } from './models/tenant/Task';
 import { aiReportSchema, IAiReport } from './models/tenant/AiReport';
 import { supplierSchema, ISupplier, supplierEntrySchema, ISupplierEntry } from './models/tenant/Supplier';
 
-const TENANT_MODELS_VERSION = 9;
+const TENANT_MODELS_VERSION = 10;
 
 type TenantModelsMap = Map<string, ReturnType<typeof registerModels>>;
 const globalForTenant = global as unknown as { _savdoproTenantCache?: TenantModelsMap };

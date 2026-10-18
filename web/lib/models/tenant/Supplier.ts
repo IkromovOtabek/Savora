@@ -1,4 +1,5 @@
 import { Schema, Types } from 'mongoose';
+import { softDeletePlugin } from '../../softDelete';
 
 /** Yetkazib beruvchi (tovar olinadigan firma/shaxs). Do'kon bo'yicha umumiy — filialga bog'lanmaydi. */
 export interface ISupplier {
@@ -23,6 +24,7 @@ export const supplierSchema = new Schema<ISupplier>(
 );
 
 supplierSchema.index({ name: 1 });
+supplierSchema.plugin(softDeletePlugin);
 
 export type SupplierDoc = ISupplier & { _id: Types.ObjectId };
 
@@ -61,5 +63,7 @@ export const supplierEntrySchema = new Schema<ISupplierEntry>(
 );
 
 supplierEntrySchema.index({ supplierId: 1, at: -1 });
+// Xato yozuvni o'chirish ham soft-delete — qarz tarixi izsiz yo'qolmaydi
+supplierEntrySchema.plugin(softDeletePlugin);
 
 export type SupplierEntryDoc = ISupplierEntry & { _id: Types.ObjectId };

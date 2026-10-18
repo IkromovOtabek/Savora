@@ -1,4 +1,5 @@
 import { Schema, Types } from 'mongoose';
+import { softDeletePlugin } from '../../softDelete';
 
 export type CashFlowType = 'income' | 'expense';
 
@@ -23,6 +24,9 @@ export const cashFlowSchema = new Schema<ICashFlow>(
   },
   { timestamps: true, collection: 'cash_flows' }
 );
+
+// O'chirish — soft-delete (deletedAt); o'chirilganlar so'rovlardan avtomatik yashiriladi
+cashFlowSchema.plugin(softDeletePlugin);
 
 cashFlowSchema.index({ createdAt: -1 });
 cashFlowSchema.index({ type: 1, createdAt: -1 });
