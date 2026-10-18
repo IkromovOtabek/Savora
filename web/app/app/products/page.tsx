@@ -8,6 +8,7 @@ import { resolveOrgPlan } from '@/lib/plans';
 import { PRODUCT_STATUS_LABELS, ProductStatus } from '@/lib/models/tenant/Product';
 import ProductSearch from '@/components/tenant/ProductSearch';
 import ProductRowActions from '@/components/tenant/ProductRowActions';
+import ProductListShell, { type ToggleCol } from '@/components/tenant/ProductListShell';
 import LimitBanner from '@/components/tenant/LimitBanner';
 import { loadUserPermissions } from '@/lib/permissionGuard';
 import Icon from '@/components/icons/Icon';
@@ -21,7 +22,8 @@ export async function generateMetadata() {
   return { title: d.stock.list.metaTitle };
 }
 
-const PAGE_SIZE = 50;
+const PAGE_SIZES = [25, 50, 100] as const;
+const DEFAULT_PAGE_SIZE = 50;
 
 function fmtMoney(n: number) {
   return new Intl.NumberFormat('uz-UZ').format(n);
@@ -35,7 +37,7 @@ function fmtDate(d?: Date | string | null) {
 export default async function ProductsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; branch?: string; status?: string; page?: string; created?: string; deleted?: string }>;
+  searchParams: Promise<{ q?: string; branch?: string; status?: string; page?: string; ps?: string; created?: string; deleted?: string }>;
 }) {
   const sp = await searchParams;
   const d = await getDict();
@@ -76,6 +78,8 @@ export default async function ProductsPage({
   Object.assign(filter, branchFilter(user));
 
   const page = Math.max(1, parseInt(sp.page ?? '1', 10) || 1);
+  const psNum = Number(sp.ps);
+  const PAGE_SIZE: number = (PAGE_SIZES as readonly number[]).includes(psNum) ? psNum : DEFAULT_PAGE_SIZE;
   const skip = (page - 1) * PAGE_SIZE;
 
   const [products, total] = await Promise.all([
@@ -90,12 +94,13 @@ export default async function ProductsPage({
   const maxProducts = resolveOrgPlan(org).maxProducts ?? 0;
   const orgProductCount = isAdmin ? await Product.countDocuments({ status: { $ne: 'sold' } }) : 0;
 
-  function pageUrl(p: number) {
+  function pageUrl(p: number, ps = PAGE_SIZE) {
     const params = new URLSearchParams();
     if (q) params.set('q', q);
     if (sp.branch) params.set('branch', sp.branch);
     if (sp.status) params.set('status', sp.status);
     if (p > 1) params.set('page', String(p));
+    if (ps !== DEFAULT_PAGE_SIZE) params.set('ps', String(ps));
     const s = params.toString();
     return `/app/products${s ? `?${s}` : ''}`;
   }
@@ -106,6 +111,7 @@ export default async function ProductsPage({
     if (q) params.set('q', q);
     if (sp.branch) params.set('branch', sp.branch);
     if (status) params.set('status', status);
+    if (PAGE_SIZE !== DEFAULT_PAGE_SIZE) params.set('ps', String(PAGE_SIZE));
     const s = params.toString();
     return `/app/products${s ? `?${s}` : ''}`;
   }
@@ -127,6 +133,12 @@ export default async function ProductsPage({
   const canCreate = perms.has('product.create');
   const canExport = !!features.export && perms.has('export.data');
   const hasFilter = !!(q || activeStatus || sp.branch);
+  const canBulk = perms.has('stock.adjust');
+  const toggleCols: { key: ToggleCol; label: string }[] = [
+    ...(scoped ? [] : [{ key: 'branch' as const, label: d.common.branch }]),
+    { key: 'status', label: t.colStatus },
+    { key: 'price', label: t.colPrice },
+  ];
   // Bo'sh omborda nol kartalar o'rniga darhol bo'sh holat ko'rinadi
   const showStats = total > 0 || hasFilter;
   // Izoh endi kartaning title'ida (sichqoncha) va ekran o'quvchisi uchun sr-only matnda
@@ -214,8 +226,8 @@ export default async function ProductsPage({
       <ProductImportForm branches={branches.map((b) => ({ id: String(b._id), name: b.name }))} />
       */}
 
-      <div className="st-group st-list-wrap">
-        {products.length === 0 ? (
+      {products.length === 0 ? (
+        <div className="st-group st-list-wrap">
           <div className="ux-empty">
             <span className="ux-empty-ic"><Icon name={q ? 'search' : 'box'} size={26} /></span>
             <b>{q ? d.common.nothingFound : hasFilter ? t.emptyFilter : t.emptyNoProducts}</b>
@@ -234,89 +246,105 @@ export default async function ProductsPage({
               </Link>
             )}
           </div>
-        ) : (
-          <>
-            <div className="st-list-head" aria-hidden="true">
-              <span />
-              <span>{d.common.product}</span>
-              <span>{d.common.branch}</span>
-              <span>{t.colQtyStatus}</span>
-              <span className="r">{d.common.price}</span>
-              <span />
-            </div>
-            <ul className="st-list">
-              {products.map((p) => {
-                const avail = availableOf(p);
-                const code = p.productId ?? String(p._id).slice(-8).toUpperCase();
-                const branchName = branchMap[String(p.branchId)] ?? '—';
-                // Ikkinchi kod (IMEI yoki shtrix) — mobilda ichki kod o'rniga shu ko'rinadi
-                const secCode = showImei ? p.imei || '' : p.barcode && p.barcode !== code ? p.barcode : '';
-                const qtyCls = p.trackQuantity
-                  ? avail === 0 ? ' st-qty--zero' : avail <= LOW_STOCK ? ' st-qty--low' : ''
-                  : '';
-                const qtyPill = p.trackQuantity ? (
-                  <span className={`st-qty${qtyCls}`} title={t.qtyTitle}>
-                    {avail}<small>/{p.quantity ?? 0}</small>
-                  </span>
-                ) : (
-                  <span className="st-qty">1 <small>{d.stock.unit}</small></span>
-                );
-                return (
-                  <li key={String(p._id)} className="st-row">
-                    <span className="st-thumb" aria-hidden="true">
-                      {p.photoUrl ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img src={p.photoUrl} alt="" loading="lazy" />
-                      ) : (
-                        <span className="st-thumb-letter">{(p.name ?? '').trim().charAt(0).toUpperCase() || '?'}</span>
-                      )}
+        </div>
+      ) : (
+        <ProductListShell columns={toggleCols} canBulk={canBulk} exportHref={canExport ? '/api/export/products' : undefined}>
+          <div className="st-list-head">
+            {canBulk && (
+              <span className="st-chk"><input type="checkbox" className="st-check-all" aria-label={t.selectAll} /></span>
+            )}
+            <span aria-hidden="true" />
+            <span aria-hidden="true">{d.common.product}</span>
+            <span aria-hidden="true" className="st-c-branch">{d.common.branch}</span>
+            <span aria-hidden="true" className="st-c-status">{t.colQtyStatus}</span>
+            <span aria-hidden="true" className="r st-c-price">{d.common.price}</span>
+            <span aria-hidden="true" />
+          </div>
+          <ul className="st-list">
+            {products.map((p) => {
+              const avail = availableOf(p);
+              const code = p.productId ?? String(p._id).slice(-8).toUpperCase();
+              const branchName = branchMap[String(p.branchId)] ?? '—';
+              // Ikkinchi kod (IMEI yoki shtrix) — mobilda ichki kod o'rniga shu ko'rinadi
+              const secCode = showImei ? p.imei || '' : p.barcode && p.barcode !== code ? p.barcode : '';
+              const qtyCls = p.trackQuantity
+                ? avail === 0 ? ' st-qty--zero' : avail <= LOW_STOCK ? ' st-qty--low' : ''
+                : '';
+              const qtyPill = p.trackQuantity ? (
+                <span className={`st-qty${qtyCls}`} title={t.qtyTitle}>
+                  {avail}<small>/{p.quantity ?? 0}</small>
+                </span>
+              ) : (
+                <span className="st-qty">1 <small>{d.stock.unit}</small></span>
+              );
+              return (
+                <li key={String(p._id)} className="st-row">
+                  {canBulk && (
+                    <span className="st-chk">
+                      <input type="checkbox" className="st-check" value={String(p._id)} aria-label={tr(t.selectRow, { name: p.name })} />
                     </span>
-                    <div className="st-row-main">
-                      <Link href={`/app/products/${p._id}`} className="st-row-name">{p.name}</Link>
-                      <div className="st-row-meta">
-                        <code className={`st-mono${secCode ? ' st-meta-code' : ''}`}>{code}</code>
-                        {secCode && <code className="st-mono st-dotsep st-meta-sec">{secCode}</code>}
-                        {!scoped && <span className="st-row-meta-branch st-dotsep">{branchName}</span>}
-                        <span className="st-dotsep st-meta-date">{fmtDate(p.createdAt) ?? '—'}</span>
-                      </div>
+                  )}
+                  <span className="st-thumb" aria-hidden="true">
+                    {p.photoUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={p.photoUrl} alt="" loading="lazy" />
+                    ) : (
+                      <span className="st-thumb-letter">{(p.name ?? '').trim().charAt(0).toUpperCase() || '?'}</span>
+                    )}
+                  </span>
+                  <div className="st-row-main">
+                    <Link href={`/app/products/${p._id}`} className="st-row-name">{p.name}</Link>
+                    <div className="st-row-meta">
+                      <code className={`st-mono${secCode ? ' st-meta-code' : ''}`}>{code}</code>
+                      {secCode && <code className="st-mono st-dotsep st-meta-sec">{secCode}</code>}
+                      {!scoped && <span className="st-row-meta-branch st-dotsep">{branchName}</span>}
+                      <span className="st-dotsep st-meta-date">{fmtDate(p.createdAt) ?? '—'}</span>
                     </div>
-                    <div className="st-row-branch">
-                      <Icon name="building" size={14} />
-                      <span>{branchName}</span>
-                    </div>
-                    <div className="st-row-status">
-                      {qtyPill}
-                      {p.status !== 'in_stock' && (
-                        <span className={`st-pill st-pill--${p.status}`}>
-                          {d.stock.status[p.status as ProductStatus]}
-                        </span>
-                      )}
-                    </div>
-                    <div className="st-row-price r">
-                      {p.salePrice > 0 ? <b>{fmtMoney(p.salePrice)}</b> : <b className="st-noprice">{t.noPrice}</b>}
-                      {canViewCost && <small>{tr(t.cost, { sum: fmtMoney(p.purchasePrice) })}</small>}
-                    </div>
-                    <div className="st-row-actions">
-                      <ProductRowActions
-                        productId={String(p._id)}
-                        productName={p.name}
-                        status={p.status}
-                        currentBranchId={String(p.branchId)}
-                        trackQuantity={p.trackQuantity ?? false}
-                        available={avail}
-                        salePrice={p.salePrice ?? 0}
-                        canInstallment={canInstallment}
-                        canCredit={canCredit}
-                        canSell={features.sales && perms.has('sale.create')}
-                        canTransfer={perms.has('transfer.create')}
-                        branches={filialBranches}
-                      />
-                    </div>
-                  </li>
-                );
-              })}
-            </ul>
+                  </div>
+                  <div className="st-row-branch st-c-branch">
+                    <Icon name="building" size={14} />
+                    <span>{branchName}</span>
+                  </div>
+                  <div className="st-row-status st-c-status">
+                    {qtyPill}
+                    {p.status !== 'in_stock' && (
+                      <span className={`st-pill st-pill--${p.status}`}>
+                        {d.stock.status[p.status as ProductStatus]}
+                      </span>
+                    )}
+                  </div>
+                  <div className="st-row-price r st-c-price">
+                    {p.salePrice > 0 ? <b>{fmtMoney(p.salePrice)}</b> : <b className="st-noprice">{t.noPrice}</b>}
+                    {canViewCost && <small>{tr(t.cost, { sum: fmtMoney(p.purchasePrice) })}</small>}
+                  </div>
+                  <div className="st-row-actions">
+                    <ProductRowActions
+                      productId={String(p._id)}
+                      productName={p.name}
+                      status={p.status}
+                      currentBranchId={String(p.branchId)}
+                      trackQuantity={p.trackQuantity ?? false}
+                      available={avail}
+                      salePrice={p.salePrice ?? 0}
+                      canInstallment={canInstallment}
+                      canCredit={canCredit}
+                      canSell={features.sales && perms.has('sale.create')}
+                      canTransfer={perms.has('transfer.create')}
+                      branches={filialBranches}
+                    />
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
 
+          <div className="st-foot">
+            <nav className="st-ps" aria-label={t.rowsPerPage}>
+              <span>{t.rowsPerPage}</span>
+              {PAGE_SIZES.map((n) => (
+                <Link key={n} href={pageUrl(1, n)} aria-current={n === PAGE_SIZE ? 'page' : undefined}>{n}</Link>
+              ))}
+            </nav>
             {totalPages > 1 && (
               <nav className="st-pager" aria-label={t.pagerLabel}>
                 {page > 1 && (
@@ -328,9 +356,9 @@ export default async function ProductsPage({
                 )}
               </nav>
             )}
-          </>
-        )}
-      </div>
+          </div>
+        </ProductListShell>
+      )}
 
       {canCreate && (
         <Link href="/app/products/new" className="ux-fab" aria-label={t.addProduct}>

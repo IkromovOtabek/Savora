@@ -70,6 +70,19 @@ export const uz = {
     prevPage: '← Oldingi',
     nextPage: 'Keyingi →',
     fab: 'Mahsulot',
+    rowsPerPage: "Sahifada:",
+    download: 'Yuklab olish',
+    columns: 'Ustunlar',
+    colStatus: 'Son va holat',
+    colPrice: 'Narx',
+    /** {n} — belgilanganlar soni */
+    selected: '{n} ta tanlandi',
+    selectAll: 'Sahifadagi hammasini belgilash',
+    /** {name} — mahsulot nomi */
+    selectRow: 'Belgilash: {name}',
+    bulkReval: 'Qayta baholash',
+    bulkWriteOff: 'Hisobdan chiqarish',
+    clearSel: 'Bekor qilish',
   },
 
   /** components/tenant/ProductSearch.tsx */
@@ -553,6 +566,17 @@ export const ru: typeof uz = {
     prevPage: '← Предыдущая',
     nextPage: 'Следующая →',
     fab: 'Товар',
+    rowsPerPage: 'На странице:',
+    download: 'Скачать',
+    columns: 'Столбцы',
+    colStatus: 'Кол-во и статус',
+    colPrice: 'Цена',
+    selected: 'Выбрано: {n}',
+    selectAll: 'Выбрать все на странице',
+    selectRow: 'Выбрать: {name}',
+    bulkReval: 'Переоценка',
+    bulkWriteOff: 'Списание',
+    clearSel: 'Отмена',
   },
 
   search: {

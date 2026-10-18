@@ -5,6 +5,8 @@ export async function generateMetadata() {
   return { title: (await getDict()).stock.adjust.revalMeta };
 }
 
-export default function RevaluationPage() {
-  return <StockAdjustPage mode="revaluation" />;
+/** ?ids= — Ombor ro'yxatida belgilangan mahsulotlar hujjatga oldindan qo'shiladi */
+export default async function RevaluationPage({ searchParams }: { searchParams: Promise<{ ids?: string }> }) {
+  const { ids } = await searchParams;
+  return <StockAdjustPage mode="revaluation" initialIds={ids} />;
 }

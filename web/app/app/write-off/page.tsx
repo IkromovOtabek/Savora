@@ -5,6 +5,8 @@ export async function generateMetadata() {
   return { title: (await getDict()).stock.adjust.woMeta };
 }
 
-export default function WriteOffPage() {
-  return <StockAdjustPage mode="writeoff" />;
+/** ?ids= — Ombor ro'yxatida belgilangan mahsulotlar hujjatga oldindan qo'shiladi */
+export default async function WriteOffPage({ searchParams }: { searchParams: Promise<{ ids?: string }> }) {
+  const { ids } = await searchParams;
+  return <StockAdjustPage mode="writeoff" initialIds={ids} />;
 }

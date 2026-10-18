@@ -140,9 +140,12 @@
 .st-list { list-style: none; margin: 0; padding: 0; }
 .st-list-head, .st-row {
   display: grid; align-items: center; gap: 14px;
-  grid-template-columns: 44px minmax(0, 1fr) 150px 130px 130px 84px;
+  /* Ustunlar yashirilsa (data-hide) — o'zgaruvchi bo'shab, trek yo'qoladi */
+  grid-template-columns: var(--c-chk,) 44px minmax(0, 1fr) var(--c-branch,) var(--c-status,) var(--c-price,) 84px;
   padding: 0 16px;
 }
+.st-list-wrap { --c-branch: 150px; --c-status: 130px; --c-price: 130px; }
+.st-list-wrap[data-bulk] { --c-chk: 22px; }
 .st-list-head {
   min-height: 36px; font-size: 12px; font-weight: 600; color: var(--ink-3);
   border-bottom: .5px solid var(--sep);
@@ -195,6 +198,45 @@
   padding: 12px 16px; border-top: .5px solid var(--sep);
 }
 .st-pager-info { font-size: 14px; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+
+/* Ro'yxat qoliplari (BILLZ): asboblar qatori, belgilash, ustunlar, sahifadagi qatorlar soni */
+.st-tools {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  min-height: 48px; padding: 6px 12px; border-bottom: .5px solid var(--sep);
+}
+.st-tools-r { display: flex; align-items: center; gap: 6px; margin-left: auto; }
+.st-bulk { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.st-bulk b { font-size: 14px; font-weight: 600; color: var(--ink-1); margin-right: 4px; }
+.st-chk { position: relative; z-index: 1; display: grid; place-items: center; }
+.st-chk input { width: 18px; height: 18px; margin: 0; accent-color: var(--brand-fill, var(--brand)); cursor: pointer; }
+.st-list-wrap[data-bulk] .st-row + .st-row::before { left: 110px; }
+.st-cols { position: relative; }
+.st-cols > summary { list-style: none; cursor: pointer; }
+.st-cols > summary::-webkit-details-marker { display: none; }
+.st-cols-pop {
+  position: absolute; right: 0; top: calc(100% + 6px); z-index: 20; min-width: 210px;
+  display: grid; gap: 2px; padding: 6px; border-radius: var(--r); background: var(--surface); box-shadow: var(--shadow);
+}
+.st-cols-pop label { display: flex; align-items: center; gap: 10px; padding: 9px 10px; border-radius: 8px; font-size: 14px; color: var(--ink-1); cursor: pointer; }
+.st-cols-pop label:hover { background: var(--fill-2); }
+.st-cols-pop input { width: 17px; height: 17px; margin: 0; accent-color: var(--brand-fill, var(--brand)); }
+@media (min-width: 901px) {
+  .st-list-wrap[data-hide~="branch"] { --c-branch: initial; }
+  .st-list-wrap[data-hide~="status"] { --c-status: initial; }
+  .st-list-wrap[data-hide~="price"] { --c-price: initial; }
+  .st-list-wrap[data-hide~="branch"] .st-c-branch,
+  .st-list-wrap[data-hide~="status"] .st-c-status,
+  .st-list-wrap[data-hide~="price"] .st-c-price { display: none; }
+}
+.st-foot {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+  padding: 10px 16px; border-top: .5px solid var(--sep);
+}
+.st-foot .st-pager { padding: 0; border-top: 0; }
+.st-ps { display: flex; align-items: center; gap: 4px; font-size: 13px; color: var(--ink-3); }
+.st-ps a { padding: 5px 10px; border-radius: 8px; color: var(--ink-2); text-decoration: none; font-variant-numeric: tabular-nums; }
+.st-ps a:hover { background: var(--fill-2); }
+.st-ps a[aria-current] { background: var(--fill); color: var(--ink-1); font-weight: 600; }
 
 /* ==========================================================================
    2. Mahsulot sahifasi — /app/products/[id]
@@ -538,7 +580,7 @@ a.st-card:focus-visible { outline: 3px solid var(--brand-ring); outline-offset: 
 }
 
 @media (max-width: 1100px) {
-  .st-list-head, .st-row { grid-template-columns: 44px minmax(0, 1fr) 120px 120px 120px 84px; }
+  .st-list-wrap { --c-branch: 120px; --c-status: 120px; --c-price: 120px; }
   .st-detail-grid { grid-template-columns: minmax(0, 1fr); }
   .st-bl-grid { grid-template-columns: minmax(0, 1fr); }
 }
@@ -568,6 +610,8 @@ a.st-card:focus-visible { outline: 3px solid var(--brand-ring); outline-offset: 
   .st-row-meta .st-mono { overflow: hidden; text-overflow: ellipsis; }
   /* FAB oxirgi qatorni yopmasin */
   .st-list-wrap { margin-bottom: 72px; }
+  /* Belgilash va ustun sozlamasi — faqat keng ekranda */
+  .st-chk, .st-cols { display: none; }
 
   /* Sticky amal paneli — pastki tab bar ustida, sahifa oxirigacha ko'rinadi */
   .st-detail { display: flex; flex-direction: column; }

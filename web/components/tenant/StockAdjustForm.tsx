@@ -26,13 +26,20 @@ type Reason = 'defective' | 'lost' | 'expired' | 'other';
 
 const MAX_RESULTS = 8;
 
-export default function StockAdjustForm({ mode, products }: { mode: 'revaluation' | 'writeoff'; products: AdjustProduct[] }) {
+function lineOf(p: AdjustProduct): Line {
+  return { id: p.id, price: String(p.salePrice || ''), wholesale: p.wholesalePrice ? String(p.wholesalePrice) : '', qty: '1' };
+}
+
+export default function StockAdjustForm({ mode, products, initialIds = [] }: { mode: 'revaluation' | 'writeoff'; products: AdjustProduct[]; initialIds?: string[] }) {
   const d = useDict();
   const k = d.stock.adjust;
   const router = useRouter();
   const [pending, start] = useTransition();
   const [query, setQuery] = useState('');
-  const [lines, setLines] = useState<Line[]>([]);
+  const [lines, setLines] = useState<Line[]>(() => initialIds.flatMap((id) => {
+    const p = products.find((x) => x.id === id);
+    return p ? [lineOf(p)] : [];
+  }));
   const [pct, setPct] = useState('');
   const [reason, setReason] = useState<Reason>('defective');
   const [note, setNote] = useState('');
@@ -46,7 +53,7 @@ export default function StockAdjustForm({ mode, products }: { mode: 'revaluation
   }, [query, products, lines]);
 
   function add(p: AdjustProduct) {
-    setLines((prev) => [...prev, { id: p.id, price: String(p.salePrice || ''), wholesale: p.wholesalePrice ? String(p.wholesalePrice) : '', qty: '1' }]);
+    setLines((prev) => [...prev, lineOf(p)]);
     setQuery('');
   }
   function patch(i: number, part: Partial<Line>) {
@@ -85,7 +92,8 @@ export default function StockAdjustForm({ mode, products }: { mode: 'revaluation
       if (res?.success) {
         toast(res.success, 'success');
         setLines([]); setNote(''); setPct('');
-        router.refresh();
+        // ?ids= tozalanadi — sahifa yangilanganda hujjat qayta to'lmasin
+        router.replace(mode === 'revaluation' ? '/app/revaluation' : '/app/write-off');
       } else if (res?.error) {
         toast(res.error, 'error');
       }

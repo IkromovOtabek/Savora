@@ -11,7 +11,7 @@ import './styles/stockAdjust.css';
 const PRODUCT_LIMIT = 3000;
 
 /** Qayta baholash / hisobdan chiqarish sahifasi: chapda hujjat, pastda hujjatlar tarixi */
-export default async function StockAdjustPage({ mode }: { mode: 'revaluation' | 'writeoff' }) {
+export default async function StockAdjustPage({ mode, initialIds }: { mode: 'revaluation' | 'writeoff'; initialIds?: string }) {
   const { user, Product, StockAdjustment } = await getTenantSession();
   const d = await getDict();
   const k = d.stock.adjust;
@@ -40,6 +40,10 @@ export default async function StockAdjustPage({ mode }: { mode: 'revaluation' | 
     ...(canViewCost ? { purchasePrice: p.purchasePrice ?? 0 } : {}),
   }));
 
+  // Faqat shu ro'yxatda bor (qoldiqdagi, o'z filiali) mahsulotlar — qolganlari jim tashlanadi
+  const known = new Set(list.map((p) => p.id));
+  const preselected = [...new Set((initialIds ?? '').split(','))].filter((id) => /^[a-f0-9]{24}$/i.test(id) && known.has(id)).slice(0, 200);
+
   return (
     <>
       <div className="t-page-head">
@@ -49,7 +53,7 @@ export default async function StockAdjustPage({ mode }: { mode: 'revaluation' | 
         </div>
       </div>
 
-      <StockAdjustForm mode={mode} products={list} />
+      <StockAdjustForm mode={mode} products={list} initialIds={preselected} />
 
       <h2 className="sa-h">{k.history}</h2>
       {docs.length === 0 ? (
