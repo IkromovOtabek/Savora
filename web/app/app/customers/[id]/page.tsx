@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { Types } from 'mongoose';
 import CustomerForm from '@/components/tenant/CustomerForm';
@@ -45,6 +46,7 @@ export default async function CustomerDetailPage({ params }: { params: Promise<{
             <a href={`tel:${customer.phone}`} className="btn btn-tinted btn-with-icon"><Icon name="phone" size={16} /> {c.call}</a>
             <a href={`sms:${customer.phone}`} className="btn btn-tinted btn-with-icon"><Icon name="send" size={16} /> {c.sms}</a>
           </div>
+          <Link href={`/app/customers/${String(customer._id)}/act`} className="btn btn-ghost btn-with-icon btn-full"><Icon name="clipboard" size={16} /> {c.act.open}</Link>
 
           <dl className="cl-plist">
             <div><dt><Icon name="phone" size={15} /> {d.common.phone}</dt><dd className="t-num">{customer.phone}</dd></div>

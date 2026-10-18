@@ -580,3 +580,46 @@ a.cl-kpi[aria-current="page"] { box-shadow: inset 0 0 0 2px var(--brand), var(--
 @media (prefers-reduced-motion: reduce) {
   .cl-ring-bar, .cl-menu, .cl-del-confirm { transition: none; animation: none; }
 }
+
+/* ---------- Qarzlar: tablar, to'lovlar, qarzdor mijozlar kartasi ---------- */
+.dt-tabs { align-self: center; }
+.dt-pay-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
+.dt-pay-total { font-size: 14px; color: var(--ink-3); }
+.dt-pay-total b { color: var(--ink-1); }
+.dc-card { padding: 16px; display: grid; gap: 10px; }
+.dc-h { margin: 0; font-size: 16px; font-weight: 700; letter-spacing: -.02em; }
+.dc-hint { margin: 0; font-size: 12.5px; color: var(--ink-3); line-height: 1.4; }
+.dc-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.dc-list > li { padding: 10px 12px; border-radius: 14px; background: var(--fill-2); display: grid; gap: 8px; }
+.dc-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.dc-name { display: grid; min-width: 0; }
+.dc-name b { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dc-name small { font-size: 12px; color: var(--ink-3); }
+.dc-sum { color: var(--gold); white-space: nowrap; }
+.dc-acts { display: flex; gap: 6px; }
+.dc-pay { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 6px; }
+.dc-pay .input { min-height: 36px; padding: 6px 10px; font-size: 15px; }
+
+/* ---------- Solishtirish dalolatnomasi (chop etishga mos) ---------- */
+.act-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+.act-doc { padding: 24px; display: grid; gap: 18px; }
+.act-head { display: flex; justify-content: space-between; gap: 20px; flex-wrap: wrap; }
+.act-head h1 { margin: 0; font-size: 24px; font-weight: 800; letter-spacing: -.02em; }
+.act-head p { margin: 4px 0 0; color: var(--ink-3); }
+.act-head dl { margin: 0; display: grid; gap: 4px; font-size: 14px; }
+.act-head dl div { display: flex; gap: 8px; }
+.act-head dt { color: var(--ink-3); }
+.act-head dd { margin: 0; font-weight: 600; }
+.act-table tfoot th { border-top: 1px solid var(--sep); }
+.act-empty { color: var(--ink-3); }
+.act-closing { margin: 0; font-size: 16px; }
+.act-signs { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; margin-top: 20px; }
+.act-signs div { display: grid; gap: 30px; font-size: 14px; color: var(--ink-3); }
+.act-signs i { display: block; border-bottom: 1px solid var(--ink-3); }
+@media print {
+  .no-print, .t-side, .t-toolbar, .t-tabbar, .ux-fab { display: none !important; }
+  .t-shell { display: block !important; }
+  .t-main { padding: 0 !important; max-width: none !important; }
+  .act-doc { box-shadow: none !important; background: #fff !important; color: #000 !important; }
+  .act-doc * { color: #000 !important; }
+}

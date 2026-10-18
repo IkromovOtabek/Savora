@@ -1,7 +1,11 @@
 import Link from 'next/link';
 import { getTenantSession } from '@/lib/tenantSession';
-import { branchFilter } from '@/lib/branchScope';
-import { fmtDate, fmtMoney } from '@/lib/format';
+import { branchAggMatch, branchFilter } from '@/lib/branchScope';
+import { userCan } from '@/lib/permissionGuard';
+import { parsePeriod, periodRange } from '@/lib/period';
+import PeriodSeg from '@/components/tenant/PeriodSeg';
+import DebtorsCard, { type Debtor } from '@/components/tenant/DebtorsCard';
+import { fmtDate, fmtDateTime, fmtMoney } from '@/lib/format';
 import { computeDebtInfo, buildReminderText, DebtState, type DebtInfo } from '@/lib/debts';
 import DebtReminderButton from '@/components/tenant/DebtReminderButton';
 import Icon, { type IconName } from '@/components/icons/Icon';
@@ -37,7 +41,7 @@ function debtLabel(info: DebtInfo, d: Dict): string {
 export default async function DebtsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ f?: string }>;
+  searchParams: Promise<{ f?: string; tab?: string; p?: string }>;
 }) {
   const sp = await searchParams;
   const { user, Sale, org } = await getTenantSession();
@@ -86,6 +90,38 @@ export default async function DebtsPage({
   ];
   const isKnown = ['overdue', 'due_soon', 'no_date'].includes(f ?? '');
 
+  // Qarzdor mijozlar (o'ng ustun): ommaviy to'lov va dalolatnoma uchun
+  const debtorMap = new Map<string, Debtor>();
+  for (const { sale: s } of rows) {
+    if (!s.customerId) continue;
+    const id = String(s.customerId);
+    const cur = debtorMap.get(id) ?? { id, name: s.customerSnapshot?.fullName || '—', remaining: 0, count: 0 };
+    cur.remaining += s.remainingAmount;
+    cur.count += 1;
+    debtorMap.set(id, cur);
+  }
+  const debtors = [...debtorMap.values()].sort((a, b) => b.remaining - a.remaining).slice(0, 8);
+  const [canPay, canAct] = await Promise.all([userCan(user, 'payment.accept'), userCan(user, 'customers.manage')]);
+
+  // To'lovlar tabi — tanlangan davrda qarz/nasiya sotuvlariga kelgan to'lovlar
+  const tab = sp.tab === 'payments' ? 'payments' : 'debts';
+  const period = parsePeriod(sp.p, 'month');
+  const payments = tab === 'payments'
+    ? await (async () => {
+        const { start, end } = periodRange(period);
+        const inRange = { $gte: start, $lt: end };
+        return Sale.aggregate<{ saleId: unknown; saleNo: string; customer?: string; product?: string; amount: number; at: Date; by?: string; note?: string }>([
+          { $match: { ...branchAggMatch(user), paymentType: { $in: ['debt', 'installment'] }, status: { $ne: 'cancelled' }, 'payments.paidAt': inRange } },
+          { $unwind: '$payments' },
+          { $match: { 'payments.paidAt': inRange } },
+          { $sort: { 'payments.paidAt': -1 } },
+          { $limit: 300 },
+          { $project: { saleId: '$_id', saleNo: 1, customer: '$customerSnapshot.fullName', product: '$productSnapshot.name', amount: '$payments.amount', at: '$payments.paidAt', by: '$payments.recordedBy', note: '$payments.note' } },
+        ]);
+      })()
+    : [];
+  const paymentsTotal = payments.reduce((a, x) => a + x.amount, 0);
+
   return (
     <div className="cl-page">
       <div className="t-page-head">
@@ -93,6 +129,10 @@ export default async function DebtsPage({
           <h1 className="t-page-title">{k.title}</h1>
           <p className="t-page-sub">{k.sub}</p>
         </div>
+        <nav className="cl-seg dt-tabs" aria-label={k.tabsAria}>
+          <Link href="/app/debts" aria-current={tab === 'debts' ? 'page' : undefined}>{k.tabDebts} <span className="t-num">{rows.length}</span></Link>
+          <Link href="/app/debts?tab=payments" aria-current={tab === 'payments' ? 'page' : undefined}>{k.tabPayments}</Link>
+        </nav>
       </div>
 
       {/* Desktop: chapda qarzlar ro'yxati, o'ngda doimiy statistika ustuni; mobilda statistika tepada */}
@@ -132,9 +172,47 @@ export default async function DebtsPage({
             </span>
           </Link>
         </div>
+        <DebtorsCard debtors={debtors} canPay={canPay} canAct={canAct} />
       </section>
 
       <div className="t-split-main">
+      {tab === 'payments' ? (
+        <>
+          <div className="dt-pay-head">
+            <PeriodSeg basePath="/app/debts?tab=payments" current={period} defaultKey="month" />
+            <span className="dt-pay-total">{k.paymentsTotal}: <b className="t-num">{fmtMoney(paymentsTotal)} {d.common.sum}</b></span>
+          </div>
+          {payments.length === 0 ? (
+            <div className="cl-card"><EmptyState icon="wallet" title={k.paymentsEmpty} text="" /></div>
+          ) : (
+            <div className="table-wrap cl-card">
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>{k.colDate}</th>
+                    <th>{k.colCustomer}</th>
+                    <th>{k.colProduct}</th>
+                    <th className="num">{k.colAmount}</th>
+                    <th>{k.colBy}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {payments.map((x, i) => (
+                    <tr key={`${String(x.saleId)}-${i}`}>
+                      <td className="t-num">{fmtDateTime(x.at)}</td>
+                      <td className="cell-main">{x.customer || '—'}</td>
+                      <td><Link href={`/app/sales/${String(x.saleId)}`} className="cell-link">{x.product || x.saleNo}</Link>{x.note ? <div className="cell-sub">{x.note}</div> : null}</td>
+                      <td className="num"><b>{fmtMoney(x.amount)}</b></td>
+                      <td>{x.by || '—'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </>
+      ) : (
+      <>
       <div className="cl-filterbar ux-scrollx">
         <nav className="cl-seg" aria-label={d.sales.statusFilterAria}>
           {CHIPS.map((c) => {
@@ -208,6 +286,8 @@ export default async function DebtsPage({
             </ul>
           </section>
         ))
+      )}
+      </>
       )}
       </div>
       </div>
