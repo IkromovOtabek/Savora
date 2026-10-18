@@ -88,7 +88,7 @@ export async function checkImeiBlacklistAction(imeis: string[]): Promise<Blackli
     .filter((v) => v.length >= 8 && v.length <= 20)
     .slice(0, 200);
   if (clean.length === 0) return [];
-  if (!hitRateLimit(`imei-check:${org._id}`, 60, 60 * 60 * 1000).ok) return [];
+  if (!(await hitRateLimit(`imei-check:${org._id}`, 60, 60 * 60 * 1000)).ok) return [];
   const map = await checkImeiBlacklist(clean);
   return [...map.values()];
 }

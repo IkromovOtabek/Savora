@@ -25,6 +25,7 @@
     "@sentry/nextjs": "10.75.3",
     "@zxing/browser": "^0.2.0",
     "bcryptjs": "^2.4.3",
+    "ioredis": "5.11.1",
     "iron-session": "^8.0.4",
     "mongoose": "^8.9.0",
     "next": "^15.5.28",

@@ -32,8 +32,8 @@ export async function POST(req: Request) {
 
   // Brute-force himoyasi — slug kalitga kirmaydi (almashtirib chetlab o'tib bo'lmaydi)
   const keys = loginRateKeys(username, clientIpFrom(req.headers));
-  const rl = hitRateLimit(keys.user);
-  const rlIp = hitRateLimit(keys.ip, 30);
+  const rl = await hitRateLimit(keys.user);
+  const rlIp = await hitRateLimit(keys.ip, 30);
   if (!rl.ok || !rlIp.ok) {
     return NextResponse.json({ error: 'Juda ko\'p urinish. Birozdan so\'ng urinib ko\'ring.' }, { status: 429 });
   }
@@ -73,7 +73,7 @@ export async function POST(req: Request) {
     dbName: org.dbName,
     branchId: user.branchId ? String(user.branchId) : undefined,
   };
-  clearRateLimit(keys.user);
+  await clearRateLimit(keys.user);
   const token = await createMobileToken(sessionUser);
 
   return NextResponse.json({

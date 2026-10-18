@@ -97,7 +97,7 @@ const nextConfig = {
   compress: true,
   // Docker uchun ixcham server (.next/standalone/server.js) — Dockerfile shuni ishlatadi
   output: 'standalone',
-  serverExternalPackages: ['mongoose', 'bcryptjs'],
+  serverExternalPackages: ['mongoose', 'bcryptjs', 'ioredis'],
   outputFileTracingRoot: path.join(__dirname),
   transpilePackages: ['@zxing/browser', '@zxing/library'],
 

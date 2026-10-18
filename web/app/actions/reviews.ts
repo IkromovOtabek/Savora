@@ -40,7 +40,7 @@ export async function submitReviewAction(_prev: State, formData: FormData): Prom
     .lean();
   if (!sale) return { error: m.saleNotFound };
   // Bir do'kon kuniga ko'pi bilan 10 sharh
-  if (!hitRateLimit(`review:${org._id}`, 10, 24 * 60 * 60 * 1000).ok) {
+  if (!(await hitRateLimit(`review:${org._id}`, 10, 24 * 60 * 60 * 1000)).ok) {
     return { error: m.reviewLimit };
   }
   const resolvedAuthor = sale.customerSnapshot?.fullName?.trim() || authorName;

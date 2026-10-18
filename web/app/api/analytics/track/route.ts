@@ -6,7 +6,7 @@ export async function POST(req: Request) {
   const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
     || req.headers.get('x-real-ip')
     || 'unknown';
-  const rl = hitRateLimit(`analytics:${ip}`, 120, 60_000);
+  const rl = await hitRateLimit(`analytics:${ip}`, 120, 60_000);
   if (!rl.ok) {
     return NextResponse.json({ error: 'Too many requests' }, { status: 429 });
   }

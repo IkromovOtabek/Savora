@@ -59,7 +59,7 @@ export async function registerAction(_prev: State, formData: FormData): Promise<
 
   // Spam himoyasi: bitta IP'dan sutkasiga 3 tagacha do'kon yaratish (validatsiyadan o'tgan urinishlar)
   const ip = clientIpFrom(await headers());
-  const rl = hitRateLimit(`register-ip:${ip}`, 3, 24 * 60 * 60 * 1000);
+  const rl = await hitRateLimit(`register-ip:${ip}`, 3, 24 * 60 * 60 * 1000);
   if (!rl.ok) {
     return { error: e.registerRateLimit };
   }

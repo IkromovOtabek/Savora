@@ -1,10 +1,12 @@
 /**
- * Oddiy in-memory rate limiter (brute-force himoyasi).
+ * Rate limiter (brute-force himoyasi).
  *
- * Eslatma: bu PROCESS ichida ishlaydi. Bir nechta instance (PM2 cluster, bir
- * nechta server) bo'lsa — Redis bilan markazlashtirish kerak (keyingi bosqich).
- * Bitta instance uchun login himoyasiga yetarli.
+ * - `REDIS_URL` bo'lsa — Redis'da (INCR + PEXPIRE, atomik Lua): bir nechta instance
+ *   (savora-a/b, PM2 cluster) bitta hisobni ko'radi.
+ * - Aks holda yoki Redis vaqtincha ishlamasa — PROCESS ichidagi xotira (zaxira).
  */
+import { getRedis } from './redis';
+
 interface Entry {
   count: number;
   resetAt: number;
@@ -20,12 +22,6 @@ export interface RateLimitResult {
   remaining?: number;
 }
 
-/**
- * Kalit bo'yicha urinishni tekshiradi va hisoblaydi.
- * @param key   masalan `login:<username>` yoki `reset:<slug>`
- * @param max   oyna ichidagi maksimal urinish (default 6)
- * @param windowMs  oyna (default 15 daqiqa)
- */
 /** Eskirgan yozuvlar shu chegaradan oshganda tozalanadi (Map cheksiz o'smasin — anonim kalitlar: analytics:<ip>, login:<istalgan>) */
 const SWEEP_THRESHOLD = 20_000;
 
@@ -36,7 +32,8 @@ function sweepExpired(now: number): void {
   }
 }
 
-export function hitRateLimit(key: string, max = 6, windowMs = 15 * 60 * 1000): RateLimitResult {
+/** Xotiradagi hisob (zaxira va testlar uchun) */
+export function hitRateLimitLocal(key: string, max = 6, windowMs = 15 * 60 * 1000): RateLimitResult {
   const now = Date.now();
   sweepExpired(now);
   const entry = store.get(key);
@@ -54,12 +51,49 @@ export function hitRateLimit(key: string, max = 6, windowMs = 15 * 60 * 1000): R
   return { ok: true, remaining: max - entry.count };
 }
 
-/** Muvaffaqiyatli kirishdan keyin urinishlarni tozalash */
-export function clearRateLimit(key: string): void {
-  store.delete(key);
+// INCR; birinchi urinishda muddat qo'yiladi; [hisob, qolgan ms] qaytadi
+const HIT_SCRIPT = `
+local c = redis.call('INCR', KEYS[1])
+if c == 1 then redis.call('PEXPIRE', KEYS[1], ARGV[1]) end
+local ttl = redis.call('PTTL', KEYS[1])
+if ttl < 0 then redis.call('PEXPIRE', KEYS[1], ARGV[1]); ttl = tonumber(ARGV[1]) end
+return {c, ttl}
+`;
+const KEY_PREFIX = 'savora:rl:';
+
+/**
+ * Kalit bo'yicha urinishni tekshiradi va hisoblaydi.
+ * @param key   masalan `login:<username>` yoki `reset:<slug>`
+ * @param max   oyna ichidagi maksimal urinish (default 6)
+ * @param windowMs  oyna (default 15 daqiqa)
+ */
+export async function hitRateLimit(key: string, max = 6, windowMs = 15 * 60 * 1000): Promise<RateLimitResult> {
+  const redis = await getRedis();
+  if (redis) {
+    try {
+      const [count, ttl] = (await redis.eval(HIT_SCRIPT, 1, KEY_PREFIX + key, String(windowMs))) as [number, number];
+      if (count > max) return { ok: false, retryAfterSec: Math.max(1, Math.ceil(ttl / 1000)) };
+      return { ok: true, remaining: max - count };
+    } catch {
+      /* Redis xatosi — xotiradagi zaxira */
+    }
+  }
+  return hitRateLimitLocal(key, max, windowMs);
 }
 
-/** Monitoring uchun: xotiradagi cheklov yozuvlari holati (kalit nomlari chiqarilmaydi) */
+/** Muvaffaqiyatli kirishdan keyin urinishlarni tozalash */
+export async function clearRateLimit(key: string): Promise<void> {
+  store.delete(key);
+  const redis = await getRedis();
+  if (!redis) return;
+  try {
+    await redis.del(KEY_PREFIX + key);
+  } catch {
+    /* Redis xatosi — kalit o'z muddatida o'chadi */
+  }
+}
+
+/** Monitoring uchun: xotiradagi cheklov yozuvlari holati (kalit nomlari chiqarilmaydi; Redis rejimida faqat zaxira hisobi) */
 export function rateLimitStats(now = Date.now()): { keys: number; blocked: number; loginKeys: number } {
   let keys = 0;
   let blocked = 0;

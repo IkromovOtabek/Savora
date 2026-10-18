@@ -57,8 +57,8 @@ export async function POST(req: Request) {
   }
 
   // Brute-force himoyasi: login bo'yicha (6/15 daq) + IP bo'yicha (20/15 daq — ko'p loginni sinab ko'rish)
-  const rl = hitRateLimit(`tglogin:${slug}:${username}`);
-  const rlIp = hitRateLimit(loginRateKeys(username, clientIpFrom(req.headers), 'tglogin').ip, 20);
+  const rl = await hitRateLimit(`tglogin:${slug}:${username}`);
+  const rlIp = await hitRateLimit(loginRateKeys(username, clientIpFrom(req.headers), 'tglogin').ip, 20);
   if (!rl.ok || !rlIp.ok) {
     const retryAfter = Math.max(rl.retryAfterSec ?? 0, rlIp.retryAfterSec ?? 0);
     const min = Math.ceil(retryAfter / 60);

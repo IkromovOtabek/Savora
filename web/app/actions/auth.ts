@@ -57,8 +57,8 @@ export async function loginAction(_prev: State, formData: FormData): Promise<Sta
   const userAgent = hdrs.get('user-agent') || '';
   const keys = loginRateKeys(username, ip);
   const rlKey = keys.user;
-  const rl = hitRateLimit(rlKey);
-  const rlIp = hitRateLimit(keys.ip, 30);
+  const rl = await hitRateLimit(rlKey);
+  const rlIp = await hitRateLimit(keys.ip, 30);
   if (!rl.ok || !rlIp.ok) {
     const min = Math.ceil((Math.max(rl.retryAfterSec ?? 0, rlIp.retryAfterSec ?? 0)) / 60);
     // Monitoring: bloklangan urinish (brute-force belgisi)
@@ -74,7 +74,7 @@ export async function loginAction(_prev: State, formData: FormData): Promise<Sta
         recordSecurityEvent('super_login_fail', { username, ip, userAgent, zone: 'super' });
         return { error: e.badCredentials };
       }
-      clearRateLimit(rlKey);
+      await clearRateLimit(rlKey);
       recordSecurityEvent('super_login_ok', { username, ip, userAgent, zone: 'super' });
       const session = await getSession('super');
       session.user = { id: String(sa._id), username: sa.username, role: 'super_admin', tokenVersion: sa.tokenVersion ?? 0 };
@@ -107,7 +107,7 @@ export async function loginAction(_prev: State, formData: FormData): Promise<Sta
         recordSecurityEvent('login_fail', { username, ip, userAgent, zone: 'tenant', slug: org.slug });
         return { error: e.badCredentials };
       }
-      clearRateLimit(rlKey);
+      await clearRateLimit(rlKey);
       recordSecurityEvent('login_ok', { username, ip, userAgent, zone: 'tenant', slug: org.slug });
       // Self-heal: registrda bo'lmagan (migratsiyadan oldingi) login birinchi muvaffaqiyatli
       // kirishda avtomatik qo'shiladi. Boshqa do'konda band bo'lsa — e'tiborsiz.
@@ -178,8 +178,8 @@ export async function requestPasswordResetAction(_prev: ResetState, formData: Fo
 
   // Spam himoyasi — 15 daqiqada login bo'yicha 4 ta, IP bo'yicha 10 ta so'rovgacha
   const keys = loginRateKeys(username, clientIpFrom(await headers()), 'reset');
-  const rl = hitRateLimit(keys.user, 4);
-  const rlIp = hitRateLimit(keys.ip, 10);
+  const rl = await hitRateLimit(keys.user, 4);
+  const rlIp = await hitRateLimit(keys.ip, 10);
   if (!rl.ok || !rlIp.ok) {
     return { error: e.tooManyRequests };
   }
@@ -263,8 +263,8 @@ export async function confirmPasswordResetAction(_prev: ResetState, formData: Fo
   if (newPassword !== confirmPassword) return { ...keep, error: e.passwordMismatch };
 
   const keys = loginRateKeys(username, clientIpFrom(await headers()), 'reset-confirm');
-  const rl = hitRateLimit(keys.user, 6);
-  const rlIp = hitRateLimit(keys.ip, 20);
+  const rl = await hitRateLimit(keys.user, 6);
+  const rlIp = await hitRateLimit(keys.ip, 20);
   if (!rl.ok || !rlIp.ok) {
     return { ...keep, error: e.tooManyAttempts };
   }
@@ -305,7 +305,7 @@ export async function confirmPasswordResetAction(_prev: ResetState, formData: Fo
     user.resetCodeExpiresAt = undefined;
     user.resetAttempts = undefined;
     await user.save();
-    clearRateLimit(loginRateKeys(username, '').user);
+    await clearRateLimit(loginRateKeys(username, '').user);
     recordSecurityEvent('reset_done', { username, ...requestMeta(await headers()), zone: 'tenant', slug: org.slug });
 
     return { success: r.done, step: 'done' };

@@ -20,7 +20,7 @@ export async function POST(req: Request) {
   }
 
   // IP bo'yicha cheklov (30/15 daq) — initData'ni qayta-qayta sinab ko'rishga qarshi
-  const rlIp = hitRateLimit(loginRateKeys('tgauth', clientIpFrom(req.headers), 'tgauth').ip, 30);
+  const rlIp = await hitRateLimit(loginRateKeys('tgauth', clientIpFrom(req.headers), 'tgauth').ip, 30);
   if (!rlIp.ok) {
     const retryAfter = rlIp.retryAfterSec ?? 0;
     return NextResponse.json(

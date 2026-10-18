@@ -155,6 +155,9 @@ export function validateEnv(env: Env, production = env.NODE_ENV === 'production'
     else if (production && u.protocol !== 'https:') warnings.push('ERROR_WEBHOOK_URL https emas — xato tafsilotlari shifrlanmasdan yuboriladi.');
   }
 
+  const redis = val(env, 'REDIS_URL');
+  if (redis && !/^rediss?:\/\//.test(redis)) warnings.push("REDIS_URL redis:// yoki rediss:// bilan boshlanishi kerak — rate-limit xotirada ishlaydi.");
+
   const sentry = val(env, 'SENTRY_DSN');
   if (sentry && !isHttpUrl(sentry)) warnings.push("SENTRY_DSN noto'g'ri URL — Sentry ishlamaydi.");
 
