@@ -224,11 +224,18 @@ xodimlar bitta filial login/paroli bilan ishlaydi. (`createEmployeeAction`, `Emp
 ### Yo'l xaritasi (tashqi kalit/server kerak — keyingi bosqich)
 - **Avtomatik to'lov (Payme/Click/Uzum)** — merchant kalit + webhook kerak. Hozir billing qo'lda.
   Eng katta biznes ustuvorligi.
-- **Redis** — markazlashgan rate-limit (multi-instance), hot-read kesh, session store.
+- ✅ **Redis** (2026-10) — `REDIS_URL` bo'lsa login/so'rov rate-limit markazlashgan (`lib/redis.ts`,
+  `lib/rateLimit.ts`). Hot-read kesh ataylab qo'shilmagan (o'lchangan sekin joy yo'q).
 - **BullMQ (background jobs)** — cron skriptlar o'rniga navbat (backup, eslatma, hisobot).
-- **Sentry** — `@sentry/nextjs` + DSN; `lib/logger.ts` ga ulanadi.
-- **zod validatsiya** — barcha action'larga sxema (hozir qo'lda parsing).
-- **Soft-delete** — o'chirish o'rniga `deletedAt` (audit kuchayadi).
+- ✅ **Sentry** (2026-10) — `SENTRY_DSN` / `NEXT_PUBLIC_SENTRY_DSN` bo'lsa (`lib/sentry.ts`, logger ilgagi).
+  Source map yuklash hali yo'q.
+- ✅ **zod validatsiya** (2026-10) — `lib/validation.ts`; sotuv, to'lov, qaytarish, moliya, daftar, mijoz,
+  yetkazib beruvchi, mobil to'lov/kirim-chiqim/transfer. Qolgan action'lar (mahsulot, auth, register,
+  tasks, filials) hali qo'lda parsing.
+- ✅ **Soft-delete** (2026-10) — `lib/softDelete.ts` plagini: mahsulot, kirim-chiqim, daftar, topshiriq,
+  yetkazib beruvchi(+yozuvlar). Tiklash UI hali yo'q.
+- ✅ **Qisman qaytarish** (2026-10) — `returnSaleItemsAction`, `lib/saleReturn.ts`; naqd qaytarilgan pul kassada chiqim.
+- ✅ **Yetkazib beruvchilar** (2026-10) — `/app/suppliers`, qarz hisobi, mahsulotga bog'lash, huquq `suppliers.manage`.
 - **Offline-first POS** — PWA bor; keyingisi offline sotuv + sinxronlash.
 
 ---
