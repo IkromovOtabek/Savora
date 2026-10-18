@@ -164,59 +164,67 @@ def rustle(length=0.5):
     return nz * e * 0.22
 
 
-# ---------- 0 - 2.0 qog'oz: yumshoq pad, varaq shitirlashi, oltin uchqun
-add(pad(CHORDS['Am'][0], 2.3, 750), 0.0, 0.85)
-add(rustle(0.6), 0.05, 0.9, -0.3)
-for k in range(4):
-    add(tick(), k * BEAT, 0.6, 0.3 if k % 2 else -0.3)
-add(pluck(88, 0.6), 1.0, 1.2, 0.4); add(pluck(93, 0.6), 1.12, 0.8, 0.5)
+# ---------- 0 - 1.6 hook: uchta zarbali so'z (0.05 / 0.55 / 1.05) + qog'oz bo'roni
+add(pad(CHORDS['Am'][0], 1.8, 650), 0.0, 0.8)
+add(riser(1.5), 0.0, 0.7)
+for k in range(3):
+    add(rustle(0.5), 0.1 + k * 0.45, 0.8, (-0.5, 0.5, 0.0)[k])
+for k, t in enumerate((0.05, 0.55, 1.05)):
+    add(kick(1.0), t)
+    add(impact(), t, 0.35 + 0.1 * k)
+add(whoosh(0.35), 0.45, 0.8, -0.6)          # "Daftar." chapdan
+add(clap(), 1.05, 0.9)
+add(whoosh(0.5, False), 1.35, 0.8)          # bo'ron bir nuqtaga
 
-# ---------- 2.0 - 5.0 nasiya: yengil puls + riser telefon kirishiga
-add(whoosh(0.9), 1.75, 0.8, -0.3)
-add(kick(0.6), 2.0)
-add(pad(CHORDS['F'][0], 1.5, 1100), 2.0, 0.85)
-add(pad(CHORDS['C'][0], 1.5, 1300), 3.5, 0.85)
-for k in range(6):
-    tb = 2.0 + k * BEAT
-    add(kick(0.45), tb)
-    add(hat(), tb + BEAT / 2, 0.8, 0.25)
-add(bass(29, 0.9), 2.0); add(bass(36, 0.9), 3.5)
-add(riser(0.75), 3.0, 0.8)
-add(whoosh(0.6), 3.6, 0.8, 0.5)
-for s, m in enumerate([72, 76, 79, 84, 79, 76]):
-    add(pluck(m), 2.7 + s * 0.07, 0.8, 0.3 if s % 2 else -0.3)  # jadval segmentlari
+# ---------- 1.75 oltin chaqnash -> toza karta, summa sanaladi
+add(impact(), 1.75, 0.6)
+add(pluck(88, 0.8), 1.78, 1.0, 0.3); add(pluck(93, 0.8), 1.86, 0.8, -0.3)
+for s_, m in enumerate([57, 60, 64, 69, 72, 76, 79, 81, 84]):   # count-up
+    add(pluck(m, 0.18), 2.15 + s_ * 0.09, 0.7, 0.3 if s_ % 2 else -0.3)
+for s_, m in enumerate([72, 76, 79, 84, 79, 76]):               # 6 oylik segmentlar
+    add(pluck(m), 2.75 + s_ * 0.06, 0.8, 0.3 if s_ % 2 else -0.3)
 
-# ---------- 5.0 - 11.0 to'liq groove (3 takt: G, Am, F)
-for bi, c in enumerate(['G', 'Am', 'F']):
-    t0 = 5.0 + bi * BAR
+# ---------- 2.0 - 10.85 groove (bitga bog'langan)
+seq = ['F', 'C', 'G', 'Am', 'F']
+for bi, c in enumerate(seq):
+    t0 = 2.0 + bi * BAR
     pn, root, arp = CHORDS[c]
-    add(pad(pn, BAR, 2000), t0, 0.72)
+    full = t0 >= 3.9
+    add(pad(pn, BAR, 2000 if full else 1200), t0, 0.7)
     for b in range(4):
         tb = t0 + b * BEAT
-        add(kick(0.85), tb)
-        if b in (1, 3):
+        if tb >= 10.85:
+            break
+        add(kick(0.85 if full else 0.5), tb)
+        if full and b in (1, 3):
             add(clap(), tb, 0.85)
         add(hat(), tb + BEAT / 2, 1.0, 0.25)
-        add(hat(), tb + BEAT / 4, 0.45, -0.25)
+        if full:
+            add(hat(), tb + BEAT / 4, 0.45, -0.25)
         add(bass(root, BEAT / 2 * 0.95), tb + BEAT / 2)
-    for s in range(16):
-        add(pluck(arp[s % 4] + (12 if s % 8 == 7 else 0)), t0 + s * BEAT / 4, 0.9, 0.35 if s % 2 else -0.35)
-add(whoosh(0.45), 4.75, 0.7, 0.5)          # ekran almashuvi
-add(pluck(84, 0.3), 6.55, 1.0)            # tugma bosildi
-add(pluck(76, 0.5), 6.75, 1.1, -0.2); add(pluck(81, 0.6), 6.85, 1.1, 0.2)  # sotuv tasdiqlandi
-add(whoosh(0.7), 7.7, 0.8, -0.5)          # telefon chapga
-add(riser(0.9), 10.1, 0.9)
+    if full:
+        for s_ in range(16):
+            ts = t0 + s_ * BEAT / 4
+            if ts < 10.85:
+                add(pluck(arp[s_ % 4] + (12 if s_ % 8 == 7 else 0)), ts, 0.85, 0.35 if s_ % 2 else -0.35)
+add(whoosh(0.6), 3.3, 0.9, 0.4)             # kamera orqaga, telefon chuqurlikdan
+add(whoosh(0.35), 5.55, 1.0, -0.7)          # whip
+add(pluck(84, 0.3), 6.95, 1.0)              # tasdiqlash bosildi
+add(pluck(76, 0.5), 7.1, 1.1, -0.2); add(pluck(81, 0.5), 7.18, 1.1, 0.2); add(pluck(88, 0.7), 7.26, 0.9)
+add(whoosh(0.45, False), 7.6, 0.9)          # zoom-through
+add(impact(), 7.98, 0.45)                   # hisobotga sho'ng'ish
+add(whoosh(0.6), 10.25, 0.6, 0.5)           # yorug'lik o'tishi
+add(riser(0.45), 10.7, 1.0)                 # bir nuqtaga yig'ilish
 
-# ---------- 11.0 - 15.0 Savora: pull-back, impact, yakuniy akkord
-add(whoosh(0.6, False), 10.9, 0.8)
-add(impact(), 11.45, 0.85)
-add(kick(1.0), 11.45)
-add(pad(CHORDS['Am'][0] + [76], 3.5, 2200), 11.45, 0.9)
-add(bass(33, 2.0), 11.45, 0.8)
-for s, m in enumerate([69, 72, 76, 81]):
-    add(pluck(m, 0.4), 11.75 + s * 0.1, 0.9, 0.3 if s % 2 else -0.3)   # ustunlar o'sadi
-add(pluck(88, 0.8), 12.5, 1.1, 0.3)       # oltin nuqta
-add(pluck(93, 0.8), 13.15, 0.7, -0.3); add(pluck(88, 0.8), 13.27, 0.6, 0.3)  # CTA
+# ---------- 11.15 oltin chaqnash -> girih -> Savora
+add(impact(), 11.15, 0.95)
+add(kick(1.0), 11.15)
+add(pad(CHORDS['Am'][0] + [76], 3.85, 2200), 11.15, 0.9)
+add(bass(33, 2.2), 11.15, 0.8)
+for s_, m in enumerate([69, 72, 76, 81, 84, 88]):              # naqsh chiziladi
+    add(pluck(m, 0.5), 11.3 + s_ * 0.12, 0.7, 0.4 if s_ % 2 else -0.4)
+add(pluck(88, 0.9), 12.38, 1.1, 0.3)        # oltin nuqta
+add(pluck(93, 0.8), 13.0, 0.7, -0.3); add(pluck(88, 0.8), 13.12, 0.6, 0.3)  # CTA
 
 mix = np.stack([L, R])
 # simple reverb on whole bed (wet 18%)

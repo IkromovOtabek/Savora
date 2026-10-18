@@ -7,15 +7,16 @@ Premium brend/mahsulot filmi (brief: `../promptsmotion-prompt.md`, sahnalar: `ST
 | `../savora-showreel-15-16x9.mp4` | 1920×1080, 60 fps, 15 s, musiqa bilan (master) |
 | `../savora-showreel-15-9x16.mp4` | 1080×1920, 60 fps, 15 s — Reels/Shorts uchun qayta komponovka |
 
-## Sahnalar
+## Sahnalar (v2)
 
 | Vaqt | Sahna | Ekrandagi matn |
 | --- | --- | --- |
-| 0.0–2.0 | Qog'oz nasiya daftari, oltin marker bitta summani belgilaydi | Qarzlar — qog'ozda. |
-| 2.0–5.0 | Daftar qatori nasiya kartasiga aylanadi (6 oylik jadval), karta telefondagi o'z qatoriga qo'nadi | 01 · NASIYA — Nasiya — tartibda. Har bir to'lov — jadvalda. |
-| 5.0–8.0 | Ekran "Yangi sotuv"ga o'tadi, to'lov turlari chiqadi, "Sotuv tasdiqlandi" | 02 · KASSA — Sotuv — 2 daqiqada. |
-| 8.0–11.0 | Telefon chetga suriladi, Hisobot (filiallar reytingi), AI xulosa + topshiriq | 03 · FILIALLAR — Barcha filiallar. Bitta ekran. |
-| 11.0–15.0 | Kamera orqaga, logo yig'iladi, so'z belgisi, CTA (oxirgi ~1.5 s ushlanadi) | Savora · Do'koningiz uchun yagona tizim · savora.uz · 14 kun bepul |
+| 0.0–1.9 | Qog'oz qarzlar 3D bo'roni, bitga zarbali so'zlar | Qarz. · Daftar. · Unutildi? |
+| 1.6–4.1 | Bo'ron bir nuqtaga → oltin chaqnash → nasiya kartasi, summa sanaladi | 17 500 000 so'm · 6 oylik jadval |
+| 3.45–5.95 | Karta telefonga tushadi, UI qatlamlari ekrandan ko'tariladi | 01 · NASIYA — Nasiya — tartibda. |
+| 5.7–8.15 | Whip, to'lov turlari, tasdiqlash + uchqunlar | 02 · KASSA — Sotuv — 2 daqiqada. |
+| 7.95–11.3 | Zoom-through, hisobotga 3D sho'ng'ish, AI xulosa + topshiriq | 03 · FILIALLAR — Barcha filiallar. Bitta ekran. |
+| 10.9–15.0 | Oltin nuqta → girih naqshi → logo, so'z belgisi, CTA | Savora · Do'koningiz uchun yagona tizim · savora.uz · 14 kun bepul |
 
 ## Da'volar tekshiruvi
 

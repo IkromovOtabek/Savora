@@ -11,421 +11,543 @@
       :root {
         --ink: #0d1526; --ink2: #121d33; --ink3: #18243f;
         --kob: #1f4fa8; --kob2: #3a68c4; --kob3: #173f8f;
-        --gold: #e0a526; --gold2: #f0bf4c;
+        --gold: #e0a526; --gold2: #f0bf4c; --gold3: #ffd77a;
         --light: #f2f4f9; --muted: #9fb0cf; --green: #2fb36d;
       }
       * { margin: 0; padding: 0; box-sizing: border-box; }
       html, body { width: 1080px; height: 1920px; overflow: hidden; background: var(--ink); }
       #root { position: relative; width: 100%; height: 100%; overflow: hidden; background: var(--ink); color: var(--light); font-family: "Onest", sans-serif; }
       .clip { position: absolute; inset: 0; }
-      .abs { position: absolute; }
-      .disp { font-family: "Unbounded", sans-serif; letter-spacing: -0.025em; }
-      .w { display: inline-block; opacity: 0; will-change: transform; }
+      .disp { font-family: "Unbounded", sans-serif; }
       .num { font-variant-numeric: tabular-nums; }
+      .w { display: inline-block; opacity: 0; }
 
-      /* ---------- shared background ---------- */
+      /* ---------- background ---------- */
       #bg { position: absolute; inset: 0; overflow: hidden; }
-      .glow { position: absolute; border-radius: 50%; filter: blur(110px); }
-      #glowA { left: -320px; top: -260px; width: 1100px; height: 1100px; background: rgba(31,79,168,.42); }
-      #glowB { left: 1260px; top: 520px; width: 900px; height: 900px; background: rgba(58,104,196,.22); }
-      #glowC { left: 1380px; top: 80px; width: 420px; height: 420px; background: rgba(224,165,38,.10); }
-      #girih { position: absolute; left: -240px; top: -240px; width: 2400px; height: 1560px; opacity: .13;
-        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120' viewBox='0 0 120 120'%3E%3Cg fill='none' stroke='%239fb8ec' stroke-width='1.4'%3E%3Crect x='35' y='35' width='50' height='50'/%3E%3Crect x='35' y='35' width='50' height='50' transform='rotate(45 60 60)'/%3E%3Ccircle cx='60' cy='60' r='9'/%3E%3Cpath d='M0 0L25 25M120 0L95 25M0 120L25 95M120 120L95 95'/%3E%3C/g%3E%3C/svg%3E");
+      .glow { position: absolute; border-radius: 50%; filter: blur(120px); }
+      #glowA { left: -300px; top: -300px; width: 1100px; height: 1100px; background: rgba(31,79,168,.45); }
+      #glowB { left: 1200px; top: 480px; width: 950px; height: 950px; background: rgba(58,104,196,.26); }
+      #glowW { left: 560px; top: 140px; width: 800px; height: 800px; background: rgba(224,120,38,.16); opacity: 0; }
+      #grid { position: absolute; left: -400px; top: -300px; width: 2720px; height: 1680px; opacity: .14;
+        background-image: linear-gradient(rgba(159,184,236,.5) 2px, transparent 2px), linear-gradient(90deg, rgba(159,184,236,.5) 2px, transparent 2px);
         background-size: 120px 120px;
-        -webkit-mask-image: radial-gradient(ellipse 60% 70% at 60% 50%, #000 0%, transparent 75%);
-        mask-image: radial-gradient(ellipse 60% 70% at 60% 50%, #000 0%, transparent 75%); }
-      #vign { position: absolute; inset: 0; background: radial-gradient(ellipse 80% 80% at 50% 50%, transparent 55%, rgba(5,9,18,.6) 100%); }
+        -webkit-mask-image: radial-gradient(ellipse 55% 60% at 50% 50%, #000 0%, transparent 80%);
+        mask-image: radial-gradient(ellipse 55% 60% at 50% 50%, #000 0%, transparent 80%); }
+      #vign { position: absolute; inset: 0; background: radial-gradient(ellipse 75% 75% at 50% 50%, transparent 50%, rgba(4,8,16,.75) 100%); }
+      #grain { position: absolute; inset: 0; overflow: hidden; pointer-events: none; opacity: .07; }
+      #grainTex { position: absolute; left: -50%; top: -50%; width: 200%; height: 200%;
+        background: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"); }
 
-      /* ---------- world (scenes 1-4) ---------- */
-      #world { position: absolute; inset: 0; transform-origin: 62% 50%; }
-      #stage { position: absolute; inset: 0; perspective: 2200px; }
+      /* ---------- shots ---------- */
+      .shot { position: absolute; inset: 0; perspective: 1600px; }
+      .rig { position: absolute; inset: 0; transform-style: preserve-3d; }
 
-      /* headlines (left column) */
-      .hl { position: absolute; left: 140px; top: 330px; width: 760px; }
+      /* S1 hook */
+      .slip { position: absolute; left: 810px; top: 495px; width: 300px; height: 90px; border-radius: 10px; background: #f1e7d1;
+        background-image: linear-gradient(to bottom, transparent 62px, rgba(58,104,196,.3) 62px 64px, transparent 64px);
+        box-shadow: 0 20px 40px rgba(0,0,0,.45); display: flex; align-items: center; justify-content: space-between; padding: 0 20px;
+        font-size: 24px; font-style: italic; font-weight: 600; color: #24345e; white-space: nowrap; }
+      .slip b { color: #a3302f; font-weight: 800; }
+      .hookw { position: absolute; left: 0; right: 0; top: 0; bottom: 0; display: flex; align-items: center; justify-content: center;
+        font-family: "Unbounded"; font-weight: 800; font-size: 230px; letter-spacing: -0.045em; opacity: 0; }
+      #hw3 { color: transparent; -webkit-text-stroke: 4px var(--light); }
+
+      /* S2 big nasiya card */
+      #flash { position: absolute; left: 560px; top: 140px; width: 800px; height: 800px; border-radius: 50%;
+        background: radial-gradient(circle, rgba(255,226,150,.95) 0%, rgba(240,191,76,.45) 25%, rgba(240,191,76,0) 62%); opacity: 0; }
+      #bigcard { position: absolute; left: 370px; top: 290px; width: 1180px; height: 560px; border-radius: 44px; padding: 48px 56px; opacity: 0;
+        background: linear-gradient(160deg, #1a2950 0%, #121d33 55%, #0f1830 100%);
+        border: 2px solid rgba(159,176,207,.25); box-shadow: 0 70px 160px rgba(0,0,0,.6), 0 0 120px rgba(58,104,196,.25); }
+      #bigcard .top { display: flex; align-items: center; gap: 26px; }
+      .av { width: 92px; height: 92px; border-radius: 50%; display: grid; place-items: center; font-family: "Unbounded"; font-weight: 800; font-size: 32px; color: #fff; background: #1d8a50; flex: none; }
+      #bigcard .nm { font-family: "Unbounded"; font-weight: 700; font-size: 42px; }
+      #bigcard .pr { font-size: 28px; color: var(--muted); font-weight: 500; margin-top: 6px; }
+      #bigcard .faol { margin-left: auto; padding: 12px 26px; border-radius: 999px; font-size: 26px; font-weight: 700; color: #8fb0ff; background: rgba(58,104,196,.25); }
+      #bigcard .lbl { margin-top: 40px; font-size: 26px; font-weight: 700; letter-spacing: .16em; color: var(--muted); }
+      #bigcard .amt { display: flex; align-items: baseline; gap: 22px; margin-top: 6px; }
+      #amt { font-family: "Unbounded"; font-weight: 800; font-size: 128px; letter-spacing: -0.04em; color: var(--gold2); line-height: 1; }
+      #bigcard .amt span { font-size: 44px; font-weight: 800; color: var(--gold2); }
+      #bsegs { display: flex; gap: 14px; margin-top: 40px; }
+      #bsegs i { flex: 1; display: block; height: 26px; border-radius: 13px; background: rgba(240,191,76,.18); border: 2px solid rgba(240,191,76,.55); transform-origin: 0 50%; }
+      #bsegs i:first-child { background: var(--gold2); border-color: var(--gold2); }
+      #bigcard .foot { margin-top: 26px; font-size: 28px; font-weight: 600; color: #c6d2ea; }
+      #bigcard .foot em { font-style: normal; color: var(--gold2); font-weight: 800; }
+
+      /* phones (shared) */
+      .phone { position: absolute; width: 450px; height: 880px; transform-style: preserve-3d; }
+      .phone .body { position: absolute; inset: 0; border-radius: 68px; background: #05080f; transform-style: preserve-3d;
+        box-shadow: 0 0 0 3px #2b3550, 0 80px 160px rgba(0,0,0,.65), 0 0 140px rgba(58,104,196,.3); }
+      .phone .scr { position: absolute; left: 12px; top: 12px; width: 426px; height: 856px; border-radius: 56px; overflow: hidden; background: #0b1220; }
+      .phone .scr img { position: absolute; left: 0; top: 0; width: 426px; height: 856px; }
+      .phone .isl { position: absolute; left: 165px; top: 26px; width: 120px; height: 34px; border-radius: 17px; background: #000; }
+      .lyr { position: absolute; border-radius: 22px; background-size: 426px 856px; background-repeat: no-repeat;
+        box-shadow: 0 30px 60px rgba(0,0,0,.55), 0 0 0 2px rgba(159,176,207,.22); }
+
+      /* S3 exploded nasiya phone */
+      #ph1 { left: 1015px; top: 100px; }
+      #L1 { left: 29px; top: 168px; width: 391px; height: 128px; background-image: url("assets/shots/app_nasiya.png"); background-position: -17px -157px; }
+      #L2 { left: 29px; top: 499px; width: 391px; height: 119px; background-image: url("assets/shots/app_nasiya.png"); background-position: -17px -488px; box-shadow: 0 30px 60px rgba(0,0,0,.55), 0 0 0 3px rgba(240,191,76,.8), 0 0 50px rgba(240,191,76,.35); }
+      .hole { position: absolute; border-radius: 22px; background: #070b14; box-shadow: inset 0 0 0 2px rgba(159,176,207,.12), inset 0 10px 30px rgba(0,0,0,.8); opacity: 0; }
+      #H1 { left: 29px; top: 168px; width: 391px; height: 128px; }
+      #H2 { left: 29px; top: 499px; width: 391px; height: 119px; }
+      #L3 { left: 296px; top: 795px; width: 125px; height: 58px; border-radius: 29px; background-image: url("assets/shots/app_nasiya.png"); background-position: -284px -784px; }
+      .hl { position: absolute; left: 140px; width: 820px; }
       .kick { display: inline-block; opacity: 0; font-family: "Unbounded"; font-size: 22px; font-weight: 700; letter-spacing: .16em; color: var(--gold2);
-        padding: 10px 20px; border: 2px solid rgba(240,191,76,.5); border-radius: 999px; }
-      .big { font-family: "Unbounded"; font-weight: 800; font-size: 88px; line-height: 1.08; letter-spacing: -0.03em; margin-top: 30px; }
+        padding: 10px 20px; border: 2px solid rgba(240,191,76,.55); border-radius: 999px; }
+      .big { font-family: "Unbounded"; font-weight: 800; letter-spacing: -0.035em; line-height: 1.04; margin-top: 26px; }
       .big .m { color: var(--muted); }
       .sub { margin-top: 26px; font-size: 32px; font-weight: 500; color: #c6d2ea; }
-      #h1 { top: 390px; }
+      #h3 { top: 330px; }
+      #h3 .big { font-size: 104px; }
 
-      /* notebook */
-      #note { position: absolute; left: 900px; top: 280px; width: 760px; height: 500px; border-radius: 22px; background: #f3ead6;
-        background-image: repeating-linear-gradient(to bottom, transparent 0 64px, rgba(58,104,196,.28) 64px 66px);
-        background-position: 0 30px;
-        box-shadow: 0 50px 100px rgba(0,0,0,.55), inset 0 0 70px rgba(120,90,40,.16); opacity: 0; }
-      #note::before { content: ""; position: absolute; left: 92px; top: 0; bottom: 0; width: 3px; background: rgba(229,72,77,.5); }
-      #note .ttl { position: absolute; left: 112px; top: 30px; font-size: 26px; font-weight: 800; letter-spacing: .12em; color: #2b3a63; }
-      #note .rows { position: absolute; left: 110px; right: 34px; top: 96px; }
-      #note .row { height: 66px; display: flex; align-items: center; gap: 18px; font-size: 30px; font-weight: 500; font-style: italic; color: #24345e; white-space: nowrap; }
-      #note .row b { margin-left: auto; font-weight: 700; color: #a3302f; }
-      #note .row s { text-decoration-color: rgba(163,48,47,.8); text-decoration-thickness: 3px; color: #6b7590; }
-      #note .stain { position: absolute; right: 90px; bottom: 50px; width: 130px; height: 130px; border-radius: 50%; border: 9px solid rgba(140,96,40,.16); }
-      #mark { position: absolute; left: 470px; top: 54px; width: 160px; height: 16px; border-radius: 8px; background: rgba(240,191,76,.75); transform-origin: 0 50%; }
-
-      /* nasiya card */
-      #ncard { position: absolute; left: 900px; top: 340px; width: 760px; height: 360px; border-radius: 32px; background: var(--ink2);
-        border: 2px solid rgba(159,176,207,.22); box-shadow: 0 50px 110px rgba(0,0,0,.55), 0 0 90px rgba(58,104,196,.18); padding: 36px 40px; opacity: 0; }
-      #ncard .top { display: flex; align-items: center; gap: 22px; }
-      .av { width: 76px; height: 76px; border-radius: 50%; display: grid; place-items: center; font-family: "Unbounded"; font-weight: 800; font-size: 26px; color: #fff; background: #1d8a50; flex: none; }
-      #ncard .nm { font-family: "Unbounded"; font-weight: 700; font-size: 32px; }
-      #ncard .pr { font-size: 24px; color: var(--muted); font-weight: 500; margin-top: 6px; }
-      #ncard .amt { margin-left: auto; text-align: right; }
-      #ncard .amt b { display: block; font-family: "Unbounded"; font-weight: 800; font-size: 38px; }
-      #ncard .amt span { font-size: 24px; font-weight: 700; color: var(--gold2); }
-      #ncard .lab { display: flex; justify-content: space-between; margin-top: 34px; font-size: 24px; font-weight: 600; color: var(--muted); }
-      #segs { display: flex; gap: 12px; margin-top: 14px; }
-      #segs i { flex: 1; display: block; height: 20px; border-radius: 10px; background: rgba(240,191,76,.22); border: 2px solid rgba(240,191,76,.55); transform-origin: 0 50%; }
-      #segs i:first-child { background: var(--gold2); border-color: var(--gold2); }
-      #ncard .foot { margin-top: 30px; padding-top: 22px; border-top: 2px solid rgba(159,176,207,.16); font-size: 26px; font-weight: 600; color: #c6d2ea; }
-      #ncard .foot em { font-style: normal; color: var(--gold2); font-weight: 800; }
-
-      /* phone */
-      #phoneWrap { position: absolute; left: 1122px; top: 113px; width: 437px; height: 854px; transform-style: preserve-3d; opacity: 0; }
-      #phone { position: absolute; inset: 0; border-radius: 66px; background: #05080f;
-        box-shadow: 0 0 0 3px #2b3550, 0 70px 140px rgba(0,0,0,.6), 0 0 140px rgba(58,104,196,.3); }
-      #screen { position: absolute; left: 12px; top: 12px; width: 413px; height: 830px; border-radius: 54px; overflow: hidden; background: #0b1220; }
-      #screen img { position: absolute; left: 0; top: 0; width: 413px; height: 830px; object-fit: cover; object-position: top; }
-      #scrKassa { opacity: 0; }
-      #island { position: absolute; left: 158px; top: 26px; width: 120px; height: 34px; border-radius: 17px; background: #000; }
-      #glare { position: absolute; left: 12px; top: 12px; width: 413px; height: 830px; border-radius: 54px; background: linear-gradient(115deg, rgba(255,255,255,.12) 0%, rgba(255,255,255,0) 38%); }
-      #ripple { position: absolute; left: 304px; top: 763px; width: 90px; height: 90px; margin: -45px 0 0 -45px; border-radius: 50%; background: rgba(255,255,255,.55); opacity: 0; }
-
-      /* payment chips */
-      #chips { position: absolute; left: 140px; top: 690px; width: 900px; display: flex; flex-wrap: wrap; gap: 16px; }
-      .chip { opacity: 0; padding: 16px 28px; border-radius: 999px; font-size: 28px; font-weight: 700; background: rgba(255,255,255,.08); border: 2px solid rgba(255,255,255,.18); white-space: nowrap; }
-      .chip.gold { background: rgba(224,165,38,.18); border-color: rgba(240,191,76,.7); color: var(--gold2); }
-
-      /* toast */
-      #toast { position: absolute; left: 930px; top: 790px; width: 540px; padding: 24px 28px; border-radius: 28px; display: flex; align-items: center; gap: 20px;
+      /* S4 kassa */
+      #ph2 { left: 1080px; top: 100px; }
+      #K1 { left: 49px; top: 436px; width: 352px; height: 48px; border-radius: 14px; background-image: url("assets/shots/app_sales_new.png"); background-position: -37px -424px; }
+      #HK { left: 49px; top: 436px; width: 352px; height: 48px; border-radius: 14px; }
+      #ripple { position: absolute; left: 357px; top: 819px; width: 100px; height: 100px; margin: -50px 0 0 -50px; border-radius: 50%; background: rgba(255,255,255,.6); opacity: 0; }
+      #h4 { top: 290px; width: 980px; }
+      #h4 .pre { font-family: "Unbounded"; font-weight: 700; font-size: 56px; color: var(--muted); margin-top: 26px; letter-spacing: -0.03em; }
+      #h4 .big { font-size: 124px; margin-top: 4px; white-space: nowrap; }
+      #chips { position: absolute; left: 140px; top: 690px; display: flex; gap: 16px; transform-style: preserve-3d; }
+      .chip { opacity: 0; padding: 16px 28px; border-radius: 999px; font-size: 28px; font-weight: 700; background: rgba(255,255,255,.09); border: 2px solid rgba(255,255,255,.2); white-space: nowrap; }
+      .chip.gold { background: rgba(224,165,38,.2); border-color: rgba(240,191,76,.8); color: var(--gold2); box-shadow: 0 0 40px rgba(224,165,38,.3); }
+      #okBurst { position: absolute; left: 1305px; top: 470px; width: 0; height: 0; }
+      #okRing { position: absolute; left: -110px; top: -110px; width: 220px; height: 220px; border-radius: 50%; border: 6px solid rgba(73,209,138,.9); opacity: 0; }
+      #okDisc { position: absolute; left: -80px; top: -80px; width: 160px; height: 160px; border-radius: 50%; background: #1d8a50; display: grid; place-items: center; opacity: 0;
+        box-shadow: 0 0 60px rgba(47,179,109,.6); }
+      #okDisc svg { width: 86px; height: 86px; }
+      .spark { position: absolute; left: -7px; top: -7px; width: 14px; height: 14px; border-radius: 50%; background: var(--gold3); box-shadow: 0 0 16px rgba(240,191,76,.9); opacity: 0; }
+      #toast { position: absolute; left: 960px; top: 860px; width: 600px; padding: 24px 30px; border-radius: 28px; display: flex; align-items: center; gap: 20px;
         background: rgba(242,244,249,.97); color: #14213d; box-shadow: 0 40px 90px rgba(0,0,0,.55); opacity: 0; }
-      .ok { width: 64px; height: 64px; border-radius: 20px; display: grid; place-items: center; background: rgba(47,179,109,.16); flex: none; }
-      .ok svg { width: 36px; height: 36px; }
-      #toast .t1 { font-family: "Unbounded"; font-weight: 700; font-size: 28px; color: #14213d; }
+      #toast .ok { width: 60px; height: 60px; border-radius: 18px; display: grid; place-items: center; background: rgba(47,179,109,.16); flex: none; }
+      #toast .ok svg { width: 34px; height: 34px; }
+      #toast .t1 { font-family: "Unbounded"; font-weight: 700; font-size: 28px; }
       #toast .t2 { font-size: 24px; font-weight: 600; color: #4a5a7a; margin-top: 4px; }
 
-      /* desktop report */
-      #h4 { top: 76px; width: 1700px; }
-      #h4 .big { font-size: 64px; margin-top: 22px; }
-      #desk { position: absolute; left: 720px; top: 280px; width: 1100px; height: 704px; border-radius: 26px; padding: 0 14px 14px; background: #1b2540;
-        box-shadow: 0 60px 130px rgba(0,0,0,.6), 0 0 0 2px rgba(159,176,207,.18); opacity: 0; transform-origin: 0% 50%; }
-      #desk .bar { height: 38px; display: flex; gap: 10px; align-items: center; padding-left: 8px; }
-      #desk .bar i { display: block; width: 13px; height: 13px; border-radius: 50%; background: #48557a; }
-      #desk img { display: block; width: 1072px; height: 652px; border-radius: 14px; object-fit: cover; object-position: left top; }
-      #spot { position: absolute; left: 34px; top: 426px; width: 622px; height: 272px; overflow: visible; }
-      #spot rect { fill: none; stroke: var(--gold2); stroke-width: 4; }
-
-      /* ai panel */
-      #ai { position: absolute; left: 1270px; top: 620px; width: 590px; padding: 28px 30px 30px; border-radius: 30px; background: rgba(13,21,38,.97);
-        border: 2px solid rgba(240,191,76,.5); box-shadow: 0 40px 90px rgba(0,0,0,.6), 0 0 70px rgba(224,165,38,.16); opacity: 0; }
+      /* S5 dashboard flight */
+      #plane { position: absolute; left: 380px; top: 190px; width: 1400px; height: 840px; transform-style: preserve-3d; }
+      #plane .base { position: absolute; inset: 0; border-radius: 26px; background: url("assets/shots/desk_monitoring_c.png") 0 0 / 1400px 840px no-repeat;
+        box-shadow: 0 80px 180px rgba(0,0,0,.6), 0 0 0 3px rgba(159,176,207,.2); }
+      .dl { position: absolute; border-radius: 22px; background-image: url("assets/shots/desk_monitoring_c.png"); background-size: 1400px 840px; background-repeat: no-repeat;
+        box-shadow: 0 40px 80px rgba(0,0,0,.45), 0 0 0 2px rgba(255,255,255,.4); }
+      .dhole { position: absolute; border-radius: 22px; background: #c9d1e2; box-shadow: inset 0 8px 24px rgba(20,33,61,.35); opacity: 0; }
+      #E1 { left: 33px; top: 187px; width: 660px; height: 268px; }
+      #E2 { left: 33px; top: 499px; width: 791px; height: 341px; }
+      #E3 { left: 842px; top: 499px; width: 525px; height: 325px; }
+      #D1 { left: 33px; top: 187px; width: 660px; height: 268px; background-position: -33px -187px; }
+      #D2 { left: 33px; top: 499px; width: 791px; height: 341px; background-position: -33px -499px; box-shadow: 0 40px 80px rgba(0,0,0,.45), 0 0 0 4px rgba(240,191,76,.9), 0 0 60px rgba(240,191,76,.35); }
+      #D3 { left: 842px; top: 499px; width: 525px; height: 325px; background-position: -842px -499px; }
+      #h5 { top: 60px; width: 1700px; }
+      #h5 .big { font-size: 76px; margin-top: 20px; }
+      #ai { position: absolute; left: 1250px; top: 650px; width: 600px; padding: 28px 30px 30px; border-radius: 30px; background: rgba(13,21,38,.97);
+        border: 2px solid rgba(240,191,76,.55); box-shadow: 0 40px 90px rgba(0,0,0,.6), 0 0 70px rgba(224,165,38,.18); opacity: 0; }
       #ai .hd { display: flex; align-items: center; gap: 14px; font-family: "Unbounded"; font-weight: 700; font-size: 26px; }
       #ai .hd i { width: 46px; height: 46px; border-radius: 14px; display: grid; place-items: center; background: rgba(224,165,38,.2); color: var(--gold2); font-style: normal; font-size: 26px; }
-      #aiTxt { margin-top: 18px; height: 84px; font-size: 30px; font-weight: 600; line-height: 1.36; color: var(--light); }
+      #aiTxt { margin-top: 18px; height: 84px; font-size: 30px; font-weight: 600; line-height: 1.36; }
       #aiTask { display: flex; align-items: center; gap: 14px; margin-top: 14px; padding-top: 18px; border-top: 2px solid rgba(159,176,207,.16); font-size: 25px; font-weight: 600; color: #c6d2ea; opacity: 0; }
       #aiTask .cb { width: 36px; height: 36px; border-radius: 11px; background: var(--gold2); display: grid; place-items: center; flex: none; }
       #aiTask .cb svg { width: 24px; height: 24px; }
+      #sweep { position: absolute; left: -700px; top: -400px; width: 420px; height: 1900px; transform: rotate(22deg);
+        background: linear-gradient(90deg, rgba(255,230,170,0), rgba(255,230,170,.32), rgba(255,255,255,.55), rgba(255,230,170,.32), rgba(255,230,170,0)); mix-blend-mode: screen; opacity: 0; }
 
-      /* ---------- end card ---------- */
-      #bloom { position: absolute; left: 360px; top: -60px; width: 1200px; height: 1200px; border-radius: 50%;
-        background: radial-gradient(circle, rgba(42,92,188,.62) 0%, rgba(31,79,168,.28) 40%, rgba(13,21,38,0) 70%); opacity: 0; }
-      #logo { position: absolute; left: 860px; top: 230px; width: 200px; height: 200px; }
-      #logo svg { width: 100%; height: 100%; display: block; overflow: visible; }
-      #logoSq { opacity: 0; }
-      #sheenMask { position: absolute; inset: 0; border-radius: 48px; overflow: hidden; }
-      #sheen { position: absolute; left: -120px; top: -20px; width: 90px; height: 240px; background: linear-gradient(90deg, transparent, rgba(255,255,255,.5), transparent); opacity: 0; }
-      #word { position: absolute; left: 0; right: 0; top: 480px; text-align: center; font-size: 150px; font-weight: 800; letter-spacing: -0.04em; }
-      #tag { position: absolute; left: 0; right: 0; top: 700px; text-align: center; font-size: 42px; font-weight: 600; color: #dfe7f7; opacity: 0; }
-      #cta { position: absolute; left: 0; right: 0; top: 800px; display: flex; justify-content: center; gap: 20px; }
-      .pill { opacity: 0; padding: 20px 38px; border-radius: 999px; font-size: 34px; font-weight: 800; white-space: nowrap; }
+      /* S6 flare */
+      #core { position: absolute; left: 860px; top: 440px; width: 200px; height: 200px; border-radius: 50%;
+        background: radial-gradient(circle, #fff 0%, rgba(255,226,150,.9) 20%, rgba(240,191,76,.35) 50%, rgba(240,191,76,0) 72%); opacity: 0; }
+      #streak { position: absolute; left: 160px; top: 536px; width: 1600px; height: 8px; border-radius: 4px;
+        background: linear-gradient(90deg, rgba(255,215,122,0), rgba(255,236,190,.95), rgba(255,215,122,0)); opacity: 0; transform-origin: 50% 50%; }
+
+      /* S7 logo */
+      #girih { position: absolute; inset: 0; width: 1920px; height: 1080px; overflow: visible; }
+      #girih path { fill: none; stroke: var(--gold2); stroke-width: 2.2; stroke-linejoin: round; }
+      #bloom { position: absolute; left: 360px; top: -120px; width: 1200px; height: 1200px; border-radius: 50%;
+        background: radial-gradient(circle, rgba(42,92,188,.65) 0%, rgba(31,79,168,.3) 40%, rgba(13,21,38,0) 70%); opacity: 0; }
+      #logoStage { position: absolute; inset: 0; perspective: 1200px; }
+      #logo { position: absolute; left: 845px; top: 215px; width: 230px; height: 230px; }
+      #logo svg { position: relative; width: 100%; height: 100%; display: block; overflow: visible; }
+      #logo .shadow { position: absolute; left: 10px; top: 30px; width: 210px; height: 210px; border-radius: 54px; background: rgba(5,10,25,.7); filter: blur(30px); }
+      #sheenMask { position: absolute; inset: 0; border-radius: 55px; overflow: hidden; }
+      #sheen { position: absolute; left: -140px; top: -30px; width: 100px; height: 290px; transform: rotate(18deg); background: linear-gradient(90deg, transparent, rgba(255,255,255,.6), transparent); opacity: 0; }
+      #dring { position: absolute; left: 967px; top: 203px; width: 120px; height: 120px; margin: 0; border-radius: 50%; border: 4px solid var(--gold3); opacity: 0; }
+      #word { position: absolute; left: 0; right: 0; top: 480px; text-align: center; font-size: 170px; font-weight: 800; letter-spacing: -0.045em; perspective: 900px; }
+      #word .c { display: inline-block; opacity: 0; transform-origin: 50% 100%; }
+      #tag { position: absolute; left: 0; right: 0; top: 720px; text-align: center; font-size: 44px; font-weight: 600; color: #dfe7f7; opacity: 0; }
+      #cta { position: absolute; left: 0; right: 0; top: 820px; display: flex; justify-content: center; gap: 22px; }
+      .pill { opacity: 0; padding: 20px 40px; border-radius: 999px; font-size: 34px; font-weight: 800; white-space: nowrap; }
       .pill.white { background: var(--light); color: var(--kob); font-family: "Unbounded"; font-size: 32px; }
       .pill.gold { border: 3px solid var(--gold2); color: var(--gold2); background: rgba(224,165,38,.12); }
       /* ================= 9:16 re-layout (overrides the 16:9 values above) ================= */
       #glowA { left: -420px; top: -200px; width: 1200px; height: 1200px; }
-      #glowB { left: 300px; top: 1100px; width: 1000px; height: 1000px; }
-      #glowC { left: 640px; top: 300px; width: 420px; height: 420px; }
-      #girih { left: -240px; top: -240px; width: 1560px; height: 2400px;
-        -webkit-mask-image: radial-gradient(ellipse 75% 60% at 50% 50%, #000 0%, transparent 75%);
-        mask-image: radial-gradient(ellipse 75% 60% at 50% 50%, #000 0%, transparent 75%); }
-      #world { transform-origin: 50% 55%; }
-      .hl { left: 80px; top: 250px; width: 920px; }
-      .big { font-size: 92px; }
-      #h1 { top: 380px; }
-      #note { left: 90px; top: 820px; width: 900px; height: 560px; }
-      #note .row { height: 66px; font-size: 34px; }
-      #mark { left: 560px; top: 54px; width: 190px; }
-      #ncard { left: 90px; top: 880px; width: 900px; height: 400px; padding: 40px 44px; }
-      #ncard .nm { font-size: 36px; }
-      #ncard .amt b { font-size: 42px; }
-      #ncard .lab { margin-top: 44px; }
-      #segs i { height: 24px; border-radius: 12px; }
-      #ncard .foot { margin-top: 36px; font-size: 28px; }
-      #phoneWrap { left: 310px; top: 720px; width: 460px; height: 900px; }
-      #phone { border-radius: 70px; }
-      #screen { left: 12px; top: 12px; width: 436px; height: 876px; border-radius: 58px; }
-      #screen img { width: 436px; height: 876px; }
-      #island { left: 168px; top: 28px; }
-      #glare { width: 436px; height: 876px; border-radius: 58px; }
-      #ripple { left: 322px; top: 840px; }
-      #chips { left: 80px; top: 590px; width: 920px; }
-      #toast { left: 140px; top: 1330px; width: 800px; }
+      #glowB { left: 260px; top: 1100px; width: 1000px; height: 1000px; }
+      #glowW { left: 140px; top: 560px; }
+      #grid { left: -300px; top: -400px; width: 1680px; height: 2720px; }
+      .slip { left: 390px; top: 915px; }
+      .hookw { font-size: 150px; }
+      #flash { left: 140px; top: 560px; }
+      #bigcard { left: 60px; top: 680px; width: 960px; height: 560px; padding: 44px 44px; }
+      #bigcard .nm { font-size: 38px; }
+      #amt { font-size: 104px; }
+      #bigcard .amt span { font-size: 40px; }
+      #bigcard .foot { font-size: 27px; }
+      .hl { left: 80px; width: 920px; }
+      #h3 { top: 250px; }
+      #ph1 { left: 315px; top: 700px; }
+      #h4 { top: 250px; width: 920px; }
+      #h4 .big { font-size: 110px; }
+      #chips { left: 80px; top: 610px; }
+      #ph2 { left: 315px; top: 720px; }
+      #okBurst { left: 540px; top: 1090px; }
+      #toast { left: 140px; top: 1420px; width: 800px; }
       #toast .t1 { font-size: 32px; }
       #toast .t2 { font-size: 27px; }
-      #h4 { top: 250px; width: 920px; }
-      #h4 .big { font-size: 80px; margin-top: 26px; }
-      #desk { left: 40px; top: 640px; width: 1000px; height: 650px; transform-origin: 50% 50%; }
-      #desk img { width: 972px; height: 598px; }
-      #spot { left: 33px; top: 389px; width: 557px; height: 250px; }
-      #ai { left: 60px; top: 1250px; width: 660px; }
-      #bloom { left: -160px; top: 160px; width: 1400px; height: 1400px; }
-      #logo { left: 410px; top: 520px; width: 260px; height: 260px; }
-      #sheenMask { border-radius: 62px; }
-      #sheen { height: 300px; }
-      #word { top: 840px; font-size: 176px; }
+      #plane { left: -160px; top: 580px; }
+      #h5 { top: 250px; width: 920px; }
+      #h5 .big { font-size: 74px; }
+      #ai { left: 60px; top: 1260px; width: 680px; }
+      #sweep { top: -500px; height: 2900px; }
+      #core { left: 440px; top: 860px; }
+      #streak { left: 40px; top: 956px; width: 1000px; }
+      #bloom { left: -60px; top: 160px; }
+      #girih { width: 1080px; height: 1920px; }
+      #logo { left: 425px; top: 585px; }
+      #dring { left: 547px; top: 573px; }
+      #word { top: 860px; }
       #tag { top: 1100px; font-size: 46px; }
       #cta { top: 1200px; }
     </style>
   </head>
   <body>
-    <div data-hf-id="hf-nz1a" id="root" data-composition-id="vertical" data-start="0" data-duration="15" data-width="1080" data-height="1920" data-fps="60">
-      <audio data-hf-id="hf-m4hl" id="bgm" src="assets/audio/music.wav" data-start="0" data-duration="15" data-track-index="9" data-volume="1"></audio>
-      <!-- background (whole film) -->
-      <div data-hf-id="hf-5seh" id="bgClip" class="clip" data-start="0" data-duration="15" data-track-index="0">
-        <div data-hf-id="hf-1z75" id="bg" data-layout-allow-overflow>
-          <div data-hf-id="hf-kb5s" id="glowA" class="glow" data-layout-allow-overflow></div>
-          <div data-hf-id="hf-v6nf" id="glowB" class="glow" data-layout-allow-overflow></div>
-          <div data-hf-id="hf-r8je" id="glowC" class="glow" data-layout-allow-overflow></div>
-          <div data-hf-id="hf-dn3y" id="girih"></div>
-          <div data-hf-id="hf-vhr1" id="vign"></div>
+    <div id="root" data-composition-id="vertical" data-start="0" data-duration="15" data-width="1080" data-height="1920" data-fps="60">
+      <audio id="bgm" src="assets/audio/music.wav" data-start="0" data-duration="15" data-track-index="9" data-volume="1"></audio>
+
+      <div id="bgClip" class="clip" data-start="0" data-duration="15" data-track-index="0">
+        <div id="bg" data-layout-allow-overflow>
+          <div id="glowA" class="glow" data-layout-allow-overflow></div>
+          <div id="glowB" class="glow" data-layout-allow-overflow></div>
+          <div id="glowW" class="glow" data-layout-allow-overflow></div>
+          <div id="grid" data-layout-allow-overflow></div>
+          <div id="vign"></div>
         </div>
       </div>
 
-      <!-- scenes 1-4: one continuous world -->
-      <div data-hf-id="hf-awrt" id="worldClip" class="clip" data-start="0" data-duration="11.8" data-track-index="1">
-        <div data-hf-id="hf-j427" id="world">
-          <div data-hf-id="hf-1rt5" id="stage">
-            <!-- S1 headline -->
-            <div data-hf-id="hf-op97" id="h1" class="hl">
-              <div data-hf-id="hf-vf1u" class="big"><span data-hf-id="hf-kw5i" class="w m">Qarzlar</span> <span data-hf-id="hf-5gt7" class="w m">—</span><br data-hf-id="hf-x5px" /><span data-hf-id="hf-y536" class="w">qog'ozda.</span></div>
-            </div>
+      <!-- S1 · hook: paper storm + slammed words (0 – 1.9) -->
+      <div id="s1" class="clip shot" data-start="0" data-duration="1.95" data-track-index="1">
+        <div id="r1" class="rig" aria-hidden="true" data-layout-ignore></div>
+        <div id="hw1" class="hookw">Qarz.</div>
+        <div id="hw2" class="hookw">Daftar.</div>
+        <div id="hw3" class="hookw">Unutildi?</div>
+      </div>
 
-            <!-- notebook -->
-            <div data-hf-id="hf-2xtl" id="note" data-layout-allow-overlap>
-              <div data-hf-id="hf-nqn2" class="ttl">NASIYA DAFTARI</div>
-              <div data-hf-id="hf-hnc7" class="rows">
-                <div data-hf-id="hf-m3bn" class="row" id="row1"><span data-hf-id="hf-zl5h">Sardor A. — iPhone 15 Pro Max</span><b data-hf-id="hf-klx8" class="num">17 500 000</b></div>
-                <div data-hf-id="hf-thy4" class="row"><span data-hf-id="hf-dgdt">Nodira R. — iPhone 14 Pro</span><b data-hf-id="hf-c1h3" class="num">6 000 000</b></div>
-                <div data-hf-id="hf-lt04" class="row"><span data-hf-id="hf-5ps0">Jasur — muzlatkich</span><b data-hf-id="hf-c6by" class="num">4 200 000 ?</b></div>
-                <div data-hf-id="hf-km31" class="row"><s data-hf-id="hf-a1b9">Dilnoza — divan</s><b data-hf-id="hf-57pc" class="num">3 800 000</b></div>
-                <div data-hf-id="hf-l0e2" class="row"><span data-hf-id="hf-q1du">Bekzod — televizor</span><b data-hf-id="hf-4ysl" class="num">5 100 000</b></div>
+      <!-- S2 · the storm becomes one clean card (1.6 – 4.1) -->
+      <div id="s2" class="clip shot" data-start="1.6" data-duration="2.5" data-track-index="2">
+        <div id="flash"></div>
+        <div id="r2" class="rig" data-layout-allow-overlap>
+          <div id="bigcard">
+            <div class="top">
+              <div class="av">SA</div>
+              <div>
+                <div class="nm">Sardor Aliyev</div>
+                <div class="pr">iPhone 15 Pro Max 256GB</div>
               </div>
-              <div data-hf-id="hf-tn5q" id="mark"></div>
-              <div data-hf-id="hf-sg0n" class="stain"></div>
+              <div class="faol">Faol</div>
             </div>
+            <div class="lbl">NASIYA · 6 OY</div>
+            <div class="amt"><div id="amt" class="num">0</div><span>so'm</span></div>
+            <div id="bsegs"><i></i><i></i><i></i><i></i><i></i><i></i></div>
+            <div class="foot">Keyingi to'lov: <span class="num">13.11.2026</span> · <em class="num">2 916 666 so'm</em></div>
+          </div>
+        </div>
+      </div>
 
-            <!-- S2 headline -->
-            <div data-hf-id="hf-g1dc" id="h2" class="hl">
-              <span data-hf-id="hf-2jjg" class="kick">01 · NASIYA</span>
-              <div data-hf-id="hf-e9iu" class="big"><span data-hf-id="hf-dl7m" class="w m">Nasiya —</span><br data-hf-id="hf-rsrt" /><span data-hf-id="hf-54yp" class="w">tartibda.</span></div>
-              <div data-hf-id="hf-iqrq" class="sub"><span data-hf-id="hf-nswg" class="w">Har bir to'lov — jadvalda.</span></div>
-            </div>
-
-            <!-- S3 headline -->
-            <div data-hf-id="hf-gt15" id="h3" class="hl">
-              <span data-hf-id="hf-nyst" class="kick">02 · KASSA</span>
-              <div data-hf-id="hf-entv" class="big"><span data-hf-id="hf-ko16" class="w m">Sotuv —</span><br data-hf-id="hf-szow" /><span data-hf-id="hf-bhao" class="w">2 daqiqada.</span></div>
-            </div>
-            <div data-hf-id="hf-f8d2" id="chips">
-              <span data-hf-id="hf-yyp7" class="chip">Naqd</span><span data-hf-id="hf-tlnl" class="chip">Qarz</span><span data-hf-id="hf-hl94" class="chip gold">Nasiya</span><span data-hf-id="hf-kcjh" class="chip">Bank krediti</span>
-            </div>
-
-            <!-- desktop report -->
-            <div data-hf-id="hf-zaq6" id="desk">
-              <div data-hf-id="hf-ufsv" class="bar"><i data-hf-id="hf-wt6k"></i><i data-hf-id="hf-zeb8"></i><i data-hf-id="hf-y7e5"></i></div>
-              <img data-hf-id="hf-wznj" src="assets/shots/desk_monitoring_c.png" alt="Savora Hisobot" />
-              <svg data-hf-id="hf-mcl7" id="spot" viewBox="0 0 557 250"><rect data-hf-id="hf-wf1x" id="spotRect" x="2" y="2" width="553" height="246" rx="16" /></svg>
-            </div>
-
-            <!-- phone -->
-            <div data-hf-id="hf-2s5b" id="phoneWrap">
-              <div data-hf-id="hf-5iuv" id="phone">
-                <div data-hf-id="hf-ccvt" id="screen">
-                  <img data-hf-id="hf-xe6m" id="scrNasiya" src="assets/shots/app_nasiya.png" alt="Nasiya" />
-                  <img data-hf-id="hf-ah86" id="scrKassa" src="assets/shots/app_sales_new.png" alt="Yangi sotuv" />
-                </div>
-                <div data-hf-id="hf-i9du" id="island"></div>
-                <div data-hf-id="hf-m8d6" id="glare"></div>
-                <div data-hf-id="hf-l3gf" id="ripple"></div>
-              </div>
-            </div>
-
-            <!-- nasiya card (born from the notebook line) -->
-            <div data-hf-id="hf-axqz" id="ncard" data-layout-allow-overlap>
-              <div data-hf-id="hf-sijt" class="top">
-                <div data-hf-id="hf-snv5" class="av">SA</div>
-                <div data-hf-id="hf-yeow">
-                  <div data-hf-id="hf-i600" class="nm">Sardor Aliyev</div>
-                  <div data-hf-id="hf-7if6" class="pr">iPhone 15 Pro Max 256GB</div>
-                </div>
-                <div data-hf-id="hf-8kom" class="amt"><b data-hf-id="hf-0xh0" class="num">17 500 000</b><span data-hf-id="hf-8w8r">so'm</span></div>
-              </div>
-              <div data-hf-id="hf-mnnx" class="lab"><span data-hf-id="hf-k5gx">6 oylik jadval</span><span data-hf-id="hf-1kq5" class="num">1 / 6</span></div>
-              <div data-hf-id="hf-xxiv" id="segs"><i data-hf-id="hf-ylp6"></i><i data-hf-id="hf-0l8b"></i><i data-hf-id="hf-0zjc"></i><i data-hf-id="hf-zsm9"></i><i data-hf-id="hf-06xa"></i><i data-hf-id="hf-26gf"></i></div>
-              <div data-hf-id="hf-1v8g" class="foot">Keyingi to'lov: <span data-hf-id="hf-qppn" class="num">13.11.2026</span> · <em data-hf-id="hf-tsdz" class="num">2 916 666 so'm</em></div>
-            </div>
-
-            <!-- sale confirmed -->
-            <div data-hf-id="hf-n5ua" id="toast">
-              <div data-hf-id="hf-6kvy" class="ok"><svg data-hf-id="hf-0hkd" viewBox="0 0 24 24" fill="none" stroke="#2fb36d" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path data-hf-id="hf-s5bw" d="M5 12.5l4.5 4.5L19 7.5" /></svg></div>
-              <div data-hf-id="hf-y7yw">
-                <div data-hf-id="hf-zh34" class="t1">Sotuv tasdiqlandi</div>
-                <div data-hf-id="hf-d29j" class="t2 num">Nasiya · 17 500 000 so'm</div>
-              </div>
-            </div>
-
-            <!-- AI assistant -->
-            <div data-hf-id="hf-a80j" id="ai">
-              <div data-hf-id="hf-qqkw" class="hd"><i data-hf-id="hf-yjxq">✦</i>AI yordamchi</div>
-              <div data-hf-id="hf-smzl" id="aiTxt"></div>
-              <div data-hf-id="hf-d4ew" id="aiTask">
-                <div data-hf-id="hf-d8rn" class="cb"><svg data-hf-id="hf-x5cu" viewBox="0 0 24 24" fill="none" stroke="#0d1526" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"><path data-hf-id="hf-ceb8" d="M5 12.5l4.5 4.5L19 7.5" /></svg></div>
-                <span data-hf-id="hf-bfqh">Topshiriq yaratildi: nasiya to'lovlarini kuzatish</span>
-              </div>
-            </div>
-
-            <!-- S4 headline (last in DOM: always above phone and desktop) -->
-            <div data-hf-id="hf-855a" id="h4" class="hl">
-              <span data-hf-id="hf-6zfp" class="kick">03 · FILIALLAR</span>
-              <div data-hf-id="hf-f24w" class="big"><span data-hf-id="hf-wc7s" class="w m">Barcha filiallar.</span> <span data-hf-id="hf-hcb9" class="w">Bitta ekran.</span></div>
+      <!-- S3 · exploded phone (3.45 – 5.95) -->
+      <div id="s3" class="clip shot" data-start="3.45" data-duration="2.5" data-track-index="3">
+        <div id="h3" class="hl">
+          <span class="kick">01 · NASIYA</span>
+          <div class="big"><span class="w m">Nasiya —</span><br /><span class="w">tartibda.</span></div>
+          <div class="sub"><span class="w">Har bir to'lov — jadvalda.</span></div>
+        </div>
+        <div id="r3" class="rig" data-layout-allow-overlap>
+          <div id="ph1" class="phone">
+            <div class="body">
+              <div class="scr"><img src="assets/shots/app_nasiya.png" alt="Nasiya" /></div>
+              <div class="isl"></div>
+              <div id="H1" class="hole"></div><div id="H2" class="hole"></div>
+              <div id="L1" class="lyr"></div>
+              <div id="L2" class="lyr"></div>
             </div>
           </div>
         </div>
       </div>
 
-      <!-- S5 end card -->
-      <div data-hf-id="hf-g9w1" id="endClip" class="clip" data-start="11" data-duration="4" data-track-index="2">
-        <div data-hf-id="hf-0h6x" id="bloom" data-layout-allow-overflow></div>
-        <div data-hf-id="hf-ea14" id="logo">
-          <svg data-hf-id="hf-fohl" viewBox="0 0 100 100">
-            <defs data-hf-id="hf-mh0t"><linearGradient data-hf-id="hf-jt51" id="lg" x1="0" y1="0" x2="0" y2="1"><stop data-hf-id="hf-tmar" offset="0" stop-color="#3a68c4" /><stop data-hf-id="hf-s116" offset="1" stop-color="#173f8f" /></linearGradient></defs>
-            <rect data-hf-id="hf-vp5b" id="logoSq" width="100" height="100" rx="24" fill="url(#lg)" stroke="rgba(255,255,255,.25)" stroke-width="1" />
-            <rect data-hf-id="hf-oo5w" class="lbar" x="20" y="58" width="13" height="24" rx="6.5" fill="#fff" opacity=".55" />
-            <rect data-hf-id="hf-dacs" class="lbar" x="40" y="45" width="13" height="37" rx="6.5" fill="#fff" opacity=".8" />
-            <rect data-hf-id="hf-zd41" class="lbar" x="60" y="32" width="13" height="50" rx="6.5" fill="#fff" />
-            <path data-hf-id="hf-nu3u" id="lcurve" d="M24 46C38 28 58 20 79 21" fill="none" stroke="#f0bf4c" stroke-width="6.5" stroke-linecap="round" />
-            <circle data-hf-id="hf-32hb" id="ldot" cx="79" cy="21" r="6.5" fill="#f0bf4c" />
-          </svg>
-          <div data-hf-id="hf-c5bo" id="sheenMask"><div data-hf-id="hf-bttv" id="sheen" data-layout-allow-overflow></div></div>
+      <!-- S4 · kassa (5.7 – 8.15) -->
+      <div id="s4" class="clip shot" data-start="5.7" data-duration="2.45" data-track-index="4">
+        <div id="h4" class="hl">
+          <span class="kick">02 · KASSA</span>
+          <div class="pre"><span class="w">Sotuv —</span></div>
+          <div class="big"><span class="w">2 daqiqada.</span></div>
         </div>
-        <div data-hf-id="hf-0352" id="word" class="disp"><span data-hf-id="hf-41rl" class="w">S</span><span data-hf-id="hf-b7a3" class="w">a</span><span data-hf-id="hf-fkne" class="w">v</span><span data-hf-id="hf-bzw5" class="w">o</span><span data-hf-id="hf-h5vi" class="w">r</span><span data-hf-id="hf-7zyz" class="w">a</span></div>
-        <div data-hf-id="hf-tzjd" id="tag">Do'koningiz uchun yagona tizim</div>
-        <div data-hf-id="hf-l401" id="cta"><span data-hf-id="hf-9jc2" class="pill white">savora.uz</span><span data-hf-id="hf-en0z" class="pill gold">14 kun bepul</span></div>
+        <div id="chips"><span class="chip">Naqd</span><span class="chip">Qarz</span><span class="chip gold">Nasiya</span><span class="chip">Bank krediti</span></div>
+        <div id="r4" class="rig" data-layout-allow-overlap>
+          <div id="ph2" class="phone">
+            <div class="body">
+              <div class="scr"><img src="assets/shots/app_sales_new.png" alt="Yangi sotuv" /></div>
+              <div class="isl"></div>
+              <div id="HK" class="hole"></div><div id="K1" class="lyr"></div>
+              <div id="ripple"></div>
+            </div>
+          </div>
+        </div>
+        <div id="okBurst" data-layout-allow-overflow>
+          <div id="okRing"></div>
+          <div id="okDisc"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5" /></svg></div>
+        </div>
+        <div id="toast">
+          <div class="ok"><svg viewBox="0 0 24 24" fill="none" stroke="#1d8a50" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5" /></svg></div>
+          <div>
+            <div class="t1">Sotuv tasdiqlandi</div>
+            <div class="t2 num">Nasiya · 17 500 000 so'm</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- S5 · dashboard flight + AI (7.95 – 11.3) -->
+      <div id="s5" class="clip shot" data-start="7.95" data-duration="3.35" data-track-index="5">
+        <div id="r5" class="rig" data-layout-allow-overlap data-layout-allow-overflow>
+          <div id="plane">
+            <div class="base"></div>
+            <div id="E1" class="dhole"></div><div id="E2" class="dhole"></div><div id="E3" class="dhole"></div>
+            <div id="D1" class="dl"></div>
+            <div id="D2" class="dl"></div>
+            <div id="D3" class="dl"></div>
+          </div>
+        </div>
+        <div id="ai">
+          <div class="hd"><i>✦</i>AI yordamchi</div>
+          <div id="aiTxt"></div>
+          <div id="aiTask">
+            <div class="cb"><svg viewBox="0 0 24 24" fill="none" stroke="#0d1526" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5" /></svg></div>
+            <span>Topshiriq yaratildi: nasiya to'lovlarini kuzatish</span>
+          </div>
+        </div>
+        <div id="h5" class="hl">
+          <span class="kick">03 · FILIALLAR</span>
+          <div class="big"><span class="w m">Barcha filiallar.</span> <span class="w">Bitta ekran.</span></div>
+        </div>
+        <div id="sweep" data-layout-allow-overflow></div>
+      </div>
+
+      <!-- S6/S7 · gold flare → girih → Savora (10.9 – 15) -->
+      <div id="s7" class="clip" data-start="10.9" data-duration="4.1" data-track-index="6">
+        <div id="bloom" data-layout-allow-overflow></div>
+        <svg id="girih" viewBox="0 0 1080 1920" data-layout-allow-overflow></svg>
+        <div id="streak"></div>
+        <div id="core"></div>
+        <div id="logoStage">
+          <div id="logo">
+            <div class="shadow"></div>
+            <svg viewBox="0 0 100 100">
+              <defs><linearGradient id="lg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3a68c4" /><stop offset="1" stop-color="#173f8f" /></linearGradient></defs>
+              <rect width="100" height="100" rx="24" fill="url(#lg)" stroke="rgba(255,255,255,.3)" stroke-width="1" />
+              <rect class="lbar" x="20" y="58" width="13" height="24" rx="6.5" fill="#fff" opacity=".55" />
+              <rect class="lbar" x="40" y="45" width="13" height="37" rx="6.5" fill="#fff" opacity=".8" />
+              <rect class="lbar" x="60" y="32" width="13" height="50" rx="6.5" fill="#fff" />
+              <path id="lcurve" d="M24 46C38 28 58 20 79 21" fill="none" stroke="#f0bf4c" stroke-width="6.5" stroke-linecap="round" />
+              <circle id="ldot" cx="79" cy="21" r="6.5" fill="#f0bf4c" />
+            </svg>
+            <div id="sheenMask"><div id="sheen" data-layout-allow-overflow></div></div>
+          </div>
+        </div>
+        <div id="dring"></div>
+        <div id="word" class="disp"><span class="c">S</span><span class="c">a</span><span class="c">v</span><span class="c">o</span><span class="c">r</span><span class="c">a</span></div>
+        <div id="tag">Do'koningiz uchun yagona tizim</div>
+        <div id="cta"><span class="pill white">savora.uz</span><span class="pill gold">14 kun bepul</span></div>
+      </div>
+
+      <div id="grainClip" class="clip" data-start="0" data-duration="15" data-track-index="8">
+        <div id="grain" data-layout-allow-overflow><div id="grainTex"></div></div>
       </div>
     </div>
 
     <script>
       const tl = gsap.timeline({ paused: true });
       const q = (s) => Array.from(document.querySelectorAll(s));
-
-      // waterfall arrival: binary reveal + whip up from below, overlapping
-      function cascade(els, t0, opts) {
-        const o = Object.assign({ y: 70, dur: 0.5, gap: 0.09, ease: "power4.out" }, opts || {});
+      const rnd = (i, k) => { const v = Math.sin(i * 12.9898 + k * 78.233) * 43758.5453; return v - Math.floor(v); };
+      const fmt = (n) => String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g, " ");
+      function cascade(els, t0, o) {
+        o = Object.assign({ y: 80, dur: 0.5, gap: 0.09, ease: "power4.out" }, o || {});
         els.forEach((el, i) => {
           const t = t0 + i * o.gap;
           tl.set(el, { opacity: 1 }, t);
           tl.fromTo(el, { y: o.y }, { y: 0, duration: o.dur, ease: o.ease }, t);
         });
       }
-      function exitUp(els, t0) {
-        tl.to(els, { y: -40, opacity: 0, duration: 0.35, ease: "power2.in", stagger: 0.04 }, t0);
+      function kickIn(sel, t) {
+        tl.set(sel, { opacity: 1 }, t);
+        tl.fromTo(sel, { y: 30 }, { y: 0, duration: 0.45, ease: "power4.out" }, t);
+      }
+      function shake(sel, t, a) {
+        tl.set(sel, { x: a }, t); tl.set(sel, { x: -a * 0.7 }, t + 1 / 60); tl.set(sel, { x: a * 0.4 }, t + 2 / 60); tl.set(sel, { x: 0 }, t + 3 / 60);
       }
 
-      /* ---------- ambient background (finite loops inside 15 s) ---------- */
-      tl.fromTo("#glowA", { scale: 1 }, { scale: 1.14, duration: 3, ease: "sine.inOut", repeat: 4, yoyo: true }, 0);
-      tl.fromTo("#glowB", { scale: 1.1, x: 0 }, { scale: 0.92, x: -60, duration: 3.75, ease: "sine.inOut", repeat: 3, yoyo: true }, 0);
-      tl.fromTo("#glowC", { opacity: 0.6 }, { opacity: 1, duration: 2.5, ease: "sine.inOut", repeat: 5, yoyo: true }, 0);
-      tl.fromTo("#girih", { x: 0, y: 0 }, { x: -120, y: -60, duration: 15, ease: "none" }, 0);
+      /* ---------- ambient ---------- */
+      tl.fromTo("#glowA", { scale: 1 }, { scale: 1.15, duration: 2.5, ease: "sine.inOut", repeat: 5, yoyo: true }, 0);
+      tl.fromTo("#glowB", { scale: 1.1, x: 0 }, { scale: 0.9, x: -80, duration: 3.75, ease: "sine.inOut", repeat: 3, yoyo: true }, 0);
+      tl.fromTo("#grid", { x: 0, y: 0 }, { x: -240, y: -120, duration: 15, ease: "none" }, 0);
+      tl.fromTo("#grainTex", { x: 0, y: 0 }, { x: -60, y: 40, duration: 15, ease: "steps(90)" }, 0);
+      // warm tension in the hook, cools into order
+      tl.fromTo("#glowW", { opacity: 0 }, { opacity: 1, duration: 0.4, ease: "power2.out" }, 0);
+      tl.to("#glowW", { opacity: 0, duration: 0.6, ease: "power2.in" }, 1.5);
 
-      /* ---------- S1 · paper (0 – 2.0) ---------- */
-      tl.fromTo("#note", { opacity: 0, scale: 1.06, filter: "blur(10px)", rotation: -1.5 },
-        { opacity: 1, scale: 1, filter: "blur(0px)", rotation: -1.5, duration: 0.9, ease: "power3.out" }, 0.05);
-      cascade(q("#h1 .w"), 0.35, { y: 80, dur: 0.55, gap: 0.1 });
-      tl.fromTo("#mark", { scaleX: 0 }, { scaleX: 1, duration: 0.55, ease: "power2.inOut" }, 1.0);
-      tl.fromTo("#row1", { y: 0 }, { y: -6, duration: 0.5, ease: "power2.out" }, 1.4);
-      exitUp(q("#h1 .w"), 1.85);
+      /* ---------- S1 · paper storm (0 – 1.9) ---------- */
+      const SLIPS = [
+        ["Sardor A.", "17 500 000"], ["Jasur", "4 200 000 ?"], ["Muddati?", ""], ["Nodira R.", "6 000 000"], ["Bekzod", "5 100 000"],
+        ["Qachon?", ""], ["Dilnoza", "3 800 000"], ["Aziz", "2 400 000"], ["Kim qarzdor?", ""], ["Madina", "9 000 000"],
+        ["Rustam", "1 200 000 ?"], ["Laylo", "7 300 000"], ["Unutdim...", ""], ["Otabek", "3 000 000"], ["Shahzod", "4 750 000"], ["Gulnora", "2 950 000"],
+      ];
+      const r1 = document.getElementById("r1");
+      SLIPS.forEach((s, i) => {
+        const el = document.createElement("div");
+        el.className = "slip";
+        el.innerHTML = "<span>" + s[0] + "</span>" + (s[1] ? "<b>" + s[1] + "</b>" : "");
+        r1.appendChild(el);
+        const ang = i * 2.399, rad = 420 + rnd(i, 1) * 520;
+        const x0 = Math.cos(ang) * rad * 0.75, y0 = Math.sin(ang) * rad * 1.5;
+        const z0 = -2600 + rnd(i, 2) * 2300;
+        tl.fromTo(el, { x: x0, y: y0, z: z0, rotationX: rnd(i, 3) * 80 - 40, rotationY: rnd(i, 4) * 90 - 45, rotationZ: rnd(i, 5) * 60 - 30, opacity: 0 },
+          { z: z0 + 1500, rotationZ: rnd(i, 5) * 60 - 30 + (rnd(i, 6) * 50 - 25), opacity: 1, duration: 1.4, ease: "power1.in" }, 0);
+        // the storm is pulled into one point — order is coming
+        tl.to(el, { x: 0, y: 0, z: 0, rotationX: 0, rotationY: 0, rotationZ: 0, scale: 0.2, opacity: 0, duration: 0.45, ease: "power3.in" }, 1.4 + i * 0.012);
+      });
+      // slammed words on the beat (0.0 / 0.5 / 1.0)
+      [["#hw1", 0.05, 1.7, 0], ["#hw2", 0.55, 1, -260], ["#hw3", 1.05, 0.6, 0]].forEach(([sel, t, s0, x0], i) => {
+        tl.set(sel, { opacity: 1 }, t);
+        if (i === 1) tl.fromTo(sel, { x: x0, skewX: -12 }, { x: 0, skewX: 0, duration: 0.3, ease: "expo.out" }, t);
+        else tl.fromTo(sel, { scale: s0, filter: "blur(8px)" }, { scale: 1, filter: "blur(0px)", duration: 0.3, ease: "power4.out" }, t);
+        if (i !== 1) shake(sel, t + 0.3, 14);
+        if (i < 2) tl.set(sel, { opacity: 0 }, t + 0.5);
+      });
+      tl.to("#hw3", { scale: 1.35, opacity: 0, filter: "blur(16px)", duration: 0.4, ease: "power2.in" }, 1.5);
 
-      /* ---------- S2 · nasiya (2.0 – 5.0) ---------- */
-      // the notebook line becomes a card: clip band opens from row 1
-      tl.set("#ncard", { opacity: 1, clipPath: "inset(36px 34px 298px 110px round 10px)" }, 2.0);
-      tl.fromTo("#ncard", { clipPath: "inset(36px 34px 298px 110px round 10px)" },
-        { clipPath: "inset(0px 0px 0px 0px round 32px)", duration: 0.85, ease: "power3.inOut", immediateRender: false }, 2.05);
-      tl.to("#note", { y: 90, rotation: 3, scale: 0.94, filter: "blur(10px)", opacity: 0, duration: 0.8, ease: "power2.in" }, 2.1);
-      tl.fromTo("#segs i", { scaleX: 0 }, { scaleX: 1, duration: 0.4, ease: "power3.out", stagger: 0.07 }, 2.7);
-      tl.set("#h2 .kick", { opacity: 1 }, 2.35);
-      tl.fromTo("#h2 .kick", { y: 30 }, { y: 0, duration: 0.45, ease: "power4.out" }, 2.35);
-      cascade(q("#h2 .big .w"), 2.45, { y: 80, dur: 0.55, gap: 0.11 });
-      cascade(q("#h2 .sub .w"), 2.85, { y: 40, dur: 0.5 });
+      /* ---------- S2 · one clean card (1.6 – 4.1) ---------- */
+      tl.fromTo("#flash", { opacity: 0, scale: 0.4 }, { opacity: 1, scale: 1.2, duration: 0.25, ease: "power2.out" }, 1.75);
+      tl.to("#flash", { opacity: 0, scale: 1.6, duration: 0.6, ease: "power2.in" }, 2.0);
+      tl.fromTo("#bigcard", { opacity: 0, scale: 0.5, rotationX: 55, z: -400, filter: "blur(14px)" },
+        { opacity: 1, scale: 1, rotationX: 8, z: 0, filter: "blur(0px)", duration: 0.8, ease: "expo.out" }, 1.85);
+      tl.fromTo("#bigcard", { rotationY: -7 }, { rotationY: 6, duration: 1.55, ease: "sine.inOut", immediateRender: false }, 1.85);
+      const amtEl = document.getElementById("amt"), counter = { v: 0 };
+      tl.fromTo(counter, { v: 0 }, { v: 17500000, duration: 0.9, ease: "power3.out", onUpdate: () => { amtEl.textContent = fmt(counter.v); } }, 2.15);
+      tl.fromTo("#amt", { scale: 0.8, transformOrigin: "0% 100%" }, { scale: 1, duration: 0.9, ease: "power3.out" }, 2.15);
+      tl.fromTo("#bsegs i", { scaleX: 0 }, { scaleX: 1, duration: 0.35, ease: "power3.out", stagger: 0.06 }, 2.75);
 
-      // phone arrives; the card lands on its own row in the app
-      tl.fromTo("#phoneWrap", { opacity: 0, y: 640, rotationX: 24, rotationY: -8 },
-        { opacity: 1, y: 0, rotationX: 0, rotationY: -8, duration: 1.0, ease: "power4.out" }, 3.75);
-      tl.to("#ncard", { x: 0, y: 214, scale: 0.44, duration: 0.85, ease: "power3.inOut" }, 4.05);
-      tl.to("#ncard", { opacity: 0, duration: 0.3, ease: "power1.in" }, 4.6);
-      tl.fromTo("#phone", { y: 0 }, { y: -10, duration: 1.6, ease: "sine.inOut", repeat: 3, yoyo: true }, 4.8);
-      exitUp([q("#h2 .kick")[0]].concat(q("#h2 .w")), 4.85);
+      /* ---------- S3 · pull back into the exploded phone (3.45 – 5.95) ---------- */
+      // the card shrinks onto its own row while the phone arrives from depth
+      tl.to("#bigcard", { x: 11, y: 311, scale: 0.41, rotationX: 0, rotationY: -20, duration: 0.7, ease: "power3.inOut" }, 3.45);
+      tl.to("#bigcard", { opacity: 0, duration: 0.25, ease: "power1.in" }, 3.95);
+      tl.fromTo("#ph1", { z: -1500, rotationY: -60, rotationX: 20, opacity: 0 }, { z: 0, rotationY: -24, rotationX: 10, opacity: 1, duration: 0.8, ease: "expo.out" }, 3.45);
+      tl.to("#ph1", { rotationY: -34, rotationX: 6, y: -10, duration: 2.0, ease: "sine.inOut" }, 4.25);
+      tl.fromTo("#L1", { z: 0 }, { z: 110, duration: 0.7, ease: "power3.out" }, 4.05);
+      tl.fromTo("#L2", { z: 0, scale: 1 }, { z: 190, scale: 1.04, duration: 0.7, ease: "power3.out" }, 3.95);
+      tl.fromTo(".hole", { opacity: 0 }, { opacity: 1, duration: 0.4, ease: "power2.out" }, 3.95);
+      kickIn("#h3 .kick", 3.65);
+      cascade(q("#h3 .big .w"), 3.75, { y: 110, dur: 0.55, gap: 0.12 });
+      cascade(q("#h3 .sub .w"), 4.15, { y: 40, dur: 0.5 });
 
-      /* ---------- S3 · kassa (5.0 – 8.0) ---------- */
-      tl.fromTo("#scrKassa", { opacity: 0, y: 60 }, { opacity: 1, y: 0, duration: 0.5, ease: "power3.out" }, 5.05);
-      tl.to("#scrNasiya", { opacity: 0, y: -30, duration: 0.4, ease: "power2.in" }, 5.05);
-      tl.to("#phoneWrap", { rotationY: -14, duration: 2.6, ease: "sine.inOut" }, 5.1);
-      tl.set("#h3 .kick", { opacity: 1 }, 5.25);
-      tl.fromTo("#h3 .kick", { y: 30 }, { y: 0, duration: 0.45, ease: "power4.out" }, 5.25);
-      cascade(q("#h3 .w"), 5.35, { y: 80, dur: 0.55, gap: 0.11 });
+      /* ---------- S4 · whip into kassa (5.7 – 8.15) ---------- */
+      tl.to("#s3", { x: -1500, filter: "blur(22px)", duration: 0.32, ease: "power3.in" }, 5.62);
+      tl.fromTo("#s4", { x: 1500, filter: "blur(22px)" }, { x: 0, filter: "blur(0px)", duration: 0.42, ease: "power3.out" }, 5.78);
+      tl.fromTo("#ph2", { rotationY: 26, rotationX: 6 }, { rotationY: 14, rotationX: 4, duration: 2.4, ease: "sine.out" }, 5.78);
+      kickIn("#h4 .kick", 5.95);
+      cascade(q("#h4 .w"), 6.0, { y: 120, dur: 0.5, gap: 0.12 });
+      tl.fromTo("#K1", { z: 0 }, { z: 150, duration: 0.5, ease: "power3.out" }, 6.1);
+      tl.fromTo("#HK", { opacity: 0 }, { opacity: 1, duration: 0.3, ease: "power2.out" }, 6.1);
       q(".chip").forEach((el, i) => {
-        const t = 5.85 + i * 0.09;
-        tl.fromTo(el, { opacity: 0, y: 320, scale: 0.6 }, { opacity: 1, y: 0, scale: 1, duration: 0.6, ease: "back.out(1.6)" }, t);
+        tl.fromTo(el, { opacity: 0, x: 260 - i * 140, y: 520, z: 300, scale: 0.5, rotationY: -40 },
+          { opacity: 1, x: 0, y: 0, z: 0, scale: 1, rotationY: 0, duration: 0.6, ease: "power4.out" }, 6.3 + i * 0.07);
       });
-      tl.fromTo("#ripple", { scale: 0, opacity: 0.7 }, { scale: 3.2, opacity: 0, duration: 0.6, ease: "power2.out" }, 6.55);
-      tl.fromTo("#toast", { opacity: 0, y: 40, scale: 0.85 }, { opacity: 1, y: 0, scale: 1, duration: 0.55, ease: "back.out(1.7)" }, 6.75);
-      exitUp([q("#h3 .kick")[0]].concat(q("#h3 .w"), q(".chip")), 7.75);
-      tl.to("#toast", { opacity: 0, y: 30, duration: 0.35, ease: "power2.in" }, 7.8);
+      tl.to(".chip.gold", { scale: 1.12, duration: 0.18, ease: "power2.out", yoyo: true, repeat: 1 }, 6.95);
+      tl.fromTo("#ripple", { scale: 0, opacity: 0 }, { scale: 0.5, opacity: 0.8, duration: 0.06, ease: "none" }, 6.95);
+      tl.to("#ripple", { scale: 3.2, opacity: 0, duration: 0.5, ease: "power2.out" }, 7.01);
+      tl.fromTo("#okDisc", { opacity: 0, scale: 0.2 }, { opacity: 1, scale: 1, duration: 0.45, ease: "back.out(2.2)" }, 7.05);
+      tl.fromTo("#okRing", { opacity: 0, scale: 0.6 }, { opacity: 0.9, scale: 0.75, duration: 0.08, ease: "none" }, 7.1);
+      tl.to("#okRing", { opacity: 0, scale: 2.1, duration: 0.65, ease: "power2.out" }, 7.18);
+      const okB = document.getElementById("okBurst");
+      for (let i = 0; i < 16; i++) {
+        const sp = document.createElement("div"); sp.className = "spark"; okB.appendChild(sp);
+        const a = (i / 16) * Math.PI * 2 + rnd(i, 7) * 0.3, d = 170 + rnd(i, 8) * 150;
+        tl.fromTo(sp, { x: 0, y: 0, opacity: 0, scale: 1 }, { opacity: 1, duration: 0.04, ease: "none" }, 7.1);
+        tl.to(sp, { x: Math.cos(a) * d, y: Math.sin(a) * d + 40, opacity: 0, scale: 0.3, duration: 0.75, ease: "power3.out" }, 7.14);
+      }
+      tl.to("#okDisc", { opacity: 0, scale: 0.8, duration: 0.3, ease: "power2.in" }, 7.55);
+      tl.fromTo("#toast", { opacity: 0, y: 60, rotationX: -40 }, { opacity: 1, y: 0, rotationX: 0, duration: 0.5, ease: "back.out(1.6)" }, 7.3);
 
-      /* ---------- S4 · filiallar + AI (8.0 – 11.0) ---------- */
-      // nudge: slow-fast-slow group slide of the phone to the left
-      tl.to("#phoneWrap", { x: 290, y: 150, scale: 0.6, rotationY: -6, duration: 1.0, ease: "power3.inOut" }, 7.95);
-      tl.fromTo("#desk", { opacity: 0, y: -260, rotationX: -18 }, { opacity: 1, y: 0, rotationX: 0, duration: 1.0, ease: "power4.out" }, 8.3);
-      tl.to("#desk", { y: -8, duration: 2.2, ease: "sine.inOut" }, 9.3);
-      tl.set("#h4 .kick", { opacity: 1 }, 8.7);
-      tl.fromTo("#h4 .kick", { y: 30 }, { y: 0, duration: 0.45, ease: "power4.out" }, 8.7);
-      cascade(q("#h4 .w"), 8.8, { y: 70, dur: 0.55, gap: 0.14 });
-      const spot = document.getElementById("spotRect");
-      const spotLen = spot.getTotalLength();
-      tl.fromTo(spot, { strokeDasharray: spotLen, strokeDashoffset: spotLen }, { strokeDashoffset: 0, duration: 0.8, ease: "power2.inOut" }, 9.0);
-      tl.fromTo("#ai", { opacity: 0, y: 50, scale: 0.9 }, { opacity: 1, y: 0, scale: 1, duration: 0.55, ease: "back.out(1.5)" }, 9.45);
+      /* ---------- S5 · dive onto the report (7.95 – 11.3) ---------- */
+      // zoom-through out of kassa
+      tl.to("#s4", { scale: 2.3, opacity: 0, filter: "blur(24px)", duration: 0.35, ease: "power3.in" }, 7.85);
+      // tilt-to-flatten camera dive
+      tl.fromTo("#plane", { rotationX: 64, rotationZ: -26, scale: 1.25, y: 260, z: -300, opacity: 0 },
+        { rotationX: 14, rotationZ: -2, scale: 0.68, y: 30, z: 0, opacity: 1, duration: 1.35, ease: "expo.out" }, 7.98);
+      tl.to("#plane", { rotationX: 8, rotationZ: 0, rotationY: -6, duration: 1.8, ease: "sine.inOut" }, 9.33);
+      tl.fromTo(".dhole", { opacity: 0 }, { opacity: 1, duration: 0.4, ease: "power2.out" }, 8.95);
+      tl.fromTo("#D1", { z: 0 }, { z: 90, duration: 0.6, ease: "power3.out" }, 8.95);
+      tl.fromTo("#D2", { z: 0 }, { z: 140, duration: 0.6, ease: "power3.out" }, 9.05);
+      tl.fromTo("#D3", { z: 0 }, { z: 60, duration: 0.6, ease: "power3.out" }, 9.15);
+      kickIn("#h5 .kick", 8.6);
+      cascade(q("#h5 .w"), 8.7, { y: 80, dur: 0.5, gap: 0.14 });
+      tl.fromTo("#ai", { opacity: 0, x: 120, rotationY: -30 }, { opacity: 1, x: 0, rotationY: 0, duration: 0.55, ease: "power4.out" }, 9.45);
       const aiFull = "Aylanmaning 43 foizi nasiyada — 17,5 mln so'm.";
-      const aiEl = document.getElementById("aiTxt");
-      const typer = { n: 0 };
-      tl.fromTo(typer, { n: 0 }, { n: aiFull.length, duration: 0.8, ease: "none",
-        onUpdate: () => { aiEl.textContent = aiFull.slice(0, Math.round(typer.n)); } }, 9.75);
-      tl.fromTo("#aiTask", { opacity: 0, x: -24 }, { opacity: 1, x: 0, duration: 0.45, ease: "power3.out" }, 10.6);
+      const aiEl = document.getElementById("aiTxt"), typer = { n: 0 };
+      tl.fromTo(typer, { n: 0 }, { n: aiFull.length, duration: 0.75, ease: "none", onUpdate: () => { aiEl.textContent = aiFull.slice(0, Math.round(typer.n)); } }, 9.7);
+      tl.fromTo("#aiTask", { opacity: 0, x: -24 }, { opacity: 1, x: 0, duration: 0.4, ease: "power3.out" }, 10.45);
+      tl.set("#sweep", { opacity: 1 }, 10.35);
+      tl.fromTo("#sweep", { x: 0 }, { x: 3000, duration: 0.6, ease: "power2.inOut" }, 10.35);
+      // collapse into a single point of gold light
+      tl.to("#s5", { scale: 0.04, opacity: 0, filter: "blur(10px)", duration: 0.42, ease: "power4.in" }, 10.85);
 
-      /* ---------- S5 · Savora (11.0 – 15.0) ---------- */
-      tl.to("#world", { scale: 0.84, opacity: 0, filter: "blur(14px)", duration: 0.75, ease: "power2.in" }, 11.0);
-      tl.fromTo("#bloom", { opacity: 0, scale: 0.6 }, { opacity: 1, scale: 1, duration: 1.4, ease: "power2.out" }, 11.2);
-      tl.fromTo("#logoSq", { opacity: 0 }, { opacity: 1, duration: 0.3, ease: "power1.out" }, 11.45);
-      tl.fromTo("#logo", { scale: 0.55, rotation: -8 }, { scale: 1, rotation: 0, duration: 0.8, ease: "power3.out" }, 11.45);
-      tl.fromTo(".lbar", { scaleY: 0, transformOrigin: "50% 100%" }, { scaleY: 1, duration: 0.5, ease: "power3.out", stagger: 0.1 }, 11.75);
-      const curve = document.getElementById("lcurve");
-      const cLen = curve.getTotalLength();
-      tl.fromTo(curve, { strokeDasharray: cLen, strokeDashoffset: cLen }, { strokeDashoffset: 0, duration: 0.5, ease: "power2.inOut" }, 12.05);
-      tl.fromTo("#ldot", { scale: 0, transformOrigin: "50% 50%" }, { scale: 1, duration: 0.4, ease: "back.out(2.4)" }, 12.5);
-      tl.set("#sheen", { opacity: 1 }, 12.7);
-      tl.fromTo("#sheen", { x: 0 }, { x: 520, duration: 0.6, ease: "power2.inOut" }, 12.7);
-      cascade(q("#word .w"), 12.2, { y: 110, dur: 0.6, gap: 0.06 });
-      tl.fromTo("#tag", { opacity: 0, y: 30 }, { opacity: 1, y: 0, duration: 0.6, ease: "power3.out" }, 12.85);
-      q(".pill").forEach((el, i) => {
-        tl.fromTo(el, { opacity: 0, y: 30, scale: 0.9 }, { opacity: 1, y: 0, scale: 1, duration: 0.55, ease: "back.out(1.6)" }, 13.15 + i * 0.12);
+      /* ---------- S6/S7 · flare → girih → Savora (10.9 – 15) ---------- */
+      tl.fromTo("#core", { opacity: 0, scale: 0.2 }, { opacity: 1, scale: 1.4, duration: 0.25, ease: "power2.out" }, 11.15);
+      tl.to("#core", { opacity: 0, scale: 2.4, duration: 0.6, ease: "power2.in" }, 11.4);
+      tl.fromTo("#streak", { opacity: 0, scaleX: 0.1 }, { opacity: 1, scaleX: 1, duration: 0.3, ease: "power3.out" }, 11.15);
+      tl.to("#streak", { opacity: 0, scaleY: 0.3, duration: 0.8, ease: "power2.in" }, 11.45);
+      tl.fromTo("#bloom", { opacity: 0, scale: 0.5 }, { opacity: 1, scale: 1, duration: 1.4, ease: "power2.out" }, 11.2);
+
+      // girih lattice: 8-point stars drawn outward from the logo
+      const NS = "http://www.w3.org/2000/svg", gsvg = document.getElementById("girih");
+      const CX = 540, CY = 700, STEP = 150, R = 58;
+      const stars = [];
+      for (let j = -6; j <= 10; j++) for (let k = -4; k <= 4; k++) {
+        const cx = CX + k * STEP + (j % 2 ? STEP / 2 : 0), cy = CY + j * STEP * 0.87;
+        if (cx < -100 || cx > 1180 || cy < -100 || cy > 2020) continue;
+        const pts = []; for (let a = 0; a < 8; a++) { const ang = (a * 45 - 90) * Math.PI / 180; pts.push([cx + Math.cos(ang) * R, cy + Math.sin(ang) * R]); }
+        const ord = [0, 3, 6, 1, 4, 7, 2, 5];
+        const d = "M" + ord.map((o) => pts[o][0].toFixed(1) + " " + pts[o][1].toFixed(1)).join(" L") + " Z";
+        const p = document.createElementNS(NS, "path"); p.setAttribute("d", d); gsvg.appendChild(p);
+        stars.push({ p, dist: Math.hypot(cx - CX, cy - CY) });
+      }
+      stars.forEach((s) => {
+        const len = s.p.getTotalLength();
+        const t = 11.3 + (s.dist / 1300) * 0.9;
+        tl.fromTo(s.p, { strokeDasharray: len, strokeDashoffset: len, opacity: 0.85 }, { strokeDashoffset: 0, duration: 0.6, ease: "power2.out" }, t);
       });
-      tl.fromTo("#logo", { y: 0 }, { y: -6, duration: 0.9, ease: "sine.inOut", immediateRender: false }, 13.7);
+      tl.to("#girih", { opacity: 0.16, duration: 0.7, ease: "power2.inOut" }, 12.05);
+      tl.fromTo("#girih", { scale: 1, rotation: 0, transformOrigin: "540px 700px" }, { scale: 1.08, rotation: 4, duration: 3.7, ease: "sine.inOut" }, 11.3);
+
+      tl.fromTo("#logo", { opacity: 0, scale: 0.1, rotationY: 70, rotationX: 20 }, { opacity: 1, scale: 1, rotationY: 0, rotationX: 0, duration: 0.9, ease: "expo.out" }, 11.35);
+      tl.fromTo(".lbar", { scaleY: 0, transformOrigin: "50% 100%" }, { scaleY: 1, duration: 0.45, ease: "power3.out", stagger: 0.09 }, 11.65);
+      const curve = document.getElementById("lcurve"), cLen = curve.getTotalLength();
+      tl.fromTo(curve, { strokeDasharray: cLen, strokeDashoffset: cLen }, { strokeDashoffset: 0, duration: 0.45, ease: "power2.inOut" }, 11.95);
+      tl.fromTo("#ldot", { scale: 0, transformOrigin: "50% 50%" }, { scale: 1, duration: 0.35, ease: "back.out(2.6)" }, 12.35);
+      tl.fromTo("#dring", { opacity: 0, scale: 0.2 }, { opacity: 0.9, scale: 0.45, duration: 0.08, ease: "none" }, 12.38);
+      tl.to("#dring", { opacity: 0, scale: 1.6, duration: 0.55, ease: "power2.out" }, 12.46);
+      tl.set("#sheen", { opacity: 1 }, 12.55);
+      tl.fromTo("#sheen", { x: 0 }, { x: 520, duration: 0.6, ease: "power2.inOut" }, 12.55);
+      q("#word .c").forEach((el, i) => {
+        tl.set(el, { opacity: 1 }, 12.1 + i * 0.055);
+        tl.fromTo(el, { rotationX: -95, y: 50 }, { rotationX: 0, y: 0, duration: 0.6, ease: "expo.out" }, 12.1 + i * 0.055);
+      });
+      tl.fromTo("#tag", { opacity: 0, y: 30 }, { opacity: 1, y: 0, duration: 0.55, ease: "power3.out" }, 12.75);
+      q(".pill").forEach((el, i) => {
+        tl.fromTo(el, { opacity: 0, y: 40, scale: 0.85 }, { opacity: 1, y: 0, scale: 1, duration: 0.5, ease: "back.out(1.8)" }, 13.0 + i * 0.12);
+      });
+      tl.fromTo("#logo", { y: 0 }, { y: -8, duration: 1.2, ease: "sine.inOut", immediateRender: false }, 13.6);
 
       window.__timelines["vertical"] = tl;
     </script>
