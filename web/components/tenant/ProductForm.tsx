@@ -54,6 +54,7 @@ interface Props {
     soldBankName?: string;
     purchasePrice: number;
     salePrice: number;
+    wholesalePrice?: number;
     productId?: string;
     trackQuantity?: boolean;
     quantity?: number;
@@ -236,6 +237,11 @@ export default function ProductForm({
                     <label htmlFor="salePrice">{t.saleLabel}</label>
                     <PriceInput id="salePrice" name="salePrice" value={saleRaw} onValueChange={setSaleRaw} disabled={isPending} placeholder={d.common.optional} />
                   </div>
+                </div>
+                <div className="auth-field">
+                  <label htmlFor="wholesalePrice">{t.wholesaleLabel}</label>
+                  <PriceInput id="wholesalePrice" name="wholesalePrice" defaultValue={initial?.wholesalePrice || ''} disabled={isPending} placeholder={d.common.optional} />
+                  <span className="field-hint">{t.wholesaleHint}</span>
                 </div>
 
                 {/* Jonli foyda kartasi — doim joyida (sakramaydi), narxlar kiritilgach to'ladi */}

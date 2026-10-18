@@ -121,7 +121,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           )}
           <div className="t-toolbar-actions">
             {canSell && (
-              <Link href="/app/sales/new" className="t-btn t-btn--filled t-toolbar-sale ux-hide-mobile">
+              <Link href="/app/pos" className="t-btn t-btn--filled t-toolbar-sale ux-hide-mobile">
                 <Icon name="plus" size={16} />
                 <span>{d.shell.layout.newSale}</span>
               </Link>

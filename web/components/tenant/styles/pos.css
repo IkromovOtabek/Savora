@@ -1,0 +1,150 @@
+/* ==========================================================================
+   KASSA (POS) — /app/pos   ·   Prefiks: pos-   ·   Faqat globals.css tokenlari
+   Chapda qidiruv + savatcha, o'ngda mijoz/chegirma/to'lov paneli (BILLZ tuzilishi)
+   ========================================================================== */
+
+.pos { display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 20px; align-items: start; }
+
+.pos-kbd {
+  display: inline-grid; place-items: center; min-width: 20px; height: 20px; padding: 0 5px;
+  border-radius: 6px; background: var(--fill); color: var(--ink-2);
+  font: 600 11px/1 var(--font-sans); vertical-align: middle; margin-left: 4px;
+}
+.pos-muted { color: var(--ink-3); margin: 0; }
+.pos-small { font-size: 12.5px; }
+.pos-center { text-align: center; }
+
+/* Qidiruv */
+.pos-search {
+  position: relative; display: flex; align-items: center; gap: 10px;
+  min-height: 52px; padding: 0 14px; border-radius: 16px; background: var(--surface);
+  box-shadow: var(--shadow-sm); color: var(--ink-3);
+}
+.pos-search:focus-within { box-shadow: 0 0 0 3px var(--brand-ring); }
+.pos-search input { flex: 1; min-width: 0; border: 0; background: transparent; outline: none; font-size: 16px; color: var(--ink-1); }
+.pos-search input::placeholder { color: var(--ink-3); }
+.pos-results {
+  position: absolute; left: 0; right: 0; top: calc(100% + 8px); z-index: 30;
+  list-style: none; margin: 0; padding: 6px; border-radius: 16px;
+  background: var(--surface); border: 1px solid var(--sep); box-shadow: var(--shadow-lg);
+  max-height: 420px; overflow-y: auto;
+}
+.pos-res {
+  width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 10px 12px; border: 0; border-radius: 10px; background: transparent; color: var(--ink-1);
+  text-align: left; cursor: pointer;
+}
+.pos-res.is-hit { background: var(--fill-2); }
+.pos-res-name { display: grid; min-width: 0; font-weight: 600; }
+.pos-res-name small, .pos-res-meta small { font-size: 12px; color: var(--ink-3); font-weight: 500; }
+.pos-res-meta { display: grid; justify-items: end; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.pos-res-empty { padding: 12px; color: var(--ink-3); }
+
+/* Savatcha sarlavhasi */
+.pos-cart-head { display: flex; align-items: center; gap: 12px; margin: 22px 0 12px; flex-wrap: wrap; }
+.pos-title { margin: 0; display: flex; align-items: center; gap: 10px; font-size: 30px; font-weight: 800; letter-spacing: -.03em; }
+.pos-count { display: inline-grid; place-items: center; min-width: 34px; height: 30px; padding: 0 10px; border-radius: 10px; background: var(--fill); font-size: 15px; }
+.pos-switch { display: inline-flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 600; color: var(--ink-2); cursor: pointer; margin-left: 4px; }
+.pos-switch input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.pos-switch-ui { width: 38px; height: 22px; border-radius: 999px; background: var(--fill-3); position: relative; transition: background .15s; }
+.pos-switch-ui::after { content: ""; position: absolute; top: 3px; left: 3px; width: 16px; height: 16px; border-radius: 50%; background: #fff; transition: transform .15s; box-shadow: 0 1px 2px rgba(0,0,0,.3); }
+.pos-switch input:checked + .pos-switch-ui { background: var(--brand-fill); }
+.pos-switch input:checked + .pos-switch-ui::after { transform: translateX(16px); }
+.pos-switch input:focus-visible + .pos-switch-ui { outline: 3px solid var(--brand-ring); outline-offset: 2px; }
+.pos-parked-btn { margin-left: auto; }
+.pos-parked-btn b { min-width: 20px; padding: 0 6px; border-radius: 999px; background: var(--brand-fill); color: #fff; font-size: 12px; line-height: 20px; }
+
+/* Kechiktirilganlar */
+.pos-parked { margin-bottom: 12px; padding: 12px; border-radius: 16px; background: var(--surface); box-shadow: var(--shadow-sm); display: grid; gap: 10px; }
+.pos-parked ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.pos-parked li { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-radius: 12px; background: var(--fill-2); }
+.pos-parked li > span { flex: 1; display: grid; min-width: 0; }
+.pos-parked li small { color: var(--ink-3); font-size: 12.5px; }
+
+/* Bo'sh savatcha */
+.pos-empty {
+  display: grid; place-items: center; align-content: center; gap: 6px; text-align: center;
+  min-height: 320px; padding: 24px; border: 1.5px dashed var(--fill-3); border-radius: 20px; color: var(--ink-3);
+}
+.pos-empty b { font-size: 18px; color: var(--ink-1); }
+
+/* Savatcha qatorlari */
+.pos-cart { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.pos-line {
+  display: grid; align-items: center; gap: 12px;
+  grid-template-columns: minmax(0, 1fr) auto 120px 130px 36px;
+  padding: 10px 12px 10px 16px; border-radius: 16px; background: var(--surface); box-shadow: var(--shadow-sm);
+  cursor: default; transition: box-shadow .12s;
+}
+.pos-line.is-sel { box-shadow: 0 0 0 2px var(--brand), var(--shadow-sm); }
+.pos-line-name { display: grid; min-width: 0; }
+.pos-line-name b { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pos-line-name small { display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--ink-3); }
+.pos-tag { padding: 1px 7px; border-radius: 999px; background: var(--gold-soft); color: var(--warn); font-weight: 700; font-size: 11px; }
+.pos-qty { display: inline-flex; align-items: center; border-radius: 12px; background: var(--fill-2); overflow: hidden; }
+.pos-qty button { width: 36px; height: 36px; border: 0; background: transparent; color: var(--ink-1); font-size: 18px; font-weight: 600; cursor: pointer; }
+.pos-qty button:hover:not(:disabled) { background: var(--fill); }
+.pos-qty button:disabled { opacity: .35; cursor: not-allowed; }
+.pos-qty span { min-width: 30px; text-align: center; font-weight: 700; font-variant-numeric: tabular-nums; }
+.pos-unit, .pos-line-total { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.pos-unit { color: var(--ink-2); }
+.pos-line-total { display: grid; font-weight: 800; font-size: 16px; }
+.pos-line-total s { font-size: 12px; font-weight: 500; color: var(--ink-3); }
+.pos-price-input {
+  width: 100%; min-height: 38px; padding: 6px 10px; border: 1px solid transparent; border-radius: 10px;
+  background: var(--fill-2); color: var(--ink-1); text-align: right; font-variant-numeric: tabular-nums; outline: none;
+}
+.pos-price-input:focus { border-color: var(--brand); box-shadow: 0 0 0 3px var(--brand-ring); }
+.pos-del { width: 36px; height: 36px; border: 0; border-radius: 10px; background: transparent; color: var(--ink-3); display: grid; place-items: center; cursor: pointer; }
+.pos-del:hover { background: var(--danger-soft); color: var(--danger); }
+
+.pos-keys { display: flex; flex-wrap: wrap; gap: 8px 18px; margin-top: 14px; font-size: 12.5px; color: var(--ink-3); }
+
+/* O'ng panel */
+.pos-side { position: sticky; top: 72px; display: grid; gap: 12px; }
+.pos-warn {
+  display: flex; align-items: center; gap: 8px; padding: 12px 14px; border-radius: 16px;
+  background: var(--warn-soft); color: var(--warn); font-size: 14px; font-weight: 600; text-decoration: none;
+}
+.pos-warn span { flex: 1; }
+.pos-warn b { text-decoration: underline; }
+.pos-card { padding: 14px; border-radius: 18px; background: var(--surface); box-shadow: var(--shadow-sm); display: grid; gap: 8px; }
+.pos-label { font-size: 14px; font-weight: 700; color: var(--ink-1); display: flex; align-items: center; }
+.pos-discount { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; }
+.pos-seg { display: inline-flex; padding: 3px; border-radius: 12px; background: var(--fill-2); }
+.pos-seg button, .pos-presets button {
+  min-height: 36px; padding: 0 12px; border: 0; border-radius: 9px; background: transparent;
+  color: var(--ink-2); font-weight: 700; cursor: pointer;
+}
+.pos-seg button[aria-pressed="true"] { background: var(--fill-3); color: var(--ink-1); }
+.pos-presets { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+.pos-presets button { background: var(--fill-2); }
+.pos-presets button[aria-pressed="true"] { background: var(--brand-fill); color: #fff; }
+
+.pos-pay { padding: 14px; border-radius: 18px; background: var(--surface); box-shadow: var(--shadow-sm); display: grid; gap: 10px; }
+.pos-sum { display: flex; justify-content: space-between; font-size: 14px; color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.pos-sum b { color: var(--ink-1); }
+.pos-sum--disc b { color: var(--accent); }
+.pos-pay-btn {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  min-height: 60px; padding: 0 18px; border: 0; border-radius: 16px;
+  background: var(--brand-fill); color: #fff; font-size: 17px; font-weight: 800; cursor: pointer;
+  font-variant-numeric: tabular-nums; transition: background .15s;
+}
+.pos-pay-btn:hover:not(:disabled) { background: var(--brand-fill-hover); }
+.pos-pay-btn:disabled { background: var(--fill-3); color: var(--ink-3); cursor: not-allowed; }
+.pos-pay-btn .pos-kbd { background: rgba(255, 255, 255, .2); color: inherit; }
+.pos-other { display: inline-flex; align-items: center; justify-content: center; gap: 6px; font-size: 14px; font-weight: 600; color: var(--brand); text-decoration: none; }
+
+@media (max-width: 1100px) {
+  .pos { grid-template-columns: minmax(0, 1fr); }
+  .pos-side { position: static; }
+  .pos-keys { display: none; }
+}
+@media (max-width: 640px) {
+  .pos-line { grid-template-columns: minmax(0, 1fr) auto; }
+  .pos-line-name { grid-column: 1 / -1; }
+  .pos-price-input, .pos-unit { grid-column: 1; text-align: left; }
+  .pos-line-total { grid-column: 2; }
+  .pos-del { grid-column: 2; grid-row: 2; justify-self: end; }
+}

@@ -151,6 +151,7 @@ export async function createProductAction(_prev: State, formData: FormData): Pro
   const photoUrl = String(formData.get('photoUrl') || '').trim();
   const purchasePrice = parsePrice(String(formData.get('purchasePrice') || ''));
   const salePrice = parseOptionalPrice(String(formData.get('salePrice') || ''));
+  const wholesalePrice = parseOptionalPrice(String(formData.get('wholesalePrice') || ''));
   const trackQuantity = formData.get('trackQuantity') === 'on';
   const quantity = trackQuantity ? parseQtyField(String(formData.get('quantity') || '1')) : 1;
 
@@ -163,6 +164,7 @@ export async function createProductAction(_prev: State, formData: FormData): Pro
   }
   if (purchasePrice === null) return { error: m.purchaseInvalid };
   if (salePrice === null) return { error: m.saleInvalid };
+  if (wholesalePrice === null) return { error: m.wholesaleInvalid };
   { const photoErr = await photoUrlError(photoUrl, features.mediaUpload, m); if (photoErr) return photoErr; }
   const supplierChoice = await readSupplierChoice(formData, user, Supplier);
   if (supplierChoice === 'invalid') return { error: (await getDict()).stock.suppliers.msg.badSupplier };
@@ -191,6 +193,7 @@ export async function createProductAction(_prev: State, formData: FormData): Pro
       color: color || undefined,
       purchasePrice,
       salePrice,
+      wholesalePrice: wholesalePrice || undefined,
       trackQuantity,
       quantity,
       soldQuantity: 0,
@@ -255,6 +258,7 @@ export async function updateProductAction(_prev: State, formData: FormData): Pro
   const photoUrl = String(formData.get('photoUrl') || '').trim();
   let purchasePrice = canViewCost ? parsePrice(String(formData.get('purchasePrice') || '')) : 0;
   const salePrice = parseOptionalPrice(String(formData.get('salePrice') || ''));
+  const wholesalePrice = parseOptionalPrice(String(formData.get('wholesalePrice') || ''));
   const trackQuantity = formData.get('trackQuantity') === 'on';
   const quantity = trackQuantity ? parseQtyField(String(formData.get('quantity') || '1')) : 1;
 
@@ -263,6 +267,7 @@ export async function updateProductAction(_prev: State, formData: FormData): Pro
   if (phoneShop && (!imeiRaw || imeiRaw.length < 10)) return { error: m.imeiInvalid };
   if (purchasePrice === null) return { error: m.purchaseInvalid };
   if (salePrice === null) return { error: m.saleInvalid };
+  if (wholesalePrice === null) return { error: m.wholesaleInvalid };
   { const photoErr = await photoUrlError(photoUrl, features.mediaUpload, m); if (photoErr) return photoErr; }
 
   if (!Types.ObjectId.isValid(productId)) return { error: m.notFound };
@@ -310,6 +315,7 @@ export async function updateProductAction(_prev: State, formData: FormData): Pro
   product.photoUrl = photoUrl || undefined;
   product.purchasePrice = purchasePrice;
   product.salePrice = salePrice;
+  product.wholesalePrice = wholesalePrice || undefined;
   product.trackQuantity = trackQuantity;
   if (trackQuantity) {
     if (quantity < product.soldQuantity) {

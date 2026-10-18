@@ -216,6 +216,7 @@ export default async function ProductDetailPage({
             // Huquqsiz xodimga kelish narxi umuman yuborilmaydi (RSC payload'da ham)
             purchasePrice: canViewCost ? product.purchasePrice : 0,
             salePrice: product.salePrice,
+            wholesalePrice: product.wholesalePrice,
             productId: product.productId,
             supplierId: product.supplierId ? String(product.supplierId) : undefined,
             trackQuantity: product.trackQuantity ?? false,

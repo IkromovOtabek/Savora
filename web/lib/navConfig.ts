@@ -27,6 +27,7 @@ export const NAV_ICONS: Record<string, IconName> = {
   '/app/debts': 'bell',
   '/app/kassa': 'wallet',
   '/app/shifts': 'clock',
+  '/app/pos': 'basket',
   '/app/products': 'box',
   '/app/inventory': 'clipboard',
   '/app/imei': 'search',
@@ -78,6 +79,7 @@ export const NAV_GROUPS: NavGroup[] = [
     links: [
       // Bosh sahifa admin uchun ham ko'rinadi (dashboard admin'da barcha filiallar bo'yicha ishlaydi)
       { href: '/app', label: 'Bosh sahifa', exact: true },
+      { href: '/app/pos', label: 'Yangi sotuv', feature: 'sales', permission: 'sale.create' },
       { href: '/app/sales', label: 'Sotuvlar', feature: 'sales' },
       { href: '/app/kassa', label: 'Naqd kassa', feature: 'kassa', permission: 'kassa.view' },
       { href: '/app/shifts', label: 'Kassa smenalari', feature: 'kassa', permission: 'kassa.view' },

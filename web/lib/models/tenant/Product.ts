@@ -32,6 +32,8 @@ export interface IProduct {
   color?: string;
   purchasePrice: number;
   salePrice: number;
+  /** Ulgurji narx (ixtiyoriy). Kassada "Ulgurji narxlar" yoqilganda shu narxda sotiladi */
+  wholesalePrice?: number;
   /** Son/miqdor kuzatish */
   trackQuantity: boolean;
   quantity: number;
@@ -78,6 +80,7 @@ export const productSchema = new Schema<IProduct>(
     color: { type: String, trim: true },
     purchasePrice: { type: Number, required: true, min: 0 },
     salePrice: { type: Number, required: true, min: 0 },
+    wholesalePrice: { type: Number, min: 0 },
     trackQuantity: { type: Boolean, default: false },
     quantity: { type: Number, default: 1, min: 1 },
     soldQuantity: { type: Number, default: 0, min: 0 },

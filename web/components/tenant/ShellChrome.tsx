@@ -51,7 +51,7 @@ export function ToolbarTitle({ orgName }: { orgName: string }) {
 }
 
 /** Formalar (yangi/tahrirlash) — pastki tugmalarni FAB yopib qo'ymasin */
-const FAB_HIDDEN = [/^\/app\/sales\/new/, /\/new$/, /\/edit(\/|$)/];
+const FAB_HIDDEN = [/^\/app\/sales\/new/, /^\/app\/pos/, /\/new$/, /\/edit(\/|$)/];
 
 /**
  * Mobil «Yangi sotuv» — tab bar ustida, o'ng pastda. Desktopda ko'rinmaydi (toolbar tugmasi bor).
@@ -62,7 +62,7 @@ export function SaleFab() {
   const d = useDict();
   if (FAB_HIDDEN.some((r) => r.test(pathname))) return null;
   return (
-    <Link href="/app/sales/new" className="ux-fab t-shell-fab">
+    <Link href="/app/pos" className="ux-fab t-shell-fab">
       <Icon name="plus" size={20} />
       <span>{d.shell.layout.newSale}</span>
     </Link>
