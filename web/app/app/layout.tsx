@@ -13,7 +13,9 @@ import BrandMark from '@/components/BrandMark';
 import { isOrganizationActive } from '@/lib/models/master/Organization';
 import { loadUserPermissions } from '@/lib/permissionGuard';
 import Icon from '@/components/icons/Icon';
-import { SaleFab, ToolbarTitle } from '@/components/tenant/ShellChrome';
+import { SaleFab, SideModeToggle, ToolbarTitle } from '@/components/tenant/ShellChrome';
+import { NAV_MODE_COOKIE } from '@/lib/navConfig';
+import { cookies } from 'next/headers';
 import LangSwitch from '@/components/LangSwitch';
 import { getDict } from '@/lib/i18n/server';
 import { tr } from '@/lib/i18n/fmt';
@@ -66,18 +68,23 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const isAdmin = user.role === 'admin';
   const canSell = features.sales && permissions.includes('sale.create');
   const navProps = { isAdmin, features, showImei, permissions, badges: navBadges, layout: sanitizeNavLayout(navUser?.navLayout) };
+  // Menyu rejimi: sukut — tor ikonli panel; foydalanuvchi kengaytirgan bo'lsa cookie'da 'wide'
+  const navWide = (await cookies()).get(NAV_MODE_COOKIE)?.value === 'wide';
 
   return (
-    <div className="t-shell">
+    <div className={`t-shell${navWide ? '' : ' t-shell--rail'}`}>
       <a href="#t-main" className="t-skip">{d.common.skipToContent}</a>
       <aside className="t-side" aria-label={d.shell.layout.sidePanel}>
-        <Link href="/app" className="t-org">
-          <span className="t-org-mark"><BrandMark size={26} /></span>
-          <span className="t-org-text">
-            <b>{org.name}</b>
-            <small>Savora</small>
-          </span>
-        </Link>
+        <div className="t-side-head">
+          <Link href="/app" className="t-org" aria-label={org.name}>
+            <span className="t-org-mark"><BrandMark size={26} /></span>
+            <span className="t-org-text">
+              <b>{org.name}</b>
+              <small>Savora</small>
+            </span>
+          </Link>
+          <SideModeToggle initialWide={navWide} />
+        </div>
         <div className="t-side-scroll">
           <TenantNav {...navProps} />
         </div>

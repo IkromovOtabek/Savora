@@ -10,7 +10,7 @@
 :root {
   /* Fon va sirtlar */
   --bg: #ffffff;                       /* sirtga yaqin fon */
-  --bg-soft: #f2f4f9;                  /* sahifa / guruhlangan fon */
+  --bg-soft: #f1f2f5;                  /* sahifa / guruhlangan fon (neytral) */
   --page: var(--bg-soft);
   --surface: #ffffff;                  /* karta / panel */
   --card: var(--surface);
@@ -64,11 +64,11 @@
   --shadow-lg: 0 1px 3px rgba(13, 21, 38, .06), 0 24px 60px -20px rgba(13, 21, 38, .32);
   --shadow-brand: 0 6px 16px -4px rgba(31, 79, 168, .35);
 
-  /* Radiuslar */
-  --r-sm: 10px;
+  /* Radiuslar — boshqaruv elementlari 12px, kartalar 20–24px */
+  --r-sm: 12px;
   --r: 12px;
-  --r-lg: 16px;
-  --r-xl: 20px;
+  --r-lg: 20px;
+  --r-xl: 24px;
   --r-pill: 999px;
 
   /* Shrift */
@@ -79,29 +79,31 @@
   color-scheme: light;
 }
 
-/* Qorong'i tema (<html class="dark">, ThemeToggle) */
+/* Qorong'i tema (<html class="dark">, ThemeToggle) — panelda asosiy tema.
+   Neytral ko'mir-kulrang sirtlar (ko'k tus yo'q), kobalt faqat urg'u uchun. */
 .dark {
-  --bg: #0b111e;
-  --bg-soft: #05080f;
-  --surface: #141a28;
-  --fill: rgba(140, 150, 180, .22);
-  --fill-2: rgba(140, 150, 180, .12);
-  --fill-3: rgba(140, 150, 180, .3);
-  --sep: rgba(150, 160, 190, .2);
-  --border: rgba(150, 160, 190, .2);
-  --bar: rgba(20, 26, 40, .78);
-  --overlay: rgba(0, 0, 0, .55);
+  --bg: #2a2b2e;                       /* ko'tarilgan panel (sidebar, toolbar) */
+  --bg-soft: #202123;                  /* sahifa foni */
+  --surface: #2c2d30;                  /* karta */
+  --fill: rgba(255, 255, 255, .08);
+  --fill-2: rgba(255, 255, 255, .05);
+  --fill-3: rgba(255, 255, 255, .13);
+  --sep: rgba(255, 255, 255, .08);
+  --border: rgba(255, 255, 255, .08);
+  --bar: #2a2b2e;
+  --overlay: rgba(0, 0, 0, .6);
 
-  --ink-1: #eef2fa;
-  --ink-2: rgba(225, 232, 245, .78);
-  --ink-3: rgba(210, 218, 235, .62);
+  /* AA: ink-3 karta fonida ≈ 6:1 */
+  --ink-1: #f4f5f7;
+  --ink-2: rgba(244, 245, 247, .8);
+  --ink-3: #a3a6ad;
 
-  --brand: #5b8ef2;
-  --brand-2: #7ea6f5;
-  --brand-soft: rgba(91, 142, 242, .18);
-  --brand-fill: #3567d6;
-  --brand-fill-hover: #4274e0;
-  --brand-ring: rgba(91, 142, 242, .35);
+  --brand: #6b9bff;
+  --brand-2: #8db2ff;
+  --brand-soft: rgba(91, 142, 255, .16);
+  --brand-fill: #2f6be6;               /* oq matn bilan ≈ 4.8:1 */
+  --brand-fill-hover: #3b77ef;
+  --brand-ring: rgba(91, 142, 255, .38);
 
   --accent: #3fd38a;
   --accent-soft: rgba(63, 211, 138, .16);
@@ -114,11 +116,11 @@
   --warn: #f5b955;
   --warn-soft: rgba(245, 185, 85, .18);
 
-  --grad-brand: linear-gradient(160deg, #3567d6, #1f4fa8);
-  --tg-bg: linear-gradient(165deg, #0b111e 0%, #14274d 100%);
+  --grad-brand: linear-gradient(160deg, #3b77ef, #2f6be6);
+  --tg-bg: linear-gradient(165deg, #202123 0%, #2c2d30 100%);
 
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, .4);
-  --shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 8px 24px -8px rgba(0, 0, 0, .55);
+  --shadow-sm: 0 0 0 1px rgba(255, 255, 255, .04), 0 2px 6px rgba(0, 0, 0, .28);
+  --shadow: 0 0 0 1px rgba(255, 255, 255, .04), 0 10px 28px -10px rgba(0, 0, 0, .6);
   --shadow-lg: 0 1px 3px rgba(0, 0, 0, .5), 0 24px 60px -16px rgba(0, 0, 0, .7);
   --shadow-brand: 0 6px 16px -4px rgba(0, 0, 0, .6);
 

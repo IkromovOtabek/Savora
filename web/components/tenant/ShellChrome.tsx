@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import Icon from '@/components/icons/Icon';
 import { useDict } from '@/lib/i18n/client';
+import { NAV_MODE_COOKIE } from '@/lib/navConfig';
 
 /**
  * Toolbar sarlavhasi (iOS «katta sarlavha» uslubi): odatda do'kon nomi; sahifaning
@@ -65,5 +66,28 @@ export function SaleFab() {
       <Icon name="plus" size={20} />
       <span>{d.shell.layout.newSale}</span>
     </Link>
+  );
+}
+
+/**
+ * Chap menyuni tor (ikonli) ⇄ keng (yozuvli) rejimga almashtiradi.
+ * Holat cookie'da saqlanadi — server keyingi yuklashda to'g'ri klass bilan chizadi (miltillamaydi).
+ */
+export function SideModeToggle({ initialWide }: { initialWide: boolean }) {
+  const d = useDict();
+  const [wide, setWide] = useState(initialWide);
+
+  function toggle() {
+    const next = !wide;
+    setWide(next);
+    document.querySelector('.t-shell')?.classList.toggle('t-shell--rail', !next);
+    document.cookie = `${NAV_MODE_COOKIE}=${next ? 'wide' : 'rail'}; path=/; max-age=31536000; samesite=lax`;
+  }
+
+  const label = wide ? d.shell.layout.collapseMenu : d.shell.layout.expandMenu;
+  return (
+    <button type="button" className="t-side-toggle" onClick={toggle} aria-label={label} title={label} aria-expanded={wide}>
+      <Icon name="chevron" size={16} />
+    </button>
   );
 }

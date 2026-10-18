@@ -95,7 +95,9 @@ export default async function DebtsPage({
         </div>
       </div>
 
-      <section className="cl-sum" aria-label={k.summaryAria}>
+      {/* Desktop: chapda qarzlar ro'yxati, o'ngda doimiy statistika ustuni; mobilda statistika tepada */}
+      <div className="t-split">
+      <section className="cl-sum t-split-rail" aria-label={k.summaryAria}>
         <Tilt stack className="cl-port cl-port--debt">
           <span className="ux-clay ux-clay--gold cl-port-ic" aria-hidden="true"><Icon name="wallet" size={20} /></span>
           <div className="cl-port-txt">
@@ -132,6 +134,7 @@ export default async function DebtsPage({
         </div>
       </section>
 
+      <div className="t-split-main">
       <div className="cl-filterbar ux-scrollx">
         <nav className="cl-seg" aria-label={d.sales.statusFilterAria}>
           {CHIPS.map((c) => {
@@ -206,6 +209,8 @@ export default async function DebtsPage({
           </section>
         ))
       )}
+      </div>
+      </div>
     </div>
   );
 }

@@ -45,6 +45,18 @@ export const NAV_ICONS: Record<string, IconName> = {
   '/app/tasks': 'check',
 };
 
+/** Tor (ikonli) menyuda har bir bo'lim bitta ikonka bilan ko'rinadi */
+export const GROUP_ICONS: Record<string, IconName> = {
+  Savdo: 'cart',
+  Mijozlar: 'user',
+  Ombor: 'box',
+  Moliya: 'wallet',
+  Boshqaruv: 'settings',
+};
+
+/** Menyu ko'rinishi cookie'si: 'wide' — yozuvli keng menyu, aks holda tor ikonli panel */
+export const NAV_MODE_COOKIE = 'savora_nav';
+
 // Bo'limlar bo'yicha guruhlangan standart menyu. Ko'rinish qoidalari (modul, huquq, admin) shu yerda.
 export const NAV_GROUPS: NavGroup[] = [
   {

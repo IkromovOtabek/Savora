@@ -8,7 +8,7 @@ import Icon from '@/components/icons/Icon';
 import LogoutButton from '@/components/LogoutButton';
 import ThemeToggle from '@/components/ThemeToggle';
 import type { PermissionKey } from '@/lib/permissions';
-import { NAV_GROUPS, NAV_ICONS, TAB_ORDER, TAB_LABELS, applyNavLayout, type NavGroup, type NavLink, type NavLayout } from '@/lib/navConfig';
+import { NAV_GROUPS, NAV_ICONS, GROUP_ICONS, TAB_ORDER, TAB_LABELS, applyNavLayout, type NavGroup, type NavLink, type NavLayout } from '@/lib/navConfig';
 import NavEditor from './NavEditor';
 import LangSwitch from '@/components/LangSwitch';
 import { useDict } from '@/lib/i18n/client';
@@ -67,6 +67,56 @@ function GroupList({
         </div>
       ))}
     </>
+  );
+}
+
+/**
+ * Tor ikonli menyu: har bir bo'lim — bitta ikonka; sichqoncha yoki klaviatura fokusida
+ * bo'lim sahifalari yonida ochiladi (faqat CSS, :hover / :focus-within).
+ */
+function RailList({ groups, pathname, badges }: { groups: NavGroup[]; pathname: string; badges?: Record<string, number> }) {
+  const d = useDict();
+  return (
+    <ul className="t-rail">
+      {groups.map((g) => {
+        const title = d.shell.nav.groups[g.title] ?? g.title;
+        const active = g.links.some((l) => isActive(l, pathname));
+        const badge = g.links.reduce((s, l) => s + (badges?.[l.href] ?? 0), 0);
+        const first = g.links[0];
+        return (
+          <li className="t-rail-item" key={g.title}>
+            <Link
+              href={first.href}
+              className={`t-rail-btn${active ? ' is-active' : ''}`}
+              aria-label={title}
+              aria-current={active ? 'true' : undefined}
+            >
+              <Icon name={GROUP_ICONS[g.title] ?? NAV_ICONS[first.href] ?? 'home'} size={20} />
+              {badge > 0 && <span className="t-rail-dot" aria-hidden="true" />}
+            </Link>
+            <div className="t-rail-fly">
+              <div className="t-rail-fly-card">
+                <div className="t-rail-fly-title">{title}</div>
+                <ul className="t-nav-list">
+                  {g.links.map((link) => {
+                    const on = isActive(link, pathname);
+                    return (
+                      <li key={link.href}>
+                        <Link href={link.href} aria-current={on ? 'page' : undefined} className={`t-nav-link${on ? ' is-active' : ''}`}>
+                          <Icon name={NAV_ICONS[link.href] ?? 'home'} size={17} className="t-nav-icon" />
+                          <span className="t-nav-label">{d.shell.nav.links[link.href] ?? link.label}</span>
+                          <Count n={badges?.[link.href] ?? 0} onBrand={on} />
+                        </Link>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+            </div>
+          </li>
+        );
+      })}
+    </ul>
   );
 }
 
@@ -168,11 +218,15 @@ export default function TenantNav({
     }
     return (
       <nav className="t-nav" aria-label={d.shell.layout.mainMenu}>
-        <GroupList groups={groups} pathname={pathname} badges={badges} />
-        <button type="button" className="t-nav-customize" onClick={() => setEditing(true)}>
-          <Icon name="edit" size={15} />
-          {d.shell.navEditor.title}
-        </button>
+        {/* Tor rejim (t-shell--rail) — ikonli panel; keng rejim — guruhlangan ro'yxat. Ko'rinish CSS'da */}
+        <RailList groups={groups} pathname={pathname} badges={badges} />
+        <div className="t-nav-wide">
+          <GroupList groups={groups} pathname={pathname} badges={badges} />
+          <button type="button" className="t-nav-customize" onClick={() => setEditing(true)}>
+            <Icon name="edit" size={15} />
+            {d.shell.navEditor.title}
+          </button>
+        </div>
       </nav>
     );
   }

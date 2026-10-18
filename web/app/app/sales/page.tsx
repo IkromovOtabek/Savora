@@ -166,7 +166,9 @@ export default async function SalesPage({
         </div>
       </div>
 
-      <section className="ux-strip sl-strip" aria-label={k.summaryAria}>
+      {/* Desktop: chapda ro'yxat, o'ngda doimiy statistika ustuni; mobilda statistika tepada */}
+      <div className="t-split">
+      <section className="ux-strip sl-strip t-split-rail" aria-label={k.summaryAria}>
         <Tilt className="sl-stat sl-stat--hero" max={5}>
           <span className="sl-stat-l"><Icon name="trendingUp" size={16} />{d.common.today}</span>
           <span className="sl-stat-v ux-z">{fmtMoney(today.sum)} <small>{d.common.sum}</small></span>
@@ -193,6 +195,7 @@ export default async function SalesPage({
         </Link>
       </section>
 
+      <div className="t-split-main">
       <div className="sl-toolbar">
         <nav className="sl-seg" aria-label={d.sales.statusFilterAria}>
           {STATUS_SEG.map((s) => (
@@ -280,6 +283,8 @@ export default async function SalesPage({
             )}
           </>
         )}
+      </div>
+      </div>
       </div>
 
       <Link href="/app/sales/new" className="ux-fab">

@@ -130,6 +130,8 @@ export const uz = {
     searchStock: 'Ombordan qidirish',
     newSale: 'Yangi sotuv',
     debts: 'Qarzdorlik',
+    expandMenu: 'Menyuni kengaytirish',
+    collapseMenu: 'Menyuni yig\'ish',
   },
   navEditor: {
     title: 'Menyuni sozlash',
@@ -395,6 +397,8 @@ export const ru: typeof uz = {
     searchStock: 'Поиск по складу',
     newSale: 'Новая продажа',
     debts: 'Долги',
+    expandMenu: 'Развернуть меню',
+    collapseMenu: 'Свернуть меню',
   },
   navEditor: {
     title: 'Настроить меню',

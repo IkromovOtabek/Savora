@@ -20,9 +20,8 @@ export default function ThemeToggle() {
   const d = useDict();
 
   useEffect(() => {
-    const stored = (typeof localStorage !== 'undefined' && localStorage.getItem('theme')) as Theme | null;
-    const initial: Theme = stored ?? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
-    setTheme(initial);
+    // Joriy holat <html class="dark"> dan olinadi — sukut qoidasi (panelda qorong'i) layout skriptida
+    setTheme(document.documentElement.classList.contains('dark') ? 'dark' : 'light');
     setMounted(true);
   }, []);
 

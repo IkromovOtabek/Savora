@@ -94,7 +94,7 @@ export const viewport: Viewport = {
 };
 
 const themeScript = `
-(function(){try{var t=localStorage.getItem('theme');if(!t){t=window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';}if(t==='dark'){document.documentElement.classList.add('dark');}}catch(e){}})();
+(function(){try{var t=localStorage.getItem('theme');if(!t){var p=location.pathname;t=/^\\/(app|super)(\\/|$)/.test(p)||window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';}if(t==='dark'){document.documentElement.classList.add('dark');}}catch(e){}})();
 `;
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {

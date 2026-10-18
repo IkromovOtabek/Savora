@@ -918,3 +918,178 @@ a.t-cell:active { background: var(--t-fill); }
   .t-side, .t-toolbar, .t-tabbar, .t-sheet, .t-sheet-backdrop { display: none !important; }
   .t-main { padding: 0; max-width: none; }
 }
+
+/* ==========================================================================
+   Qobiq v2 (BILLZ uslubidagi tuzilish): tor ikonli menyu + kengaytirish,
+   yaxlit (blur'siz) panellar, katta sarlavhalar. Ranglar — Savora tokenlari.
+   ========================================================================== */
+.t-shell { --t-side-w: 248px; }
+.t-shell--rail { --t-side-w: 76px; }
+
+.t-side {
+  background: var(--bg);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  border-right: 0;
+  padding: 14px 12px;
+  gap: 12px;
+}
+.t-side-head { display: flex; align-items: center; gap: 4px; min-width: 0; }
+.t-side-head .t-org { flex: 1; }
+.t-side-toggle {
+  flex: none;
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--ink-3);
+  cursor: pointer;
+  transform: rotate(90deg);
+  transition: background .12s, color .12s;
+}
+.t-side-toggle:hover { background: var(--fill); color: var(--ink-1); }
+
+/* Keng rejim: guruhlangan ro'yxat; tor rejim: ikonli panel */
+.t-rail { display: none; }
+.t-nav-wide { display: grid; gap: 14px; }
+.t-nav-link.is-active,
+.t-nav-link.is-active:hover { background: var(--brand-fill); color: #fff; }
+.t-nav-link.is-active .t-nav-icon { color: #fff; }
+.t-nav-count--on { color: rgba(255, 255, 255, .85); }
+
+.t-shell--rail .t-side { padding: 14px 10px; align-items: center; }
+.t-shell--rail .t-side-head { flex-direction: column; gap: 8px; }
+.t-shell--rail .t-side-head .t-org { flex: none; padding: 4px; }
+.t-shell--rail .t-org-text,
+.t-shell--rail .t-side-user-text { display: none; }
+.t-shell--rail .t-side-toggle { transform: rotate(-90deg); }
+.t-shell--rail .t-side-scroll { overflow: visible; margin: 0; padding: 0; }
+.t-shell--rail .t-nav { padding: 0; }
+.t-shell--rail .t-nav-wide { display: none; }
+.t-shell--rail .t-rail { display: grid; }
+.t-shell--rail .t-side-user { flex-direction: column; gap: 8px; padding-top: 12px; width: 100%; align-items: center; }
+.t-shell--rail .t-side-user-link { flex: none; padding: 4px; }
+
+.t-rail { list-style: none; margin: 0; padding: 4px 0; gap: 6px; justify-items: center; }
+.t-rail-item { position: relative; }
+.t-rail-btn {
+  position: relative;
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
+  display: grid;
+  place-items: center;
+  color: var(--brand);
+  text-decoration: none;
+  transition: background .12s, color .12s;
+}
+.t-rail-btn:hover,
+.t-rail-item:focus-within .t-rail-btn { background: var(--fill); }
+.t-rail-btn.is-active { background: var(--brand-fill); color: #fff; }
+.t-rail-dot {
+  position: absolute;
+  top: 9px;
+  right: 9px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--t-danger);
+  box-shadow: 0 0 0 2px var(--bg);
+}
+/* Suzuvchi bo'lim kartasi — chap tomondagi padding sichqoncha o'tadigan "ko'prik" */
+.t-rail-fly {
+  position: absolute;
+  left: 100%;
+  top: -10px;
+  z-index: 40;
+  padding-left: 14px;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateX(-6px);
+  transition: opacity .14s ease, transform .16s ease, visibility .14s;
+}
+.t-rail-item:hover .t-rail-fly,
+.t-rail-item:focus-within .t-rail-fly { opacity: 1; visibility: visible; transform: none; }
+.t-rail-fly-card {
+  min-width: 236px;
+  padding: 10px;
+  border-radius: 18px;
+  background: var(--surface);
+  border: 1px solid var(--sep);
+  box-shadow: var(--shadow-lg);
+}
+.t-rail-fly-title { padding: 4px 10px 8px; font-size: 13px; font-weight: 700; color: var(--ink-1); }
+.t-rail-fly .t-nav-link { min-height: 40px; border-radius: 10px; }
+@media (prefers-reduced-motion: reduce) { .t-rail-fly { transition: none; } }
+
+/* Toolbar — sahifa foni bilan yaxlit, chegarasiz */
+.t-toolbar {
+  background: var(--bg-soft);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  border-bottom: 0;
+}
+.t-search { height: 40px; border-radius: 12px; background: var(--fill); }
+.t-btn { min-height: 40px; border-radius: 12px; }
+.t-btn--filled { background: var(--brand-fill); color: #fff; }
+.t-btn--filled:hover { background: var(--brand-fill-hover); color: #fff; opacity: 1; }
+
+/* Katta sahifa sarlavhasi */
+.t-page-title { font-size: 34px; font-weight: 800; letter-spacing: -.035em; }
+@media (max-width: 640px) { .t-page-title { font-size: 26px; } }
+
+/* ---------- Ro'yxat + o'ng statistika ustuni (BILLZ uslubi) ---------- */
+.t-split { display: grid; gap: 16px; min-width: 0; }
+.t-split-main { min-width: 0; }
+@media (min-width: 1180px) {
+  .t-split { grid-template-columns: minmax(0, 1fr) 320px; grid-template-areas: "main rail"; gap: 24px; align-items: start; }
+  .t-split-main { grid-area: main; }
+  .t-shell .t-split-rail {
+    grid-area: rail;
+    position: sticky;
+    top: 72px;
+    margin: 0;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 12px;
+  }
+  .t-shell .t-split-rail .ux-strip { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; margin: 0; }
+}
+
+/* ---------- Holat tablari: faol — kulrang to'ldirilgan, qolganlari shaffof ---------- */
+.t-shell :is(.st-chip, .sl-chip) { background: transparent; box-shadow: none; color: var(--ink-2); }
+.t-shell :is(.st-chip, .sl-chip):hover { background: var(--fill-2); color: var(--ink-1); }
+.t-shell :is(.st-chip, .sl-chip)[aria-current="page"] {
+  background: var(--fill-3);
+  color: var(--ink-1);
+  font-weight: 700;
+  box-shadow: none;
+}
+.t-shell .sl-chip[aria-current="page"] b { background: var(--fill); color: var(--ink-1); }
+.t-shell :is(.sl-seg, .cl-seg) { padding: 4px; border-radius: 14px; background: var(--fill-2); }
+.t-shell :is(.sl-seg-btn, .cl-seg a) { border-radius: 10px; min-height: 36px; color: var(--ink-2); }
+.t-shell :is(.sl-seg-btn, .cl-seg a)[aria-current="page"] { background: var(--fill-3); color: var(--ink-1); box-shadow: none; }
+
+/* ---------- Ro'yxat qatorlari — har biri alohida yumaloq karta ---------- */
+.t-shell :is(.st-list-wrap, .sl-list-card) { background: transparent; box-shadow: none; overflow: visible; border-radius: 0; }
+.t-shell :is(.st-list, .sl-list, .cl-debts) { display: grid; gap: 8px; }
+.t-shell .cl-debts { background: transparent; box-shadow: none; border-radius: 0; overflow: visible; }
+.t-shell :is(.st-row, .sl-row, .cl-debt) {
+  background: var(--surface);
+  border-radius: 16px;
+  box-shadow: var(--shadow-sm);
+}
+.t-shell .cl-debt { overflow: hidden; }
+.t-shell :is(.st-row, .sl-row):hover { background: color-mix(in srgb, var(--surface) 90%, var(--ink-1)); }
+.t-shell :is(.st-row + .st-row, .sl-row + .sl-row)::before { display: none; }
+.t-shell .cl-debt + .cl-debt { box-shadow: var(--shadow-sm); }
+.t-shell .st-list-head { border-bottom: 0; }
+.t-shell .st-pager { border-top: 0; }
+/* Bo'sh holat — punktir ramka */
+.t-shell :is(.st-list-wrap, .sl-list-card) > .ux-empty {
+  border: 1.5px dashed var(--fill-3);
+  border-radius: 20px;
+}
