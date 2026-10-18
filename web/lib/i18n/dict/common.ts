@@ -23,6 +23,9 @@ export const uz = {
   prev: 'Oldingi',
   yes: 'Ha',
   no: "Yo'q",
+  /** Validatsiya (lib/validation.ts) — umumiy xabarlar */
+  tooLong: 'Matn juda uzun.',
+  invalidInput: "Ma'lumot noto'g'ri.",
   ok: 'OK',
   loading: 'Yuklanmoqda…',
   sending: 'Yuborilmoqda…',
@@ -142,6 +145,8 @@ export const ru: typeof uz = {
   prev: 'Предыдущий',
   yes: 'Да',
   no: 'Нет',
+  tooLong: 'Слишком длинный текст.',
+  invalidInput: 'Неверные данные.',
   ok: 'OK',
   loading: 'Загрузка…',
   sending: 'Отправка…',

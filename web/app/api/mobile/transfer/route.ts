@@ -5,10 +5,11 @@ import { mobilePermissionDenied } from '@/lib/permissionGuard';
 import { recordAudit } from '@/lib/audit';
 import { getTenantModels } from '@/lib/tenantDb';
 import { generateTransferNo } from '@/lib/transfers';
-import { parseQtyField } from '@/lib/productQuantity';
 import { branchFilter } from '@/lib/branchScope';
 import { getMobileFeatures } from '@/lib/mobileOrg';
 import { transferStock } from '@/lib/stock';
+import { z } from 'zod';
+import { readJsonInput, zId, zOptInt, zText } from '@/lib/validation';
 
 /** Mahsulotni boshqa filialga berish. transferProductAction mantiqini takrorlaydi. */
 export async function POST(req: Request) {
@@ -18,15 +19,15 @@ export async function POST(req: Request) {
   if (!user || !user.dbName) return NextResponse.json({ error: 'Avtorizatsiya kerak.' }, { status: 401 });
   { const denied = await mobilePermissionDenied(user, 'transfer.create'); if (denied) return denied; }
 
-  let body: { productId?: string; toBranchId?: string; qty?: number | string; notes?: string };
-  try { body = await req.json(); } catch { return NextResponse.json({ error: 'Noto\'g\'ri so\'rov.' }, { status: 400 }); }
-
-  const productId = String(body.productId || '');
-  const branchId = String(body.toBranchId || '');
-  const qty = parseQtyField(String(body.qty ?? '1'));
-  if (!Types.ObjectId.isValid(productId) || !Types.ObjectId.isValid(branchId)) {
-    return NextResponse.json({ error: 'Mahsulot va filial tanlanishi shart.' }, { status: 400 });
-  }
+  const input = await readJsonInput(req, z.object({
+    productId: zId('Mahsulot va filial tanlanishi shart.'),
+    toBranchId: zId('Mahsulot va filial tanlanishi shart.'),
+    qty: zOptInt('Son noto\'g\'ri.', 1, 1_000_000),
+    notes: zText(500, 'Izoh juda uzun.'),
+  }), { badJson: 'Noto\'g\'ri so\'rov.', fallback: 'Noto\'g\'ri so\'rov.' });
+  if (!input.ok) return NextResponse.json({ error: input.error }, { status: 400 });
+  const { productId, toBranchId: branchId } = input.data;
+  const qty = input.data.qty ?? 1;
 
   const features = await getMobileFeatures(user.organizationId);
   if (!features?.transferred) {

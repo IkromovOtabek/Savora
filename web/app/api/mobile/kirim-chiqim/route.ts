@@ -5,7 +5,8 @@ import { recordAudit } from '@/lib/audit';
 import { getTenantModels } from '@/lib/tenantDb';
 import { getMobileFeatures } from '@/lib/mobileOrg';
 import type { SessionUser } from '@/lib/session';
-import { parseIntegerSum } from '@/lib/security';
+import { z } from 'zod';
+import { readJsonInput, zMoney, zOneOf, zReqText } from '@/lib/validation';
 
 /** Izoh uzunlik chegarasi — oshsa 400 */
 const MAX_DESCRIPTION_LEN = 300;
@@ -59,17 +60,14 @@ export async function POST(req: Request) {
   if (denied) return denied;
   { const noPerm = await mobilePermissionDenied(user, 'kirimChiqim.manage'); if (noPerm) return noPerm; }
 
-  let body: { type?: string; amount?: number; description?: string };
-  try { body = await req.json(); } catch { return NextResponse.json({ error: 'Noto\'g\'ri so\'rov.' }, { status: 400 }); }
-
-  const type = body.type === 'income' || body.type === 'expense' ? body.type : null;
-  // Butun so'm — kasr/manfiy summalar rad etiladi
-  const amount = parseIntegerSum(body.amount) ?? 0;
-  const description = String(body.description || '').trim();
-  if (!type) return NextResponse.json({ error: 'Tur noto\'g\'ri.' }, { status: 400 });
-  if (amount <= 0) return NextResponse.json({ error: 'Summa noto\'g\'ri.' }, { status: 400 });
-  if (!description) return NextResponse.json({ error: 'Izoh kiritilishi shart.' }, { status: 400 });
-  if (description.length > MAX_DESCRIPTION_LEN) return NextResponse.json({ error: 'Izoh juda uzun.' }, { status: 400 });
+  const input = await readJsonInput(req, z.object({
+    type: zOneOf(['income', 'expense'] as const, 'Tur noto\'g\'ri.'),
+    // Butun so'm — kasr/manfiy summalar rad etiladi
+    amount: zMoney('Summa noto\'g\'ri.', { min: 1 }),
+    description: zReqText(MAX_DESCRIPTION_LEN, 'Izoh kiritilishi shart.', 'Izoh juda uzun.'),
+  }), { badJson: 'Noto\'g\'ri so\'rov.', fallback: 'Noto\'g\'ri so\'rov.' });
+  if (!input.ok) return NextResponse.json({ error: input.error }, { status: 400 });
+  const { type, amount, description } = input.data;
 
   const { CashFlow } = await getTenantModels(user.dbName);
   const entry = await CashFlow.create({ type, amount, description, recordedBy: user.username });

@@ -6,8 +6,9 @@ import { recordAudit } from '@/lib/audit';
 import { getTenantModels } from '@/lib/tenantDb';
 import { branchFilter } from '@/lib/branchScope';
 import { applySalePayment } from '@/lib/salePayment';
-import { parseIntegerSum } from '@/lib/security';
 import { computeInstallmentPlan } from '@/lib/installment';
+import { z } from 'zod';
+import { readJsonInput, zMoney, zText } from '@/lib/validation';
 
 /** Sotuv detali — nasiya bo'lsa oy jadvali (plan) bilan. */
 export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -60,23 +61,25 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   const { id } = await params;
   if (!Types.ObjectId.isValid(id)) return NextResponse.json({ error: 'Sotuv topilmadi.' }, { status: 404 });
 
-  let body: { amount?: number; note?: string };
-  try { body = await req.json(); } catch { return NextResponse.json({ error: 'Noto\'g\'ri so\'rov.' }, { status: 400 }); }
-  // Butun so'm — kasr/manfiy summa rad etiladi
-  const amount = parseIntegerSum(body.amount) ?? 0;
+  const input = await readJsonInput(req, z.object({
+    // Butun so'm — kasr/manfiy summa rad etiladi
+    amount: zMoney('To\'lov summasi noto\'g\'ri.', { min: 1 }),
+    note: zText(300, 'Izoh juda uzun.'),
+  }), { badJson: 'Noto\'g\'ri so\'rov.', fallback: 'Noto\'g\'ri so\'rov.' });
+  if (!input.ok) return NextResponse.json({ error: input.error }, { status: 400 });
+  const { amount, note } = input.data;
 
   const { Sale } = await getTenantModels(user.dbName);
   const sale = await Sale.findOne({ _id: id, ...branchFilter(user) }).lean();
   if (!sale) return NextResponse.json({ error: 'Sotuv topilmadi.' }, { status: 404 });
   if (sale.status === 'cancelled') return NextResponse.json({ error: 'Bekor qilingan sotuv.' }, { status: 400 });
   if (sale.status === 'paid') return NextResponse.json({ error: 'Allaqachon to\'liq to\'langan.' }, { status: 400 });
-  if (amount <= 0) return NextResponse.json({ error: 'To\'lov summasi noto\'g\'ri.' }, { status: 400 });
   if (amount > sale.remainingAmount) return NextResponse.json({ error: `Qoldiq: ${sale.remainingAmount}` }, { status: 400 });
 
   // Atomik: qoldiq sharti bilan bitta yozuv (parallel to'lovda ortiqcha to'lov bo'lmaydi)
   const res = await applySalePayment(Sale, id, amount, {
     scope: branchFilter(user),
-    note: String(body.note || '').trim() || undefined,
+    note: note || undefined,
     recordedBy: user.username,
   });
   if (!res) {

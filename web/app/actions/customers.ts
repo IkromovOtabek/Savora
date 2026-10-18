@@ -7,6 +7,18 @@ import { userCan } from '@/lib/permissionGuard';
 import { getDict } from '@/lib/i18n/server';
 import { tr } from '@/lib/i18n/fmt';
 import { isOwnUploadUrl } from '@/lib/fileUrl';
+import { z } from 'zod';
+import { formToObject, parseInput, zId, zText } from '@/lib/validation';
+
+/** Mijoz maydonlari — majburiylik xabarlari action ichida (eski tartib saqlanadi) */
+const customerFields = (tooLong: string) => z.object({
+  fullName: zText(120, tooLong),
+  phone: zText(40, tooLong),
+  address: zText(200, tooLong),
+  notes: zText(1000, tooLong),
+  photoUrl: zText(500, tooLong),
+  returnTo: zText(20, tooLong),
+});
 
 type State = { error?: string; success?: string } | null;
 
@@ -17,17 +29,14 @@ export async function createCustomerAction(_prev: State, formData: FormData): Pr
     return { error: tr(d.catalog.permissionDeniedNamed, { label: d.catalog.permissions['customers.manage'].label }) };
   }
 
-  const fullName = String(formData.get('fullName') || '').trim();
-  const phone = String(formData.get('phone') || '').trim();
-  const address = String(formData.get('address') || '').trim();
-  const notes = String(formData.get('notes') || '').trim();
-  const photoUrl = String(formData.get('photoUrl') || '').trim();
+  const parsed = parseInput(customerFields(d.common.tooLong), formToObject(formData), d.common.invalidInput);
+  if (!parsed.ok) return { error: parsed.error };
+  const { fullName, phone, address, notes, photoUrl, returnTo } = parsed.data;
   if (photoUrl) {
     // Tashqi/`javascript:` havola saqlanmasin; rasm — faqat mediaUpload modulida
     if (!features.mediaUpload) return { error: tr(d.crm.featureDisabled, { label: d.catalog.features.mediaUpload.label }) };
     if (!isOwnUploadUrl(photoUrl)) return { error: d.crm.customers.errPhotoUrl };
   }
-  const returnTo = String(formData.get('returnTo') || '');
 
   if (!fullName) return { error: d.crm.customers.errName };
   if (!phone) return { error: d.crm.customers.errPhone };
@@ -57,12 +66,13 @@ export async function updateCustomerAction(_prev: State, formData: FormData): Pr
     return { error: tr(d.catalog.permissionDeniedNamed, { label: d.catalog.permissions['customers.manage'].label }) };
   }
 
-  const customerId = String(formData.get('customerId') || '');
-  const fullName = String(formData.get('fullName') || '').trim();
-  const phone = String(formData.get('phone') || '').trim();
-  const address = String(formData.get('address') || '').trim();
-  const notes = String(formData.get('notes') || '').trim();
-  const photoUrl = String(formData.get('photoUrl') || '').trim();
+  const parsed = parseInput(
+    customerFields(d.common.tooLong).extend({ customerId: zId(d.crm.customers.errNotFound) }),
+    formToObject(formData),
+    d.common.invalidInput,
+  );
+  if (!parsed.ok) return { error: parsed.error };
+  const { customerId, fullName, phone, address, notes, photoUrl } = parsed.data;
   if (photoUrl) {
     // Tashqi/`javascript:` havola saqlanmasin; rasm — faqat mediaUpload modulida
     if (!features.mediaUpload) return { error: tr(d.crm.featureDisabled, { label: d.catalog.features.mediaUpload.label }) };

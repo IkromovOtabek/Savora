@@ -24,6 +24,11 @@ import { pq294MonthsError } from '@/lib/pq294';
 import { getI18n } from '@/lib/i18n/server';
 import { tr } from '@/lib/i18n/fmt';
 import { computePartialReturn } from '@/lib/saleReturn';
+import { z } from 'zod';
+import { formToObject, parseInput, zId, zText, zMoney, zInt, zOptInt, zOptDate, zField } from '@/lib/validation';
+
+/** Tez sotuvda bir martada eng ko'p qator (savatcha) — haddan katta so'rovdan himoya */
+const QUICK_SALE_MAX_LINES = 100;
 
 type State = { error?: string; success?: string } | null;
 
@@ -141,30 +146,35 @@ export async function quickSaleBatchAction(items: QuickSaleLine[]): Promise<Stat
   if (!features.sales) return featureDisabledError('sales');
   { const denied = await checkPermission(user, 'sale.create'); if (denied) return denied; }
   const canEditPrice = await userCan(user, 'sale.editPrice');
-  if (!items.length) return { error: m.noProductsSelected };
+  // Client'dan to'g'ridan-to'g'ri keladigan massiv — shakli, soni va qiymatlari tekshiriladi
+  const parsed = parseInput(
+    z.array(z.object({
+      productId: zId(m.badProductId),
+      qty: zOptInt(m.badQty, 1, 1_000_000),
+      salePrice: zMoney(m.priceWhole, { optional: true }),
+    })).min(1, m.noProductsSelected).max(QUICK_SALE_MAX_LINES, m.noProductsSelected),
+    items,
+    m.noProductsSelected,
+  );
+  if (!parsed.ok) return { error: parsed.error };
+  const lines = parsed.data;
 
   const scope = branchFilter(user);
   let soldCount = 0;
   let soldTotal = 0;
 
   try {
-    for (const item of items) {
-      if (!item.productId || !Types.ObjectId.isValid(item.productId)) {
-        return { error: m.badProductId };
-      }
-
+    for (const item of lines) {
       const found = await Product.findOne({ _id: item.productId, ...scope }).lean();
       if (!found) return { error: m.productNotFoundOrDenied };
       if (found.status !== 'in_stock') {
         return { error: tr(m.productNotInStock, { name: found.name }) };
       }
 
-      const saleQty = found.trackQuantity ? parseQtyField(String(item.qty || 1)) : 1;
-      if (saleQty < 1) return { error: m.badQty };
+      const saleQty = found.trackQuantity ? (item.qty ?? 1) : 1;
 
       let salePrice = found.salePrice;
-      if (item.salePrice != null && item.salePrice > 0) {
-        if (!Number.isSafeInteger(item.salePrice)) return { error: m.priceWhole };
+      if (item.salePrice > 0) {
         // Narxi bor mahsulotda narxni o'zgartirish — "sale.editPrice" huquqi kerak
         if (!canEditPrice && found.salePrice > 0 && item.salePrice !== found.salePrice) return permissionDeniedError('sale.editPrice');
         salePrice = item.salePrice;
@@ -249,28 +259,33 @@ export async function createSaleAction(_prev: State, formData: FormData): Promis
   if (!features.sales) return featureDisabledError('sales');
   { const denied = await checkPermission(user, 'sale.create'); if (denied) return denied; }
 
-  const productId = String(formData.get('productId') || '');
-  const customerName = String(formData.get('customerName') || '').trim();
-  const customerPhone = String(formData.get('customerPhone') || '').trim();
-  const saleQtyRaw = String(formData.get('saleQty') || '1');
-  let paymentType = parsePaymentType(String(formData.get('paymentType') || 'cash'));
-  const totalAmount = parsePrice(String(formData.get('totalAmount') || ''));
-  const paidAmountRaw = parsePrice(String(formData.get('paidAmount') || '0'));
-  const installmentMonthsRaw = Number(formData.get('installmentMonths') || 0);
-  const notes = String(formData.get('notes') || '').trim();
-  const photoUrl = String(formData.get('photoUrl') || '').trim();
-  const bankName = String(formData.get('bankName') || '').trim();
-  const dueDateRaw = String(formData.get('dueDate') || '').trim();
+  const tooLong = d.common.tooLong;
+  const parsed = parseInput(z.object({
+    productId: zId(m.productRequired),
+    customerName: zText(120, tooLong),
+    customerPhone: zText(40, tooLong),
+    saleQty: zOptInt(m.badQty, 1, 1_000_000),
+    paymentType: zField((v) => parsePaymentType(String(v ?? 'cash'))),
+    totalAmount: zMoney(m.badTotal, { min: 1 }),
+    paidAmount: zMoney(m.badPaid, { optional: true }),
+    installmentMonths: zOptInt(m.monthsRequired, 1, 60),
+    notes: zText(1000, tooLong),
+    photoUrl: zText(500, m.badPhotoUrl),
+    bankName: zText(120, tooLong),
+    dueDate: zOptDate(d.common.invalidInput),
+  }), formToObject(formData), d.common.invalidInput);
+  if (!parsed.ok) return { error: parsed.error };
+  const { productId, customerName, customerPhone, totalAmount, notes, photoUrl, bankName } = parsed.data;
+  const saleQtyRaw = String(parsed.data.saleQty ?? 1);
+  let paymentType = parsed.data.paymentType;
+  const paidAmountRaw = parsed.data.paidAmount;
+  const installmentMonthsRaw = parsed.data.installmentMonths ?? 0;
 
-  if (!productId || !Types.ObjectId.isValid(productId)) return { error: m.productRequired };
-  if (totalAmount === null || totalAmount <= 0) return { error: m.badTotal };
   // Rasm: faqat o'zimizning storage URL'i + «Rasm/kamera» moduli yoqilgan bo'lsa
   if (photoUrl) {
     if (!features.mediaUpload) return featureDisabledError('mediaUpload');
     if (!isOwnUploadUrl(photoUrl)) return { error: m.badPhotoUrl };
   }
-
-  if (paidAmountRaw === null) return { error: m.badPaid };
 
   // Filial login faqat o'z filiali mahsulotini sotadi (IDOR himoyasi)
   const product = await Product.findOne({ _id: productId, ...branchFilter(user) }).lean();
@@ -332,10 +347,7 @@ export async function createSaleAction(_prev: State, formData: FormData): Promis
   // To'lov muddati — faqat qarz/nasiya/kredit va qoldiq bo'lsa
   let dueDate: Date | undefined;
   if (remainingAmount > 0 && paymentType !== 'cash') {
-    if (dueDateRaw) {
-      const d = new Date(dueDateRaw);
-      if (!Number.isNaN(d.getTime())) dueDate = d;
-    }
+    if (parsed.data.dueDate) dueDate = parsed.data.dueDate;
     // Nasiya bo'lsa va muddat kiritilmagan bo'lsa — oxirgi oy bo'yicha hisoblaymiz
     if (!dueDate && paymentType === 'installment' && installmentMonths) {
       dueDate = addMonthsClamped(new Date(), installmentMonths);
@@ -432,12 +444,13 @@ export async function addSalePaymentAction(_prev: State, formData: FormData): Pr
   const m = (await getI18n()).d.sales.actions;
   { const denied = await checkPermission(user, 'payment.accept'); if (denied) return denied; }
 
-  const saleId = String(formData.get('saleId') || '');
-  const amount = parsePrice(String(formData.get('amount') || ''));
-  const note = String(formData.get('note') || '').trim();
-
-  if (!saleId || !Types.ObjectId.isValid(saleId)) return { error: m.saleNotFound };
-  if (amount === null || amount <= 0) return { error: m.badPaymentAmount };
+  const parsed = parseInput(z.object({
+    saleId: zId(m.saleNotFound),
+    amount: zMoney(m.badPaymentAmount, { min: 1 }),
+    note: zText(300, (await getI18n()).d.common.tooLong),
+  }), formToObject(formData), m.badPaymentAmount);
+  if (!parsed.ok) return { error: parsed.error };
+  const { saleId, amount, note } = parsed.data;
 
   // Filial login faqat o'z filiali sotuviga to'lov qo'shadi
   const sale = await Sale.findOne({ _id: saleId, ...branchFilter(user) }).lean();
@@ -474,8 +487,9 @@ export async function cancelSaleAction(_prev: State, formData: FormData): Promis
   const m = (await getI18n()).d.sales.actions;
   { const denied = await checkPermission(user, 'sale.cancel'); if (denied) return denied; }
 
-  const saleId = String(formData.get('saleId') || '');
-  if (!saleId || !Types.ObjectId.isValid(saleId)) return { error: m.saleNotFound };
+  const parsed = parseInput(zId(m.saleNotFound), formData.get('saleId'));
+  if (!parsed.ok) return { error: parsed.error };
+  const saleId = parsed.data;
 
   // Idempotent: faqat bekor qilinmagan sotuv bir marta "cancelled" ga o'tadi —
   // ikki marta bosilsa ham mahsulot omborga ikki marta qaytmaydi.
@@ -525,10 +539,13 @@ export async function returnSaleItemsAction(_prev: State, formData: FormData): P
   const m = (await getI18n()).d.sales.actions;
   { const denied = await checkPermission(user, 'sale.cancel'); if (denied) return denied; }
 
-  const saleId = String(formData.get('saleId') || '');
-  const returnQty = Number(String(formData.get('qty') || '').trim());
-  const reason = String(formData.get('reason') || '').trim().slice(0, 300);
-  if (!saleId || !Types.ObjectId.isValid(saleId)) return { error: m.saleNotFound };
+  const parsed = parseInput(z.object({
+    saleId: zId(m.saleNotFound),
+    qty: zInt(m.returnBadQty, 1, 1_000_000),
+    reason: zText(300, (await getI18n()).d.common.tooLong),
+  }), formToObject(formData), m.returnBadQty);
+  if (!parsed.ok) return { error: parsed.error };
+  const { saleId, qty: returnQty, reason } = parsed.data;
 
   const scope = branchFilter(user);
   const sale = await Sale.findOne({ _id: saleId, ...scope }).lean();

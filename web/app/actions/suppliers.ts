@@ -2,36 +2,37 @@
 
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
-import { Types } from 'mongoose';
 import { getTenantSession } from '@/lib/tenantSession';
 import { checkPermission } from '@/lib/permissionGuard';
-import { parsePrice } from '@/lib/format';
 import { recordAudit } from '@/lib/audit';
 import { logError } from '@/lib/logger';
 import { loadSupplierBalances } from '@/lib/suppliers';
 import { getDict } from '@/lib/i18n/server';
 import { tr } from '@/lib/i18n/fmt';
+import { z } from 'zod';
+import { formToObject, parseInput, zId, zMoney, zOneOf, zReqText, zText } from '@/lib/validation';
 
 type State = { error?: string; success?: string } | null;
+type Dict = Awaited<ReturnType<typeof getDict>>;
 
-const clip = (v: FormDataEntryValue | null, max: number) => String(v ?? '').trim().slice(0, max);
-
-function readSupplierFields(formData: FormData) {
-  return {
-    name: clip(formData.get('name'), 120),
-    phone: clip(formData.get('phone'), 40),
-    company: clip(formData.get('company'), 120),
-    notes: clip(formData.get('notes'), 500),
-  };
+function supplierFieldsSchema(d: Dict) {
+  const m = d.stock.suppliers.msg;
+  return z.object({
+    name: zReqText(120, m.nameRequired, d.common.tooLong),
+    phone: zText(40, d.common.tooLong),
+    company: zText(120, d.common.tooLong),
+    notes: zText(500, d.common.tooLong),
+  });
 }
 
 export async function createSupplierAction(_prev: State, formData: FormData): Promise<State> {
   const { user, Supplier } = await getTenantSession();
   { const denied = await checkPermission(user, 'suppliers.manage'); if (denied) return denied; }
-  const m = (await getDict()).stock.suppliers.msg;
-
-  const f = readSupplierFields(formData);
-  if (!f.name) return { error: m.nameRequired };
+  const d = await getDict();
+  const m = d.stock.suppliers.msg;
+  const parsed = parseInput(supplierFieldsSchema(d), formToObject(formData), d.common.invalidInput);
+  if (!parsed.ok) return { error: parsed.error };
+  const f = parsed.data;
 
   try {
     const s = await Supplier.create({
@@ -54,12 +55,11 @@ export async function createSupplierAction(_prev: State, formData: FormData): Pr
 export async function updateSupplierAction(_prev: State, formData: FormData): Promise<State> {
   const { user, Supplier } = await getTenantSession();
   { const denied = await checkPermission(user, 'suppliers.manage'); if (denied) return denied; }
-  const m = (await getDict()).stock.suppliers.msg;
-
-  const id = String(formData.get('supplierId') || '');
-  if (!Types.ObjectId.isValid(id)) return { error: m.notFound };
-  const f = readSupplierFields(formData);
-  if (!f.name) return { error: m.nameRequired };
+  const d = await getDict();
+  const m = d.stock.suppliers.msg;
+  const parsed = parseInput(supplierFieldsSchema(d).extend({ supplierId: zId(m.notFound) }), formToObject(formData), d.common.invalidInput);
+  if (!parsed.ok) return { error: parsed.error };
+  const { supplierId: id, ...f } = parsed.data;
 
   const res = await Supplier.updateOne(
     { _id: id },
@@ -79,8 +79,9 @@ export async function deleteSupplierAction(_prev: State, formData: FormData): Pr
   { const denied = await checkPermission(user, 'suppliers.manage'); if (denied) return denied; }
   const m = (await getDict()).stock.suppliers.msg;
 
-  const id = String(formData.get('supplierId') || '');
-  if (!Types.ObjectId.isValid(id)) return { error: m.notFound };
+  const parsed = parseInput(zId(m.notFound), formData.get('supplierId'));
+  if (!parsed.ok) return { error: parsed.error };
+  const id = parsed.data;
 
   // Hisob-kitob tarixi yoki mahsuloti bor yetkazib beruvchi o'chirilmaydi (tarix yo'qolmasin)
   const [hasEntries, hasProducts] = await Promise.all([
@@ -100,16 +101,16 @@ export async function deleteSupplierAction(_prev: State, formData: FormData): Pr
 export async function addSupplierEntryAction(_prev: State, formData: FormData): Promise<State> {
   const { user, Supplier, SupplierEntry } = await getTenantSession();
   { const denied = await checkPermission(user, 'suppliers.manage'); if (denied) return denied; }
-  const m = (await getDict()).stock.suppliers.msg;
-
-  const id = String(formData.get('supplierId') || '');
-  const type = String(formData.get('type') || '');
-  const amount = parsePrice(String(formData.get('amount') || ''));
-  const note = clip(formData.get('note'), 300);
-
-  if (!Types.ObjectId.isValid(id)) return { error: m.notFound };
-  if (type !== 'purchase' && type !== 'payment') return { error: m.badType };
-  if (amount === null || amount <= 0) return { error: m.badAmount };
+  const d = await getDict();
+  const m = d.stock.suppliers.msg;
+  const parsed = parseInput(z.object({
+    supplierId: zId(m.notFound),
+    type: zOneOf(['purchase', 'payment'] as const, m.badType),
+    amount: zMoney(m.badAmount, { min: 1 }),
+    note: zText(300, d.common.tooLong),
+  }), formToObject(formData), m.badAmount);
+  if (!parsed.ok) return { error: parsed.error };
+  const { supplierId: id, type, amount, note } = parsed.data;
 
   const supplier = await Supplier.findById(id).lean();
   if (!supplier) return { error: m.notFound };
@@ -143,8 +144,9 @@ export async function deleteSupplierEntryAction(_prev: State, formData: FormData
   { const denied = await checkPermission(user, 'suppliers.manage'); if (denied) return denied; }
   const m = (await getDict()).stock.suppliers.msg;
 
-  const entryId = String(formData.get('entryId') || '');
-  if (!Types.ObjectId.isValid(entryId)) return { error: m.entryNotFound };
+  const parsed = parseInput(zId(m.entryNotFound), formData.get('entryId'));
+  if (!parsed.ok) return { error: parsed.error };
+  const entryId = parsed.data;
 
   const e = await SupplierEntry.findOneAndDelete({ _id: entryId }).lean();
   if (!e) return { error: m.entryNotFound };
