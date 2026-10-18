@@ -1,0 +1,389 @@
+<!doctype html>
+<html lang="uz">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1920, height=1080" />
+    <title>Savora Showreel 15s</title>
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <style>
+      @font-face { font-family: "Onest"; src: url("assets/fonts/Onest.ttf") format("truetype"); font-weight: 100 900; }
+      @font-face { font-family: "Unbounded"; src: url("assets/fonts/Unbounded.ttf") format("truetype"); font-weight: 200 900; }
+      :root {
+        --ink: #0d1526; --ink2: #121d33; --ink3: #18243f;
+        --kob: #1f4fa8; --kob2: #3a68c4; --kob3: #173f8f;
+        --gold: #e0a526; --gold2: #f0bf4c;
+        --light: #f2f4f9; --muted: #9fb0cf; --green: #2fb36d;
+      }
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body { width: 1920px; height: 1080px; overflow: hidden; background: var(--ink); }
+      #root { position: relative; width: 100%; height: 100%; overflow: hidden; background: var(--ink); color: var(--light); font-family: "Onest", sans-serif; }
+      .clip { position: absolute; inset: 0; }
+      .abs { position: absolute; }
+      .disp { font-family: "Unbounded", sans-serif; letter-spacing: -0.025em; }
+      .w { display: inline-block; opacity: 0; will-change: transform; }
+      .num { font-variant-numeric: tabular-nums; }
+
+      /* ---------- shared background ---------- */
+      #bg { position: absolute; inset: 0; overflow: hidden; }
+      .glow { position: absolute; border-radius: 50%; filter: blur(110px); }
+      #glowA { left: -320px; top: -260px; width: 1100px; height: 1100px; background: rgba(31,79,168,.42); }
+      #glowB { left: 1260px; top: 520px; width: 900px; height: 900px; background: rgba(58,104,196,.22); }
+      #glowC { left: 1380px; top: 80px; width: 420px; height: 420px; background: rgba(224,165,38,.10); }
+      #girih { position: absolute; left: -240px; top: -240px; width: 2400px; height: 1560px; opacity: .13;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120' viewBox='0 0 120 120'%3E%3Cg fill='none' stroke='%239fb8ec' stroke-width='1.4'%3E%3Crect x='35' y='35' width='50' height='50'/%3E%3Crect x='35' y='35' width='50' height='50' transform='rotate(45 60 60)'/%3E%3Ccircle cx='60' cy='60' r='9'/%3E%3Cpath d='M0 0L25 25M120 0L95 25M0 120L25 95M120 120L95 95'/%3E%3C/g%3E%3C/svg%3E");
+        background-size: 120px 120px;
+        -webkit-mask-image: radial-gradient(ellipse 60% 70% at 60% 50%, #000 0%, transparent 75%);
+        mask-image: radial-gradient(ellipse 60% 70% at 60% 50%, #000 0%, transparent 75%); }
+      #vign { position: absolute; inset: 0; background: radial-gradient(ellipse 80% 80% at 50% 50%, transparent 55%, rgba(5,9,18,.6) 100%); }
+
+      /* ---------- world (scenes 1-4) ---------- */
+      #world { position: absolute; inset: 0; transform-origin: 62% 50%; }
+      #stage { position: absolute; inset: 0; perspective: 2200px; }
+
+      /* headlines (left column) */
+      .hl { position: absolute; left: 140px; top: 330px; width: 760px; }
+      .kick { display: inline-block; opacity: 0; font-family: "Unbounded"; font-size: 22px; font-weight: 700; letter-spacing: .16em; color: var(--gold2);
+        padding: 10px 20px; border: 2px solid rgba(240,191,76,.5); border-radius: 999px; }
+      .big { font-family: "Unbounded"; font-weight: 800; font-size: 88px; line-height: 1.08; letter-spacing: -0.03em; margin-top: 30px; }
+      .big .m { color: var(--muted); }
+      .sub { margin-top: 26px; font-size: 32px; font-weight: 500; color: #c6d2ea; }
+      #h1 { top: 390px; }
+
+      /* notebook */
+      #note { position: absolute; left: 900px; top: 280px; width: 760px; height: 500px; border-radius: 22px; background: #f3ead6;
+        background-image: repeating-linear-gradient(to bottom, transparent 0 64px, rgba(58,104,196,.28) 64px 66px);
+        background-position: 0 30px;
+        box-shadow: 0 50px 100px rgba(0,0,0,.55), inset 0 0 70px rgba(120,90,40,.16); opacity: 0; }
+      #note::before { content: ""; position: absolute; left: 92px; top: 0; bottom: 0; width: 3px; background: rgba(229,72,77,.5); }
+      #note .ttl { position: absolute; left: 112px; top: 30px; font-size: 26px; font-weight: 800; letter-spacing: .12em; color: #2b3a63; }
+      #note .rows { position: absolute; left: 110px; right: 34px; top: 96px; }
+      #note .row { height: 66px; display: flex; align-items: center; gap: 18px; font-size: 30px; font-weight: 500; font-style: italic; color: #24345e; white-space: nowrap; }
+      #note .row b { margin-left: auto; font-weight: 700; color: #a3302f; }
+      #note .row s { text-decoration-color: rgba(163,48,47,.8); text-decoration-thickness: 3px; color: #6b7590; }
+      #note .stain { position: absolute; right: 90px; bottom: 50px; width: 130px; height: 130px; border-radius: 50%; border: 9px solid rgba(140,96,40,.16); }
+      #mark { position: absolute; left: 470px; top: 54px; width: 160px; height: 16px; border-radius: 8px; background: rgba(240,191,76,.75); transform-origin: 0 50%; }
+
+      /* nasiya card */
+      #ncard { position: absolute; left: 900px; top: 340px; width: 760px; height: 360px; border-radius: 32px; background: var(--ink2);
+        border: 2px solid rgba(159,176,207,.22); box-shadow: 0 50px 110px rgba(0,0,0,.55), 0 0 90px rgba(58,104,196,.18); padding: 36px 40px; opacity: 0; }
+      #ncard .top { display: flex; align-items: center; gap: 22px; }
+      .av { width: 76px; height: 76px; border-radius: 50%; display: grid; place-items: center; font-family: "Unbounded"; font-weight: 800; font-size: 26px; color: #fff; background: #1d8a50; flex: none; }
+      #ncard .nm { font-family: "Unbounded"; font-weight: 700; font-size: 32px; }
+      #ncard .pr { font-size: 24px; color: var(--muted); font-weight: 500; margin-top: 6px; }
+      #ncard .amt { margin-left: auto; text-align: right; }
+      #ncard .amt b { display: block; font-family: "Unbounded"; font-weight: 800; font-size: 38px; }
+      #ncard .amt span { font-size: 24px; font-weight: 700; color: var(--gold2); }
+      #ncard .lab { display: flex; justify-content: space-between; margin-top: 34px; font-size: 24px; font-weight: 600; color: var(--muted); }
+      #segs { display: flex; gap: 12px; margin-top: 14px; }
+      #segs i { flex: 1; display: block; height: 20px; border-radius: 10px; background: rgba(240,191,76,.22); border: 2px solid rgba(240,191,76,.55); transform-origin: 0 50%; }
+      #segs i:first-child { background: var(--gold2); border-color: var(--gold2); }
+      #ncard .foot { margin-top: 30px; padding-top: 22px; border-top: 2px solid rgba(159,176,207,.16); font-size: 26px; font-weight: 600; color: #c6d2ea; }
+      #ncard .foot em { font-style: normal; color: var(--gold2); font-weight: 800; }
+
+      /* phone */
+      #phoneWrap { position: absolute; left: 1122px; top: 113px; width: 437px; height: 854px; transform-style: preserve-3d; opacity: 0; }
+      #phone { position: absolute; inset: 0; border-radius: 66px; background: #05080f;
+        box-shadow: 0 0 0 3px #2b3550, 0 70px 140px rgba(0,0,0,.6), 0 0 140px rgba(58,104,196,.3); }
+      #screen { position: absolute; left: 12px; top: 12px; width: 413px; height: 830px; border-radius: 54px; overflow: hidden; background: #0b1220; }
+      #screen img { position: absolute; left: 0; top: 0; width: 413px; height: 830px; object-fit: cover; object-position: top; }
+      #scrKassa { opacity: 0; }
+      #island { position: absolute; left: 158px; top: 26px; width: 120px; height: 34px; border-radius: 17px; background: #000; }
+      #glare { position: absolute; left: 12px; top: 12px; width: 413px; height: 830px; border-radius: 54px; background: linear-gradient(115deg, rgba(255,255,255,.12) 0%, rgba(255,255,255,0) 38%); }
+      #ripple { position: absolute; left: 304px; top: 763px; width: 90px; height: 90px; margin: -45px 0 0 -45px; border-radius: 50%; background: rgba(255,255,255,.55); opacity: 0; }
+
+      /* payment chips */
+      #chips { position: absolute; left: 140px; top: 690px; width: 900px; display: flex; flex-wrap: wrap; gap: 16px; }
+      .chip { opacity: 0; padding: 16px 28px; border-radius: 999px; font-size: 28px; font-weight: 700; background: rgba(255,255,255,.08); border: 2px solid rgba(255,255,255,.18); white-space: nowrap; }
+      .chip.gold { background: rgba(224,165,38,.18); border-color: rgba(240,191,76,.7); color: var(--gold2); }
+
+      /* toast */
+      #toast { position: absolute; left: 930px; top: 790px; width: 540px; padding: 24px 28px; border-radius: 28px; display: flex; align-items: center; gap: 20px;
+        background: rgba(242,244,249,.97); color: #14213d; box-shadow: 0 40px 90px rgba(0,0,0,.55); opacity: 0; }
+      .ok { width: 64px; height: 64px; border-radius: 20px; display: grid; place-items: center; background: rgba(47,179,109,.16); flex: none; }
+      .ok svg { width: 36px; height: 36px; }
+      #toast .t1 { font-family: "Unbounded"; font-weight: 700; font-size: 28px; color: #14213d; }
+      #toast .t2 { font-size: 24px; font-weight: 600; color: #4a5a7a; margin-top: 4px; }
+
+      /* desktop report */
+      #h4 { top: 76px; width: 1700px; }
+      #h4 .big { font-size: 64px; margin-top: 22px; }
+      #desk { position: absolute; left: 720px; top: 280px; width: 1100px; height: 704px; border-radius: 26px; padding: 0 14px 14px; background: #1b2540;
+        box-shadow: 0 60px 130px rgba(0,0,0,.6), 0 0 0 2px rgba(159,176,207,.18); opacity: 0; transform-origin: 0% 50%; }
+      #desk .bar { height: 38px; display: flex; gap: 10px; align-items: center; padding-left: 8px; }
+      #desk .bar i { display: block; width: 13px; height: 13px; border-radius: 50%; background: #48557a; }
+      #desk img { display: block; width: 1072px; height: 652px; border-radius: 14px; object-fit: cover; object-position: left top; }
+      #spot { position: absolute; left: 34px; top: 426px; width: 622px; height: 272px; overflow: visible; }
+      #spot rect { fill: none; stroke: var(--gold2); stroke-width: 4; }
+
+      /* ai panel */
+      #ai { position: absolute; left: 1270px; top: 620px; width: 590px; padding: 28px 30px 30px; border-radius: 30px; background: rgba(13,21,38,.97);
+        border: 2px solid rgba(240,191,76,.5); box-shadow: 0 40px 90px rgba(0,0,0,.6), 0 0 70px rgba(224,165,38,.16); opacity: 0; }
+      #ai .hd { display: flex; align-items: center; gap: 14px; font-family: "Unbounded"; font-weight: 700; font-size: 26px; }
+      #ai .hd i { width: 46px; height: 46px; border-radius: 14px; display: grid; place-items: center; background: rgba(224,165,38,.2); color: var(--gold2); font-style: normal; font-size: 26px; }
+      #aiTxt { margin-top: 18px; height: 84px; font-size: 30px; font-weight: 600; line-height: 1.36; color: var(--light); }
+      #aiTask { display: flex; align-items: center; gap: 14px; margin-top: 14px; padding-top: 18px; border-top: 2px solid rgba(159,176,207,.16); font-size: 25px; font-weight: 600; color: #c6d2ea; opacity: 0; }
+      #aiTask .cb { width: 36px; height: 36px; border-radius: 11px; background: var(--gold2); display: grid; place-items: center; flex: none; }
+      #aiTask .cb svg { width: 24px; height: 24px; }
+
+      /* ---------- end card ---------- */
+      #bloom { position: absolute; left: 360px; top: -60px; width: 1200px; height: 1200px; border-radius: 50%;
+        background: radial-gradient(circle, rgba(42,92,188,.62) 0%, rgba(31,79,168,.28) 40%, rgba(13,21,38,0) 70%); opacity: 0; }
+      #logo { position: absolute; left: 860px; top: 230px; width: 200px; height: 200px; }
+      #logo svg { width: 100%; height: 100%; display: block; overflow: visible; }
+      #logoSq { opacity: 0; }
+      #sheenMask { position: absolute; inset: 0; border-radius: 48px; overflow: hidden; }
+      #sheen { position: absolute; left: -120px; top: -20px; width: 90px; height: 240px; background: linear-gradient(90deg, transparent, rgba(255,255,255,.5), transparent); opacity: 0; }
+      #word { position: absolute; left: 0; right: 0; top: 480px; text-align: center; font-size: 150px; font-weight: 800; letter-spacing: -0.04em; }
+      #tag { position: absolute; left: 0; right: 0; top: 700px; text-align: center; font-size: 42px; font-weight: 600; color: #dfe7f7; opacity: 0; }
+      #cta { position: absolute; left: 0; right: 0; top: 800px; display: flex; justify-content: center; gap: 20px; }
+      .pill { opacity: 0; padding: 20px 38px; border-radius: 999px; font-size: 34px; font-weight: 800; white-space: nowrap; }
+      .pill.white { background: var(--light); color: var(--kob); font-family: "Unbounded"; font-size: 32px; }
+      .pill.gold { border: 3px solid var(--gold2); color: var(--gold2); background: rgba(224,165,38,.12); }
+    </style>
+  </head>
+  <body>
+    <div data-hf-id="hf-2ooj" id="root" data-composition-id="main" data-start="0" data-duration="15" data-width="1920" data-height="1080" data-fps="60">
+      <audio data-hf-id="hf-m4hl" id="bgm" src="assets/audio/music.wav" data-start="0" data-duration="15" data-track-index="9" data-volume="1"></audio>
+      <!-- background (whole film) -->
+      <div data-hf-id="hf-5seh" id="bgClip" class="clip" data-start="0" data-duration="15" data-track-index="0">
+        <div data-hf-id="hf-1z75" id="bg" data-layout-allow-overflow>
+          <div data-hf-id="hf-kb5s" id="glowA" class="glow" data-layout-allow-overflow></div>
+          <div data-hf-id="hf-v6nf" id="glowB" class="glow" data-layout-allow-overflow></div>
+          <div data-hf-id="hf-r8je" id="glowC" class="glow" data-layout-allow-overflow></div>
+          <div data-hf-id="hf-dn3y" id="girih"></div>
+          <div data-hf-id="hf-vhr1" id="vign"></div>
+        </div>
+      </div>
+
+      <!-- scenes 1-4: one continuous world -->
+      <div data-hf-id="hf-awrt" id="worldClip" class="clip" data-start="0" data-duration="11.8" data-track-index="1">
+        <div data-hf-id="hf-j427" id="world">
+          <div data-hf-id="hf-1rt5" id="stage">
+            <!-- S1 headline -->
+            <div data-hf-id="hf-op97" id="h1" class="hl">
+              <div data-hf-id="hf-vf1u" class="big"><span data-hf-id="hf-kw5i" class="w m">Qarzlar</span> <span data-hf-id="hf-5gt7" class="w m">—</span><br data-hf-id="hf-x5px" /><span data-hf-id="hf-y536" class="w">qog'ozda.</span></div>
+            </div>
+
+            <!-- notebook -->
+            <div data-hf-id="hf-2xtl" id="note" data-layout-allow-overlap>
+              <div data-hf-id="hf-nqn2" class="ttl">NASIYA DAFTARI</div>
+              <div data-hf-id="hf-hnc7" class="rows">
+                <div data-hf-id="hf-m3bn" class="row" id="row1"><span data-hf-id="hf-zl5h">Sardor A. — iPhone 15 Pro Max</span><b data-hf-id="hf-klx8" class="num">17 500 000</b></div>
+                <div data-hf-id="hf-thy4" class="row"><span data-hf-id="hf-dgdt">Nodira R. — iPhone 14 Pro</span><b data-hf-id="hf-c1h3" class="num">6 000 000</b></div>
+                <div data-hf-id="hf-lt04" class="row"><span data-hf-id="hf-5ps0">Jasur — muzlatkich</span><b data-hf-id="hf-c6by" class="num">4 200 000 ?</b></div>
+                <div data-hf-id="hf-km31" class="row"><s data-hf-id="hf-a1b9">Dilnoza — divan</s><b data-hf-id="hf-57pc" class="num">3 800 000</b></div>
+                <div data-hf-id="hf-l0e2" class="row"><span data-hf-id="hf-q1du">Bekzod — televizor</span><b data-hf-id="hf-4ysl" class="num">5 100 000</b></div>
+              </div>
+              <div data-hf-id="hf-tn5q" id="mark"></div>
+              <div data-hf-id="hf-sg0n" class="stain"></div>
+            </div>
+
+            <!-- S2 headline -->
+            <div data-hf-id="hf-g1dc" id="h2" class="hl">
+              <span data-hf-id="hf-2jjg" class="kick">01 · NASIYA</span>
+              <div data-hf-id="hf-e9iu" class="big"><span data-hf-id="hf-dl7m" class="w m">Nasiya —</span><br data-hf-id="hf-rsrt" /><span data-hf-id="hf-54yp" class="w">tartibda.</span></div>
+              <div data-hf-id="hf-iqrq" class="sub"><span data-hf-id="hf-nswg" class="w">Har bir to'lov — jadvalda.</span></div>
+            </div>
+
+            <!-- S3 headline -->
+            <div data-hf-id="hf-gt15" id="h3" class="hl">
+              <span data-hf-id="hf-nyst" class="kick">02 · KASSA</span>
+              <div data-hf-id="hf-entv" class="big"><span data-hf-id="hf-ko16" class="w m">Sotuv —</span><br data-hf-id="hf-szow" /><span data-hf-id="hf-bhao" class="w">2 daqiqada.</span></div>
+            </div>
+            <div data-hf-id="hf-f8d2" id="chips">
+              <span data-hf-id="hf-yyp7" class="chip">Naqd</span><span data-hf-id="hf-tlnl" class="chip">Qarz</span><span data-hf-id="hf-hl94" class="chip gold">Nasiya</span><span data-hf-id="hf-kcjh" class="chip">Bank krediti</span>
+            </div>
+
+            <!-- desktop report -->
+            <div data-hf-id="hf-zaq6" id="desk">
+              <div data-hf-id="hf-ufsv" class="bar"><i data-hf-id="hf-wt6k"></i><i data-hf-id="hf-zeb8"></i><i data-hf-id="hf-y7e5"></i></div>
+              <img data-hf-id="hf-wznj" src="assets/shots/desk_monitoring_c.png" alt="Savora Hisobot" />
+              <svg data-hf-id="hf-o4n4" id="spot" viewBox="0 0 622 272"><rect data-hf-id="hf-f6j7" id="spotRect" x="2" y="2" width="618" height="268" rx="18" /></svg>
+            </div>
+
+            <!-- phone -->
+            <div data-hf-id="hf-2s5b" id="phoneWrap">
+              <div data-hf-id="hf-5iuv" id="phone">
+                <div data-hf-id="hf-ccvt" id="screen">
+                  <img data-hf-id="hf-xe6m" id="scrNasiya" src="assets/shots/app_nasiya.png" alt="Nasiya" />
+                  <img data-hf-id="hf-ah86" id="scrKassa" src="assets/shots/app_sales_new.png" alt="Yangi sotuv" />
+                </div>
+                <div data-hf-id="hf-i9du" id="island"></div>
+                <div data-hf-id="hf-m8d6" id="glare"></div>
+                <div data-hf-id="hf-l3gf" id="ripple"></div>
+              </div>
+            </div>
+
+            <!-- nasiya card (born from the notebook line) -->
+            <div data-hf-id="hf-axqz" id="ncard" data-layout-allow-overlap>
+              <div data-hf-id="hf-sijt" class="top">
+                <div data-hf-id="hf-snv5" class="av">SA</div>
+                <div data-hf-id="hf-yeow">
+                  <div data-hf-id="hf-i600" class="nm">Sardor Aliyev</div>
+                  <div data-hf-id="hf-7if6" class="pr">iPhone 15 Pro Max 256GB</div>
+                </div>
+                <div data-hf-id="hf-8kom" class="amt"><b data-hf-id="hf-0xh0" class="num">17 500 000</b><span data-hf-id="hf-8w8r">so'm</span></div>
+              </div>
+              <div data-hf-id="hf-mnnx" class="lab"><span data-hf-id="hf-k5gx">6 oylik jadval</span><span data-hf-id="hf-1kq5" class="num">1 / 6</span></div>
+              <div data-hf-id="hf-xxiv" id="segs"><i data-hf-id="hf-ylp6"></i><i data-hf-id="hf-0l8b"></i><i data-hf-id="hf-0zjc"></i><i data-hf-id="hf-zsm9"></i><i data-hf-id="hf-06xa"></i><i data-hf-id="hf-26gf"></i></div>
+              <div data-hf-id="hf-1v8g" class="foot">Keyingi to'lov: <span data-hf-id="hf-qppn" class="num">13.11.2026</span> · <em data-hf-id="hf-tsdz" class="num">2 916 666 so'm</em></div>
+            </div>
+
+            <!-- sale confirmed -->
+            <div data-hf-id="hf-n5ua" id="toast">
+              <div data-hf-id="hf-6kvy" class="ok"><svg data-hf-id="hf-0hkd" viewBox="0 0 24 24" fill="none" stroke="#2fb36d" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path data-hf-id="hf-s5bw" d="M5 12.5l4.5 4.5L19 7.5" /></svg></div>
+              <div data-hf-id="hf-y7yw">
+                <div data-hf-id="hf-zh34" class="t1">Sotuv tasdiqlandi</div>
+                <div data-hf-id="hf-d29j" class="t2 num">Nasiya · 17 500 000 so'm</div>
+              </div>
+            </div>
+
+            <!-- AI assistant -->
+            <div data-hf-id="hf-a80j" id="ai">
+              <div data-hf-id="hf-qqkw" class="hd"><i data-hf-id="hf-yjxq">✦</i>AI yordamchi</div>
+              <div data-hf-id="hf-smzl" id="aiTxt"></div>
+              <div data-hf-id="hf-d4ew" id="aiTask">
+                <div data-hf-id="hf-d8rn" class="cb"><svg data-hf-id="hf-x5cu" viewBox="0 0 24 24" fill="none" stroke="#0d1526" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"><path data-hf-id="hf-ceb8" d="M5 12.5l4.5 4.5L19 7.5" /></svg></div>
+                <span data-hf-id="hf-bfqh">Topshiriq yaratildi: nasiya to'lovlarini kuzatish</span>
+              </div>
+            </div>
+
+            <!-- S4 headline (last in DOM: always above phone and desktop) -->
+            <div data-hf-id="hf-855a" id="h4" class="hl">
+              <span data-hf-id="hf-6zfp" class="kick">03 · FILIALLAR</span>
+              <div data-hf-id="hf-f24w" class="big"><span data-hf-id="hf-wc7s" class="w m">Barcha filiallar.</span> <span data-hf-id="hf-hcb9" class="w">Bitta ekran.</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- S5 end card -->
+      <div data-hf-id="hf-g9w1" id="endClip" class="clip" data-start="11" data-duration="4" data-track-index="2">
+        <div data-hf-id="hf-0h6x" id="bloom" data-layout-allow-overflow></div>
+        <div data-hf-id="hf-ea14" id="logo">
+          <svg data-hf-id="hf-fohl" viewBox="0 0 100 100">
+            <defs data-hf-id="hf-mh0t"><linearGradient data-hf-id="hf-jt51" id="lg" x1="0" y1="0" x2="0" y2="1"><stop data-hf-id="hf-tmar" offset="0" stop-color="#3a68c4" /><stop data-hf-id="hf-s116" offset="1" stop-color="#173f8f" /></linearGradient></defs>
+            <rect data-hf-id="hf-vp5b" id="logoSq" width="100" height="100" rx="24" fill="url(#lg)" stroke="rgba(255,255,255,.25)" stroke-width="1" />
+            <rect data-hf-id="hf-oo5w" class="lbar" x="20" y="58" width="13" height="24" rx="6.5" fill="#fff" opacity=".55" />
+            <rect data-hf-id="hf-dacs" class="lbar" x="40" y="45" width="13" height="37" rx="6.5" fill="#fff" opacity=".8" />
+            <rect data-hf-id="hf-zd41" class="lbar" x="60" y="32" width="13" height="50" rx="6.5" fill="#fff" />
+            <path data-hf-id="hf-nu3u" id="lcurve" d="M24 46C38 28 58 20 79 21" fill="none" stroke="#f0bf4c" stroke-width="6.5" stroke-linecap="round" />
+            <circle data-hf-id="hf-32hb" id="ldot" cx="79" cy="21" r="6.5" fill="#f0bf4c" />
+          </svg>
+          <div data-hf-id="hf-c5bo" id="sheenMask"><div data-hf-id="hf-bttv" id="sheen" data-layout-allow-overflow></div></div>
+        </div>
+        <div data-hf-id="hf-0352" id="word" class="disp"><span data-hf-id="hf-41rl" class="w">S</span><span data-hf-id="hf-b7a3" class="w">a</span><span data-hf-id="hf-fkne" class="w">v</span><span data-hf-id="hf-bzw5" class="w">o</span><span data-hf-id="hf-h5vi" class="w">r</span><span data-hf-id="hf-7zyz" class="w">a</span></div>
+        <div data-hf-id="hf-tzjd" id="tag">Do'koningiz uchun yagona tizim</div>
+        <div data-hf-id="hf-l401" id="cta"><span data-hf-id="hf-9jc2" class="pill white">savora.uz</span><span data-hf-id="hf-en0z" class="pill gold">14 kun bepul</span></div>
+      </div>
+    </div>
+
+    <script>
+      const tl = gsap.timeline({ paused: true });
+      const q = (s) => Array.from(document.querySelectorAll(s));
+
+      // waterfall arrival: binary reveal + whip up from below, overlapping
+      function cascade(els, t0, opts) {
+        const o = Object.assign({ y: 70, dur: 0.5, gap: 0.09, ease: "power4.out" }, opts || {});
+        els.forEach((el, i) => {
+          const t = t0 + i * o.gap;
+          tl.set(el, { opacity: 1 }, t);
+          tl.fromTo(el, { y: o.y }, { y: 0, duration: o.dur, ease: o.ease }, t);
+        });
+      }
+      function exitUp(els, t0) {
+        tl.to(els, { y: -40, opacity: 0, duration: 0.35, ease: "power2.in", stagger: 0.04 }, t0);
+      }
+
+      /* ---------- ambient background (finite loops inside 15 s) ---------- */
+      tl.fromTo("#glowA", { scale: 1 }, { scale: 1.14, duration: 3, ease: "sine.inOut", repeat: 4, yoyo: true }, 0);
+      tl.fromTo("#glowB", { scale: 1.1, x: 0 }, { scale: 0.92, x: -60, duration: 3.75, ease: "sine.inOut", repeat: 3, yoyo: true }, 0);
+      tl.fromTo("#glowC", { opacity: 0.6 }, { opacity: 1, duration: 2.5, ease: "sine.inOut", repeat: 5, yoyo: true }, 0);
+      tl.fromTo("#girih", { x: 0, y: 0 }, { x: -120, y: -60, duration: 15, ease: "none" }, 0);
+
+      /* ---------- S1 · paper (0 – 2.0) ---------- */
+      tl.fromTo("#note", { opacity: 0, scale: 1.06, filter: "blur(10px)", rotation: -1.5 },
+        { opacity: 1, scale: 1, filter: "blur(0px)", rotation: -1.5, duration: 0.9, ease: "power3.out" }, 0.05);
+      cascade(q("#h1 .w"), 0.35, { y: 80, dur: 0.55, gap: 0.1 });
+      tl.fromTo("#mark", { scaleX: 0 }, { scaleX: 1, duration: 0.55, ease: "power2.inOut" }, 1.0);
+      tl.fromTo("#row1", { y: 0 }, { y: -6, duration: 0.5, ease: "power2.out" }, 1.4);
+      exitUp(q("#h1 .w"), 1.85);
+
+      /* ---------- S2 · nasiya (2.0 – 5.0) ---------- */
+      // the notebook line becomes a card: clip band opens from row 1
+      tl.set("#ncard", { opacity: 1, clipPath: "inset(36px 30px 258px 110px round 10px)" }, 2.0);
+      tl.fromTo("#ncard", { clipPath: "inset(36px 30px 258px 110px round 10px)" },
+        { clipPath: "inset(0px 0px 0px 0px round 32px)", duration: 0.85, ease: "power3.inOut", immediateRender: false }, 2.05);
+      tl.to("#note", { y: 90, rotation: 3, scale: 0.94, filter: "blur(10px)", opacity: 0, duration: 0.8, ease: "power2.in" }, 2.1);
+      tl.fromTo("#segs i", { scaleX: 0 }, { scaleX: 1, duration: 0.4, ease: "power3.out", stagger: 0.07 }, 2.7);
+      tl.set("#h2 .kick", { opacity: 1 }, 2.35);
+      tl.fromTo("#h2 .kick", { y: 30 }, { y: 0, duration: 0.45, ease: "power4.out" }, 2.35);
+      cascade(q("#h2 .big .w"), 2.45, { y: 80, dur: 0.55, gap: 0.11 });
+      cascade(q("#h2 .sub .w"), 2.85, { y: 40, dur: 0.5 });
+
+      // phone arrives; the card lands on its own row in the app
+      tl.fromTo("#phoneWrap", { opacity: 0, x: 620, rotationY: -28, rotationZ: 4 },
+        { opacity: 1, x: 0, rotationY: -8, rotationZ: 0, duration: 1.0, ease: "power4.out" }, 3.75);
+      tl.to("#ncard", { x: 60, y: 137, scale: 0.5, duration: 0.85, ease: "power3.inOut" }, 4.05);
+      tl.to("#ncard", { opacity: 0, duration: 0.3, ease: "power1.in" }, 4.6);
+      tl.fromTo("#phone", { y: 0 }, { y: -10, duration: 1.6, ease: "sine.inOut", repeat: 3, yoyo: true }, 4.8);
+      exitUp([q("#h2 .kick")[0]].concat(q("#h2 .w")), 4.85);
+
+      /* ---------- S3 · kassa (5.0 – 8.0) ---------- */
+      tl.fromTo("#scrKassa", { opacity: 0, y: 60 }, { opacity: 1, y: 0, duration: 0.5, ease: "power3.out" }, 5.05);
+      tl.to("#scrNasiya", { opacity: 0, y: -30, duration: 0.4, ease: "power2.in" }, 5.05);
+      tl.to("#phoneWrap", { rotationY: -14, duration: 2.6, ease: "sine.inOut" }, 5.1);
+      tl.set("#h3 .kick", { opacity: 1 }, 5.25);
+      tl.fromTo("#h3 .kick", { y: 30 }, { y: 0, duration: 0.45, ease: "power4.out" }, 5.25);
+      cascade(q("#h3 .w"), 5.35, { y: 80, dur: 0.55, gap: 0.11 });
+      q(".chip").forEach((el, i) => {
+        const t = 5.85 + i * 0.09;
+        tl.fromTo(el, { opacity: 0, x: 560 - i * 60, scale: 0.6 }, { opacity: 1, x: 0, scale: 1, duration: 0.6, ease: "back.out(1.6)" }, t);
+      });
+      tl.fromTo("#ripple", { scale: 0, opacity: 0.7 }, { scale: 3.2, opacity: 0, duration: 0.6, ease: "power2.out" }, 6.55);
+      tl.fromTo("#toast", { opacity: 0, y: 40, scale: 0.85 }, { opacity: 1, y: 0, scale: 1, duration: 0.55, ease: "back.out(1.7)" }, 6.75);
+      exitUp([q("#h3 .kick")[0]].concat(q("#h3 .w"), q(".chip")), 7.75);
+      tl.to("#toast", { opacity: 0, y: 30, duration: 0.35, ease: "power2.in" }, 7.8);
+
+      /* ---------- S4 · filiallar + AI (8.0 – 11.0) ---------- */
+      // nudge: slow-fast-slow group slide of the phone to the left
+      tl.to("#phoneWrap", { x: -820, y: 40, scale: 0.7, rotationY: 10, duration: 1.0, ease: "power3.inOut" }, 7.95);
+      tl.fromTo("#desk", { opacity: 0, x: 520, rotationY: -22 }, { opacity: 1, x: 0, rotationY: -4, duration: 1.0, ease: "power4.out" }, 8.3);
+      tl.to("#desk", { rotationY: 0, duration: 2.2, ease: "sine.inOut" }, 9.3);
+      tl.set("#h4 .kick", { opacity: 1 }, 8.7);
+      tl.fromTo("#h4 .kick", { y: 30 }, { y: 0, duration: 0.45, ease: "power4.out" }, 8.7);
+      cascade(q("#h4 .w"), 8.8, { y: 70, dur: 0.55, gap: 0.14 });
+      const spot = document.getElementById("spotRect");
+      const spotLen = spot.getTotalLength();
+      tl.fromTo(spot, { strokeDasharray: spotLen, strokeDashoffset: spotLen }, { strokeDashoffset: 0, duration: 0.8, ease: "power2.inOut" }, 9.0);
+      tl.fromTo("#ai", { opacity: 0, y: 50, scale: 0.9 }, { opacity: 1, y: 0, scale: 1, duration: 0.55, ease: "back.out(1.5)" }, 9.45);
+      const aiFull = "Aylanmaning 43 foizi nasiyada — 17,5 mln so'm.";
+      const aiEl = document.getElementById("aiTxt");
+      const typer = { n: 0 };
+      tl.fromTo(typer, { n: 0 }, { n: aiFull.length, duration: 0.8, ease: "none",
+        onUpdate: () => { aiEl.textContent = aiFull.slice(0, Math.round(typer.n)); } }, 9.75);
+      tl.fromTo("#aiTask", { opacity: 0, x: -24 }, { opacity: 1, x: 0, duration: 0.45, ease: "power3.out" }, 10.6);
+
+      /* ---------- S5 · Savora (11.0 – 15.0) ---------- */
+      tl.to("#world", { scale: 0.84, opacity: 0, filter: "blur(14px)", duration: 0.75, ease: "power2.in" }, 11.0);
+      tl.fromTo("#bloom", { opacity: 0, scale: 0.6 }, { opacity: 1, scale: 1, duration: 1.4, ease: "power2.out" }, 11.2);
+      tl.fromTo("#logoSq", { opacity: 0 }, { opacity: 1, duration: 0.3, ease: "power1.out" }, 11.45);
+      tl.fromTo("#logo", { scale: 0.55, rotation: -8 }, { scale: 1, rotation: 0, duration: 0.8, ease: "power3.out" }, 11.45);
+      tl.fromTo(".lbar", { scaleY: 0, transformOrigin: "50% 100%" }, { scaleY: 1, duration: 0.5, ease: "power3.out", stagger: 0.1 }, 11.75);
+      const curve = document.getElementById("lcurve");
+      const cLen = curve.getTotalLength();
+      tl.fromTo(curve, { strokeDasharray: cLen, strokeDashoffset: cLen }, { strokeDashoffset: 0, duration: 0.5, ease: "power2.inOut" }, 12.05);
+      tl.fromTo("#ldot", { scale: 0, transformOrigin: "50% 50%" }, { scale: 1, duration: 0.4, ease: "back.out(2.4)" }, 12.5);
+      tl.set("#sheen", { opacity: 1 }, 12.7);
+      tl.fromTo("#sheen", { x: 0 }, { x: 440, duration: 0.6, ease: "power2.inOut" }, 12.7);
+      cascade(q("#word .w"), 12.2, { y: 110, dur: 0.6, gap: 0.06 });
+      tl.fromTo("#tag", { opacity: 0, y: 30 }, { opacity: 1, y: 0, duration: 0.6, ease: "power3.out" }, 12.85);
+      q(".pill").forEach((el, i) => {
+        tl.fromTo(el, { opacity: 0, y: 30, scale: 0.9 }, { opacity: 1, y: 0, scale: 1, duration: 0.55, ease: "back.out(1.6)" }, 13.15 + i * 0.12);
+      });
+      tl.fromTo("#logo", { y: 0 }, { y: -6, duration: 0.9, ease: "sine.inOut", immediateRender: false }, 13.7);
+
+      window.__timelines["main"] = tl;
+    </script>
+  </body>
+</html>

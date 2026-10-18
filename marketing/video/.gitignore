@@ -6,3 +6,7 @@
 node_modules/
 savora-reels/renders/
 savora-reels/.hyperframes/
+savora-showreel-15/**/.hyperframes/
+savora-showreel-15/**/renders/
+savora-showreel-15/**/.thumbnails/
+savora-showreel-15/**/.waveform-cache/
