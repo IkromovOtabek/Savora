@@ -45,7 +45,13 @@ const P = {
   chart: <path d="M4 20V10M10 20V4M16 20v-7M22 20H2" />,
   check: <path d="M20 6 9 17l-5-5" />,
   phone: <><rect x="6" y="2" width="12" height="20" rx="2.5" /><path d="M11 18h2" /></>,
+  android: <><path d="M5 16V11a7 7 0 0 1 14 0v5H5zM8 5 6.5 2.5M16 5l1.5-2.5" /><circle cx="9.5" cy="10.5" r=".6" /><circle cx="14.5" cy="10.5" r=".6" /><path d="M8 16v4M16 16v4" /></>,
+  apple: <><path d="M16.5 13.2c0-2.3 1.9-3.4 2-3.5a4.3 4.3 0 0 0-3.4-1.8c-1.4-.2-2.8.8-3.5.8s-1.8-.8-3-.8A4.5 4.5 0 0 0 4.8 10.3c-1.6 2.8-.4 6.9 1.1 9.1.8 1.1 1.7 2.3 2.9 2.3s1.6-.7 3-.7 1.8.7 3 .7 2-1.1 2.8-2.2c.9-1.3 1.2-2.5 1.3-2.6-.1 0-2.4-.9-2.4-3.7zM14.3 6.1A4 4 0 0 0 15.2 3a4.2 4.2 0 0 0-2.7 1.4 3.9 3.9 0 0 0-1 2.9 3.4 3.4 0 0 0 2.8-1.2z" /></>,
 };
+
+/** Mobil ilova havolalari (server env). Bo'sh bo'lsa tugma «Tez kunda» bo'ladi — halol holat. */
+const MOBILE_ANDROID_URL = process.env.MOBILE_ANDROID_URL || '';
+const MOBILE_IOS_URL = process.env.MOBILE_IOS_URL || '';
 
 /** Nasiya oqimi qadamlari ikonkalari — matnlar lug'atda (d.landing.flow.steps) */
 const FLOW_ICONS = [P.cart, P.cal, P.sign, P.bell];
@@ -402,6 +408,32 @@ export default async function LandingPage() {
 
       <Faq trialDays={TRIAL_DAYS} plans={planLimits} />
 
+      {/* MOBIL ILOVA — havola env'da bo'lmasa «Tez kunda» */}
+      <section className="lp-sec lp-sec--alt" id="ilova">
+        <div className="lp-wrap">
+          <div className="lp-head lp-reveal">
+            <span className="lp-eyebrow">{L.mobileApp.eyebrow}</span>
+            <h2>{L.mobileApp.title}</h2>
+            <p>{L.mobileApp.lead}</p>
+          </div>
+          <div className="lp-dl">
+            {[
+              { key: 'android', icon: P.android, t: L.mobileApp.android, d: L.mobileApp.androidD, btn: L.mobileApp.androidBtn, href: MOBILE_ANDROID_URL },
+              { key: 'ios', icon: P.apple, t: L.mobileApp.ios, d: L.mobileApp.iosD, btn: L.mobileApp.iosBtn, href: MOBILE_IOS_URL },
+            ].map((s) => (
+              <div key={s.key} className="lp-tile lp-dl-card lp-reveal">
+                <span className="ic"><Svg>{s.icon}</Svg></span>
+                <h3>{s.t}</h3>
+                <p>{s.d}</p>
+                {s.href
+                  ? <a href={s.href} className="lp-btn lp-btn--f" rel="noopener">{s.btn}</a>
+                  : <span className="lp-btn lp-btn--g" aria-disabled="true">{L.mobileApp.soon}</span>}
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* CTA */}
       <section className="lp-sec">
         <div className="lp-wrap">
@@ -422,7 +454,7 @@ export default async function LandingPage() {
               <Link href="/" className="lp-brand"><BrandMark size={32} />Savora</Link>
               <p style={{ color: 'var(--lp-ink2)', maxWidth: 300, marginTop: 12 }}>{L.footer.tagline}</p>
             </div>
-            <div><h4>{L.footer.product}</h4><a href="#imkoniyatlar">{L.nav.features}</a><a href="#tariflar">{L.nav.plans}</a><a href="#sohalar">{L.footer.sectors}</a><a href="#qoidalar-2027">{L.footer.rules}</a><Link href={LOCALHOST_LINKS.register}>{L.footer.trial}</Link></div>
+            <div><h4>{L.footer.product}</h4><a href="#imkoniyatlar">{L.nav.features}</a><a href="#tariflar">{L.nav.plans}</a><a href="#sohalar">{L.footer.sectors}</a><a href="#qoidalar-2027">{L.footer.rules}</a><a href="#ilova">{L.mobileApp.eyebrow}</a><Link href={LOCALHOST_LINKS.register}>{L.footer.trial}</Link></div>
             <div><h4>{L.footer.company}</h4><Link href="/contact">{L.public.contact}</Link><Link href="/help">{L.public.helpCenter}</Link></div>
             <div><h4>{L.footer.docs}</h4><Link href="/terms">{L.public.terms}</Link><Link href="/privacy">{L.public.privacy}</Link></div>
           </div>

@@ -371,3 +371,10 @@
 .lp .lp-inl { color: var(--lp-br); font-weight: 600; text-decoration: none; }
 .lp .lp-inl:hover { text-decoration: underline; }
 .lp .faq-item--open .faq-a { max-height: 640px; }
+
+/* Mobil ilova — yuklab olish kartalari */
+.lp-dl { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; max-width: 760px; margin: 0 auto; }
+.lp-dl-card { grid-column: auto; }
+.lp-dl-card .lp-btn { justify-self: start; margin-top: 6px; }
+.lp-dl-card .lp-btn[aria-disabled="true"] { cursor: default; color: var(--lp-ink3); }
+@media (max-width: 560px) { .lp-dl { grid-template-columns: 1fr; } .lp-dl-card .lp-btn { justify-self: stretch; } }

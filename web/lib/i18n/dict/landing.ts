@@ -208,6 +208,18 @@ export const uz = {
     start: 'Bepul boshlash',
     later: 'Keyinroq',
   },
+  mobileApp: {
+    eyebrow: 'Mobil ilova',
+    title: 'Savora telefoningizda',
+    lead: "Sotuv, mahsulotlar va kirim-chiqim — do'konda bo'lmasangiz ham qo'l ostingizda. Saytdagi login bilan kirasiz.",
+    android: 'Android',
+    androidD: "APK faylni yuklab oling va o'rnating. Telefon birinchi marta «noma'lum manbadan o'rnatish»ga ruxsat so'raydi.",
+    androidBtn: 'APK yuklab olish',
+    ios: 'iPhone',
+    iosD: "Hozircha TestFlight orqali beta: avval App Store'dan TestFlight ilovasini o'rnating, so'ng havolani oching.",
+    iosBtn: "TestFlight'da ochish",
+    soon: 'Tez kunda',
+  },
   cta: {
     title: 'Nasiyani nazorat qiling, pulni vaqtida oling',
     /** {days} — sinov muddati */
@@ -555,6 +567,18 @@ export const ru: typeof uz = {
     points: ['Быстрая продажа со сканером', 'Несколько филиалов и сотрудников', 'Отчёты по долгам и кассе'],
     start: 'Начать бесплатно',
     later: 'Позже',
+  },
+  mobileApp: {
+    eyebrow: 'Мобильное приложение',
+    title: 'Savora в вашем телефоне',
+    lead: 'Продажи, товары и приход-расход — под рукой, даже когда вы не в магазине. Вход с тем же логином, что и на сайте.',
+    android: 'Android',
+    androidD: 'Скачайте APK-файл и установите. При первой установке телефон попросит разрешить «установку из неизвестных источников».',
+    androidBtn: 'Скачать APK',
+    ios: 'iPhone',
+    iosD: 'Пока бета через TestFlight: сначала установите TestFlight из App Store, затем откройте ссылку.',
+    iosBtn: 'Открыть в TestFlight',
+    soon: 'Скоро',
   },
   cta: {
     title: 'Контролируйте рассрочку, получайте деньги вовремя',
