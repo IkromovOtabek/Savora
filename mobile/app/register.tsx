@@ -172,7 +172,7 @@ export default function Register() {
                   style={({ pressed }) => [st.tile, on && st.tileOn, pressed && { opacity: 0.7 }]}
                 >
                   <View style={st.tileTop}>
-                    <IconSquare icon={ic.icon} color={c.sq[ic.sq]} size={42} />
+                    <IconSquare icon={ic.icon} color={c.sq[ic.sq]} size={48} />
                     <Ionicons name={on ? 'checkmark-circle' : 'ellipse-outline'} size={24} color={on ? c.tint : c.ink3} />
                   </View>
                   <Text style={st.tileT} numberOfLines={2}>{t.label}</Text>
@@ -239,7 +239,7 @@ const styles = (c: Palette) => StyleSheet.create({
   },
   tileOn: { borderColor: c.tint, backgroundColor: c.tintSoft },
   tileTop: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 4 },
-  tileT: { fontSize: 16, fontWeight: '800', letterSpacing: -0.2, color: c.ink },
-  tileD: { fontSize: 13, fontWeight: '500', lineHeight: 17, color: c.ink3 },
+  tileT: { fontSize: 17, fontWeight: '800', letterSpacing: -0.3, color: c.ink },
+  tileD: { fontSize: 13.5, fontWeight: '500', lineHeight: 18, color: c.ink3 },
   agree: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 4 },
 });

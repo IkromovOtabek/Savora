@@ -2,19 +2,48 @@ import React from 'react';
 import { View, Pressable, StyleSheet, type StyleProp, type ViewStyle } from 'react-native';
 import { Text } from './Text';
 import { Ionicons } from '@expo/vector-icons';
+import Svg, { Defs, LinearGradient, Stop, Rect } from 'react-native-svg';
 import { useTheme, HAIRLINE, tabular } from '@/lib/theme';
 import type { IconName } from './Button';
 
+/** "#RRGGBB" ni boshqa rang bilan aralashtirish (t=0..1). */
+function mix(hex: string, to: string, t: number): string {
+  const a = parseInt(hex.slice(1), 16), b = parseInt(to.slice(1), 16);
+  const ch = (sh: number) => Math.round(((a >> sh) & 255) * (1 - t) + ((b >> sh) & 255) * t);
+  return `#${((1 << 24) | (ch(16) << 16) | (ch(8) << 8) | ch(0)).toString(16).slice(1)}`;
+}
+
 /**
- * Hajmli ikon kvadrati — rangli yuz, yuqorida yaltiroq qatlam, pastda o'z rangidagi yumshoq soya
- * (foydalanuvchi tanlagan "Loy" yo'nalishi). Tugmalarga emas — faqat ikonkalarga.
+ * Hajmli ikon kvadrati ("Loy" yo'nalishi): yorug'dan to'qqa gradient yuz, yuqorida yaltiroq,
+ * pastki qirrada qalinlik, o'z rangidagi yumshoq soya. Tugmalarga emas — faqat ikonkalarga.
  */
-export function IconSquare({ icon, color, size = 38 }: { icon: IconName; color: string; size?: number }) {
-  const r = size * 0.3;
+export function IconSquare({ icon, color, size = 40 }: { icon: IconName; color: string; size?: number }) {
+  const id = React.useId().replace(/:/g, '');
+  const r = size * 0.32;
+  const hex = /^#[0-9a-f]{6}$/i.test(color);
+  const top = hex ? mix(color, '#ffffff', 0.32) : color;
+  const bot = hex ? mix(color, '#000000', 0.16) : color;
+  const edge = hex ? mix(color, '#000000', 0.32) : color;
   return (
-    <View style={[s.sq, { backgroundColor: color, width: size, height: size, borderRadius: r, shadowColor: color }]}>
-      <View pointerEvents="none" style={[s.sqShine, { borderTopLeftRadius: r, borderTopRightRadius: r, height: size * 0.5 }]} />
-      <Ionicons name={icon} size={Math.round(size * 0.55)} color="#fff" />
+    <View style={[s.sq, { width: size, height: size, borderRadius: r, shadowColor: color }]}>
+      <Svg width={size} height={size} style={StyleSheet.absoluteFill}>
+        <Defs>
+          <LinearGradient id={`f${id}`} x1="0" y1="0" x2="0.35" y2="1">
+            <Stop offset="0" stopColor={top} />
+            <Stop offset="1" stopColor={bot} />
+          </LinearGradient>
+          <LinearGradient id={`g${id}`} x1="0" y1="0" x2="0" y2="1">
+            <Stop offset="0" stopColor="#fff" stopOpacity={0.55} />
+            <Stop offset="1" stopColor="#fff" stopOpacity={0} />
+          </LinearGradient>
+        </Defs>
+        {/* qalinlik — pastki qirra */}
+        <Rect x={0} y={0} width={size} height={size} rx={r} fill={edge} />
+        <Rect x={0} y={0} width={size} height={size - size * 0.07} rx={r} fill={`url(#f${id})`} />
+        {/* yaltiroq */}
+        <Rect x={size * 0.12} y={size * 0.06} width={size * 0.76} height={size * 0.4} rx={size * 0.2} fill={`url(#g${id})`} />
+      </Svg>
+      <Ionicons name={icon} size={Math.round(size * 0.54)} color="#fff" style={s.sqIcon} />
     </View>
   );
 }
@@ -46,7 +75,7 @@ export function Group({ children, header, icon, headerRight, footer, style }: Gr
             <View style={[s.gheadRow, { borderBottomColor: c.sep }]}>
               {icon ? (
                 <View style={[s.gicon, { backgroundColor: c.tintSoft }]}>
-                  <Ionicons name={icon} size={20} color={c.tint} />
+                  <Ionicons name={icon} size={22} color={c.tint} />
                 </View>
               ) : null}
               <Text style={[s.ghead, { color: c.ink }]} numberOfLines={1} accessibilityRole="header">{header}</Text>
@@ -107,7 +136,7 @@ export function Cell({
   onPress, onLongPress, destructive, disabled, sep, children, titleLines = 1, subtitleLines = 1, wrapValue, style, accessibilityLabel,
 }: CellProps) {
   const { c } = useTheme();
-  const inset = left ? 72 : icon ? 66 : 16;
+  const inset = left ? 74 : icon ? 70 : 16;
   const content = (pressed: boolean) => (
     <>
       {sep ? <View style={[s.sep, { left: inset, backgroundColor: c.sep }]} /> : null}
@@ -183,25 +212,25 @@ export function AmountColumn({ amount, color, children }: { amount: string; colo
 const s = StyleSheet.create({
   sq: {
     alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-    shadowOpacity: 0.35, shadowRadius: 6, shadowOffset: { width: 0, height: 3 }, elevation: 3,
+    shadowOpacity: 0.4, shadowRadius: 7, shadowOffset: { width: 0, height: 4 }, elevation: 4,
   },
-  sqShine: { position: 'absolute', top: 0, left: 0, right: 0, backgroundColor: 'rgba(255,255,255,0.2)' },
+  sqIcon: { marginTop: -2, textShadowColor: 'rgba(0,0,0,0.22)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 2 },
   gheadRow: {
-    flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, minHeight: 60,
+    flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, minHeight: 64,
     borderBottomWidth: HAIRLINE,
   },
-  gicon: { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center' },
-  ghead: { flex: 1, fontSize: 19, fontWeight: '800', letterSpacing: -0.4 },
+  gicon: { width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center' },
+  ghead: { flex: 1, fontSize: 20, fontWeight: '800', letterSpacing: -0.4 },
   groupShadow: { shadowColor: '#0D1526', shadowOpacity: 0.045, shadowRadius: 10, shadowOffset: { width: 0, height: 3 }, elevation: 1 },
   gfoot: { fontSize: 13.5, fontWeight: '500', paddingHorizontal: 16, paddingTop: 8, lineHeight: 19 },
   groupOuter: { borderRadius: 22 },
   group: { borderRadius: 22, overflow: 'hidden' },
-  cell: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingLeft: 16, paddingRight: 14, minHeight: 60 },
+  cell: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingLeft: 16, paddingRight: 14, minHeight: 66 },
   sep: { position: 'absolute', top: 0, right: 0, height: HAIRLINE },
   t: { flex: 1, minWidth: 0, paddingVertical: 12 },
-  title: { fontSize: 16, fontWeight: '600', letterSpacing: -0.2 },
-  sub: { fontSize: 13.5, fontWeight: '500', marginTop: 2 },
-  value: { fontSize: 16, fontWeight: '500', textAlign: 'right', maxWidth: '55%' },
+  title: { fontSize: 17, fontWeight: '700', letterSpacing: -0.3 },
+  sub: { fontSize: 14.5, fontWeight: '500', marginTop: 2 },
+  value: { fontSize: 17, fontWeight: '600', textAlign: 'right', maxWidth: '55%' },
   amountCol: { alignItems: 'flex-end', gap: 3, flexShrink: 0, maxWidth: '50%' },
-  amount: { fontSize: 16, fontWeight: '700' },
+  amount: { fontSize: 17, fontWeight: '800' },
 });

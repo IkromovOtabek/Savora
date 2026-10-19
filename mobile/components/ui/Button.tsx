@@ -93,7 +93,7 @@ export function IconButton({ icon, onPress, label, tone = 'fill' }: { icon: Icon
         pressed && { opacity: 0.5 },
       ]}
     >
-      <Ionicons name={icon} size={22} color={c.tint} />
+      <Ionicons name={icon} size={24} color={c.tint} />
     </Pressable>
   );
 }
@@ -102,5 +102,5 @@ const s = StyleSheet.create({
   base: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   left: { flexDirection: 'row', alignItems: 'center', gap: 7, flexShrink: 1 },
   text: { fontWeight: '700', letterSpacing: -0.2 },
-  icon: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
+  icon: { width: 46, height: 46, borderRadius: 23, alignItems: 'center', justifyContent: 'center' },
 });

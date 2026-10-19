@@ -32,7 +32,7 @@ export function Pill({ label, tone = 'mut' }: { label: string; tone?: Tone }) {
 }
 
 /** Bosh harfli avatar — ismdan barqaror rang. */
-export function Avatar({ name, size = 42, tone }: { name?: string | null; size?: number; tone?: keyof Palette['sq'] }) {
+export function Avatar({ name, size = 44, tone }: { name?: string | null; size?: number; tone?: keyof Palette['sq'] }) {
   const { c } = useTheme();
   const keys: (keyof Palette['sq'])[] = ['b', 'a', 'o', 'r', 'g'];
   const str = String(name || '');
@@ -142,9 +142,9 @@ export function TileGrid({ items }: { items: TileItem[]; sep?: boolean }) {
           accessibilityLabel={it.badge ? `${it.label}, ${it.badge}` : it.label}
           style={({ pressed }) => [s.tile, { backgroundColor: c.fill2 }, pressed && { opacity: 0.55 }]}
         >
-          <IconSquare icon={it.icon} color={it.color} size={40} />
+          <IconSquare icon={it.icon} color={it.color} size={46} />
           <View style={{ flex: 1, minWidth: 0 }}>
-            <Text style={[s.tileT, { color: c.ink }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>{it.label}</Text>
+            <Text style={[s.tileT, { color: c.ink }]} numberOfLines={2}>{it.label}</Text>
             {it.badge ? <Text style={[s.tileB, tabular, { color: c.ink3 }]} numberOfLines={1}>{it.badge}</Text> : null}
           </View>
         </Pressable>
@@ -155,9 +155,9 @@ export function TileGrid({ items }: { items: TileItem[]; sep?: boolean }) {
 
 const s = StyleSheet.create({
   tiles: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, padding: 12 },
-  tile: { flexBasis: '47%', flexGrow: 1, flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 68, borderRadius: 18, paddingHorizontal: 12, paddingVertical: 10 },
-  tileT: { fontSize: 15, fontWeight: '700', letterSpacing: -0.2 },
-  tileB: { fontSize: 12.5, fontWeight: '600', marginTop: 1 },
+  tile: { flexBasis: '47%', flexGrow: 1, flexDirection: 'row', alignItems: 'center', gap: 11, minHeight: 76, borderRadius: 20, paddingHorizontal: 12, paddingVertical: 12 },
+  tileT: { fontSize: 16, fontWeight: '800', letterSpacing: -0.3, lineHeight: 20 },
+  tileB: { fontSize: 13, fontWeight: '600', marginTop: 2 },
   pill: { borderRadius: 999, paddingHorizontal: 9, paddingVertical: 3 },
   pillT: { fontSize: 12.5, fontWeight: '700' },
   av: { alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
@@ -166,6 +166,6 @@ const s = StyleSheet.create({
   ringCenter: { alignItems: 'center', justifyContent: 'center' },
   card: { borderRadius: 22 },
   stat: { flex: 1, padding: 14, gap: 2, minWidth: 0 },
-  statL: { fontSize: 13, fontWeight: '600' },
-  statV: { fontSize: 22, fontWeight: '800', letterSpacing: -0.5 },
+  statL: { fontSize: 14, fontWeight: '600' },
+  statV: { fontSize: 26, fontWeight: '800', letterSpacing: -0.7 },
 });

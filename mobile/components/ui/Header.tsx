@@ -73,7 +73,7 @@ export function TopBar({ title, subtitle, left, actions, profile = true, childre
   const { me } = useAuth();
   const router = useRouter();
   const d = useDict();
-  const fs = compact ? 27 : 30;
+  const fs = compact ? 28 : 32;
   return (
     <View style={{ gap: 12 }}>
       <View style={s.topRow}>
@@ -155,9 +155,9 @@ const s = StyleSheet.create({
   eyebrow: { fontSize: 13, fontWeight: '600', flexShrink: 1 },
   actions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   topRow: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 44 },
-  topSub: { fontSize: 14, fontWeight: '600', marginTop: 1 },
-  me: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
-  meT: { color: '#fff', fontSize: 16, fontWeight: '800', letterSpacing: 0.3 },
+  topSub: { fontSize: 15, fontWeight: '600', marginTop: 1 },
+  me: { width: 46, height: 46, borderRadius: 23, alignItems: 'center', justifyContent: 'center' },
+  meT: { color: '#fff', fontSize: 17, fontWeight: '800', letterSpacing: 0.3 },
   titleRow: { flexDirection: 'row', alignItems: 'center', gap: 14 },
   subtitle: { fontSize: 15, fontWeight: '600', marginTop: 2 },
   bar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: 44 },

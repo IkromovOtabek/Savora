@@ -12,7 +12,7 @@ import { useDict } from '@/lib/i18n';
 function TabIcon({ name, active, color, bg }: { name: IconName; active: boolean; color: string; bg: string }) {
   return (
     <View style={[s.ind, active && { backgroundColor: bg }]}>
-      <Ionicons name={name} color={color} size={25} />
+      <Ionicons name={name} color={color} size={27} />
     </View>
   );
 }
@@ -49,7 +49,7 @@ export default function TabsLayout() {
           shadowOffset: { width: 0, height: -3 },
           paddingTop: 6,
         },
-        tabBarLabelStyle: { fontSize: 11.5, fontFamily: fontsOn() ? 'Manrope_700Bold' : undefined, fontWeight: fontsOn() ? 'normal' : '600', marginTop: 3 },
+        tabBarLabelStyle: { fontSize: 12, fontFamily: fontsOn() ? 'Manrope_700Bold' : undefined, fontWeight: fontsOn() ? 'normal' : '600', marginTop: 3 },
         sceneStyle: { backgroundColor: c.bg },
       }}
     >
@@ -60,10 +60,10 @@ export default function TabsLayout() {
         options={{
           title: d.tabs.sell,
           tabBarAccessibilityLabel: d.tabs.newSale,
-          tabBarLabelStyle: { fontSize: 11.5, fontFamily: fontsOn() ? 'Manrope_800ExtraBold' : undefined, fontWeight: fontsOn() ? 'normal' : '700', color: c.tint, marginTop: 3 },
+          tabBarLabelStyle: { fontSize: 12, fontFamily: fontsOn() ? 'Manrope_800ExtraBold' : undefined, fontWeight: fontsOn() ? 'normal' : '700', color: c.tint, marginTop: 3 },
           tabBarIcon: () => (
             <View style={[s.sell, { backgroundColor: c.tintFill }]}>
-              <Ionicons name="add" color="#fff" size={28} />
+              <Ionicons name="add" color="#fff" size={30} />
             </View>
           ),
         }}
@@ -81,8 +81,8 @@ export default function TabsLayout() {
 
 const s = StyleSheet.create({
   sell: {
-    width: 54, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center',
+    width: 60, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center',
     shadowColor: '#1F4FA8', shadowOpacity: 0.35, shadowRadius: 8, shadowOffset: { width: 0, height: 4 }, elevation: 4,
   },
-  ind: { width: 58, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center' },
+  ind: { width: 62, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
 });

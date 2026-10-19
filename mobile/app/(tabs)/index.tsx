@@ -180,10 +180,10 @@ const s = StyleSheet.create({
   heroTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
   heroDate: { backgroundColor: 'rgba(255,255,255,0.16)', borderRadius: 999, paddingHorizontal: 10, paddingVertical: 3 },
   heroDateT: { color: '#fff', fontSize: 12, fontWeight: '600' },
-  heroL: { color: 'rgba(255,255,255,0.88)', fontSize: 15, fontWeight: '600' },
-  heroV: { color: '#fff', fontSize: 38, fontWeight: '800', letterSpacing: -1.2 },
+  heroL: { color: 'rgba(255,255,255,0.9)', fontSize: 16, fontWeight: '700' },
+  heroV: { color: '#fff', fontSize: 42, fontWeight: '800', letterSpacing: -1.4 },
   heroSuffix: { fontSize: 17, fontWeight: '600', letterSpacing: 0 },
   heroRow: { flexDirection: 'row', flexWrap: 'wrap', columnGap: 14, rowGap: 2, marginTop: 2 },
-  heroR: { color: 'rgba(255,255,255,0.92)', fontSize: 14, fontWeight: '600' },
+  heroR: { color: 'rgba(255,255,255,0.92)', fontSize: 15, fontWeight: '600' },
   mini: { flexDirection: 'row', gap: 10 },
 });
