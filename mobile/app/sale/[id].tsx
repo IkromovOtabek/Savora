@@ -1,5 +1,6 @@
 import { useCallback, useRef, useState } from 'react';
-import { View, Text, Modal, Alert, Linking, KeyboardAvoidingView, Platform, ScrollView, StyleSheet } from 'react-native';
+import { View, Modal, Alert, Linking, KeyboardAvoidingView, Platform, ScrollView, StyleSheet } from 'react-native';
+import { Text } from '@/components/ui/Text';
 import { useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { api, errMsg } from '@/lib/api';

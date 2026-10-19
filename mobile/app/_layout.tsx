@@ -9,6 +9,10 @@ import { ThemeProvider, useTheme } from '@/lib/theme';
 import { I18nProvider } from '@/lib/i18n';
 import { AnimatedSplash } from '@/components/AnimatedSplash';
 import { OfflinePosProvider } from '@/lib/offlinePos';
+import {
+  useFonts, Manrope_400Regular, Manrope_500Medium, Manrope_600SemiBold, Manrope_700Bold, Manrope_800ExtraBold,
+} from '@expo-google-fonts/manrope';
+import { enableAppFont } from '@/components/ui/Text';
 
 // Native splash JS animatsiyasi boshlanguncha turadi (AnimatedSplash onLayout'da yopadi)
 SplashScreen.preventAutoHideAsync().catch(() => { /* allaqachon yopilgan */ });
@@ -68,6 +72,13 @@ function Navigation() {
 }
 
 export default function RootLayout() {
+  const [fontsLoaded, fontError] = useFonts({
+    Manrope_400Regular, Manrope_500Medium, Manrope_600SemiBold, Manrope_700Bold, Manrope_800ExtraBold,
+  });
+  // Shrift yuklanguncha native splash turadi; yuklanmasa — tizim shrifti bilan davom etamiz
+  if (!fontsLoaded && !fontError) return null;
+  if (fontsLoaded) enableAppFont();
+
   return (
     <SafeAreaProvider>
       <I18nProvider>

@@ -1,7 +1,11 @@
 import React from 'react';
-import { View, Text, StyleSheet, type StyleProp, type ViewStyle } from 'react-native';
+import { View, Pressable, StyleSheet, type StyleProp, type ViewStyle } from 'react-native';
+import { Text } from './Text';
+import { Ionicons } from '@expo/vector-icons';
 import { useTheme, tabular, type Palette } from '@/lib/theme';
 import { initials } from '@/lib/format';
+import type { IconName } from './Button';
+import { IconSquare } from './List';
 
 export type Tone = 'ok' | 'bad' | 'warn' | 'mut' | 'br' | 'au';
 
@@ -28,7 +32,7 @@ export function Pill({ label, tone = 'mut' }: { label: string; tone?: Tone }) {
 }
 
 /** Bosh harfli avatar — ismdan barqaror rang. */
-export function Avatar({ name, size = 38, tone }: { name?: string | null; size?: number; tone?: keyof Palette['sq'] }) {
+export function Avatar({ name, size = 42, tone }: { name?: string | null; size?: number; tone?: keyof Palette['sq'] }) {
   const { c } = useTheme();
   const keys: (keyof Palette['sq'])[] = ['b', 'a', 'o', 'r', 'g'];
   const str = String(name || '');
@@ -115,15 +119,53 @@ export function StatCard({ label, value, note, color, style }: { label: string; 
   );
 }
 
+export interface TileItem {
+  key: string;
+  label: string;
+  icon: IconName;
+  color: string;
+  /** O'ng yuqoridagi qisqa qiymat (masalan, qarz summasi) */
+  badge?: string;
+  onPress: () => void;
+}
+
+/** Modullar to'ri — 2 ustunli kulrang plitkalar: rangli ikonka + nom. Group ichida ishlatiladi. */
+export function TileGrid({ items }: { items: TileItem[]; sep?: boolean }) {
+  const { c } = useTheme();
+  return (
+    <View style={s.tiles}>
+      {items.map((it) => (
+        <Pressable
+          key={it.key}
+          onPress={it.onPress}
+          accessibilityRole="button"
+          accessibilityLabel={it.badge ? `${it.label}, ${it.badge}` : it.label}
+          style={({ pressed }) => [s.tile, { backgroundColor: c.fill2 }, pressed && { opacity: 0.55 }]}
+        >
+          <IconSquare icon={it.icon} color={it.color} size={40} />
+          <View style={{ flex: 1, minWidth: 0 }}>
+            <Text style={[s.tileT, { color: c.ink }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>{it.label}</Text>
+            {it.badge ? <Text style={[s.tileB, tabular, { color: c.ink3 }]} numberOfLines={1}>{it.badge}</Text> : null}
+          </View>
+        </Pressable>
+      ))}
+    </View>
+  );
+}
+
 const s = StyleSheet.create({
-  pill: { borderRadius: 999, paddingHorizontal: 8, paddingVertical: 2, alignSelf: 'flex-end' },
-  pillT: { fontSize: 12, fontWeight: '600' },
+  tiles: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, padding: 12 },
+  tile: { flexBasis: '47%', flexGrow: 1, flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 68, borderRadius: 18, paddingHorizontal: 12, paddingVertical: 10 },
+  tileT: { fontSize: 15, fontWeight: '700', letterSpacing: -0.2 },
+  tileB: { fontSize: 12.5, fontWeight: '600', marginTop: 1 },
+  pill: { borderRadius: 999, paddingHorizontal: 9, paddingVertical: 3 },
+  pillT: { fontSize: 12.5, fontWeight: '700' },
   av: { alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
-  avT: { color: '#fff', fontWeight: '600' },
+  avT: { color: '#fff', fontWeight: '700' },
   prog: { height: 4, borderRadius: 4, overflow: 'hidden' },
   ringCenter: { alignItems: 'center', justifyContent: 'center' },
-  card: { borderRadius: 20 },
-  stat: { flex: 1, padding: 12, gap: 2, minWidth: 0 },
-  statL: { fontSize: 12, fontWeight: '500' },
-  statV: { fontSize: 18, fontWeight: '700', letterSpacing: -0.4 },
+  card: { borderRadius: 22 },
+  stat: { flex: 1, padding: 14, gap: 2, minWidth: 0 },
+  statL: { fontSize: 13, fontWeight: '600' },
+  statV: { fontSize: 22, fontWeight: '800', letterSpacing: -0.5 },
 });

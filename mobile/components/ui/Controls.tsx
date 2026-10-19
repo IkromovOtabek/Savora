@@ -1,8 +1,8 @@
 import React, { forwardRef } from 'react';
 import {
-  View, Text, Pressable, TextInput, Switch as RNSwitch, StyleSheet, Platform,
-  type TextInputProps, type StyleProp, type ViewStyle,
+  View, Pressable, Switch as RNSwitch, StyleSheet, Platform, type TextInputProps, type StyleProp, type ViewStyle,
 } from 'react-native';
+import { Text, TextInput } from './Text';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme, HAIRLINE, tabular } from '@/lib/theme';
 import { useDict, tr } from '@/lib/i18n';
@@ -189,16 +189,16 @@ export function Chips<K extends string | number>({ options, value, onChange }: {
 
 const s = StyleSheet.create({
   seg: { flexDirection: 'row', padding: 4, borderRadius: 14 },
-  segBtn: { flex: 1, minHeight: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 6 },
+  segBtn: { flex: 1, minHeight: 40, borderRadius: 11, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 6 },
   segShadow: { shadowColor: '#000', shadowOpacity: 0.12, shadowRadius: 4, shadowOffset: { width: 0, height: 2 }, elevation: 2 },
-  segT: { fontSize: 13 },
-  search: { flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 12, paddingHorizontal: 12, minHeight: 44 },
+  segT: { fontSize: 14 },
+  search: { flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: 16, paddingHorizontal: 14, minHeight: 50 },
   searchInput: { flex: 1, fontSize: 16, paddingVertical: 8 },
-  label: { fontSize: 13, fontWeight: '500' },
-  inputWrap: { flexDirection: 'row', alignItems: 'center', borderRadius: 12, paddingHorizontal: 12, minHeight: 46, borderWidth: 1, gap: 6 },
-  input: { flex: 1, fontSize: 16, paddingVertical: 11 },
-  affix: { fontSize: 16 },
-  help: { fontSize: 12.5 },
+  label: { fontSize: 14, fontWeight: '600' },
+  inputWrap: { flexDirection: 'row', alignItems: 'center', borderRadius: 16, paddingHorizontal: 14, minHeight: 54, borderWidth: 1.5, gap: 8 },
+  input: { flex: 1, fontSize: 17, fontWeight: '500', paddingVertical: 12 },
+  affix: { fontSize: 17, fontWeight: '600' },
+  help: { fontSize: 13, fontWeight: '500' },
   stepper: { flexDirection: 'row', alignItems: 'center', borderRadius: 12, overflow: 'hidden' },
   stepBtn: { width: 44, height: 36, alignItems: 'center', justifyContent: 'center' },
   stepVal: { minWidth: 40, textAlign: 'center', fontSize: 15, fontWeight: '600', lineHeight: 36, borderLeftWidth: HAIRLINE, borderRightWidth: HAIRLINE },

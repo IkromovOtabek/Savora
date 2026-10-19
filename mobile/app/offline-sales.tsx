@@ -1,4 +1,5 @@
-import { Alert, Text, StyleSheet } from 'react-native';
+import { Alert, StyleSheet } from 'react-native';
+import { Text } from '@/components/ui/Text';
 import { useOfflinePos } from '@/lib/offlinePos';
 import { useTheme } from '@/lib/theme';
 import { fmtDateTime, fmtMoney } from '@/lib/format';

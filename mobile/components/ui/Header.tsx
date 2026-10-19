@@ -1,10 +1,13 @@
 import React from 'react';
-import { View, Text, Pressable, StyleSheet } from 'react-native';
+import { View, Pressable, StyleSheet } from 'react-native';
+import { Text } from './Text';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useTheme, type as T } from '@/lib/theme';
 import { useLayout } from './Screen';
 import { useDict } from '@/lib/i18n';
+import { useAuth } from '@/lib/auth';
+import { initials } from '@/lib/format';
 
 interface LargeTitleProps {
   title: string;
@@ -21,7 +24,7 @@ interface LargeTitleProps {
 export function LargeTitle({ title, subtitle, eyebrow, actions, left, size = 'large' }: LargeTitleProps) {
   const { c } = useTheme();
   const { compact } = useLayout();
-  const fs = size === 'large' ? (compact ? 28 : 32) : (compact ? 22 : 24);
+  const fs = size === 'large' ? (compact ? 30 : 34) : (compact ? 24 : 26);
   return (
     <View style={{ gap: 4 }}>
       {(eyebrow || actions) ? (
@@ -45,6 +48,72 @@ export function LargeTitle({ title, subtitle, eyebrow, actions, left, size = 'la
       </View>
     </View>
   );
+}
+
+interface TopBarProps {
+  title: string;
+  subtitle?: string;
+  /** Sarlavha chapidagi element (masalan, BrandMark) */
+  left?: React.ReactNode;
+  /** O'ng amallar — dumaloq IconButton'lar */
+  actions?: React.ReactNode;
+  /** Kabinet avatari (bosilsa — Kabinet). Kabinet ekranining o'zida false. */
+  profile?: boolean;
+  /** Sarlavha ostidagi qotib turadigan qism (qidiruv, segment) */
+  children?: React.ReactNode;
+}
+
+/**
+ * Tab ekranlar sarlavhasi — pastki burchaklari yumaloq oq karta (Screen `bar` ichida).
+ * Katta qalin sarlavha + dumaloq ikon tugmalar + kabinet avatari.
+ */
+export function TopBar({ title, subtitle, left, actions, profile = true, children }: TopBarProps) {
+  const { c } = useTheme();
+  const { compact } = useLayout();
+  const { me } = useAuth();
+  const router = useRouter();
+  const d = useDict();
+  const fs = compact ? 27 : 30;
+  return (
+    <View style={{ gap: 12 }}>
+      <View style={s.topRow}>
+        {left}
+        <View style={{ flex: 1, minWidth: 0 }}>
+          <Text
+            accessibilityRole="header"
+            style={[T.largeTitle, { fontSize: fs, lineHeight: Math.round(fs * 1.2), color: c.ink }]}
+            numberOfLines={1}
+            adjustsFontSizeToFit
+            minimumFontScale={0.75}
+          >
+            {title}
+          </Text>
+          {subtitle ? <Text style={[s.topSub, { color: c.ink3 }]} numberOfLines={1}>{subtitle}</Text> : null}
+        </View>
+        <View style={s.actions}>
+          {actions}
+          {profile && me ? (
+            <Pressable
+              onPress={() => router.push('/(tabs)/profile')}
+              hitSlop={6}
+              accessibilityRole="button"
+              accessibilityLabel={d.tabs.profile}
+              style={({ pressed }) => [s.me, { backgroundColor: c.tintFill }, pressed && { opacity: 0.6 }]}
+            >
+              <Text style={s.meT} numberOfLines={1}>{meInitials(me.user.username)}</Text>
+            </Pressable>
+          ) : null}
+        </View>
+      </View>
+      {children}
+    </View>
+  );
+}
+
+/** Bitta so'zli login uchun ham ikki harf: "otabek" → "OT". */
+function meInitials(name: string): string {
+  const i = initials(name);
+  return i.length > 1 ? i : name.trim().slice(0, 2).toUpperCase() || i;
 }
 
 interface NavBarProps {
@@ -84,9 +153,13 @@ export function NavBar({ backLabel: backLabelProp, title, right, onBack }: NavBa
 const s = StyleSheet.create({
   navrow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: 36, gap: 12 },
   eyebrow: { fontSize: 13, fontWeight: '600', flexShrink: 1 },
-  actions: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  actions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  topRow: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 44 },
+  topSub: { fontSize: 14, fontWeight: '600', marginTop: 1 },
+  me: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
+  meT: { color: '#fff', fontSize: 16, fontWeight: '800', letterSpacing: 0.3 },
   titleRow: { flexDirection: 'row', alignItems: 'center', gap: 14 },
-  subtitle: { fontSize: 14, fontWeight: '500', marginTop: 2 },
+  subtitle: { fontSize: 15, fontWeight: '600', marginTop: 2 },
   bar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: 44 },
   back: { flexDirection: 'row', alignItems: 'center', minHeight: 44, maxWidth: '40%', zIndex: 1 },
   backT: { fontSize: 17, fontWeight: '400' },

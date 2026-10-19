@@ -7,7 +7,7 @@ import { useTheme } from '@/lib/theme';
 import { fmtMoney } from '@/lib/format';
 import { useDict, tr } from '@/lib/i18n';
 import {
-  Screen, useLayout, LargeTitle, SearchField, Cell, AmountColumn, Pill, IconButton, listCellStyle,
+  Screen, useLayout, TopBar, SearchField, Cell, AmountColumn, Pill, IconButton, listCellStyle,
   Loading, EmptyState, ErrorState, InlineError,
 } from '@/components/ui';
 
@@ -34,36 +34,38 @@ export default function Products() {
   const codeOf = (p: Product) =>
     p.imei && !p.imei.startsWith('SVR-') ? p.imei : p.barcode ? p.barcode : null;
 
-  const header = (
-    <View style={{ gap: 12, paddingBottom: 14 }}>
-      <LargeTitle
-        title={t?.items ?? d.terms.items}
-        subtitle={list.loading && list.items.length === 0 ? ' ' : tr(d.common.count, { n: fmtMoney(list.total) })}
-        actions={
-          <>
-            <IconButton icon="barcode-outline" label={d.common.scanner} onPress={() => router.push('/scan')} />
-            {can('product.create') ? <IconButton icon="add" label={t?.addItem ?? d.terms.addItem} onPress={() => router.push('/product-new')} /> : null}
-          </>
-        }
-      />
+  const bar = (
+    <TopBar
+      title={t?.items ?? d.terms.items}
+      subtitle={list.loading && list.items.length === 0 ? ' ' : tr(d.common.count, { n: fmtMoney(list.total) })}
+      actions={
+        <>
+          <IconButton icon="barcode-outline" label={d.common.scanner} onPress={() => router.push('/scan')} />
+          {can('product.create') ? <IconButton icon="add" label={t?.addItem ?? d.terms.addItem} onPress={() => router.push('/product-new')} /> : null}
+        </>
+      }
+    >
       <SearchField
         value={q}
         onChangeText={setQ}
         placeholder={tr(d.products.searchPlaceholder, { code: (t?.codeLabel ?? d.terms.code).toLowerCase() })}
         right={list.loading && list.items.length > 0 ? <ActivityIndicator size="small" color={c.ink3} /> : null}
       />
-      {list.error && list.items.length > 0 ? <InlineError message={list.error} onRetry={list.refresh} /> : null}
-    </View>
+    </TopBar>
   );
 
+  const header = list.error && list.items.length > 0 ? (
+    <View style={{ paddingBottom: 14 }}><InlineError message={list.error} onRetry={list.refresh} /></View>
+  ) : null;
+
   return (
-    <Screen scroll={false}>
+    <Screen scroll={false} bar={bar}>
       <FlatList
         data={list.items}
         keyExtractor={(it) => it.id}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
-        contentContainerStyle={[L.content, { paddingTop: 8, paddingBottom: L.bottom }]}
+        contentContainerStyle={[L.content, { paddingTop: 14, paddingBottom: L.bottom }]}
         ListHeaderComponent={header}
         refreshControl={<RefreshControl refreshing={list.refreshing} onRefresh={list.refresh} tintColor={c.tint} colors={[c.tint]} />}
         onEndReached={list.loadMore}

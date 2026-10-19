@@ -1,5 +1,6 @@
 import { useCallback, useRef, useState } from 'react';
-import { View, Text, StyleSheet, Alert, Linking, Pressable, useWindowDimensions } from 'react-native';
+import { View, StyleSheet, Alert, Linking, Pressable, useWindowDimensions } from 'react-native';
+import { Text } from '@/components/ui/Text';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CameraView, useCameraPermissions } from 'expo-camera';

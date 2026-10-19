@@ -37,7 +37,7 @@ export interface MeResponse {
 /** Standart atamalar — me hali yuklanmagan bo'lsa. */
 export const DEFAULT_TERMS: Terms = { item: 'Mahsulot', items: 'Ombor', addItem: 'Mahsulot qo\'shish', codeLabel: 'Kod / shtrix', hasImei: false };
 
-export interface RegisterInput { name: string; businessType: string; username: string; password: string; acceptTerms: true }
+export interface RegisterInput { name: string; phone?: string; businessType: string; username: string; password: string; acceptTerms: true }
 
 interface AuthState {
   loading: boolean;

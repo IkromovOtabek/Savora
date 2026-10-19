@@ -1,14 +1,20 @@
 import React from 'react';
-import { View, Text, Pressable, StyleSheet, type StyleProp, type ViewStyle } from 'react-native';
+import { View, Pressable, StyleSheet, type StyleProp, type ViewStyle } from 'react-native';
+import { Text } from './Text';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme, HAIRLINE, tabular } from '@/lib/theme';
 import type { IconName } from './Button';
 
-/** Rangli ikon kvadrati (30×30, oq ikon). */
-export function IconSquare({ icon, color, size = 30 }: { icon: IconName; color: string; size?: number }) {
+/**
+ * Hajmli ikon kvadrati — rangli yuz, yuqorida yaltiroq qatlam, pastda o'z rangidagi yumshoq soya
+ * (foydalanuvchi tanlagan "Loy" yo'nalishi). Tugmalarga emas — faqat ikonkalarga.
+ */
+export function IconSquare({ icon, color, size = 38 }: { icon: IconName; color: string; size?: number }) {
+  const r = size * 0.3;
   return (
-    <View style={[s.sq, { backgroundColor: color, width: size, height: size, borderRadius: size * 0.27 }]}>
-      <Ionicons name={icon} size={Math.round(size * 0.57)} color="#fff" />
+    <View style={[s.sq, { backgroundColor: color, width: size, height: size, borderRadius: r, shadowColor: color }]}>
+      <View pointerEvents="none" style={[s.sqShine, { borderTopLeftRadius: r, borderTopRightRadius: r, height: size * 0.5 }]} />
+      <Ionicons name={icon} size={Math.round(size * 0.55)} color="#fff" />
     </View>
   );
 }
@@ -16,25 +22,39 @@ export function IconSquare({ icon, color, size = 30 }: { icon: IconName; color: 
 interface GroupProps {
   children: React.ReactNode;
   header?: string;
+  /** Sarlavha yonidagi yumshoq doiradagi ikonka */
+  icon?: IconName;
   headerRight?: React.ReactNode;
   footer?: string;
   style?: StyleProp<ViewStyle>;
 }
 
-/** Guruhlangan (inset) ro'yxat — oq yumaloq blok, ichida ajratgichli qatorlar. */
-export function Group({ children, header, headerRight, footer, style }: GroupProps) {
-  const { c } = useTheme();
+/**
+ * Guruhlangan ro'yxat — oq yumaloq karta. Sarlavha karta ichida: (ikonka) + qalin nom + o'ng havola,
+ * ostida ajratgich, keyin qatorlar.
+ */
+export function Group({ children, header, icon, headerRight, footer, style }: GroupProps) {
+  const { c, dark } = useTheme();
   const kids = React.Children.toArray(children).filter(React.isValidElement) as React.ReactElement<{ sep?: boolean }>[];
+  const hasHead = !!(header || headerRight);
   return (
     <View style={style}>
-      {(header || headerRight) ? (
-        <View style={s.gheadRow}>
-          <Text style={[s.ghead, { color: c.ink3 }]} numberOfLines={1}>{header?.toUpperCase()}</Text>
-          {headerRight}
+      {/* iOS'da overflow:hidden soyani kesadi — soya tashqi qatlamda */}
+      <View style={[s.groupOuter, { backgroundColor: c.cell }, !dark && s.groupShadow]}>
+        <View style={[s.group, { backgroundColor: c.cell }]}>
+          {hasHead ? (
+            <View style={[s.gheadRow, { borderBottomColor: c.sep }]}>
+              {icon ? (
+                <View style={[s.gicon, { backgroundColor: c.tintSoft }]}>
+                  <Ionicons name={icon} size={20} color={c.tint} />
+                </View>
+              ) : null}
+              <Text style={[s.ghead, { color: c.ink }]} numberOfLines={1} accessibilityRole="header">{header}</Text>
+              {headerRight}
+            </View>
+          ) : null}
+          {kids.map((k, i) => React.cloneElement(k, { sep: i > 0 }))}
         </View>
-      ) : null}
-      <View style={[s.group, { backgroundColor: c.cell }]}>
-        {kids.map((k, i) => React.cloneElement(k, { sep: i > 0 }))}
       </View>
       {footer ? <Text style={[s.gfoot, { color: c.ink3 }]}>{footer}</Text> : null}
     </View>
@@ -87,7 +107,7 @@ export function Cell({
   onPress, onLongPress, destructive, disabled, sep, children, titleLines = 1, subtitleLines = 1, wrapValue, style, accessibilityLabel,
 }: CellProps) {
   const { c } = useTheme();
-  const inset = left ? 66 : icon ? 58 : 16;
+  const inset = left ? 72 : icon ? 66 : 16;
   const content = (pressed: boolean) => (
     <>
       {sep ? <View style={[s.sep, { left: inset, backgroundColor: c.sep }]} /> : null}
@@ -114,7 +134,7 @@ export function Cell({
       ) : null}
       {right}
       {checked ? <Ionicons name="checkmark" size={20} color={c.tint} /> : null}
-      {chevron ? <Ionicons name="chevron-forward" size={16} color={c.ink3} style={{ opacity: 0.7, marginLeft: -4 }} /> : null}
+      {chevron ? <Ionicons name="chevron-forward" size={18} color={c.ink3} style={{ opacity: 0.7, marginLeft: -4 }} /> : null}
       {pressed ? <View style={[StyleSheet.absoluteFill, { backgroundColor: c.fill }]} pointerEvents="none" /> : null}
     </>
   );
@@ -141,10 +161,10 @@ export function Cell({
 export function listCellStyle(c: { cell: string }, index: number, length: number): ViewStyle {
   return {
     backgroundColor: c.cell,
-    borderTopLeftRadius: index === 0 ? 14 : 0,
-    borderTopRightRadius: index === 0 ? 14 : 0,
-    borderBottomLeftRadius: index === length - 1 ? 14 : 0,
-    borderBottomRightRadius: index === length - 1 ? 14 : 0,
+    borderTopLeftRadius: index === 0 ? 22 : 0,
+    borderTopRightRadius: index === 0 ? 22 : 0,
+    borderBottomLeftRadius: index === length - 1 ? 22 : 0,
+    borderBottomRightRadius: index === length - 1 ? 22 : 0,
     overflow: 'hidden',
   };
 }
@@ -161,17 +181,27 @@ export function AmountColumn({ amount, color, children }: { amount: string; colo
 }
 
 const s = StyleSheet.create({
-  sq: { alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
-  gheadRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', paddingHorizontal: 16, paddingBottom: 6, gap: 10 },
-  ghead: { fontSize: 13, fontWeight: '500', letterSpacing: 0.2, flexShrink: 1 },
-  gfoot: { fontSize: 13, paddingHorizontal: 16, paddingTop: 6, lineHeight: 18 },
-  group: { borderRadius: 20, overflow: 'hidden' },
-  cell: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingLeft: 16, paddingRight: 14, minHeight: 48 },
+  sq: {
+    alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+    shadowOpacity: 0.35, shadowRadius: 6, shadowOffset: { width: 0, height: 3 }, elevation: 3,
+  },
+  sqShine: { position: 'absolute', top: 0, left: 0, right: 0, backgroundColor: 'rgba(255,255,255,0.2)' },
+  gheadRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, minHeight: 60,
+    borderBottomWidth: HAIRLINE,
+  },
+  gicon: { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center' },
+  ghead: { flex: 1, fontSize: 19, fontWeight: '800', letterSpacing: -0.4 },
+  groupShadow: { shadowColor: '#0D1526', shadowOpacity: 0.045, shadowRadius: 10, shadowOffset: { width: 0, height: 3 }, elevation: 1 },
+  gfoot: { fontSize: 13.5, fontWeight: '500', paddingHorizontal: 16, paddingTop: 8, lineHeight: 19 },
+  groupOuter: { borderRadius: 22 },
+  group: { borderRadius: 22, overflow: 'hidden' },
+  cell: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingLeft: 16, paddingRight: 14, minHeight: 60 },
   sep: { position: 'absolute', top: 0, right: 0, height: HAIRLINE },
-  t: { flex: 1, minWidth: 0, paddingVertical: 11 },
-  title: { fontSize: 15, fontWeight: '500', letterSpacing: -0.1 },
-  sub: { fontSize: 13, marginTop: 1 },
-  value: { fontSize: 15, textAlign: 'right', maxWidth: '55%' },
+  t: { flex: 1, minWidth: 0, paddingVertical: 12 },
+  title: { fontSize: 16, fontWeight: '600', letterSpacing: -0.2 },
+  sub: { fontSize: 13.5, fontWeight: '500', marginTop: 2 },
+  value: { fontSize: 16, fontWeight: '500', textAlign: 'right', maxWidth: '55%' },
   amountCol: { alignItems: 'flex-end', gap: 3, flexShrink: 0, maxWidth: '50%' },
-  amount: { fontSize: 15, fontWeight: '600' },
+  amount: { fontSize: 16, fontWeight: '700' },
 });

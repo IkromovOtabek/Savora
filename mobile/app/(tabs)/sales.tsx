@@ -6,7 +6,7 @@ import { useTheme } from '@/lib/theme';
 import { fmtMoney, payLabel, fmtDate } from '@/lib/format';
 import { useDict, tr } from '@/lib/i18n';
 import {
-  Screen, useLayout, LargeTitle, SegmentedControl, Cell, AmountColumn, Pill, listCellStyle,
+  Screen, useLayout, TopBar, SegmentedControl, Cell, AmountColumn, Pill, listCellStyle,
   Loading, EmptyState, ErrorState, InlineError, type Tone,
 } from '@/components/ui';
 
@@ -30,24 +30,26 @@ export default function Sales() {
   const first = useRef(true);
   useFocusEffect(useCallback(() => { if (first.current) { first.current = false; return; } list.reloadSilently(); }, [list.reloadSilently])); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const header = (
-    <View style={{ gap: 14, paddingBottom: 14 }}>
-      <LargeTitle title={d.sales.title} subtitle={list.loading ? ' ' : tr(d.common.count, { n: fmtMoney(list.total) })} />
+  const bar = (
+    <TopBar title={d.sales.title} subtitle={list.loading ? ' ' : tr(d.common.count, { n: fmtMoney(list.total) })}>
       <SegmentedControl
         options={[{ key: 'all', label: d.sales.all }, { key: 'debt', label: d.sales.debtors }]}
         value={type}
         onChange={setType}
       />
-      {list.error && list.items.length > 0 ? <InlineError message={list.error} onRetry={list.refresh} /> : null}
-    </View>
+    </TopBar>
   );
 
+  const header = list.error && list.items.length > 0 ? (
+    <View style={{ paddingBottom: 14 }}><InlineError message={list.error} onRetry={list.refresh} /></View>
+  ) : null;
+
   return (
-    <Screen scroll={false}>
+    <Screen scroll={false} bar={bar}>
       <FlatList
         data={list.loading ? [] : list.items}
         keyExtractor={(i) => i.id}
-        contentContainerStyle={[L.content, { paddingTop: 8, paddingBottom: L.bottom }]}
+        contentContainerStyle={[L.content, { paddingTop: 14, paddingBottom: L.bottom }]}
         ListHeaderComponent={header}
         refreshControl={<RefreshControl refreshing={list.refreshing} onRefresh={list.refresh} tintColor={c.tint} colors={[c.tint]} />}
         onEndReached={list.loadMore}

@@ -1,5 +1,6 @@
 import { useCallback, useMemo, useState } from 'react';
-import { View, Text, Alert, ActivityIndicator, StyleSheet } from 'react-native';
+import { View, Alert, ActivityIndicator, StyleSheet } from 'react-native';
+import { Text } from '@/components/ui/Text';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { api, errMsg } from '@/lib/api';
 import { useAuth } from '@/lib/auth';

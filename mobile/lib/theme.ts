@@ -24,7 +24,7 @@ export interface Palette {
 }
 
 export const light: Palette = {
-  bg: '#F1F2F5', cell: '#FFFFFF', fill: 'rgba(118,128,160,0.14)', fill2: 'rgba(118,128,160,0.08)', fill3: 'rgba(118,128,160,0.22)',
+  bg: '#F0F2F6', cell: '#FFFFFF', fill: 'rgba(118,128,160,0.13)', fill2: 'rgba(118,128,160,0.08)', fill3: 'rgba(118,128,160,0.22)',
   sep: 'rgba(60,70,100,0.14)', bar: '#FFFFFF',
   ink: '#0D1526', ink2: 'rgba(40,50,75,0.75)', ink3: 'rgba(55,65,95,0.62)',
   tint: '#1F4FA8', tintSoft: 'rgba(31,79,168,0.12)', tintFill: '#1F4FA8',
@@ -38,7 +38,7 @@ export const light: Palette = {
   shadow: '#0D1526',
 };
 
-/** Qorong'i — asosiy mavzu: neytral ko'mir-kulrang sirtlar (web panel bilan bir xil) */
+/** Qorong'i — neytral ko'mir-kulrang sirtlar (web panel bilan bir xil) */
 export const dark: Palette = {
   bg: '#202123', cell: '#2C2D30', fill: 'rgba(255,255,255,0.08)', fill2: 'rgba(255,255,255,0.05)', fill3: 'rgba(255,255,255,0.13)',
   sep: 'rgba(255,255,255,0.08)', bar: '#2A2B2E',
@@ -55,19 +55,19 @@ export const dark: Palette = {
 };
 
 export const space = { xs: 4, sm: 8, md: 12, lg: 16, xl: 20, xxl: 28 } as const;
-export const radius = { sm: 10, md: 12, lg: 16, xl: 20, xxl: 24, pill: 999 } as const;
+export const radius = { sm: 10, md: 14, lg: 18, xl: 22, xxl: 26, pill: 999 } as const;
 
-/** Tipografiya — tizim shrifti (iOS'da SF Pro). */
+/** Tipografiya — Manrope (components/ui/Text), BILLZ'dagidek yirikroq shkala. */
 export const type = {
-  largeTitle: { fontSize: 32, fontWeight: '700' as const, letterSpacing: -0.8, lineHeight: 38 },
-  title2: { fontSize: 24, fontWeight: '700' as const, letterSpacing: -0.5, lineHeight: 30 },
-  title3: { fontSize: 20, fontWeight: '600' as const, letterSpacing: -0.3 },
-  headline: { fontSize: 17, fontWeight: '600' as const, letterSpacing: -0.2 },
-  body: { fontSize: 15, fontWeight: '400' as const, letterSpacing: -0.1 },
-  bodyStrong: { fontSize: 15, fontWeight: '500' as const, letterSpacing: -0.1 },
-  callout: { fontSize: 14, fontWeight: '500' as const },
-  footnote: { fontSize: 13, fontWeight: '400' as const },
-  caption: { fontSize: 12, fontWeight: '500' as const },
+  largeTitle: { fontSize: 34, fontWeight: '800' as const, letterSpacing: -0.9, lineHeight: 40 },
+  title2: { fontSize: 26, fontWeight: '800' as const, letterSpacing: -0.6, lineHeight: 32 },
+  title3: { fontSize: 21, fontWeight: '700' as const, letterSpacing: -0.3 },
+  headline: { fontSize: 18, fontWeight: '700' as const, letterSpacing: -0.2 },
+  body: { fontSize: 16, fontWeight: '400' as const, letterSpacing: -0.1 },
+  bodyStrong: { fontSize: 16, fontWeight: '600' as const, letterSpacing: -0.1 },
+  callout: { fontSize: 15, fontWeight: '600' as const },
+  footnote: { fontSize: 14, fontWeight: '500' as const },
+  caption: { fontSize: 13, fontWeight: '600' as const },
 };
 
 /** Raqamlar bir xil kenglikda turishi uchun. */
@@ -95,18 +95,18 @@ const ThemeContext = createContext<Theme | null>(null);
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const scheme = useColorScheme();
-  // Sukut — qorong'i (asosiy mavzu); foydalanuvchi tanlovi AsyncStorage'dan tiklanadi
-  const [mode, setModeState] = useState<ThemeMode>('dark');
+  // Sukut — yorug' (asosiy mavzu); foydalanuvchi tanlovi AsyncStorage'dan tiklanadi
+  const [mode, setModeState] = useState<ThemeMode>('light');
 
   useEffect(() => {
     AsyncStorage.getItem(MODE_KEY)
       .then((v) => { if (v === 'light' || v === 'dark' || v === 'system') setModeState(v); })
-      .catch(() => { /* saqlangan tanlov o'qilmasa — qorong'i */ });
+      .catch(() => { /* saqlangan tanlov o'qilmasa — yorug' */ });
   }, []);
 
   const setMode = useCallback((m: ThemeMode) => {
     setModeState(m);
-    AsyncStorage.setItem(MODE_KEY, m).catch(() => { /* keyingi ochilishda sukut (qorong'i) */ });
+    AsyncStorage.setItem(MODE_KEY, m).catch(() => { /* keyingi ochilishda sukut (yorug') */ });
   }, []);
 
   const isDark = mode === 'system' ? scheme === 'dark' : mode === 'dark';

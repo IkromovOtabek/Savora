@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import {
-  View, Text, StyleSheet, ScrollView, KeyboardAvoidingView, Platform, Alert, Pressable, Animated, Easing, AccessibilityInfo,
-  type TextInput,
+  View, StyleSheet, ScrollView, KeyboardAvoidingView, Platform, Alert, Pressable, Animated, Easing, AccessibilityInfo, type TextInput,
 } from 'react-native';
+import { Text } from '@/components/ui/Text';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';

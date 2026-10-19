@@ -32,6 +32,8 @@ interface ScreenProps {
   children: React.ReactNode;
   /** Qotib turadigan yuqori qism (NavBar) */
   header?: React.ReactNode;
+  /** Tab ekranlar uchun yuqori karta (TopBar) — status bar ostidan boshlanadi */
+  bar?: React.ReactNode;
   /** Pastda qotib turadigan tugma(lar) */
   footer?: React.ReactNode;
   scroll?: boolean;
@@ -42,15 +44,15 @@ interface ScreenProps {
   contentStyle?: StyleProp<ViewStyle>;
 }
 
-export function Screen({ children, header, footer, scroll = true, refreshing, onRefresh, keyboard, gap = 18, contentStyle }: ScreenProps) {
-  const { c } = useTheme();
+export function Screen({ children, header, bar, footer, scroll = true, refreshing, onRefresh, keyboard, gap = 18, contentStyle }: ScreenProps) {
+  const { c, dark } = useTheme();
   const L = useLayout();
   const [footerH, setFooterH] = useState(0);
 
   const body = scroll ? (
     <ScrollView
       style={{ flex: 1 }}
-      contentContainerStyle={{ paddingTop: header ? 4 : 8, paddingBottom: L.bottom + footerH }}
+      contentContainerStyle={{ paddingTop: bar ? 14 : header ? 4 : 8, paddingBottom: L.bottom + footerH }}
       keyboardShouldPersistTaps="handled"
       keyboardDismissMode="interactive"
       contentInsetAdjustmentBehavior="never"
@@ -64,6 +66,17 @@ export function Screen({ children, header, footer, scroll = true, refreshing, on
 
   const inner = (
     <>
+      {bar ? (
+        <View
+          style={[
+            styles.bar,
+            { backgroundColor: c.cell, paddingTop: L.insets.top + 8 },
+            !dark && styles.barShadow,
+          ]}
+        >
+          <View style={L.content}>{bar}</View>
+        </View>
+      ) : null}
       {header ? <View style={L.content}>{header}</View> : null}
       {body}
       {footer ? (
@@ -81,7 +94,7 @@ export function Screen({ children, header, footer, scroll = true, refreshing, on
   );
 
   return (
-    <View style={[styles.root, { backgroundColor: c.bg, paddingTop: L.insets.top }]}>
+    <View style={[styles.root, { backgroundColor: c.bg, paddingTop: bar ? 0 : L.insets.top }]}>
       {keyboard ? (
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>{inner}</KeyboardAvoidingView>
       ) : inner}
@@ -91,5 +104,7 @@ export function Screen({ children, header, footer, scroll = true, refreshing, on
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
+  bar: { paddingBottom: 14, borderBottomLeftRadius: 26, borderBottomRightRadius: 26, zIndex: 2 },
+  barShadow: { shadowColor: '#0D1526', shadowOpacity: 0.06, shadowRadius: 12, shadowOffset: { width: 0, height: 4 }, elevation: 2 },
   footer: { position: 'absolute', left: 0, right: 0, bottom: 0, paddingTop: 10, borderTopWidth: HAIRLINE },
 });

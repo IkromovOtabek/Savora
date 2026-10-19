@@ -1,13 +1,15 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, StyleSheet } from 'react-native';
+import { Text } from '@/components/ui/Text';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useAuth, useCan } from '@/lib/auth';
 import { api, errMsg } from '@/lib/api';
 import { useTheme, tabular } from '@/lib/theme';
-import { fmtMoney, fmtCompact, fmtEyebrow, greeting, isOverdue, isToday, payLabel } from '@/lib/format';
+import { fmtMoney, fmtCompact, fmtDayMonth, greeting, isOverdue, isToday, payLabel } from '@/lib/format';
 import { useDict, tr } from '@/lib/i18n';
 import {
-  Screen, LargeTitle, IconButton, Group, GroupLink, Cell, Avatar, AmountColumn, Pill, StatCard, ErrorState, InlineError, Loading,
+  Screen, TopBar, IconButton, Group, GroupLink, Cell, Avatar, AmountColumn, Pill, StatCard, TileGrid, BrandMark, EmptyState, ErrorState, InlineError, Loading,
+  type TileItem,
 } from '@/components/ui';
 import { OfflineBanner } from '@/components/OfflineBanner';
 
@@ -61,18 +63,37 @@ export default function Home() {
   const sumOf = (xs: Sale[]) => xs.reduce((a, x) => a + x.remainingAmount, 0);
   const tasks = [...late, ...today].slice(0, 4);
 
-  if (loading) return <Screen><Loading /></Screen>;
-  if (!sum && error) return <Screen onRefresh={() => { setRefreshing(true); load(); }} refreshing={refreshing}><OfflineBanner /><ErrorState message={error} onRetry={() => { setLoading(true); load(); }} /></Screen>;
+  const bar = (
+    <TopBar
+      left={<BrandMark size={40} />}
+      title={me?.org.name ?? 'Savora'}
+      subtitle={`${greeting()}, ${me?.user.username ?? ''}`}
+      actions={<IconButton icon="scan-outline" label={d.common.barcodeScanner} onPress={() => router.push('/scan')} />}
+    />
+  );
+
+  // Modullar — faqat shu do'konda yoqilgan va ruxsat berilgan bo'limlar
+  const modules: TileItem[] = [
+    { key: 'sale', label: d.tabs.newSale, icon: 'add-circle', color: c.sq.b, onPress: () => router.push('/sale-new') },
+    { key: 'sales', label: d.home.allSales, icon: 'receipt', color: c.sq.b, onPress: () => router.push('/(tabs)/sales') },
+    {
+      key: 'debt', label: d.home.debtors, icon: 'alert-circle', color: c.sq.r,
+      badge: sum && sum.debtTotal > 0 ? fmtCompact(sum.debtTotal) : undefined,
+      onPress: () => router.push('/(tabs)/sales?type=debt'),
+    },
+    ...(can('product.create') ? [{ key: 'add', label: me?.terms?.addItem ?? d.terms.addItem, icon: 'cube' as const, color: c.sq.o, onPress: () => router.push('/product-new') }] : []),
+    ...(f.kassa && can('kassa.view') ? [{ key: 'shifts', label: d.profile.shifts, icon: 'time' as const, color: c.sq.o, onPress: () => router.push('/shifts') }] : []),
+    ...(f.transferred && can('transfer.create') ? [{ key: 'transfer', label: d.home.transfer, icon: 'swap-horizontal' as const, color: c.sq.g, onPress: () => router.push('/transfer') }] : []),
+    ...(f.kirimChiqim && isAdmin ? [{ key: 'kc', label: d.home.kirimChiqim, icon: 'cash' as const, color: c.sq.o, onPress: () => router.push('/kirim-chiqim') }] : []),
+    ...(f.tasks ? [{ key: 'tasks', label: d.profile.tasks, icon: 'checkmark-done' as const, color: c.sq.a, onPress: () => router.push('/tasks') }] : []),
+    ...(f.users && isAdmin ? [{ key: 'branches', label: d.home.branches, icon: 'business' as const, color: c.sq.b, onPress: () => router.push('/branches') }] : []),
+  ];
+
+  if (loading) return <Screen bar={bar}><Loading /></Screen>;
+  if (!sum && error) return <Screen bar={bar} onRefresh={() => { setRefreshing(true); load(); }} refreshing={refreshing}><OfflineBanner /><ErrorState message={error} onRetry={() => { setLoading(true); load(); }} /></Screen>;
 
   return (
-    <Screen refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} gap={16}>
-      <LargeTitle
-        eyebrow={fmtEyebrow()}
-        title={me?.org.name ?? 'Savora'}
-        subtitle={`${greeting()}, ${me?.user.username ?? ''}`}
-        actions={<IconButton icon="scan-outline" label={d.common.barcodeScanner} onPress={() => router.push('/scan')} />}
-      />
-
+    <Screen bar={bar} refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} gap={14}>
       <OfflineBanner />
       {error ? <InlineError message={error} onRetry={load} /> : null}
 
@@ -83,7 +104,16 @@ export default function Home() {
       ) : null}
 
       <View style={[s.hero, { backgroundColor: c.hero }]} accessible accessibilityLabel={tr(d.home.todayRevenueA11y, { v: fmtMoney(sum?.todayRevenue, { suffix: true }) })}>
-        <Text style={s.heroL}>{d.home.todayRevenue}</Text>
+        {/* Bezak — brend belgisidagi o'sib boruvchi ustunlar */}
+        <View style={s.heroDeco} pointerEvents="none">
+          <View style={[s.heroBar, { height: 34, opacity: 0.1 }]} />
+          <View style={[s.heroBar, { height: 54, opacity: 0.14 }]} />
+          <View style={[s.heroBar, { height: 76, opacity: 0.18 }]} />
+        </View>
+        <View style={s.heroTop}>
+          <Text style={s.heroL}>{d.home.todayRevenue}</Text>
+          <View style={s.heroDate}><Text style={s.heroDateT}>{fmtDayMonth(new Date())}</Text></View>
+        </View>
         <Text style={[s.heroV, tabular]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.6}>
           {fmtMoney(sum?.todayRevenue)}<Text style={s.heroSuffix}> {d.format.currency}</Text>
         </Text>
@@ -102,6 +132,7 @@ export default function Home() {
       {tasks.length > 0 ? (
         <Group
           header={d.home.todayTasks}
+          icon="alarm-outline"
           headerRight={<GroupLink title={d.common.all} onPress={() => router.push(nasiyaOn ? '/(tabs)/nasiya' : '/(tabs)/sales?type=debt')} />}
         >
           {tasks.map((x) => (
@@ -117,9 +148,9 @@ export default function Home() {
         </Group>
       ) : null}
 
-      <Group header={d.home.recentSales} headerRight={<GroupLink title={d.common.all} onPress={() => router.push('/(tabs)/sales')} />}>
+      <Group header={d.home.recentSales} icon="receipt-outline" headerRight={<GroupLink title={d.common.all} onPress={() => router.push('/(tabs)/sales')} />}>
         {recent.length === 0 ? (
-          <Cell icon="cart-outline" iconColor={c.sq.g} title={d.home.noSales} subtitle={d.home.noSalesHint} />
+          <EmptyState icon="bar-chart-outline" title={d.home.noSales} message={d.home.noSalesHint} />
         ) : recent.map((x) => (
           <Cell
             key={x.id}
@@ -135,23 +166,24 @@ export default function Home() {
         ))}
       </Group>
 
-      <Group header={d.home.quick}>
-        {nasiyaOn ? <Cell icon="receipt" iconColor={c.sq.b} title={d.home.allSales} chevron onPress={() => router.push('/(tabs)/sales')} /> : null}
-        <Cell icon="alert-circle" iconColor={c.sq.r} title={d.home.debtors} value={sum && sum.debtTotal > 0 ? fmtCompact(sum.debtTotal) : undefined} chevron onPress={() => router.push('/(tabs)/sales?type=debt')} />
-        {f.transferred && can('transfer.create') ? <Cell icon="swap-horizontal" iconColor={c.sq.g} title={d.home.transfer} chevron onPress={() => router.push('/transfer')} /> : null}
-        {f.kirimChiqim && isAdmin ? <Cell icon="cash" iconColor={c.sq.o} title={d.home.kirimChiqim} chevron onPress={() => router.push('/kirim-chiqim')} /> : null}
-        {f.users && isAdmin ? <Cell icon="business" iconColor={c.sq.b} title={d.home.branches} chevron onPress={() => router.push('/branches')} /> : null}
+      <Group header={d.home.modules} icon="grid-outline">
+        <TileGrid items={modules} />
       </Group>
     </Screen>
   );
 }
 
 const s = StyleSheet.create({
-  hero: { borderRadius: 20, padding: 16, gap: 2 },
-  heroL: { color: 'rgba(255,255,255,0.85)', fontSize: 13, fontWeight: '500' },
-  heroV: { color: '#fff', fontSize: 30, fontWeight: '700', letterSpacing: -0.8 },
+  hero: { borderRadius: 24, padding: 18, gap: 4, overflow: 'hidden' },
+  heroDeco: { position: 'absolute', right: 18, bottom: 0, flexDirection: 'row', alignItems: 'flex-end', gap: 8 },
+  heroBar: { width: 18, borderTopLeftRadius: 9, borderTopRightRadius: 9, backgroundColor: '#fff' },
+  heroTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
+  heroDate: { backgroundColor: 'rgba(255,255,255,0.16)', borderRadius: 999, paddingHorizontal: 10, paddingVertical: 3 },
+  heroDateT: { color: '#fff', fontSize: 12, fontWeight: '600' },
+  heroL: { color: 'rgba(255,255,255,0.88)', fontSize: 15, fontWeight: '600' },
+  heroV: { color: '#fff', fontSize: 38, fontWeight: '800', letterSpacing: -1.2 },
   heroSuffix: { fontSize: 17, fontWeight: '600', letterSpacing: 0 },
   heroRow: { flexDirection: 'row', flexWrap: 'wrap', columnGap: 14, rowGap: 2, marginTop: 2 },
-  heroR: { color: 'rgba(255,255,255,0.92)', fontSize: 13, fontWeight: '500' },
+  heroR: { color: 'rgba(255,255,255,0.92)', fontSize: 14, fontWeight: '600' },
   mini: { flexDirection: 'row', gap: 10 },
 });

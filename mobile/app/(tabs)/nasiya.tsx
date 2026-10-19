@@ -6,7 +6,7 @@ import { useTheme } from '@/lib/theme';
 import { fmtMoney, fmtCompact, isOverdue, isToday, digits } from '@/lib/format';
 import { useDict, tr, type Dict } from '@/lib/i18n';
 import {
-  Screen, useLayout, LargeTitle, SearchField, SegmentedControl, Cell, Avatar, AmountColumn, Pill, ProgressBar, Button,
+  Screen, useLayout, TopBar, SearchField, SegmentedControl, Cell, Avatar, AmountColumn, Pill, ProgressBar, Button,
   listCellStyle, Loading, EmptyState, ErrorState, InlineError, IconButton, type Tone,
 } from '@/components/ui';
 
@@ -52,31 +52,33 @@ export default function Nasiya() {
   const remainingSum = list.items.reduce((a, x) => a + (x.remainingAmount || 0), 0);
   const filtered = !!dq || seg !== 'all';
 
-  const header = (
-    <View style={{ gap: 12, paddingBottom: 14 }}>
-      <LargeTitle
-        title={d.nasiya.title}
-        subtitle={list.loading ? ' ' : `${tr(d.common.count, { n: fmtMoney(list.total) })}${!list.hasMore ? tr(d.nasiya.remainingSuffix, { v: fmtCompact(remainingSum) }) : ''}`}
-        actions={<IconButton icon="add" label={d.nasiya.newNasiya} onPress={() => router.push('/sale-new?pay=installment')} />}
-      />
+  const bar = (
+    <TopBar
+      title={d.nasiya.title}
+      subtitle={list.loading ? ' ' : `${tr(d.common.count, { n: fmtMoney(list.total) })}${!list.hasMore ? tr(d.nasiya.remainingSuffix, { v: fmtCompact(remainingSum) }) : ''}`}
+      actions={<IconButton icon="add" label={d.nasiya.newNasiya} onPress={() => router.push('/sale-new?pay=installment')} />}
+    >
       <SearchField value={q} onChangeText={setQ} placeholder={d.nasiya.searchPlaceholder} />
       <SegmentedControl
         options={[{ key: 'all', label: d.common.all }, { key: 'today', label: d.common.today }, { key: 'late', label: d.common.overdue }]}
         value={seg}
         onChange={setSeg}
       />
-      {list.error && list.items.length > 0 ? <InlineError message={list.error} onRetry={list.refresh} /> : null}
-    </View>
+    </TopBar>
   );
 
+  const header = list.error && list.items.length > 0 ? (
+    <View style={{ paddingBottom: 14 }}><InlineError message={list.error} onRetry={list.refresh} /></View>
+  ) : null;
+
   return (
-    <Screen scroll={false}>
+    <Screen scroll={false} bar={bar}>
       <FlatList
         data={list.loading ? [] : shown}
         keyExtractor={(i) => i.id}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
-        contentContainerStyle={[L.content, { paddingTop: 8, paddingBottom: L.bottom }]}
+        contentContainerStyle={[L.content, { paddingTop: 14, paddingBottom: L.bottom }]}
         ListHeaderComponent={header}
         refreshControl={<RefreshControl refreshing={list.refreshing} onRefresh={list.refresh} tintColor={c.tint} colors={[c.tint]} />}
         onEndReached={list.loadMore}

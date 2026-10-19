@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { View, Text, Alert } from 'react-native';
+import { View, Alert } from 'react-native';
+import { Text } from '@/components/ui/Text';
 import { useRouter } from 'expo-router';
 import { api, errMsg } from '@/lib/api';
 import { useAuth } from '@/lib/auth';

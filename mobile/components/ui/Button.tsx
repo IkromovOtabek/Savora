@@ -1,5 +1,6 @@
 import React from 'react';
-import { Pressable, Text, ActivityIndicator, View, StyleSheet, type StyleProp, type ViewStyle } from 'react-native';
+import { Pressable, ActivityIndicator, View, StyleSheet, type StyleProp, type ViewStyle } from 'react-native';
+import { Text } from './Text';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme, tabular } from '@/lib/theme';
 
@@ -34,9 +35,10 @@ export function Button({
     destructive: { bg: c.badSoft, fg: c.bad },
   }[variant];
   const sz = {
-    sm: { py: 6, px: 12, fs: 13, r: 999, h: 32, ic: 15 },
-    md: { py: 11, px: 18, fs: 15, r: 12, h: 44, ic: 18 },
-    lg: { py: 14, px: 20, fs: 17, r: 14, h: 52, ic: 20 },
+    sm: { py: 6, px: 12, fs: 14, r: 999, h: 34, ic: 16 },
+    md: { py: 12, px: 18, fs: 16, r: 16, h: 50, ic: 19 },
+    // Katta asosiy tugma — to'liq "pill" (BILLZ'dagi «To'lash ··· summa» kabi)
+    lg: { py: 16, px: 22, fs: 18, r: 999, h: 58, ic: 21 },
   }[size];
   const off = disabled || loading;
 
@@ -91,7 +93,7 @@ export function IconButton({ icon, onPress, label, tone = 'fill' }: { icon: Icon
         pressed && { opacity: 0.5 },
       ]}
     >
-      <Ionicons name={icon} size={19} color={c.tint} />
+      <Ionicons name={icon} size={22} color={c.tint} />
     </Pressable>
   );
 }
@@ -99,6 +101,6 @@ export function IconButton({ icon, onPress, label, tone = 'fill' }: { icon: Icon
 const s = StyleSheet.create({
   base: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   left: { flexDirection: 'row', alignItems: 'center', gap: 7, flexShrink: 1 },
-  text: { fontWeight: '600', letterSpacing: -0.2 },
-  icon: { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center' },
+  text: { fontWeight: '700', letterSpacing: -0.2 },
+  icon: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
 });

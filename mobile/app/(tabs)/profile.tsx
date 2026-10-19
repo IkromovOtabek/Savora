@@ -1,4 +1,5 @@
-import { Alert, View, Text } from 'react-native';
+import { Alert, View } from 'react-native';
+import { Text } from '@/components/ui/Text';
 import { useRouter } from 'expo-router';
 import Constants from 'expo-constants';
 import { useAuth, useCan } from '@/lib/auth';
@@ -6,7 +7,7 @@ import { useTheme, type ThemeMode } from '@/lib/theme';
 import { useResource } from '@/lib/hooks';
 import { fmtDate } from '@/lib/format';
 import { useI18n, tr, type Locale, LOCALES, LOCALE_SHORT } from '@/lib/i18n';
-import { Screen, LargeTitle, Group, Cell, Avatar, Pill, SegmentedControl, Card, type Tone } from '@/components/ui';
+import { Screen, TopBar, Group, Cell, Avatar, Pill, SegmentedControl, Card, type Tone } from '@/components/ui';
 
 interface AiResp {
   report: null | {
@@ -28,7 +29,7 @@ function AiCard() {
   if (res.loading || res.error || !r) {
     if (res.loading || res.error) return null;
     return (
-      <Group header={d.profile.aiHeader} footer={d.profile.aiFooter}>
+      <Group header={d.profile.aiHeader} icon="sparkles-outline" footer={d.profile.aiFooter}>
         <Cell icon="sparkles" iconColor={c.sq.b} title={d.profile.aiNone} />
       </Group>
     );
@@ -83,8 +84,7 @@ export default function Profile() {
     : { label: tr(d.profile.active, { n: org.daysLeft }), tone: 'ok' as const };
 
   return (
-    <Screen>
-      <LargeTitle title={d.profile.title} />
+    <Screen bar={<TopBar title={d.profile.title} profile={false} />}>
 
       <Group>
         <Cell
@@ -95,7 +95,7 @@ export default function Profile() {
         />
       </Group>
 
-      <Group header={d.common.info}>
+      <Group header={d.common.info} icon="information-circle-outline">
         <Cell icon="storefront" iconColor={c.sq.b} title={d.profile.shop} value={org?.name || '—'} />
         <Cell icon="pricetags" iconColor={c.sq.a} title={d.profile.direction} value={org?.businessTypeLabel || '—'} />
         <Cell icon="card" iconColor={c.sq.o} title={d.profile.subscription} right={sub ? <Pill label={sub.label} tone={sub.tone} /> : undefined} />
@@ -103,7 +103,7 @@ export default function Profile() {
 
       {f.ai && can('ai.view') ? <AiCard /> : null}
 
-      <Group header={d.profile.appearance} footer={d.profile.appearanceFooter}>
+      <Group header={d.profile.appearance} icon="color-palette-outline" footer={d.profile.appearanceFooter}>
         <View style={{ padding: 12 }}>
           <SegmentedControl<ThemeMode>
             options={[{ key: 'system', label: d.profile.system }, { key: 'light', label: d.profile.light }, { key: 'dark', label: d.profile.dark }]}
@@ -113,7 +113,7 @@ export default function Profile() {
         </View>
       </Group>
 
-      <Group header={d.profile.language} footer={d.profile.languageFooter}>
+      <Group header={d.profile.language} icon="language-outline" footer={d.profile.languageFooter}>
         <View style={{ padding: 12 }}>
           <SegmentedControl<Locale>
             options={LOCALES.map((l) => ({ key: l, label: LOCALE_SHORT[l] }))}
@@ -124,25 +124,25 @@ export default function Profile() {
       </Group>
 
       {/* Amallar — web menyusi kabi bo'limlarga guruhlangan (BILLZ) */}
-      <Group header={d.profile.secProducts}>
+      <Group header={d.profile.secProducts} icon="cube-outline">
         {can('product.create') ? <Cell icon="add-circle" iconColor={c.sq.b} title={t?.addItem ?? d.terms.addItem} chevron onPress={() => router.push('/product-new')} /> : null}
         <Cell icon="barcode" iconColor={c.sq.o} title={d.common.barcodeScanner} chevron onPress={() => router.push('/scan')} />
         {f.transferred && can('transfer.create') ? <Cell icon="swap-horizontal" iconColor={c.sq.g} title={d.profile.transfer} chevron onPress={() => router.push('/transfer')} /> : null}
       </Group>
 
-      <Group header={d.profile.secSales}>
+      <Group header={d.profile.secSales} icon="cart-outline">
         <Cell icon="receipt" iconColor={c.sq.b} title={d.profile.sales} chevron onPress={() => router.push('/(tabs)/sales')} />
         {f.kassa && can('kassa.view') ? <Cell icon="time" iconColor={c.sq.o} title={d.profile.shifts} chevron onPress={() => router.push('/shifts')} /> : null}
       </Group>
 
       {f.kirimChiqim && isAdmin ? (
-        <Group header={d.profile.secFinance}>
+        <Group header={d.profile.secFinance} icon="wallet-outline">
           <Cell icon="cash" iconColor={c.sq.o} title={d.profile.kirimChiqim} chevron onPress={() => router.push('/kirim-chiqim')} />
         </Group>
       ) : null}
 
       {f.tasks || isAdmin ? (
-        <Group header={d.profile.secManage}>
+        <Group header={d.profile.secManage} icon="settings-outline">
           {f.tasks ? <Cell icon="checkmark-done" iconColor={c.sq.o} title={d.profile.tasks} chevron onPress={() => router.push('/tasks')} /> : null}
           {f.users && isAdmin ? <Cell icon="business" iconColor={c.sq.b} title={d.profile.branches} chevron onPress={() => router.push('/branches')} /> : null}
           {isAdmin ? <Cell icon="briefcase" iconColor={c.sq.a} title={d.profile.businessType} value={org?.businessTypeLabel} chevron onPress={() => router.push('/business-type')} /> : null}
