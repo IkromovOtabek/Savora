@@ -34,7 +34,7 @@ export function Pill({ label, tone = 'mut' }: { label: string; tone?: Tone }) {
 /** Bosh harfli avatar — ismdan barqaror rang. */
 export function Avatar({ name, size = 44, tone }: { name?: string | null; size?: number; tone?: keyof Palette['sq'] }) {
   const { c } = useTheme();
-  const keys: (keyof Palette['sq'])[] = ['b', 'a', 'o', 'r', 'g'];
+  const keys: (keyof Palette['sq'])[] = ['b', 'a', 'o', 'r', 'p', 't'];
   const str = String(name || '');
   let h = 0;
   for (let i = 0; i < str.length; i++) h = (h * 31 + str.charCodeAt(i)) >>> 0;

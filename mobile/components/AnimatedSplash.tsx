@@ -41,9 +41,9 @@ export function AnimatedSplash({ ready, onDone }: { ready: boolean; onDone: () =
   const { width, height } = useWindowDimensions();
   // Native splash bilan bir xil boshlang'ich fon (app.json → expo-splash-screen)
   const deep = dark ? '#05080F' : '#0B1A3D';
-  const reveal = dark ? '#13214A' : '#1F4FA8';
-  const markBg = dark ? '#2F6BE0' : '#FFFFFF';
-  const markInk = dark ? '#FFFFFF' : '#1F4FA8';
+  const reveal = dark ? '#13214A' : '#2F6BFF';
+  const markBg = dark ? '#2F6BFF' : '#FFFFFF';
+  const markInk = dark ? '#FFFFFF' : '#2F6BFF';
 
   const [reduce, setReduce] = useState<boolean | null>(null);
   const [minDone, setMinDone] = useState(false);

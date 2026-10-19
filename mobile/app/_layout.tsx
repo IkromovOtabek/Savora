@@ -10,8 +10,8 @@ import { I18nProvider } from '@/lib/i18n';
 import { AnimatedSplash } from '@/components/AnimatedSplash';
 import { OfflinePosProvider } from '@/lib/offlinePos';
 import {
-  useFonts, Manrope_400Regular, Manrope_500Medium, Manrope_600SemiBold, Manrope_700Bold, Manrope_800ExtraBold,
-} from '@expo-google-fonts/manrope';
+  useFonts, Onest_400Regular, Onest_500Medium, Onest_600SemiBold, Onest_700Bold, Onest_800ExtraBold,
+} from '@expo-google-fonts/onest';
 import { enableAppFont } from '@/components/ui/Text';
 
 // Native splash JS animatsiyasi boshlanguncha turadi (AnimatedSplash onLayout'da yopadi)
@@ -73,7 +73,7 @@ function Navigation() {
 
 export default function RootLayout() {
   const [fontsLoaded, fontError] = useFonts({
-    Manrope_400Regular, Manrope_500Medium, Manrope_600SemiBold, Manrope_700Bold, Manrope_800ExtraBold,
+    Onest_400Regular, Onest_500Medium, Onest_600SemiBold, Onest_700Bold, Onest_800ExtraBold,
   });
   // Shrift yuklanguncha native splash turadi; yuklanmasa — tizim shrifti bilan davom etamiz
   if (!fontsLoaded && !fontError) return null;

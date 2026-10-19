@@ -13,7 +13,7 @@ export function BrandMark({ size = 72 }: { size?: number }) {
   return (
     <View
       accessible={false}
-      style={{ width: size, height: size, borderRadius: size * 0.24, backgroundColor: '#1F4FA8', overflow: 'hidden' }}
+      style={{ width: size, height: size, borderRadius: size * 0.24, backgroundColor: '#2F6BFF', overflow: 'hidden' }}
     >
       {bar(20, 58, 24, 0.55)}
       {bar(40, 45, 37, 0.8)}
