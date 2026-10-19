@@ -37,7 +37,9 @@ export async function registerAction(_prev: State, formData: FormData): Promise<
   const referredBy = String(formData.get('referredBy') || '').trim().toUpperCase() || undefined;
 
   // 2-qadamda tanlangan tarif. Bepul — doimiy; pulli — 14 kun sinov.
-  const rawTier = String(formData.get('planTier') || 'pro');
+  // Mobil ilovadan kelgan ro'yxatdan o'tish — faqat bepul tarif (App Store qoidasi), oxirida ilovaga qaytish sahifasi
+  const fromApp = formData.get('fromApp') === '1';
+  const rawTier = fromApp ? 'free' : String(formData.get('planTier') || 'pro');
   const planTier = (['free', 'starter', 'pro', 'business'].includes(rawTier) ? rawTier : 'pro') as
     | 'free' | 'starter' | 'pro' | 'business';
   const isFree = planTier === 'free';
@@ -113,7 +115,7 @@ export async function registerAction(_prev: State, formData: FormData): Promise<
       organizationSlug: createdSlug,
     });
 
-    redirect('/app?welcome=1');
+    redirect(fromApp ? `/register/done?u=${encodeURIComponent(adminUsername)}` : '/app?welcome=1');
   } catch (err) {
     if (err && typeof err === 'object' && 'digest' in err) throw err;
     // Mongo dublikat (slug poygasi) — xom xabar baza/kolleksiya nomini oshkor qiladi

@@ -20,7 +20,7 @@ const APP_HOST = (process.env.NEXT_PUBLIC_APP_URL || 'https://savora.uz').replac
 const PATH_ROUTING = process.env.NEXT_PUBLIC_USE_PATH_ROUTING !== 'false';
 const shopUrl = (slug: string) => (PATH_ROUTING ? `${APP_HOST}/t/${slug}` : `${slug}.${ROOT}`);
 
-export default function RegisterForm({ plans }: { plans: PlanPreset[] }) {
+export default function RegisterForm({ plans, fromApp = false }: { plans: PlanPreset[]; fromApp?: boolean }) {
   const [state, formAction, isPending] = useActionState(registerAction, null);
   const error = state?.error ?? null;
   const d = useDict();
@@ -28,7 +28,7 @@ export default function RegisterForm({ plans }: { plans: PlanPreset[] }) {
 
   const [step, setStep] = useState<1 | 2>(1);
   const [stepError, setStepError] = useState<string | null>(null);
-  const [plan, setPlan] = useState<string>('pro');
+  const [plan, setPlan] = useState<string>(fromApp ? 'free' : 'pro');
   const [bizType, setBizType] = useState<BusinessType>('general');
   const [visitorId, setVisitorId] = useState('');
   const [visitSessionId, setVisitSessionId] = useState('');
@@ -116,6 +116,7 @@ export default function RegisterForm({ plans }: { plans: PlanPreset[] }) {
           <form action={formAction}>
             <input type="hidden" name="visitorId" value={visitorId} />
             <input type="hidden" name="visitSessionId" value={visitSessionId} />
+            {fromApp && <input type="hidden" name="fromApp" value="1" />}
 
             {/* ====== 1-QADAM (2-qadamda yashiriladi, lekin DOM'da qoladi — qiymatlar yuboriladi) ====== */}
             <div className="rg-step" style={{ display: step === 1 ? 'grid' : 'none' }}>

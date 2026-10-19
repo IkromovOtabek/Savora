@@ -3,13 +3,14 @@ import {
   View, Text, StyleSheet, ScrollView, KeyboardAvoidingView, Platform, Alert, Pressable, Animated, Easing, AccessibilityInfo,
   type TextInput,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import * as Linking from 'expo-linking';
 import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import Svg, { G, Rect } from 'react-native-svg';
 import { useAuth } from '@/lib/auth';
-import { errMsg } from '@/lib/api';
+import { API_URL, errMsg } from '@/lib/api';
 import { useTheme } from '@/lib/theme';
 import { useDict, useI18n, LOCALES, LOCALE_SHORT } from '@/lib/i18n';
 import { Field, Button, BrandMark } from '@/components/ui';
@@ -24,7 +25,9 @@ export default function LoginScreen() {
   const d = useDict();
   const { locale, setLocale } = useI18n();
   const insets = useSafeAreaInsets();
-  const [username, setUsername] = useState('');
+  // savora://login?u=... — web'da ro'yxatdan o'tgach ilovaga qaytganda login oldindan to'ldiriladi
+  const { u } = useLocalSearchParams<{ u?: string }>();
+  const [username, setUsername] = useState(typeof u === 'string' && /^[a-z0-9_]{3,40}$/.test(u) ? u : '');
   const [password, setPassword] = useState('');
   const [showPass, setShowPass] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -193,6 +196,16 @@ export default function LoginScreen() {
             </Animated.View>
             <Animated.View style={rise(rows[2], 16)}>
               <Button title={d.login.submit} size="lg" full loading={busy} onPress={onSubmit} style={{ marginTop: 6 }} />
+              {/* Do'kon ochish — web'da (ilovadan kelganda faqat bepul tarif), keyin ilovaga qaytadi */}
+              <Pressable
+                onPress={() => Linking.openURL(`${API_URL}/register?from=app`)}
+                hitSlop={8}
+                accessibilityRole="link"
+                style={({ pressed }) => [s.register, pressed && { opacity: 0.6 }]}
+              >
+                <Text style={[s.registerT, { color: c.ink3 }]}>{d.login.noStore} </Text>
+                <Text style={[s.registerT, { color: c.tint, fontWeight: '600' }]}>{d.login.register}</Text>
+              </Pressable>
             </Animated.View>
           </Animated.View>
 
@@ -225,5 +238,7 @@ const s = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth, maxWidth: 440,
     shadowOpacity: 0.16, shadowRadius: 30, shadowOffset: { width: 0, height: 18 }, elevation: 6,
   },
+  register: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', paddingTop: 6 },
+  registerT: { fontSize: 15 },
   foot: { fontSize: 13, textAlign: 'center', marginTop: 22, lineHeight: 18, paddingHorizontal: 32 },
 });

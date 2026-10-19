@@ -115,6 +115,8 @@ const uz = {
     heroTitle: 'Savdo, ombor va nasiya — bir joyda',
     heroSub: 'Do\'koningiz hisobiga kiring va kunni nazorat ostida boshlang.',
     language: 'Til',
+    noStore: 'Do\'koningiz yo\'qmi?',
+    register: 'Ro\'yxatdan o\'tish',
   },
   splash: {
     tagline: 'Do\'koningiz — cho\'ntagingizda',
@@ -575,6 +577,8 @@ const ru: Dict = {
     heroTitle: 'Продажи, склад и рассрочка — в одном месте',
     heroSub: 'Войдите в аккаунт магазина и начните день под контролем.',
     language: 'Язык',
+    noStore: 'Нет магазина?',
+    register: 'Зарегистрироваться',
   },
   splash: {
     tagline: 'Ваш магазин — в кармане',
