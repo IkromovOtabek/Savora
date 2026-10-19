@@ -271,8 +271,6 @@ export const uz = {
     topTitle: 'Eng ko\'p sotilgan',
     topMeta: '30 kun',
     topEmpty: 'Bu davrda sotuv bo\'lmagan.',
-    /** {n} — dona */
-    nUnits: '{n} dona',
     staffTitle: 'Xodimlar bugun',
     staffTop: 'Top sotuvchilar',
     staffEmpty: 'Bu davrda hali hech kim sotuv qilmagan.',
@@ -622,7 +620,6 @@ export const ru: typeof uz = {
     topTitle: 'Самые продаваемые',
     topMeta: '30 дней',
     topEmpty: 'За этот период продаж не было.',
-    nUnits: '{n} шт.',
     staffTitle: 'Сотрудники сегодня',
     staffTop: 'Топ продавцы',
     staffEmpty: 'За этот период ещё никто не продавал.',

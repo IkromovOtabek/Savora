@@ -105,9 +105,14 @@ export default async function TenantDashboard({
       : Promise.resolve([]),
     isAdmin ? Branch.find({ active: true }).select('name').lean() : Promise.resolve([]),
     isAdmin && features.sales
-      ? Sale.aggregate<{ _id: string; qty: number; revenue: number }>([
+      ? Sale.aggregate<{ _id: { name?: string; unit: string }; qty: number; revenue: number }>([
           { $match: { ...inPeriod, ...notCancelled } },
-          { $group: { _id: '$productSnapshot.name', qty: { $sum: { $ifNull: ['$productSnapshot.saleQuantity', 1] } }, revenue: { $sum: '$totalAmount' } } },
+          // Nom + birlik bo'yicha — "dona" va "kg" miqdori bir songa qo'shilmasin
+          { $group: {
+            _id: { name: '$productSnapshot.name', unit: { $ifNull: ['$productSnapshot.unit', 'dona'] } },
+            qty: { $sum: { $ifNull: ['$productSnapshot.saleQuantity', 1] } },
+            revenue: { $sum: '$totalAmount' },
+          } },
           { $sort: { revenue: -1 } },
           { $limit: 5 },
         ])
@@ -148,7 +153,7 @@ export default async function TenantDashboard({
   const branchRows = branchAgg
     .map((b) => ({ id: String(b._id), name: branchName.get(String(b._id)) ?? d.common.branch, today: b.today, week: b.week, count: b.count }))
     .sort((a, b) => b.week - a.week);
-  const topRows = topAgg.map((r) => ({ name: r._id || t.unnamed, qty: r.qty, revenue: r.revenue }));
+  const topRows = topAgg.map((r) => ({ name: r._id.name || t.unnamed, qty: r.qty, unit: r._id.unit, revenue: r.revenue }));
   const staffRows = staffAgg.map((r) => ({ name: r._id, count: r.count, total: r.total }));
   const lowRows = lowStock.map((p) => {
     const left = getStockQty(p);

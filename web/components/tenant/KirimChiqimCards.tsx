@@ -7,39 +7,41 @@ import { fmtMoney } from '@/lib/format';
 import Icon from '@/components/icons/Icon';
 import Tilt from '@/components/ui/Tilt';
 import { useDict } from '@/lib/i18n/client';
-import { tr } from '@/lib/i18n/fmt';
+import { qtyByUnits, tr } from '@/lib/i18n/fmt';
+import type { QtyByUnit } from '@/lib/unitTotals';
 import '@/components/tenant/styles/finance.css';
 
 export interface BranchFlowCard {
   id: string;
   name: string;
   kirimValue: number;
-  kirimCount: number;
+  kirimQty: QtyByUnit;
   chiqimValue: number;
-  chiqimCount: number;
+  chiqimQty: QtyByUnit;
   foyda: number;
 }
 
 /** Kirim (ombordagi qiymat) va chiqim (sotuv tushumi) — ikki tomonli sarlavha */
 export function FlowSplit({
   kirimValue,
-  kirimCount,
+  kirimQty,
   chiqimValue,
-  chiqimCount,
+  chiqimQty,
   foyda,
   kirimLabel,
   chiqimLabel,
 }: {
   kirimValue: number;
-  kirimCount: number;
+  kirimQty: QtyByUnit;
   chiqimValue: number;
-  chiqimCount: number;
+  chiqimQty: QtyByUnit;
   foyda: number;
   kirimLabel?: string;
   chiqimLabel?: string;
 }) {
   const d = useDict();
   const k = d.sales.kirimChiqim;
+  const units = d.stock.fields.units;
   return (
     /* 3D-lite: sahifaning asosiy ob'ekti — engil egiladi, ikonkalar hajmli */
     <Tilt as="section" max={3} className="fn-flow">
@@ -49,7 +51,7 @@ export function FlowSplit({
           {kirimLabel ?? k.kirimLabel}
         </span>
         <span className="fn-flow-value fn-num ux-z">{fmtMoney(kirimValue)}<span className="fn-cur">{d.common.sum}</span></span>
-        <span className="fn-flow-sub">{tr(k.byCost, { n: kirimCount })}</span>
+        <span className="fn-flow-sub">{tr(k.byCost, { qty: qtyByUnits(kirimQty, units) })}</span>
       </div>
       <div className="fn-flow-side">
         <span className="fn-flow-label">
@@ -57,7 +59,7 @@ export function FlowSplit({
           {chiqimLabel ?? k.chiqimLabel}
         </span>
         <span className="fn-flow-value fn-num fn-in ux-z">{fmtMoney(chiqimValue)}<span className="fn-cur">{d.common.sum}</span></span>
-        <span className="fn-flow-sub">{tr(k.byRevenue, { n: chiqimCount })}</span>
+        <span className="fn-flow-sub">{tr(k.byRevenue, { qty: qtyByUnits(chiqimQty, units) })}</span>
       </div>
       <div className="fn-flow-net">
         <span>{k.netProfit}</span>
@@ -127,8 +129,8 @@ export default function KirimChiqimCards({ total, cards }: { total: BranchFlowCa
                       <i className="fn-split-in" style={{ width: `${(Math.max(0, c.chiqimValue) / maxSold) * 100}%` }} />
                     </span>
                     <span className="fn-rank-meta">
-                      <span>{tr(k.inStockMeta, { sum: fmtMoney(c.kirimValue), n: c.kirimCount })}</span>
-                      <span>{tr(k.soldMeta, { n: c.chiqimCount })}</span>
+                      <span>{tr(k.inStockMeta, { sum: fmtMoney(c.kirimValue), qty: qtyByUnits(c.kirimQty, d.stock.fields.units) })}</span>
+                      <span>{tr(k.soldMeta, { qty: qtyByUnits(c.chiqimQty, d.stock.fields.units) })}</span>
                     </span>
                   </span>
                   <span className="fn-rank-end">

@@ -317,13 +317,15 @@ export const uz = {
     types: 'tur',
     shareTitle: 'Filiallar ulushi',
     byValue: "qiymat bo'yicha",
-    byUnits: "dona bo'yicha",
+    byUnits: "miqdor bo'yicha",
+    /** Birliklar aralash (dona + kg) bo'lsa — mahsulot turlari soni bo'yicha */
+    byTypes: "tur bo'yicha",
     /** {list} — «Filial 40%, ...» */
     shareAria: 'Filiallar ulushi: {list}',
     emptyTitle: "Omborda qoldiq yo'q",
     emptyHint: "Mahsulot qo'shilgach, filiallar bo'yicha qoldiq shu yerda hisoblanadi.",
-    /** {count} — tur, {units} — dona */
-    typesUnits: '{count} tur · {units} dona',
+    /** {count} — tur, {units} — birlik bo'yicha miqdor («12 dona · 3,5 kg») */
+    typesUnits: '{count} tur · {units}',
     /** {n} — ko'rsatilmagan qolgan mahsulotlar */
     more: "Yana {n} ta — barchasini ko'rish",
     emptyBranches: 'Mahsulotsiz filiallar',
@@ -840,10 +842,11 @@ export const ru: typeof uz = {
     shareTitle: 'Доля филиалов',
     byValue: 'по стоимости',
     byUnits: 'по количеству',
+    byTypes: 'по видам',
     shareAria: 'Доля филиалов: {list}',
     emptyTitle: 'На складе нет остатков',
     emptyHint: 'После добавления товаров остатки по филиалам будут считаться здесь.',
-    typesUnits: '{count} видов · {units} шт.',
+    typesUnits: '{count} видов · {units}',
     more: 'Ещё {n} — показать все',
     emptyBranches: 'Филиалы без товаров',
   },

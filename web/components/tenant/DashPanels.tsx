@@ -2,7 +2,7 @@ import Link from 'next/link';
 import Icon from '@/components/icons/Icon';
 import { fmtMoney, fmtDate } from '@/lib/format';
 import { getDict } from '@/lib/i18n/server';
-import { tr } from '@/lib/i18n/fmt';
+import { qtyWithUnit, tr } from '@/lib/i18n/fmt';
 
 /* Bosh sahifa — rolga qarab ko'rsatiladigan panellar (server komponentlar, faqat ko'rsatish). */
 
@@ -63,13 +63,13 @@ export async function BranchPanel({ rows }: { rows: { id: string; name: string; 
   );
 }
 
-export async function TopProductsPanel({ rows, meta }: { rows: { name: string; qty: number; revenue: number }[]; meta?: string }) {
+export async function TopProductsPanel({ rows, meta }: { rows: { name: string; qty: number; unit?: string | null; revenue: number }[]; meta?: string }) {
   const d = await getDict();
   const t = d.shell.panels;
   return (
     <Panel id="t-p-top" title={t.topTitle} meta={meta ?? t.topMeta} href="/app/monitoring" linkLabel={d.catalog.features.monitoring.label}>
       {rows.length === 0 ? <PanelEmpty text={t.topEmpty} /> : (
-        <BarList unit={d.common.sum} rows={rows.map((r) => ({ key: r.name, label: r.name, value: r.revenue, sub: tr(t.nUnits, { n: r.qty }) }))} />
+        <BarList unit={d.common.sum} rows={rows.map((r) => ({ key: `${r.name}|${r.unit ?? ''}`, label: r.name, value: r.revenue, sub: qtyWithUnit(r.qty, r.unit, d.stock.fields.units) }))} />
       )}
     </Panel>
   );

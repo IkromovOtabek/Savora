@@ -1,5 +1,7 @@
 import type { IProduct } from './models/tenant/Product';
 import { getSoldQty, getStockQty } from './productQuantity';
+import { priceTimesQty } from './qty';
+import { addQtyByUnit, type QtyByUnit } from './unitTotals';
 
 export interface FlowLine {
   id: string;
@@ -7,6 +9,8 @@ export interface FlowLine {
   name: string;
   branchName: string;
   qty: number;
+  /** O'lchov birligi (yo'q — dona) */
+  unit?: string | null;
   unitPurchase: number;
   unitSale: number;
   cost: number;
@@ -15,8 +19,9 @@ export interface FlowLine {
 }
 
 export interface FlowTotals {
-  stockCount: number;
-  soldCount: number;
+  /** Miqdor birlik bo'yicha — dona va kg bitta songa qo'shilmaydi */
+  stockQty: QtyByUnit;
+  soldQty: QtyByUnit;
   stockCost: number;
   soldRevenue: number;
   profit: number;
@@ -34,8 +39,8 @@ export function lineFromProduct(
 
   const unitPurchase = p.purchasePrice ?? 0;
   const unitSale = p.salePrice ?? 0;
-  const cost = unitPurchase * qty;
-  const revenue = unitSale * qty;
+  const cost = priceTimesQty(unitPurchase, qty);
+  const revenue = priceTimesQty(unitSale, qty);
 
   return {
     id: String(p._id),
@@ -43,6 +48,7 @@ export function lineFromProduct(
     name: p.name,
     branchName,
     qty,
+    unit: p.unit ?? null,
     unitPurchase,
     unitSale,
     cost,
@@ -52,21 +58,21 @@ export function lineFromProduct(
 }
 
 export function aggregateFlowTotals(stockLines: FlowLine[], soldLines: FlowLine[]): FlowTotals {
-  let stockCount = 0;
+  const stockQty: QtyByUnit = {};
   let stockCost = 0;
   for (const l of stockLines) {
-    stockCount += l.qty;
+    addQtyByUnit(stockQty, l.qty, l.unit);
     stockCost += l.cost;
   }
-  let soldCount = 0;
+  const soldQty: QtyByUnit = {};
   let soldRevenue = 0;
   let profit = 0;
   for (const l of soldLines) {
-    soldCount += l.qty;
+    addQtyByUnit(soldQty, l.qty, l.unit);
     soldRevenue += l.revenue;
     profit += l.profit;
   }
-  return { stockCount, soldCount, stockCost, soldRevenue, profit };
+  return { stockQty, soldQty, stockCost, soldRevenue, profit };
 }
 
 export interface BranchMonthFlow {
