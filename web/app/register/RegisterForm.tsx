@@ -87,7 +87,7 @@ export default function RegisterForm({ plans }: { plans: PlanPreset[] }) {
           <span className="rg-logo-mark"><BrandGlyph size={32} radius={0} /></span>
           Savora
         </Link>
-        <p className="rg-bar-r">{t.haveAccount} <Link href="/login">{d.common.login}</Link> <LangSwitch compact /></p>
+        <div className="rg-bar-r"><span>{t.haveAccount}</span> <Link href="/login">{d.common.login}</Link> <LangSwitch compact /></div>
       </header>
 
       <div className="rg-main">
@@ -280,6 +280,11 @@ export default function RegisterForm({ plans }: { plans: PlanPreset[] }) {
             <li><Icon name="check" size={15} strokeWidth={2.6} /> {t.perk2}</li>
             <li><Icon name="check" size={15} strokeWidth={2.6} /> {t.perk3}</li>
           </ul>
+          <div className="rg-help">
+            <b>{t.helpTitle}</b>
+            <span>{t.helpText}</span>
+            <Link href="/contact">{t.helpLink} <Icon name="arrowRight" size={14} /></Link>
+          </div>
         </aside>
       </div>
     </div>

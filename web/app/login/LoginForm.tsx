@@ -48,30 +48,22 @@ export default function LoginForm({
 
   return (
     <div className="lg">
-      <aside className="lg-panel">
+      <header className="lg-top">
         <Link href="/" className="lg-back">
           <Icon name="arrowLeft" size={16} />
           {d.common.home}
         </Link>
+        <LangSwitch compact className="lg-lang" />
+      </header>
 
-        <div className="lg-pitch">
+      {/* BILLZ uslubi: markazda bitta karta — logotip, sarlavha, maydonlar, katta tugma */}
+      <main className="lg-main">
+        <div className="lg-card">
           <Link href="/" className="lg-brand" aria-label={t.brandHome}>
-            <span className="lg-brand-mark"><BrandGlyph size={36} radius={0} /></span>
+            <span className="lg-brand-mark"><BrandGlyph size={34} radius={0} /></span>
             Savora
           </Link>
-          <h2>{t.pitchTitle}</h2>
-          <p>{t.pitchText}</p>
-        </div>
 
-        <ul className="lg-trust">
-          <li>{t.trustCloud}</li>
-          <li>{t.trustSecure}</li>
-          <li>{t.trustAlways}</li>
-        </ul>
-      </aside>
-
-      <main className="lg-side">
-        <div className="lg-card">
           <header className="lg-head">
             <h1 className="lg-title">{title}</h1>
             {subtitle && <p className="lg-sub">{subtitle}</p>}
@@ -99,7 +91,6 @@ export default function LoginForm({
               <div className="lg-field">
                 <label htmlFor="username">{d.auth.fields.username}</label>
                 <div className="lg-control">
-                  <Icon name="user" size={18} className="lg-control-ic" />
                   <input
                     id="username"
                     name="username"
@@ -117,23 +108,20 @@ export default function LoginForm({
                 </div>
               </div>
               <div className="lg-field">
-                <label htmlFor="password">{d.auth.fields.password}</label>
+                <div className="lg-label-row">
+                  <label htmlFor="password">{d.auth.fields.password}</label>
+                  {forgotUrl && <Link href={forgotUrl} className="lg-link">{t.forgot}</Link>}
+                </div>
                 <div className="lg-control lg-control--pwd">
-                  <Icon name="lock" size={18} className="lg-control-ic" />
                   <PasswordField id="password" name="password" autoComplete="current-password" placeholder={d.auth.fields.passwordPlaceholder} required disabled={isPending} />
                 </div>
               </div>
 
-              {(loginZone === 'tenant' || forgotUrl) && (
-                <div className="lg-row">
-                  {loginZone === 'tenant' ? (
-                    <label className="lg-check">
-                      <input type="checkbox" name="remember" value="1" disabled={isPending} />
-                      {t.remember}
-                    </label>
-                  ) : <span />}
-                  {forgotUrl && <Link href={forgotUrl} className="lg-link">{t.forgot}</Link>}
-                </div>
+              {loginZone === 'tenant' && (
+                <label className="lg-check">
+                  <input type="checkbox" name="remember" value="1" disabled={isPending} />
+                  {t.remember}
+                </label>
               )}
 
               <button type="submit" className="lg-submit" disabled={isPending}>
@@ -159,13 +147,12 @@ export default function LoginForm({
         </div>
 
         <footer className="lg-foot">
-          <span>© {new Date().getFullYear()} Savora. {t.rights}</span>
           <nav aria-label={t.footNav}>
             <Link href="/help">{t.help}</Link>
             <Link href="/terms">{t.terms}</Link>
             <Link href="/privacy">{t.privacy}</Link>
-            <LangSwitch compact />
           </nav>
+          <span>© {new Date().getFullYear()} Savora. {t.rights}</span>
         </footer>
       </main>
     </div>

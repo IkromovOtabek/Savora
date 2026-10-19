@@ -8,10 +8,7 @@
   min-height: 100vh;
   min-height: 100dvh;
   color: var(--ink-1);
-  background:
-    radial-gradient(900px 420px at 100% 0%, color-mix(in srgb, var(--brand) 10%, transparent), transparent 70%),
-    radial-gradient(700px 360px at 0% 100%, color-mix(in srgb, var(--gold) 9%, transparent), transparent 70%),
-    var(--bg-soft);
+  background: var(--bg-soft);
 }
 
 .rg-bar {
@@ -22,7 +19,8 @@
 .rg-logo { display: inline-flex; align-items: center; gap: 10px; color: var(--ink-1); text-decoration: none; font-size: 20px; font-weight: 800; letter-spacing: -.02em; border-radius: 10px; }
 .rg-logo-mark { width: 32px; height: 32px; border-radius: 9px; overflow: hidden; box-shadow: 0 4px 12px -4px rgba(31, 79, 168, .45); }
 .rg-logo:focus-visible { outline: 3px solid var(--brand-ring); outline-offset: 3px; }
-.rg-bar-r { margin: 0; font-size: 14px; color: var(--ink-3); }
+.rg-bar-r { margin: 0; display: flex; align-items: center; gap: 6px; font-size: 14px; color: var(--ink-3); }
+.rg-bar-r .lang-switch { margin-left: 10px; background: var(--surface); box-shadow: 0 0 0 .5px var(--sep); }
 .rg-bar-r a { color: var(--brand); font-weight: 700; text-decoration: none; margin-left: 4px; }
 .rg-bar-r a:hover { text-decoration: underline; }
 
@@ -34,8 +32,8 @@
 
 /* ── Forma kartasi ─────────────────────────────────────── */
 .rg-card {
-  background: var(--surface); border-radius: 24px; padding: 32px 36px 34px;
-  box-shadow: 0 0 0 .5px var(--sep), 0 30px 70px -36px rgba(13, 21, 38, .3);
+  background: var(--surface); border-radius: 36px; padding: 44px 48px 44px;
+  box-shadow: 0 0 0 .5px var(--sep), 0 30px 80px -40px rgba(0, 0, 0, .45);
 }
 
 .rg-steps { list-style: none; margin: 0 0 26px; padding: 0; display: flex; align-items: center; gap: 12px; font-size: 14px; font-weight: 600; color: var(--ink-3); }
@@ -61,41 +59,42 @@
 .rg-field > label { font-size: 13.5px; font-weight: 600; color: var(--ink-2); }
 .rg-field > input,
 .rg-pwd .au-pwd {
-  height: 48px; border-radius: 12px; background: var(--surface);
-  box-shadow: inset 0 0 0 1px var(--border); transition: box-shadow .15s;
+  height: 52px; border-radius: 16px; background: var(--fill);
+  transition: box-shadow .15s, background .15s;
 }
-.rg-field > input { width: 100%; border: 0; outline: 0; padding: 0 14px; font: inherit; font-size: 15px; color: var(--ink-1); }
-.rg-pwd .au-pwd { padding: 0 8px 0 14px; }
+.rg-field > input { width: 100%; border: 0; outline: 0; padding: 0 16px; font: inherit; font-size: 15px; color: var(--ink-1); }
+.rg-pwd .au-pwd { padding: 0 8px 0 16px; }
+.rg-field > input:hover, .rg-pwd .au-pwd:hover { background: var(--fill-3); }
 .rg-pwd .au-pwd input { height: 100%; border: 0; outline: 0; background: transparent; font: inherit; font-size: 15px; color: var(--ink-1); }
 .rg-pwd .au-pwd-toggle { margin: 0; }
 .rg-field > input::placeholder, .rg-pwd input::placeholder { color: var(--ink-3); opacity: .8; }
-.rg-field > input:focus, .rg-pwd .au-pwd:focus-within { box-shadow: inset 0 0 0 2px var(--brand), 0 0 0 4px var(--brand-ring); }
+.rg-field > input:focus, .rg-pwd .au-pwd:focus-within { background: var(--fill); box-shadow: inset 0 0 0 2px var(--brand), 0 0 0 4px var(--brand-ring); }
 .rg-field > input:disabled { opacity: .55; }
 .rg-hint { margin: 0; font-size: 12.5px; color: var(--ink-3); line-height: 1.45; overflow-wrap: anywhere; }
 .rg-hint b { color: var(--ink-1); font-weight: 600; }
 
 .rg-biz { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 10px; }
 .rg-biz-tile {
-  position: relative; display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 14px; cursor: pointer;
-  background: var(--surface); box-shadow: inset 0 0 0 1px var(--border); transition: box-shadow .15s, background .15s;
+  position: relative; display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 16px; cursor: pointer;
+  background: var(--fill); transition: box-shadow .15s, background .15s;
 }
 .rg-biz-tile input { position: absolute; opacity: 0; pointer-events: none; }
-.rg-biz-ic { flex: none; width: 36px; height: 36px; border-radius: 10px; display: grid; place-items: center; background: var(--fill); color: var(--ink-2); transition: background .15s, color .15s; }
+.rg-biz-ic { flex: none; width: 36px; height: 36px; border-radius: 10px; display: grid; place-items: center; background: var(--fill-3); color: var(--ink-2); transition: background .15s, color .15s; }
 .rg-biz-t { display: grid; min-width: 0; line-height: 1.3; }
 .rg-biz-t strong { font-size: 14px; font-weight: 700; }
 .rg-biz-t small { font-size: 12px; color: var(--ink-3); }
-.rg-biz-tile:hover { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--brand) 45%, var(--border)); }
+.rg-biz-tile:hover { background: var(--fill-3); }
 .rg-biz-tile.is-on { background: var(--brand-soft); box-shadow: inset 0 0 0 2px var(--brand); }
 .rg-biz-tile.is-on .rg-biz-ic { background: var(--brand); color: var(--on-brand); }
 .rg-biz-tile:has(input:focus-visible) { outline: 3px solid var(--brand-ring); outline-offset: 2px; }
 
 .rg-plans { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 12px; }
 .rg-plan {
-  position: relative; display: grid; gap: 8px; align-content: start; padding: 18px; border-radius: 16px; cursor: pointer;
-  background: var(--surface); box-shadow: inset 0 0 0 1px var(--border); transition: box-shadow .15s, background .15s;
+  position: relative; display: grid; gap: 8px; align-content: start; padding: 18px; border-radius: 20px; cursor: pointer;
+  background: var(--fill); transition: box-shadow .15s, background .15s;
 }
 .rg-plan input { position: absolute; opacity: 0; pointer-events: none; }
-.rg-plan:hover { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--brand) 45%, var(--border)); }
+.rg-plan:hover { background: var(--fill-3); }
 .rg-plan.is-on { background: var(--brand-soft); box-shadow: inset 0 0 0 2px var(--brand); }
 .rg-plan:has(input:focus-visible) { outline: 3px solid var(--brand-ring); outline-offset: 2px; }
 .rg-plan-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
@@ -108,14 +107,14 @@
 .rg-plan li svg { flex: none; margin-top: 3px; color: var(--accent); }
 
 .rg-btn {
-  height: 50px; padding: 0 22px; border: 0; border-radius: 12px; cursor: pointer;
+  height: 56px; padding: 0 24px; border: 0; border-radius: 18px; cursor: pointer;
   display: inline-flex; align-items: center; justify-content: center; gap: 8px;
   font: inherit; font-size: 16px; font-weight: 700; transition: background .15s, transform .1s;
 }
 .rg-btn:active { transform: scale(.985); }
 .rg-btn:disabled { opacity: .6; cursor: progress; transform: none; }
 .rg-btn:focus-visible { outline: 3px solid var(--brand-ring); outline-offset: 2px; }
-.rg-btn--primary { background: var(--brand-fill); color: var(--on-brand); box-shadow: 0 10px 24px -10px rgba(31, 79, 168, .65); }
+.rg-btn--primary { background: var(--brand-fill); color: var(--on-brand); }
 .rg-btn--primary:hover { background: var(--brand-fill-hover); }
 .rg-btn--ghost { background: var(--fill); color: var(--ink-1); }
 .rg-btn--ghost:hover { background: var(--fill-3); }
@@ -124,7 +123,7 @@
 /* ── Jonli ko'rinish ───────────────────────────────────── */
 .rg-preview { position: sticky; top: 24px; display: grid; gap: 18px; }
 .rg-shop {
-  border-radius: 22px; padding: 22px; color: #fff;
+  border-radius: 28px; padding: 24px; color: #fff;
   background:
     radial-gradient(80% 60% at 100% 0%, rgba(255, 255, 255, .14), transparent 70%),
     linear-gradient(155deg, #2f5fc0 0%, #1f4fa8 50%, #173f8f 100%);
@@ -143,6 +142,11 @@
 .rg-perks { list-style: none; margin: 0; padding: 0 4px; display: grid; gap: 10px; font-size: 14px; color: var(--ink-2); }
 .rg-perks li { display: flex; gap: 9px; align-items: flex-start; line-height: 1.45; }
 .rg-perks svg { flex: none; margin-top: 3px; color: var(--accent); }
+.rg-help { display: grid; gap: 4px; padding: 18px 20px; border-radius: 24px; background: var(--surface); box-shadow: 0 0 0 .5px var(--sep); font-size: 14px; }
+.rg-help b { font-size: 15px; }
+.rg-help span { color: var(--ink-3); line-height: 1.45; }
+.rg-help a { justify-self: start; display: inline-flex; align-items: center; gap: 6px; margin-top: 6px; color: var(--brand); font-weight: 600; text-decoration: none; }
+.rg-help a:hover { text-decoration: underline; }
 
 @media (prefers-reduced-motion: no-preference) {
   .rg-card, .rg-preview { animation: rg-in .7s cubic-bezier(.22, .61, .36, 1) both; }
@@ -153,7 +157,7 @@
 @media (max-width: 960px) {
   .rg-main { grid-template-columns: minmax(0, 1fr); }
   .rg-preview { position: static; order: -1; }
-  .rg-perks { display: none; }
+  .rg-perks, .rg-help { display: none; }
   .rg-shop { padding: 16px 18px; }
   .rg-shop-kv { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .rg-shop-kv div:first-child { grid-column: 1 / -1; }
@@ -162,7 +166,7 @@
   .rg-bar { padding: 16px; }
   .rg-bar-r { font-size: 13px; }
   .rg-main { padding: 4px 16px 40px; gap: 16px; }
-  .rg-card { padding: 22px 18px 24px; border-radius: 20px; }
+  .rg-card { padding: 26px 20px 26px; border-radius: 28px; }
   .rg-grid2 { grid-template-columns: minmax(0, 1fr); }
   .rg-steps li + li::before { width: 18px; }
   .rg-actions { grid-template-columns: minmax(0, 1fr); }
