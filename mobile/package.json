@@ -17,7 +17,7 @@
     "icons": "python3 assets/make-icons.py"
   },
   "dependencies": {
-    "@expo-google-fonts/manrope": "^0.4.2",
+    "@expo-google-fonts/onest": "^0.4.2",
     "@expo/vector-icons": "^15.0.3",
     "@react-native-async-storage/async-storage": "2.2.0",
     "expo": "~54.0.37",

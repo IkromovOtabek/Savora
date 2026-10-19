@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { View, StyleSheet } from 'react-native';
+import Svg, { Defs, LinearGradient, Stop, Rect } from 'react-native-svg';
 import { Text } from '@/components/ui/Text';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useAuth, useCan } from '@/lib/auth';
@@ -35,6 +36,7 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [heroSize, setHeroSize] = useState({ w: 0, h: 0 });
   const gen = useRef(0);
 
   const load = useCallback(async () => {
@@ -103,7 +105,19 @@ export default function Home() {
         </Group>
       ) : null}
 
-      <View style={[s.hero, { backgroundColor: c.hero }]} accessible accessibilityLabel={tr(d.home.todayRevenueA11y, { v: fmtMoney(sum?.todayRevenue, { suffix: true }) })}>
+      <View
+        style={[s.hero, { backgroundColor: c.hero2 }]}
+        onLayout={(e) => { const { width, height } = e.nativeEvent.layout; setHeroSize({ w: width, h: height }); }}
+        accessible accessibilityLabel={tr(d.home.todayRevenueA11y, { v: fmtMoney(sum?.todayRevenue, { suffix: true }) })}>
+        <Svg width={heroSize.w} height={heroSize.h} style={StyleSheet.absoluteFill} pointerEvents="none">
+          <Defs>
+            <LinearGradient id="heroGrad" x1="0" y1="0" x2="1" y2="1">
+              <Stop offset="0" stopColor={c.hero} />
+              <Stop offset="1" stopColor={c.hero2} />
+            </LinearGradient>
+          </Defs>
+          <Rect width={heroSize.w} height={heroSize.h} fill="url(#heroGrad)" />
+        </Svg>
         {/* Bezak — brend belgisidagi o'sib boruvchi ustunlar */}
         <View style={s.heroDeco} pointerEvents="none">
           <View style={[s.heroBar, { height: 34, opacity: 0.1 }]} />
