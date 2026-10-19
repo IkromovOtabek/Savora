@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { getTenantAdminSession } from '@/lib/tenantSession';
 import { saveShopSettingsPart } from '@/lib/shopSettings';
+import { getUsdRate } from '@/lib/currency';
 import { recordAudit } from '@/lib/audit';
 import { formToObject, parseInput, zText } from '@/lib/validation';
 import { getDict } from '@/lib/i18n/server';
@@ -37,4 +38,36 @@ export async function saveReceiptSettingsAction(_prev: State, formData: FormData
   await recordAudit(user, { action: 'settings.receipt', entity: 'branch', summary: `Chek sozlamalari o'zgartirildi (${paperWidth} mm)` });
   revalidatePath('/app/settings');
   return { success: k.saved };
+}
+
+/** Valyuta: kurs manbai (CBU / qo'lda) va qo'lda kiritilgan kurs */
+export async function saveCurrencySettingsAction(_prev: State, formData: FormData): Promise<State> {
+  const { user, ShopSettings } = await getTenantAdminSession();
+  const k = (await getDict()).shell.shopSettings;
+  const mode = formData.get('rateMode') === 'manual' ? 'manual' : 'cbu';
+  const rawRate = String(formData.get('manualRate') ?? '').replace(/\s/g, '').replace(',', '.');
+  const manualRate = rawRate ? Number(rawRate) : undefined;
+  if (manualRate !== undefined && (!Number.isFinite(manualRate) || manualRate < 1000 || manualRate > 100000)) return { error: k.badRate };
+  if (mode === 'manual' && !manualRate) return { error: k.badRate };
+
+  try {
+    await saveShopSettingsPart(ShopSettings, 'currency', { rateMode: mode, manualRate }, user.username);
+  } catch {
+    return { error: k.failed };
+  }
+  await recordAudit(user, {
+    action: 'settings.currency', entity: 'branch',
+    summary: mode === 'manual' ? `Dollar kursi qo'lda: ${manualRate} so'm` : 'Dollar kursi: Markaziy bank',
+  });
+  revalidatePath('/app/settings');
+  return { success: k.saved };
+}
+
+/** CBU kursini hozir qayta so'rash */
+export async function refreshCbuRateAction(): Promise<State> {
+  const { ShopSettings } = await getTenantAdminSession();
+  const k = (await getDict()).shell.shopSettings;
+  const info = await getUsdRate(ShopSettings, { force: true });
+  revalidatePath('/app/settings');
+  return info.cbuRate ? { success: k.refreshed } : { error: k.cbuNone };
 }

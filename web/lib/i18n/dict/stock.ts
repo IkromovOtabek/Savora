@@ -119,6 +119,11 @@ export const uz = {
   },
 
   /** components/tenant/ProductForm.tsx */
+  usd: {
+    label: 'Dollarda kiritish',
+    rate: "1 $ = {v} so'm",
+    apply: '→ {field}',
+  },
   adjust: {
     revalTitle: 'Qayta baholash',
     revalMeta: 'Qayta baholash — Savora',
@@ -609,6 +614,11 @@ export const ru: typeof uz = {
     moreLabel: 'Другие действия',
   },
 
+  usd: {
+    label: 'Ввести в долларах',
+    rate: '1 $ = {v} сум',
+    apply: '→ {field}',
+  },
   adjust: {
     revalTitle: 'Переоценка',
     revalMeta: 'Переоценка — Savora',

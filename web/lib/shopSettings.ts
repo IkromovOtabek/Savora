@@ -35,7 +35,8 @@ export async function getShopSettings(M: Model<IShopSettings>): Promise<ShopSett
 export async function saveShopSettingsPart<K extends 'receipt' | 'currency' | 'notify'>(
   M: Model<IShopSettings>, part: K, value: Partial<ShopSettings[K]>, by: string,
 ): Promise<void> {
-  const set: Record<string, unknown> = { updatedBy: by };
+  // by bo'sh — avtomatik yangilanish (CBU kursi), oxirgi tahrirlovchi o'zgarmaydi
+  const set: Record<string, unknown> = by ? { updatedBy: by } : {};
   for (const [k, v] of Object.entries(value)) set[`${part}.${k}`] = v;
   const unset: Record<string, ''> = {};
   for (const [k, v] of Object.entries(set)) if (v === undefined) { unset[k] = ''; delete set[k]; }

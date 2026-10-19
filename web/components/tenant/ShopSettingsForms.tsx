@@ -1,7 +1,10 @@
 'use client';
 
-import { useActionState, useState } from 'react';
-import { saveReceiptSettingsAction } from '@/app/actions/shopSettings';
+import { useActionState, useState, useTransition } from 'react';
+import { saveReceiptSettingsAction, saveCurrencySettingsAction, refreshCbuRateAction } from '@/app/actions/shopSettings';
+import PriceInput from '@/components/ui/PriceInput';
+import { toast } from '@/lib/toast';
+import { tr } from '@/lib/i18n/fmt';
 import type { ShopSettings } from '@/lib/shopSettings';
 import { useToastOnState } from '@/lib/useToastOnState';
 import { fmtMoney } from '@/lib/format';
@@ -72,6 +75,69 @@ export function ReceiptSettingsForm({ initial, shop }: { initial: ShopSettings['
           <hr />
           <b className="ss-p-foot">{v.footer || r.thanks}</b>
         </div>
+      </aside>
+    </div>
+  );
+}
+
+/** Dollar kursi: Markaziy bank yoki qo'lda */
+export function CurrencySettingsForm({ initial, cbu, active }: {
+  initial: { rateMode: 'cbu' | 'manual'; manualRate?: number };
+  cbu: { rate?: number; date?: string };
+  active: number | null;
+}) {
+  const d = useDict();
+  const k = d.shell.shopSettings;
+  const [state, action, pending] = useActionState(saveCurrencySettingsAction, null);
+  useToastOnState(state);
+  const [mode, setMode] = useState(initial.rateMode);
+  const [manual, setManual] = useState(initial.manualRate ? String(Math.round(initial.manualRate)) : '');
+  const [refreshing, startRefresh] = useTransition();
+
+  function refresh() {
+    startRefresh(async () => {
+      const res = await refreshCbuRateAction();
+      if (res?.success) toast(res.success, 'success');
+      else if (res?.error) toast(res.error, 'error');
+    });
+  }
+
+  return (
+    <div className="ss-split">
+      <form action={action} className="ss-card ss-form">
+        <div>
+          <h2 className="ss-h">{k.currencyTitle}</h2>
+          <p className="ss-hint">{k.currencyHint}</p>
+        </div>
+        <div className="ss-seg">
+          {(['cbu', 'manual'] as const).map((m) => (
+            <label key={m} className={mode === m ? 'is-on' : ''}>
+              <input type="radio" name="rateMode" value={m} checked={mode === m} onChange={() => setMode(m)} />
+              {m === 'cbu' ? k.modeCbu : k.modeManual}
+            </label>
+          ))}
+        </div>
+        <div className="ss-rate">
+          <span>{k.cbuNow}</span>
+          {cbu.rate ? (
+            <b>1 $ = {fmtMoney(Math.round(cbu.rate))} {d.common.sum} <small>{cbu.date ? tr(k.cbuOf, { date: cbu.date.split('-').reverse().join('.') }) : ''}</small></b>
+          ) : <b className="ss-muted">{k.cbuNone}</b>}
+          <button type="button" className="btn btn-sm btn-ghost" onClick={refresh} disabled={refreshing}>{k.refresh}</button>
+        </div>
+        {mode === 'manual' && (
+          <div className="auth-field">
+            <label htmlFor="ss-rate">{k.manualRate}</label>
+            <PriceInput id="ss-rate" name="manualRate" value={manual} onValueChange={setManual} placeholder={k.manualRatePh} required />
+          </div>
+        )}
+        {mode === 'cbu' && manual && <input type="hidden" name="manualRate" value={manual} />}
+        <button type="submit" className="btn btn-primary" disabled={pending}>{k.save}</button>
+      </form>
+
+      <aside className="ss-card ss-active">
+        <span className="ss-preview-l">{k.activeRate}</span>
+        <b>{active ? <>1 $ = {fmtMoney(Math.round(active))} <small>{d.common.sum}</small></> : '—'}</b>
+        <small>{mode === 'manual' ? k.modeManual : k.modeCbu}</small>
       </aside>
     </div>
   );

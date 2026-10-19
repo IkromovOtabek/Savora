@@ -10,6 +10,7 @@ import BarcodeInputField from '@/components/ui/BarcodeInputField';
 import Icon from '@/components/icons/Icon';
 import ImageUploadField from '@/components/ui/ImageUploadField';
 import PriceInput from '@/components/ui/PriceInput';
+import UsdPricePanel from '@/components/tenant/UsdPricePanel';
 import { fmtMoney } from '@/lib/format';
 import { useDict } from '@/lib/i18n/client';
 import { tr } from '@/lib/i18n/fmt';
@@ -40,6 +41,8 @@ interface Props {
   canViewCost?: boolean;
   /** Yetkazib beruvchilar ("suppliers.manage" huquqi bo'lsa) — bo'lmasa maydon ko'rsatilmaydi */
   suppliers?: { id: string; name: string }[];
+  /** Do'kon dollar kursi — bo'lsa narxni dollarda kiritish paneli ko'rinadi */
+  usdRate?: number | null;
   initial?: {
     id: string;
     name: string;
@@ -74,6 +77,7 @@ export default function ProductForm({
   creditBanks = [],
   canViewCost = true,
   suppliers,
+  usdRate,
   initial,
 }: Props) {
   const d = useDict();
@@ -102,6 +106,7 @@ export default function ProductForm({
   const [saleRaw, setSaleRaw] = useState(
     initial?.salePrice !== undefined ? String(initial.salePrice) : ''
   );
+  const [wholesaleRaw, setWholesaleRaw] = useState(initial?.wholesalePrice ? String(initial.wholesalePrice) : '');
   // Foyda ko'rinishi faqat kelish narxini ko'rish huquqi bo'lsa
   const showProfit = showCost && canViewCost;
   const purchaseNum = Number(purchaseRaw) || 0;
@@ -240,9 +245,22 @@ export default function ProductForm({
                 </div>
                 <div className="auth-field">
                   <label htmlFor="wholesalePrice">{t.wholesaleLabel}</label>
-                  <PriceInput id="wholesalePrice" name="wholesalePrice" defaultValue={initial?.wholesalePrice || ''} disabled={isPending} placeholder={d.common.optional} />
+                  <PriceInput id="wholesalePrice" name="wholesalePrice" value={wholesaleRaw} onValueChange={setWholesaleRaw} disabled={isPending} placeholder={d.common.optional} />
                   <span className="field-hint">{t.wholesaleHint}</span>
                 </div>
+
+                {usdRate ? (
+                  <UsdPricePanel
+                    rate={usdRate}
+                    disabled={isPending}
+                    targets={[
+                      ...(showCost ? [{ key: 'purchase' as const, label: t.purchaseLabel.replace(/\s*\*$/, '') }] : []),
+                      { key: 'sale' as const, label: t.saleLabel },
+                      { key: 'wholesale' as const, label: t.wholesaleLabel },
+                    ]}
+                    onApply={(key, som) => (key === 'purchase' ? setPurchaseRaw : key === 'sale' ? setSaleRaw : setWholesaleRaw)(som)}
+                  />
+                ) : null}
 
                 {/* Jonli foyda kartasi — doim joyida (sakramaydi), narxlar kiritilgach to'ladi */}
                 {showProfit && (() => {

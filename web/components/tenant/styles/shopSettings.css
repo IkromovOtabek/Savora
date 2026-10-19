@@ -41,3 +41,15 @@
   .ss-split { grid-template-columns: minmax(0, 1fr); }
   .ss-preview { position: static; }
 }
+
+/* Valyuta */
+.ss-rate { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; padding: 12px 14px; border-radius: 12px; background: var(--fill); font-size: 14px; }
+.ss-rate > span { color: var(--ink-3); }
+.ss-rate b { font-variant-numeric: tabular-nums; }
+.ss-rate b small { font-weight: 500; color: var(--ink-3); margin-left: 4px; }
+.ss-rate .btn { margin-left: auto; }
+.ss-muted { color: var(--ink-3); font-weight: 500; }
+.ss-active { display: grid; gap: 6px; justify-items: start; }
+.ss-active b { font-size: 28px; font-weight: 800; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+.ss-active b small { font-size: 15px; font-weight: 600; color: var(--ink-3); }
+.ss-active > small { color: var(--ink-3); font-size: 13px; }

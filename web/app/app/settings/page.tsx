@@ -1,7 +1,8 @@
 import Link from 'next/link';
 import { getTenantAdminSession } from '@/lib/tenantSession';
 import { getShopSettings } from '@/lib/shopSettings';
-import { ReceiptSettingsForm } from '@/components/tenant/ShopSettingsForms';
+import { ReceiptSettingsForm, CurrencySettingsForm } from '@/components/tenant/ShopSettingsForms';
+import { getUsdRate } from '@/lib/currency';
 import { getDict } from '@/lib/i18n/server';
 import '@/components/tenant/styles/shopSettings.css';
 
@@ -9,7 +10,7 @@ export async function generateMetadata() {
   return { title: (await getDict()).shell.shopSettings.metaTitle };
 }
 
-const TABS = ['receipt'] as const;
+const TABS = ['receipt', 'currency'] as const;
 type Tab = (typeof TABS)[number];
 
 /** Do'kon sozlamalari (BILLZ: Sozlamalar) — chek, valyuta, bildirishnomalar */
@@ -19,7 +20,9 @@ export default async function ShopSettingsPage({ searchParams }: { searchParams:
   const { org, ShopSettings } = await getTenantAdminSession();
   const k = (await getDict()).shell.shopSettings;
   const settings = await getShopSettings(ShopSettings);
-  const label: Record<Tab, string> = { receipt: k.tabReceipt };
+  const label: Record<Tab, string> = { receipt: k.tabReceipt, currency: k.tabCurrency };
+  // Valyuta tabida CBU kursi eskirgan bo'lsa yangilanadi
+  const usd = tab === 'currency' ? await getUsdRate(ShopSettings) : null;
 
   return (
     <>
@@ -40,6 +43,13 @@ export default async function ShopSettingsPage({ searchParams }: { searchParams:
 
       {tab === 'receipt' && (
         <ReceiptSettingsForm initial={settings.receipt} shop={{ name: org.name, phone: org.phone }} />
+      )}
+      {tab === 'currency' && usd && (
+        <CurrencySettingsForm
+          initial={{ rateMode: settings.currency.rateMode, manualRate: settings.currency.manualRate }}
+          cbu={{ rate: usd.cbuRate, date: usd.cbuDate }}
+          active={usd.rate}
+        />
       )}
     </>
   );

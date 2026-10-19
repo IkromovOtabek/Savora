@@ -4,6 +4,7 @@ import { getTenantSession } from '@/lib/tenantSession';
 import { isImeiEnabled } from '@/lib/features';
 import { ProductStatus } from '@/lib/models/tenant/Product';
 import ProductForm from '@/components/tenant/ProductForm';
+import { getUsdRate } from '@/lib/currency';
 import DeleteProductButton from '@/components/tenant/DeleteProductButton';
 import ProductHistory from '@/components/tenant/ProductHistory';
 import { loadUserPermissions } from '@/lib/permissionGuard';
@@ -35,7 +36,8 @@ export default async function ProductDetailPage({
   const sp = await searchParams;
   const d = await getDict();
   const t = d.stock.detail;
-  const { user, Product, Branch, CreditBank, org, features, Supplier } = await getTenantSession();
+  const { user, Product, Branch, CreditBank, org, features, Supplier, ShopSettings } = await getTenantSession();
+  const usd = await getUsdRate(ShopSettings);
   const isAdmin = user.role === 'admin';
 
   if (!Types.ObjectId.isValid(id)) notFound();
@@ -199,6 +201,7 @@ export default async function ProductDetailPage({
           isAdmin={isAdmin}
           canViewCost={canViewCost}
           suppliers={suppliers?.map((x) => ({ id: String(x._id), name: x.name }))}
+          usdRate={usd.rate}
           currentBranchId={user.branchId}
           branches={branches.map((b) => ({ id: String(b._id), name: b.name }))}
           initial={{
