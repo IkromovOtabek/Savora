@@ -3,7 +3,7 @@
     "name": "Savora",
     "slug": "savora-mobile",
     "owner": "otabekikromov",
-    "version": "1.0.0",
+    "version": "1.1.0",
     "orientation": "portrait",
     "scheme": "savora",
     "icon": "./assets/icon.png",
