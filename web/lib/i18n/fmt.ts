@@ -1,4 +1,6 @@
 import type { Locale } from './config';
+import type { ProductUnit } from '../businessTypes';
+import { fmtQty } from '../qty';
 
 /**
  * Lug'at satriga parametr qo'yish: tr('{n} ta mahsulot', { n: 5 }) → '5 ta mahsulot'.
@@ -61,4 +63,13 @@ export function fmtMonthYear(d: Date | string, locale: Locale): string {
 export function fmtDayMonth(d: Date | string, locale: Locale): string {
   const dt = new Date(d);
   return locale === 'ru' ? `${dt.getDate()} ${MONTHS_GENITIVE.ru[dt.getMonth()]}` : `${dt.getDate()}-${MONTHS.uz[dt.getMonth()]}`;
+}
+
+/**
+ * Miqdor + lug'atdagi birlik nomi: qtyWithUnit(1.5, 'kg', d.stock.fields.units) → '1,5 kg'.
+ * Birligi yo'q mahsulot — "dona" (ru: "шт.").
+ */
+export function qtyWithUnit(n: number, unit: string | null | undefined, units: Record<ProductUnit, string>): string {
+  const label = (unit && units[unit as ProductUnit]) || units.dona;
+  return `${fmtQty(n)} ${label}`;
 }

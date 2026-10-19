@@ -9,7 +9,8 @@ import { reserveStock, releaseStock } from '@/lib/stock';
 import { isPhoneShop } from '@/lib/businessTypes';
 import { ProductStatus } from '@/lib/models/tenant/Product';
 import { generateProductCode } from '@/lib/productId';
-import { parseQtyField } from '@/lib/productQuantity';
+import { clampQtyToStock, parseQtyField } from '@/lib/productQuantity';
+import { isFractionalUnit, parseQty, priceTimesQty, qtyLabel, roundQty } from '@/lib/qty';
 import { parseProductFields, productFieldErrorText, type ProductFieldsResult } from '@/lib/productFields';
 import { resolveWarehouseBranchId } from '@/lib/warehouseBranch';
 import { recordAudit } from '@/lib/audit';
@@ -20,7 +21,7 @@ import { permissionDeniedError } from '@/lib/permissions';
 import { featureDisabledError } from '@/lib/featureAction';
 import { isOwnUploadUrl } from '@/lib/fileUrl';
 import { getDict, type Dict } from '@/lib/i18n/server';
-import { tr } from '@/lib/i18n/fmt';
+import { qtyWithUnit, tr } from '@/lib/i18n/fmt';
 import { logError } from '@/lib/logger';
 import { softDeleteOne } from '@/lib/softDelete';
 
@@ -165,7 +166,7 @@ export async function createProductAction(_prev: State, formData: FormData): Pro
   const salePrice = parseOptionalPrice(String(formData.get('salePrice') || ''));
   const wholesalePrice = parseOptionalPrice(String(formData.get('wholesalePrice') || ''));
   const trackQuantity = formData.get('trackQuantity') === 'on';
-  const quantity = trackQuantity ? parseQtyField(String(formData.get('quantity') || '1')) : 1;
+  const quantityRaw = String(formData.get('quantity') || '1');
 
   if (!name) return { error: m.nameRequired };
   if (phoneShop) {
@@ -179,6 +180,8 @@ export async function createProductAction(_prev: State, formData: FormData): Pro
   if (wholesalePrice === null) return { error: m.wholesaleInvalid };
   const extra = await readProductFields(formData, org.businessType);
   if (!extra.ok) return { error: extra.error };
+  // Kasrli birlikda (kg, m…) miqdor ≤3 xona kasr, aks holda butun
+  const quantity = trackQuantity ? parseQtyField(quantityRaw, 1, extra.values.unit) : 1;
   { const photoErr = await photoUrlError(photoUrl, features.mediaUpload, m); if (photoErr) return photoErr; }
   const supplierChoice = await readSupplierChoice(formData, user, Supplier);
   if (supplierChoice === 'invalid') return { error: (await getDict()).stock.suppliers.msg.badSupplier };
@@ -226,8 +229,8 @@ export async function createProductAction(_prev: State, formData: FormData): Pro
         await SupplierEntry.create({
           supplierId,
           type: 'purchase',
-          amount: purchasePrice * quantity,
-          note: quantity > 1 ? `${name} × ${quantity}` : name,
+          amount: priceTimesQty(purchasePrice, quantity),
+          note: quantity !== 1 ? `${name} × ${qtyLabel(quantity, extra.values.unit)}` : name,
           productId: product._id,
           at: new Date(),
           by: user.username,
@@ -275,7 +278,7 @@ export async function updateProductAction(_prev: State, formData: FormData): Pro
   const salePrice = parseOptionalPrice(String(formData.get('salePrice') || ''));
   const wholesalePrice = parseOptionalPrice(String(formData.get('wholesalePrice') || ''));
   const trackQuantity = formData.get('trackQuantity') === 'on';
-  const quantity = trackQuantity ? parseQtyField(String(formData.get('quantity') || '1')) : 1;
+  const quantityRaw = String(formData.get('quantity') || '1');
 
   if (!productId) return { error: m.notFound };
   if (!name) return { error: m.nameRequired };
@@ -337,7 +340,13 @@ export async function updateProductAction(_prev: State, formData: FormData): Pro
   for (const key of extra.keys) product.set(key, extra.values[key]);
   product.trackQuantity = trackQuantity;
   if (trackQuantity) {
-    if (quantity < product.soldQuantity) {
+    // Birlik shu formada o'zgargan bo'lishi mumkin — yangisi bo'yicha (kg → kasr, dona → butun)
+    const quantity = parseQtyField(quantityRaw, 1, product.unit);
+    // Kasrda sotilgan mahsulotni butun birlikka (kg → dona) o'tkazib bo'lmaydi — sotuv tarixi buziladi
+    if (!isFractionalUnit(product.unit) && !Number.isInteger(product.soldQuantity ?? 0)) {
+      return { error: m.unitNeedsFraction };
+    }
+    if (roundQty(quantity - product.soldQuantity) < 0) {
       return { error: m.qtyBelowSold };
     }
     product.quantity = quantity;
@@ -400,10 +409,11 @@ export async function updateProductAction(_prev: State, formData: FormData): Pro
 export async function quickMarkSoldAction(_prev: State, formData: FormData): Promise<State> {
   const { user, Product, Sale } = await getTenantSession();
   { const denied = await checkPermission(user, 'sale.create'); if (denied) return denied; }
-  const m = (await getDict()).stock.msg;
+  const dict = await getDict();
+  const m = dict.stock.msg;
   const canEditPrice = await userCan(user, 'sale.editPrice');
   const productId = String(formData.get('productId') || '');
-  const qty = parseQtyField(String(formData.get('qty') || '1'));
+  const qtyRaw = String(formData.get('qty') || '1');
   const priceRaw = String(formData.get('salePrice') || '').trim();
   if (!productId || !Types.ObjectId.isValid(productId)) return { error: m.notFound };
 
@@ -427,22 +437,19 @@ export async function quickMarkSoldAction(_prev: State, formData: FormData): Pro
     return { error: 'PRICE_REQUIRED' };
   }
 
-  let saleQty = 1;
-  if (found.trackQuantity) {
-    const available = found.quantity - found.soldQuantity;
-    if (available < 1) return { error: m.noStock };
-    saleQty = Math.min(qty, available);
-    if (saleQty < 1) return { error: m.sellQtyInvalid };
-  }
+  // dona — butun, kg/m… — ≤3 xona kasr; qoldiqdan oshsa qoldiqqacha qisqaradi
+  const picked = clampQtyToStock(found, parseQty(qtyRaw, found.unit));
+  if (!picked.ok) return { error: picked.reason === 'noStock' ? m.noStock : m.sellQtyInvalid };
+  const saleQty = picked.qty;
 
   const now = new Date();
-  const totalAmount = salePrice * saleQty;
+  const totalAmount = priceTimesQty(salePrice, saleQty);
 
   // Atomik: qoldiq tekshiruvi + ayirish bitta so'rovda (parallel sotuvda minusga tushmaydi)
   const product = await reserveStock(Product, found._id, saleQty, {
     scope,
     set: { salePrice, soldPaymentType: 'cash' },
-    history: { action: 'sold', detail: `${saleQty} ta · ${fmtSum(totalAmount)}`, by: user.username, at: now },
+    history: { action: 'sold', detail: `${qtyLabel(saleQty, found.unit)} · ${fmtSum(totalAmount)}`, by: user.username, at: now },
   });
   if (!product) return { error: m.notEnoughStock };
 
@@ -459,6 +466,7 @@ export async function quickMarkSoldAction(_prev: State, formData: FormData): Pro
           imei: product.imei,
           purchasePrice: product.purchasePrice,
           saleQuantity: saleQty,
+          unit: found.unit,
         },
         branchId: product.branchId,
         paymentType: 'cash',
@@ -478,7 +486,7 @@ export async function quickMarkSoldAction(_prev: State, formData: FormData): Pro
       action: 'sale.quick',
       entity: 'sale',
       entityId: String(product._id),
-      summary: `Tez sotuv: ${product.name} · ${saleQty} ta · ${fmtSum(totalAmount)}`,
+      summary: `Tez sotuv: ${product.name} · ${qtyLabel(saleQty, found.unit)} · ${fmtSum(totalAmount)}`,
       meta: { saleQty, totalAmount },
     });
     await markOnboardingStep(user.organizationId, 'saleMade');
@@ -486,7 +494,7 @@ export async function quickMarkSoldAction(_prev: State, formData: FormData): Pro
     revalidatePath('/app/products');
     revalidatePath('/app/sales');
     revalidatePath(`/app/products/${productId}`);
-    return { success: tr(m.soldN, { n: saleQty }) };
+    return { success: tr(m.soldN, { n: qtyWithUnit(saleQty, found.unit, dict.stock.fields.units) }) };
   } catch {
     return { error: m.saveFailed };
   }

@@ -6,21 +6,22 @@ import { useDebounced, usePaged } from '@/lib/hooks';
 import { useTheme } from '@/lib/theme';
 import { fmtMoney } from '@/lib/format';
 import { useDict, tr } from '@/lib/i18n';
+import { fmtQty, isFractionalUnit, parseQty, qtyWithUnit } from '@/lib/qty';
 import {
-  Screen, NavBar, LargeTitle, SearchField, Group, Cell, Button, Stepper, Loading, EmptyState, ErrorState, InlineError,
+  Screen, NavBar, LargeTitle, SearchField, Group, Cell, Button, Stepper, Field, Loading, EmptyState, ErrorState, InlineError,
 } from '@/components/ui';
 
-interface P { id: string; name: string; salePrice: number; status: string; trackQuantity: boolean; available: number }
+interface P { id: string; name: string; salePrice: number; status: string; trackQuantity: boolean; available: number; unit?: string | null }
 interface B { id: string; name: string; address?: string | null; isMain: boolean }
 
 export default function Transfer() {
   const router = useRouter();
   const { c } = useTheme();
   const d = useDict();
-  const params = useLocalSearchParams<{ productId?: string; name?: string; track?: string; available?: string }>();
+  const params = useLocalSearchParams<{ productId?: string; name?: string; track?: string; available?: string; unit?: string }>();
   const [picked, setPicked] = useState<P | null>(
     params.productId && params.name
-      ? { id: String(params.productId), name: String(params.name), salePrice: 0, status: 'in_stock', trackQuantity: params.track === '1', available: Number(params.available) || 1 }
+      ? { id: String(params.productId), name: String(params.name), salePrice: 0, status: 'in_stock', trackQuantity: params.track === '1', available: Number(params.available) || 1, unit: params.unit || null }
       : null,
   );
   const [q, setQ] = useState('');
@@ -32,7 +33,17 @@ export default function Transfer() {
   const [bError, setBError] = useState<string | null>(null);
   const [target, setTarget] = useState<string | null>(null);
   const [qty, setQty] = useState(1);
+  // kg/m… — miqdor matn bilan ("2,25"); dona — Stepper
+  const [qtyText, setQtyText] = useState('1');
   const [busy, setBusy] = useState(false);
+  const fractional = !!picked?.trackQuantity && isFractionalUnit(picked?.unit);
+  const fracQty = fractional ? parseQty(qtyText, picked?.unit) : null;
+  const qtyBad = fractional && (fracQty === null || fracQty > (picked?.available ?? 0));
+  const sendQty = fractional ? fracQty ?? 0 : qty;
+  useEffect(() => {
+    setQty(1);
+    setQtyText(fmtQty(Math.min(1, picked?.available ?? 1)));
+  }, [picked?.id, picked?.available]);
 
   const loadBranches = useCallback(async () => {
     setBLoading(true);
@@ -48,9 +59,9 @@ export default function Transfer() {
     try {
       const r = await api<{ toBranch: string; quantity: number }>('/api/mobile/transfer', {
         method: 'POST',
-        body: { productId: picked.id, toBranchId: target, ...(picked.trackQuantity ? { qty } : {}) },
+        body: { productId: picked.id, toBranchId: target, ...(picked.trackQuantity ? { qty: sendQty } : {}) },
       });
-      Alert.alert(d.transfer.doneTitle, tr(d.transfer.doneMsg, { branch: r.toBranch ?? d.common.branch, n: r.quantity ?? qty }));
+      Alert.alert(d.transfer.doneTitle, tr(d.transfer.doneMsg, { branch: r.toBranch ?? d.common.branch, n: qtyWithUnit(r.quantity ?? sendQty, picked.unit, d.productFields.units) }));
       router.back();
     } catch (e) { Alert.alert(d.common.error, errMsg(e)); }
     finally { setBusy(false); }
@@ -74,7 +85,7 @@ export default function Transfer() {
                     icon="cube"
                     iconColor={ok ? c.sq.b : c.sq.g}
                     title={p.name}
-                    subtitle={p.trackQuantity ? tr(d.common.pcs, { n: fmtMoney(p.available) }) : undefined}
+                    subtitle={p.trackQuantity ? qtyWithUnit(p.available, p.unit, d.productFields.units) : undefined}
                     value={fmtMoney(p.salePrice)}
                     disabled={!ok}
                     chevron
@@ -92,13 +103,25 @@ export default function Transfer() {
   return (
     <Screen
       header={<NavBar />}
-      footer={<Button title={d.transfer.give} size="lg" full loading={busy} disabled={!target} onPress={submit} />}
+      footer={<Button title={d.transfer.give} size="lg" full loading={busy} disabled={!target || qtyBad} onPress={submit} />}
     >
       <LargeTitle title={d.transfer.title} />
       <Group>
         <Cell icon="cube" iconColor={c.sq.b} title={picked.name} right={<Button title={d.common.change} size="sm" variant="tinted" onPress={() => setPicked(null)} />} />
-        {picked.trackQuantity ? <Cell title={d.common.qty} right={<Stepper value={qty} onChange={setQty} min={1} max={Math.max(1, picked.available)} />} /> : null}
+        {picked.trackQuantity && !fractional ? <Cell title={d.common.qty} right={<Stepper value={qty} onChange={setQty} min={1} max={Math.max(1, picked.available)} />} /> : null}
       </Group>
+      {fractional ? (
+        <Field
+          label={d.common.qty}
+          value={qtyText}
+          onChangeText={(v) => setQtyText(v.replace(/[^\d.,]/g, ''))}
+          keyboardType="decimal-pad"
+          placeholder="1,5"
+          suffix={picked.unit ? d.productFields.units[picked.unit] : undefined}
+          error={qtyBad && qtyText.trim() !== '' ? d.saleNew.errQty : null}
+          hint={tr(d.saleNew.leftPcs, { n: qtyWithUnit(picked.available, picked.unit, d.productFields.units) })}
+        />
+      ) : null}
 
       {bLoading ? <Loading />
         : bError && branches.length === 0 ? <ErrorState message={bError} onRetry={loadBranches} />

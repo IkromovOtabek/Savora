@@ -6,6 +6,7 @@ import { branchFilter } from './branchScope';
 import { reserveStock, releaseStock } from './stock';
 import { generateSaleNo } from './sales';
 import { recordAudit } from './audit';
+import { isValidQty, priceTimesQty, qtyLabel } from './qty';
 
 /**
  * Oflayn POS sinxronlash — mobil ilova internetsiz qilgan NAQD sotuvlarni serverga yozadi.
@@ -74,8 +75,10 @@ export async function applyOfflineSale(
 
   const qty = product.trackQuantity ? item.qty : 1;
   if (!product.trackQuantity && item.qty !== 1) return { ...base, status: 'rejected', reason: 'badQty' };
+  // dona — butun, kg/m… — ≤3 xona kasr
+  if (!isValidQty(qty, product.unit)) return { ...base, status: 'rejected', reason: 'badQty' };
 
-  const listTotal = product.salePrice * qty;
+  const listTotal = priceTimesQty(product.salePrice, qty);
   if (product.salePrice > 0 && item.totalAmount < listTotal && !perms.canDiscount) {
     return { ...base, status: 'rejected', reason: 'priceDiscount' };
   }
@@ -87,7 +90,7 @@ export async function applyOfflineSale(
   const reserved = await reserveStock(Product, product._id, qty, {
     scope,
     set: { soldPaymentType: 'cash' },
-    history: { action: 'sold', detail: `${qty} ta · oflayn`, by: user.username, at: soldAt },
+    history: { action: 'sold', detail: `${qtyLabel(qty, product.unit)} · oflayn`, by: user.username, at: soldAt },
   });
   if (!reserved) return { ...base, status: 'conflict', reason: 'outOfStock' };
 
@@ -103,6 +106,7 @@ export async function applyOfflineSale(
         deviceModel: product.deviceModel,
         purchasePrice: product.purchasePrice,
         saleQuantity: qty,
+        unit: product.unit,
       },
       branchId: product.branchId,
       paymentType: 'cash',
@@ -125,7 +129,7 @@ export async function applyOfflineSale(
       action: 'sale.create',
       entity: 'sale',
       entityId: String(sale._id),
-      summary: `Oflayn sotuv ${saleNo}: ${product.name} · ${qty} ta · ${item.totalAmount.toLocaleString('uz-UZ')} so'm (sinxronlandi)`,
+      summary: `Oflayn sotuv ${saleNo}: ${product.name} · ${qtyLabel(qty, product.unit)} · ${item.totalAmount.toLocaleString('uz-UZ')} so'm (sinxronlandi)`,
       meta: { saleQty: qty, totalAmount: item.totalAmount, paymentType: 'cash', offline: true, soldAt },
     });
     return { ...base, status: 'ok', saleId: String(sale._id), saleNo };

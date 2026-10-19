@@ -7,10 +7,12 @@ import { getTenantSession } from '@/lib/tenantSession';
 import { parsePrice } from '@/lib/format';
 import { calcSaleStatus, generateSaleNo } from '@/lib/sales';
 import { PaymentType } from '@/lib/models/tenant/Sale';
+import type { ProductUnit } from '@/lib/businessTypes';
 import { sendTelegram, tgEscape } from '@/lib/telegram';
 import { featureDisabledError } from '@/lib/featureAction';
 import { isOwnUploadUrl } from '@/lib/fileUrl';
-import { parseQtyField, getStockQty } from '@/lib/productQuantity';
+import { checkSaleQty, getStockQty } from '@/lib/productQuantity';
+import { isFractionalUnit, priceTimesQty, qtyLabel } from '@/lib/qty';
 import { reserveStock, releaseStock } from '@/lib/stock';
 import { runWithCompensation } from '@/lib/compensate';
 import { addMonthsClamped } from '@/lib/dates';
@@ -23,10 +25,10 @@ import { checkPermission, userCan } from '@/lib/permissionGuard';
 import { permissionDeniedError } from '@/lib/permissions';
 import { pq294MonthsError } from '@/lib/pq294';
 import { getI18n } from '@/lib/i18n/server';
-import { tr } from '@/lib/i18n/fmt';
+import { qtyWithUnit, tr } from '@/lib/i18n/fmt';
 import { computePartialReturn } from '@/lib/saleReturn';
 import { z } from 'zod';
-import { formToObject, parseInput, zId, zText, zMoney, zInt, zOptInt, zOptDate, zField } from '@/lib/validation';
+import { formToObject, parseInput, zId, zText, zMoney, zInt, zOptInt, zOptQty, zOptDate, zField } from '@/lib/validation';
 
 /** Tez sotuvda bir martada eng ko'p qator (savatcha) — haddan katta so'rovdan himoya */
 const QUICK_SALE_MAX_LINES = 100;
@@ -56,6 +58,8 @@ export type ScannedProduct = {
   branchName: string;
   trackQuantity: boolean;
   available: number;
+  /** O'lchov birligi — kg/m… bo'lsa miqdor kasr kiritiladi */
+  unit: ProductUnit | null;
 };
 
 function toScannedProduct(
@@ -74,6 +78,7 @@ function toScannedProduct(
     quantity: number;
     soldQuantity: number;
     status: string;
+    unit?: ProductUnit;
   },
   branchName: string,
   canViewCost: boolean,
@@ -92,6 +97,7 @@ function toScannedProduct(
     branchId: String(product.branchId),
     branchName,
     trackQuantity: product.trackQuantity ?? false,
+    unit: product.unit ?? null,
     available: getStockQty({
       trackQuantity: product.trackQuantity ?? false,
       quantity: product.quantity,
@@ -151,7 +157,7 @@ export async function quickSaleBatchAction(items: QuickSaleLine[]): Promise<Stat
   const parsed = parseInput(
     z.array(z.object({
       productId: zId(m.badProductId),
-      qty: zOptInt(m.badQty, 1, 1_000_000),
+      qty: zOptQty(m.badQty),
       salePrice: zMoney(m.priceWhole, { optional: true }),
     })).min(1, m.noProductsSelected).max(QUICK_SALE_MAX_LINES, m.noProductsSelected),
     items,
@@ -170,7 +176,12 @@ export async function quickSaleBatchAction(items: QuickSaleLine[]): Promise<Stat
     if (!found) { failMsg = m.productNotFoundOrDenied; return null; }
     if (found.status !== 'in_stock') { failMsg = tr(m.productNotInStock, { name: found.name }); return null; }
 
-    const saleQty = found.trackQuantity ? (item.qty ?? 1) : 1;
+    const qtyCheck = checkSaleQty(found, item.qty);
+    if (!qtyCheck.ok) {
+      failMsg = qtyCheck.reason === 'badQty' ? m.badQty : tr(m.notEnoughStockFor, { name: found.name });
+      return null;
+    }
+    const saleQty = qtyCheck.qty;
 
     let salePrice = found.salePrice;
     if (item.salePrice > 0) {
@@ -184,7 +195,7 @@ export async function quickSaleBatchAction(items: QuickSaleLine[]): Promise<Stat
     if (!salePrice || salePrice <= 0) { failMsg = tr(m.enterPriceFor, { name: found.name }); return null; }
 
     const now = new Date();
-    const lineTotal = salePrice * saleQty;
+    const lineTotal = priceTimesQty(salePrice, saleQty);
 
     // Atomik: qoldiq tekshiruvi + ayirish bitta so'rovda (parallel sotuvda minusga tushmaydi)
     const product = await reserveStock(Product, found._id, saleQty, {
@@ -192,7 +203,7 @@ export async function quickSaleBatchAction(items: QuickSaleLine[]): Promise<Stat
       set: { salePrice, soldPaymentType: 'cash' },
       history: {
         action: 'sold',
-        detail: `${saleQty} ta · ${lineTotal.toLocaleString('uz-UZ')} so'm`,
+        detail: `${qtyLabel(saleQty, found.unit)} · ${lineTotal.toLocaleString('uz-UZ')} so'm`,
         by: user.username,
         at: now,
       },
@@ -217,6 +228,7 @@ export async function quickSaleBatchAction(items: QuickSaleLine[]): Promise<Stat
           deviceModel: product.deviceModel,
           purchasePrice: product.purchasePrice,
           saleQuantity: saleQty,
+          unit: product.unit,
         },
         branchId: product.branchId,
         paymentType: 'cash',
@@ -233,7 +245,7 @@ export async function quickSaleBatchAction(items: QuickSaleLine[]): Promise<Stat
       throw err;
     }
     return {
-      result: { productId: String(product._id), name: product.name, saleQty, lineTotal },
+      result: { productId: String(product._id), name: product.name, saleQty, unit: found.unit, lineTotal },
       undo: async () => { await Sale.deleteOne({ _id: saleId }); await restock(); },
     };
   });
@@ -248,11 +260,14 @@ export async function quickSaleBatchAction(items: QuickSaleLine[]): Promise<Stat
       action: 'sale.quick',
       entity: 'sale',
       entityId: r.productId,
-      summary: `Tez sotuv: ${r.name} · ${r.saleQty} ta · ${r.lineTotal.toLocaleString('uz-UZ')} so'm`,
+      summary: `Tez sotuv: ${r.name} · ${qtyLabel(r.saleQty, r.unit)} · ${r.lineTotal.toLocaleString('uz-UZ')} so'm`,
       meta: { saleQty: r.saleQty, totalAmount: r.lineTotal },
     });
   }
-  const soldCount = outcome.results.reduce((s, r) => s + r.saleQty, 0);
+  // Birliklar aralash bo'lsa (kg + dona) miqdorlarni qo'shib bo'lmaydi — unda qatorlar soni
+  const soldCount = outcome.results.some((r) => isFractionalUnit(r.unit))
+    ? outcome.results.length
+    : outcome.results.reduce((s, r) => s + r.saleQty, 0);
   const soldTotal = outcome.results.reduce((s, r) => s + r.lineTotal, 0);
 
   await markOnboardingStep(user.organizationId, 'saleMade');
@@ -274,7 +289,7 @@ export async function createSaleAction(_prev: State, formData: FormData): Promis
     productId: zId(m.productRequired),
     customerName: zText(120, tooLong),
     customerPhone: zText(40, tooLong),
-    saleQty: zOptInt(m.badQty, 1, 1_000_000),
+    saleQty: zOptQty(m.badQty),
     paymentType: zField((v) => parsePaymentType(String(v ?? 'cash'))),
     totalAmount: zMoney(m.badTotal, { min: 1 }),
     paidAmount: zMoney(m.badPaid, { optional: true }),
@@ -286,7 +301,6 @@ export async function createSaleAction(_prev: State, formData: FormData): Promis
   }), formToObject(formData), d.common.invalidInput);
   if (!parsed.ok) return { error: parsed.error };
   const { productId, customerName, customerPhone, totalAmount, notes, photoUrl, bankName } = parsed.data;
-  const saleQtyRaw = String(parsed.data.saleQty ?? 1);
   let paymentType = parsed.data.paymentType;
   const paidAmountRaw = parsed.data.paidAmount;
   const installmentMonthsRaw = parsed.data.installmentMonths ?? 0;
@@ -303,15 +317,18 @@ export async function createSaleAction(_prev: State, formData: FormData): Promis
     return { error: m.notInStock };
   }
 
-  const saleQty = product.trackQuantity ? parseQtyField(saleQtyRaw) : 1;
-  if (product.trackQuantity) {
-    const available = product.quantity - product.soldQuantity;
-    if (saleQty > available) return { error: tr(m.onlyNLeft, { n: available }) };
+  // dona — butun, kg/m… — ≤3 xona kasr
+  const qtyCheck = checkSaleQty(product, parsed.data.saleQty);
+  if (!qtyCheck.ok) {
+    return { error: qtyCheck.reason === 'badQty' ? m.badQty : tr(m.onlyNLeft, { n: qtyWithUnit(qtyCheck.available, product.unit, d.stock.fields.units) }) };
   }
+  const saleQty = qtyCheck.qty;
+  // Ro'yxat narxi bo'yicha jami (kasr miqdorda butun so'mga yaxlitlangan)
+  const listTotal = priceTimesQty(product.salePrice, saleQty);
   // Sotuv narxidan arzon sotish — "sale.discount" huquqi kerak
-  if (product.salePrice > 0 && totalAmount < product.salePrice * saleQty && !(await userCan(user, 'sale.discount'))) return permissionDeniedError('sale.discount');
+  if (product.salePrice > 0 && totalAmount < listTotal && !(await userCan(user, 'sale.discount'))) return permissionDeniedError('sale.discount');
   // Sotuv narxidan qimmat sotish (narxni o'zgartirish) — "sale.editPrice" huquqi kerak (quickSaleBatchAction bilan bir xil)
-  if (product.salePrice > 0 && totalAmount > product.salePrice * saleQty && !(await userCan(user, 'sale.editPrice'))) return permissionDeniedError('sale.editPrice');
+  if (product.salePrice > 0 && totalAmount > listTotal && !(await userCan(user, 'sale.editPrice'))) return permissionDeniedError('sale.editPrice');
 
   let customer = null;
   if (customerName && customerPhone) {
@@ -371,7 +388,7 @@ export async function createSaleAction(_prev: State, formData: FormData): Promis
   // Atomik: qoldiq tekshiruvi + ayirish bitta so'rovda. Sotuv yozilmasa — qaytariladi.
   const reserved = await reserveStock(Product, product._id, saleQty, {
     scope: branchFilter(user),
-    history: { action: 'sold', detail: `${saleQty} ta`, by: user.username, at: new Date() },
+    history: { action: 'sold', detail: qtyLabel(saleQty, product.unit), by: user.username, at: new Date() },
   });
   if (!reserved) {
     return { error: m.notEnoughStock };
@@ -392,6 +409,7 @@ export async function createSaleAction(_prev: State, formData: FormData): Promis
         deviceModel: product.deviceModel,
         purchasePrice: product.purchasePrice,
         saleQuantity: saleQty,
+        unit: product.unit,
       },
       ...(customer
         ? {
@@ -425,14 +443,14 @@ export async function createSaleAction(_prev: State, formData: FormData): Promis
       action: 'sale.create',
       entity: 'sale',
       entityId: String(sale._id),
-      summary: `Sotuv ${saleNo}: ${product.name} · ${saleQty} ta · ${totalAmount.toLocaleString('uz-UZ')} so'm (${paymentType})`,
+      summary: `Sotuv ${saleNo}: ${product.name} · ${qtyLabel(saleQty, product.unit)} · ${totalAmount.toLocaleString('uz-UZ')} so'm (${paymentType})`,
       meta: { saleQty, totalAmount, paymentType },
     });
     await markOnboardingStep(user.organizationId, 'saleMade');
 
     void sendTelegram(
       `<b>Savora — Yangi sotuv</b>\n` +
-      `${tgEscape(saleNo)} · ${tgEscape(product.name)} (${saleQty} ta)\n` +
+      `${tgEscape(saleNo)} · ${tgEscape(product.name)} (${qtyLabel(saleQty, product.unit)})\n` +
       (customer ? `Mijoz: ${tgEscape(customer.fullName)}\n` : '') +
       `Summa: ${totalAmount.toLocaleString('uz-UZ')} so'm\n` +
       `To'lov: ${tgEscape(paymentType)}${bankName ? ` (${tgEscape(bankName)})` : ''}`,
@@ -546,24 +564,29 @@ export async function cancelSaleAction(_prev: State, formData: FormData): Promis
  */
 export async function returnSaleItemsAction(_prev: State, formData: FormData): Promise<State> {
   const { user, Product, Sale } = await getTenantSession();
-  const m = (await getI18n()).d.sales.actions;
+  const { d } = await getI18n();
+  const m = d.sales.actions;
   { const denied = await checkPermission(user, 'sale.cancel'); if (denied) return denied; }
 
   const parsed = parseInput(z.object({
     saleId: zId(m.saleNotFound),
-    qty: zInt(m.returnBadQty, 1, 1_000_000),
+    qty: zOptQty(m.returnBadQty),
     reason: zText(300, (await getI18n()).d.common.tooLong),
   }), formToObject(formData), m.returnBadQty);
   if (!parsed.ok) return { error: parsed.error };
-  const { saleId, qty: returnQty, reason } = parsed.data;
+  const { saleId, reason } = parsed.data;
+  if (parsed.data.qty === undefined) return { error: m.returnBadQty };
+  const returnQty = parsed.data.qty;
 
   const scope = branchFilter(user);
   const sale = await Sale.findOne({ _id: saleId, ...scope }).lean();
   if (!sale) return { error: m.saleNotFound };
 
   const qty = sale.productSnapshot?.saleQuantity ?? 1;
+  const unit = sale.productSnapshot?.unit;
   const res = computePartialReturn({
     qty,
+    unit,
     totalAmount: sale.totalAmount,
     paidAmount: sale.paidAmount,
     remainingAmount: sale.remainingAmount,
@@ -621,7 +644,7 @@ export async function returnSaleItemsAction(_prev: State, formData: FormData): P
   if (sale.productId) {
     await releaseStock(Product, sale.productId, returnQty, {
       action: 'returned',
-      detail: `Sotuv ${sale.saleNo}: ${returnQty} dona qaytarildi`,
+      detail: `Sotuv ${sale.saleNo}: ${qtyLabel(returnQty, unit)} qaytarildi`,
       by: user.username,
       at: now,
     });
@@ -631,7 +654,7 @@ export async function returnSaleItemsAction(_prev: State, formData: FormData): P
     action: 'sale.return',
     entity: 'sale',
     entityId: saleId,
-    summary: `Qaytarish: ${sale.saleNo} · ${returnQty} dona · ${c.amount.toLocaleString('uz-UZ')} so'm (naqd qaytarildi ${c.refundAmount.toLocaleString('uz-UZ')} so'm)`,
+    summary: `Qaytarish: ${sale.saleNo} · ${qtyLabel(returnQty, unit)} · ${c.amount.toLocaleString('uz-UZ')} so'm (naqd qaytarildi ${c.refundAmount.toLocaleString('uz-UZ')} so'm)`,
     meta: { qty: returnQty, amount: c.amount, debtReduced: c.debtReduced, refundAmount: c.refundAmount, reason },
   });
 
@@ -642,7 +665,7 @@ export async function returnSaleItemsAction(_prev: State, formData: FormData): P
   revalidatePath('/app');
   return {
     success: c.refundAmount > 0
-      ? tr(m.returnedRefund, { n: returnQty, sum: c.refundAmount.toLocaleString('uz-UZ') })
-      : tr(m.returnedNoRefund, { n: returnQty }),
+      ? tr(m.returnedRefund, { n: qtyWithUnit(returnQty, unit, d.stock.fields.units), sum: c.refundAmount.toLocaleString('uz-UZ') })
+      : tr(m.returnedNoRefund, { n: qtyWithUnit(returnQty, unit, d.stock.fields.units) }),
   };
 }

@@ -6,6 +6,7 @@ import { useResource } from '@/lib/hooks';
 import { useTheme, MONO } from '@/lib/theme';
 import { fmtMoney, fmtDate } from '@/lib/format';
 import { useDict, tr } from '@/lib/i18n';
+import { fmtQty, qtyWithUnit } from '@/lib/qty';
 import {
   Screen, NavBar, LargeTitle, Group, Cell, Pill, Button, Loading, ErrorState, InlineError, type Tone,
 } from '@/components/ui';
@@ -14,7 +15,7 @@ interface Detail {
   id: string; name: string; brand: string | null; deviceModel: string | null;
   imei: string; barcode: string | null; color: string | null;
   purchasePrice: number; salePrice: number; profit: number; status: string; costHidden?: boolean;
-  trackQuantity: boolean; quantity: number; soldQuantity: number; available: number;
+  trackQuantity: boolean; quantity: number; soldQuantity: number; available: number; unit?: string | null;
   branch: string | null; notes: string | null; createdAt: string;
   history: { action: string; detail: string | null; by: string | null; at: string }[];
 }
@@ -46,8 +47,8 @@ export default function ProductDetail() {
   const canSell = p.status === 'in_stock' && p.available > 0;
   const q = (o: Record<string, string | number | boolean>) =>
     Object.entries(o).map(([k, v]) => `${k}=${encodeURIComponent(String(v))}`).join('&');
-  const sellHref = `/sale-new?${q({ productId: p.id, name: p.name, price: p.salePrice, track: p.trackQuantity ? 1 : 0, available: p.available })}`;
-  const transferHref = `/transfer?${q({ productId: p.id, name: p.name, track: p.trackQuantity ? 1 : 0, available: p.available })}`;
+  const sellHref = `/sale-new?${q({ productId: p.id, name: p.name, price: p.salePrice, track: p.trackQuantity ? 1 : 0, available: p.available, unit: p.unit ?? '' })}`;
+  const transferHref = `/transfer?${q({ productId: p.id, name: p.name, track: p.trackQuantity ? 1 : 0, available: p.available, unit: p.unit ?? '' })}`;
 
   return (
     <Screen
@@ -80,7 +81,7 @@ export default function ProductDetail() {
         <Cell title={terms?.codeLabel ?? d.productDetail.code} value={p.imei} valueMono={MONO} />
         {p.barcode ? <Cell title={d.productDetail.barcode} value={p.barcode} valueMono={MONO} /> : null}
         {p.branch ? <Cell title={d.common.branch} value={p.branch} /> : null}
-        {p.trackQuantity ? <Cell title={d.common.remaining} value={tr(d.productDetail.remainingVal, { a: fmtMoney(p.available), b: fmtMoney(p.quantity) })} valueColor={p.available > 0 ? undefined : c.bad} /> : null}
+        {p.trackQuantity ? <Cell title={d.common.remaining} value={tr(d.productDetail.remainingVal, { a: fmtQty(p.available), b: qtyWithUnit(p.quantity, p.unit, d.productFields.units) })} valueColor={p.available > 0 ? undefined : c.bad} /> : null}
         <Cell title={d.productDetail.added} value={fmtDate(p.createdAt)} />
         {p.notes ? <Cell title={d.common.note} value={p.notes} wrapValue /> : null}
       </Group>

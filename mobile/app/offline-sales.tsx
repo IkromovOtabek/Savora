@@ -4,6 +4,7 @@ import { useOfflinePos } from '@/lib/offlinePos';
 import { useTheme } from '@/lib/theme';
 import { fmtDateTime, fmtMoney } from '@/lib/format';
 import { useDict, tr } from '@/lib/i18n';
+import { qtyWithUnit } from '@/lib/qty';
 import { Screen, NavBar, LargeTitle, Group, Cell, AmountColumn, Pill, Button, EmptyState } from '@/components/ui';
 
 /** Oflayn sotuvlar: yuborilishi kutilayotganlar va serverda qabul qilinmaganlar (ziddiyat). */
@@ -52,7 +53,7 @@ export default function OfflineSales() {
               sep={i > 0}
               icon="alert-circle"
               iconColor={c.bad}
-              title={x.qty > 1 ? `${x.name} × ${x.qty}` : x.name}
+              title={x.qty !== 1 ? `${x.name} × ${qtyWithUnit(x.qty, x.unit, d.productFields.units)}` : x.name}
               subtitle={`${fmtMoney(x.totalAmount, { suffix: true })} · ${fmtDateTime(x.soldAt)}\n${x.reason ? o.reasons[x.reason] : o.rejected}`}
               subtitleLines={4}
               right={<Button title={o.dismiss} size="sm" variant="tinted" onPress={() => dismiss(x.clientSaleId)} />}
@@ -69,7 +70,7 @@ export default function OfflineSales() {
               sep={i > 0}
               icon="cloud-upload-outline"
               iconColor={c.warn}
-              title={x.qty > 1 ? `${x.name} × ${x.qty}` : x.name}
+              title={x.qty !== 1 ? `${x.name} × ${qtyWithUnit(x.qty, x.unit, d.productFields.units)}` : x.name}
               subtitle={fmtDateTime(x.soldAt)}
               right={<AmountColumn amount={fmtMoney(x.totalAmount)}><Pill label={o.pending} tone="mut" /></AmountColumn>}
             />

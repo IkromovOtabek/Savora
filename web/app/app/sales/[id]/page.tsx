@@ -10,13 +10,14 @@ import InstallmentPlan from '@/components/tenant/InstallmentPlan';
 import SalePaymentForm from '@/components/tenant/SalePaymentForm';
 import CancelSaleButton from '@/components/tenant/CancelSaleButton';
 import ReturnSaleForm from '@/components/tenant/ReturnSaleForm';
+import { qtyStep } from '@/lib/qty';
 import SaleReviewTrigger from '@/components/tenant/SaleReviewTrigger';
 import Tilt from '@/components/ui/Tilt';
 import { Types } from 'mongoose';
 import { branchFilter } from '@/lib/branchScope';
 import { loadUserPermissions } from '@/lib/permissionGuard';
 import { getDict } from '@/lib/i18n/server';
-import { plural, tr } from '@/lib/i18n/fmt';
+import { plural, tr, qtyWithUnit } from '@/lib/i18n/fmt';
 
 export async function generateMetadata() {
   const d = await getDict();
@@ -54,7 +55,8 @@ export default async function SaleDetailPage({
   const canPay = sale.status === 'partial' && perms.has('payment.accept');
   const canCancel = perms.has('sale.cancel') && sale.status !== 'cancelled';
   // Qisman qaytarish — bir nechta dona sotilganda (bank kreditida emas)
-  const canReturn = canCancel && sale.paymentType !== 'bank_credit' && (sale.productSnapshot.saleQuantity ?? 1) > 1;
+  // Qisman qaytarish: qaytarishdan keyin ham nimadir qolishi kerak (dona — 2+, kg — 0,001 dan ko'p)
+  const canReturn = canCancel && sale.paymentType !== 'bank_credit' && (sale.productSnapshot.saleQuantity ?? 1) > qtyStep(sale.productSnapshot.unit);
   const returns = sale.returns ?? [];
 
   // Nasiya (variant) sotuvi bo'lsa — oylik to'lov jadvali
@@ -121,7 +123,7 @@ export default async function SaleDetailPage({
                   <span className="sl-hero-l">{k.totalSum}</span>
                   <span className="sl-hero-v ux-z">{fmtMoney(sale.totalAmount)} <small>{d.common.sum}</small></span>
                   <span className="sl-hero-sub">
-                    {qty > 1 ? `${qty} × ${fmtMoney(Math.round(sale.totalAmount / qty))} ${d.common.sum}` : sale.productSnapshot.name}
+                    {qty !== 1 ? `${qtyWithUnit(qty, sale.productSnapshot.unit, d.stock.fields.units)} × ${fmtMoney(Math.round(sale.totalAmount / qty))} ${d.common.sum}` : sale.productSnapshot.name}
                   </span>
                 </div>
                 <div className="sl-ring ux-z" role="img" aria-label={tr(k.pctPaid, { pct })}>
@@ -198,7 +200,7 @@ export default async function SaleDetailPage({
                   <li key={i} className="sl-pay">
                     <span className="sl-pay-ic sl-pay-ic--return" aria-hidden><Icon name="repeat" size={16} /></span>
                     <div className="sl-pay-main">
-                      <b>{tr(d.sales.returnForm.historyLine, { n: r.qty, sum: fmtMoney(r.amount) })}</b>
+                      <b>{tr(d.sales.returnForm.historyLine, { n: qtyWithUnit(r.qty, sale.productSnapshot.unit, d.stock.fields.units), sum: fmtMoney(r.amount) })}</b>
                       <span>
                         {fmtDateTime(r.returnedAt)} · {r.by}
                         {r.refundAmount > 0 ? ` · ${tr(d.sales.returnForm.refundLine, { sum: fmtMoney(r.refundAmount) })}` : ''}
@@ -238,7 +240,7 @@ export default async function SaleDetailPage({
             <ul className="sl-kv">
               <li><span>{d.common.product}</span><Link href={`/app/products/${sale.productId}`}>{sale.productSnapshot.name}</Link></li>
               {sale.productSnapshot.imei && <li><span>{k.imeiCode}</span><code>{sale.productSnapshot.imei}</code></li>}
-              {qty > 1 && <li><span>{k.qty}</span><span>{tr(d.common.nPcs, { n: qty })}</span></li>}
+              {qty !== 1 && <li><span>{k.qty}</span><span>{qtyWithUnit(qty, sale.productSnapshot.unit, d.stock.fields.units)}</span></li>}
               <li><span>{d.sales.paymentType}</span><span>{d.sales.paymentTypesFull[sale.paymentType]}</span></li>
               {sale.paymentType === 'bank_credit' && sale.bankName && (
                 <li><span>{k.bank}</span><span>{sale.bankName}</span></li>
@@ -264,7 +266,7 @@ export default async function SaleDetailPage({
           )}
           {canReturn && (
             <div id="qaytarish">
-              <ReturnSaleForm saleId={String(sale._id)} qty={sale.productSnapshot.saleQuantity ?? 1} totalAmount={sale.totalAmount} />
+              <ReturnSaleForm saleId={String(sale._id)} qty={sale.productSnapshot.saleQuantity ?? 1} unit={sale.productSnapshot.unit ?? null} totalAmount={sale.totalAmount} />
             </div>
           )}
           {canCancel && (

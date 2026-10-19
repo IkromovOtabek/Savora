@@ -1,4 +1,5 @@
 import { Schema, Types } from 'mongoose';
+import { PRODUCT_UNITS, type ProductUnit } from '../../businessTypes';
 
 export type PaymentType = 'cash' | 'debt' | 'installment' | 'bank_credit';
 export type SaleStatus = 'paid' | 'partial' | 'cancelled';
@@ -31,6 +32,8 @@ export interface IProductSnapshot {
   deviceModel?: string;
   purchasePrice?: number;
   saleQuantity?: number;
+  /** Sotuv paytidagi o'lchov birligi — kasr qaytarish va chekda "1,5 kg" uchun */
+  unit?: ProductUnit;
 }
 
 export interface ICustomerSnapshot {
@@ -81,7 +84,8 @@ export const saleSchema = new Schema<ISale>(
       brand: { type: String },
       deviceModel: { type: String },
       purchasePrice: { type: Number, min: 0 },
-      saleQuantity: { type: Number, min: 1, default: 1 },
+      saleQuantity: { type: Number, min: 0.001, default: 1 },
+      unit: { type: String, enum: PRODUCT_UNITS },
     },
     customerId: { type: Schema.Types.ObjectId, ref: 'Customer' },
     customerSnapshot: {
@@ -106,7 +110,7 @@ export const saleSchema = new Schema<ISale>(
       recordedBy: { type: String, trim: true },
     }],
     returns: [{
-      qty: { type: Number, required: true, min: 1 },
+      qty: { type: Number, required: true, min: 0.001 },
       amount: { type: Number, required: true, min: 0 },
       debtReduced: { type: Number, required: true, min: 0, default: 0 },
       refundAmount: { type: Number, required: true, min: 0, default: 0 },

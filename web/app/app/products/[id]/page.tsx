@@ -1,4 +1,6 @@
 import { notFound } from 'next/navigation';
+import { fmtQty } from '@/lib/qty';
+import { getStockQty } from '@/lib/productQuantity';
 import { Types } from 'mongoose';
 import { getTenantSession } from '@/lib/tenantSession';
 import { isImeiEnabled } from '@/lib/features';
@@ -14,7 +16,7 @@ import Icon from '@/components/icons/Icon';
 import Tilt from '@/components/ui/Tilt';
 import MoreMenu from '@/components/ui/MoreMenu';
 import { getDict } from '@/lib/i18n/server';
-import { tr } from '@/lib/i18n/fmt';
+import { tr, qtyWithUnit } from '@/lib/i18n/fmt';
 import { productFieldsFor } from '@/lib/businessTypes';
 import { loadCategories, toDateInputValue } from '@/lib/productFields';
 
@@ -63,7 +65,8 @@ export default async function ProductDetailPage({
   const branchName = branches.find((b) => String(b._id) === String(product.branchId))?.name ?? '—';
   const filialBranches = branches.filter((b) => !b.isMain).map((b) => ({ id: String(b._id), name: b.name }));
   const trackQuantity = product.trackQuantity ?? false;
-  const available = trackQuantity ? Math.max(0, (product.quantity ?? 0) - (product.soldQuantity ?? 0)) : 1;
+  const available = trackQuantity ? getStockQty(product) : 1;
+  const unitSuffix = product.unit && product.unit !== 'dona' ? ` ${d.stock.fields.units[product.unit]}` : '';
   const salePrice = product.salePrice ?? 0;
   const profit = salePrice - (product.purchasePrice ?? 0);
   const showImei = isImeiEnabled(org);
@@ -125,7 +128,7 @@ export default async function ProductDetailPage({
             <span className={`st-pill st-pill--${status}`}>{d.stock.status[status] ?? status}</span>
             {trackQuantity && (
               <span className={`st-qty${available === 0 ? ' st-qty--zero' : available <= 2 ? ' st-qty--low' : ''}`}>
-                {available}<small>/{product.quantity ?? 0} {t.left}</small>
+                {fmtQty(available)}<small>/{fmtQty(product.quantity ?? 0)}{unitSuffix} {t.left}</small>
               </span>
             )}
           </div>
@@ -152,7 +155,7 @@ export default async function ProductDetailPage({
           {trackQuantity && (
             <div className="st-fact">
               <dt className="st-fact-l">{t.sold}</dt>
-              <dd className="st-fact-v" style={{ margin: 0 }}>{tr(d.common.nPcs, { n: product.soldQuantity ?? 0 })}</dd>
+              <dd className="st-fact-v" style={{ margin: 0 }}>{qtyWithUnit(product.soldQuantity ?? 0, product.unit, tf.units)}</dd>
             </div>
           )}
           {canViewCost && (
@@ -202,6 +205,7 @@ export default async function ProductDetailPage({
             currentBranchId={String(product.branchId)}
             trackQuantity={trackQuantity}
             available={available}
+            unit={product.unit ?? null}
             salePrice={salePrice}
             canInstallment={!!(features.variant || features.nasiya)}
             canCredit={!!features.creditKassa}

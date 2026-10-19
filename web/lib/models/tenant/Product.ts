@@ -93,7 +93,8 @@ export const productSchema = new Schema<IProduct>(
     salePrice: { type: Number, required: true, min: 0 },
     wholesalePrice: { type: Number, min: 0 },
     trackQuantity: { type: Boolean, default: false },
-    quantity: { type: Number, default: 1, min: 1 },
+    // Kasrli birlikda (kg, m…) 0.001 gacha; butun birlikda butunlik ilova darajasida (lib/qty.ts)
+    quantity: { type: Number, default: 1, min: 0.001 },
     soldQuantity: { type: Number, default: 0, min: 0 },
     status: {
       type: String,

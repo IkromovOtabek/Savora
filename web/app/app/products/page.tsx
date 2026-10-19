@@ -1,4 +1,6 @@
 import Link from 'next/link';
+import { fmtQty } from '@/lib/qty';
+import { getStockQty } from '@/lib/productQuantity';
 import type { CSSProperties } from 'react';
 import { getTenantSession } from '@/lib/tenantSession';
 import { branchFilter, isBranchScoped } from '@/lib/branchScope';
@@ -120,8 +122,7 @@ export default async function ProductsPage({
 
   // Xulosa — faqat shu sahifada yuklangan mahsulotlardan (qo'shimcha so'rovsiz)
   const mainBranchIds = new Set(branches.filter((b) => b.isMain).map((b) => String(b._id)));
-  const availableOf = (p: (typeof products)[number]) =>
-    p.trackQuantity ? Math.max(0, (p.quantity ?? 0) - (p.soldQuantity ?? 0)) : 1;
+  const availableOf = (p: (typeof products)[number]) => (p.trackQuantity ? getStockQty(p) : 1);
   const LOW_STOCK = 2;
   const pageInStock = products.filter((p) => p.status === 'in_stock').length;
   const pageLow = products.filter((p) => p.trackQuantity && availableOf(p) <= LOW_STOCK).length;
@@ -272,7 +273,7 @@ export default async function ProductsPage({
                 : '';
               const qtyPill = p.trackQuantity ? (
                 <span className={`st-qty${qtyCls}`} title={t.qtyTitle}>
-                  {avail}<small>/{p.quantity ?? 0}</small>
+                  {fmtQty(avail)}<small>/{fmtQty(p.quantity ?? 0)}{p.unit && p.unit !== 'dona' ? ` ${d.stock.fields.units[p.unit]}` : ''}</small>
                 </span>
               ) : (
                 <span className="st-qty">1 <small>{d.stock.unit}</small></span>
@@ -325,6 +326,7 @@ export default async function ProductsPage({
                       currentBranchId={String(p.branchId)}
                       trackQuantity={p.trackQuantity ?? false}
                       available={avail}
+                      unit={p.unit ?? null}
                       salePrice={p.salePrice ?? 0}
                       canInstallment={canInstallment}
                       canCredit={canCredit}
