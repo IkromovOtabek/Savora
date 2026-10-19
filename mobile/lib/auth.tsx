@@ -25,6 +25,10 @@ export interface Terms {
   hasImei: boolean;
 }
 
+/** Mahsulot formasining yo'nalishga xos maydonlari (server: web/lib/businessTypes.ts → PRODUCT_FIELDS) */
+export type ProductFieldKey = 'category' | 'unit' | 'size' | 'color' | 'warrantyMonths' | 'batchNumber' | 'expiryDate' | 'oemCode';
+export interface ProductFieldSpec { key: ProductFieldKey; required?: boolean }
+
 export interface MeResponse {
   user: { id: string; username: string; role: 'admin' | 'user'; isAdmin: boolean };
   org: { name: string; slug: string; active: boolean; daysLeft: number; isTrial: boolean; businessType: string; businessTypeLabel: string };
@@ -32,6 +36,9 @@ export interface MeResponse {
   features: Record<string, boolean>;
   /** Xodim huquqlari (server: lib/permissions.ts). Eski server javobida bo'lmasligi mumkin. */
   permissions?: string[];
+  /** Eski server javobida bo'lmasligi mumkin — unda faqat umumiy maydonlar */
+  productFields?: ProductFieldSpec[];
+  productUnits?: string[];
 }
 
 /** Standart atamalar — me hali yuklanmagan bo'lsa. */

@@ -1,5 +1,6 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import type { ProductFieldKey } from './auth';
 
 /**
  * Mobil ilova tillari: uz (standart, lotin) va ru.
@@ -285,6 +286,37 @@ const uz = {
     brand: 'Brend (ixtiyoriy)',
     brandPlaceholder: 'Masalan: Samsung',
     notesPlaceholder: 'Rangi, holati...',
+    imeiRequired: 'IMEI kiriting (kamida 10 belgi)',
+    fieldRequired: '«{field}» kiritilishi shart',
+    dateInvalid: 'Sanani KK.OO.YYYY ko\'rinishida kiriting',
+    warrantyInvalid: '0 dan 120 gacha oy kiriting',
+  },
+  /** Yo'nalishga xos mahsulot maydonlari (server: PRODUCT_FIELDS) */
+  productFields: {
+    title: 'Xususiyatlar',
+    labels: {
+      category: 'Kategoriya',
+      unit: 'O\'lchov birligi',
+      size: 'O\'lcham',
+      color: 'Rang',
+      warrantyMonths: 'Kafolat',
+      batchNumber: 'Seriya raqami',
+      expiryDate: 'Yaroqlilik muddati',
+      oemCode: 'OEM kod',
+    } as Record<ProductFieldKey, string>,
+    placeholders: {
+      category: 'Masalan: Ichimliklar',
+      size: 'Masalan: M, 42',
+      color: 'Masalan: qora',
+      warrantyMonths: '12',
+      batchNumber: 'Masalan: AB1234',
+      expiryDate: 'KK.OO.YYYY',
+      oemCode: 'Masalan: 04465-33450',
+    } as Partial<Record<ProductFieldKey, string>>,
+    monthsSuffix: 'oy',
+    units: {
+      dona: 'dona', kg: 'kg', g: 'gramm', m: 'metr', m2: 'm²', l: 'litr', qop: 'qop', quti: 'quti', paket: 'paket',
+    } as Record<string, string>,
   },
   productDetail: {
     status: { in_stock: 'Sotuvda', sold: 'Sotilgan', reserved: 'Band', defective: 'Nuqsonli', transferred: 'O\'tkazilgan' },
@@ -798,6 +830,36 @@ const ru: Dict = {
     brand: 'Бренд (необязательно)',
     brandPlaceholder: 'Например: Samsung',
     notesPlaceholder: 'Цвет, состояние...',
+    imeiRequired: 'Введите IMEI (не менее 10 символов)',
+    fieldRequired: 'Заполните поле «{field}»',
+    dateInvalid: 'Введите дату в формате ДД.ММ.ГГГГ',
+    warrantyInvalid: 'Укажите от 0 до 120 месяцев',
+  },
+  productFields: {
+    title: 'Характеристики',
+    labels: {
+      category: 'Категория',
+      unit: 'Единица измерения',
+      size: 'Размер',
+      color: 'Цвет',
+      warrantyMonths: 'Гарантия',
+      batchNumber: 'Номер серии',
+      expiryDate: 'Срок годности',
+      oemCode: 'OEM-код',
+    },
+    placeholders: {
+      category: 'Например: Напитки',
+      size: 'Например: M, 42',
+      color: 'Например: чёрный',
+      warrantyMonths: '12',
+      batchNumber: 'Например: AB1234',
+      expiryDate: 'ДД.ММ.ГГГГ',
+      oemCode: 'Например: 04465-33450',
+    },
+    monthsSuffix: 'мес.',
+    units: {
+      dona: 'шт.', kg: 'кг', g: 'грамм', m: 'метр', m2: 'м²', l: 'литр', qop: 'мешок', quti: 'коробка', paket: 'пакет',
+    },
   },
   productDetail: {
     status: { in_stock: 'В продаже', sold: 'Продан', reserved: 'Забронирован', defective: 'Брак', transferred: 'Передан' },

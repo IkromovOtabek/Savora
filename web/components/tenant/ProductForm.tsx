@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useActionState, useEffect, useState } from 'react';
+import { useActionState, useEffect, useState, type ReactNode } from 'react';
 import { useToastOnState } from '@/lib/useToastOnState';
 import { createProductAction, updateProductAction } from '@/app/actions/products';
 import { ProductStatus, SoldPaymentType } from '@/lib/models/tenant/Product';
@@ -14,6 +14,7 @@ import UsdPricePanel from '@/components/tenant/UsdPricePanel';
 import { fmtMoney } from '@/lib/format';
 import { useDict } from '@/lib/i18n/client';
 import { tr } from '@/lib/i18n/fmt';
+import { PRODUCT_UNITS, type ProductFieldKey, type ProductFieldSpec } from '@/lib/businessTypes';
 
 interface BranchOption { id: string; name: string }
 
@@ -43,6 +44,10 @@ interface Props {
   suppliers?: { id: string; name: string }[];
   /** Do'kon dollar kursi — bo'lsa narxni dollarda kiritish paneli ko'rinadi */
   usdRate?: number | null;
+  /** Yo'nalishga xos maydonlar (lib/businessTypes.ts → PRODUCT_FIELDS) */
+  productFields?: ProductFieldSpec[];
+  /** Mavjud kategoriyalar — kategoriya maydoniga taklif sifatida */
+  categories?: string[];
   initial?: {
     id: string;
     name: string;
@@ -63,6 +68,8 @@ interface Props {
     quantity?: number;
     soldQuantity?: number;
     supplierId?: string;
+    /** Yo'nalish maydonlari: qiymatlar input ko'rinishida (sana — YYYY-MM-DD) */
+    extra?: Partial<Record<ProductFieldKey, string>>;
   };
 }
 
@@ -78,6 +85,8 @@ export default function ProductForm({
   canViewCost = true,
   suppliers,
   usdRate,
+  productFields = [],
+  categories = [],
   initial,
 }: Props) {
   const d = useDict();
@@ -119,6 +128,8 @@ export default function ProductForm({
   const pct = (n: number) => `${n > 0 ? '+' : ''}${n.toFixed(1)}%`;
 
   const isCreate = mode === 'create';
+  // Rang yo'nalish maydoni bo'lsa (kiyim) — umumiy "Rang / xususiyat" o'rniga o'sha chiziladi
+  const colorInFields = productFields.some((f) => f.key === 'color');
 
   // Bo'lim navigatsiyasi — uzun formada "qadam" hissi: ko'rinib turgan bo'lim belgilanadi
   const [activeSec, setActiveSec] = useState<string>(FORM_SECTIONS[0].id);
@@ -214,11 +225,21 @@ export default function ProductForm({
                       />
                       <span className="field-hint">{t.barcodeHint}</span>
                     </div>
-                    <div className="auth-field">
-                      <label htmlFor="color">{t.colorFeatureLabel}</label>
-                      <input id="color" name="color" type="text" defaultValue={initial?.color} disabled={isPending} />
-                    </div>
+                    {!colorInFields && (
+                      <div className="auth-field">
+                        <label htmlFor="color">{t.colorFeatureLabel}</label>
+                        <input id="color" name="color" type="text" defaultValue={initial?.color} disabled={isPending} />
+                      </div>
+                    )}
                   </>
+                )}
+                {productFields.length > 0 && (
+                  <ProductExtraFields
+                    fields={productFields}
+                    initial={{ color: initial?.color, ...initial?.extra }}
+                    categories={categories}
+                    disabled={isPending}
+                  />
                 )}
               </div>
             </div>
@@ -490,4 +511,73 @@ export default function ProductForm({
       )}
     </div>
   );
+}
+
+/** Yo'nalishga xos maydonlar — konfiguratsiyadan dinamik (ikki ustunli qatorlar) */
+function ProductExtraFields({
+  fields,
+  initial,
+  categories,
+  disabled,
+}: {
+  fields: ProductFieldSpec[];
+  initial: Partial<Record<ProductFieldKey, string>>;
+  categories: string[];
+  disabled: boolean;
+}) {
+  const f = useDict().stock.fields;
+  const inputs = fields.map(({ key, required }) => {
+    const id = `pf-${key}`;
+    const label = `${f.labels[key]}${required ? ' *' : ''}`;
+    const common = { id, name: key, required, disabled, defaultValue: initial[key] ?? '' };
+    let input: ReactNode;
+    let hint: string | null = null;
+    switch (key) {
+      case 'unit':
+        input = (
+          <select {...common} defaultValue={initial.unit || 'dona'}>
+            {PRODUCT_UNITS.map((u) => <option key={u} value={u}>{f.units[u]}</option>)}
+          </select>
+        );
+        hint = f.unitHint;
+        break;
+      case 'warrantyMonths':
+        input = <input {...common} type="number" min={0} max={120} step={1} inputMode="numeric" placeholder={f.placeholders[key]} />;
+        break;
+      case 'expiryDate':
+        input = <input {...common} type="date" />;
+        break;
+      case 'category':
+        input = (
+          <>
+            <input {...common} type="text" maxLength={60} list={categories.length ? 'pf-category-list' : undefined} placeholder={f.placeholders[key]} autoComplete="off" />
+            {categories.length > 0 && (
+              <datalist id="pf-category-list">
+                {categories.map((c) => <option key={c} value={c} />)}
+              </datalist>
+            )}
+          </>
+        );
+        break;
+      default:
+        input = <input {...common} type="text" maxLength={key === 'size' ? 20 : 40} placeholder={f.placeholders[key]} autoComplete="off" />;
+    }
+    return (
+      <div className="auth-field" key={key}>
+        <label htmlFor={id}>{label}</label>
+        {input}
+        {hint && <span className="field-hint">{hint}</span>}
+      </div>
+    );
+  });
+
+  const rows: ReactNode[] = [];
+  for (let i = 0; i < inputs.length; i += 2) {
+    rows.push(
+      inputs[i + 1]
+        ? <div className="form-row" key={i}>{inputs[i]}{inputs[i + 1]}</div>
+        : inputs[i],
+    );
+  }
+  return <>{rows}</>;
 }

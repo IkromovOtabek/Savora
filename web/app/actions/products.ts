@@ -10,6 +10,7 @@ import { isPhoneShop } from '@/lib/businessTypes';
 import { ProductStatus } from '@/lib/models/tenant/Product';
 import { generateProductCode } from '@/lib/productId';
 import { parseQtyField } from '@/lib/productQuantity';
+import { parseProductFields, productFieldErrorText, type ProductFieldsResult } from '@/lib/productFields';
 import { resolveWarehouseBranchId } from '@/lib/warehouseBranch';
 import { recordAudit } from '@/lib/audit';
 import { markOnboardingStep } from '@/lib/onboarding';
@@ -63,6 +64,17 @@ function parseOptionalPrice(v: string): number | null {
   const n = Number(t);
   if (!Number.isSafeInteger(n) || n < 0) return null;
   return n;
+}
+
+/** Yo'nalishga xos maydonlar (kategoriya, kafolat, yaroqlilik ...) — xato bo'lsa tayyor matn */
+async function readProductFields(
+  formData: FormData,
+  businessType: string | undefined,
+): Promise<Extract<ProductFieldsResult, { ok: true }> | { ok: false; error: string }> {
+  const res = parseProductFields(businessType, (key) => formData.get(key));
+  if (res.ok) return res;
+  const d = (await getDict()).stock;
+  return { ok: false, error: productFieldErrorText(res, d.fields.labels, d.msg) };
 }
 
 function normalizeImei(v: string): string {
@@ -165,6 +177,8 @@ export async function createProductAction(_prev: State, formData: FormData): Pro
   if (purchasePrice === null) return { error: m.purchaseInvalid };
   if (salePrice === null) return { error: m.saleInvalid };
   if (wholesalePrice === null) return { error: m.wholesaleInvalid };
+  const extra = await readProductFields(formData, org.businessType);
+  if (!extra.ok) return { error: extra.error };
   { const photoErr = await photoUrlError(photoUrl, features.mediaUpload, m); if (photoErr) return photoErr; }
   const supplierChoice = await readSupplierChoice(formData, user, Supplier);
   if (supplierChoice === 'invalid') return { error: (await getDict()).stock.suppliers.msg.badSupplier };
@@ -201,6 +215,7 @@ export async function createProductAction(_prev: State, formData: FormData): Pro
       branchId: targetBranchId,
       notes: notes || undefined,
       photoUrl: photoUrl || undefined,
+      ...extra.values,
       createdBy: user.username,
       supplierId,
       history: [{ action: 'created', detail: branch.name, by: user.username, at: new Date() }],
@@ -268,6 +283,8 @@ export async function updateProductAction(_prev: State, formData: FormData): Pro
   if (purchasePrice === null) return { error: m.purchaseInvalid };
   if (salePrice === null) return { error: m.saleInvalid };
   if (wholesalePrice === null) return { error: m.wholesaleInvalid };
+  const extra = await readProductFields(formData, org.businessType);
+  if (!extra.ok) return { error: extra.error };
   { const photoErr = await photoUrlError(photoUrl, features.mediaUpload, m); if (photoErr) return photoErr; }
 
   if (!Types.ObjectId.isValid(productId)) return { error: m.notFound };
@@ -316,6 +333,8 @@ export async function updateProductAction(_prev: State, formData: FormData): Pro
   product.purchasePrice = purchasePrice;
   product.salePrice = salePrice;
   product.wholesalePrice = wholesalePrice || undefined;
+  // Faqat joriy yo'nalish maydonlari yangilanadi; boshqa yo'nalishdan qolgan qiymatlarga tegilmaydi
+  for (const key of extra.keys) product.set(key, extra.values[key]);
   product.trackQuantity = trackQuantity;
   if (trackQuantity) {
     if (quantity < product.soldQuantity) {

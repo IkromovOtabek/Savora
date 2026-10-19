@@ -72,6 +72,58 @@ export const TERMS: Record<BusinessType, Terms> = {
   service: { item: 'Xizmat', items: 'Xizmatlar', addItem: 'Xizmat qo\'shish', codeLabel: 'Kod', hasImei: false },
 };
 
+/**
+ * Mahsulot formasining yo'nalishga xos maydonlari. YAGONA MANBA: web ProductForm,
+ * mobil product-new (/api/mobile/me → productFields) va server validatsiyasi
+ * (lib/productFields.ts) shu ro'yxatdan oladi. Yorliqlar lug'atda: web d.stock.fields,
+ * mobil d.productFields. IMEI alohida — TERMS.hasImei.
+ */
+export const PRODUCT_FIELD_KEYS = [
+  'category',
+  'unit',
+  'size',
+  'color',
+  'warrantyMonths',
+  'batchNumber',
+  'expiryDate',
+  'oemCode',
+] as const;
+export type ProductFieldKey = (typeof PRODUCT_FIELD_KEYS)[number];
+
+/** O'lchov birligi (faqat saqlanadi va ko'rsatiladi; miqdor hozircha butun son) */
+export const PRODUCT_UNITS = ['dona', 'kg', 'g', 'm', 'm2', 'l', 'qop', 'quti', 'paket'] as const;
+export type ProductUnit = (typeof PRODUCT_UNITS)[number];
+
+export interface ProductFieldSpec {
+  key: ProductFieldKey;
+  required?: boolean;
+}
+
+const CATEGORY: ProductFieldSpec = { key: 'category' };
+const UNIT: ProductFieldSpec = { key: 'unit' };
+const WARRANTY: ProductFieldSpec = { key: 'warrantyMonths' };
+const EXPIRY: ProductFieldSpec = { key: 'expiryDate' };
+
+export const PRODUCT_FIELDS: Record<BusinessType, ProductFieldSpec[]> = {
+  general: [CATEGORY],
+  phone_shop: [CATEGORY, WARRANTY],
+  electronics: [CATEGORY, WARRANTY],
+  furniture: [CATEGORY, WARRANTY],
+  clothing: [CATEGORY, { key: 'size' }, { key: 'color' }],
+  grocery: [CATEGORY, UNIT, EXPIRY],
+  building: [CATEGORY, UNIT],
+  cosmetics: [CATEGORY, EXPIRY],
+  pharmacy: [CATEGORY, { key: 'batchNumber' }, { key: 'expiryDate', required: true }],
+  auto_parts: [CATEGORY, { key: 'oemCode' }],
+  wholesale: [CATEGORY, UNIT],
+  restaurant: [CATEGORY],
+  service: [CATEGORY],
+};
+
+export function productFieldsFor(businessType?: string): ProductFieldSpec[] {
+  return PRODUCT_FIELDS[parseBusinessType(businessType || 'general')];
+}
+
 export function termsFor(businessType?: string): Terms {
   return TERMS[parseBusinessType(businessType || 'general')];
 }

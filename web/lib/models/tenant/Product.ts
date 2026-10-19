@@ -1,5 +1,6 @@
 import { Schema, Types } from 'mongoose';
 import { softDeletePlugin } from '../../softDelete';
+import { PRODUCT_UNITS, type ProductUnit } from '../../businessTypes';
 
 export type ProductStatus = 'in_stock' | 'sold' | 'reserved' | 'defective' | 'transferred';
 export type SoldPaymentType = 'cash' | 'credit';
@@ -46,6 +47,14 @@ export interface IProduct {
   soldBankName?: string;
   notes?: string;
   photoUrl?: string;
+  /** Yo'nalishga xos maydonlar (lib/businessTypes.ts → PRODUCT_FIELDS) — hammasi ixtiyoriy */
+  category?: string;
+  unit?: ProductUnit;
+  size?: string;
+  warrantyMonths?: number;
+  batchNumber?: string;
+  expiryDate?: Date;
+  oemCode?: string;
   createdBy?: string;
   /** Yetkazib beruvchi (ixtiyoriy) */
   supplierId?: Types.ObjectId;
@@ -96,6 +105,13 @@ export const productSchema = new Schema<IProduct>(
     soldBankName: { type: String, trim: true },
     notes: { type: String, trim: true },
     photoUrl: { type: String, trim: true },
+    category: { type: String, trim: true },
+    unit: { type: String, enum: PRODUCT_UNITS },
+    size: { type: String, trim: true },
+    warrantyMonths: { type: Number, min: 0, max: 120 },
+    batchNumber: { type: String, trim: true, uppercase: true },
+    expiryDate: { type: Date },
+    oemCode: { type: String, trim: true, uppercase: true },
     createdBy: { type: String, trim: true },
     supplierId: { type: Schema.Types.ObjectId, ref: 'Supplier' },
     soldAt: { type: Date },
@@ -109,6 +125,7 @@ productSchema.plugin(softDeletePlugin);
 
 productSchema.index({ branchId: 1, status: 1 });
 productSchema.index({ barcode: 1 }, { sparse: true });
+productSchema.index({ category: 1 }, { sparse: true });
 productSchema.index({ name: 'text', brand: 'text', deviceModel: 'text', imei: 'text' });
 
 export const PRODUCT_STATUS_LABELS: Record<ProductStatus, string> = {

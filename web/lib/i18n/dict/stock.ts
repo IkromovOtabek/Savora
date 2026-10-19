@@ -3,6 +3,7 @@
 import type { ProductStatus, ProductActionType } from '../../models/tenant/Product';
 import type { BlacklistReason } from '../../models/master/ImeiBlacklist';
 import type { PaymentType } from '../../models/tenant/Sale';
+import type { ProductFieldKey, ProductUnit } from '../../businessTypes';
 
 export const uz = {
   /** Mahsulot holati (lib/models/tenant/Product.ts → PRODUCT_STATUS_LABELS) */
@@ -163,6 +164,42 @@ export const uz = {
     failed: "Saqlab bo'lmadi. Qayta urinib ko'ring.",
     noChange: "Narxlar o'zgarmagan",
     remove: 'Olib tashlash',
+  },
+
+  /** Yo'nalishga xos mahsulot maydonlari (lib/businessTypes.ts → PRODUCT_FIELDS) */
+  fields: {
+    title: 'Xususiyatlar',
+    labels: {
+      category: 'Kategoriya',
+      unit: "O'lchov birligi",
+      size: "O'lcham",
+      color: 'Rang',
+      warrantyMonths: 'Kafolat (oy)',
+      batchNumber: 'Seriya raqami',
+      expiryDate: 'Yaroqlilik muddati',
+      oemCode: 'OEM kod',
+    } as Record<ProductFieldKey, string>,
+    placeholders: {
+      category: 'Masalan: Ichimliklar',
+      size: 'Masalan: M, 42, 110 sm',
+      color: 'Masalan: qora',
+      warrantyMonths: '12',
+      batchNumber: 'Masalan: AB1234',
+      oemCode: 'Masalan: 04465-33450',
+    } as Partial<Record<ProductFieldKey, string>>,
+    units: {
+      dona: 'dona',
+      kg: 'kg',
+      g: 'gramm',
+      m: 'metr',
+      m2: 'm²',
+      l: 'litr',
+      qop: 'qop',
+      quti: 'quti',
+      paket: 'paket',
+    } as Record<ProductUnit, string>,
+    unitHint: "Miqdor hozircha butun sonda hisoblanadi.",
+    expired: "Muddati o'tgan",
   },
 
   form: {
@@ -356,6 +393,10 @@ export const uz = {
     bankRequired: 'Kredit uchun bank tanlanishi shart.',
     nameRequired: 'Mahsulot nomi kiritilishi shart.',
     imeiMin: "IMEI kamida 10 ta belgidan iborat bo'lishi kerak.",
+    /** {field} — maydon nomi (fields.labels) */
+    fieldRequired: '«{field}» kiritilishi shart.',
+    fieldInvalid: "«{field}» noto'g'ri.",
+    fieldTooLong: '«{field}» juda uzun.',
     purchaseInvalid: "Kelish narxi noto'g'ri.",
     saleInvalid: "Sotuv narxi noto'g'ri.",
     wholesaleInvalid: "Ulgurji narx noto'g'ri.",
@@ -660,6 +701,41 @@ export const ru: typeof uz = {
     remove: 'Убрать',
   },
 
+  fields: {
+    title: 'Характеристики',
+    labels: {
+      category: 'Категория',
+      unit: 'Единица измерения',
+      size: 'Размер',
+      color: 'Цвет',
+      warrantyMonths: 'Гарантия (мес.)',
+      batchNumber: 'Номер серии',
+      expiryDate: 'Срок годности',
+      oemCode: 'OEM-код',
+    },
+    placeholders: {
+      category: 'Например: Напитки',
+      size: 'Например: M, 42, 110 см',
+      color: 'Например: чёрный',
+      warrantyMonths: '12',
+      batchNumber: 'Например: AB1234',
+      oemCode: 'Например: 04465-33450',
+    },
+    units: {
+      dona: 'шт.',
+      kg: 'кг',
+      g: 'грамм',
+      m: 'метр',
+      m2: 'м²',
+      l: 'литр',
+      qop: 'мешок',
+      quti: 'коробка',
+      paket: 'пакет',
+    },
+    unitHint: 'Количество пока считается целым числом.',
+    expired: 'Срок истёк',
+  },
+
   form: {
     sections: { main: 'Основное', price: 'Цена', stock: 'Склад', extra: 'Дополнительно' },
     back: 'Склад',
@@ -829,6 +905,9 @@ export const ru: typeof uz = {
     bankRequired: 'Для кредита нужно выбрать банк.',
     nameRequired: 'Укажите название товара.',
     imeiMin: 'IMEI должен содержать не менее 10 символов.',
+    fieldRequired: 'Заполните поле «{field}».',
+    fieldInvalid: 'Неверное значение поля «{field}».',
+    fieldTooLong: 'Поле «{field}» слишком длинное.',
     purchaseInvalid: 'Неверная закупочная цена.',
     saleInvalid: 'Неверная цена продажи.',
     wholesaleInvalid: 'Неверная оптовая цена.',

@@ -6,6 +6,10 @@ import { recordAudit } from '@/lib/audit';
 import { getTenantModels } from '@/lib/tenantDb';
 import { branchFilter } from '@/lib/branchScope';
 import { parseIntegerSum, searchPattern } from '@/lib/security';
+import { getMasterModels } from '@/lib/masterDb';
+import { termsFor } from '@/lib/businessTypes';
+import { parseProductFields, productFieldErrorText } from '@/lib/productFields';
+import { getDictionary } from '@/lib/i18n/dict';
 
 /** Matn maydonlari uzunlik chegarasi — oshsa 400 (xotira/DB to'ldirish himoyasi) */
 const MAX_LEN = { name: 120, code: 64, barcode: 64, brand: 60, notes: 500 } as const;
@@ -72,7 +76,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Avtorizatsiya kerak.' }, { status: 401 });
   }
   { const denied = await mobilePermissionDenied(user, 'product.create'); if (denied) return denied; }
-  let body: { name?: string; code?: string; barcode?: string; brand?: string; purchasePrice?: number; salePrice?: number; notes?: string };
+  let body: { name?: string; code?: string; barcode?: string; brand?: string; purchasePrice?: number; salePrice?: number; notes?: string } & Record<string, unknown>;
   try { body = await req.json(); } catch { return NextResponse.json({ error: 'Noto\'g\'ri so\'rov.' }, { status: 400 }); }
 
   const name = String(body.name || '').trim();
@@ -91,6 +95,20 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Matn maydoni juda uzun.' }, { status: 400 });
   }
   if (salePrice <= 0) return NextResponse.json({ error: 'Sotuv narxi noto\'g\'ri.' }, { status: 400 });
+
+  // Yo'nalish: telefon do'konda IMEI majburiy, qolgan maydonlar PRODUCT_FIELDS bo'yicha
+  const { Organization } = await getMasterModels();
+  const org = await Organization.findById(user.organizationId, { businessType: 1 }).lean();
+  const businessType = org?.businessType;
+  // Xato matnlari mobil API'dagi boshqalar kabi o'zbekcha
+  const stockDict = getDictionary('uz').stock;
+  if (termsFor(businessType).hasImei && code.length < 10) {
+    return NextResponse.json({ error: stockDict.msg.imeiMin }, { status: 400 });
+  }
+  const extra = parseProductFields(businessType, (key) => body[key]);
+  if (!extra.ok) {
+    return NextResponse.json({ error: productFieldErrorText(extra, stockDict.fields.labels, stockDict.msg) }, { status: 400 });
+  }
 
   const { Product, Branch } = await getTenantModels(user.dbName);
 
@@ -113,6 +131,7 @@ export async function POST(req: Request) {
       brand: brand || undefined,
       purchasePrice, salePrice, branchId, status: 'in_stock',
       notes: notes || undefined,
+      ...extra.values,
       createdBy: user.username,
       history: [{ action: 'created', detail: 'Mobil ilova orqali qo\'shildi', by: user.username, at: new Date() }],
     });

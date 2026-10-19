@@ -4,7 +4,7 @@ import { loadUserPermissions } from '@/lib/permissionGuard';
 import { getMasterModels } from '@/lib/masterDb';
 import { resolveOrgFeatures } from '@/lib/features';
 import { isOrganizationActive, daysUntilExpiry } from '@/lib/models/master/Organization';
-import { termsFor, BUSINESS_TYPES } from '@/lib/businessTypes';
+import { termsFor, productFieldsFor, BUSINESS_TYPES, PRODUCT_UNITS } from '@/lib/businessTypes';
 
 export async function GET(req: Request) {
   const auth = await authenticateMobile(req);
@@ -30,6 +30,9 @@ export async function GET(req: Request) {
     },
     // Biznes turiga qarab atamalar (mahsulot/menyu/dori ...)
     terms: termsFor(org.businessType),
+    // Mahsulot formasining yo'nalishga xos maydonlari (yorliqlar ilova lug'atida)
+    productFields: productFieldsFor(org.businessType),
+    productUnits: PRODUCT_UNITS,
     features: resolveOrgFeatures(org),
     // Xodim huquqlari (lib/permissions.ts) — ilova tugmalarni yashirishi uchun
     permissions: [...(await loadUserPermissions(user))],
