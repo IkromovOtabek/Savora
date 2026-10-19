@@ -19,7 +19,7 @@ export default async function StockAdjustPage({ mode, initialIds }: { mode: 'rev
 
   const [products, docs] = await Promise.all([
     Product.find({ ...branchFilter(user), status: 'in_stock' })
-      .select('name imei barcode productId salePrice wholesalePrice purchasePrice trackQuantity quantity soldQuantity status')
+      .select('name imei barcode productId salePrice wholesalePrice purchasePrice trackQuantity quantity soldQuantity status unit')
       .sort({ name: 1 })
       .limit(PRODUCT_LIMIT)
       .lean(),
@@ -37,6 +37,7 @@ export default async function StockAdjustPage({ mode, initialIds }: { mode: 'rev
     wholesalePrice: p.wholesalePrice && p.wholesalePrice > 0 ? p.wholesalePrice : undefined,
     tracked: p.trackQuantity ?? false,
     available: getStockQty(p),
+    unit: p.unit ?? null,
     ...(canViewCost ? { purchasePrice: p.purchasePrice ?? 0 } : {}),
   }));
 

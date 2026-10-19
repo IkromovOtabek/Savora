@@ -45,7 +45,7 @@ const itemSchema = new Schema<IStockAdjustmentItem>(
     newSalePrice: { type: Number, min: 0 },
     oldWholesalePrice: { type: Number, min: 0 },
     newWholesalePrice: { type: Number, min: 0 },
-    qty: { type: Number, min: 1 },
+    qty: { type: Number, min: 0.001 },
     purchasePrice: { type: Number, min: 0 },
   },
   { _id: false }

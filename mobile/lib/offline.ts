@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { api, ApiError } from './api';
 import type { PickedProduct } from './pick';
+import { addQty, roundQty } from './qty';
 
 /**
  * Oflayn POS — internet yo'qligida NAQD sotuv.
@@ -23,6 +24,8 @@ export interface CatalogItem {
   salePrice: number;
   trackQuantity: boolean;
   available: number;
+  /** O'lchov birligi (kg/m… — qoldiq va sotuv miqdori kasr bo'lishi mumkin) */
+  unit?: string | null;
 }
 
 export interface Catalog {
@@ -39,6 +42,7 @@ export interface QueuedSale {
   productId: string;
   name: string;
   qty: number;
+  unit?: string | null;
   totalAmount: number;
   soldAt: string;
   notes: string;
@@ -100,10 +104,10 @@ export async function refreshCatalog(userId: string): Promise<Catalog> {
 /** Navbatdagi sotuvlar qoldiqni kamaytiradi (server katalogi ularni hali bilmaydi) */
 export function applyPendingToStock(items: CatalogItem[], queue: QueuedSale[]): CatalogItem[] {
   const used = new Map<string, number>();
-  for (const s of queue) if (s.status === 'pending') used.set(s.productId, (used.get(s.productId) ?? 0) + s.qty);
+  for (const s of queue) if (s.status === 'pending') used.set(s.productId, addQty(used.get(s.productId) ?? 0, s.qty));
   return items.map((p) => {
     const u = used.get(p.id);
-    return u ? { ...p, available: Math.max(0, p.available - u) } : p;
+    return u ? { ...p, available: Math.max(0, roundQty(p.available - u)) } : p;
   });
 }
 
@@ -127,7 +131,7 @@ export function findByCode(cat: Catalog | null, code: string): CatalogItem | nul
 }
 
 export function toPicked(p: CatalogItem): PickedProduct {
-  return { id: p.id, name: p.name, salePrice: p.salePrice, available: p.available, trackQuantity: p.trackQuantity, status: p.available > 0 ? 'in_stock' : 'sold' };
+  return { id: p.id, name: p.name, salePrice: p.salePrice, available: p.available, trackQuantity: p.trackQuantity, status: p.available > 0 ? 'in_stock' : 'sold', unit: p.unit ?? null };
 }
 
 // ── Navbat ───────────────────────────────────────────────────────────────
@@ -151,7 +155,7 @@ export async function enqueueSale(
 
   const cat = await loadCatalog(userId);
   if (cat) {
-    cat.items = cat.items.map((p) => (p.id === sale.productId ? { ...p, available: Math.max(0, p.available - sale.qty) } : p));
+    cat.items = cat.items.map((p) => (p.id === sale.productId ? { ...p, available: Math.max(0, roundQty(p.available - sale.qty)) } : p));
     await writeJson(catalogKey(userId), cat);
   }
   return item;

@@ -8,7 +8,8 @@ import { getTenantModels } from '@/lib/tenantDb';
 import { branchFilter } from '@/lib/branchScope';
 import { getMobileFeatures } from '@/lib/mobileOrg';
 import { generateSaleNo, calcSaleStatus } from '@/lib/sales';
-import { parseQtyField } from '@/lib/productQuantity';
+import { checkSaleQty } from '@/lib/productQuantity';
+import { parseQty, priceTimesQty, qtyLabel } from '@/lib/qty';
 import { reserveStock, releaseStock } from '@/lib/stock';
 import { parseIntegerSum } from '@/lib/security';
 import { addMonthsClamped } from '@/lib/dates';
@@ -131,14 +132,17 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Bu mahsulot boshqa filialda.' }, { status: 403 });
   }
 
-  const saleQty = product.trackQuantity ? parseQtyField(String(body.saleQty ?? '1')) : 1;
-  if (product.trackQuantity) {
-    const available = product.quantity - product.soldQuantity;
-    if (saleQty > available) return NextResponse.json({ error: `Omborda faqat ${available} ta qoldi.` }, { status: 400 });
+  // dona — butun, kg/m… — ≤3 xona kasr ("1,5" ham)
+  const qtyCheck = checkSaleQty(product, body.saleQty == null || body.saleQty === '' ? undefined : parseQty(body.saleQty, product.unit));
+  if (!qtyCheck.ok) {
+    return NextResponse.json({
+      error: qtyCheck.reason === 'badQty' ? 'Miqdor noto\'g\'ri.' : `Omborda faqat ${qtyLabel(qtyCheck.available, product.unit)} qoldi.`,
+    }, { status: 400 });
   }
+  const saleQty = qtyCheck.qty;
 
   // Sotuv narxidan arzon sotish — "sale.discount" huquqi kerak (web createSaleAction bilan bir xil)
-  if (product.salePrice > 0 && totalAmount < product.salePrice * saleQty && !(await userCan(user, 'sale.discount'))) {
+  if (product.salePrice > 0 && totalAmount < priceTimesQty(product.salePrice, saleQty) && !(await userCan(user, 'sale.discount'))) {
     return NextResponse.json(permissionDeniedError('sale.discount'), { status: 403 });
   }
 
@@ -193,7 +197,7 @@ export async function POST(req: Request) {
   // Atomik: qoldiq tekshiruvi + ayirish bitta so'rovda (parallel sotuvda minusga tushmaydi)
   const reserved = await reserveStock(Product, product._id, saleQty, {
     scope: branchFilter(user),
-    history: { action: 'sold', detail: `${saleQty} ta`, by: user.username, at: new Date() },
+    history: { action: 'sold', detail: qtyLabel(saleQty, product.unit), by: user.username, at: new Date() },
   });
   if (!reserved) {
     return NextResponse.json({ error: 'Mahsulot omborda yetarli emas yoki allaqachon sotilgan.' }, { status: 409 });
@@ -206,7 +210,7 @@ export async function POST(req: Request) {
     sale = await Sale.create({
       saleNo,
       productId: product._id,
-      productSnapshot: { name: product.name, imei: product.imei, brand: product.brand, deviceModel: product.deviceModel, purchasePrice: product.purchasePrice, saleQuantity: saleQty },
+      productSnapshot: { name: product.name, imei: product.imei, brand: product.brand, deviceModel: product.deviceModel, purchasePrice: product.purchasePrice, saleQuantity: saleQty, unit: product.unit },
       ...(customer ? { customerId: customer._id, customerSnapshot: { fullName: customer.fullName, phone: customer.phone } } : {}),
       branchId: product.branchId,
       paymentType,
@@ -225,7 +229,7 @@ export async function POST(req: Request) {
     action: 'sale.create',
     entity: 'sale',
     entityId: String(sale._id),
-    summary: `Sotuv ${saleNo}: ${product.name} · ${saleQty} ta · ${totalAmount.toLocaleString('uz-UZ')} so'm (${paymentType}) (mobil)`,
+    summary: `Sotuv ${saleNo}: ${product.name} · ${qtyLabel(saleQty, product.unit)} · ${totalAmount.toLocaleString('uz-UZ')} so'm (${paymentType}) (mobil)`,
     meta: { saleQty, totalAmount, paymentType },
   });
 

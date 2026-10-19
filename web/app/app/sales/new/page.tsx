@@ -45,6 +45,7 @@ export default async function NewSalePage({
         imei: p.imei,
         trackQuantity: p.trackQuantity ?? false,
         available: getStockQty(p),
+        unit: p.unit ?? null,
       }))}
     />
   );

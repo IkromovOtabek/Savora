@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { getStockQty } from '@/lib/productQuantity';
 import { randomBytes } from 'crypto';
 import { authenticateMobile } from '@/lib/mobileAuth';
 import { mobilePermissionDenied, userCan } from '@/lib/permissionGuard';
@@ -62,7 +63,8 @@ export async function GET(req: Request) {
       costHidden: !canViewCost,
       status: p.status,
       trackQuantity: p.trackQuantity ?? false,
-      available: p.trackQuantity ? Math.max(0, (p.quantity ?? 0) - (p.soldQuantity ?? 0)) : (p.status === 'in_stock' ? 1 : 0),
+      available: getStockQty(p),
+      unit: p.unit ?? null,
     })),
   });
 }

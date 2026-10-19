@@ -95,7 +95,7 @@ export async function StaffPanel({ rows, meta }: { rows: { name: string; count: 
   );
 }
 
-export async function LowStockPanel({ rows }: { rows: { id: string; name: string; left: number }[] }) {
+export async function LowStockPanel({ rows }: { rows: { id: string; name: string; left: number; leftText: string }[] }) {
   const d = await getDict();
   const t = d.shell.panels;
   return (
@@ -107,7 +107,7 @@ export async function LowStockPanel({ rows }: { rows: { id: string; name: string
               <Link href={`/app/products/${r.id}`} className="t-low-row">
                 <Icon name="box" size={16} className="t-low-ic" />
                 <span className="t-low-n">{r.name}</span>
-                <span className={`t-pill ${r.left <= 0 ? 't-pill--bad' : 't-pill--warn'}`}>{r.left <= 0 ? t.outOfStock : tr(t.nLeft, { n: r.left })}</span>
+                <span className={`t-pill ${r.left <= 0 ? 't-pill--bad' : 't-pill--warn'}`}>{r.left <= 0 ? t.outOfStock : tr(t.nLeft, { n: r.leftText })}</span>
               </Link>
             </li>
           ))}

@@ -26,7 +26,7 @@ export const transferSchema = new Schema<ITransfer>(
       name: { type: String, required: true },
       imei: { type: String, required: true },
     },
-    quantity: { type: Number, required: true, min: 1, default: 1 },
+    quantity: { type: Number, required: true, min: 0.001, default: 1 },
     fromBranchId: { type: Schema.Types.ObjectId, ref: 'Branch' },
     fromBranchName: { type: String, trim: true },
     toBranchId: { type: Schema.Types.ObjectId, ref: 'Branch', required: true },

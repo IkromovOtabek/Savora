@@ -16,7 +16,9 @@ import { checkPermission, userCan } from '@/lib/permissionGuard';
 import { permissionDeniedError } from '@/lib/permissions';
 import { runWithCompensation } from '@/lib/compensate';
 import { allocateDiscount, discountAmount, unitPriceFor } from '@/lib/posCart';
-import { parseInput, zId, zMoney, zOneOf, zOptInt, zText } from '@/lib/validation';
+import { parseInput, zId, zMoney, zOneOf, zOptQty, zText } from '@/lib/validation';
+import { checkSaleQty } from '@/lib/productQuantity';
+import { isFractionalUnit, priceTimesQty, qtyLabel } from '@/lib/qty';
 import { getI18n } from '@/lib/i18n/server';
 import { tr } from '@/lib/i18n/fmt';
 
@@ -50,7 +52,7 @@ export async function posSaleAction(input: PosSaleInput): Promise<State> {
   const parsed = parseInput(z.object({
     lines: z.array(z.object({
       productId: zId(m.badProductId),
-      qty: zOptInt(m.badQty, 1, 1_000_000),
+      qty: zOptQty(m.badQty),
       price: zMoney(m.priceWhole, { optional: true }),
     })).min(1, m.noProductsSelected).max(POS_MAX_LINES, m.noProductsSelected),
     wholesale: z.boolean(),
@@ -74,9 +76,10 @@ export async function posSaleAction(input: PosSaleInput): Promise<State> {
     const found = await Product.findOne({ _id: line.productId, ...scope }).lean<IProduct & { _id: Types.ObjectId }>();
     if (!found) return { error: m.productNotFoundOrDenied };
     if (found.status !== 'in_stock') return { error: tr(m.productNotInStock, { name: found.name }) };
-    const qty = found.trackQuantity ? (line.qty ?? 1) : 1;
-    const available = found.trackQuantity ? (found.quantity ?? 1) - (found.soldQuantity ?? 0) : 1;
-    if (qty > available) return { error: tr(m.notEnoughStockFor, { name: found.name }) };
+    // dona — butun, kg/m… — ≤3 xona kasr
+    const qtyCheck = checkSaleQty(found, line.qty);
+    if (!qtyCheck.ok) return { error: qtyCheck.reason === 'badQty' ? `${found.name}: ${m.badQty}` : tr(m.notEnoughStockFor, { name: found.name }) };
+    const qty = qtyCheck.qty;
 
     let unit = unitPriceFor(found, wholesale);
     if (line.price > 0 && line.price !== unit) {
@@ -88,7 +91,8 @@ export async function posSaleAction(input: PosSaleInput): Promise<State> {
     prepared.push({ found, qty, unit });
   }
 
-  const lineTotals = prepared.map((p) => p.unit * p.qty);
+  // Kasr miqdorda qator jami butun so'mga yaxlitlanadi (client PosScreen bilan bir xil formula)
+  const lineTotals = prepared.map((p) => priceTimesQty(p.unit, p.qty));
   const subtotal = lineTotals.reduce((s, n) => s + n, 0);
   const disc = discountAmount(subtotal, discount);
   if (disc >= subtotal) return { error: k.discountTooBig };
@@ -105,7 +109,7 @@ export async function posSaleAction(input: PosSaleInput): Promise<State> {
     const product = await reserveStock(Product, found._id, qty, {
       scope,
       set: { soldPaymentType: 'cash' },
-      history: { action: 'sold', detail: `${qty} ta · ${total.toLocaleString('uz-UZ')} so'm`, by: user.username, at: now },
+      history: { action: 'sold', detail: `${qtyLabel(qty, found.unit)} · ${total.toLocaleString('uz-UZ')} so'm`, by: user.username, at: now },
     });
     if (!product) { shortOf = found.name; return null; }
     const restock = () => releaseStock(Product, product._id, qty, { action: 'returned', detail: 'Kassa: sotuv yakunlanmadi', by: user.username, at: new Date() });
@@ -123,6 +127,7 @@ export async function posSaleAction(input: PosSaleInput): Promise<State> {
           deviceModel: product.deviceModel,
           purchasePrice: product.purchasePrice,
           saleQuantity: qty,
+          unit: product.unit,
         },
         ...(customer ? { customerSnapshot: customer } : {}),
         branchId: product.branchId,
@@ -141,7 +146,7 @@ export async function posSaleAction(input: PosSaleInput): Promise<State> {
       throw err;
     }
     return {
-      result: { productId: String(product._id), saleId: String(saleId), name: product.name, qty, unit, discount: lineDisc[i], total },
+      result: { productId: String(product._id), saleId: String(saleId), name: product.name, qty, measure: found.unit, unit, discount: lineDisc[i], total },
       undo: async () => { await Sale.deleteOne({ _id: saleId }); await restock(); },
     };
   });
@@ -156,11 +161,14 @@ export async function posSaleAction(input: PosSaleInput): Promise<State> {
       action: 'sale.pos',
       entity: 'sale',
       entityId: r.productId,
-      summary: `Kassa: ${r.name} · ${r.qty} ta × ${r.unit.toLocaleString('uz-UZ')}${r.discount ? ` − ${r.discount.toLocaleString('uz-UZ')} chegirma` : ''} = ${r.total.toLocaleString('uz-UZ')} so'm${wholesale ? ' (ulgurji)' : ''}`,
+      summary: `Kassa: ${r.name} · ${qtyLabel(r.qty, r.measure)} × ${r.unit.toLocaleString('uz-UZ')}${r.discount ? ` − ${r.discount.toLocaleString('uz-UZ')} chegirma` : ''} = ${r.total.toLocaleString('uz-UZ')} so'm${wholesale ? ' (ulgurji)' : ''}`,
       meta: { qty: r.qty, unit: r.unit, discount: r.discount, total: r.total, wholesale },
     });
   }
-  const soldCount = outcome.results.reduce((s, r) => s + r.qty, 0);
+  // Birliklar aralash bo'lsa (kg + dona) miqdorlarni qo'shib bo'lmaydi — unda qatorlar soni
+  const soldCount = outcome.results.some((r) => isFractionalUnit(r.measure))
+    ? outcome.results.length
+    : outcome.results.reduce((s, r) => s + r.qty, 0);
   const soldTotal = outcome.results.reduce((s, r) => s + r.total, 0);
 
   await markOnboardingStep(user.organizationId, 'saleMade');

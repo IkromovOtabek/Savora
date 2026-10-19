@@ -3,7 +3,7 @@ import type { ShopSettings } from '@/lib/shopSettings';
 import { fmtDate, fmtDateTime, fmtMoney } from '@/lib/format';
 import { computeInstallmentPlan } from '@/lib/installment';
 import type { Dict } from '@/lib/i18n/server';
-import { tr } from '@/lib/i18n/fmt';
+import { qtyWithUnit, tr } from '@/lib/i18n/fmt';
 
 type ReceiptSale = Pick<ISale, 'saleNo' | 'productSnapshot' | 'customerSnapshot' | 'paymentType' | 'bankName' | 'totalAmount' | 'paidAmount' | 'remainingAmount' | 'soldBy' | 'dueDate' | 'createdAt'> & Parameters<typeof computeInstallmentPlan>[0];
 
@@ -62,7 +62,7 @@ export default function ReceiptPaper({ sales, org, receipt, d }: {
                 <b>{s.productSnapshot.name}</b>
                 <strong>{fmtMoney(s.totalAmount)}</strong>
               </div>
-              {qty > 1 && <small>{qty} × {fmtMoney(unit)}</small>}
+              {qty !== 1 && <small>{qtyWithUnit(qty, s.productSnapshot.unit, d.stock.fields.units)} × {fmtMoney(unit)}</small>}
               {s.productSnapshot.imei && <small>{tr(k.code, { code: s.productSnapshot.imei })}</small>}
             </div>
           );

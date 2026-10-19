@@ -8,7 +8,7 @@ import MoreMenu from '@/components/ui/MoreMenu';
 import Tilt from '@/components/ui/Tilt';
 import { loadUserPermissions } from '@/lib/permissionGuard';
 import { getDict } from '@/lib/i18n/server';
-import { plural, tr } from '@/lib/i18n/fmt';
+import { plural, qtyWithUnit, tr } from '@/lib/i18n/fmt';
 
 export async function generateMetadata() {
   const d = await getDict();
@@ -77,6 +77,7 @@ export default async function SalesPage({
       name,
       color,
       qty,
+      qtyText: qtyWithUnit(qty, s.productSnapshot.unit, d.stock.fields.units),
       source: branchMap[String(s.branchId)] ?? '—',
       imei: s.productSnapshot.imei,
       purchase: s.productSnapshot.purchasePrice ?? prod?.purchasePrice ?? 0,
@@ -247,7 +248,7 @@ export default async function SalesPage({
                   <div className="sl-row-main">
                     <div className="sl-row-top">
                       <Link href={`/app/sales/${r.id}`} className="sl-row-title">
-                        {r.name}{r.qty > 1 ? ` × ${r.qty}` : ''}
+                        {r.name}{r.qty !== 1 ? ` × ${r.qtyText}` : ''}
                       </Link>
                       <span className={`sl-pill sl-pill--${r.cancelled ? 'cancelled' : r.type}`}>
                         {r.cancelled ? d.sales.saleStatus.cancelled : TYPE_SHORT[r.type]}
@@ -268,8 +269,8 @@ export default async function SalesPage({
                     <strong>{fmtMoney(r.total)} <small>{d.common.sum}</small></strong>
                     {!r.cancelled && r.remaining > 0 ? (
                       <span className="sl-rem">{d.common.remaining} {fmtMoney(r.remaining)}</span>
-                    ) : r.qty > 1 ? (
-                      <span>{r.qty} × {fmtMoney(r.unit)}</span>
+                    ) : r.qty !== 1 ? (
+                      <span>{r.qtyText} × {fmtMoney(r.unit)}</span>
                     ) : null}
                     {canViewCost && <span className="sl-row-x">{tr(k.purchased, { sum: fmtMoney(r.purchase) })}</span>}
                   </div>

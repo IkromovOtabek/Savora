@@ -280,7 +280,7 @@ export const uz = {
     lowEmpty: 'Hamma tovar yetarli.',
     outOfStock: 'Tugadi',
     /** {n} — qolgan soni */
-    nLeft: '{n} ta qoldi',
+    nLeft: '{n} qoldi',
     tasksTitle: 'Mening topshiriqlarim',
     tasksEmpty: 'Ochiq topshiriq yo\'q.',
     overdueAt: 'Muddati o\'tgan: ',
@@ -629,7 +629,7 @@ export const ru: typeof uz = {
     lowTitle: 'Заканчивающиеся товары',
     lowEmpty: 'Всех товаров достаточно.',
     outOfStock: 'Закончился',
-    nLeft: 'осталось {n} шт.',
+    nLeft: 'осталось {n}',
     tasksTitle: 'Мои задачи',
     tasksEmpty: 'Открытых задач нет.',
     overdueAt: 'Просрочено: ',

@@ -1,7 +1,32 @@
 import type { Model, Types } from 'mongoose';
 import type { IProduct, IProductHistory } from './models/tenant/Product';
+import { QTY_DECIMALS, roundQty } from './qty';
 
 type ProductModel = Model<IProduct>;
+
+/*
+ * Miqdor kasr bo'lishi mumkin (kg, m…), shuning uchun atomik yangilashlar `$inc` emas,
+ * pipeline update + `$round` (3 xona) bilan — 0.1 + 0.2 kabi float qoldiqlari bazada
+ * to'planmaydi va oxirgi 1.1 kg "yetarli emas" deb rad etilmaydi. Butun sonlarda natija o'zgarmaydi.
+ */
+const roundExpr = (expr: unknown) => ({ $round: [expr, QTY_DECIMALS] });
+/** Qoldiq (quantity − soldQuantity) ≥ qty sharti */
+export const availableGteExpr = (qty: number) => ({
+  $gte: [roundExpr({ $subtract: ['$quantity', '$soldQuantity'] }), qty],
+});
+/** Pipeline $set da qiymatlar maydon yo'li ("$…") deb talqin qilinmasin */
+const literalSet = (set: Record<string, unknown> = {}) =>
+  Object.fromEntries(Object.entries(set).map(([k, v]) => [k, { $literal: v }]));
+const pushHistoryStage = (history?: IProductHistory) =>
+  history ? [{ $set: { history: { $concatArrays: [{ $ifNull: ['$history', []] }, [{ $literal: history }]] } } }] : [];
+
+/** Sotuvda soldQuantity'ni oshiruvchi pipeline (lib/stock testlari shu shaklni tekshiradi) */
+export function reservePipeline(qty: number, set?: Record<string, unknown>, history?: IProductHistory) {
+  return [
+    { $set: { soldQuantity: roundExpr({ $add: ['$soldQuantity', qty] }), ...literalSet(set) } },
+    ...pushHistoryStage(history),
+  ];
+}
 
 /**
  * Ombordan ATOMIK ayirish (sotuv). Tekshiruv va yozuv bitta `findOneAndUpdate` da —
@@ -25,6 +50,8 @@ export async function reserveStock(
 ): Promise<(IProduct & { _id: Types.ObjectId }) | null> {
   const now = new Date();
   const push = opts.history ? { $push: { history: opts.history } } : {};
+  qty = roundQty(qty);
+  if (!(qty > 0)) return null;
 
   // 1) Sanaladigan mahsulot
   const tracked = await Product.findOneAndUpdate(
@@ -33,13 +60,13 @@ export async function reserveStock(
       ...(opts.scope ?? {}),
       status: 'in_stock',
       trackQuantity: true,
-      $expr: { $gte: [{ $subtract: ['$quantity', '$soldQuantity'] }, qty] },
+      $expr: availableGteExpr(qty),
     },
-    { $inc: { soldQuantity: qty }, ...(opts.set ? { $set: opts.set } : {}), ...push },
+    reservePipeline(qty, opts.set, opts.history),
     { new: true }
   ).lean<IProduct & { _id: Types.ObjectId }>();
   if (tracked) {
-    if (tracked.soldQuantity >= tracked.quantity) {
+    if (roundQty(tracked.soldQuantity - tracked.quantity) >= 0) {
       await Product.updateOne(
         { _id: tracked._id, $expr: { $gte: ['$soldQuantity', '$quantity'] } },
         { $set: { status: 'sold', soldAt: now } }
@@ -80,18 +107,23 @@ export async function transferStock(
   };
 
   if (opts.trackQuantity) {
+    qty = roundQty(qty);
+    if (!(qty > 0)) return null;
     const before = await Product.findOneAndUpdate(
       {
         ...base,
         trackQuantity: true,
-        $expr: { $gte: [{ $subtract: ['$quantity', '$soldQuantity'] }, qty] },
+        $expr: availableGteExpr(qty),
       },
-      { $inc: { quantity: -qty }, $push: { history: opts.history } },
+      [
+        { $set: { quantity: roundExpr({ $subtract: ['$quantity', qty] }) } },
+        ...pushHistoryStage(opts.history),
+      ],
       { new: false }
     ).lean<IProduct & { _id: Types.ObjectId }>();
     if (!before) return null;
-    const quantity = before.quantity - qty;
-    if (quantity - before.soldQuantity <= 0) {
+    const quantity = roundQty(before.quantity - qty);
+    if (roundQty(quantity - before.soldQuantity) <= 0) {
       const status = before.soldQuantity > 0
         ? (before.soldQuantity >= quantity ? 'sold' : 'in_stock')
         : 'transferred';
@@ -120,8 +152,9 @@ export async function releaseStock(
   qty: number,
   history?: IProductHistory
 ): Promise<void> {
+  qty = roundQty(qty);
   const tracked = await Product.updateOne({ _id: productId, trackQuantity: true }, [
-    { $set: { soldQuantity: { $max: [0, { $subtract: ['$soldQuantity', qty] }] } } },
+    { $set: { soldQuantity: { $max: [0, roundExpr({ $subtract: ['$soldQuantity', qty] })] } } },
     {
       $set: {
         status: {
@@ -133,7 +166,7 @@ export async function releaseStock(
         },
       },
     },
-    ...(history ? [{ $set: { history: { $concatArrays: [{ $ifNull: ['$history', []] }, [history]] } } }] : []),
+    ...pushHistoryStage(history),
   ]);
   if (tracked.matchedCount > 0) return;
 

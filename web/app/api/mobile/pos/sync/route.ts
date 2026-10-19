@@ -6,7 +6,7 @@ import { getTenantModels } from '@/lib/tenantDb';
 import { getMobileFeatures } from '@/lib/mobileOrg';
 import { applyOfflineSale, type OfflineSaleResult } from '@/lib/posSync';
 import { markOnboardingStep } from '@/lib/onboarding';
-import { readJsonInput, zDate, zId, zInt, zMoney, zText, zField } from '@/lib/validation';
+import { readJsonInput, zDate, zId, zQty, zMoney, zText, zField } from '@/lib/validation';
 
 /** Bir so'rovda eng ko'p sotuv — qolgani keyingi so'rovda (ilova bo'laklab yuboradi) */
 const MAX_BATCH = 100;
@@ -24,7 +24,7 @@ const saleSchema = z.object({
     return s;
   }),
   productId: zId('Mahsulot noto\'g\'ri.'),
-  qty: zInt('Son noto\'g\'ri.', 1, 100_000),
+  qty: zQty('Son noto\'g\'ri.'), // kg/m… uchun kasr; birlikka mosligi posSync'da
   totalAmount: zMoney('Summa noto\'g\'ri.', { min: 1 }),
   soldAt: zDate('Sotuv vaqti noto\'g\'ri.'),
   notes: zText(500, 'Izoh juda uzun.'),

@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { Types } from 'mongoose';
+import { parseQty } from './qty';
 
 /**
  * Kiruvchi ma'lumot (FormData / JSON body) uchun zod sxemalari — server action va mobil API'da
@@ -129,6 +130,33 @@ export const zOptInt = (message: string, min: number, max: number) =>
     if (s === '') return undefined;
     const n = Number(s);
     if (!Number.isInteger(n) || n < min || n > max) {
+      ctx.addIssue({ code: 'custom', message });
+      return z.NEVER;
+    }
+    return n;
+  });
+
+/**
+ * Ixtiyoriy miqdor: musbat, ≤3 xona kasr ("1,5" ham). Birlikka mosligi (dona — butun) mahsulot
+ * o'qilgach `isValidQty(n, product.unit)` bilan tekshiriladi — bu yerda birlik hali noma'lum.
+ */
+export const zOptQty = (message: string) =>
+  zField((v, ctx) => {
+    const s = str(v).trim();
+    if (s === '') return undefined;
+    const n = parseQty(s, 'kg'); // istalgan kasrli birlik qoidasi: >0, ≤3 xona
+    if (n === null) {
+      ctx.addIssue({ code: 'custom', message });
+      return z.NEVER;
+    }
+    return n;
+  });
+
+/** Majburiy miqdor — zOptQty bilan bir xil qoida, bo'sh qiymat ham xato */
+export const zQty = (message: string) =>
+  zField((v, ctx) => {
+    const n = parseQty(str(v), 'kg');
+    if (n === null) {
       ctx.addIssue({ code: 'custom', message });
       return z.NEVER;
     }

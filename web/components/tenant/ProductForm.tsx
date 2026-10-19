@@ -14,7 +14,8 @@ import UsdPricePanel from '@/components/tenant/UsdPricePanel';
 import { fmtMoney } from '@/lib/format';
 import { useDict } from '@/lib/i18n/client';
 import { tr } from '@/lib/i18n/fmt';
-import { PRODUCT_UNITS, type ProductFieldKey, type ProductFieldSpec } from '@/lib/businessTypes';
+import { fmtQty, isFractionalUnit, parseQty, priceTimesQty } from '@/lib/qty';
+import { PRODUCT_UNITS, type ProductFieldKey, type ProductFieldSpec, type ProductUnit } from '@/lib/businessTypes';
 
 interface BranchOption { id: string; name: string }
 
@@ -104,7 +105,10 @@ export default function ProductForm({
     initial?.soldPaymentType ?? 'cash'
   );
   const [trackQuantity, setTrackQuantity] = useState(initial?.trackQuantity ?? false);
-  const [qtyRaw, setQtyRaw] = useState(String(initial?.quantity ?? 1));
+  const [qtyRaw, setQtyRaw] = useState(fmtQty(initial?.quantity ?? 1));
+  // O'lchov birligi: kg/m… — miqdor kasr (1,5), aks holda butun
+  const [unit, setUnit] = useState(initial?.extra?.unit || 'dona');
+  const fractional = isFractionalUnit(unit);
   const [supplierId, setSupplierId] = useState(initial?.supplierId ?? '');
   const activeCreditBanks = creditBanks.filter(Boolean);
 
@@ -239,6 +243,7 @@ export default function ProductForm({
                     initial={{ color: initial?.color, ...initial?.extra }}
                     categories={categories}
                     disabled={isPending}
+                    onUnitChange={setUnit}
                   />
                 )}
               </div>
@@ -339,20 +344,35 @@ export default function ProductForm({
                   <div className="auth-field">
                     <label htmlFor="quantity">
                       {mode === 'create' ? t.qtyCreate : t.qtyEdit}
+                      {fractional ? ` (${d.stock.fields.units[unit as ProductUnit]})` : ''}
                     </label>
-                    <input
-                      id="quantity"
-                      name="quantity"
-                      type="number"
-                      min={1}
-                      required
-                      value={qtyRaw}
-                      onChange={(e) => setQtyRaw(e.target.value)}
-                      disabled={isPending}
-                    />
+                    {fractional ? (
+                      <input
+                        id="quantity"
+                        name="quantity"
+                        type="text"
+                        inputMode="decimal"
+                        required
+                        value={qtyRaw}
+                        onChange={(e) => setQtyRaw(e.target.value.replace(/[^\d.,]/g, ''))}
+                        aria-invalid={parseQty(qtyRaw, unit) === null || undefined}
+                        disabled={isPending}
+                      />
+                    ) : (
+                      <input
+                        id="quantity"
+                        name="quantity"
+                        type="number"
+                        min={1}
+                        required
+                        value={qtyRaw}
+                        onChange={(e) => setQtyRaw(e.target.value)}
+                        disabled={isPending}
+                      />
+                    )}
                     {mode === 'edit' && initial?.trackQuantity && (
                       <span className="field-hint">
-                        {tr(t.soldRemaining, { sold: initial.soldQuantity ?? 0, left: Math.max(0, (initial.quantity ?? 0) - (initial.soldQuantity ?? 0)) })}
+                        {tr(t.soldRemaining, { sold: fmtQty(initial.soldQuantity ?? 0), left: fmtQty(Math.max(0, (initial.quantity ?? 0) - (initial.soldQuantity ?? 0))) })}
                       </span>
                     )}
                   </div>
@@ -485,7 +505,7 @@ export default function ProductForm({
                     {isCreate && supplierId && purchaseNum > 0 && (
                       <label className="st-switch-row">
                         <span className="st-switch-row-t">
-                          <b>{tr(d.stock.suppliers.productAsDebt, { sum: fmt(purchaseNum * (trackQuantity ? Math.max(1, Math.floor(Number(qtyRaw)) || 1) : 1)) })}</b>
+                          <b>{tr(d.stock.suppliers.productAsDebt, { sum: fmt(priceTimesQty(purchaseNum, trackQuantity ? parseQty(qtyRaw, unit) ?? 1 : 1)) })}</b>
                           <small>{d.stock.suppliers.productAsDebtHint}</small>
                         </span>
                         <input type="checkbox" role="switch" className="st-switch" name="supplierDebt" disabled={isPending} />
@@ -519,11 +539,14 @@ function ProductExtraFields({
   initial,
   categories,
   disabled,
+  onUnitChange,
 }: {
   fields: ProductFieldSpec[];
   initial: Partial<Record<ProductFieldKey, string>>;
   categories: string[];
   disabled: boolean;
+  /** Birlik o'zgarsa — miqdor maydoni kasr/butun rejimiga o'tadi */
+  onUnitChange?: (unit: string) => void;
 }) {
   const f = useDict().stock.fields;
   const inputs = fields.map(({ key, required }) => {
@@ -535,7 +558,7 @@ function ProductExtraFields({
     switch (key) {
       case 'unit':
         input = (
-          <select {...common} defaultValue={initial.unit || 'dona'}>
+          <select {...common} defaultValue={initial.unit || 'dona'} onChange={(e) => onUnitChange?.(e.target.value)}>
             {PRODUCT_UNITS.map((u) => <option key={u} value={u}>{f.units[u]}</option>)}
           </select>
         );

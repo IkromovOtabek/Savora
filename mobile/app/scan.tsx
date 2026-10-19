@@ -44,7 +44,7 @@ export default function Scan() {
             Alert.alert(d.scan.notInSale, tr(d.scan.notInSaleMsg, { name: hit.name }), [{ text: d.scan.rescan, onPress: unlock }]);
             return;
           }
-          putPicked({ id: hit.id, name: hit.name, salePrice: hit.salePrice, available: hit.available, trackQuantity: hit.trackQuantity, status: hit.status });
+          putPicked({ id: hit.id, name: hit.name, salePrice: hit.salePrice, available: hit.available, trackQuantity: hit.trackQuantity, status: hit.status, unit: hit.unit ?? null });
           router.back();
         } else {
           router.replace(`/product/${hit.id}`);

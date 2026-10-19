@@ -8,13 +8,19 @@ import Icon from '@/components/icons/Icon';
 import { fmtMoney } from '@/lib/format';
 import { toast } from '@/lib/toast';
 import { useDict } from '@/lib/i18n/client';
-import { tr } from '@/lib/i18n/fmt';
+import { qtyWithUnit, tr } from '@/lib/i18n/fmt';
+import { addQty, fmtQty, isFractionalUnit, parseQty, priceTimesQty } from '@/lib/qty';
 import './styles/sales.css';
 
 interface CartLine extends ScannedProduct {
   qty: number;
   priceInput: string;
+  /** kg/m… — qo'lda kiritilayotgan miqdor matni ("1,5"); yaroqsiz bo'lsa sotish o'chadi */
+  qtyText?: string;
 }
+
+const isFractionalLine = (line: CartLine) => line.trackQuantity && isFractionalUnit(line.unit);
+const badQty = (line: CartLine) => isFractionalLine(line) && line.qtyText !== undefined && parseQty(line.qtyText, line.unit) === null;
 
 interface Props {
   open: boolean;
@@ -51,7 +57,7 @@ export default function QuickSaleModal({ open, onClose }: Props) {
   const total = useMemo(
     () => cart.reduce((sum, line) => {
       const price = needsPrice(line) ? Number(line.priceInput) || 0 : line.salePrice;
-      return sum + price * line.qty;
+      return sum + priceTimesQty(price, line.qty);
     }, 0),
     [cart],
   );
@@ -66,16 +72,18 @@ export default function QuickSaleModal({ open, onClose }: Props) {
           setLookupError(tr(d.sales.quickSale.alreadyInCart, { name: product.name }));
           return prev;
         }
-        const nextQty = line.qty + 1;
+        const nextQty = addQty(line.qty, 1);
         if (nextQty > line.available) {
-          setLookupError(tr(d.sales.quickSale.maxN, { name: product.name, n: line.available }));
+          setLookupError(tr(d.sales.quickSale.maxN, { name: product.name, n: qtyWithUnit(line.available, line.unit, d.stock.fields.units) }));
           return prev;
         }
         const next = [...prev];
-        next[idx] = { ...line, qty: nextQty };
+        next[idx] = { ...line, qty: nextQty, qtyText: undefined };
         return next;
       }
-      return [...prev, { ...product, qty: 1, priceInput: product.salePrice > 0 ? String(product.salePrice) : '' }];
+      // Kasrli birlikda qoldiq 1 dan kam bo'lishi mumkin (0,4 kg) — boricha
+      const firstQty = product.trackQuantity ? Math.min(1, product.available) : 1;
+      return [...prev, { ...product, qty: firstQty, priceInput: product.salePrice > 0 ? String(product.salePrice) : '' }];
     });
   }, [d]);
 
@@ -96,8 +104,17 @@ export default function QuickSaleModal({ open, onClose }: Props) {
   function updateQty(id: string, qty: number) {
     setCart((prev) => prev.map((line) => {
       if (line.id !== id) return line;
-      const next = Math.min(line.available, Math.max(1, qty));
-      return { ...line, qty: next };
+      const next = Math.min(line.available, Math.max(isFractionalLine(line) ? Math.min(1, line.available) : 1, qty));
+      return { ...line, qty: next, qtyText: undefined };
+    }));
+  }
+
+  /** Kasrli birlikda miqdorni qo'lda kiritish: yaroqli bo'lsa qoldiqqacha cheklanadi */
+  function typeQty(id: string, text: string) {
+    setCart((prev) => prev.map((line) => {
+      if (line.id !== id) return line;
+      const n = parseQty(text, line.unit);
+      return n === null ? { ...line, qtyText: text } : { ...line, qty: Math.min(line.available, n), qtyText: text };
     }));
   }
 
@@ -124,6 +141,10 @@ export default function QuickSaleModal({ open, onClose }: Props) {
     });
 
     for (const line of cart) {
+      if (badQty(line)) {
+        setSellError(`${line.name}: ${d.sales.actions.badQty}`);
+        return;
+      }
       if (needsPrice(line)) {
         const price = Number(line.priceInput);
         if (!price || price <= 0) {
@@ -217,15 +238,28 @@ export default function QuickSaleModal({ open, onClose }: Props) {
                       ) : null}
                       {line.trackQuantity ? (
                         <div className="sl-qty">
-                          <button type="button" disabled={line.qty <= 1 || busy} onClick={() => updateQty(line.id, line.qty - 1)} aria-label={d.sales.newSale.decrease}>−</button>
-                          <span aria-live="polite">{line.qty}</span>
-                          <button type="button" disabled={line.qty >= line.available || busy} onClick={() => updateQty(line.id, line.qty + 1)} aria-label={d.sales.newSale.increase}>+</button>
+                          <button type="button" disabled={line.qty <= 1 || busy} onClick={() => updateQty(line.id, addQty(line.qty, -1))} aria-label={d.sales.newSale.decrease}>−</button>
+                          {isFractionalLine(line) ? (
+                            <input
+                              className="sl-qty-input"
+                              inputMode="decimal"
+                              value={line.qtyText ?? fmtQty(line.qty)}
+                              onChange={(e) => typeQty(line.id, e.target.value.replace(/[^\d.,]/g, ''))}
+                              aria-label={`${d.sales.pos.qty}: ${line.name}`}
+                              aria-invalid={badQty(line) || undefined}
+                              disabled={busy}
+                            />
+                          ) : (
+                            <span aria-live="polite">{line.qty}</span>
+                          )}
+                          <button type="button" disabled={line.qty >= line.available || busy} onClick={() => updateQty(line.id, addQty(line.qty, 1))} aria-label={d.sales.newSale.increase}>+</button>
+                          {isFractionalLine(line) && line.unit && <small className="sl-qty-unit">{d.stock.fields.units[line.unit]}</small>}
                         </div>
                       ) : null}
                     </div>
                     <div className="sl-cart-sum">
-                      {fmtMoney(unitPrice * line.qty)}
-                      {line.qty > 1 && <small>{line.qty} × {fmtMoney(unitPrice)}</small>}
+                      {fmtMoney(priceTimesQty(unitPrice, line.qty))}
+                      {line.qty !== 1 && <small>{fmtQty(line.qty)} × {fmtMoney(unitPrice)}</small>}
                     </div>
                     <button type="button" className="icon-btn sl-cart-del" title={d.common.delete} aria-label={tr(d.sales.quickSale.removeAria, { name: line.name })} onClick={() => removeLine(line.id)} disabled={busy}>
                       <Icon name="close" size={16} />

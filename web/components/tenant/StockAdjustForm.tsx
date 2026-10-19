@@ -8,6 +8,9 @@ import { fmtMoney } from '@/lib/format';
 import { toast } from '@/lib/toast';
 import Icon from '@/components/icons/Icon';
 import { useDict } from '@/lib/i18n/client';
+import { qtyWithUnit } from '@/lib/i18n/fmt';
+import { isFractionalUnit, parseQty, priceTimesQty } from '@/lib/qty';
+import type { ProductUnit } from '@/lib/businessTypes';
 
 export interface AdjustProduct {
   id: string;
@@ -17,6 +20,8 @@ export interface AdjustProduct {
   wholesalePrice?: number;
   tracked: boolean;
   available: number;
+  /** kg/m… — chiqariladigan miqdor kasr bo'lishi mumkin */
+  unit?: ProductUnit | null;
   /** Faqat kelish narxini ko'rish huquqi bo'lsa */
   purchasePrice?: number;
 }
@@ -69,7 +74,9 @@ export default function StockAdjustForm({ mode, products, initialIds = [] }: { m
   }
 
   const rows = lines.flatMap((l) => { const p = byId.get(l.id); return p ? [{ l, p }] : []; });
-  const totalCost = rows.reduce((s, { l, p }) => s + (Number(l.qty) || 0) * (p.purchasePrice ?? 0), 0);
+  /** Kiritilgan miqdor (kg — kasr, dona — butun); yaroqsiz — null */
+  const qtyOf = (l: Line, p: AdjustProduct) => (p.tracked ? parseQty(l.qty, p.unit) : 1);
+  const totalCost = rows.reduce((s, { l, p }) => s + priceTimesQty(p.purchasePrice ?? 0, qtyOf(l, p) ?? 0), 0);
   const showCost = mode === 'writeoff' && products.some((p) => p.purchasePrice !== undefined);
 
   function submit() {
@@ -85,7 +92,7 @@ export default function StockAdjustForm({ mode, products, initialIds = [] }: { m
             });
           })()
         : await writeOffAction({
-            lines: rows.map(({ l, p }) => ({ productId: p.id, qty: p.tracked ? Number(l.qty) || 0 : 1 })),
+            lines: rows.map(({ l, p }) => ({ productId: p.id, qty: qtyOf(l, p) ?? 0 })),
             reason,
             note: note.trim() || undefined,
           });
@@ -112,7 +119,7 @@ export default function StockAdjustForm({ mode, products, initialIds = [] }: { m
               <li key={p.id}>
                 <button type="button" className="sa-res" onClick={() => add(p)}>
                   <span><b>{p.name}</b><small>{p.code}</small></span>
-                  <span className="sa-res-r"><b>{fmtMoney(p.salePrice)}</b><small>{k.colAvail}: {p.available}</small></span>
+                  <span className="sa-res-r"><b>{fmtMoney(p.salePrice)}</b><small>{k.colAvail}: {qtyWithUnit(p.available, p.unit, d.stock.fields.units)}</small></span>
                 </button>
               </li>
             ))}
@@ -162,13 +169,15 @@ export default function StockAdjustForm({ mode, products, initialIds = [] }: { m
                       </>
                     ) : (
                       <>
-                        <td className="num">{p.available}</td>
+                        <td className="num">{qtyWithUnit(p.available, p.unit, d.stock.fields.units)}</td>
                         <td className="num">
                           {p.tracked
-                            ? <input className="sa-num sa-num--qty" inputMode="numeric" value={l.qty} aria-label={`${k.colQty}: ${p.name}`} onChange={(e) => patch(i, { qty: e.target.value.replace(/\D/g, '') })} />
+                            ? isFractionalUnit(p.unit)
+                              ? <input className="sa-num sa-num--qty" inputMode="decimal" value={l.qty} aria-label={`${k.colQty}: ${p.name}`} aria-invalid={qtyOf(l, p) === null || undefined} onChange={(e) => patch(i, { qty: e.target.value.replace(/[^\d.,]/g, '') })} />
+                              : <input className="sa-num sa-num--qty" inputMode="numeric" value={l.qty} aria-label={`${k.colQty}: ${p.name}`} onChange={(e) => patch(i, { qty: e.target.value.replace(/\D/g, '') })} />
                             : 1}
                         </td>
-                        {showCost && <td className="num">{fmtMoney((Number(l.qty) || 0) * (p.purchasePrice ?? 0))}</td>}
+                        {showCost && <td className="num">{fmtMoney(priceTimesQty(p.purchasePrice ?? 0, qtyOf(l, p) ?? 0))}</td>}
                       </>
                     )}
                     <td className="cell-actions">
