@@ -7,9 +7,13 @@ import { useDict } from '@/lib/i18n/client';
 type Width = 58 | 80;
 const KEY = 'sl-receipt-width';
 
-/** Chop etish + termal rulon kengligi (58/80 mm) tanlovi. Tanlov brauzerda eslab qolinadi. */
-export default function PrintReceiptButton() {
-  const [width, setWidth] = useState<Width>(80);
+/**
+ * Chop etish + termal rulon kengligi (58/80 mm) tanlovi.
+ * Standart kenglik — do'kon sozlamasidan; shu qurilmada boshqasi tanlansa, brauzerda eslab qolinadi.
+ * autoPrint — sahifa ochilishi bilan chop etish oynasi (kassadan "Chek" bosilganda).
+ */
+export default function PrintReceiptButton({ defaultWidth = 80, autoPrint = false }: { defaultWidth?: Width; autoPrint?: boolean }) {
+  const [width, setWidth] = useState<Width>(defaultWidth);
   const d = useDict();
 
   useEffect(() => {
@@ -18,6 +22,13 @@ export default function PrintReceiptButton() {
       if (saved === '58' || saved === '80') setWidth(Number(saved) as Width);
     } catch { /* localStorage yopiq bo'lishi mumkin */ }
   }, []);
+
+  useEffect(() => {
+    if (!autoPrint) return;
+    // Uslub (kenglik) qo'llanib ulgursin
+    const t = window.setTimeout(() => window.print(), 400);
+    return () => window.clearTimeout(t);
+  }, [autoPrint]);
 
   function pick(w: Width) {
     setWidth(w);

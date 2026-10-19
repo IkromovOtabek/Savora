@@ -1,0 +1,43 @@
+/* Do'kon sozlamalari — prefiks ss- */
+.ss-tabs { display: inline-flex; gap: 4px; padding: 4px; margin-bottom: 16px; border-radius: 12px; background: var(--fill); }
+.ss-tabs a { padding: 7px 16px; border-radius: 9px; font-size: 14px; font-weight: 500; color: var(--ink-2); text-decoration: none; }
+.ss-tabs a[aria-current] { background: var(--surface); color: var(--ink-1); font-weight: 600; box-shadow: 0 1px 2px rgba(0, 0, 0, .12); }
+
+.ss-split { display: grid; grid-template-columns: minmax(0, 560px) minmax(0, 1fr); gap: 20px; align-items: start; }
+.ss-card { background: var(--surface); border-radius: var(--r-lg); padding: 20px; box-shadow: 0 0 0 .5px var(--sep); }
+.ss-form { display: grid; gap: 16px; }
+.ss-form > .btn { justify-self: start; }
+.ss-h { margin: 0; font-size: 17px; font-weight: 700; }
+.ss-hint { margin: 4px 0 0; font-size: 13px; color: var(--ink-3); line-height: 1.45; }
+.ss-field { border: 0; margin: 0; padding: 0; display: grid; gap: 8px; }
+.ss-field legend { padding: 0; margin-bottom: 8px; font-size: 13px; font-weight: 600; color: var(--ink-2); }
+.ss-seg { display: inline-flex; gap: 4px; padding: 4px; border-radius: 12px; background: var(--fill); justify-self: start; }
+.ss-seg label { padding: 7px 16px; border-radius: 9px; font-size: 14px; cursor: pointer; color: var(--ink-2); }
+.ss-seg label.is-on { background: var(--surface); color: var(--ink-1); font-weight: 600; box-shadow: 0 1px 2px rgba(0, 0, 0, .12); }
+.ss-seg input { position: absolute; opacity: 0; pointer-events: none; }
+.ss-seg label:has(input:focus-visible) { outline: 3px solid var(--brand-ring); }
+.ss-check { display: flex; align-items: center; gap: 10px; font-size: 14px; cursor: pointer; }
+.ss-check input { width: 18px; height: 18px; margin: 0; accent-color: var(--brand-fill, var(--brand)); }
+
+/* Jonli chek ko'rinishi */
+.ss-preview { display: grid; justify-items: center; gap: 10px; position: sticky; top: 16px; }
+.ss-preview-l { font-size: 12px; font-weight: 600; color: var(--ink-3); text-transform: uppercase; letter-spacing: .08em; }
+.ss-paper {
+  width: calc(80mm + 32px); max-width: 100%; display: grid; gap: 3px; padding: 20px 16px; border-radius: 4px;
+  background: #fff; color: #111; font-size: 12px; font-variant-numeric: tabular-nums; text-align: center;
+  box-shadow: 0 10px 30px -12px rgba(0, 0, 0, .35); transition: width .2s;
+}
+.ss-paper--58 { width: calc(58mm + 32px); }
+.ss-paper hr { width: 100%; border: 0; border-top: 1px dashed #999; margin: 8px 0; }
+.ss-p-name { font-size: 15px; }
+.ss-p-mut { color: #666; font-size: 11px; overflow-wrap: anywhere; }
+.ss-p-title { margin-top: 6px; font-size: 10px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; }
+.ss-p-row { display: flex; justify-content: space-between; gap: 8px; text-align: left; }
+.ss-p-row span:first-child { color: #666; }
+.ss-p-total b { font-size: 15px; }
+.ss-p-foot { font-size: 13px; overflow-wrap: anywhere; }
+
+@media (max-width: 900px) {
+  .ss-split { grid-template-columns: minmax(0, 1fr); }
+  .ss-preview { position: static; }
+}

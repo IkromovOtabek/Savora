@@ -20,7 +20,8 @@ import { parseInput, zId, zMoney, zOneOf, zOptInt, zText } from '@/lib/validatio
 import { getI18n } from '@/lib/i18n/server';
 import { tr } from '@/lib/i18n/fmt';
 
-type State = { error?: string; success?: string } | null;
+/** saleIds — kassa cheki uchun (har qator alohida Sale) */
+type State = { error?: string; success?: string; saleIds?: string[] } | null;
 
 const POS_MAX_LINES = 100;
 
@@ -140,7 +141,7 @@ export async function posSaleAction(input: PosSaleInput): Promise<State> {
       throw err;
     }
     return {
-      result: { productId: String(product._id), name: product.name, qty, unit, discount: lineDisc[i], total },
+      result: { productId: String(product._id), saleId: String(saleId), name: product.name, qty, unit, discount: lineDisc[i], total },
       undo: async () => { await Sale.deleteOne({ _id: saleId }); await restock(); },
     };
   });
@@ -167,5 +168,5 @@ export async function posSaleAction(input: PosSaleInput): Promise<State> {
   revalidatePath('/app/products');
   revalidatePath('/app/sales');
   revalidatePath('/app/shifts');
-  return { success: tr(m.quickSold, { n: soldCount, sum: soldTotal.toLocaleString('uz-UZ') }) };
+  return { success: tr(m.quickSold, { n: soldCount, sum: soldTotal.toLocaleString('uz-UZ') }), saleIds: outcome.results.map((r) => r.saleId) };
 }

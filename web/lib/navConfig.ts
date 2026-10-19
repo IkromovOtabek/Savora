@@ -41,6 +41,7 @@ export const NAV_ICONS: Record<string, IconName> = {
   '/app/monitoring': 'chart',
   '/app/users': 'users',
   '/app/profile': 'settings',
+  '/app/settings': 'store',
   '/app/kirim-chiqim': 'repeat',
   '/app/kredit-kassa': 'plans',
   '/app/customers': 'user',
@@ -134,6 +135,7 @@ export const NAV_GROUPS: NavGroup[] = [
     title: 'Sozlamalar',
     links: [
       { href: '/app/profile', label: 'Kabinet' },
+      { href: '/app/settings', label: "Do'kon sozlamalari", adminOnly: true },
     ],
   },
 ];

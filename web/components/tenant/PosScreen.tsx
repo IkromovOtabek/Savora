@@ -82,6 +82,8 @@ export default function PosScreen({ products, canDiscount, canEditPrice, noShift
   const [note, setNote] = useState('');
   const [parked, setParked] = useState<ParkedSale[]>([]);
   const [showParked, setShowParked] = useState(false);
+  // Oxirgi yakunlangan sotuv — kassa chekini chop etish uchun
+  const [lastSaleIds, setLastSaleIds] = useState<string[]>([]);
 
   const searchRef = useRef<HTMLInputElement>(null);
   const customerRef = useRef<HTMLInputElement>(null);
@@ -166,6 +168,7 @@ export default function PosScreen({ products, canDiscount, canEditPrice, noShift
       });
       if (res?.success) {
         toast(res.success, 'success');
+        setLastSaleIds(res.saleIds ?? []);
         resetSale();
         router.refresh();
         searchRef.current?.focus();
@@ -422,6 +425,13 @@ export default function PosScreen({ products, canDiscount, canEditPrice, noShift
         </div>
 
         <div className="pos-pay">
+          {lastSaleIds.length > 0 && (
+            <a href={`/app/sales/receipt?ids=${lastSaleIds.join(',')}&print=1`} target="_blank" rel="noopener" className="pos-receipt">
+              <Icon name="clipboard" size={16} />
+              <span>{k.lastSale}</span>
+              <b>{k.printReceipt}</b>
+            </a>
+          )}
           <div className="pos-sum"><span>{k.subtotal}</span><b>{fmtMoney(subtotal)} {d.common.sum}</b></div>
           {discount > 0 && <div className="pos-sum pos-sum--disc"><span>{k.discount}</span><b>− {fmtMoney(discount)} {d.common.sum}</b></div>}
           <button type="button" className="pos-pay-btn" onClick={pay} disabled={!rows.length || pending || missingPrice || total <= 0}>
