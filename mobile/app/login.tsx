@@ -4,13 +4,12 @@ import {
   type TextInput,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import * as Linking from 'expo-linking';
 import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import Svg, { G, Rect } from 'react-native-svg';
 import { useAuth } from '@/lib/auth';
-import { API_URL, errMsg } from '@/lib/api';
+import { errMsg } from '@/lib/api';
 import { useTheme } from '@/lib/theme';
 import { useDict, useI18n, LOCALES, LOCALE_SHORT } from '@/lib/i18n';
 import { Field, Button, BrandMark } from '@/components/ui';
@@ -196,9 +195,9 @@ export default function LoginScreen() {
             </Animated.View>
             <Animated.View style={rise(rows[2], 16)}>
               <Button title={d.login.submit} size="lg" full loading={busy} onPress={onSubmit} style={{ marginTop: 6 }} />
-              {/* Do'kon ochish — web'da (ilovadan kelganda faqat bepul tarif), keyin ilovaga qaytadi */}
+              {/* Do'kon ochish — ilova ichida (bepul tarif) */}
               <Pressable
-                onPress={() => Linking.openURL(`${API_URL}/register?from=app`)}
+                onPress={() => router.push('/register')}
                 hitSlop={8}
                 accessibilityRole="link"
                 style={({ pressed }) => [s.register, pressed && { opacity: 0.6 }]}

@@ -20,7 +20,8 @@ function AuthGate() {
   const router = useRouter();
   useEffect(() => {
     if (loading || me || error) return;
-    if (segments[0] !== 'login') router.replace('/login');
+    // Kirmagan foydalanuvchi faqat kirish va ro'yxatdan o'tish ekranlarida qola oladi
+    if (segments[0] !== 'login' && segments[0] !== 'register') router.replace('/login');
   }, [loading, me, error, segments, router]);
   return null;
 }

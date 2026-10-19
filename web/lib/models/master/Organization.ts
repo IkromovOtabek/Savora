@@ -42,6 +42,8 @@ export interface IOrganization {
   notifyExpiryOn?: string;
   /** Telegram chat ID (do'kon admini ulagan bo'lsa) */
   telegramChatId?: string;
+  /** Egasi ilovadan hisobni o'chirishni so'ragan vaqt (App Store 5.1.1(v)); do'kon shu zahoti to'xtatiladi */
+  deletionRequestedAt?: Date;
   /** Do'kon ichidagi loginlar nusxasi (super admin ko'rishi uchun) — manba tenant DB */
   users?: {
     username: string;
@@ -106,6 +108,7 @@ export const organizationSchema = new Schema<IOrganization>(
     },
     notifyExpiryOn: { type: String },
     telegramChatId: { type: String },
+    deletionRequestedAt: { type: Date },
     users: {
       type: [
         {

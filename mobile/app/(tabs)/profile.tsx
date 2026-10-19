@@ -151,6 +151,8 @@ export default function Profile() {
 
       <Group footer={`Savora Mobile v${Constants.expoConfig?.version ?? '1.0.0'}`}>
         <Cell icon="log-out" iconColor={c.sq.r} title={d.profile.logout} destructive onPress={onLogout} />
+        {/* App Store 5.1.1(v): ilovada hisob ochish bor — o'chirish ham bo'lishi shart (faqat do'kon egasi) */}
+        {isAdmin ? <Cell icon="trash" iconColor={c.sq.r} title={d.profile.deleteAccount} destructive chevron onPress={() => router.push('/delete-account')} /> : null}
       </Group>
     </Screen>
   );

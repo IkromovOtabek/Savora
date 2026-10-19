@@ -37,6 +37,8 @@ export interface MeResponse {
 /** Standart atamalar — me hali yuklanmagan bo'lsa. */
 export const DEFAULT_TERMS: Terms = { item: 'Mahsulot', items: 'Ombor', addItem: 'Mahsulot qo\'shish', codeLabel: 'Kod / shtrix', hasImei: false };
 
+export interface RegisterInput { name: string; businessType: string; username: string; password: string; acceptTerms: true }
+
 interface AuthState {
   loading: boolean;
   me: MeResponse | null;
@@ -45,6 +47,8 @@ interface AuthState {
   /** Profil serverdan emas, qurilmadagi keshdan (internet yo'q) */
   fromCache: boolean;
   login: (username: string, password: string, slug?: string) => Promise<void>;
+  /** Ilova ichida bepul do'kon ochish — muvaffaqiyatda darhol kiradi */
+  register: (input: RegisterInput) => Promise<void>;
   logout: () => Promise<void>;
   refresh: () => Promise<void>;
 }
@@ -96,6 +100,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await refresh();
   }, [refresh]);
 
+  const register = useCallback(async (input: RegisterInput) => {
+    const res = await api<{ token: string }>('/api/mobile/auth/register', { method: 'POST', auth: false, body: input });
+    await setToken(res.token);
+    await refresh();
+  }, [refresh]);
+
   const logout = useCallback(async () => {
     await clearToken();
     void cacheMe(null);
@@ -103,7 +113,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   return (
-    <AuthContext.Provider value={{ loading, me, error, fromCache, login, logout, refresh }}>
+    <AuthContext.Provider value={{ loading, me, error, fromCache, login, register, logout, refresh }}>
       {children}
     </AuthContext.Provider>
   );
