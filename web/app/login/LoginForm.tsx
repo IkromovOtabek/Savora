@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useActionState } from 'react';
+import { useActionState, useState } from 'react';
 import { loginAction } from '@/app/actions/auth';
 import PasswordField from '@/components/auth/PasswordField';
 import { AuthAlert } from '@/components/auth/AuthShell';
@@ -43,6 +43,8 @@ export default function LoginForm({
 }: Props) {
   const [state, formAction, isPending] = useActionState(loginAction, null);
   const error = state?.error ?? null;
+  // Boshqariladigan qiymat — xato javobidan keyin React forma tozalasa ham login yo'qolmaydi
+  const [username, setUsername] = useState(defaultUsername ?? '');
   const d = useDict();
   const t = d.auth.login;
 
@@ -103,7 +105,8 @@ export default function LoginForm({
                     required
                     autoFocus
                     disabled={isPending}
-                    defaultValue={defaultUsername}
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
                   />
                 </div>
               </div>
