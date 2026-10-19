@@ -9,7 +9,9 @@ import { fmtMoney } from '@/lib/format';
 import { toast } from '@/lib/toast';
 import Icon from '@/components/icons/Icon';
 import { useDict } from '@/lib/i18n/client';
-import { tr } from '@/lib/i18n/fmt';
+import { qtyWithUnit, tr } from '@/lib/i18n/fmt';
+import { addQty, fmtQty, isFractionalUnit, parseQty, priceTimesQty, qtyStep } from '@/lib/qty';
+import type { ProductUnit } from '@/lib/businessTypes';
 import './styles/pos.css';
 
 export interface PosProduct {
@@ -21,9 +23,12 @@ export interface PosProduct {
   wholesalePrice?: number;
   tracked: boolean;
   available: number;
+  /** O'lchov birligi: kg/m… — miqdor kasr bo'lishi mumkin (savatchada qo'lda kiritiladi) */
+  unit?: ProductUnit | null;
 }
 
-interface CartLine { id: string; qty: number; price: string }
+/** qtyText — kasrli birlikda kiritilayotgan matn ("1,5"); yaroqsiz bo'lsa qty o'zgarmaydi, to'lov o'chadi */
+interface CartLine { id: string; qty: number; price: string; qtyText?: string }
 interface ParkedSale {
   id: string;
   at: number;
@@ -110,13 +115,15 @@ export default function PosScreen({ products, canDiscount, canEditPrice, noShift
     const custom = Number(line.price) || 0;
     const needsPrice = base <= 0;
     const unit = needsPrice || (canEditPrice && custom > 0) ? custom : base;
-    return [{ line, p, unit, needsPrice, isWholesale: wholesale && !!p.wholesalePrice, total: unit * line.qty }];
+    const fractional = p.tracked && isFractionalUnit(p.unit);
+    const badQty = fractional && line.qtyText !== undefined && parseQty(line.qtyText, p.unit) === null;
+    return [{ line, p, unit, needsPrice, fractional, badQty, isWholesale: wholesale && !!p.wholesalePrice, total: priceTimesQty(unit, line.qty) }];
   }), [cart, byId, wholesale, canEditPrice]);
 
   const subtotal = rows.reduce((s, r) => s + r.total, 0);
   const discount = canDiscount ? discountAmount(subtotal, { kind: discountKind, value: Number(discountValue) || 0 }) : 0;
   const total = subtotal - discount;
-  const missingPrice = rows.some((r) => r.unit <= 0);
+  const missingPrice = rows.some((r) => r.unit <= 0 || r.badQty);
 
   const add = useCallback((p: PosProduct) => {
     setCart((prev) => {
@@ -124,12 +131,13 @@ export default function PosScreen({ products, canDiscount, canEditPrice, noShift
       if (i >= 0) {
         if (!p.tracked || prev[i].qty >= p.available) return prev; // dona mahsulot — bitta, qoldiqdan oshmaydi
         const next = [...prev];
-        next[i] = { ...next[i], qty: next[i].qty + 1 };
+        next[i] = { ...next[i], qty: Math.min(p.available, addQty(next[i].qty, 1)), qtyText: undefined };
         setSel(i);
         return next;
       }
       setSel(prev.length);
-      return [...prev, { id: p.id, qty: 1, price: '' }];
+      // Kasrli birlikda qoldiq 1 dan kam bo'lishi mumkin (0,4 kg) — boricha
+      return [...prev, { id: p.id, qty: p.tracked ? Math.min(1, p.available) : 1, price: '' }];
     });
     setQuery('');
     setHit(0);
@@ -140,8 +148,18 @@ export default function PosScreen({ products, canDiscount, canEditPrice, noShift
       if (idx !== i) return [l];
       const p = byId.get(l.id);
       const max = p?.tracked ? p.available : 1;
-      const qty = Math.min(max, l.qty + delta);
-      return qty <= 0 ? [] : [{ ...l, qty }];
+      const qty = Math.min(max, addQty(l.qty, delta));
+      return qty <= 0 ? [] : [{ ...l, qty, qtyText: undefined }];
+    }));
+  }, [byId]);
+
+  /** Kasrli birlikda miqdorni qo'lda kiritish: yaroqli bo'lsa qoldiqqacha cheklanadi */
+  const typeQty = useCallback((i: number, text: string) => {
+    setCart((prev) => prev.map((l, idx) => {
+      if (idx !== i) return l;
+      const p = byId.get(l.id);
+      const n = parseQty(text, p?.unit);
+      return n === null ? { ...l, qtyText: text } : { ...l, qty: Math.min(p?.available ?? n, n), qtyText: text };
     }));
   }, [byId]);
 
@@ -280,7 +298,7 @@ export default function PosScreen({ products, canDiscount, canEditPrice, noShift
                     <span className="pos-res-name">{p.name}<small>{p.codes[0]}</small></span>
                     <span className="pos-res-meta">
                       <b>{fmtMoney(unitPriceFor(p, wholesale))}</b>
-                      <small>{tr(k.left, { n: p.available })}</small>
+                      <small>{tr(k.left, { n: qtyWithUnit(p.available, p.unit, d.stock.fields.units) })}</small>
                     </span>
                   </button>
                 </li>
@@ -308,7 +326,7 @@ export default function PosScreen({ products, canDiscount, canEditPrice, noShift
                 {parked.map((x) => {
                   const sum = x.lines.reduce((s, l) => {
                     const p = byId.get(l.id);
-                    return s + (p ? (unitPriceFor(p, x.wholesale) || Number(l.price) || 0) * l.qty : 0);
+                    return s + (p ? priceTimesQty(unitPriceFor(p, x.wholesale) || Number(l.price) || 0, l.qty) : 0);
                   }, 0);
                   return (
                     <li key={x.id}>
@@ -343,10 +361,25 @@ export default function PosScreen({ products, canDiscount, canEditPrice, noShift
                     {r.isWholesale && <span className="pos-tag">{k.wholesaleTag}</span>}
                   </small>
                 </div>
-                <div className="pos-qty">
+                <div className={`pos-qty${r.badQty ? ' is-bad' : ''}`}>
                   <button type="button" onClick={() => changeQty(i, -1)} aria-label={k.qtyDec}>−</button>
-                  <span aria-live="polite">{r.line.qty}</span>
+                  {r.fractional ? (
+                    <input
+                      className="pos-qty-input"
+                      inputMode="decimal"
+                      value={r.line.qtyText ?? fmtQty(r.line.qty)}
+                      onChange={(e) => typeQty(i, e.target.value.replace(/[^\d.,]/g, ''))}
+                      onBlur={() => setCart((prev) => prev.map((l, idx) => idx === i && !r.badQty ? { ...l, qtyText: undefined } : l))}
+                      onClick={(e) => e.stopPropagation()}
+                      aria-label={`${k.qty}: ${r.p.name}`}
+                      aria-invalid={r.badQty || undefined}
+                      title={tr(k.qtyHint, { step: fmtQty(qtyStep(r.p.unit)) })}
+                    />
+                  ) : (
+                    <span aria-live="polite">{r.line.qty}</span>
+                  )}
                   <button type="button" onClick={() => changeQty(i, 1)} aria-label={k.qtyInc} disabled={!r.p.tracked || r.line.qty >= r.p.available}>+</button>
+                  {r.fractional && <small className="pos-qty-unit">{d.stock.fields.units[r.p.unit as ProductUnit]}</small>}
                 </div>
                 {r.needsPrice || canEditPrice ? (
                   <input

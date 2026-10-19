@@ -4,23 +4,25 @@ import { revalidatePath } from 'next/cache';
 import { Types } from 'mongoose';
 import { getTenantSession } from '@/lib/tenantSession';
 import { generateTransferNo } from '@/lib/transfers';
-import { parseQtyField } from '@/lib/productQuantity';
+import { clampQtyToStock } from '@/lib/productQuantity';
+import { parseQty, qtyLabel } from '@/lib/qty';
 import { checkPermission } from '@/lib/permissionGuard';
 import { branchFilter } from '@/lib/branchScope';
 import { transferStock } from '@/lib/stock';
 import { getDict } from '@/lib/i18n/server';
-import { tr } from '@/lib/i18n/fmt';
+import { qtyWithUnit, tr } from '@/lib/i18n/fmt';
 
 type State = { error?: string; success?: string } | null;
 
 export async function transferProductAction(_prev: State, formData: FormData): Promise<State> {
   const { user, Product, Branch, Transfer } = await getTenantSession();
   { const denied = await checkPermission(user, 'transfer.create'); if (denied) return denied; }
-  const m = (await getDict()).stock.msg;
+  const dict = await getDict();
+  const m = dict.stock.msg;
 
   const productId = String(formData.get('productId') || '');
   const branchId = String(formData.get('branchId') || '');
-  const qty = parseQtyField(String(formData.get('qty') || '1'));
+  const qtyRaw = String(formData.get('qty') || '1');
 
   if (!Types.ObjectId.isValid(productId) || !Types.ObjectId.isValid(branchId)) {
     return { error: m.selectRequired };
@@ -39,19 +41,16 @@ export async function transferProductAction(_prev: State, formData: FormData): P
     return { error: m.sameBranch };
   }
 
-  let transferQty = 1;
-  if (found.trackQuantity) {
-    const available = found.quantity - found.soldQuantity;
-    if (available < 1) return { error: m.noStock };
-    transferQty = Math.min(qty, available);
-    if (transferQty < 1) return { error: m.transferQtyInvalid };
-  }
+  // dona — butun, kg/m… — ≤3 xona kasr; qoldiqdan oshsa qoldiqqacha qisqaradi
+  const picked = clampQtyToStock(found, parseQty(qtyRaw, found.unit));
+  if (!picked.ok) return { error: picked.reason === 'noStock' ? m.noStock : m.transferQtyInvalid };
+  const transferQty = picked.qty;
 
   // Atomik: qoldiq sharti + ayirish/ko'chirish bitta so'rovda
   const moved = await transferStock(Product, found._id, new Types.ObjectId(branchId), transferQty, {
     scope,
     trackQuantity: !!found.trackQuantity,
-    history: { action: 'transferred', detail: `${transferQty} ta · ${branch.name}`, by: user.username, at: new Date() },
+    history: { action: 'transferred', detail: `${qtyLabel(transferQty, found.unit)} · ${branch.name}`, by: user.username, at: new Date() },
   });
   if (!moved) return { error: m.stateChanged };
   const product = moved.product;
@@ -75,7 +74,7 @@ export async function transferProductAction(_prev: State, formData: FormData): P
     revalidatePath('/app/products');
     revalidatePath('/app/transferred');
     revalidatePath(`/app/products/${productId}`);
-    return { success: tr(m.transferredN, { n: transferQty, branch: branch.name }) };
+    return { success: tr(m.transferredN, { n: qtyWithUnit(transferQty, found.unit, dict.stock.fields.units), branch: branch.name }) };
   } catch {
     return { error: m.saveFailed };
   }

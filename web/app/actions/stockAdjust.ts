@@ -12,7 +12,8 @@ import { nextDocNo } from '@/lib/counters';
 import { runWithCompensation } from '@/lib/compensate';
 import { planWriteOff } from '@/lib/stockAdjust';
 import { logError } from '@/lib/logger';
-import { parseInput, zId, zMoney, zOneOf, zOptInt, zText } from '@/lib/validation';
+import { parseInput, zId, zMoney, zOneOf, zOptQty, zText } from '@/lib/validation';
+import { fmtQty, priceTimesQty, qtyLabel } from '@/lib/qty';
 import { getDict } from '@/lib/i18n/server';
 import { tr } from '@/lib/i18n/fmt';
 import { fmtMoney } from '@/lib/format';
@@ -127,7 +128,7 @@ export async function writeOffAction(input: WriteOffInput): Promise<State> {
   const k = d.stock.adjust;
 
   const parsed = parseInput(z.object({
-    lines: z.array(z.object({ productId: zId(k.noLines), qty: zOptInt(k.badQty, 1, 1_000_000) }))
+    lines: z.array(z.object({ productId: zId(k.noLines), qty: zOptQty(k.badQty) }))
       .min(1, k.noLines).max(MAX_LINES, k.noLines),
     reason: zOneOf(['defective', 'lost', 'expired', 'other'] as const, k.reason),
     note: zText(300),
@@ -152,7 +153,7 @@ export async function writeOffAction(input: WriteOffInput): Promise<State> {
         _id: p._id, status: 'in_stock',
         ...(p.trackQuantity ? { trackQuantity: true, quantity: p.quantity, soldQuantity: p.soldQuantity } : { trackQuantity: { $ne: true } }),
       },
-      { $set: plan.set, $push: { history: { action: 'writtenOff', detail: `${qty} ta · ${reasonLabel}`, by: user.username, at } } },
+      { $set: plan.set, $push: { history: { action: 'writtenOff', detail: `${qtyLabel(qty, p.unit)} · ${reasonLabel}`, by: user.username, at } } },
     );
     if (res.modifiedCount !== 1) { fail = tr(k.changed, { name: p.name }); return null; }
 
@@ -168,7 +169,7 @@ export async function writeOffAction(input: WriteOffInput): Promise<State> {
   }
 
   const items = outcome.results.map((r) => r.item);
-  const totalCost = items.reduce((s, i) => s + (i.qty ?? 0) * (i.purchasePrice ?? 0), 0);
+  const totalCost = items.reduce((s, i) => s + priceTimesQty(i.purchasePrice ?? 0, i.qty ?? 0), 0);
   try {
     const docNo = await nextDocNo(StockAdjustment, 'docNo', 'stockadj', 'HC');
     const doc = await StockAdjustment.create({
@@ -179,7 +180,7 @@ export async function writeOffAction(input: WriteOffInput): Promise<State> {
       action: 'stock.writeoff',
       entity: 'product',
       entityId: String(doc._id),
-      summary: `Hisobdan chiqarish ${docNo} (${reasonLabel}): ${items.map((i) => `${i.name} × ${i.qty}`).slice(0, 4).join(', ')}${items.length > 4 ? '…' : ''} — zarar ${fmtMoney(totalCost)} so'm`,
+      summary: `Hisobdan chiqarish ${docNo} (${reasonLabel}): ${items.map((i) => `${i.name} × ${fmtQty(i.qty ?? 0)}`).slice(0, 4).join(', ')}${items.length > 4 ? '…' : ''} — zarar ${fmtMoney(totalCost)} so'm`,
       meta: { docNo, reason, totalCost, count: items.length },
     });
     revalidatePath('/app/write-off');

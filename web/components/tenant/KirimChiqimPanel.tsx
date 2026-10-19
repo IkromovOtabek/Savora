@@ -6,7 +6,7 @@ import type { FlowLine, FlowTotals } from '@/lib/inventoryFlow';
 import Icon from '@/components/icons/Icon';
 import { FlowSplit } from '@/components/tenant/KirimChiqimCards';
 import { useDict } from '@/lib/i18n/client';
-import { tr } from '@/lib/i18n/fmt';
+import { qtyWithUnit } from '@/lib/i18n/fmt';
 import '@/components/tenant/styles/finance.css';
 
 type Tab = 'stock' | 'sold';
@@ -37,7 +37,7 @@ function FlowTable({ lines, kind }: { lines: FlowLine[]; kind: Tab }) {
               <td data-label={idLabel}><code className="fn-code">{l.productId}</code></td>
               <td data-label={d.common.product}><span className="cell-main">{l.name}</span></td>
               <td data-label={d.common.branch}>{l.branchName}</td>
-              <td data-label={k.qty} className="fn-right">{tr(d.common.nPcs, { n: l.qty })}</td>
+              <td data-label={k.qty} className="fn-right">{qtyWithUnit(l.qty, l.unit, d.stock.fields.units)}</td>
               <td data-label={k.cost} className="fn-right">{fmtMoney(l.cost)}</td>
               <td data-label={saleLabel} className="fn-right">{fmtMoney(l.revenue)}</td>
               <td data-label={profitLabel} className={`fn-right ${l.profit >= 0 ? 'fn-in' : 'fn-out'}`}>
@@ -78,9 +78,9 @@ export default function KirimChiqimPanel({
     <div className="fn-page">
       <FlowSplit
         kirimValue={totals.stockCost}
-        kirimCount={totals.stockCount}
+        kirimQty={totals.stockQty}
         chiqimValue={totals.soldRevenue}
-        chiqimCount={totals.soldCount}
+        chiqimQty={totals.soldQty}
         foyda={totals.profit}
       />
 

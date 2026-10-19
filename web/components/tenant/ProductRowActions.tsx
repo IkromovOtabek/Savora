@@ -10,7 +10,9 @@ import Icon from '@/components/icons/Icon';
 import ReviewModal from '@/components/tenant/ReviewModal';
 import PriceInput from '@/components/ui/PriceInput';
 import { useDict } from '@/lib/i18n/client';
-import { tr } from '@/lib/i18n/fmt';
+import { qtyWithUnit, tr } from '@/lib/i18n/fmt';
+import { addQty, fmtQty, isFractionalUnit, parseQty, qtyStep } from '@/lib/qty';
+import type { ProductUnit } from '@/lib/businessTypes';
 
 interface Props {
   productId: string;
@@ -21,6 +23,8 @@ interface Props {
   currentBranchId: string;
   trackQuantity?: boolean;
   available?: number;
+  /** kg/m… — sotish/berish miqdori kasr bo'lishi mumkin */
+  unit?: ProductUnit | null;
   salePrice?: number;
   /** Nasiya (variant/nasiya) va Kredit (creditKassa) modullari yoqilganmi */
   canInstallment?: boolean;
@@ -35,7 +39,7 @@ interface Props {
 type View = 'menu' | 'sellType' | 'sellQty' | 'branches' | 'branchQty';
 
 export default function ProductRowActions({
-  productId, productName, status, branches, currentBranchId, trackQuantity = false, available = 1, salePrice = 0, canInstallment = false, canCredit = false,
+  productId, productName, status, branches, currentBranchId, trackQuantity = false, available = 1, unit = null, salePrice = 0, canInstallment = false, canCredit = false,
   canSell = true, canTransfer = true, variant = 'row',
 }: Props) {
   const d = useDict();
@@ -45,7 +49,8 @@ export default function ProductRowActions({
   const [view, setView] = useState<View>('menu');
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
-  const [qty, setQty] = useState(1);
+  // Matn ko'rinishida: kg da "1,5" kiritiladi; server parseQty bilan tekshiradi
+  const [qty, setQty] = useState('1');
   const [price, setPrice] = useState('');
   const [branch, setBranch] = useState<{ id: string; name: string } | null>(null);
   const [pos, setPos] = useState<{ top?: number; bottom?: number; left: number } | null>(null);
@@ -56,7 +61,10 @@ export default function ProductRowActions({
 
   const canChange = status === 'in_stock';
   const otherBranches = branches.filter((b) => b.id !== currentBranchId);
-  const needQty = trackQuantity && available > 1;
+  const fractional = trackQuantity && isFractionalUnit(unit);
+  // Kasrli birlikda qoldiq 1 dan kam bo'lsa ham qismini sotish/berish mumkin
+  const needQty = trackQuantity && available > qtyStep(unit) && (fractional || available > 1);
+  const firstQty = fmtQty(Math.min(1, available));
   const needPrice = !salePrice || salePrice <= 0;
 
   function openMenu() {
@@ -70,7 +78,7 @@ export default function ProductRowActions({
     setOpen(true);
     setView('menu');
     setErr(null);
-    setQty(1);
+    setQty(firstQty);
     setPrice('');
     setBranch(null);
   }
@@ -128,7 +136,7 @@ export default function ProductRowActions({
   }
 
   function doSell() {
-    const extra: Record<string, string> = { qty: String(qty) };
+    const extra: Record<string, string> = { qty };
     if (price.trim()) extra.salePrice = price.trim();
     // Sotilgandan keyin baho modalini ochamiz
     run((fd) => quickMarkSoldAction(null, fd), extra, '/app/sales', () => setReviewOpen(true));
@@ -141,7 +149,7 @@ export default function ProductRowActions({
   }
   function doTransfer() {
     if (!branch) return;
-    run((fd) => transferProductAction(null, fd), { qty: String(qty), branchId: branch.id }, '/app/transferred');
+    run((fd) => transferProductAction(null, fd), { qty, branchId: branch.id }, '/app/transferred');
   }
 
   return (
@@ -200,7 +208,7 @@ export default function ProductRowActions({
                     <Icon name="arrowLeft" size={14} /> {d.common.back}
                   </button>
                   <button type="button" className="row-action-item" disabled={busy}
-                    onClick={() => { (needQty || needPrice) ? (setQty(1), setView('sellQty')) : doSell(); }}>
+                    onClick={() => { (needQty || needPrice) ? (setQty(firstQty), setView('sellQty')) : doSell(); }}>
                     <Icon name="wallet" size={15} /> {d.common.cash}
                   </button>
                   {canInstallment && (
@@ -222,6 +230,7 @@ export default function ProductRowActions({
                 <QtyStep
                   label={t.howManySold}
                   max={available}
+                  unit={unit}
                   qty={qty}
                   setQty={setQty}
                   showQty={needQty}
@@ -244,7 +253,7 @@ export default function ProductRowActions({
                     <div className="row-action-empty">{t.noOtherBranch}<br />{t.addBranchBefore}<b>{t.addBranchLink}</b>{t.addBranchAfter}</div>
                   ) : otherBranches.map((b) => (
                     <button key={b.id} type="button" className="row-action-item" disabled={busy}
-                      onClick={() => { setBranch(b); needQty ? (setQty(1), setView('branchQty')) : run((fd) => transferProductAction(null, fd), { qty: '1', branchId: b.id }, '/app/transferred'); }}>
+                      onClick={() => { setBranch(b); needQty ? (setQty(firstQty), setView('branchQty')) : run((fd) => transferProductAction(null, fd), { qty: fmtQty(available), branchId: b.id }, '/app/transferred'); }}>
                       <Icon name="building" size={15} /> {b.name}
                     </button>
                   ))}
@@ -255,6 +264,7 @@ export default function ProductRowActions({
                 <QtyStep
                   label={tr(t.howManyTo, { branch: branch?.name ?? '' })}
                   max={available}
+                  unit={unit}
                   qty={qty}
                   setQty={setQty}
                   showQty
@@ -286,16 +296,21 @@ export default function ProductRowActions({
 }
 
 function QtyStep({
-  label, max, qty, setQty, showQty = false, showPrice = false, price = '', setPrice,
+  label, max, unit = null, qty, setQty, showQty = false, showPrice = false, price = '', setPrice,
   busy, onBack, onConfirm, confirmLabel,
 }: {
-  label: string; max: number; qty: number; setQty: (n: number) => void;
+  label: string; max: number; unit?: ProductUnit | null; qty: string; setQty: (v: string) => void;
   showQty?: boolean; showPrice?: boolean; price?: string; setPrice?: (v: string) => void;
   busy: boolean; onBack: () => void; onConfirm: () => void; confirmLabel: string;
 }) {
   const d = useDict();
   const t = d.stock.rowActions;
   const priceOk = !showPrice || (!!price.trim() && Number(price) > 0);
+  const fractional = isFractionalUnit(unit);
+  const step = qtyStep(unit);
+  const n = parseQty(qty, unit);
+  const qtyOk = !showQty || (n !== null && n <= max);
+  const cur = n ?? step;
   return (
     <div className="row-action-qty">
       <button type="button" className="row-action-back" onClick={onBack}>
@@ -303,15 +318,24 @@ function QtyStep({
       </button>
       {showQty && (
         <>
-          <label className="row-action-qty-label">{label} <span>{tr(t.available, { max })}</span></label>
+          <label className="row-action-qty-label">{label} <span>{tr(t.available, { max: qtyWithUnit(max, unit, d.stock.fields.units) })}</span></label>
           <div className="row-action-qty-row">
-            <button type="button" className="qty-btn" disabled={qty <= 1} onClick={() => setQty(Math.max(1, qty - 1))}>−</button>
-            <input
-              type="number" min={1} max={max} value={qty}
-              onChange={(e) => setQty(Math.min(max, Math.max(1, parseInt(e.target.value, 10) || 1)))}
-              className="row-action-qty-input"
-            />
-            <button type="button" className="qty-btn" disabled={qty >= max} onClick={() => setQty(Math.min(max, qty + 1))}>+</button>
+            <button type="button" className="qty-btn" disabled={cur - 1 < step} onClick={() => setQty(fmtQty(Math.max(step, addQty(cur, -1))))}>−</button>
+            {fractional ? (
+              <input
+                type="text" inputMode="decimal" value={qty}
+                onChange={(e) => setQty(e.target.value.replace(/[^\d.,]/g, ''))}
+                aria-invalid={!qtyOk || undefined}
+                className="row-action-qty-input"
+              />
+            ) : (
+              <input
+                type="number" min={1} max={max} value={qty}
+                onChange={(e) => setQty(String(Math.min(max, Math.max(1, parseInt(e.target.value, 10) || 1))))}
+                className="row-action-qty-input"
+              />
+            )}
+            <button type="button" className="qty-btn" disabled={cur >= max} onClick={() => setQty(fmtQty(Math.min(max, addQty(cur, 1))))}>+</button>
           </div>
         </>
       )}
@@ -326,7 +350,7 @@ function QtyStep({
           />
         </>
       )}
-      <button type="button" className="btn btn-primary btn-sm" style={{ width: '100%' }} disabled={busy || !priceOk} onClick={onConfirm}>
+      <button type="button" className="btn btn-primary btn-sm" style={{ width: '100%' }} disabled={busy || !priceOk || !qtyOk} onClick={onConfirm}>
         {confirmLabel}
       </button>
     </div>

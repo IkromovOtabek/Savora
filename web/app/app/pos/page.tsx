@@ -21,7 +21,7 @@ export default async function PosPage() {
 
   const [products, canDiscount, canEditPrice, openShift] = await Promise.all([
     Product.find({ ...branchFilter(user), status: 'in_stock' })
-      .select('name imei barcode productId salePrice wholesalePrice trackQuantity quantity soldQuantity status')
+      .select('name imei barcode productId salePrice wholesalePrice trackQuantity quantity soldQuantity status unit')
       .sort({ name: 1 })
       .limit(POS_PRODUCT_LIMIT)
       .lean(),
@@ -41,6 +41,7 @@ export default async function PosPage() {
     wholesalePrice: p.wholesalePrice && p.wholesalePrice > 0 ? p.wholesalePrice : undefined,
     tracked: p.trackQuantity ?? false,
     available: getStockQty(p),
+    unit: p.unit ?? null,
   }));
 
   return (

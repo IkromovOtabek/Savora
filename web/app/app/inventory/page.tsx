@@ -5,7 +5,10 @@ import { fmtMoney } from '@/lib/format';
 import Icon from '@/components/icons/Icon';
 import Tilt from '@/components/ui/Tilt';
 import { getDict } from '@/lib/i18n/server';
-import { tr } from '@/lib/i18n/fmt';
+import { qtyByUnits, qtyWithUnit, tr } from '@/lib/i18n/fmt';
+import { getStockQty } from '@/lib/productQuantity';
+import { fmtQty, priceTimesQty } from '@/lib/qty';
+import { addQtyByUnit, qtyByUnitEntries, singleUnit, type QtyByUnit } from '@/lib/unitTotals';
 
 export async function generateMetadata() {
   const d = await getDict();
@@ -27,33 +30,41 @@ export default async function InventoryPage() {
     ? branchesAll.filter((b) => String(b._id) === user.branchId)
     : branchesAll;
 
-  // Son bilan hisoblanadigan mahsulotda qoldiq (umumiy − sotilgan) dona; aks holda 1 dona
-  const unitsOf = (p: (typeof products)[number]) =>
-    p.trackQuantity ? Math.max(0, (p.quantity ?? 0) - (p.soldQuantity ?? 0)) : 1;
-  const valueOf = (p: (typeof products)[number]) => (p.salePrice ?? 0) * unitsOf(p);
+  // Son bilan hisoblanadigan mahsulotda qoldiq (umumiy − sotilgan); aks holda 1 dona
+  // (kg/m… mahsulotda qoldiq kasr bo'lishi mumkin — qiymat butun so'mga yaxlitlanadi)
+  const unitsOf = (p: (typeof products)[number]) => (p.trackQuantity ? getStockQty(p) : 1);
+  const valueOf = (p: (typeof products)[number]) => priceTimesQty(p.salePrice ?? 0, unitsOf(p));
+  // Miqdor birlik bo'yicha yig'iladi — "dona" va "kg" bitta songa qo'shilmaydi
+  const qtyOf = (items: typeof products) =>
+    items.reduce<QtyByUnit>((acc, p) => addQtyByUnit(acc, unitsOf(p), p.trackQuantity ? p.unit : 'dona'), {});
 
   const byBranch = branches
     .map((b) => {
       const bid = String(b._id);
       const items = products.filter((p) => String(p.branchId) === bid);
       const totalValue = items.reduce((s, p) => s + valueOf(p), 0);
-      const units = items.reduce((s, p) => s + unitsOf(p), 0);
-      return { branch: b, count: items.length, units, totalValue, items };
+      const qty = qtyOf(items);
+      return { branch: b, count: items.length, qty, totalValue, items };
     })
     // Mahsuloti bor filiallar oldinda — bo'shlari oxirida ixcham qatorda
     .sort((a, b) => (b.count > 0 ? 1 : 0) - (a.count > 0 ? 1 : 0) || b.totalValue - a.totalValue);
 
   const totalProducts = products.length;
-  const totalUnits = products.reduce((s, p) => s + unitsOf(p), 0);
+  const totalQty = qtyOf(products);
+  const totalUnit = singleUnit(totalQty);
   const totalValue = products.reduce((s, p) => s + valueOf(p), 0);
 
   const PREVIEW = 20;
   const filled = byBranch.filter((b) => b.count > 0);
   const empty = byBranch.filter((b) => b.count === 0);
-  // Ulush — sotuv qiymati bo'yicha (qiymat yo'q bo'lsa — dona bo'yicha)
-  const shareBase = totalValue > 0 ? totalValue : totalUnits;
+  // Ulush — sotuv qiymati bo'yicha; qiymat yo'q bo'lsa — miqdor bo'yicha (birlik bitta bo'lsa),
+  // birliklar aralash bo'lsa — mahsulot turlari soni bo'yicha (dona + kg qo'shilmaydi)
+  const shareBy = totalValue > 0 ? 'value' : totalUnit ? 'units' : 'types';
+  const metricOf = (v: number, qty: QtyByUnit, count: number) =>
+    shareBy === 'value' ? v : shareBy === 'units' ? (qty[totalUnit!] ?? 0) : count;
+  const shareBase = metricOf(totalValue, totalQty, totalProducts);
   const shareOf = (b: (typeof byBranch)[number]) =>
-    shareBase > 0 ? ((totalValue > 0 ? b.totalValue : b.units) / shareBase) * 100 : 0;
+    shareBase > 0 ? (metricOf(b.totalValue, b.qty, b.count) / shareBase) * 100 : 0;
 
   return (
     <>
@@ -84,7 +95,14 @@ export default async function InventoryPage() {
             </div>
             <div>
               <dt>{d.common.remaining}</dt>
-              <dd>{totalUnits} <small>{d.stock.unit}</small></dd>
+              {/* Birliklar aralash bo'lsa — har biri alohida (dona + kg qo'shilmaydi), tor ekranda qatorga o'tadi */}
+              <dd className="st-inv-qty">
+                {qtyByUnitEntries(totalQty).length === 0
+                  ? <span>0 <small>{d.stock.unit}</small></span>
+                  : qtyByUnitEntries(totalQty).map(([u, n]) => (
+                    <span key={u}>{fmtQty(n)} <small>{d.stock.fields.units[u]}</small></span>
+                  ))}
+              </dd>
             </div>
             <div>
               <dt>{d.common.branch}</dt>
@@ -97,7 +115,7 @@ export default async function InventoryPage() {
           <div className="st-inv-share">
             <div className="st-inv-share-h">
               <span>{t.shareTitle}</span>
-              <span>{totalValue > 0 ? t.byValue : t.byUnits}</span>
+              <span>{shareBy === 'value' ? t.byValue : shareBy === 'units' ? t.byUnits : t.byTypes}</span>
             </div>
             <div
               className="st-dist-bar st-dist-bar--hero"
@@ -136,11 +154,11 @@ export default async function InventoryPage() {
         </div>
       ) : (
         <div className="st-inv-grid st-section">
-          {filled.map(({ branch, count, units, totalValue: tv, items }) => (
+          {filled.map(({ branch, count, qty, totalValue: tv, items }) => (
             <section key={String(branch._id)} aria-label={branch.name}>
               <div className="st-ghead">
                 <span>{branch.name}</span>
-                <strong>{count === units ? tr(d.common.nPcs, { n: count }) : tr(t.typesUnits, { count, units })} · {fmtMoney(tv)} {d.common.sum}</strong>
+                <strong>{singleUnit(qty) === 'dona' && qty.dona === count ? tr(d.common.nPcs, { n: count }) : tr(t.typesUnits, { count, units: qtyByUnits(qty, d.stock.fields.units) })} · {fmtMoney(tv)} {d.common.sum}</strong>
               </div>
               <div className="st-group">
                 {items.slice(0, PREVIEW).map((p) => {
@@ -153,7 +171,7 @@ export default async function InventoryPage() {
                       </span>
                       <span className="st-cell-v">
                         {fmtMoney(p.salePrice)}
-                        {p.trackQuantity && <small className="st-cell-sub">× {u} {d.stock.unit}</small>}
+                        {p.trackQuantity && <small className="st-cell-sub">× {qtyWithUnit(u, p.unit, d.stock.fields.units)}</small>}
                       </span>
                       <span className="st-cell-chev" aria-hidden="true"><Icon name="chevron" size={16} /></span>
                     </Link>

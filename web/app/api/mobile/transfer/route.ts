@@ -9,7 +9,9 @@ import { branchFilter } from '@/lib/branchScope';
 import { getMobileFeatures } from '@/lib/mobileOrg';
 import { transferStock } from '@/lib/stock';
 import { z } from 'zod';
-import { readJsonInput, zId, zOptInt, zText } from '@/lib/validation';
+import { readJsonInput, zId, zOptQty, zText } from '@/lib/validation';
+import { clampQtyToStock } from '@/lib/productQuantity';
+import { qtyLabel } from '@/lib/qty';
 
 /** Mahsulotni boshqa filialga berish. transferProductAction mantiqini takrorlaydi. */
 export async function POST(req: Request) {
@@ -22,7 +24,7 @@ export async function POST(req: Request) {
   const input = await readJsonInput(req, z.object({
     productId: zId('Mahsulot va filial tanlanishi shart.'),
     toBranchId: zId('Mahsulot va filial tanlanishi shart.'),
-    qty: zOptInt('Son noto\'g\'ri.', 1, 1_000_000),
+    qty: zOptQty('Son noto\'g\'ri.'),
     notes: zText(500, 'Izoh juda uzun.'),
   }), { badJson: 'Noto\'g\'ri so\'rov.', fallback: 'Noto\'g\'ri so\'rov.' });
   if (!input.ok) return NextResponse.json({ error: input.error }, { status: 400 });
@@ -47,18 +49,18 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Mahsulot allaqachon shu filialda.' }, { status: 400 });
   }
 
-  let transferQty = 1;
-  if (product.trackQuantity) {
-    const available = product.quantity - product.soldQuantity;
-    if (available < 1) return NextResponse.json({ error: 'Omborda qoldiq yo\'q.' }, { status: 400 });
-    transferQty = Math.min(qty, available);
+  // dona — butun, kg/m… — ≤3 xona kasr; qoldiqdan oshsa qoldiqqacha qisqaradi
+  const picked = clampQtyToStock(product, qty);
+  if (!picked.ok) {
+    return NextResponse.json({ error: picked.reason === 'noStock' ? 'Omborda qoldiq yo\'q.' : 'Son noto\'g\'ri.' }, { status: 400 });
   }
+  const transferQty = picked.qty;
 
   // Atomik: qoldiq sharti + ayirish/ko'chirish bitta so'rovda
   const moved = await transferStock(Product, product._id, new Types.ObjectId(branchId), transferQty, {
     scope,
     trackQuantity: !!product.trackQuantity,
-    history: { action: 'transferred', detail: `${transferQty} ta · ${branch.name}`, by: user.username, at: new Date() },
+    history: { action: 'transferred', detail: `${qtyLabel(transferQty, product.unit)} · ${branch.name}`, by: user.username, at: new Date() },
   });
   if (!moved) {
     return NextResponse.json({ error: 'Mahsulot holati o\'zgargan yoki qoldiq yetarli emas.' }, { status: 409 });
@@ -82,7 +84,7 @@ export async function POST(req: Request) {
     action: 'transfer.create',
     entity: 'transfer',
     entityId: String(transfer._id),
-    summary: `Filialga berildi ${transferNo}: ${product.name} · ${transferQty} ta → ${branch.name} (mobil)`,
+    summary: `Filialga berildi ${transferNo}: ${product.name} · ${qtyLabel(transferQty, product.unit)} → ${branch.name} (mobil)`,
     meta: { quantity: transferQty, toBranchId: branchId },
   });
 

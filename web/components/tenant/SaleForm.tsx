@@ -15,7 +15,9 @@ import PriceInput from '@/components/ui/PriceInput';
 import Icon from '@/components/icons/Icon';
 import { PQ294_MAX_MONTHS } from '@/lib/pq294';
 import { useDict } from '@/lib/i18n/client';
-import { tr } from '@/lib/i18n/fmt';
+import { qtyWithUnit, tr } from '@/lib/i18n/fmt';
+import { addQty, fmtQty, isFractionalUnit, parseQty, priceTimesQty, qtyStep } from '@/lib/qty';
+import type { ProductUnit } from '@/lib/businessTypes';
 
 interface ProductOption {
   id: string;
@@ -25,6 +27,7 @@ interface ProductOption {
   imei?: string;
   trackQuantity?: boolean;
   available?: number;
+  unit?: ProductUnit | null;
 }
 
 /** To'lov turlari tartibi (yorliqlar lug'atdan: d.sales.paymentTypes) */
@@ -80,6 +83,7 @@ export default function SaleForm({ isPhoneShop, products, mediaEnabled, features
     branchName: string;
     trackQuantity?: boolean;
     available?: number;
+    unit?: ProductUnit | null;
   } | null>(preselected ? {
     id: preselected.id,
     name: preselected.name,
@@ -88,6 +92,7 @@ export default function SaleForm({ isPhoneShop, products, mediaEnabled, features
     branchName: preselected.branchName,
     trackQuantity: preselected.trackQuantity,
     available: preselected.available,
+    unit: preselected.unit,
   } : null);
   const [lookupError, setLookupError] = useState('');
   const [searching, startSearch] = useTransition();
@@ -130,10 +135,15 @@ export default function SaleForm({ isPhoneShop, products, mediaEnabled, features
           branchName: selectedOption.branchName,
           trackQuantity: selectedOption.trackQuantity,
           available: selectedOption.available,
+          unit: selectedOption.unit,
         }
       : null;
 
   const showQty = picked?.trackQuantity === true;
+  // kg/m… — kasr miqdor (1,5); dona — butun
+  const fractional = showQty && isFractionalUnit(picked?.unit);
+  const qtyN = parseQty(saleQty, picked?.unit);
+  const qtyBad = showQty && saleQty.trim() !== '' && qtyN === null;
 
   const visibleProducts = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -147,7 +157,7 @@ export default function SaleForm({ isPhoneShop, products, mediaEnabled, features
   }, [products, query]);
 
   function syncTotal(price: number, qty: number) {
-    setTotalAmount(String(price * qty));
+    setTotalAmount(String(priceTimesQty(price, qty)));
   }
 
   function handleImeiSearch() {
@@ -169,7 +179,10 @@ export default function SaleForm({ isPhoneShop, products, mediaEnabled, features
     setSelectedId(id);
     const p = products.find((x) => x.id === id);
     if (p) {
-      setTotalAmount(String(p.salePrice * (p.trackQuantity ? Number(saleQty) || 1 : 1)));
+      // Butun birlikka o'tilsa kasr miqdor (1,5) qolmasin
+      const q = p.trackQuantity ? parseQty(saleQty, p.unit) : 1;
+      if (q === null) setSaleQty('1');
+      setTotalAmount(String(priceTimesQty(p.salePrice, q ?? 1)));
       if (!p.trackQuantity) setSaleQty('1');
     }
   }
@@ -178,15 +191,17 @@ export default function SaleForm({ isPhoneShop, products, mediaEnabled, features
     setSaleQty(v);
     const p = isPhoneShop ? product : products.find((x) => x.id === selectedId);
     if (p?.trackQuantity) {
-      const q = Math.max(1, Number(v) || 1);
-      setTotalAmount(String(p.salePrice * q));
+      const q = parseQty(v, p.unit);
+      if (q !== null) setTotalAmount(String(priceTimesQty(p.salePrice, q)));
     }
   }
 
   function stepQty(delta: number) {
     const max = picked?.available ?? Infinity;
-    const next = Math.min(max, Math.max(1, (Number(saleQty) || 1) + delta));
-    handleQtyChange(String(next));
+    const cur = qtyN ?? 1;
+    const next = Math.min(max, addQty(cur, delta));
+    if (next < qtyStep(picked?.unit)) return;
+    handleQtyChange(fmtQty(next));
   }
 
   // Jonli ko'rinish (faqat ko'rsatish uchun — server o'zi qayta hisoblaydi)
@@ -292,7 +307,7 @@ export default function SaleForm({ isPhoneShop, products, mediaEnabled, features
                           <b>{p.name}</b>
                           <span>
                             {p.branchName}
-                            {p.trackQuantity && p.available != null ? ` · ${tr(k.leftN, { n: p.available })}` : ''}
+                            {p.trackQuantity && p.available != null ? ` · ${tr(k.leftN, { n: qtyWithUnit(p.available, p.unit, d.stock.fields.units) })}` : ''}
                           </span>
                           <strong>{fmtMoney(p.salePrice)}</strong>
                         </button>
@@ -317,32 +332,47 @@ export default function SaleForm({ isPhoneShop, products, mediaEnabled, features
                         {isPhoneShop && picked.imei && <code>{picked.imei}</code>}
                         <span>{d.common.branch}: {picked.branchName}</span>
                         <span>{d.common.price}: {fmtMoney(picked.salePrice)} {d.common.sum}</span>
-                        {showQty && picked.available != null && <span>{d.common.remaining}: {tr(d.common.nPcs, { n: picked.available })}</span>}
+                        {showQty && picked.available != null && <span>{d.common.remaining}: {qtyWithUnit(picked.available, picked.unit, d.stock.fields.units)}</span>}
                       </div>
                     </div>
                   </div>
                   {showQty && (
                     <div className="auth-field">
-                      <label htmlFor="saleQty">{k.qtyLabel}</label>
+                      <label htmlFor="saleQty">
+                        {k.qtyLabel}{fractional && picked.unit ? ` (${d.stock.fields.units[picked.unit]})` : ''}
+                      </label>
                       <div className="sl-qty">
-                        <button type="button" onClick={() => stepQty(-1)} disabled={isPending || (Number(saleQty) || 1) <= 1} aria-label={k.decrease}>−</button>
-                        <input
-                          id="saleQty"
-                          type="number"
-                          min={1}
-                          max={picked.available ?? undefined}
-                          value={saleQty}
-                          onChange={(e) => handleQtyChange(e.target.value)}
-                          disabled={isPending}
-                          inputMode="numeric"
-                        />
+                        <button type="button" onClick={() => stepQty(-1)} disabled={isPending || (qtyN ?? 1) - 1 < qtyStep(picked.unit)} aria-label={k.decrease}>−</button>
+                        {fractional ? (
+                          <input
+                            id="saleQty"
+                            type="text"
+                            value={saleQty}
+                            onChange={(e) => handleQtyChange(e.target.value.replace(/[^\d.,]/g, ''))}
+                            disabled={isPending}
+                            inputMode="decimal"
+                            aria-invalid={qtyBad || undefined}
+                          />
+                        ) : (
+                          <input
+                            id="saleQty"
+                            type="number"
+                            min={1}
+                            max={picked.available ?? undefined}
+                            value={saleQty}
+                            onChange={(e) => handleQtyChange(e.target.value)}
+                            disabled={isPending}
+                            inputMode="numeric"
+                          />
+                        )}
                         <button
                           type="button"
                           onClick={() => stepQty(1)}
-                          disabled={isPending || (picked.available != null && (Number(saleQty) || 1) >= picked.available)}
+                          disabled={isPending || (picked.available != null && (qtyN ?? 1) >= picked.available)}
                           aria-label={k.increase}
                         >+</button>
                       </div>
+                      {fractional && <span className="field-hint">{tr(d.sales.pos.qtyHint, { step: fmtQty(qtyStep(picked.unit)) })}</span>}
                     </div>
                   )}
                 </>
@@ -540,7 +570,7 @@ export default function SaleForm({ isPhoneShop, products, mediaEnabled, features
               </div>
             )}
             <div className="sl-card-body sl-pos-submit">
-              <button type="submit" className="btn btn-primary sl-submit" disabled={isPending || !picked}>
+              <button type="submit" className="btn btn-primary sl-submit" disabled={isPending || !picked || qtyBad}>
                 {isPending ? k.selling : (
                   <>
                     <span className="ux-hide-mobile">{picked ? k.confirmSale : d.common.confirm}</span>

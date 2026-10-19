@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { getStockQty } from '@/lib/productQuantity';
 import { Types } from 'mongoose';
 import { authenticateMobile } from '@/lib/mobileAuth';
 import { userCan } from '@/lib/permissionGuard';
@@ -24,9 +25,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
   if (!p) return NextResponse.json({ error: 'Mahsulot topilmadi.' }, { status: 404 });
 
   const branch = p.branchId ? await Branch.findById(p.branchId).lean() : null;
-  const available = p.trackQuantity
-    ? Math.max(0, (p.quantity ?? 0) - (p.soldQuantity ?? 0))
-    : (p.status === 'in_stock' ? 1 : 0);
+  const available = getStockQty(p);
 
   return NextResponse.json({
     id: String(p._id),
@@ -45,6 +44,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
     quantity: p.quantity ?? 1,
     soldQuantity: p.soldQuantity ?? 0,
     available,
+    unit: p.unit ?? null,
     branch: branch?.name ?? null,
     notes: p.notes ?? null,
     createdAt: p.createdAt,

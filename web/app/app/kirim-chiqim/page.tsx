@@ -3,6 +3,8 @@ import { lineFromProduct } from '@/lib/inventoryFlow';
 import KirimChiqimCards, { BranchFlowCard } from '@/components/tenant/KirimChiqimCards';
 import { getDict } from '@/lib/i18n/server';
 import { plural, tr } from '@/lib/i18n/fmt';
+import { priceTimesQty } from '@/lib/qty';
+import { addQtyByUnit, mergeQtyByUnit } from '@/lib/unitTotals';
 
 export async function generateMetadata() {
   const d = await getDict();
@@ -26,7 +28,7 @@ export default async function KirimChiqimPage() {
   for (const b of branches) {
     map.set(String(b._id), {
       id: String(b._id), name: b.name,
-      kirimValue: 0, kirimCount: 0, chiqimValue: 0, chiqimCount: 0, foyda: 0,
+      kirimValue: 0, kirimQty: {}, chiqimValue: 0, chiqimQty: {}, foyda: 0,
     });
   }
 
@@ -35,7 +37,7 @@ export default async function KirimChiqimPage() {
     const card = map.get(String(p.branchId));
     if (!card) continue;
     const stock = lineFromProduct(p, card.name, 'stock');
-    if (stock) { card.kirimValue += stock.cost; card.kirimCount += stock.qty; }
+    if (stock) { card.kirimValue += stock.cost; addQtyByUnit(card.kirimQty, stock.qty, stock.unit); }
   }
 
   // Chiqim (sotilgan) — Sotuv yozuvlaridan (Sotildi sahifasi bilan bir manba)
@@ -43,9 +45,9 @@ export default async function KirimChiqimPage() {
     const card = map.get(String(s.branchId));
     if (!card) continue;
     const qty = s.productSnapshot?.saleQuantity ?? 1;
-    const cost = (s.productSnapshot?.purchasePrice ?? 0) * qty;
+    const cost = priceTimesQty(s.productSnapshot?.purchasePrice ?? 0, qty);
     card.chiqimValue += s.totalAmount ?? 0;
-    card.chiqimCount += qty;
+    addQtyByUnit(card.chiqimQty, qty, s.productSnapshot?.unit);
     card.foyda += (s.totalAmount ?? 0) - cost;
   }
 
@@ -53,9 +55,9 @@ export default async function KirimChiqimPage() {
   const total: BranchFlowCard = {
     id: 'all', name: k.totalAll,
     kirimValue: cards.reduce((s, c) => s + c.kirimValue, 0),
-    kirimCount: cards.reduce((s, c) => s + c.kirimCount, 0),
+    kirimQty: mergeQtyByUnit(cards.map((c) => c.kirimQty)),
     chiqimValue: cards.reduce((s, c) => s + c.chiqimValue, 0),
-    chiqimCount: cards.reduce((s, c) => s + c.chiqimCount, 0),
+    chiqimQty: mergeQtyByUnit(cards.map((c) => c.chiqimQty)),
     foyda: cards.reduce((s, c) => s + c.foyda, 0),
   };
 

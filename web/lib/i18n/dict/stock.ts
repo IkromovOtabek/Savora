@@ -198,7 +198,7 @@ export const uz = {
       quti: 'quti',
       paket: 'paket',
     } as Record<ProductUnit, string>,
-    unitHint: "Miqdor hozircha butun sonda hisoblanadi.",
+    unitHint: "Kg, gramm, metr, m² va litrda miqdor kasr bo'lishi mumkin (masalan 1,5).",
     expired: "Muddati o'tgan",
   },
 
@@ -254,14 +254,14 @@ export const uz = {
     toBranch: 'Boshqa filialga berildi',
     noPermission: 'Huquq berilmagan',
     credit: 'Kredit',
-    howManySold: 'Nechta sotildi?',
+    howManySold: 'Qancha sotildi?',
     noOtherBranch: "Boshqa filial yo'q.",
     /** «Yangi filialni [Filiallar] bo'limidan qo'shing.» — havola o'rtada, so'z tartibi tilga bog'liq */
     addBranchBefore: 'Yangi filialni ',
     addBranchLink: 'Filiallar',
     addBranchAfter: " bo'limidan qo'shing.",
     /** {branch} — filial nomi */
-    howManyTo: '{branch}ga nechta?',
+    howManyTo: '{branch}ga qancha?',
     transferred: 'Berildi',
     priceFirst: 'Avval sotilgan narxni kiriting.',
     done: 'Bajarildi.',
@@ -317,13 +317,15 @@ export const uz = {
     types: 'tur',
     shareTitle: 'Filiallar ulushi',
     byValue: "qiymat bo'yicha",
-    byUnits: "dona bo'yicha",
+    byUnits: "miqdor bo'yicha",
+    /** Birliklar aralash (dona + kg) bo'lsa — mahsulot turlari soni bo'yicha */
+    byTypes: "tur bo'yicha",
     /** {list} — «Filial 40%, ...» */
     shareAria: 'Filiallar ulushi: {list}',
     emptyTitle: "Omborda qoldiq yo'q",
     emptyHint: "Mahsulot qo'shilgach, filiallar bo'yicha qoldiq shu yerda hisoblanadi.",
-    /** {count} — tur, {units} — dona */
-    typesUnits: '{count} tur · {units} dona',
+    /** {count} — tur, {units} — birlik bo'yicha miqdor («12 dona · 3,5 kg») */
+    typesUnits: '{count} tur · {units}',
     /** {n} — ko'rsatilmagan qolgan mahsulotlar */
     more: "Yana {n} ta — barchasini ko'rish",
     emptyBranches: 'Mahsulotsiz filiallar',
@@ -408,6 +410,7 @@ export const uz = {
     bankNotFound: 'Tanlangan bank topilmadi yoki faol emas.',
     imeiDupOther: 'Bu IMEI boshqa mahsulotda mavjud.',
     qtyBelowSold: "Umumiy son sotilgan miqdordan kam bo'lmasligi kerak.",
+    unitNeedsFraction: "Bu mahsulot kasr miqdorda sotilgan — o'lchov birligini butun songa (dona, qop…) o'zgartirib bo'lmaydi.",
     saved: 'Mahsulot saqlandi.',
     saveFailed: 'Saqlashda xatolik.',
     alreadySold: 'Mahsulot allaqachon sotilgan.',
@@ -416,7 +419,7 @@ export const uz = {
     sellQtyInvalid: "Sotiladigan son noto'g'ri.",
     notEnoughStock: "Omborda yetarli qoldiq yo'q yoki mahsulot allaqachon sotilgan.",
     /** {n} — sotilgan soni */
-    soldN: '{n} ta sotildi.',
+    soldN: '{n} sotildi.',
     noActiveBranch: 'Faol filial topilmadi.',
     csvRequired: 'CSV matn kiritilishi shart.',
     warehouseBranchNotFound: 'Ombor filiali topilmadi.',
@@ -439,7 +442,7 @@ export const uz = {
     transferQtyInvalid: "Beriladigan son noto'g'ri.",
     stateChanged: "Mahsulot holati o'zgargan yoki qoldiq yetarli emas. Qayta urinib ko'ring.",
     /** {n} — soni, {branch} — filial nomi */
-    transferredN: '{n} ta {branch} filialiga berildi.',
+    transferredN: '{n} {branch} filialiga berildi.',
     // imeiBlacklist.ts
     imeiMin6: "IMEI noto'g'ri (kamida 6 belgi).",
     blDup: "Bu IMEI allaqachon sizning qora ro'yxatingizda.",
@@ -732,7 +735,7 @@ export const ru: typeof uz = {
       quti: 'коробка',
       paket: 'пакет',
     },
-    unitHint: 'Количество пока считается целым числом.',
+    unitHint: 'Для кг, грамм, метр, м² и литр количество может быть дробным (например 1,5).',
     expired: 'Срок истёк',
   },
 
@@ -839,10 +842,11 @@ export const ru: typeof uz = {
     shareTitle: 'Доля филиалов',
     byValue: 'по стоимости',
     byUnits: 'по количеству',
+    byTypes: 'по видам',
     shareAria: 'Доля филиалов: {list}',
     emptyTitle: 'На складе нет остатков',
     emptyHint: 'После добавления товаров остатки по филиалам будут считаться здесь.',
-    typesUnits: '{count} видов · {units} шт.',
+    typesUnits: '{count} видов · {units}',
     more: 'Ещё {n} — показать все',
     emptyBranches: 'Филиалы без товаров',
   },
@@ -919,6 +923,7 @@ export const ru: typeof uz = {
     bankNotFound: 'Выбранный банк не найден или неактивен.',
     imeiDupOther: 'Этот IMEI уже указан у другого товара.',
     qtyBelowSold: 'Общее количество не может быть меньше проданного.',
+    unitNeedsFraction: 'Товар продавался дробным количеством — нельзя сменить единицу на штучную (шт., мешок…).',
     saved: 'Товар сохранён.',
     saveFailed: 'Ошибка при сохранении.',
     alreadySold: 'Товар уже продан.',
@@ -926,7 +931,7 @@ export const ru: typeof uz = {
     noStock: 'На складе нет остатка.',
     sellQtyInvalid: 'Неверное количество для продажи.',
     notEnoughStock: 'На складе недостаточно остатка или товар уже продан.',
-    soldN: 'Продано: {n} шт.',
+    soldN: 'Продано: {n}.',
     noActiveBranch: 'Активный филиал не найден.',
     csvRequired: 'Введите текст CSV.',
     warehouseBranchNotFound: 'Складской филиал не найден.',
@@ -946,7 +951,7 @@ export const ru: typeof uz = {
     sameBranch: 'Товар уже в этом филиале.',
     transferQtyInvalid: 'Неверное количество для передачи.',
     stateChanged: 'Статус товара изменился или остатка недостаточно. Попробуйте ещё раз.',
-    transferredN: 'Передано {n} шт. в филиал {branch}.',
+    transferredN: 'Передано {n} в филиал {branch}.',
     imeiMin6: 'Неверный IMEI (не менее 6 символов).',
     blDup: 'Этот IMEI уже в вашем чёрном списке.',
     blAdded: 'IMEI добавлен в чёрный список.',

@@ -557,6 +557,9 @@ button.sl-tl-body:hover .sl-tl-cta--main { opacity: .88; }
 .sl-cart-sum small { display: block; font-size: 12px; color: var(--ink-3); font-weight: 500; }
 .sl-cart .sl-qty button { width: 36px; height: 36px; font-size: 18px; }
 .sl-cart .sl-qty span { min-width: 28px; text-align: center; font-weight: 600; font-variant-numeric: tabular-nums; }
+.sl-cart .sl-qty .sl-qty-input { height: 36px !important; }
+.sl-qty:has(input[aria-invalid='true']) { box-shadow: inset 0 0 0 2px var(--danger); }
+.sl-qty-unit { padding-right: 10px; color: var(--ink-3); font-size: 12px; font-weight: 600; }
 .sl-cart .quick-sale-price-input { width: 110px; }
 .sl-cart-empty { display: grid; justify-items: center; gap: 8px; padding: 32px 16px; text-align: center; color: var(--ink-3); border-radius: var(--r-lg); background: var(--fill-2); }
 .sl-cart-empty svg { color: var(--brand); }

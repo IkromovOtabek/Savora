@@ -11,6 +11,7 @@ import { digits, grouped, fmtMoney, fmtDateTime, fmtPhoneLocal, phoneLocal, phon
 import { useOfflinePos } from '@/lib/offlinePos';
 import { isNetworkError, searchCatalog, toPicked } from '@/lib/offline';
 import { useDict, tr } from '@/lib/i18n';
+import { fmtQty, isFractionalUnit, parseQty, priceTimesQty, qtyWithUnit } from '@/lib/qty';
 import {
   Screen, NavBar, LargeTitle, SearchField, Group, Cell, AmountColumn, Pill, Button, IconButton, SegmentedControl,
   Field, Chips, Stepper, Loading, EmptyState, ErrorState,
@@ -20,7 +21,7 @@ const MONTH_PRESETS = [3, 6, 9, 12];
 
 export default function SaleNew() {
   const router = useRouter();
-  const params = useLocalSearchParams<{ productId?: string; name?: string; price?: string; track?: string; available?: string; pay?: string }>();
+  const params = useLocalSearchParams<{ productId?: string; name?: string; price?: string; track?: string; available?: string; unit?: string; pay?: string }>();
   const { me } = useAuth();
   const { c } = useTheme();
   const d = useDict();
@@ -33,6 +34,7 @@ export default function SaleNew() {
   const initial: PickedProduct | null = params.productId && params.name ? {
     id: String(params.productId), name: String(params.name), salePrice: Number(params.price) || 0,
     available: Number(params.available) || 1, trackQuantity: params.track === '1', status: 'in_stock',
+    unit: params.unit || null,
   } : null;
 
   const [picked, setPicked] = useState<PickedProduct | null>(initial);
@@ -41,6 +43,8 @@ export default function SaleNew() {
 
   const [pay, setPay] = useState<PayType>(params.pay === 'installment' && nasiyaOn ? 'installment' : 'cash');
   const [qty, setQty] = useState(1);
+  // kg/m… — miqdor matn bilan kiritiladi ("1,5"); dona — Stepper
+  const [qtyText, setQtyText] = useState(initial ? fmtQty(Math.min(1, initial.available)) : '1');
   const [total, setTotal] = useState(initial ? String(initial.salePrice) : '');
   const [totalEdited, setTotalEdited] = useState(false);
   const [paid, setPaid] = useState('');
@@ -64,7 +68,8 @@ export default function SaleNew() {
   );
 
   const choose = useCallback((p: PickedProduct) => {
-    setPicked(p); setQty(1); setTotal(String(p.salePrice)); setTotalEdited(false);
+    const first = p.trackQuantity && isFractionalUnit(p.unit) ? Math.min(1, p.available) : 1;
+    setPicked(p); setQty(1); setQtyText(fmtQty(first)); setTotal(String(priceTimesQty(p.salePrice, first))); setTotalEdited(false);
   }, []);
 
   // Skanerdan (mode=pick) qaytganda
@@ -72,7 +77,19 @@ export default function SaleNew() {
 
   function changeQty(n: number) {
     setQty(n);
-    if (picked && !totalEdited) setTotal(String(picked.salePrice * n));
+    if (picked && !totalEdited) setTotal(String(priceTimesQty(picked.salePrice, n)));
+  }
+
+  const fractional = !!picked?.trackQuantity && isFractionalUnit(picked?.unit);
+  const fracQty = fractional ? parseQty(qtyText, picked?.unit) : null;
+  /** Sotiladigan miqdor: kasrli birlikda kiritilgan matndan, aks holda Stepper qiymati */
+  const saleQty = fractional ? fracQty : qty;
+
+  function changeQtyText(v: string) {
+    const text = v.replace(/[^\d.,]/g, '');
+    setQtyText(text);
+    const n = parseQty(text, picked?.unit);
+    if (picked && n !== null && !totalEdited) setTotal(String(priceTimesQty(picked.salePrice, n)));
   }
 
   const totalN = Number(digits(total)) || 0;
@@ -82,6 +99,7 @@ export default function SaleNew() {
   const phone = phoneLocal(custPhone);
 
   const errors = {
+    qty: fractional && (fracQty === null || fracQty > (picked?.available ?? 0)) ? d.saleNew.errQty : null,
     total: totalN <= 0 ? d.saleNew.errTotal : null,
     paid: pay !== 'cash' && paidN > totalN ? d.saleNew.errPaid : null,
     months: pay === 'installment' && (monthsN < 1 || monthsN > 60) ? d.saleNew.errMonths : null,
@@ -104,7 +122,7 @@ export default function SaleNew() {
       installmentMonths: pay === 'installment' ? monthsN : undefined,
       customerName: needCustomer ? custName.trim() : '',
       customerPhone: needCustomer ? phoneE164(phone) : '',
-      saleQty: picked.trackQuantity ? qty : undefined,
+      saleQty: picked.trackQuantity ? saleQty ?? undefined : undefined,
       notes: notes.trim() || undefined,
     };
     try {
@@ -125,7 +143,8 @@ export default function SaleNew() {
         await pos.enqueue({
           productId: picked.id,
           name: picked.name,
-          qty: picked.trackQuantity ? qty : 1,
+          qty: picked.trackQuantity ? saleQty ?? 1 : 1,
+          unit: picked.unit ?? null,
           totalAmount: totalN,
           notes: notes.trim(),
         });
@@ -166,7 +185,7 @@ export default function SaleNew() {
                         icon="cube"
                         iconColor={ok ? c.sq.b : c.sq.g}
                         title={p.name}
-                        subtitle={p.trackQuantity ? tr(d.saleNew.leftPcs, { n: fmtMoney(p.available) }) : undefined}
+                        subtitle={p.trackQuantity ? tr(d.saleNew.leftPcs, { n: qtyWithUnit(p.available, p.unit, d.productFields.units) }) : undefined}
                         right={<AmountColumn amount={fmtMoney(p.salePrice)}>{ok ? null : <Pill label={d.saleNew.notInSale} tone="mut" />}</AmountColumn>}
                         disabled={!ok}
                         onPress={() => choose(p)}
@@ -188,7 +207,7 @@ export default function SaleNew() {
                     icon="cube"
                     iconColor={ok ? c.sq.b : c.sq.g}
                     title={p.name}
-                    subtitle={p.trackQuantity ? tr(d.saleNew.leftPcs, { n: fmtMoney(p.available) }) : undefined}
+                    subtitle={p.trackQuantity ? tr(d.saleNew.leftPcs, { n: qtyWithUnit(p.available, p.unit, d.productFields.units) }) : undefined}
                     right={<AmountColumn amount={fmtMoney(p.salePrice)}>{ok ? null : <Pill label={d.saleNew.notInSale} tone="mut" />}</AmountColumn>}
                     disabled={!ok}
                     onPress={() => choose(p)}
@@ -219,13 +238,26 @@ export default function SaleNew() {
           icon="cube"
           iconColor={c.sq.b}
           title={picked.name}
-          subtitle={`${fmtMoney(picked.salePrice, { suffix: true })}${picked.trackQuantity ? tr(d.saleNew.available, { n: fmtMoney(picked.available) }) : ''}`}
+          subtitle={`${fmtMoney(picked.salePrice, { suffix: true })}${picked.trackQuantity ? tr(d.saleNew.available, { n: qtyWithUnit(picked.available, picked.unit, d.productFields.units) }) : ''}`}
           right={<Button title={d.common.change} size="sm" variant="tinted" onPress={() => setPicked(null)} />}
         />
-        {picked.trackQuantity ? (
+        {picked.trackQuantity && !fractional ? (
           <Cell title={d.common.qty} right={<Stepper value={qty} onChange={changeQty} min={1} max={Math.max(1, picked.available)} />} />
         ) : null}
       </Group>
+
+      {fractional ? (
+        <Field
+          label={d.common.qty}
+          value={qtyText}
+          onChangeText={changeQtyText}
+          keyboardType="decimal-pad"
+          placeholder="1,5"
+          suffix={picked.unit ? d.productFields.units[picked.unit] : undefined}
+          error={show('qty')}
+          hint={d.saleNew.qtyHint}
+        />
+      ) : null}
 
       <View style={{ gap: 8 }}>
         <Text style={[s.label, { color: c.ink3 }]}>{d.saleNew.payType}</Text>

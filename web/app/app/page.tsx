@@ -17,7 +17,8 @@ import type { IconName } from '@/components/icons/Icon';
 import { loadUserPermissions } from '@/lib/permissionGuard';
 import { parseBusinessType } from '@/lib/businessTypes';
 import { getI18n } from '@/lib/i18n/server';
-import { tr, fmtDayMonth, WEEKDAYS, WEEKDAYS_SHORT } from '@/lib/i18n/fmt';
+import { tr, fmtDayMonth, qtyWithUnit, WEEKDAYS, WEEKDAYS_SHORT } from '@/lib/i18n/fmt';
+import { getStockQty } from '@/lib/productQuantity';
 import { getLatestReport } from '@/lib/ai/report';
 import { parseAiResult } from '@/lib/ai/validate';
 import { openTaskFilter, isTaskOverdue } from '@/lib/tasks';
@@ -104,9 +105,14 @@ export default async function TenantDashboard({
       : Promise.resolve([]),
     isAdmin ? Branch.find({ active: true }).select('name').lean() : Promise.resolve([]),
     isAdmin && features.sales
-      ? Sale.aggregate<{ _id: string; qty: number; revenue: number }>([
+      ? Sale.aggregate<{ _id: { name?: string; unit: string }; qty: number; revenue: number }>([
           { $match: { ...inPeriod, ...notCancelled } },
-          { $group: { _id: '$productSnapshot.name', qty: { $sum: { $ifNull: ['$productSnapshot.saleQuantity', 1] } }, revenue: { $sum: '$totalAmount' } } },
+          // Nom + birlik bo'yicha — "dona" va "kg" miqdori bir songa qo'shilmasin
+          { $group: {
+            _id: { name: '$productSnapshot.name', unit: { $ifNull: ['$productSnapshot.unit', 'dona'] } },
+            qty: { $sum: { $ifNull: ['$productSnapshot.saleQuantity', 1] } },
+            revenue: { $sum: '$totalAmount' },
+          } },
           { $sort: { revenue: -1 } },
           { $limit: 5 },
         ])
@@ -123,7 +129,7 @@ export default async function TenantDashboard({
       ? Product.find({
           ...scope, trackQuantity: true, status: 'in_stock',
           $expr: { $lte: [{ $subtract: ['$quantity', '$soldQuantity'] }, 3] },
-        }).select('name quantity soldQuantity').limit(5).lean()
+        }).select('name quantity soldQuantity trackQuantity status unit').limit(5).lean()
       : Promise.resolve([]),
     !isAdmin && features.sales
       ? Sale.aggregate<{ count: number; total: number }>([
@@ -147,9 +153,12 @@ export default async function TenantDashboard({
   const branchRows = branchAgg
     .map((b) => ({ id: String(b._id), name: branchName.get(String(b._id)) ?? d.common.branch, today: b.today, week: b.week, count: b.count }))
     .sort((a, b) => b.week - a.week);
-  const topRows = topAgg.map((r) => ({ name: r._id || t.unnamed, qty: r.qty, revenue: r.revenue }));
+  const topRows = topAgg.map((r) => ({ name: r._id.name || t.unnamed, qty: r.qty, unit: r._id.unit, revenue: r.revenue }));
   const staffRows = staffAgg.map((r) => ({ name: r._id, count: r.count, total: r.total }));
-  const lowRows = lowStock.map((p) => ({ id: String(p._id), name: p.name, left: (p.quantity ?? 0) - (p.soldQuantity ?? 0) }));
+  const lowRows = lowStock.map((p) => {
+    const left = getStockQty(p);
+    return { id: String(p._id), name: p.name, left, leftText: qtyWithUnit(left, p.unit, d.stock.fields.units) };
+  });
   const mine = myAgg[0] ?? { count: 0, total: 0 };
   const taskRows = myTasks.map((x) => ({ id: String(x._id), title: x.title, priority: x.priority, dueDate: x.dueDate, overdue: isTaskOverdue(x) }));
 
