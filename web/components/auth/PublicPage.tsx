@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import BrandMark from '@/components/BrandMark';
+import BrandMark, { Wordmark } from '@/components/BrandMark';
 import Icon from '@/components/icons/Icon';
 import LangSwitch from '@/components/LangSwitch';
 import { getDict } from '@/lib/i18n/server';
@@ -31,7 +31,7 @@ export default async function PublicPage({
         <div className="au-nav-in">
           <Link href="/" className="au-brand">
             <BrandMark size={30} />
-            Savora
+            <Wordmark height={15} />
           </Link>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <LangSwitch compact />

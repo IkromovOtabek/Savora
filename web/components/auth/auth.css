@@ -30,11 +30,11 @@
 .au-appicon {
   width: 60px; height: 60px; border-radius: 15px;
   display: grid; place-items: center;
-  background: linear-gradient(180deg, #3a68c4, #1f4fa8);
+  background: linear-gradient(180deg, #1f86f7, #1a5fe0);
   color: #fff;
   font-family: var(--font-sans);
   font-weight: 700; font-size: 26px; letter-spacing: -.02em;
-  box-shadow: 0 6px 16px -4px rgba(31, 79, 168, .45);
+  box-shadow: 0 6px 16px -4px rgba(26, 95, 224, .45);
   margin-bottom: 10px;
   text-decoration: none;
 }
@@ -258,7 +258,7 @@
 a.au-cell:hover { background: var(--fill-2, rgba(118, 128, 160, .08)); }
 a.au-cell:active { opacity: .6; }
 .au-sq { width: 30px; height: 30px; border-radius: 8px; display: grid; place-items: center; color: #fff; flex: none; background: #8a93a8; }
-.au-sq--b { background: #1f4fa8; } .au-sq--a { background: #d69a17; } .au-sq--o { background: #1a8a52; } .au-sq--r { background: #d0362b; }
+.au-sq--b { background: #1a5fe0; } .au-sq--a { background: #d69a17; } .au-sq--o { background: #1a8a52; } .au-sq--r { background: #d0362b; }
 .au-chev { color: var(--ink-3); opacity: .6; display: grid; }
 .au-chev svg { transform: rotate(-90deg); }
 

@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { BrandGlyph } from '@/components/BrandMark';
+import { BrandGlyph, Wordmark } from '@/components/BrandMark';
 import { getDict } from '@/lib/i18n/server';
 import '../../login/login.css';
 
@@ -24,7 +24,7 @@ export default async function RegisterDonePage({ searchParams }: { searchParams:
         <div className="lg-card">
           <span className="lg-brand">
             <span className="lg-brand-mark"><BrandGlyph size={34} radius={0} /></span>
-            Savora
+            <Wordmark height={16} />
           </span>
           <header className="lg-head">
             <h1 className="lg-title">{t.appDoneTitle}</h1>

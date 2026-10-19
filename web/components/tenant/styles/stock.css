@@ -256,7 +256,7 @@
 .st-hero-photo {
   width: 148px; height: 148px; border-radius: 18px; overflow: hidden; display: grid; place-items: center;
   background: linear-gradient(150deg, var(--brand-soft), var(--fill-2)); color: var(--brand);
-  box-shadow: inset 0 0 0 .5px var(--sep), 0 12px 24px -14px rgba(31, 79, 168, .5);
+  box-shadow: inset 0 0 0 .5px var(--sep), 0 12px 24px -14px rgba(26, 95, 224, .5);
 }
 .st-hero-photo img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .st-hero-photo .st-thumb-letter { font-size: 52px; }
@@ -431,7 +431,7 @@
   background:
     radial-gradient(520px 240px at 100% 0%, rgba(255, 255, 255, .16), rgba(255, 255, 255, 0) 70%),
     radial-gradient(360px 200px at 0% 100%, rgba(214, 154, 23, .22), rgba(214, 154, 23, 0) 70%),
-    linear-gradient(150deg, #3a68c4 0%, #1f4fa8 62%, #173d86 100%);
+    linear-gradient(150deg, #1f86f7 0%, #1a5fe0 62%, #173d86 100%);
 }
 .st-inv-hero > * { transform-style: preserve-3d; }
 .st-inv-hero-top { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 16px 28px; align-items: end; }
@@ -504,7 +504,7 @@ a.st-cell:focus-visible { outline: 3px solid var(--brand-ring); outline-offset: 
 }
 .st-imei-hero::before {
   content: ""; position: absolute; inset: 0 0 auto 0; height: 4px;
-  background: linear-gradient(90deg, #1f4fa8, #3a68c4 60%, #d69a17);
+  background: linear-gradient(90deg, #1a5fe0, #1f86f7 60%, #d69a17);
 }
 .st-imei-hero {
   background:

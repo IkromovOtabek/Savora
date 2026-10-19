@@ -126,7 +126,7 @@
   font-size: 13px;
   font-weight: 650;
   color: var(--t-on-brand);
-  background: linear-gradient(180deg, #5b86d6, #1f4fa8);
+  background: linear-gradient(180deg, #5b86d6, #1a5fe0);
 }
 
 /* Guruhlangan menyu */
@@ -593,7 +593,7 @@
   color: var(--t-hero-ink);
   background:
     radial-gradient(120% 90% at 100% 0%, rgba(255, 255, 255, .16), transparent 55%),
-    linear-gradient(145deg, #3268d0 0%, #1f4fa8 48%, #14357a 100%);
+    linear-gradient(145deg, #3268d0 0%, #1a5fe0 48%, #14357a 100%);
   margin-bottom: 18px; /* orqa qatlamlar (stack) uchun joy */
 }
 .dark .t-hero {
@@ -843,7 +843,7 @@ a.t-cell:active { background: var(--t-fill); }
 .t-chart-cursor { stroke: var(--brand); stroke-width: 1; opacity: .35; stroke-dasharray: 3 3; }
 .t-chart-floor { fill: var(--brand); opacity: .16; }
 .t-chart-glow { pointer-events: none; }
-.t-chart-dot { fill: var(--brand); stroke: var(--surface); stroke-width: 2.5; filter: drop-shadow(0 3px 4px rgba(31, 79, 168, .45)); }
+.t-chart-dot { fill: var(--brand); stroke: var(--surface); stroke-width: 2.5; filter: drop-shadow(0 3px 4px rgba(26, 95, 224, .45)); }
 .t-chart-dot-hi { fill: #fff; opacity: .7; pointer-events: none; }
 .t-chart-glow, .t-chart-dot, .t-chart-dot-hi, .t-chart-floor, .t-chart-cursor { transition: cx .18s ease, cy .18s ease; }
 @media (prefers-reduced-motion: reduce) { .t-chart-glow, .t-chart-dot, .t-chart-dot-hi, .t-chart-floor, .t-chart-cursor { transition: none; } }

@@ -9,7 +9,7 @@ import { DEFAULT_PLAN_PRESETS, fmtPlanPrice, type PlanPreset } from '@/lib/plans
 import PasswordField from '@/components/auth/PasswordField';
 import Icon from '@/components/icons/Icon';
 import { AuthAlert } from '@/components/auth/AuthShell';
-import { BrandGlyph } from '@/components/BrandMark';
+import { BrandGlyph, Wordmark } from '@/components/BrandMark';
 import LangSwitch from '@/components/LangSwitch';
 import { useDict } from '@/lib/i18n/client';
 import '@/components/auth/auth.css';
@@ -85,7 +85,7 @@ export default function RegisterForm({ plans, fromApp = false }: { plans: PlanPr
       <header className="rg-bar">
         <Link href="/" className="rg-logo" aria-label={d.auth.login.brandHome}>
           <span className="rg-logo-mark"><BrandGlyph size={32} radius={0} /></span>
-          Savora
+          <Wordmark height={15} />
         </Link>
         <div className="rg-bar-r"><span>{t.haveAccount}</span> <Link href="/login">{d.common.login}</Link> <LangSwitch compact /></div>
       </header>

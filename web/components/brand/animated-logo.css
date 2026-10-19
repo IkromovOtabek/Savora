@@ -1,0 +1,11 @@
+/* Animatsion logo (components/brand/AnimatedLogo.tsx). Sukut holati — to'la logo:
+   JS ishlamasa yoki "kamroq harakat" yoqilgan bo'lsa ham to'g'ri ko'rinadi. */
+.al { display: inline-flex; flex-direction: column; align-items: center; }
+.al-mark, .al-wm { display: block; overflow: visible; flex: none; }
+.al-ghost { fill: var(--ink-1); opacity: .1; }
+.al-ol { fill: none; stroke: var(--ink-1); stroke-width: 1.3; stroke-linejoin: round; stroke-dasharray: 1 1; stroke-opacity: 0; }
+.al-slosh, .al-shim { transform-box: view-box; }
+.al-bar { transform-box: fill-box; transform-origin: 50% 100%; }
+.al-slosh { opacity: 0; }
+.al-gh { fill: var(--ink-1); opacity: .13; }
+.al-fl { fill: var(--ink-1); }

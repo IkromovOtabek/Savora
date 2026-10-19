@@ -17,7 +17,7 @@
   padding: 22px 24px;
 }
 .rg-logo { display: inline-flex; align-items: center; gap: 10px; color: var(--ink-1); text-decoration: none; font-size: 20px; font-weight: 800; letter-spacing: -.02em; border-radius: 10px; }
-.rg-logo-mark { width: 32px; height: 32px; border-radius: 9px; overflow: hidden; box-shadow: 0 4px 12px -4px rgba(31, 79, 168, .45); }
+.rg-logo-mark { width: 32px; height: 32px; border-radius: 9px; overflow: hidden; box-shadow: 0 4px 12px -4px rgba(26, 95, 224, .45); }
 .rg-logo:focus-visible { outline: 3px solid var(--brand-ring); outline-offset: 3px; }
 .rg-bar-r { margin: 0; display: flex; align-items: center; gap: 6px; font-size: 14px; color: var(--ink-3); }
 .rg-bar-r .lang-switch { margin-left: 10px; background: var(--surface); box-shadow: 0 0 0 .5px var(--sep); }
@@ -126,8 +126,8 @@
   border-radius: 28px; padding: 24px; color: #fff;
   background:
     radial-gradient(80% 60% at 100% 0%, rgba(255, 255, 255, .14), transparent 70%),
-    linear-gradient(155deg, #2f5fc0 0%, #1f4fa8 50%, #173f8f 100%);
-  box-shadow: 0 24px 50px -24px rgba(31, 79, 168, .6);
+    linear-gradient(155deg, #2f5fc0 0%, #1a5fe0 50%, #2346e0 100%);
+  box-shadow: 0 24px 50px -24px rgba(26, 95, 224, .6);
 }
 .rg-shop-top { display: flex; align-items: center; gap: 12px; padding-bottom: 16px; border-bottom: 1px solid rgba(255, 255, 255, .16); }
 .rg-shop-ic { flex: none; width: 46px; height: 46px; border-radius: 13px; display: grid; place-items: center; background: rgba(255, 255, 255, .16); }

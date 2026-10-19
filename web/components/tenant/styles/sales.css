@@ -227,7 +227,7 @@
 .sl-hero-in { display: grid; gap: 18px; transform-style: preserve-3d; }
 .sl-hero-top, .sl-hero-sum { transform-style: preserve-3d; }
 .sl-ring.ux-z { transform: translateZ(36px); }
-.sl-hero--installment { background: linear-gradient(160deg, #3a68c4 0%, #1f4fa8 62%, #8a6411 140%); }
+.sl-hero--installment { background: linear-gradient(160deg, #1f86f7 0%, #1a5fe0 62%, #8a6411 140%); }
 .sl-hero--cancelled { background: var(--surface); color: var(--ink-1); box-shadow: var(--shadow-sm); }
 .sl-hero-top { display: flex; align-items: center; gap: 20px; }
 .sl-hero-sum { min-width: 0; flex: 1; display: grid; gap: 2px; }

@@ -1,11 +1,12 @@
 import { ImageResponse } from 'next/og';
+import { StaticLogo, TILE_BG } from '@/components/seo/OgImage';
 
 /**
  * PNG ikonkalar (build vaqtida bir marta yaratiladi):
  *   /icons/icon-192.png, /icons/icon-512.png      — PWA "any" (yumaloq burchakli)
  *   /icons/maskable-512.png                       — PWA "maskable" (to'liq fon, belgi 80% xavfsiz zonada)
  *   /icons/apple-touch-icon.png (180)              — iOS "Bosh ekranga qo'shish" (iOS SVG'ni qo'llamaydi)
- * Shakl — components/BrandMark.tsx bilan bir xil.
+ * Shakl — lib/brand.ts (components/BrandMark.tsx bilan bir xil).
  */
 const FILES: Record<string, { size: number; maskable: boolean; radius: number }> = {
   'icon-192.png': { size: 192, maskable: false, radius: 24 },
@@ -28,9 +29,8 @@ export async function GET(_req: Request, { params }: { params: Promise<{ file: s
   if (!spec) return new Response('Not found', { status: 404 });
   const { size, maskable, radius } = spec;
 
-  // Satori <g transform> ni qo'llamaydi: fon — CSS gradient, belgi — alohida svg.
-  // Maskable: viewBox kengaytiriladi (-12.5..112.5) → belgi markazdagi 80% xavfsiz zonada.
-  const viewBox = maskable ? '-12.5 -12.5 125 125' : '0 0 100 100';
+  // Maskable: belgi markazdagi 80% xavfsiz zonada — logo balandligi kichikroq
+  const logoH = Math.round(size * (maskable ? 0.6 : 0.74));
   return new ImageResponse(
     (
       <div
@@ -38,17 +38,13 @@ export async function GET(_req: Request, { params }: { params: Promise<{ file: s
           width: '100%',
           height: '100%',
           display: 'flex',
-          background: 'linear-gradient(180deg, #3a68c4 0%, #173f8f 100%)',
+          alignItems: 'center',
+          justifyContent: 'center',
+          background: TILE_BG,
           borderRadius: `${(radius / 100) * size}px`,
         }}
       >
-        <svg width={size} height={size} viewBox={viewBox}>
-          <rect x="20" y="58" width="13" height="24" rx="6.5" fill="#fff" opacity="0.55" />
-          <rect x="40" y="45" width="13" height="37" rx="6.5" fill="#fff" opacity="0.8" />
-          <rect x="60" y="32" width="13" height="50" rx="6.5" fill="#fff" />
-          <path d="M24 46C38 28 58 20 79 21" fill="none" stroke="#f0bf4c" strokeWidth="6.5" strokeLinecap="round" />
-          <circle cx="79" cy="21" r="6.5" fill="#f0bf4c" />
-        </svg>
+        <StaticLogo height={logoH} />
       </div>
     ),
     {

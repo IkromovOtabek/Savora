@@ -94,7 +94,7 @@ export const viewport: Viewport = {
 };
 
 const themeScript = `
-(function(){try{var t=localStorage.getItem('theme');if(!t){var p=location.pathname;t=/^\\/(app|super|login|register|forgot|t)(\\/|$)/.test(p)||window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';}if(t==='dark'){document.documentElement.classList.add('dark');}}catch(e){}})();
+(function(){try{var t=localStorage.getItem('theme');if(!t){var p=location.pathname;t=/^\\/(app|super|login|register|forgot|t)(\\/|$)/.test(p)||window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';}if(t==='dark'||t==='black'){document.documentElement.classList.add('dark');}if(t==='black'){document.documentElement.classList.add('qora');}}catch(e){}})();
 `;
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {

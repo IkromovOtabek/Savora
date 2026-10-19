@@ -18,7 +18,7 @@ import Faq from '@/components/landing/Faq';
 import { RotatingWord, HeroStage, CountUp } from '@/components/landing/HeroMotion';
 import ThemeToggle from '@/components/ThemeToggle';
 import LangSwitch from '@/components/LangSwitch';
-import BrandMark from '@/components/BrandMark';
+import BrandMark, { Wordmark } from '@/components/BrandMark';
 import SavoraJsonLd from '@/components/seo/JsonLd';
 import '@/components/landing/landing.css';
 
@@ -129,7 +129,7 @@ export default async function LandingPage() {
       {/* NAV */}
       <header className="lp-nav">
         <div className="lp-wrap lp-nav-in">
-          <Link href="/" className="lp-brand"><BrandMark size={32} />Savora</Link>
+          <Link href="/" className="lp-brand"><BrandMark size={32} /><Wordmark height={16} /></Link>
           <nav className="lp-links" aria-label={L.nav.sectionsAria}>
             <a href="#nasiya">{L.nav.nasiya}</a>
             <a href="#qoidalar-2027">{L.nav.rules}</a>
@@ -451,7 +451,7 @@ export default async function LandingPage() {
         <div className="lp-wrap">
           <div className="lp-foot-grid">
             <div>
-              <Link href="/" className="lp-brand"><BrandMark size={32} />Savora</Link>
+              <Link href="/" className="lp-brand"><BrandMark size={32} /><Wordmark height={16} /></Link>
               <p style={{ color: 'var(--lp-ink2)', maxWidth: 300, marginTop: 12 }}>{L.footer.tagline}</p>
             </div>
             <div><h4>{L.footer.product}</h4><a href="#imkoniyatlar">{L.nav.features}</a><a href="#tariflar">{L.nav.plans}</a><a href="#sohalar">{L.footer.sectors}</a><a href="#qoidalar-2027">{L.footer.rules}</a><a href="#ilova">{L.mobileApp.eyebrow}</a><Link href={LOCALHOST_LINKS.register}>{L.footer.trial}</Link></div>

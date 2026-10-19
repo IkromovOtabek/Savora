@@ -7,7 +7,7 @@
     "orientation": "portrait",
     "scheme": "savora",
     "icon": "./assets/icon.png",
-    "primaryColor": "#1F4FA8",
+    "primaryColor": "#1A5FE0",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
@@ -26,7 +26,7 @@
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "monochromeImage": "./assets/android-icon-monochrome.png",
-        "backgroundColor": "#1F4FA8"
+        "backgroundColor": "#0A1530"
       },
       "permissions": [
         "android.permission.CAMERA"
@@ -46,9 +46,9 @@
           "image": "./assets/splash-blank.png",
           "imageWidth": 200,
           "resizeMode": "contain",
-          "backgroundColor": "#0B1A3D",
+          "backgroundColor": "#0A1122",
           "dark": {
-            "backgroundColor": "#05080F"
+            "backgroundColor": "#0A1122"
           }
         }
       ],

@@ -204,7 +204,7 @@ a.sa-cell:active, label.sa-cell:active { background: var(--sa-fill); }
 
 /* Rangli ikonka kvadratlari */
 .sa-sq { width: 30px; height: 30px; border-radius: 8px; display: grid; place-items: center; color: #fff; flex: none; background: #8a93a8; }
-.sa-sq--b { background: #1f4fa8; }
+.sa-sq--b { background: #1a5fe0; }
 .sa-sq--a { background: #d69a17; }
 .sa-sq--o { background: #1a8a52; }
 .sa-sq--r { background: #d0362b; }
@@ -217,7 +217,7 @@ a.sa-cell:active, label.sa-cell:active { background: var(--sa-fill); }
   width: 38px; height: 38px; border-radius: 50%; display: grid; place-items: center; flex: none;
   font-weight: 600; font-size: 14px; color: #fff; background: linear-gradient(180deg, #a3abbd, #7d869b);
 }
-.sa-av--b { background: linear-gradient(180deg, #5b86d6, #1f4fa8); }
+.sa-av--b { background: linear-gradient(180deg, #5b86d6, #1a5fe0); }
 .sa-av--o { background: linear-gradient(180deg, #4cc887, #1a8a52); }
 .sa-av--a { background: linear-gradient(180deg, #f0c35c, #c98f12); }
 .sa-av--r { background: linear-gradient(180deg, #f07a70, #d0362b); }
@@ -243,7 +243,7 @@ a.sa-cell:active, label.sa-cell:active { background: var(--sa-fill); }
 .sa-kpi-d--ok { color: var(--sa-ok); }
 .sa-kpi-d--bad { color: var(--sa-bad); }
 .sa-kpi-d--warn { color: var(--sa-warn); }
-.sa-kpi--hero { background: linear-gradient(160deg, #3a68c4, #1f4fa8); color: #fff; box-shadow: 0 8px 24px -12px rgba(31, 79, 168, .6); }
+.sa-kpi--hero { background: linear-gradient(160deg, #1f86f7, #1a5fe0); color: #fff; box-shadow: 0 8px 24px -12px rgba(26, 95, 224, .6); }
 .sa-kpi--hero .sa-kpi-l, .sa-kpi--hero .sa-kpi-d, .sa-kpi--hero .sa-kpi-v small { color: rgba(255, 255, 255, .85); }
 .sa-kpi--hero .sa-sq { background: rgba(255, 255, 255, .2); }
 .sa-mini { padding: 12px 14px; display: grid; gap: 2px; }
@@ -493,7 +493,7 @@ a.sa-cell:active, label.sa-cell:active { background: var(--sa-fill); }
 .sa-hero-row > .ux-strip { align-content: stretch; margin-bottom: 18px; }
 .sa-hero-row .sa-kpi { height: 100%; }
 .sa-hero {
-  background: linear-gradient(150deg, #4a78d4 0%, #1f4fa8 55%, #173d85 100%);
+  background: linear-gradient(150deg, #4a78d4 0%, #1a5fe0 55%, #173d85 100%);
   color: #fff; padding: 18px 20px 16px; display: grid; gap: 6px; align-content: start;
   margin-bottom: 18px; /* stack qatlamlari uchun joy */
   min-width: 0;
@@ -507,7 +507,7 @@ a.sa-cell:active, label.sa-cell:active { background: var(--sa-fill); }
 .sa-hero-items div { min-width: 0; display: grid; gap: 1px; }
 .sa-hero-items dt { font-size: 12px; color: rgba(255, 255, 255, .78); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .sa-hero-items dd { margin: 0; font-size: 18px; font-weight: 700; letter-spacing: -.02em; font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.dark .sa-hero { background: linear-gradient(150deg, #3a68c4 0%, #1f4fa8 55%, #142f66 100%); }
+.dark .sa-hero { background: linear-gradient(150deg, #1f86f7 0%, #1a5fe0 55%, #142f66 100%); }
 
 /* Lenta ustunlari (ux.css dan keyin yuklangani uchun yuqori aniqlik) */
 .sa-shell .ux-strip { --ux-cols: 4; }
@@ -519,7 +519,7 @@ a.sa-cell:active, label.sa-cell:active { background: var(--sa-fill); }
 .sa-bars--3d .sa-bar-fill {
   position: relative; border-radius: 8px 8px 6px 6px;
   background: linear-gradient(180deg, #6f97e8 0%, var(--brand) 60%, #173d85 100%);
-  box-shadow: inset -6px 0 0 rgba(0, 0, 0, .14), inset 0 2px 0 rgba(255, 255, 255, .35), 0 10px 16px -8px rgba(31, 79, 168, .55);
+  box-shadow: inset -6px 0 0 rgba(0, 0, 0, .14), inset 0 2px 0 rgba(255, 255, 255, .35), 0 10px 16px -8px rgba(26, 95, 224, .55);
 }
 .sa-bars--3d .sa-bar-fill::before { /* ust yuz */
   content: ""; position: absolute; left: 0; right: 0; top: -4px; height: 8px; border-radius: 50%;

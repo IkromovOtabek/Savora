@@ -1,9 +1,16 @@
 <svg width="100" height="100" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-  <defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3a68c4"/><stop offset="1" stop-color="#173f8f"/></linearGradient></defs>
-  <rect width="100" height="100" rx="24" fill="url(#g)"/>
-  <rect x="20" y="58" width="13" height="24" rx="6.5" fill="#fff" opacity=".55"/>
-  <rect x="40" y="45" width="13" height="37" rx="6.5" fill="#fff" opacity=".8"/>
-  <rect x="60" y="32" width="13" height="50" rx="6.5" fill="#fff"/>
-  <path d="M24 46C38 28 58 20 79 21" fill="none" stroke="#f0bf4c" stroke-width="6.5" stroke-linecap="round"/>
-  <circle cx="79" cy="21" r="6.5" fill="#f0bf4c"/>
+  <!-- Savora ilova ikonkasi: tungi ko'k plitka + ko'k gradient logo (components/BrandMark.tsx, lib/brand.ts) -->
+  <defs>
+    <linearGradient id="t" x1="0" y1="0" x2=".4" y2="1"><stop offset="0" stop-color="#13254d"/><stop offset="1" stop-color="#0a1530"/></linearGradient>
+    <linearGradient id="la" x1="0" y1="0" x2=".35" y2="1"><stop offset="0" stop-color="#2CC3FF"/><stop offset=".55" stop-color="#1F86F7"/><stop offset="1" stop-color="#1F5BE6"/></linearGradient>
+    <linearGradient id="lb" x1=".15" y1="0" x2=".55" y2="1"><stop offset="0" stop-color="#2AA2FF"/><stop offset=".5" stop-color="#2566F0"/><stop offset="1" stop-color="#2238D6"/></linearGradient>
+    <linearGradient id="lr" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2BB6FF"/><stop offset="1" stop-color="#1D5CE8"/></linearGradient>
+    <radialGradient id="ls" cx="92" cy="150" r="58" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#071457" stop-opacity=".7"/><stop offset="1" stop-color="#071457" stop-opacity="0"/></radialGradient>
+    <clipPath id="lk"><path d="M165,6 L168,50 C136,61 111,73 99,87 C92,95 91,102 92,110 L130,156 L100,157 C58,157 16,146 10,114 C5,88 20,70 45,58 C80,41 120,25 165,6 Z"/></clipPath>
+  </defs>
+  <rect width="100" height="100" rx="24" fill="url(#t)"/>
+  <svg x="22.43" y="13" width="55.13" height="74" viewBox="6 2 222 298">
+    <path d="M165,6 L168,50 C136,61 111,73 99,87 C92,95 91,102 92,110 L130,156 L100,157 C58,157 16,146 10,114 C5,88 20,70 45,58 C80,41 120,25 165,6 Z" fill="url(#la)"/><rect x="5" y="80" width="125" height="77" fill="url(#ls)" clip-path="url(#lk)"/>
+    <path d="M91,116 Q91,103 104,103 C152,106 204,130 217,166 C230,204 214,248 180,269 C155,284 120,292 78,293 L42,273 L148,214 C153,205 153,188 145,174 C135,158 115,149 91,148 Z" fill="url(#lb)"/><path d="M26,221 Q26,212 35,212 L38.5,212 Q47.5,212 47.5,221 L47.5,261.2 L26,272.6 Z" fill="url(#lr)"/><path d="M58.5,205 Q58.5,196 67.5,196 L72,196 Q81,196 81,205 L81,243.5 L58.5,255.4 Z" fill="url(#lr)"/><path d="M91,188 Q91,179 100,179 L105,179 Q114,179 114,188 L114,226 L91,238.2 Z" fill="url(#lr)"/>
+  </svg>
 </svg>

@@ -12,7 +12,7 @@ import { useAuth } from '@/lib/auth';
 import { errMsg } from '@/lib/api';
 import { useTheme } from '@/lib/theme';
 import { useDict, useI18n, LOCALES, LOCALE_SHORT } from '@/lib/i18n';
-import { Field, Button, BrandMark } from '@/components/ui';
+import { Field, Button, LogoSvg, Wordmark } from '@/components/ui';
 
 const TILES = 12;
 const ease = Easing.bezier(0.2, 0.8, 0.2, 1);
@@ -126,8 +126,8 @@ export default function LoginScreen() {
 
             <View style={s.topRow}>
               <View style={s.brand}>
-                <View style={s.logoChip}><BrandMark size={34} /></View>
-                <Text style={s.brandName}>Savora</Text>
+                <View style={s.logoChip}><LogoSvg height={30} mono={false} /></View>
+                <Wordmark height={17} color="#FFFFFF" />
               </View>
               <View style={s.lang} accessibilityRole="radiogroup" accessibilityLabel={d.login.language}>
                 {LOCALES.map((l) => {
@@ -225,7 +225,6 @@ const s = StyleSheet.create({
   topRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   brand: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   logoChip: { width: 42, height: 42, borderRadius: 13, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center' },
-  brandName: { color: '#FFFFFF', fontSize: 19, fontWeight: '700', letterSpacing: -0.3 },
   lang: { flexDirection: 'row', padding: 3, borderRadius: 999, backgroundColor: 'rgba(255,255,255,0.16)' },
   langBtn: { minWidth: 44, height: 30, borderRadius: 999, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 8 },
   langT: { fontSize: 12, fontWeight: '700' },

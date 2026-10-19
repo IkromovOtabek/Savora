@@ -5,7 +5,7 @@ import { useActionState, useState } from 'react';
 import { loginAction } from '@/app/actions/auth';
 import PasswordField from '@/components/auth/PasswordField';
 import { AuthAlert } from '@/components/auth/AuthShell';
-import { BrandGlyph } from '@/components/BrandMark';
+import AnimatedLogo from '@/components/brand/AnimatedLogo';
 import Icon from '@/components/icons/Icon';
 import LangSwitch from '@/components/LangSwitch';
 import { useDict } from '@/lib/i18n/client';
@@ -61,9 +61,8 @@ export default function LoginForm({
       {/* BILLZ uslubi: markazda bitta karta — logotip, sarlavha, maydonlar, katta tugma */}
       <main className="lg-main">
         <div className="lg-card">
-          <Link href="/" className="lg-brand" aria-label={t.brandHome}>
-            <span className="lg-brand-mark"><BrandGlyph size={34} radius={0} /></span>
-            Savora
+          <Link href="/" className="lg-brand lg-brand--anim" aria-label={t.brandHome}>
+            <AnimatedLogo size={84} />
           </Link>
 
           <header className="lg-head">

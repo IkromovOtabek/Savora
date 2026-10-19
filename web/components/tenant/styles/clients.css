@@ -28,7 +28,7 @@
   color: var(--on-brand);
   background: linear-gradient(180deg, #a3abbd, #7d869b);
 }
-.cl-av--b { background: linear-gradient(180deg, #5b86d6, #1f4fa8); }
+.cl-av--b { background: linear-gradient(180deg, #5b86d6, #1a5fe0); }
 .cl-av--a { background: linear-gradient(180deg, #e9b543, #b07c0c); }
 .cl-av--o { background: linear-gradient(180deg, #44b97c, #157a48); }
 .cl-av--r { background: linear-gradient(180deg, #ec7268, #c7332a); }
@@ -99,7 +99,7 @@
 .cl-port .cl-ring-track { stroke: rgba(255, 255, 255, .14); }
 .cl-port .cl-ring-bar { stroke: #f3c04d; filter: drop-shadow(0 0 6px rgba(243, 192, 77, .55)); }
 .cl-port .cl-ring b { color: #fff; }
-.cl-port--debt { background: linear-gradient(150deg, #3a68c4 0%, #1f4fa8 55%, #163d86 100%); }
+.cl-port--debt { background: linear-gradient(150deg, #1f86f7 0%, #1a5fe0 55%, #163d86 100%); }
 .cl-port-ic { width: 48px; height: 48px; border-radius: 14px; }
 
 /* KPI kartalari (ux-stat ustiga): chapda hajmli ikonka */

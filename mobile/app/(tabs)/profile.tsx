@@ -106,7 +106,7 @@ export default function Profile() {
       <Group header={d.profile.appearance} icon="color-palette-outline" footer={d.profile.appearanceFooter}>
         <View style={{ padding: 12 }}>
           <SegmentedControl<ThemeMode>
-            options={[{ key: 'system', label: d.profile.system }, { key: 'light', label: d.profile.light }, { key: 'dark', label: d.profile.dark }]}
+            options={[{ key: 'system', label: d.profile.system }, { key: 'light', label: d.profile.light }, { key: 'dark', label: d.profile.dark }, { key: 'black', label: d.profile.black }]}
             value={mode}
             onChange={setMode}
           />

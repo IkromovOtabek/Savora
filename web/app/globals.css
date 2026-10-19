@@ -1,5 +1,5 @@
 /* ============================================================
-   Savora — global dizayn tizimi: "Samarqand × iOS"
+   Savora — global dizayn tizimi: logo ko'ki × iOS (Kun / Tun / Qora)
    Tekis iOS tugmalar, guruhlangan kartalar, ingichka ajratgichlar,
    xira (blur) panellar, tizim shrifti (SF) + Onest zaxira.
    Ranglar faqat tokenlar orqali — qorong'i tema tokenlarni
@@ -28,14 +28,14 @@
   --ink-3: #5b6680;
   --text-2: var(--ink-2);
 
-  /* Brend — Registon kobalti */
-  --brand: #1f4fa8;
-  --brand-2: #3a68c4;
+  /* Brend — logodagi ko'k (oq fonda matn ≈ 5.6:1) */
+  --brand: #1a5fe0;
+  --brand-2: #1f86f7;
   --secondary: var(--brand-2);
-  --brand-soft: rgba(31, 79, 168, .1);
-  --brand-fill: #1f4fa8;               /* to'ldirilgan tugma foni */
-  --brand-fill-hover: #2a5bb8;
-  --brand-ring: rgba(31, 79, 168, .22);
+  --brand-soft: rgba(26, 95, 224, .1);
+  --brand-fill: #1a5fe0;               /* to'ldirilgan tugma foni (oq matn ≈ 5.6:1) */
+  --brand-fill-hover: #2a6cf0;
+  --brand-ring: rgba(26, 95, 224, .24);
   --on-brand: #ffffff;
 
   /* Semantik ranglar */
@@ -55,14 +55,22 @@
 
   --grad: var(--brand);
   --grad-accent: var(--accent);
-  --grad-brand: linear-gradient(160deg, #3a68c4, #1f4fa8);
-  --tg-bg: linear-gradient(165deg, #3a68c4 0%, #1f4fa8 100%);
+  --grad-brand: linear-gradient(160deg, #22b0ff, #2346e0);
+  --tg-bg: linear-gradient(165deg, #1f86f7 0%, #2346e0 100%);
 
   /* Soyalar — yengil, iOS uslubida */
   --shadow-sm: 0 1px 2px rgba(13, 21, 38, .05), 0 0 0 .5px rgba(60, 70, 100, .06);
   --shadow: 0 1px 2px rgba(13, 21, 38, .05), 0 6px 20px -8px rgba(13, 21, 38, .14);
   --shadow-lg: 0 1px 3px rgba(13, 21, 38, .06), 0 24px 60px -20px rgba(13, 21, 38, .32);
-  --shadow-brand: 0 6px 16px -4px rgba(31, 79, 168, .35);
+  --shadow-brand: 0 6px 16px -4px rgba(26, 95, 224, .35);
+
+  /* Logo (components/BrandMark.tsx) — 3 variant: Kun/Tun ko'k gradient, Qora oq */
+  --lg-a1: #2cc3ff; --lg-a2: #1f86f7; --lg-a3: #1f5be6;
+  --lg-b1: #2aa2ff; --lg-b2: #2566f0; --lg-b3: #2238d6;
+  --lg-r1: #2bb6ff; --lg-r2: #1d5ce8;
+  --lg-shade: #071457;
+  --logo-tile: #ffffff;
+  --logo-tile-shadow: 0 0 0 .5px rgba(16, 32, 72, .12), 0 2px 6px rgba(26, 95, 224, .18);
 
   /* Radiuslar — boshqaruv elementlari 12px, kartalar 20–24px */
   --r-sm: 12px;
@@ -79,31 +87,31 @@
   color-scheme: light;
 }
 
-/* Qorong'i tema (<html class="dark">, ThemeToggle) — panelda asosiy tema.
-   Neytral ko'mir-kulrang sirtlar (ko'k tus yo'q), kobalt faqat urg'u uchun. */
+/* Tun mavzusi (<html class="dark">, ThemeToggle) — panelda asosiy tema.
+   Logoning "to'q ko'k fon" varianti: tungi ko'k sirtlar, ko'k gradient logo. */
 .dark {
-  --bg: #2a2b2e;                       /* ko'tarilgan panel (sidebar, toolbar) */
-  --bg-soft: #202123;                  /* sahifa foni */
-  --surface: #2c2d30;                  /* karta */
+  --bg: #0f1930;                       /* ko'tarilgan panel (sidebar, toolbar) */
+  --bg-soft: #0a1122;                  /* sahifa foni */
+  --surface: #121d35;                  /* karta */
   --fill: rgba(255, 255, 255, .08);
   --fill-2: rgba(255, 255, 255, .05);
   --fill-3: rgba(255, 255, 255, .13);
   --sep: rgba(255, 255, 255, .08);
   --border: rgba(255, 255, 255, .08);
-  --bar: #2a2b2e;
-  --overlay: rgba(0, 0, 0, .6);
+  --bar: #0f1930;
+  --overlay: rgba(0, 4, 14, .66);
 
-  /* AA: ink-3 karta fonida ≈ 6:1 */
-  --ink-1: #f4f5f7;
-  --ink-2: rgba(244, 245, 247, .8);
-  --ink-3: #a3a6ad;
+  /* AA: ink-3 karta fonida ≈ 6.5:1 */
+  --ink-1: #eef3ff;
+  --ink-2: rgba(238, 243, 255, .8);
+  --ink-3: #9aa7c2;
 
-  --brand: #6b9bff;
-  --brand-2: #8db2ff;
-  --brand-soft: rgba(91, 142, 255, .16);
-  --brand-fill: #2f6be6;               /* oq matn bilan ≈ 4.8:1 */
-  --brand-fill-hover: #3b77ef;
-  --brand-ring: rgba(91, 142, 255, .38);
+  --brand: #5b9dff;
+  --brand-2: #2cc3ff;
+  --brand-soft: rgba(76, 150, 255, .16);
+  --brand-fill: #2563eb;               /* oq matn bilan ≈ 5.2:1 */
+  --brand-fill-hover: #2f6ff5;
+  --brand-ring: rgba(76, 150, 255, .4);
 
   --accent: #3fd38a;
   --accent-soft: rgba(63, 211, 138, .16);
@@ -116,15 +124,41 @@
   --warn: #f5b955;
   --warn-soft: rgba(245, 185, 85, .18);
 
-  --grad-brand: linear-gradient(160deg, #3b77ef, #2f6be6);
-  --tg-bg: linear-gradient(165deg, #202123 0%, #2c2d30 100%);
+  --grad-brand: linear-gradient(160deg, #2cc3ff, #2346e0);
+  --tg-bg: linear-gradient(165deg, #0a1122 0%, #13254d 100%);
 
   --shadow-sm: 0 0 0 1px rgba(255, 255, 255, .04), 0 2px 6px rgba(0, 0, 0, .28);
   --shadow: 0 0 0 1px rgba(255, 255, 255, .04), 0 10px 28px -10px rgba(0, 0, 0, .6);
   --shadow-lg: 0 1px 3px rgba(0, 0, 0, .5), 0 24px 60px -16px rgba(0, 0, 0, .7);
   --shadow-brand: 0 6px 16px -4px rgba(0, 0, 0, .6);
 
+  --logo-tile: linear-gradient(160deg, #13254d, #0a1530);
+  --logo-tile-shadow: 0 0 0 1px rgba(255, 255, 255, .06), 0 2px 8px rgba(0, 0, 0, .4);
+
   color-scheme: dark;
+}
+
+/* Qora mavzu (<html class="dark qora">) — Tun ustiga: OLED qora sirtlar, oq logo.
+   Brend urg'ulari ko'kligicha qoladi (tugma/havola o'qilishi uchun). */
+.dark.qora {
+  --bg: #0b0b0c;
+  --bg-soft: #000000;
+  --surface: #111113;
+  --bar: #0b0b0c;
+  --sep: rgba(255, 255, 255, .1);
+  --border: rgba(255, 255, 255, .1);
+  --overlay: rgba(0, 0, 0, .72);
+  --ink-1: #ffffff;
+  --ink-2: rgba(255, 255, 255, .78);
+  --ink-3: #9a9aa3;
+  --tg-bg: linear-gradient(165deg, #000000 0%, #141416 100%);
+
+  --lg-a1: #ffffff; --lg-a2: #f1f2f5; --lg-a3: #d9dce3;
+  --lg-b1: #ffffff; --lg-b2: #e8eaef; --lg-b3: #c6cad3;
+  --lg-r1: #ffffff; --lg-r2: #cfd3db;
+  --lg-shade: #000000;
+  --logo-tile: #000000;
+  --logo-tile-shadow: 0 0 0 1px rgba(255, 255, 255, .14);
 }
 
 /* ── 2. Asos ─────────────────────────────────────────────── */

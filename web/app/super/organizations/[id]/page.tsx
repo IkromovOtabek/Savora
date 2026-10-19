@@ -153,7 +153,7 @@ export default async function OrgDetailPage({
             label: t.tabLinks,
             icon: 'globe',
             content: (
-              <Panel title={t.tabLinks} sub={`${org.name} · ${typeLabel}`} icon="globe" iconBg="#1f4fa8">
+              <Panel title={t.tabLinks} sub={`${org.name} · ${typeLabel}`} icon="globe" iconBg="#1a5fe0">
                 <OrgLinksPanel org={org} />
               </Panel>
             ),

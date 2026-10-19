@@ -4,7 +4,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 /**
  * Yorqin palitra (BILLZ uslubi) — tiniq ko'k urg'u, oltin faqat nasiya/pul urg'ulari uchun,
- * yashil/qizil faqat holat uchun. Ikki rejimda ham ranglar to'yingan va yorqin.
+ * yashil/qizil faqat holat uchun. 3 mavzu — logoning 3 varianti: Kun (yorug'), Tun (to'q ko'k), Qora (OLED).
  */
 export interface Palette {
   bg: string; cell: string; fill: string; fill2: string; fill3: string; sep: string; bar: string;
@@ -21,6 +21,11 @@ export interface Palette {
   /** Ikonka ranglari: b ko'k, a oltin, o yashil, r qizil, g kulrang, p binafsha, t moviy */
   sq: { b: string; a: string; o: string; r: string; g: string; p: string; t: string };
   shadow: string;
+  /** Logo: 'color' — ko'k gradient, 'mono' — oq (Qora mavzu); logoTile — ilova ikonkasi plitkasi */
+  logo: 'color' | 'mono';
+  logoTile: string;
+  /** Ochilish animatsiyasi foni */
+  splash: string;
 }
 
 const SQ = { b: '#2F6BFF', a: '#FFA800', o: '#12B76A', r: '#F04438', g: '#8E99AE', p: '#7A5AF8', t: '#0BA5EC' };
@@ -38,14 +43,15 @@ export const light: Palette = {
   hero: '#4F8BFF', hero2: '#2257F0',
   sq: SQ,
   shadow: '#0B1220',
+  logo: 'color', logoTile: '#FFFFFF', splash: '#0A1122',
 };
 
-/** Qorong'i — neytral ko'mir-kulrang sirtlar, urg'ular o'sha yorqin ranglar */
+/** Tun — logodagi tungi ko'k sirtlar, urg'ular o'sha yorqin ranglar */
 export const dark: Palette = {
-  bg: '#1C1D20', cell: '#2A2B2F', fill: 'rgba(255,255,255,0.08)', fill2: 'rgba(255,255,255,0.05)', fill3: 'rgba(255,255,255,0.13)',
-  sep: 'rgba(255,255,255,0.08)', bar: '#26272B',
-  ink: '#F5F6F8', ink2: 'rgba(245,246,248,0.8)', ink3: '#A3A7B0',
-  tint: '#6E9BFF', tintSoft: 'rgba(92,141,255,0.18)', tintFill: '#2F6BFF',
+  bg: '#0A1122', cell: '#121D35', fill: 'rgba(255,255,255,0.08)', fill2: 'rgba(255,255,255,0.05)', fill3: 'rgba(255,255,255,0.13)',
+  sep: 'rgba(255,255,255,0.08)', bar: '#0F1930',
+  ink: '#EEF3FF', ink2: 'rgba(238,243,255,0.8)', ink3: '#9AA7C2',
+  tint: '#5B9DFF', tintSoft: 'rgba(76,150,255,0.18)', tintFill: '#2F6BFF',
   gold: '#FFC24D', goldSoft: 'rgba(255,194,77,0.18)',
   ok: '#32D583', okSoft: 'rgba(50,213,131,0.16)',
   bad: '#FF6B5F', badSoft: 'rgba(255,107,95,0.16)',
@@ -54,6 +60,17 @@ export const dark: Palette = {
   hero: '#4F8BFF', hero2: '#2257F0',
   sq: { ...SQ, g: '#667085' },
   shadow: '#000000',
+  logo: 'color', logoTile: '#0F1E40', splash: '#0A1122',
+};
+
+/** Qora — OLED qora sirtlar, oq logo; urg'ular Tun bilan bir xil */
+export const black: Palette = {
+  ...dark,
+  bg: '#000000', cell: '#111113', bar: '#0B0B0C',
+  sep: 'rgba(255,255,255,0.1)',
+  ink: '#FFFFFF', ink2: 'rgba(255,255,255,0.78)', ink3: '#9A9AA3',
+  sq: { ...SQ, g: '#5E5E66' },
+  logo: 'mono', logoTile: '#000000', splash: '#000000',
 };
 
 export const space = { xs: 4, sm: 8, md: 12, lg: 16, xl: 20, xxl: 28 } as const;
@@ -83,7 +100,7 @@ export const HAIRLINE = StyleSheet.hairlineWidth;
 /** Planshetda kontent kengligi chegarasi. */
 export const MAX_CONTENT = 600;
 
-export type ThemeMode = 'system' | 'light' | 'dark';
+export type ThemeMode = 'system' | 'light' | 'dark' | 'black';
 const MODE_KEY = 'savora_theme_mode';
 
 export interface Theme {
@@ -102,7 +119,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     AsyncStorage.getItem(MODE_KEY)
-      .then((v) => { if (v === 'light' || v === 'dark' || v === 'system') setModeState(v); })
+      .then((v) => { if (v === 'light' || v === 'dark' || v === 'black' || v === 'system') setModeState(v); })
       .catch(() => { /* saqlangan tanlov o'qilmasa — yorug' */ });
   }, []);
 
@@ -111,8 +128,9 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     AsyncStorage.setItem(MODE_KEY, m).catch(() => { /* keyingi ochilishda sukut (yorug') */ });
   }, []);
 
-  const isDark = mode === 'system' ? scheme === 'dark' : mode === 'dark';
-  const value = useMemo<Theme>(() => ({ c: isDark ? dark : light, dark: isDark, mode, setMode }), [isDark, mode, setMode]);
+  const isDark = mode === 'system' ? scheme === 'dark' : mode !== 'light';
+  const palette = mode === 'black' ? black : isDark ? dark : light;
+  const value = useMemo<Theme>(() => ({ c: palette, dark: isDark, mode, setMode }), [palette, isDark, mode, setMode]);
 
   return React.createElement(ThemeContext.Provider, { value }, children);
 }

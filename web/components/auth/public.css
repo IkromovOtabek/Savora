@@ -19,14 +19,14 @@
 
 /* [kvadrat qavsdagi] to'ldiriladigan joylar */
 .pp-ph { background: var(--accent-soft, rgba(214, 154, 23, .14)); color: inherit; padding: 0 4px; border-radius: 4px; font-style: normal; }
-.pp-note { border-left: 3px solid var(--brand); padding: 8px 12px; background: var(--brand-soft, rgba(31, 79, 168, .08)); border-radius: 0 10px 10px 0; font-size: 15px; }
+.pp-note { border-left: 3px solid var(--brand); padding: 8px 12px; background: var(--brand-soft, rgba(26, 95, 224, .08)); border-radius: 0 10px 10px 0; font-size: 15px; }
 
 /* Yordam markazi */
 .hc-search { position: sticky; top: 58px; z-index: 5; display: grid; gap: 10px; padding: 6px 0 10px; background: var(--bg-soft); }
 .hc-field { position: relative; }
 .hc-field svg { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--ink-3); pointer-events: none; }
 .hc-field input { width: 100%; height: 48px; padding: 0 16px 0 42px; border-radius: 14px; border: 0; font: inherit; font-size: 16px; color: var(--ink-1); background: var(--card, var(--surface)); box-shadow: 0 0 0 .5px var(--sep, var(--border)); }
-.hc-field input:focus { outline: 3px solid var(--brand-soft, rgba(31, 79, 168, .2)); }
+.hc-field input:focus { outline: 3px solid var(--brand-soft, rgba(26, 95, 224, .2)); }
 .hc-chips { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
 .hc-chips::-webkit-scrollbar { display: none; }
 .hc-chip { flex: none; border: 0; font: inherit; font-size: 14px; font-weight: 500; padding: 6px 12px; border-radius: 999px; background: var(--fill, rgba(118, 128, 160, .14)); color: var(--ink-2); cursor: pointer; }

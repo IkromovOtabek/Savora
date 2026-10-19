@@ -51,6 +51,7 @@
   border-radius: 10px;
 }
 .lg-brand-mark { width: 34px; height: 34px; border-radius: 10px; overflow: hidden; }
+.lg-brand--anim { display: flex; justify-content: center; margin: 0 auto; padding: 4px 8px; }
 .lg-brand:focus-visible { outline: 3px solid var(--brand-ring); outline-offset: 4px; }
 
 .lg-head { display: grid; gap: 8px; margin: 26px 0 28px; }

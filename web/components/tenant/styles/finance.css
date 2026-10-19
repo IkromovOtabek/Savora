@@ -243,7 +243,7 @@ a.fn-tl-title:focus-visible { outline: 2px solid var(--brand); outline-offset: 2
 /* ── Kredit kassa: bank kartalari ────────────────────────── */
 /* Wallet pass: rang --bank o'zgaruvchisida; yorug'lik dog'i fonda (overflow kesmaydi — ⋯ menyu chiqa oladi) */
 .fn-bank {
-  --bank: linear-gradient(150deg, #3a68c4, #1f4fa8);
+  --bank: linear-gradient(150deg, #1f86f7, #1a5fe0);
   position: relative; isolation: isolate; border-radius: var(--r-xl); padding: 18px;
   min-height: 188px; display: flex; flex-direction: column; gap: 10px; color: var(--on-brand);
   background:
@@ -330,7 +330,7 @@ a.fn-tl-title:focus-visible { outline: 2px solid var(--brand); outline-offset: 2
 .fn-chart-total { font-weight: 700; font-size: 14px; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .fn-chart-meta { display: flex; gap: 12px; flex-wrap: wrap; font-size: 12px; color: var(--ink-3); font-variant-numeric: tabular-nums; }
 
-.fn-dot-cost { background: linear-gradient(180deg, #3a68c4, #1f4fa8); }
+.fn-dot-cost { background: linear-gradient(180deg, #1f86f7, #1a5fe0); }
 .fn-dot-profit { background: linear-gradient(180deg, #2fae74, #147045); }
 
 /* Izometrik ustun: old yuz + ust yuz (skewX) + o'ng yon yuz (skewY). Sahifadagi yagona 3D grafik. */
@@ -351,7 +351,7 @@ a.fn-tl-title:focus-visible { outline: 2px solid var(--brand); outline-offset: 2
   filter: drop-shadow(0 6px 5px rgba(13, 21, 38, .2));
 }
 .fn-iso-seg { position: relative; height: 100%; min-width: 3px; }
-.fn-iso-seg--cost { background: linear-gradient(180deg, #3a68c4, #1f4fa8); }
+.fn-iso-seg--cost { background: linear-gradient(180deg, #1f86f7, #1a5fe0); }
 .fn-iso-seg--cost::before { background: #7598de; }
 .fn-iso-seg--cost::after { background: #163a82; }
 .fn-iso-seg--profit { background: linear-gradient(180deg, #2fae74, #147045); }
