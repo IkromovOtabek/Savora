@@ -8,6 +8,7 @@ import type { Dict } from './i18n/dict';
 import type { SessionUser } from './session';
 import type { getTenantModels } from './tenantDb';
 import { SHIFT_DEPOSIT_CATEGORY, SHIFT_WITHDRAW_CATEGORY } from './models/tenant/FinanceCategory';
+import { notifyShiftClosed } from './shopNotify';
 
 /**
  * Kassa smenasi amallari — web server action'lari va mobil API uchun umumiy.
@@ -90,6 +91,14 @@ export async function closeShift(
     summary: `Smena ${shift.shiftNo} yopildi — kerak ${fmtMoney(totals.current)}, sanaldi ${fmtMoney(countedCash)}, farq ${fmtMoney(difference)} so'm${via}`,
     meta: { ...totals, countedCash, difference },
   });
+  // Farq bo'lsa — egaga Telegram (sozlamada yoqilgan bo'lsa); javobni kutmaydi
+  if (difference !== 0) {
+    const branch = await m.Branch.findById(shift.branchId).select('name').lean();
+    void notifyShiftClosed(user, {
+      shiftNo: shift.shiftNo, branch: branch?.name ?? '—', by: user.username,
+      expected: totals.current, counted: countedCash, difference,
+    });
+  }
   return { success: tr(k.closed, { no: shift.shiftNo }) };
 }
 

@@ -261,6 +261,7 @@ export const CRON_SCHEDULE: Record<CronJob, { label: string; time: string; desc:
   'expiry-notifications': { label: 'Obuna eslatmasi', time: '09:00', desc: 'Obunaga 2 kun qolganda Telegram' },
   'installment-reminders': { label: 'Nasiya eslatmasi', time: '10:00', desc: "Muddati o'tgan nasiya to'lovlari" },
   'daftar-reminders': { label: 'Daftar eslatmasi', time: '10:30', desc: 'Qarz daftari — egaga Telegram, mijozga SMS' },
+  'daily-summary': { label: 'Kunlik yakun', time: '21:00', desc: "Do'kon egasiga kunlik savdo (Telegram, sozlamada yoqilganlarga)" },
 };
 
 export type CronState = 'ok' | 'late' | 'failed' | 'never';

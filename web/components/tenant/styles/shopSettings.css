@@ -53,3 +53,14 @@
 .ss-active b { font-size: 28px; font-weight: 800; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
 .ss-active b small { font-size: 15px; font-weight: 600; color: var(--ink-3); }
 .ss-active > small { color: var(--ink-3); font-size: 13px; }
+
+/* Bildirishnomalar */
+.ss-notify { max-width: 560px; }
+.ss-tg { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 10px 14px; border-radius: 12px; background: var(--warn-soft, var(--fill)); font-size: 14px; color: var(--ink-2); }
+.ss-tg.is-on { background: var(--accent-soft, var(--fill)); }
+.ss-tg a { color: var(--brand); font-weight: 600; text-decoration: none; white-space: nowrap; }
+.ss-toggle { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 12px 0; border-top: .5px solid var(--sep); cursor: pointer; }
+.ss-toggle span { display: grid; gap: 2px; }
+.ss-toggle b { font-size: 15px; font-weight: 600; }
+.ss-toggle small { font-size: 13px; color: var(--ink-3); line-height: 1.4; }
+.ss-toggle input { flex: none; width: 20px; height: 20px; margin: 0; accent-color: var(--brand-fill, var(--brand)); }

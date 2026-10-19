@@ -1,7 +1,7 @@
 import { Schema } from 'mongoose';
 
 /** Cron ish nomlari — /api/cron/<job> bilan bir xil */
-export const CRON_JOBS = ['expire-orgs', 'expiry-notifications', 'installment-reminders', 'daftar-reminders'] as const;
+export const CRON_JOBS = ['expire-orgs', 'expiry-notifications', 'installment-reminders', 'daftar-reminders', 'daily-summary'] as const;
 export type CronJob = (typeof CRON_JOBS)[number];
 
 /** Cron ishining bir marta bajarilishi (Monitoring → Cron ishlari) */

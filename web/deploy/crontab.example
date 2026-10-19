@@ -20,6 +20,9 @@ CRON_CURL="curl -fsS --max-time 120"
 # 10:30 — Daftar (qarz daftari) eslatmalari: egaga Telegram, mijozga SMS
 30 10 * * * . /etc/savora-cron.env; for p in 3001 3002; do $CRON_CURL -H "Authorization: Bearer $CRON_SECRET" http://127.0.0.1:$p/api/cron/daftar-reminders && break; done >> /var/log/savora-cron.log 2>&1
 
+# 21:00 — kunlik savdo yakuni do'kon egalariga (Telegram; Do'kon sozlamalarida yoqilganlarga)
+0 21 * * * . /etc/savora-cron.env; for p in 3001 3002; do $CRON_CURL -H "Authorization: Bearer $CRON_SECRET" http://127.0.0.1:$p/api/cron/daily-summary && break; done >> /var/log/savora-cron.log 2>&1
+
 # 03:00 — to'liq zaxira (master + barcha tenant bazalari), BACKUP.md
 0 3 * * *  cd $APP && node --env-file=.env scripts/backup.mjs >> /var/log/savora-backup.log 2>&1
 

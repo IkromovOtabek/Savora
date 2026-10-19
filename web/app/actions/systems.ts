@@ -6,6 +6,7 @@ import { expireOverdueOrganizations } from '@/lib/organizations';
 import { sendDailyExpiryNotifications } from '@/lib/notifications';
 import { sendDailyInstallmentReminders } from '@/lib/installmentReminders';
 import { sendDailyDaftarReminders } from '@/lib/daftarReminders';
+import { sendDailySummaries } from '@/lib/shopNotify';
 import { getDict } from '@/lib/i18n/server';
 import { tr } from '@/lib/i18n/fmt';
 
@@ -53,4 +54,13 @@ export async function runDaftarRemindersAction(): Promise<Result> {
   const run = await runCronJob('daftar-reminders', async () => ({ ...(await sendDailyDaftarReminders()) }), 'manual');
   if (!run.ok) return { error: tr(d.superPanel.actions.cronError, { e: run.error ?? '' }) };
   return { success: d.superPanel.actions.daftarSent, data: run.result };
+}
+
+export async function runDailySummaryAction(): Promise<Result> {
+  await requireSuperAdmin();
+  if (!process.env.CRON_SECRET) return noCronSecret();
+  const d = await getDict();
+  const run = await runCronJob('daily-summary', async () => ({ ...(await sendDailySummaries()) }), 'manual');
+  if (!run.ok) return { error: tr(d.superPanel.actions.cronError, { e: run.error ?? '' }) };
+  return { success: d.superPanel.actions.summarySent, data: run.result };
 }

@@ -1,7 +1,8 @@
 'use client';
 
 import { useActionState, useState, useTransition } from 'react';
-import { saveReceiptSettingsAction, saveCurrencySettingsAction, refreshCbuRateAction } from '@/app/actions/shopSettings';
+import { saveReceiptSettingsAction, saveCurrencySettingsAction, refreshCbuRateAction, saveNotifySettingsAction } from '@/app/actions/shopSettings';
+import Link from 'next/link';
 import PriceInput from '@/components/ui/PriceInput';
 import { toast } from '@/lib/toast';
 import { tr } from '@/lib/i18n/fmt';
@@ -140,5 +141,35 @@ export function CurrencySettingsForm({ initial, cbu, active }: {
         <small>{mode === 'manual' ? k.modeManual : k.modeCbu}</small>
       </aside>
     </div>
+  );
+}
+
+/** Telegram bildirishnomalari */
+export function NotifySettingsForm({ initial, telegram }: { initial: ShopSettings['notify']; telegram: boolean }) {
+  const k = useDict().shell.shopSettings;
+  const [state, action, pending] = useActionState(saveNotifySettingsAction, null);
+  useToastOnState(state);
+  const items = [
+    { key: 'shiftDiff' as const, title: k.shiftDiff, sub: k.shiftDiffSub },
+    { key: 'dailySummary' as const, title: k.dailySummary, sub: k.dailySummarySub },
+  ];
+  return (
+    <form action={action} className="ss-card ss-form ss-notify">
+      <div>
+        <h2 className="ss-h">{k.notifyTitle}</h2>
+        <p className="ss-hint">{k.notifyHint}</p>
+      </div>
+      <div className={`ss-tg${telegram ? ' is-on' : ''}`}>
+        <span>{telegram ? k.tgOn : k.tgOff}</span>
+        {!telegram && <Link href="/app/profile#telegram">{k.tgConnect}</Link>}
+      </div>
+      {items.map((it) => (
+        <label key={it.key} className="ss-toggle">
+          <span><b>{it.title}</b><small>{it.sub}</small></span>
+          <input type="checkbox" name={it.key} value="1" defaultChecked={initial[it.key]} />
+        </label>
+      ))}
+      <button type="submit" className="btn btn-primary" disabled={pending}>{k.save}</button>
+    </form>
   );
 }
