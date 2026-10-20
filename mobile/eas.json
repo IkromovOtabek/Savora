@@ -32,7 +32,7 @@
   },
   "submit": {
     "production": {
-      "ios": { "appleTeamId": "KT45JW6RSH" },
+      "ios": { "appleTeamId": "KT45JW6RSH", "ascAppId": "6824531556" },
       "android": {
         "track": "internal",
         "releaseStatus": "draft"
