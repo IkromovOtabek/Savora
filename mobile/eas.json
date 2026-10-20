@@ -32,7 +32,7 @@
   },
   "submit": {
     "production": {
-      "ios": {},
+      "ios": { "appleTeamId": "KT45JW6RSH" },
       "android": {
         "track": "internal",
         "releaseStatus": "draft"
