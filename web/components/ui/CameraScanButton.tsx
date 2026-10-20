@@ -10,10 +10,12 @@ interface Props {
   /** Tugma matni (ixtiyoriy) */
   label?: string;
   className?: string;
+  /** inline — input ichidagi ixcham ikonka-tugma (QR belgisi) */
+  variant?: 'button' | 'inline';
 }
 
 /** Telefon/noutbuk kamerasi orqali shtrix yoki QR kodni skanerlaydi (barcha zamonaviy brauzerlar). */
-export default function CameraScanButton({ onScan, label, className = '' }: Props) {
+export default function CameraScanButton({ onScan, label, className = '', variant = 'button' }: Props) {
   const d = useDict();
   const t = d.ui.scan;
   const [open, setOpen] = useState(false);
@@ -99,16 +101,28 @@ export default function CameraScanButton({ onScan, label, className = '' }: Prop
 
   return (
     <>
-      <button
-        type="button"
-        className={`btn btn-ghost btn-sm btn-with-icon ${className}`.trim()}
-        onClick={() => setOpen(true)}
-        title={t.title}
-        aria-label={label ? undefined : t.title}
-      >
-        <Icon name="search" size={16} />
-        {label ?? t.button}
-      </button>
+      {variant === 'inline' ? (
+        <button
+          type="button"
+          className={`barcode-scan-btn ${className}`.trim()}
+          onClick={() => setOpen(true)}
+          title={t.title}
+          aria-label={t.title}
+        >
+          <Icon name="qr" size={20} />
+        </button>
+      ) : (
+        <button
+          type="button"
+          className={`btn btn-ghost btn-sm btn-with-icon ${className}`.trim()}
+          onClick={() => setOpen(true)}
+          title={t.title}
+          aria-label={label ? undefined : t.title}
+        >
+          <Icon name="search" size={16} />
+          {label ?? t.button}
+        </button>
+      )}
 
       {open && (
         <div className="scan-overlay" role="dialog" aria-modal="true" onClick={close}>

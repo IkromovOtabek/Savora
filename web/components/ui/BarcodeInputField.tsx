@@ -137,6 +137,7 @@ export default function BarcodeInputField({
   return (
     <div className={`barcode-field ${className}`.trim()}>
       <div className={`barcode-input-wrap${scanActive ? ' barcode-input-wrap--active' : ''}`}>
+        {!disabled && <CameraScanButton onScan={applyScan} variant="inline" />}
         <input
           ref={inputRef}
           id={id}
@@ -155,7 +156,6 @@ export default function BarcodeInputField({
           autoComplete="off"
           spellCheck={false}
         />
-        {!disabled && <CameraScanButton onScan={applyScan} label="" />}
       </div>
       {scanActive && (
         <span className="barcode-scan-status barcode-scan-status--ok">{d.ui.barcode.scanActive}</span>

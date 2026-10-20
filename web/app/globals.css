@@ -354,6 +354,7 @@ code, pre, kbd { font-family: var(--font-mono); }
 .barcode-input-wrap input { flex: 1; min-width: 0; border: 0; background: transparent; padding: 11px 12px; font-size: 16px; outline: none; }
 .barcode-scan-btn { flex-shrink: 0; display: grid; place-items: center; width: 44px; border: 0; background: transparent; color: var(--brand); cursor: pointer; }
 .barcode-scan-btn:hover:not(:disabled), .barcode-scan-btn--active { background: var(--brand-soft); }
+.barcode-input-wrap > .barcode-scan-btn:first-child { border-right: 1px solid var(--sep); }
 .barcode-scan-status { font-size: 13px; font-weight: 600; line-height: 1.3; }
 .barcode-scan-status--ok { color: var(--accent); }
 .barcode-scan-status--warn { color: var(--warn); }
