@@ -135,9 +135,10 @@ export default function Profile() {
         {f.kassa && can('kassa.view') ? <Cell icon="time" iconColor={c.sq.o} title={d.profile.shifts} chevron onPress={() => router.push('/shifts')} /> : null}
       </Group>
 
-      {f.kirimChiqim && isAdmin ? (
+      {(f.kirimChiqim && isAdmin) || (f.daftar && can('daftar.manage')) ? (
         <Group header={d.profile.secFinance} icon="wallet-outline">
-          <Cell icon="cash" iconColor={c.sq.o} title={d.profile.kirimChiqim} chevron onPress={() => router.push('/kirim-chiqim')} />
+          {f.kirimChiqim && isAdmin ? <Cell icon="cash" iconColor={c.sq.o} title={d.profile.kirimChiqim} chevron onPress={() => router.push('/kirim-chiqim')} /> : null}
+          {f.daftar && can('daftar.manage') ? <Cell icon="book" iconColor={c.sq.g} title={d.daftar.title} chevron onPress={() => router.push('/daftar')} /> : null}
         </Group>
       ) : null}
 

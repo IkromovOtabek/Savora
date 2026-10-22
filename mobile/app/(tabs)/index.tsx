@@ -87,6 +87,7 @@ export default function Home() {
     ...(f.kassa && can('kassa.view') ? [{ key: 'shifts', label: d.profile.shifts, icon: 'time' as const, color: c.sq.o, onPress: () => router.push('/shifts') }] : []),
     ...(f.transferred && can('transfer.create') ? [{ key: 'transfer', label: d.home.transfer, icon: 'swap-horizontal' as const, color: c.sq.g, onPress: () => router.push('/transfer') }] : []),
     ...(f.kirimChiqim && isAdmin ? [{ key: 'kc', label: d.home.kirimChiqim, icon: 'cash' as const, color: c.sq.o, onPress: () => router.push('/kirim-chiqim') }] : []),
+    ...(f.daftar && can('daftar.manage') ? [{ key: 'daftar', label: d.daftar.title, icon: 'book' as const, color: c.sq.g, onPress: () => router.push('/daftar') }] : []),
     ...(f.tasks ? [{ key: 'tasks', label: d.profile.tasks, icon: 'checkmark-done' as const, color: c.sq.a, onPress: () => router.push('/tasks') }] : []),
     ...(f.users && isAdmin ? [{ key: 'branches', label: d.home.branches, icon: 'business' as const, color: c.sq.b, onPress: () => router.push('/branches') }] : []),
   ];
