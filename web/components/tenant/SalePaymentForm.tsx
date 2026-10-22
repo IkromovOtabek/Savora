@@ -5,6 +5,8 @@ import { useToastOnState } from '@/lib/useToastOnState';
 import { addSalePaymentAction } from '@/app/actions/sales';
 import { fmtMoney } from '@/lib/format';
 import PriceInput from '@/components/ui/PriceInput';
+import PayMethodPicker from '@/components/tenant/PayMethodPicker';
+import type { PayMethod } from '@/lib/payMethods';
 import { useDict } from '@/lib/i18n/client';
 import { tr } from '@/lib/i18n/fmt';
 
@@ -12,11 +14,12 @@ export default function SalePaymentForm({ saleId, remaining }: { saleId: string;
   const [state, formAction, isPending] = useActionState(addSalePaymentAction, null);
   useToastOnState(state);
   const [amount, setAmount] = useState('');
+  const [method, setMethod] = useState<PayMethod>('cash');
   const d = useDict();
 
   // Muvaffaqiyatli to'lovdan keyin maydon tozalanadi
   useEffect(() => {
-    if (state?.success) setAmount('');
+    if (state?.success) { setAmount(''); setMethod('cash'); }
   }, [state]);
 
   const half = Math.round(remaining / 2);
@@ -46,6 +49,7 @@ export default function SalePaymentForm({ saleId, remaining }: { saleId: string;
             </button>
           )}
         </div>
+        <PayMethodPicker name="method" value={method} onChange={setMethod} disabled={isPending} />
         <div className="auth-field">
           <label htmlFor="note">{d.common.note}</label>
           <input id="note" name="note" type="text" disabled={isPending} placeholder={d.sales.payForm.notePh} />

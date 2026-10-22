@@ -6,6 +6,7 @@ import { parsePeriod, periodRange } from '@/lib/period';
 import PeriodSeg from '@/components/tenant/PeriodSeg';
 import DebtorsCard, { type Debtor } from '@/components/tenant/DebtorsCard';
 import { fmtDate, fmtDateTime, fmtMoney } from '@/lib/format';
+import { methodOf } from '@/lib/payMethods';
 import { computeDebtInfo, buildReminderText, DebtState, type DebtInfo } from '@/lib/debts';
 import DebtReminderButton from '@/components/tenant/DebtReminderButton';
 import Icon, { type IconName } from '@/components/icons/Icon';
@@ -110,13 +111,13 @@ export default async function DebtsPage({
     ? await (async () => {
         const { start, end } = periodRange(period);
         const inRange = { $gte: start, $lt: end };
-        return Sale.aggregate<{ saleId: unknown; saleNo: string; customer?: string; product?: string; amount: number; at: Date; by?: string; note?: string }>([
+        return Sale.aggregate<{ saleId: unknown; saleNo: string; customer?: string; product?: string; amount: number; at: Date; by?: string; note?: string; method?: string }>([
           { $match: { ...branchAggMatch(user), paymentType: { $in: ['debt', 'installment'] }, status: { $ne: 'cancelled' }, 'payments.paidAt': inRange } },
           { $unwind: '$payments' },
           { $match: { 'payments.paidAt': inRange } },
           { $sort: { 'payments.paidAt': -1 } },
           { $limit: 300 },
-          { $project: { saleId: '$_id', saleNo: 1, customer: '$customerSnapshot.fullName', product: '$productSnapshot.name', amount: '$payments.amount', at: '$payments.paidAt', by: '$payments.recordedBy', note: '$payments.note' } },
+          { $project: { saleId: '$_id', saleNo: 1, customer: '$customerSnapshot.fullName', product: '$productSnapshot.name', amount: '$payments.amount', at: '$payments.paidAt', by: '$payments.recordedBy', note: '$payments.note', method: '$payments.method' } },
         ]);
       })()
     : [];
@@ -193,6 +194,7 @@ export default async function DebtsPage({
                     <th>{k.colCustomer}</th>
                     <th>{k.colProduct}</th>
                     <th className="num">{k.colAmount}</th>
+                    <th>{k.colMethod}</th>
                     <th>{k.colBy}</th>
                   </tr>
                 </thead>
@@ -203,6 +205,7 @@ export default async function DebtsPage({
                       <td className="cell-main">{x.customer || '—'}</td>
                       <td><Link href={`/app/sales/${String(x.saleId)}`} className="cell-link">{x.product || x.saleNo}</Link>{x.note ? <div className="cell-sub">{x.note}</div> : null}</td>
                       <td className="num"><b>{fmtMoney(x.amount)}</b></td>
+                      <td>{d.sales.payMethods[methodOf(x)]}</td>
                       <td>{x.by || '—'}</td>
                     </tr>
                   ))}

@@ -18,6 +18,22 @@ export interface KassaPaymentRow {
   isRefund?: boolean;
 }
 
+/**
+ * To'lov kassada qaysi tur bo'lib hisoblanadi. Qo'lga olingan pul (bosh to'lov, naqd to'lov,
+ * kassir "Naqd" usulini tanlab qabul qilgan qarz to'lovi) — 'cash'; aks holda sotuv turi
+ * (bank moliyalashtirgan qoldiq Kredit kassa sahifasida ko'rsatiladi).
+ * Usul yozilgan to'lovda (method bor) usul hal qiladi; eski yozuvlarda — izoh.
+ */
+export function effectivePaymentType(
+  saleType: PaymentType,
+  p: { note?: string | null; method?: string | null },
+): PaymentType {
+  if (saleType === 'cash') return 'cash';
+  if (p.method === 'cash') return 'cash';
+  const note = (p.note ?? '').toLowerCase();
+  return note.includes('boshlang') || note.includes('naqd') ? 'cash' : saleType;
+}
+
 /** Berilgan kun uchun kassa tushumlari (sotuv to'lovlari) */
 export function extractKassaPayments(
   sales: (ISale & { _id: unknown })[],
@@ -31,12 +47,7 @@ export function extractKassaPayments(
     for (const p of sale.payments ?? []) {
       const paidAt = new Date(p.paidAt);
       if (paidAt >= dayStart && paidAt < dayEnd) {
-        // Naqd qo'lga olingan pul (bosh to'lov / naqd to'lov) — Naqd kassaga hisoblanadi.
-        // Bank moliyalashtirgan qoldiq esa Kredit kassa sahifasida ko'rsatiladi.
-        const note = (p.note ?? '').toLowerCase();
-        const isCashReceived = note.includes('boshlang') || note.includes('naqd');
-        const effectiveType: PaymentType =
-          sale.paymentType !== 'cash' && isCashReceived ? 'cash' : sale.paymentType;
+        const effectiveType = effectivePaymentType(sale.paymentType, p);
         rows.push({
           saleId: String(sale._id),
           saleNo: sale.saleNo,

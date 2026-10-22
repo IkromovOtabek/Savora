@@ -1,6 +1,7 @@
-import type { ISale, PaymentType } from './models/tenant/Sale';
+import type { ISale } from './models/tenant/Sale';
 import type { ICashFlow } from './models/tenant/CashFlow';
 import { isCashMethod } from './payMethods';
+import { effectivePaymentType } from './kassa';
 
 export interface BranchCashCard {
   id: string;
@@ -8,12 +9,6 @@ export interface BranchCashCard {
   naxtSotuv: number;
   adminOlgan: number;
   qolgan: number;
-}
-
-function effectivePaymentType(sale: ISale, note: string): PaymentType {
-  const n = note.toLowerCase();
-  const isCashReceived = n.includes('boshlang') || n.includes('naqd');
-  return sale.paymentType !== 'cash' && isCashReceived ? 'cash' : sale.paymentType;
 }
 
 /** Filial bo'yicha naqd tushum (barcha vaqt) */
@@ -24,7 +19,7 @@ export function sumCashFromSales(sales: (ISale & { _id: unknown })[]): Map<strin
     const branchId = String(sale.branchId);
     let branchCash = 0;
     for (const p of sale.payments ?? []) {
-      if (isCashMethod(p.method) && effectivePaymentType(sale, p.note ?? '') === 'cash') {
+      if (isCashMethod(p.method) && effectivePaymentType(sale.paymentType, p) === 'cash') {
         branchCash += p.amount;
       }
     }

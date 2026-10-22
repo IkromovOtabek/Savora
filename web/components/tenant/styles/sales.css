@@ -504,6 +504,10 @@ button.sl-tl-body:hover .sl-tl-cta--main { opacity: .88; }
 .sl-quick[aria-pressed="true"] { background: var(--brand-fill); color: var(--on-brand); }
 .sl-quick:disabled { opacity: .5; cursor: not-allowed; }
 
+/* To'lov usuli tanlovi (PayMethodPicker) */
+.sl-pm-l { font-size: 13px; font-weight: 500; color: var(--ink-2); }
+.inst-modal-method { padding: 4px 16px 0; }
+
 /* Mahsulot tanlanmaganda — "0 so'm" o'rniga yo'l-yo'riq */
 .sl-sum-hint { display: grid; grid-template-columns: 40px minmax(0, 1fr); gap: 12px; align-items: center; padding: 16px 18px 6px; }
 .sl-sum-hint-ic { width: 40px; height: 40px; border-radius: 12px; display: grid; place-items: center; background: var(--brand-soft); color: var(--brand); }

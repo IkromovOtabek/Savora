@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { bulkDebtPaymentAction } from '@/app/actions/debts';
 import PriceInput from '@/components/ui/PriceInput';
 import { fmtMoney } from '@/lib/format';
+import { PAY_METHODS, isPayMethod, type PayMethod } from '@/lib/payMethods';
 import { toast } from '@/lib/toast';
 import { useDict } from '@/lib/i18n/client';
 import { tr } from '@/lib/i18n/fmt';
@@ -19,12 +20,13 @@ export default function DebtorsCard({ debtors, canPay, canAct }: { debtors: Debt
   const router = useRouter();
   const [open, setOpen] = useState<string | null>(null);
   const [amount, setAmount] = useState('');
+  const [method, setMethod] = useState<PayMethod>('cash');
   const [pending, start] = useTransition();
 
   function pay(id: string) {
     start(async () => {
-      const res = await bulkDebtPaymentAction({ customerId: id, amount: Number(amount) || 0 });
-      if (res?.success) { toast(res.success, 'success'); setOpen(null); setAmount(''); router.refresh(); }
+      const res = await bulkDebtPaymentAction({ customerId: id, amount: Number(amount) || 0, method });
+      if (res?.success) { toast(res.success, 'success'); setOpen(null); setAmount(''); setMethod('cash'); router.refresh(); }
       else if (res?.error) toast(res.error, 'error');
     });
   }
@@ -43,7 +45,7 @@ export default function DebtorsCard({ debtors, canPay, canAct }: { debtors: Debt
             </div>
             <div className="dc-acts">
               {canPay && (
-                <button type="button" className="btn btn-sm btn-tinted" aria-expanded={open === x.id} onClick={() => { setOpen(open === x.id ? null : x.id); setAmount(''); }}>
+                <button type="button" className="btn btn-sm btn-tinted" aria-expanded={open === x.id} onClick={() => { setOpen(open === x.id ? null : x.id); setAmount(''); setMethod('cash'); }}>
                   {k.bulkPay}
                 </button>
               )}
@@ -51,6 +53,10 @@ export default function DebtorsCard({ debtors, canPay, canAct }: { debtors: Debt
             </div>
             {open === x.id && (
               <form className="dc-pay" onSubmit={(e) => { e.preventDefault(); pay(x.id); }}>
+                <label className="sr-only" htmlFor={`dc-m-${x.id}`}>{k.bulkMethod}</label>
+                <select id={`dc-m-${x.id}`} className="input dc-pay-method" value={method} onChange={(e) => { if (isPayMethod(e.target.value)) setMethod(e.target.value); }}>
+                  {PAY_METHODS.map((m) => <option key={m} value={m}>{d.sales.payMethods[m]}</option>)}
+                </select>
                 <label className="sr-only" htmlFor={`dc-a-${x.id}`}>{k.bulkAmount}</label>
                 <PriceInput id={`dc-a-${x.id}`} value={amount} onValueChange={setAmount} placeholder={fmtMoney(x.remaining)} className="input" />
                 <button type="button" className="btn btn-sm btn-ghost" onClick={() => setAmount(String(x.remaining))}>100%</button>

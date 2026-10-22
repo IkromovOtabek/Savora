@@ -28,7 +28,8 @@ import { getI18n } from '@/lib/i18n/server';
 import { qtyWithUnit, tr } from '@/lib/i18n/fmt';
 import { computePartialReturn } from '@/lib/saleReturn';
 import { z } from 'zod';
-import { formToObject, parseInput, zId, zText, zMoney, zInt, zOptInt, zOptQty, zOptDate, zField } from '@/lib/validation';
+import { formToObject, parseInput, zId, zText, zMoney, zInt, zOptInt, zOptQty, zOptDate, zField, zOneOf } from '@/lib/validation';
+import { PAY_METHODS } from '@/lib/payMethods';
 
 /** Tez sotuvda bir martada eng ko'p qator (savatcha) — haddan katta so'rovdan himoya */
 const QUICK_SALE_MAX_LINES = 100;
@@ -475,10 +476,11 @@ export async function addSalePaymentAction(_prev: State, formData: FormData): Pr
   const parsed = parseInput(z.object({
     saleId: zId(m.saleNotFound),
     amount: zMoney(m.badPaymentAmount, { min: 1 }),
+    method: zOneOf(PAY_METHODS, m.badPayMethod),
     note: zText(300, (await getI18n()).d.common.tooLong),
   }), formToObject(formData), m.badPaymentAmount);
   if (!parsed.ok) return { error: parsed.error };
-  const { saleId, amount, note } = parsed.data;
+  const { saleId, amount, method, note } = parsed.data;
 
   // Filial login faqat o'z filiali sotuviga to'lov qo'shadi
   const sale = await Sale.findOne({ _id: saleId, ...branchFilter(user) }).lean();
@@ -492,6 +494,7 @@ export async function addSalePaymentAction(_prev: State, formData: FormData): Pr
     scope: branchFilter(user),
     note: note || undefined,
     recordedBy: user.username,
+    method,
   });
   if (!res) return { error: m.paymentConflict };
 
@@ -499,8 +502,8 @@ export async function addSalePaymentAction(_prev: State, formData: FormData): Pr
     action: 'sale.payment',
     entity: 'sale',
     entityId: saleId,
-    summary: `To'lov qabul qilindi: ${sale.saleNo} · ${amount.toLocaleString('uz-UZ')} so'm (qoldiq ${res.remainingAmount.toLocaleString('uz-UZ')} so'm)`,
-    meta: { amount, remaining: res.remainingAmount, status: res.status },
+    summary: `To'lov qabul qilindi: ${sale.saleNo} · ${amount.toLocaleString('uz-UZ')} so'm, ${method} (qoldiq ${res.remainingAmount.toLocaleString('uz-UZ')} so'm)`,
+    meta: { amount, method, remaining: res.remainingAmount, status: res.status },
   });
 
   revalidatePath('/app/sales');

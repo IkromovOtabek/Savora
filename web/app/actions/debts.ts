@@ -11,7 +11,8 @@ import { applySalePayment } from '@/lib/salePayment';
 import { allocatePayment } from '@/lib/debtLedger';
 import { runWithCompensation } from '@/lib/compensate';
 import { logError } from '@/lib/logger';
-import { parseInput, zId, zMoney } from '@/lib/validation';
+import { parseInput, zId, zMoney, zOneOf } from '@/lib/validation';
+import { PAY_METHODS, type PayMethod } from '@/lib/payMethods';
 import { getDict } from '@/lib/i18n/server';
 import { tr } from '@/lib/i18n/fmt';
 import { fmtMoney } from '@/lib/format';
@@ -22,7 +23,7 @@ type State = { error?: string; success?: string } | null;
  * Ommaviy to'lov: mijozning ochiq qarzlariga summa eng eski (muddati yaqin) qarzdan boshlab
  * taqsimlanadi. Har to'lov atomik (applySalePayment); biri o'tmasa — oldingilari qaytariladi.
  */
-export async function bulkDebtPaymentAction(input: { customerId: string; amount: number }): Promise<State> {
+export async function bulkDebtPaymentAction(input: { customerId: string; amount: number; method: PayMethod }): Promise<State> {
   const { user, Sale } = await getTenantSession();
   const denied = await checkPermission(user, 'payment.accept');
   if (denied) return denied;
@@ -33,9 +34,10 @@ export async function bulkDebtPaymentAction(input: { customerId: string; amount:
   const parsed = parseInput(z.object({
     customerId: zId(m.saleNotFound),
     amount: zMoney(m.badPaymentAmount, { min: 1 }),
+    method: zOneOf(PAY_METHODS, m.badPayMethod),
   }), input, m.badPaymentAmount);
   if (!parsed.ok) return { error: parsed.error };
-  const { customerId, amount } = parsed.data;
+  const { customerId, amount, method } = parsed.data;
   const scope = branchFilter(user);
 
   const debts = await Sale.find({ ...scope, customerId: new Types.ObjectId(customerId), status: 'partial', remainingAmount: { $gt: 0 } })
@@ -48,7 +50,7 @@ export async function bulkDebtPaymentAction(input: { customerId: string; amount:
   const name = debts[0]?.customerSnapshot?.fullName ?? '—';
 
   const outcome = await runWithCompensation(plan, async (part) => {
-    const res = await applySalePayment(Sale, part.id, part.amount, { scope, note: k.bulkNote, recordedBy: user.username });
+    const res = await applySalePayment(Sale, part.id, part.amount, { scope, note: k.bulkNote, recordedBy: user.username, method });
     if (!res) return null;
     return {
       result: part,
@@ -71,8 +73,8 @@ export async function bulkDebtPaymentAction(input: { customerId: string; amount:
     action: 'sale.bulkPayment',
     entity: 'customer',
     entityId: customerId,
-    summary: `Ommaviy to'lov: ${name} · ${fmtMoney(amount)} so'm → ${outcome.results.map((r) => `${bySale.get(r.id)} ${fmtMoney(r.amount)}`).join(', ')}`,
-    meta: { amount, parts: outcome.results },
+    summary: `Ommaviy to'lov: ${name} · ${fmtMoney(amount)} so'm, ${method} → ${outcome.results.map((r) => `${bySale.get(r.id)} ${fmtMoney(r.amount)}`).join(', ')}`,
+    meta: { amount, method, parts: outcome.results },
   });
   revalidatePath('/app/debts');
   revalidatePath('/app/sales');

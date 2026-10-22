@@ -6,6 +6,8 @@ import { useToastOnState } from '@/lib/useToastOnState';
 import { fmtMoney, fmtDate } from '@/lib/format';
 import { InstallmentMonth, INSTALLMENT_STATE_META } from '@/lib/installment';
 import PriceInput from '@/components/ui/PriceInput';
+import PayMethodPicker from '@/components/tenant/PayMethodPicker';
+import type { PayMethod } from '@/lib/payMethods';
 import Icon from '@/components/icons/Icon';
 import { useDict } from '@/lib/i18n/client';
 import { tr } from '@/lib/i18n/fmt';
@@ -27,6 +29,7 @@ export default function InstallmentMonths({
 }) {
   const [openMonth, setOpenMonth] = useState<InstallmentMonth | null>(null);
   const [partial, setPartial] = useState(false);
+  const [method, setMethod] = useState<PayMethod>('cash');
   const [state, formAction, isPending] = useActionState(addSalePaymentAction, null);
   useToastOnState(state);
   const d = useDict();
@@ -34,6 +37,7 @@ export default function InstallmentMonths({
   function close() {
     setOpenMonth(null);
     setPartial(false);
+    setMethod('cash');
   }
 
   // Muvaffaqiyatli to'lovdan keyin modal yopiladi (revalidatePath sahifani yangilaydi)
@@ -135,11 +139,16 @@ export default function InstallmentMonths({
 
             {state?.error && <div className="rv-error" style={{ margin: '0 22px' }}>{state.error}</div>}
 
+            <div className="inst-modal-method">
+              <PayMethodPicker value={method} onChange={setMethod} disabled={isPending} />
+            </div>
+
             {!partial ? (
               <div className="inst-modal-actions">
                 <form action={formAction}>
                   <input type="hidden" name="saleId" value={saleId} />
                   <input type="hidden" name="amount" value={fullAmount} />
+                  <input type="hidden" name="method" value={method} />
                   <input type="hidden" name="note" value={`${openMonth.month}-oy to'lovi`} />
                   <button type="submit" className="btn btn-primary inst-btn-full" disabled={isPending}>
                     {isPending ? '...' : tr(d.sales.installment.fullPay, { sum: fmtMoney(fullAmount) })}
@@ -158,6 +167,7 @@ export default function InstallmentMonths({
               <form action={formAction} className="inst-modal-partial">
                 <input type="hidden" name="saleId" value={saleId} />
                 <input type="hidden" name="note" value={`${openMonth.month}-oy (qisman)`} />
+                <input type="hidden" name="method" value={method} />
                 <label htmlFor="inst-amount">{d.common.amount}</label>
                 <PriceInput id="inst-amount" name="amount" required disabled={isPending} placeholder={String(fullAmount)} />
                 <div className="inst-partial-actions">

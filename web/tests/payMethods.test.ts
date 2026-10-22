@@ -6,6 +6,8 @@ import { describe, it, expect } from 'vitest';
 import { Types } from 'mongoose';
 import { allocateParts, methodOf, settlePayment } from '@/lib/payMethods';
 import { computeShiftTotals } from '@/lib/cashShift';
+import { effectivePaymentType } from '@/lib/kassa';
+import { sumCashFromSales } from '@/lib/cashKassa';
 import { parseReceiptToken, receiptToken } from '@/lib/receiptLink';
 import type { ISale } from '@/lib/models/tenant/Sale';
 
@@ -81,6 +83,37 @@ describe('smena: karta naqd kassaga qo\'shilmaydi', () => {
     ], [], 0, from, to);
     expect(t.cashIn).toBe(3000);
     expect(t.cardIn).toBe(2000);
+  });
+
+  it("qarz to'lovi: «Naqd» usuli bilan qabul qilingani kassaga, karta — cardIn, eski (usulsiz) — kassaga emas", () => {
+    const note = "Ommaviy to'lov";
+    const t = computeShiftTotals([
+      sale([
+        { amount: 4000, paidAt: at, method: 'cash', note },
+        { amount: 6000, paidAt: at, method: 'click', note },
+        { amount: 9000, paidAt: at, note: "2-chi to'lov" },
+      ], 'debt'),
+    ], [], 0, from, to);
+    expect(t.cashIn).toBe(4000);
+    expect(t.cardIn).toBe(6000);
+  });
+
+  it('naqd kassa (barcha vaqt) ham xuddi shu qoida bilan', () => {
+    const s = { ...sale([
+      { amount: 4000, paidAt: at, method: 'cash' },
+      { amount: 6000, paidAt: at, method: 'humo' },
+      { amount: 9000, paidAt: at },
+      { amount: 1000, paidAt: at, note: "Boshlang'ich to'lov" },
+    ], 'installment'), branchId: 'b1' } as unknown as ISale & { _id: unknown };
+    expect(sumCashFromSales([s]).get('b1')).toBe(5000);
+  });
+
+  it("effectivePaymentType: «Naqd» usuli yoki eski izoh (bosh/naqd to'lov) — naqd", () => {
+    expect(effectivePaymentType('debt', { method: 'cash' })).toBe('cash');
+    expect(effectivePaymentType('debt', { method: 'payme' })).toBe('debt');
+    expect(effectivePaymentType('bank_credit', {})).toBe('bank_credit');
+    expect(effectivePaymentType('installment', { note: "Boshlang'ich to'lov" })).toBe('cash');
+    expect(effectivePaymentType('cash', { method: 'uzcard' })).toBe('cash');
   });
 
   it('methodOf: noma\'lum qiymat — naqd', () => {
