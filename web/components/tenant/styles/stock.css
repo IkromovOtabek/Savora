@@ -710,3 +710,30 @@ a.st-card:focus-visible { outline: 3px solid var(--brand-ring); outline-offset: 
 .st-usd-input input { flex: 1; min-width: 0; height: 100%; border: 0; outline: 0; background: transparent; font: inherit; font-size: 15px; color: var(--ink-1); }
 .st-usd-som { font-size: 15px; font-variant-numeric: tabular-nums; }
 .st-usd-btns { display: flex; flex-wrap: wrap; gap: 6px; }
+
+/* Turkum va brendlar boshqaruvi (/app/products/catalog) */
+.cat-grid { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: 16px; align-items: start; }
+.cat-card { background: var(--surface); border-radius: var(--r-lg); box-shadow: var(--shadow-sm); padding: 16px; min-width: 0; }
+.cat-h { display: flex; align-items: center; gap: 8px; margin: 0 0 12px; font-size: 17px; font-weight: 700; }
+.cat-n { font-size: 13px; font-weight: 600; color: var(--ink-3); background: var(--fill); border-radius: var(--r-pill); padding: 1px 9px; }
+.cat-add { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto; gap: 8px; margin-bottom: 12px; }
+.cat-add--brand { grid-template-columns: minmax(0, 1fr) auto; }
+.cat-empty { color: var(--ink-3); font-size: 14px; margin: 8px 0; }
+.cat-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+.cat-row { display: flex; align-items: center; gap: 8px; min-height: 48px; padding: 6px 8px 6px 12px; border-radius: var(--r-sm); }
+.cat-row:hover { background: var(--fill-2); }
+.cat-main { flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px; }
+.cat-branch { flex: none; width: 10px; height: 10px; margin-top: -6px; border-left: 2px solid var(--fill-3); border-bottom: 2px solid var(--fill-3); border-bottom-left-radius: 4px; }
+.cat-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
+.cat-count { flex: none; color: var(--ink-3); font-size: 12.5px; }
+.cat-actions { flex: none; display: flex; gap: 4px; opacity: .55; transition: opacity .12s; }
+.cat-row:hover .cat-actions, .cat-actions:focus-within { opacity: 1; }
+.cat-actions .btn-sm { width: 34px; padding: 0; justify-content: center; }
+.cat-inline { flex: 1; min-width: 0; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.cat-inline .input { flex: 1; min-width: 140px; min-height: 38px; padding: 7px 10px; }
+@media (max-width: 900px) {
+  .cat-grid { grid-template-columns: 1fr; }
+  .cat-add { grid-template-columns: 1fr; }
+  .cat-add--brand { grid-template-columns: minmax(0, 1fr) auto; }
+  .cat-actions { opacity: 1; }
+}

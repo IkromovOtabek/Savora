@@ -3,7 +3,7 @@ import { Types } from 'mongoose';
 import { authenticateMobile } from '@/lib/mobileAuth';
 import { mobilePermissionDenied } from '@/lib/permissionGuard';
 import { getTenantModels } from '@/lib/tenantDb';
-import { escapeRegExp } from '@/lib/security';
+import { categoryLevelInDb, findOrCreateCategory } from '@/lib/catalogStore';
 import { CATEGORY_MAX_DEPTH, CATEGORY_NAME_MAX } from '@/lib/models/tenant/ProductCategory';
 
 /** Bitta so'rovda yaratiladigan turkumlar soni chegarasi */
@@ -61,15 +61,10 @@ export async function POST(req: Request) {
   let parentId: Types.ObjectId | null = null;
   let parentDepth = 0;
   if (body.parentId) {
-    if (!Types.ObjectId.isValid(String(body.parentId))) return NextResponse.json({ error: 'Turkum topilmadi.' }, { status: 400 });
-    let cur = await ProductCategory.findById(String(body.parentId), { parentId: 1 }).lean();
-    if (!cur) return NextResponse.json({ error: 'Turkum topilmadi.' }, { status: 400 });
-    parentId = cur._id;
-    while (cur) {
-      parentDepth++;
-      if (parentDepth > CATEGORY_MAX_DEPTH) break;
-      cur = cur.parentId ? await ProductCategory.findById(cur.parentId, { parentId: 1 }).lean() : null;
-    }
+    const level = await categoryLevelInDb(ProductCategory, String(body.parentId));
+    if (!level) return NextResponse.json({ error: 'Turkum topilmadi.' }, { status: 400 });
+    parentId = new Types.ObjectId(String(body.parentId));
+    parentDepth = level;
   }
 
   const tree = parseTree(body, parentDepth + 1, { n: 0 });
@@ -77,8 +72,7 @@ export async function POST(req: Request) {
 
   // Shu darajada shu nomli turkum bo'lsa — qayta ishlatamiz (takror yaratilmaydi)
   async function upsert(node: NodeInput, parent: Types.ObjectId | null): Promise<Types.ObjectId> {
-    const same = await ProductCategory.findOne({ parentId: parent, name: { $regex: `^${escapeRegExp(node.name)}$`, $options: 'i' } }).lean();
-    const id = same ? same._id : (await ProductCategory.create({ name: node.name, parentId: parent, createdBy: user.username }))._id;
+    const id = await findOrCreateCategory(ProductCategory, node.name, parent, user.username);
     for (const k of node.children) await upsert(k, id);
     return id;
   }

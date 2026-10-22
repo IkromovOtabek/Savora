@@ -40,6 +40,17 @@
 .pos-res-meta { display: grid; justify-items: end; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .pos-res-empty { padding: 12px; color: var(--ink-3); }
 
+/* Turkum chiplari — tanlansa shu turkum mahsulotlari qidiruvsiz ochiladi */
+.pos-cats { display: flex; gap: 8px; margin-top: 12px; overflow-x: auto; scrollbar-width: none; padding-bottom: 2px; }
+.pos-cats::-webkit-scrollbar { display: none; }
+.pos-cat {
+  flex: none; min-height: 36px; padding: 0 14px; border: 0; border-radius: var(--r-pill);
+  background: var(--fill); color: var(--ink-1); font: inherit; font-size: 14px; font-weight: 500; cursor: pointer; white-space: nowrap;
+}
+.pos-cat:hover { background: var(--fill-3); }
+.pos-cat[aria-pressed="true"] { background: var(--brand); color: var(--on-brand); }
+.pos-cat:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--brand-ring); }
+
 /* Savatcha sarlavhasi */
 .pos-cart-head { display: flex; align-items: center; gap: 12px; margin: 22px 0 12px; flex-wrap: wrap; }
 .pos-title { margin: 0; display: flex; align-items: center; gap: 10px; font-size: 30px; font-weight: 800; letter-spacing: -.03em; }

@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { authenticateMobile } from '@/lib/mobileAuth';
 import { mobilePermissionDenied } from '@/lib/permissionGuard';
 import { getTenantModels } from '@/lib/tenantDb';
-import { escapeRegExp } from '@/lib/security';
+import { findOrCreateBrand } from '@/lib/catalogStore';
 import { BRAND_NAME_MAX } from '@/lib/models/tenant/Brand';
 
 /** Brendlar ro'yxati (tovar formasida tanlash uchun) */
@@ -30,8 +30,6 @@ export async function POST(req: Request) {
   if (name.length > BRAND_NAME_MAX) return NextResponse.json({ error: 'Brend nomi juda uzun.' }, { status: 400 });
 
   const { Brand } = await getTenantModels(user.dbName);
-  const existing = await Brand.findOne({ name: { $regex: `^${escapeRegExp(name)}$`, $options: 'i' } }).lean();
-  if (existing) return NextResponse.json({ id: String(existing._id), name: existing.name });
-  const b = await Brand.create({ name, createdBy: user.username });
-  return NextResponse.json({ id: String(b._id), name: b.name }, { status: 201 });
+  const b = await findOrCreateBrand(Brand, name, user.username);
+  return NextResponse.json({ id: b.id, name: b.name }, { status: b.created ? 201 : 200 });
 }

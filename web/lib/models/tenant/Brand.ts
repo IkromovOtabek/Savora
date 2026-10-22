@@ -1,5 +1,6 @@
 import { Schema, Types } from 'mongoose';
 import { softDeletePlugin } from '../../softDelete';
+import { CATALOG_COLLATION } from './ProductCategory';
 
 /** Brend ro'yxati — mahsulotda nomi (`brand`) saqlanadi, bu yerda tanlash uchun ro'yxat. */
 export interface IBrand {
@@ -19,7 +20,8 @@ export const brandSchema = new Schema<IBrand>(
   { timestamps: true, collection: 'brands' }
 );
 
-brandSchema.index({ name: 1 });
+// Takror brend bo'lmaydi (katta-kichik harfsiz); o'chirilganda nomga ~DEL~ qo'shiladi
+brandSchema.index({ name: 1 }, { unique: true, collation: CATALOG_COLLATION });
 brandSchema.plugin(softDeletePlugin);
 
 export type BrandDoc = IBrand & { _id: Types.ObjectId };

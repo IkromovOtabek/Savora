@@ -13,6 +13,7 @@ import { useDict } from '@/lib/i18n/client';
 import { qtyWithUnit, tr } from '@/lib/i18n/fmt';
 import { addQty, fmtQty, isFractionalUnit, parseQty, priceTimesQty, qtyStep } from '@/lib/qty';
 import type { ProductUnit } from '@/lib/businessTypes';
+import { topCategoryChips, type CategoryItem } from '@/lib/productCatalog';
 import './styles/pos.css';
 
 export interface PosProduct {
@@ -26,6 +27,8 @@ export interface PosProduct {
   available: number;
   /** O'lchov birligi: kg/m… — miqdor kasr bo'lishi mumkin (savatchada qo'lda kiritiladi) */
   unit?: ProductUnit | null;
+  /** Turkum — kassada turkum bo'yicha tez tanlash uchun */
+  categoryId?: string;
 }
 
 /** qtyText — kasrli birlikda kiritilayotgan matn ("1,5"); yaroqsiz bo'lsa qty o'zgarmaydi, to'lov o'chadi */
@@ -43,6 +46,8 @@ interface ParkedSale {
 }
 
 const MAX_RESULTS = 8;
+/** Turkum tanlanganda (qidiruvsiz ham) ko'rsatiladigan mahsulotlar soni */
+const MAX_CAT_RESULTS = 60;
 const MAX_PARKED = 20;
 
 function readParked(key: string): ParkedSale[] {
@@ -64,8 +69,9 @@ function isTyping(el: EventTarget | null): boolean {
   return !!t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable);
 }
 
-export default function PosScreen({ products, canDiscount, canEditPrice, noShift, storageKey, shopName }: {
+export default function PosScreen({ products, categories = [], canDiscount, canEditPrice, noShift, storageKey, shopName }: {
   products: PosProduct[];
+  categories?: CategoryItem[];
   canDiscount: boolean;
   canEditPrice: boolean;
   noShift: boolean;
@@ -78,6 +84,7 @@ export default function PosScreen({ products, canDiscount, canEditPrice, noShift
   const [pending, startTransition] = useTransition();
 
   const [query, setQuery] = useState('');
+  const [cat, setCat] = useState('');
   const [hit, setHit] = useState(0);
   const [cart, setCart] = useState<CartLine[]>([]);
   const [sel, setSel] = useState(-1);
@@ -104,13 +111,22 @@ export default function PosScreen({ products, canDiscount, canEditPrice, noShift
 
   const byId = useMemo(() => new Map(products.map((p) => [p.id, p])), [products]);
 
+  // Faqat mahsuloti bor yuqori darajadagi turkumlar chip bo'lib chiqadi (ichki turkumlari bilan)
+  const catChips = useMemo(
+    () => topCategoryChips(categories, new Set(products.flatMap((p) => (p.categoryId ? [p.categoryId] : [])))),
+    [categories, products],
+  );
+  const catIds = useMemo(() => catChips.find((c) => c.id === cat)?.ids ?? null, [catChips, cat]);
+
   const results = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!q) return [];
+    if (!q && !catIds) return [];
     return products
-      .filter((p) => p.name.toLowerCase().includes(q) || p.codes.some((c) => c.toLowerCase().includes(q)))
-      .slice(0, MAX_RESULTS);
-  }, [query, products]);
+      .filter((p) => !catIds || (p.categoryId && catIds.has(p.categoryId)))
+      .filter((p) => !q || p.name.toLowerCase().includes(q) || p.codes.some((c) => c.toLowerCase().includes(q)))
+      .slice(0, catIds && !q ? MAX_CAT_RESULTS : MAX_RESULTS);
+  }, [query, products, catIds]);
+  const showResults = query.trim() !== '' || !!catIds;
 
   // Savatcha qatorlari — narx va jami (server bilan bir xil qoida)
   const rows = useMemo(() => cart.flatMap((line) => {
@@ -290,16 +306,16 @@ export default function PosScreen({ products, canDiscount, canEditPrice, noShift
             type="search"
             value={query}
             onChange={(e) => { setQuery(e.target.value); setHit(0); }}
-            onKeyDown={onSearchKey}
+            onKeyDown={(e) => { if (e.key === 'Escape' && cat) { e.preventDefault(); setCat(''); return; } onSearchKey(e); }}
             placeholder={k.searchPh}
             aria-label={k.searchPh}
             autoComplete="off"
             role="combobox"
-            aria-expanded={results.length > 0}
+            aria-expanded={showResults}
             aria-controls="pos-results"
           />
           {kbd('/')}
-          {query.trim() !== '' && (
+          {showResults && (
             <ul className="pos-results" id="pos-results" role="listbox">
               {results.length === 0 ? (
                 <li className="pos-res-empty">{k.noResults}</li>
@@ -317,6 +333,23 @@ export default function PosScreen({ products, canDiscount, canEditPrice, noShift
             </ul>
           )}
         </div>
+
+        {catChips.length > 0 && (
+          <div className="pos-cats" role="group" aria-label={k.categories}>
+            <button type="button" className="pos-cat" aria-pressed={!cat} onClick={() => { setCat(''); setHit(0); }}>{k.allCategories}</button>
+            {catChips.map((c) => (
+              <button
+                key={c.id}
+                type="button"
+                className="pos-cat"
+                aria-pressed={cat === c.id}
+                onClick={() => { setCat(cat === c.id ? '' : c.id); setHit(0); searchRef.current?.focus(); }}
+              >
+                {c.name}
+              </button>
+            ))}
+          </div>
+        )}
 
         <div className="pos-cart-head">
           <h1 className="pos-title">{k.cart} <span className="pos-count">{rows.length}</span></h1>

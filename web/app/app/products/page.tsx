@@ -4,7 +4,8 @@ import { getStockQty } from '@/lib/productQuantity';
 import type { CSSProperties } from 'react';
 import { getTenantSession } from '@/lib/tenantSession';
 import { branchFilter, isBranchScoped } from '@/lib/branchScope';
-import { searchPattern } from '@/lib/security';
+import { escapeRegExp, searchPattern } from '@/lib/security';
+import { categorySubtreeIds, flattenCategories } from '@/lib/productCatalog';
 import { isImeiEnabled } from '@/lib/features';
 import { resolveOrgPlan } from '@/lib/plans';
 import { PRODUCT_STATUS_LABELS, ProductStatus } from '@/lib/models/tenant/Product';
@@ -39,19 +40,26 @@ function fmtDate(d?: Date | string | null) {
 export default async function ProductsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; branch?: string; status?: string; page?: string; ps?: string; created?: string; deleted?: string }>;
+  searchParams: Promise<{ q?: string; branch?: string; status?: string; cat?: string; brand?: string; page?: string; ps?: string; created?: string; deleted?: string }>;
 }) {
   const sp = await searchParams;
   const d = await getDict();
   const t = d.stock.list;
-  const { user, Product, Branch, org, features } = await getTenantSession();
+  const { user, Product, Branch, org, features, ProductCategory, Brand } = await getTenantSession();
   const showImei = isImeiEnabled(org);
   const perms = await loadUserPermissions(user);
   const canViewCost = perms.has('product.viewCost');
   const canInstallment = !!(features.variant || features.nasiya);
   const canCredit = !!features.creditKassa;
 
-  const branches = await Branch.find({ active: true }).sort({ name: 1 }).lean();
+  const [branches, catDocs, brandDocs] = await Promise.all([
+    Branch.find({ active: true }).sort({ name: 1 }).lean(),
+    ProductCategory.find({}, { name: 1, parentId: 1 }).sort({ name: 1 }).limit(2000).lean(),
+    Brand.find({}, { name: 1 }).sort({ name: 1 }).limit(1000).lean(),
+  ]);
+  const catItems = catDocs.map((c) => ({ id: String(c._id), name: c.name, parentId: c.parentId ? String(c.parentId) : null }));
+  const catOptions = flattenCategories(catItems).map((c) => ({ id: c.id, name: c.path }));
+  const brandOptions = brandDocs.map((b) => b.name);
   const branchMap = Object.fromEntries(branches.map((b) => [String(b._id), b.name]));
   // "Filialga berish" maqsadi — faqat filiallar (asosiy ombor emas)
   const filialBranches = branches.filter((b) => !b.isMain).map((b) => ({ id: String(b._id), name: b.name }));
@@ -70,6 +78,11 @@ export default async function ProductsPage({
     ];
   }
   if (sp.branch && /^[a-f0-9]{24}$/i.test(sp.branch)) filter.branchId = sp.branch;
+  // Turkum — o'zi va barcha ichki turkumlari; brend — nomi bo'yicha (katta-kichik harfsiz)
+  const activeCat = sp.cat && catItems.some((c) => c.id === sp.cat) ? sp.cat : '';
+  if (activeCat) filter.categoryId = { $in: [...categorySubtreeIds(catItems, activeCat)] };
+  const activeBrand = (sp.brand ?? '').trim().slice(0, 60);
+  if (activeBrand) filter.brand = { $regex: `^${escapeRegExp(activeBrand)}$`, $options: 'i' };
   // Ombor faqat QOLDIQ mahsulotlarni ko'rsatadi — sotilganlar bu yerda emas, "Sotildi" sahifasida.
   if (sp.status && sp.status !== 'sold' && sp.status in PRODUCT_STATUS_LABELS) {
     filter.status = sp.status;
@@ -101,6 +114,8 @@ export default async function ProductsPage({
     if (q) params.set('q', q);
     if (sp.branch) params.set('branch', sp.branch);
     if (sp.status) params.set('status', sp.status);
+    if (activeCat) params.set('cat', activeCat);
+    if (activeBrand) params.set('brand', activeBrand);
     if (p > 1) params.set('page', String(p));
     if (ps !== DEFAULT_PAGE_SIZE) params.set('ps', String(ps));
     const s = params.toString();
@@ -112,6 +127,8 @@ export default async function ProductsPage({
     const params = new URLSearchParams();
     if (q) params.set('q', q);
     if (sp.branch) params.set('branch', sp.branch);
+    if (activeCat) params.set('cat', activeCat);
+    if (activeBrand) params.set('brand', activeBrand);
     if (status) params.set('status', status);
     if (PAGE_SIZE !== DEFAULT_PAGE_SIZE) params.set('ps', String(PAGE_SIZE));
     const s = params.toString();
@@ -133,7 +150,7 @@ export default async function ProductsPage({
   const scoped = isBranchScoped(user);
   const canCreate = perms.has('product.create');
   const canExport = !!features.export && perms.has('export.data');
-  const hasFilter = !!(q || activeStatus || sp.branch);
+  const hasFilter = !!(q || activeStatus || sp.branch || activeCat || activeBrand);
   const canBulk = perms.has('stock.adjust');
   const toggleCols: { key: ToggleCol; label: string }[] = [
     ...(scoped ? [] : [{ key: 'branch' as const, label: d.common.branch }]),
@@ -164,6 +181,9 @@ export default async function ProductsPage({
           )}
           <MoreMenu label={t.menuLabel}>
             <Link href="/app/inventory"><Icon name="clipboard" size={18} /> {t.inventory}</Link>
+            {perms.has('product.edit') && (
+              <Link href="/app/products/catalog"><Icon name="grid" size={18} /> {d.stock.catalog.menuLink}</Link>
+            )}
             {canExport && (
               <a href="/api/export/products"><Icon name="download" size={18} /> {t.exportCsv}</a>
             )}
@@ -213,7 +233,9 @@ export default async function ProductsPage({
 
       <ProductSearch
         branches={scoped ? [] : branches.map((b) => ({ id: String(b._id), name: b.name }))}
-        initial={{ q: sp.q ?? '', branch: sp.branch ?? '', status: activeStatus }}
+        categories={catOptions}
+        brands={brandOptions}
+        initial={{ q: sp.q ?? '', branch: sp.branch ?? '', status: activeStatus, cat: activeCat, brand: activeBrand }}
       >
         <Link href={statusUrl('')} className="st-chip" aria-current={activeStatus === '' ? 'page' : undefined}>{d.common.all}</Link>
         {statusChips.map((s) => (

@@ -4,6 +4,7 @@ import { requirePermission, userCan } from '@/lib/permissionGuard';
 import { branchFilter, isBranchScoped } from '@/lib/branchScope';
 import { getStockQty } from '@/lib/productQuantity';
 import PosScreen, { type PosProduct } from '@/components/tenant/PosScreen';
+import type { CategoryItem } from '@/lib/productCatalog';
 import { getDict } from '@/lib/i18n/server';
 
 export async function generateMetadata() {
@@ -17,11 +18,11 @@ const POS_PRODUCT_LIMIT = 3000;
 export default async function PosPage() {
   await requireFeature('sales');
   await requirePermission('sale.create');
-  const { user, org, features, Product, CashShift } = await getTenantSession();
+  const { user, org, features, Product, CashShift, ProductCategory } = await getTenantSession();
 
-  const [products, canDiscount, canEditPrice, openShift] = await Promise.all([
+  const [products, canDiscount, canEditPrice, openShift, cats] = await Promise.all([
     Product.find({ ...branchFilter(user), status: 'in_stock' })
-      .select('name imei barcode productId salePrice wholesalePrice trackQuantity quantity soldQuantity status unit')
+      .select('name imei barcode productId salePrice wholesalePrice trackQuantity quantity soldQuantity status unit categoryId')
       .sort({ name: 1 })
       .limit(POS_PRODUCT_LIMIT)
       .lean(),
@@ -31,7 +32,9 @@ export default async function PosPage() {
     features.kassa
       ? CashShift.exists(isBranchScoped(user) ? { status: 'open', branchId: user.branchId } : { status: 'open' })
       : Promise.resolve(true),
+    ProductCategory.find({}, { name: 1, parentId: 1 }).sort({ name: 1 }).limit(2000).lean(),
   ]);
+  const categories: CategoryItem[] = cats.map((c) => ({ id: String(c._id), name: c.name, parentId: c.parentId ? String(c.parentId) : null }));
 
   const list: PosProduct[] = products.map((p) => ({
     id: String(p._id),
@@ -42,11 +45,13 @@ export default async function PosPage() {
     tracked: p.trackQuantity ?? false,
     available: getStockQty(p),
     unit: p.unit ?? null,
+    categoryId: p.categoryId ? String(p.categoryId) : undefined,
   }));
 
   return (
     <PosScreen
       products={list}
+      categories={categories}
       canDiscount={canDiscount}
       canEditPrice={canEditPrice}
       noShift={features.kassa && !openShift}

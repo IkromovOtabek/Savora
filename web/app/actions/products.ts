@@ -24,7 +24,7 @@ import { getDict, type Dict } from '@/lib/i18n/server';
 import { qtyWithUnit, tr } from '@/lib/i18n/fmt';
 import { logError } from '@/lib/logger';
 import { softDeleteOne } from '@/lib/softDelete';
-import { escapeRegExp } from '@/lib/security';
+import { categoryLevelInDb, findOrCreateBrand, findOrCreateCategory } from '@/lib/catalogStore';
 import { CATEGORY_MAX_DEPTH, CATEGORY_NAME_MAX } from '@/lib/models/tenant/ProductCategory';
 import { BRAND_NAME_MAX } from '@/lib/models/tenant/Brand';
 import { LEGACY_CATEGORY_VALUE, normalizeCatalogName } from '@/lib/productCatalog';
@@ -586,10 +586,8 @@ export async function createBrandAction(rawName: string): Promise<CatalogResult<
   if (!name) return { ok: false, error: m.brandNameRequired };
   if (name.length > BRAND_NAME_MAX) return { ok: false, error: m.brandNameTooLong };
   const { Brand, user } = session;
-  const existing = await Brand.findOne({ name: { $regex: `^${escapeRegExp(name)}$`, $options: 'i' } }).lean();
-  if (existing) return { ok: true, item: { id: String(existing._id), name: existing.name } };
-  const b = await Brand.create({ name, createdBy: user.username });
-  return { ok: true, item: { id: String(b._id), name: b.name } };
+  const b = await findOrCreateBrand(Brand, name, user.username);
+  return { ok: true, item: { id: b.id, name: b.name } };
 }
 
 /**
@@ -610,23 +608,16 @@ export async function createCategoryAction(
 
   let parentId: Types.ObjectId | null = null;
   if (rawParentId) {
-    if (!Types.ObjectId.isValid(String(rawParentId))) return { ok: false, error: m.categoryNotFound };
-    let cur = await ProductCategory.findById(String(rawParentId), { parentId: 1 }).lean();
-    if (!cur) return { ok: false, error: m.categoryNotFound };
-    parentId = cur._id;
-    // Ota zanjiri: yangi turkum chuqurligi = ota chuqurligi + 1
-    let parentDepth = 0;
-    while (cur) {
-      parentDepth++;
-      if (parentDepth >= CATEGORY_MAX_DEPTH) return { ok: false, error: tr(m.categoryTooDeep, { n: CATEGORY_MAX_DEPTH }) };
-      cur = cur.parentId ? await ProductCategory.findById(cur.parentId, { parentId: 1 }).lean() : null;
-    }
+    const level = await categoryLevelInDb(ProductCategory, String(rawParentId));
+    if (!level) return { ok: false, error: m.categoryNotFound };
+    // Yangi turkum darajasi = ota darajasi + 1
+    if (level >= CATEGORY_MAX_DEPTH) return { ok: false, error: tr(m.categoryTooDeep, { n: CATEGORY_MAX_DEPTH }) };
+    parentId = new Types.ObjectId(String(rawParentId));
   }
 
-  const same = await ProductCategory.findOne({ parentId, name: { $regex: `^${escapeRegExp(name)}$`, $options: 'i' } }).lean();
-  if (same) return { ok: true, item: { id: String(same._id), name: same.name, parentId: parentId ? String(parentId) : null } };
-  const c = await ProductCategory.create({ name, parentId, createdBy: user.username });
-  return { ok: true, item: { id: String(c._id), name: c.name, parentId: parentId ? String(parentId) : null } };
+  const id = await findOrCreateCategory(ProductCategory, name, parentId, user.username);
+  const c = await ProductCategory.findById(id, { name: 1 }).lean();
+  return { ok: true, item: { id: String(id), name: c?.name ?? name, parentId: parentId ? String(parentId) : null } };
 }
 
 export async function deleteProductAction(formData: FormData): Promise<void> {
