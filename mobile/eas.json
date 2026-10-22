@@ -18,21 +18,31 @@
     "preview": {
       "extends": "base",
       "distribution": "internal",
-      "android": { "buildType": "apk" }
+      "android": {
+        "buildType": "apk"
+      },
+      "autoIncrement": true
     },
     "preview-simulator": {
       "extends": "preview",
-      "ios": { "simulator": true }
+      "ios": {
+        "simulator": true
+      }
     },
     "production": {
       "extends": "base",
       "autoIncrement": true,
-      "android": { "buildType": "app-bundle" }
+      "android": {
+        "buildType": "app-bundle"
+      }
     }
   },
   "submit": {
     "production": {
-      "ios": { "appleTeamId": "KT45JW6RSH", "ascAppId": "6824531556" },
+      "ios": {
+        "appleTeamId": "KT45JW6RSH",
+        "ascAppId": "6824531556"
+      },
       "android": {
         "track": "internal",
         "releaseStatus": "draft"
