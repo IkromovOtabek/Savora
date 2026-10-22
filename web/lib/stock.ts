@@ -3,6 +3,10 @@ import type { IProduct, IProductHistory } from './models/tenant/Product';
 import { QTY_DECIMALS, roundQty } from './qty';
 
 type ProductModel = Model<IProduct>;
+type ProductDoc = IProduct & { _id: Types.ObjectId };
+
+/** Oddiy tovar (eski yozuvlarda `kind` yo'q — $nin ularga ham mos) */
+const GOODS_ONLY = { kind: { $nin: ['service', 'bundle'] } };
 
 /*
  * Miqdor kasr bo'lishi mumkin (kg, m…), shuning uchun atomik yangilashlar `$inc` emas,
@@ -58,6 +62,7 @@ export async function reserveStock(
     {
       _id: productId,
       ...(opts.scope ?? {}),
+      ...GOODS_ONLY,
       status: 'in_stock',
       trackQuantity: true,
       $expr: availableGteExpr(qty),
@@ -78,12 +83,47 @@ export async function reserveStock(
   }
 
   // 2) Yagona mahsulot (IMEI va h.k.) — faqat 1 dona
-  if (qty !== 1) return null;
+  if (qty === 1) {
+    const single = await Product.findOneAndUpdate(
+      { _id: productId, ...(opts.scope ?? {}), ...GOODS_ONLY, status: 'in_stock', trackQuantity: { $ne: true } },
+      { $set: { status: 'sold', soldAt: now, ...(opts.set ?? {}) }, ...push },
+      { new: true }
+    ).lean<ProductDoc>();
+    if (single) return single;
+  }
+
+  // 3) Xizmat yoki to'plam — o'z qoldig'i yo'q, holati o'zgarmaydi (doim sotuvda)
+  const head = await Product.findOne(
+    { _id: productId, ...(opts.scope ?? {}), status: 'in_stock', kind: { $in: ['service', 'bundle'] } },
+    { kind: 1, bundleItems: 1, branchId: 1, name: 1 }
+  ).lean<ProductDoc>();
+  if (!head) return null;
+
+  if (head.kind === 'bundle') {
+    const items = head.bundleItems ?? [];
+    if (!items.length) return null;
+    // Tarkib birma-bir atomik ayriladi; bittasi yetmasa — oldingilari qaytariladi (hammasi yoki hech biri)
+    const taken: { id: Types.ObjectId; qty: number }[] = [];
+    for (const it of items) {
+      const need = roundQty(it.qty * qty);
+      const part = await reserveStock(Product, it.productId, need, {
+        scope: { branchId: head.branchId, ...GOODS_ONLY },
+        history: opts.history ? { ...opts.history, detail: `To'plam «${head.name}» × ${qty}` } : undefined,
+      });
+      if (!part) {
+        for (const t of taken) await releaseStock(Product, t.id, t.qty);
+        return null;
+      }
+      taken.push({ id: it.productId, qty: need });
+    }
+  }
+
+  // Narx/to'lov turi kabi `set` qo'llanadi, lekin status/soldAt emas
   return Product.findOneAndUpdate(
-    { _id: productId, ...(opts.scope ?? {}), status: 'in_stock', trackQuantity: { $ne: true } },
-    { $set: { status: 'sold', soldAt: now, ...(opts.set ?? {}) }, ...push },
+    { _id: head._id },
+    { ...(opts.set ? { $set: opts.set } : {}), ...push },
     { new: true }
-  ).lean<IProduct & { _id: Types.ObjectId }>();
+  ).lean<ProductDoc>();
 }
 
 /**
@@ -102,6 +142,8 @@ export async function transferStock(
   const base = {
     _id: productId,
     ...(opts.scope ?? {}),
+    // Xizmat/to'plamning ko'chiriladigan qoldig'i yo'q
+    ...GOODS_ONLY,
     status: 'in_stock',
     branchId: { $ne: toBranchId },
   };
@@ -170,8 +212,21 @@ export async function releaseStock(
   ]);
   if (tracked.matchedCount > 0) return;
 
-  await Product.updateOne(
-    { _id: productId, trackQuantity: { $ne: true }, status: 'sold' },
+  const single = await Product.updateOne(
+    { _id: productId, ...GOODS_ONLY, trackQuantity: { $ne: true }, status: 'sold' },
     { $set: { status: 'in_stock' }, $unset: { soldAt: '' }, ...(history ? { $push: { history } } : {}) }
   );
+  if (single.matchedCount > 0) return;
+
+  // Xizmat — omborga hech narsa qaytmaydi; to'plam — tarkibidagi tovarlar qaytadi
+  const head = await Product.findOne({ _id: productId, kind: { $in: ['service', 'bundle'] } }, { kind: 1, bundleItems: 1, name: 1 })
+    .setOptions({ withDeleted: true })
+    .lean<ProductDoc>();
+  if (!head) return;
+  if (head.kind === 'bundle') {
+    for (const it of head.bundleItems ?? []) {
+      await releaseStock(Product, it.productId, roundQty(it.qty * qty), history ? { ...history, detail: `To'plam «${head.name}» × ${qty}` } : undefined);
+    }
+  }
+  if (history) await Product.updateOne({ _id: head._id }, { $push: { history } });
 }

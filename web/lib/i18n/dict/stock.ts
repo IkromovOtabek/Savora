@@ -98,6 +98,21 @@ export const uz = {
     allBrands: 'Barcha brendlar',
   },
 
+  /** components/tenant/BundleComposer.tsx — to'plam tarkibi */
+  bundle: {
+    empty: "Hali tovar qo'shilmagan.",
+    searchPh: "Tarkibga tovar qo'shish — nomini yozing",
+    noCandidates: "Omborda soni hisoblanadigan tovar yo'q",
+    qtyLabel: "1 to'plamda",
+    remove: 'Olib tashlash',
+    /** {n} — ombordagi soni */
+    inStock: 'Omborda: {n}',
+    /** {n} — nechta to'plam yig'iladi */
+    canMake: "Hozirgi qoldiq bilan {n} ta to'plam yig'iladi",
+    /** {sum} — tannarx */
+    cost: "Tannarx: {sum} so'm",
+  },
+
   /** app/app/products/catalog — turkum va brendlarni boshqarish */
   catalog: {
     metaTitle: 'Turkum va brendlar — Savora',
@@ -297,6 +312,18 @@ export const uz = {
     newCategoryPlaceholder: 'Turkum nomi',
     newCategoryParent: 'Qaysi turkum ichida',
     newCategoryRoot: 'Yuqori daraja',
+    /** Mahsulot turi (yaratishda tanlanadi) */
+    kinds: {
+      label: 'Mahsulot turi',
+      goods: 'Tovar',
+      goodsHint: "Qoldig'i bo'lgan mahsulot",
+      service: 'Xizmat',
+      serviceHint: "Qoldiqsiz: yetkazish, ta'mir, o'rnatish",
+      bundle: "To'plam",
+      bundleHint: 'Birga sotiladigan tovarlar to\'plami',
+      bundleSection: "To'plam tarkibi",
+      bundleSectionHint: "To'plam sotilganda shu tovarlar ombordan ayriladi. Tarkibga shu omborning soni hisoblanadigan tovarlari qo'shiladi.",
+    },
     /** {name} — omborda shu shtrix-kodli mahsulot */
     barcodeExists: 'Bu shtrix-kod omboringizda bor: «{name}».',
     barcodeOpen: 'Ochish',
@@ -474,6 +501,12 @@ export const uz = {
     categoryTooDeep: 'Ichma-ichlik {n} darajadan oshmasin.',
     brandNameRequired: 'Brend nomini kiriting.',
     brandNameTooLong: 'Brend nomi juda uzun.',
+    bundleEmpty: "To'plamga kamida bitta tovar qo'shing.",
+    bundleInvalid: "To'plam tarkibi noto'g'ri.",
+    bundleTooMany: "To'plamda 30 tadan ko'p tovar bo'lmasin.",
+    bundleNotFound: "To'plamdagi tovar shu omborda topilmadi yoki sotuvda emas.",
+    /** {name} — tovar nomi */
+    bundleNotCountable: "«{name}» to'plamga qo'shilmaydi: faqat soni hisoblanadigan tovar.",
     warehouseNotFound: 'Ombor topilmadi yoki faol emas.',
     imeiDup: "Bu IMEI allaqachon ro'yxatda.",
     createFailed: "Mahsulot qo'shishda xatolik.",
@@ -711,6 +744,17 @@ export const ru: typeof uz = {
     allBrands: 'Все бренды',
   },
 
+  bundle: {
+    empty: 'Товары ещё не добавлены.',
+    searchPh: 'Добавить товар в состав — введите название',
+    noCandidates: 'На складе нет товаров с учётом количества',
+    qtyLabel: 'В 1 комплекте',
+    remove: 'Убрать',
+    inStock: 'На складе: {n}',
+    canMake: 'С текущим остатком можно собрать {n} компл.',
+    cost: 'Себестоимость: {sum} сум',
+  },
+
   catalog: {
     metaTitle: 'Категории и бренды — Savora',
     title: 'Категории и бренды',
@@ -898,6 +942,17 @@ export const ru: typeof uz = {
     newCategoryPlaceholder: 'Название категории',
     newCategoryParent: 'Внутри категории',
     newCategoryRoot: 'Верхний уровень',
+    kinds: {
+      label: 'Тип товара',
+      goods: 'Товар',
+      goodsHint: 'Товар с остатками',
+      service: 'Услуга',
+      serviceHint: 'Без остатков: доставка, ремонт, установка',
+      bundle: 'Комплект',
+      bundleHint: 'Набор товаров, продающихся вместе',
+      bundleSection: 'Состав комплекта',
+      bundleSectionHint: 'При продаже комплекта эти товары списываются со склада. В состав добавляются товары этого склада с учётом количества.',
+    },
     barcodeExists: 'Этот штрих-код уже есть на складе: «{name}».',
     barcodeOpen: 'Открыть',
     barcodeFound: 'Найдено в базе: «{name}».',
@@ -1050,6 +1105,11 @@ export const ru: typeof uz = {
     categoryTooDeep: 'Вложенность не более {n} уровней.',
     brandNameRequired: 'Введите название бренда.',
     brandNameTooLong: 'Название бренда слишком длинное.',
+    bundleEmpty: 'Добавьте в комплект хотя бы один товар.',
+    bundleInvalid: 'Неверный состав комплекта.',
+    bundleTooMany: 'В комплекте не более 30 товаров.',
+    bundleNotFound: 'Товар из комплекта не найден на этом складе или не в продаже.',
+    bundleNotCountable: '«{name}» нельзя добавить в комплект: только товар с учётом количества.',
     warehouseNotFound: 'Склад не найден или неактивен.',
     imeiDup: 'Этот IMEI уже есть в списке.',
     createFailed: 'Ошибка при добавлении товара.',

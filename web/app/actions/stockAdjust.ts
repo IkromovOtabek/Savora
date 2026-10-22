@@ -141,7 +141,8 @@ export async function writeOffAction(input: WriteOffInput): Promise<State> {
 
   let fail: string | null = null;
   const outcome = await runWithCompensation(lines, async (line) => {
-    const p = await Product.findOne({ _id: line.productId, ...scope, status: 'in_stock' }).lean<ProductLean>();
+    // Xizmat/to'plamni hisobdan chiqarib bo'lmaydi (o'z qoldig'i yo'q)
+    const p = await Product.findOne({ _id: line.productId, ...scope, status: 'in_stock', kind: { $nin: ['service', 'bundle'] } }).lean<ProductLean>();
     if (!p) { fail = tr(k.notFound, { name: line.productId }); return null; }
     const qty = p.trackQuantity ? (line.qty ?? 1) : 1;
     const plan = planWriteOff(p, qty);

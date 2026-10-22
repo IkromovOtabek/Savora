@@ -23,7 +23,8 @@ export default async function InventoryPage() {
   const branchScopeFilter = branchFilter(user);
   const [branchesAll, products] = await Promise.all([
     Branch.find({ active: true }).lean(),
-    Product.find({ ...branchScopeFilter, status: 'in_stock' }).lean(),
+    // Inventarizatsiya — faqat jismoniy tovar (xizmat/to'plam sanalmaydi)
+    Product.find({ ...branchScopeFilter, status: 'in_stock', kind: { $nin: ['service', 'bundle'] } }).lean(),
   ]);
   // Filial login — faqat o'z filiali ko'rinadi
   const branches = isBranchScoped(user)

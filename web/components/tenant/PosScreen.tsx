@@ -29,6 +29,8 @@ export interface PosProduct {
   unit?: ProductUnit | null;
   /** Turkum — kassada turkum bo'yicha tez tanlash uchun */
   categoryId?: string;
+  /** Xizmatda qoldiq ko'rsatilmaydi (cheklovsiz) */
+  service?: boolean;
 }
 
 /** qtyText — kasrli birlikda kiritilayotgan matn ("1,5"); yaroqsiz bo'lsa qty o'zgarmaydi, to'lov o'chadi */
@@ -325,7 +327,7 @@ export default function PosScreen({ products, categories = [], canDiscount, canE
                     <span className="pos-res-name">{p.name}<small>{p.codes[0]}</small></span>
                     <span className="pos-res-meta">
                       <b>{fmtMoney(unitPriceFor(p, wholesale))}</b>
-                      <small>{tr(k.left, { n: qtyWithUnit(p.available, p.unit, d.stock.fields.units) })}</small>
+                      {!p.service && <small>{tr(k.left, { n: qtyWithUnit(p.available, p.unit, d.stock.fields.units) })}</small>}
                     </span>
                   </button>
                 </li>

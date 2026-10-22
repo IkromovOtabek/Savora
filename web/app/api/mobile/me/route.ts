@@ -6,6 +6,7 @@ import { resolveOrgFeatures } from '@/lib/features';
 import { isOrganizationActive, daysUntilExpiry } from '@/lib/models/master/Organization';
 import { termsFor, productFieldsFor, BUSINESS_TYPES, PRODUCT_UNITS } from '@/lib/businessTypes';
 import { getTenantModels } from '@/lib/tenantDb';
+import { ensureMainBranchId } from '@/lib/mainBranch';
 
 export async function GET(req: Request) {
   const auth = await authenticateMobile(req);
@@ -22,9 +23,8 @@ export async function GET(req: Request) {
   let stockBranch: { id: string; name: string } | null = null;
   if (user.dbName) {
     const { Branch } = await getTenantModels(user.dbName);
-    const b = user.branchId
-      ? await Branch.findById(user.branchId, { name: 1 }).lean()
-      : (await Branch.findOne({ isMain: true }, { name: 1 }).lean()) ?? (await Branch.findOne({}, { name: 1 }).lean());
+    const id = user.role === 'user' && user.branchId ? user.branchId : await ensureMainBranchId(Branch);
+    const b = await Branch.findById(id, { name: 1 }).lean();
     if (b) stockBranch = { id: String(b._id), name: b.name };
   }
 

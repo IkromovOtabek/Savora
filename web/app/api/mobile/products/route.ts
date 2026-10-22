@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getStockQty } from '@/lib/productQuantity';
+import { parseBundleItems, parseProductKind, sellableInfo } from '@/lib/productKinds';
 import { randomBytes } from 'crypto';
 import { authenticateMobile } from '@/lib/mobileAuth';
 import { mobilePermissionDenied, userCan } from '@/lib/permissionGuard';
@@ -15,6 +15,7 @@ import { Types } from 'mongoose';
 import type { ProductUnit } from '@/lib/businessTypes';
 import { getDictionary } from '@/lib/i18n/dict';
 import { parseQty } from '@/lib/qty';
+import { ensureMainBranchId } from '@/lib/mainBranch';
 
 /** Matn maydonlari uzunlik chegarasi — oshsa 400 (xotira/DB to'ldirish himoyasi) */
 const MAX_LEN = { name: 120, code: 64, barcode: 64, brand: 60, notes: 500 } as const;
@@ -27,10 +28,12 @@ export async function GET(req: Request) {
   if (!user || !user.dbName) {
     return NextResponse.json({ error: 'Avtorizatsiya kerak.' }, { status: 401 });
   }
-  const { Product } = await getTenantModels(user.dbName);
+  const { Product, Branch } = await getTenantModels(user.dbName);
   const canViewCost = await userCan(user, 'product.viewCost');
 
   const url = new URL(req.url);
+  // ?bundle=1 — to'plam tarkibi uchun: yangi mahsulot tushadigan omborning sotuvdagi sanaladigan tovarlari
+  const forBundle = url.searchParams.get('bundle') === '1';
   // Regex injection/ReDoS himoyasi: ekranlangan, 50 belgigacha
   const q = searchPattern(url.searchParams.get('q'));
   // Sahifa 1..1000 — cheksiz skip() bilan DB'ni qiynamaslik uchun
@@ -38,7 +41,12 @@ export async function GET(req: Request) {
   const limit = 30;
 
   // Ombor faqat qoldiq — sotilganlar bu yerda emas ("Sotildi" da)
-  const filter: Record<string, unknown> = { ...branchFilter(user), status: { $ne: 'sold' } };
+  const filter: Record<string, unknown> = forBundle
+    ? {
+      branchId: user.role === 'user' && user.branchId ? user.branchId : await ensureMainBranchId(Branch),
+      status: 'in_stock', trackQuantity: true, kind: { $nin: ['service', 'bundle'] },
+    }
+    : { ...branchFilter(user), status: { $ne: 'sold' } };
   if (q) {
     const qn = q.replace(/\s/g, '');
     filter.$or = [
@@ -52,6 +60,7 @@ export async function GET(req: Request) {
     Product.find(filter).sort({ createdAt: -1 }).skip((page - 1) * limit).limit(limit).lean(),
     Product.countDocuments(filter),
   ]);
+  const sellOf = await sellableInfo(Product, items);
 
   return NextResponse.json({
     page,
@@ -66,8 +75,9 @@ export async function GET(req: Request) {
       purchasePrice: canViewCost ? p.purchasePrice : 0,
       costHidden: !canViewCost,
       status: p.status,
-      trackQuantity: p.trackQuantity ?? false,
-      available: getStockQty(p),
+      kind: p.kind ?? 'goods',
+      trackQuantity: sellOf(p).tracked,
+      available: sellOf(p).available,
       unit: p.unit ?? null,
     })),
   });
@@ -97,11 +107,20 @@ export async function POST(req: Request) {
     freePrice?: boolean;
     /** Ombordagi soni (IMEI'siz yo'nalishlarda). Berilsa — mahsulot miqdor bilan hisoblanadi */
     quantity?: unknown;
+    /** Tur: goods | service | bundle */
+    kind?: string;
+    /** To'plam tarkibi: [{ productId, qty }] — shu ombordagi sanaladigan tovarlar */
+    bundleItems?: unknown;
   } & Record<string, unknown>;
   try { body = await req.json(); } catch { return NextResponse.json({ error: 'Noto\'g\'ri so\'rov.' }, { status: 400 }); }
 
   const name = String(body.name || '').trim();
   const freePrice = body.freePrice === true;
+  const kind = parseProductKind(body.kind);
+  const stockless = kind !== 'goods';
+  if (stockless && Array.isArray(body.variants) && body.variants.length) {
+    return NextResponse.json({ error: 'Xizmat yoki to\'plamda turlar bo\'lmaydi.' }, { status: 400 });
+  }
   // Butun so'm — kasr/manfiy narx rad etiladi
   const salePrice = parseIntegerSum(body.salePrice ?? 0) ?? 0;
   const purchasePriceParsed = parseIntegerSum(body.purchasePrice ?? 0);
@@ -154,13 +173,13 @@ export async function POST(req: Request) {
   // Xato matnlari mobil API'dagi boshqalar kabi o'zbekcha
   const stockDict = getDictionary('uz').stock;
   const hasImei = termsFor(businessType).hasImei;
-  if (hasImei && (variants.length ? variants.some((v) => v.code.length < 10) : code.length < 10)) {
+  if (hasImei && !stockless && (variants.length ? variants.some((v) => v.code.length < 10) : code.length < 10)) {
     return NextResponse.json({ error: stockDict.msg.imeiMin }, { status: 400 });
   }
   // Miqdor: IMEI'li yo'nalishda har biri alohida dona (miqdor yo'q); qolganida berilsa — hisobli mahsulot
   const unit = (body.unit as ProductUnit | undefined) ?? 'dona';
   const qtyOf = (raw: unknown): number | null | undefined => {
-    if (hasImei || raw === undefined || raw === null || raw === '') return undefined;
+    if (hasImei || stockless || raw === undefined || raw === null || raw === '') return undefined;
     return parseQty(raw, unit);
   };
   const mainQty = qtyOf(body.quantity);
@@ -190,11 +209,21 @@ export async function POST(req: Request) {
     supplierId = sup._id;
   }
 
-  let branchId = user.branchId;
-  if (!branchId) {
-    const main = (await Branch.findOne({ isMain: true }).lean()) ?? (await Branch.findOne({}).lean());
-    if (!main) return NextResponse.json({ error: 'Avval filial oching.' }, { status: 400 });
-    branchId = String(main._id);
+  // Web createProductAction bilan bir xil ombor: filial xodimi → o'z filiali, egasi → «Asosiy ombor»
+  const branchId = user.role === 'user' && user.branchId ? user.branchId : await ensureMainBranchId(Branch);
+
+  // To'plam tarkibi — mahsulot tushadigan ombor tovarlaridan; kelish narxi berilmasa — tarkib tannarxi
+  let bundle: { items: { productId: Types.ObjectId; qty: number }[]; cost: number } | null = null;
+  if (kind === 'bundle') {
+    const parsed = await parseBundleItems(Product, body.bundleItems, branchId, {
+      empty: stockDict.msg.bundleEmpty,
+      invalid: stockDict.msg.bundleInvalid,
+      tooMany: stockDict.msg.bundleTooMany,
+      notFound: stockDict.msg.bundleNotFound,
+      notCountable: stockDict.msg.bundleNotCountable,
+    });
+    if (!parsed.ok) return NextResponse.json({ error: parsed.error }, { status: 400 });
+    bundle = parsed;
   }
 
   // Kod/IMEI berilmasa avtomatik yaratamiz — vaqt + tasodifiy qism (bir ms ichida ikki so'rov to'qnashmasin)
@@ -209,6 +238,8 @@ export async function POST(req: Request) {
 
   const variantGroupId = variants.length ? randomBytes(8).toString('hex') : undefined;
   const common = {
+    kind,
+    ...(bundle ? { bundleItems: bundle.items } : {}),
     brand: brand || undefined,
     oldPrice: oldPrice || undefined,
     photoUrl: photoUrl || undefined,
@@ -217,7 +248,7 @@ export async function POST(req: Request) {
     ...extra.values,
     ...(body.unit ? { unit: body.unit as ProductUnit } : {}),
     ...(category ?? {}),
-    supplierId,
+    supplierId: stockless ? undefined : supplierId,
     variantGroupId,
     createdBy: user.username,
     history: [{ action: 'created' as const, detail: 'Mobil ilova orqali qo\'shildi', by: user.username, at: new Date() }],
@@ -232,7 +263,7 @@ export async function POST(req: Request) {
       imei: r.imei,
       barcode: r.barcode || undefined,
       salePrice: r.salePrice,
-      purchasePrice: r.purchasePrice,
+      purchasePrice: bundle && !r.purchasePrice ? bundle.cost : r.purchasePrice,
       // Miqdor berilgan bo'lsa — hisobli mahsulot (web formadagi «Miqdorni hisoblash» bilan bir xil)
       ...(r.qty !== undefined ? { trackQuantity: true, quantity: r.qty, soldQuantity: 0 } : {}),
     })), { ordered: true });

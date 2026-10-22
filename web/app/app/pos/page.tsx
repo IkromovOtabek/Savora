@@ -2,7 +2,7 @@ import { getTenantSession } from '@/lib/tenantSession';
 import { requireFeature } from '@/lib/auth';
 import { requirePermission, userCan } from '@/lib/permissionGuard';
 import { branchFilter, isBranchScoped } from '@/lib/branchScope';
-import { getStockQty } from '@/lib/productQuantity';
+import { sellableInfo } from '@/lib/productKinds';
 import PosScreen, { type PosProduct } from '@/components/tenant/PosScreen';
 import type { CategoryItem } from '@/lib/productCatalog';
 import { getDict } from '@/lib/i18n/server';
@@ -22,7 +22,7 @@ export default async function PosPage() {
 
   const [products, canDiscount, canEditPrice, openShift, cats] = await Promise.all([
     Product.find({ ...branchFilter(user), status: 'in_stock' })
-      .select('name imei barcode productId salePrice wholesalePrice trackQuantity quantity soldQuantity status unit categoryId')
+      .select('name imei barcode productId salePrice wholesalePrice trackQuantity quantity soldQuantity status unit categoryId kind bundleItems')
       .sort({ name: 1 })
       .limit(POS_PRODUCT_LIMIT)
       .lean(),
@@ -34,6 +34,7 @@ export default async function PosPage() {
       : Promise.resolve(true),
     ProductCategory.find({}, { name: 1, parentId: 1 }).sort({ name: 1 }).limit(2000).lean(),
   ]);
+  const sellOf = await sellableInfo(Product, products);
   const categories: CategoryItem[] = cats.map((c) => ({ id: String(c._id), name: c.name, parentId: c.parentId ? String(c.parentId) : null }));
 
   const list: PosProduct[] = products.map((p) => ({
@@ -42,10 +43,11 @@ export default async function PosPage() {
     codes: [p.imei, p.barcode, p.productId].filter((c): c is string => !!c),
     salePrice: p.salePrice ?? 0,
     wholesalePrice: p.wholesalePrice && p.wholesalePrice > 0 ? p.wholesalePrice : undefined,
-    tracked: p.trackQuantity ?? false,
-    available: getStockQty(p),
+    tracked: sellOf(p).tracked,
+    available: sellOf(p).available,
     unit: p.unit ?? null,
     categoryId: p.categoryId ? String(p.categoryId) : undefined,
+    service: p.kind === 'service' || undefined,
   }));
 
   return (

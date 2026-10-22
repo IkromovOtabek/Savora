@@ -65,6 +65,8 @@ function Navigation() {
         <Stack.Screen name="(tabs)" options={{ animation: 'fade' }} />
         <Stack.Screen name="offline-sales" />
         <Stack.Screen name="scan" options={{ presentation: 'fullScreenModal', contentStyle: { backgroundColor: '#000' } }} />
+        {/* Tur tanlash — shaffof fon ustidagi pastki varaq */}
+        <Stack.Screen name="product-kind" options={{ presentation: 'transparentModal', animation: 'fade', contentStyle: { backgroundColor: 'transparent' } }} />
       </Stack>
       <SplashGate />
     </NavThemeProvider>

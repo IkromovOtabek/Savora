@@ -11,7 +11,8 @@ import type { ProductUnit } from '@/lib/businessTypes';
 import { sendTelegram, tgEscape } from '@/lib/telegram';
 import { featureDisabledError } from '@/lib/featureAction';
 import { isOwnUploadUrl } from '@/lib/fileUrl';
-import { checkSaleQty, getStockQty } from '@/lib/productQuantity';
+import { checkSaleQty } from '@/lib/productQuantity';
+import { sellableInfo } from '@/lib/productKinds';
 import { isFractionalUnit, priceTimesQty, qtyLabel } from '@/lib/qty';
 import { reserveStock, releaseStock } from '@/lib/stock';
 import { runWithCompensation } from '@/lib/compensate';
@@ -83,6 +84,8 @@ function toScannedProduct(
   },
   branchName: string,
   canViewCost: boolean,
+  /** Sotuvda nechta bor (xizmat/to'plam uchun — lib/productKinds.ts) */
+  sell: { tracked: boolean; available: number },
 ): ScannedProduct {
   return {
     id: String(product._id),
@@ -97,14 +100,9 @@ function toScannedProduct(
     purchasePrice: canViewCost ? product.purchasePrice : 0,
     branchId: String(product.branchId),
     branchName,
-    trackQuantity: product.trackQuantity ?? false,
+    trackQuantity: sell.tracked,
     unit: product.unit ?? null,
-    available: getStockQty({
-      trackQuantity: product.trackQuantity ?? false,
-      quantity: product.quantity,
-      soldQuantity: product.soldQuantity,
-      status: product.status as 'in_stock' | 'sold',
-    }),
+    available: sell.available,
   };
 }
 
@@ -117,7 +115,8 @@ export async function lookupProductByImei(imei: string): Promise<ScannedProduct 
   if (!product) return null;
 
   const branch = await Branch.findById(product.branchId).lean();
-  return toScannedProduct(product, branch?.name ?? '—', await userCan(user, 'product.viewCost'));
+  const sell = (await sellableInfo(Product, [product]))(product);
+  return toScannedProduct(product, branch?.name ?? '—', await userCan(user, 'product.viewCost'), sell);
 }
 
 /** Shtrix, IMEI yoki mahsulot kodi bo'yicha qidiruv (skaner pistalet uchun) */
@@ -142,7 +141,8 @@ export async function lookupProductByScan(code: string): Promise<ScannedProduct 
   if (!product) return null;
 
   const branch = await Branch.findById(product.branchId).lean();
-  return toScannedProduct(product, branch?.name ?? '—', await userCan(user, 'product.viewCost'));
+  const sell = (await sellableInfo(Product, [product]))(product);
+  return toScannedProduct(product, branch?.name ?? '—', await userCan(user, 'product.viewCost'), sell);
 }
 
 export type QuickSaleLine = { productId: string; qty: number; salePrice?: number };

@@ -21,7 +21,7 @@ const MONTH_PRESETS = [3, 6, 9, 12];
 
 export default function SaleNew() {
   const router = useRouter();
-  const params = useLocalSearchParams<{ productId?: string; name?: string; price?: string; track?: string; available?: string; unit?: string; pay?: string }>();
+  const params = useLocalSearchParams<{ productId?: string; name?: string; price?: string; track?: string; available?: string; unit?: string; pay?: string; kind?: string }>();
   const { me } = useAuth();
   const { c } = useTheme();
   const d = useDict();
@@ -35,6 +35,7 @@ export default function SaleNew() {
     id: String(params.productId), name: String(params.name), salePrice: Number(params.price) || 0,
     available: Number(params.available) || 1, trackQuantity: params.track === '1', status: 'in_stock',
     unit: params.unit || null,
+    kind: params.kind || undefined,
   } : null;
 
   const [picked, setPicked] = useState<PickedProduct | null>(initial);
@@ -192,7 +193,7 @@ export default function SaleNew() {
                         icon="cube"
                         iconColor={ok ? c.sq.b : c.sq.g}
                         title={p.name}
-                        subtitle={p.trackQuantity ? tr(d.saleNew.leftPcs, { n: qtyWithUnit(p.available, p.unit, d.productFields.units) }) : undefined}
+                        subtitle={p.trackQuantity && p.kind !== 'service' ? tr(d.saleNew.leftPcs, { n: qtyWithUnit(p.available, p.unit, d.productFields.units) }) : undefined}
                         right={<AmountColumn amount={fmtMoney(p.salePrice)}>{ok ? null : <Pill label={d.saleNew.notInSale} tone="mut" />}</AmountColumn>}
                         disabled={!ok}
                         onPress={() => choose(p)}
@@ -214,7 +215,7 @@ export default function SaleNew() {
                     icon="cube"
                     iconColor={ok ? c.sq.b : c.sq.g}
                     title={p.name}
-                    subtitle={p.trackQuantity ? tr(d.saleNew.leftPcs, { n: qtyWithUnit(p.available, p.unit, d.productFields.units) }) : undefined}
+                    subtitle={p.trackQuantity && p.kind !== 'service' ? tr(d.saleNew.leftPcs, { n: qtyWithUnit(p.available, p.unit, d.productFields.units) }) : undefined}
                     right={<AmountColumn amount={fmtMoney(p.salePrice)}>{ok ? null : <Pill label={d.saleNew.notInSale} tone="mut" />}</AmountColumn>}
                     disabled={!ok}
                     onPress={() => choose(p)}
@@ -245,7 +246,7 @@ export default function SaleNew() {
           icon="cube"
           iconColor={c.sq.b}
           title={picked.name}
-          subtitle={`${fmtMoney(picked.salePrice, { suffix: true })}${picked.trackQuantity ? tr(d.saleNew.available, { n: qtyWithUnit(picked.available, picked.unit, d.productFields.units) }) : ''}`}
+          subtitle={`${fmtMoney(picked.salePrice, { suffix: true })}${picked.trackQuantity && picked.kind !== 'service' ? tr(d.saleNew.available, { n: qtyWithUnit(picked.available, picked.unit, d.productFields.units) }) : ''}`}
           right={<Button title={d.common.change} size="sm" variant="tinted" onPress={() => setPicked(null)} />}
         />
         {picked.trackQuantity && !fractional ? (

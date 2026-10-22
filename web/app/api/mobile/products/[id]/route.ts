@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getStockQty } from '@/lib/productQuantity';
+import { sellableInfo } from '@/lib/productKinds';
 import { Types } from 'mongoose';
 import { authenticateMobile } from '@/lib/mobileAuth';
 import { userCan } from '@/lib/permissionGuard';
@@ -25,7 +25,12 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
   if (!p) return NextResponse.json({ error: 'Mahsulot topilmadi.' }, { status: 404 });
 
   const branch = p.branchId ? await Branch.findById(p.branchId).lean() : null;
-  const available = getStockQty(p);
+  const sell = (await sellableInfo(Product, [p]))(p);
+  // To'plam tarkibi (nomlari bilan)
+  const bundle = p.kind === 'bundle' && p.bundleItems?.length
+    ? await Product.find({ _id: { $in: p.bundleItems.map((i) => i.productId) } }, { name: 1, unit: 1 }).setOptions({ withDeleted: true }).lean()
+    : [];
+  const bundleName = new Map(bundle.map((b) => [String(b._id), b]));
 
   return NextResponse.json({
     id: String(p._id),
@@ -40,10 +45,17 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
     profit: canViewCost ? Math.max(0, (p.salePrice ?? 0) - (p.purchasePrice ?? 0)) : 0,
     costHidden: !canViewCost,
     status: p.status,
-    trackQuantity: p.trackQuantity ?? false,
+    kind: p.kind ?? 'goods',
+    bundleItems: (p.bundleItems ?? []).map((i) => ({
+      productId: String(i.productId),
+      name: bundleName.get(String(i.productId))?.name ?? '—',
+      qty: i.qty,
+      unit: bundleName.get(String(i.productId))?.unit ?? null,
+    })),
+    trackQuantity: sell.tracked,
     quantity: p.quantity ?? 1,
     soldQuantity: p.soldQuantity ?? 0,
-    available,
+    available: sell.available,
     unit: p.unit ?? null,
     branch: branch?.name ?? null,
     notes: p.notes ?? null,

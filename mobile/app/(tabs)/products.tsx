@@ -14,6 +14,8 @@ import {
 interface Product {
   id: string; name: string; imei: string; barcode: string | null;
   salePrice: number; purchasePrice: number; status: string; trackQuantity: boolean; available: number;
+  /** goods | service | bundle */
+  kind?: string;
 }
 
 export default function Products() {
@@ -41,7 +43,7 @@ export default function Products() {
       actions={
         <>
           <IconButton icon="barcode-outline" label={d.common.scanner} onPress={() => router.push('/scan')} />
-          {can('product.create') ? <IconButton icon="add" label={t?.addItem ?? d.terms.addItem} onPress={() => router.push('/product-new')} /> : null}
+          {can('product.create') ? <IconButton icon="add" label={t?.addItem ?? d.terms.addItem} onPress={() => router.push('/product-kind')} /> : null}
         </>
       }
     >
@@ -74,7 +76,7 @@ export default function Products() {
           list.loading ? <Loading />
             : list.error ? <ErrorState message={list.error} onRetry={list.retry} />
             : dq ? <EmptyState icon="search" title={d.common.notFound} message={tr(d.products.notFoundMsg, { q: dq })} />
-            : <EmptyState icon="cube-outline" title={tr(d.products.emptyTitle, { item: t?.item ?? d.terms.item })} message={d.products.emptyMsg} actionTitle={t?.addItem ?? d.terms.addItem} onAction={() => router.push('/product-new')} />
+            : <EmptyState icon="cube-outline" title={tr(d.products.emptyTitle, { item: t?.item ?? d.terms.item })} message={d.products.emptyMsg} actionTitle={t?.addItem ?? d.terms.addItem} onAction={() => router.push('/product-kind')} />
         }
         ListFooterComponent={list.loadingMore ? <ActivityIndicator color={c.tint} style={{ marginVertical: 16 }} /> : null}
         renderItem={({ item, index }) => {
@@ -89,9 +91,11 @@ export default function Products() {
               subtitle={code ?? (item.trackQuantity ? d.products.tracked : undefined)}
               right={
                 <AmountColumn amount={fmtMoney(item.salePrice)}>
-                  {item.available > 0
-                    ? <Pill label={item.trackQuantity ? tr(d.common.pcs, { n: fmtMoney(item.available) }) : d.products.inSale} tone="ok" />
-                    : <Pill label={d.products.soldOut} tone="bad" />}
+                  {item.kind === 'service'
+                    ? <Pill label={d.productKind.service} tone="br" />
+                    : item.available > 0
+                      ? <Pill label={item.kind === 'bundle' ? `${d.productKind.bundle} · ${fmtMoney(item.available)}` : item.trackQuantity ? tr(d.common.pcs, { n: fmtMoney(item.available) }) : d.products.inSale} tone="ok" />
+                      : <Pill label={d.products.soldOut} tone="bad" />}
                 </AmountColumn>
               }
               chevron

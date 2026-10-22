@@ -25,8 +25,26 @@ export interface IProductHistory {
   at: Date;
 }
 
+/**
+ * Mahsulot turi:
+ *  - goods   — oddiy tovar (qoldig'i bor);
+ *  - service — xizmat: qoldig'i yo'q, sotilganda ombor o'zgarmaydi, ro'yxatda qoladi;
+ *  - bundle  — to'plam: o'z qoldig'i yo'q, sotilganda tarkibidagi tovarlar ombordan ayriladi.
+ */
+export const PRODUCT_KINDS = ['goods', 'service', 'bundle'] as const;
+export type ProductKind = (typeof PRODUCT_KINDS)[number];
+
+/** To'plam tarkibi: shu filialdagi sanaladigan tovar va 1 to'plamdagi miqdori */
+export interface IBundleItem {
+  productId: Types.ObjectId;
+  qty: number;
+}
+
 export interface IProduct {
   productId?: string;
+  /** Yo'q bo'lsa — 'goods' (eski yozuvlar) */
+  kind?: ProductKind;
+  bundleItems?: IBundleItem[];
   name: string;
   brand?: string;
   deviceModel?: string;
@@ -100,6 +118,15 @@ export const productSchema = new Schema<IProduct>(
     salePrice: { type: Number, required: true, min: 0 },
     oldPrice: { type: Number, min: 0 },
     wholesalePrice: { type: Number, min: 0 },
+    kind: { type: String, enum: PRODUCT_KINDS, default: 'goods' },
+    bundleItems: {
+      type: [{
+        _id: false,
+        productId: { type: Schema.Types.ObjectId, ref: 'Product', required: true },
+        qty: { type: Number, required: true, min: 0.001 },
+      }],
+      default: undefined,
+    },
     trackQuantity: { type: Boolean, default: false },
     // Kasrli birlikda (kg, m…) 0.001 gacha; butun birlikda butunlik ilova darajasida (lib/qty.ts)
     quantity: { type: Number, default: 1, min: 0.001 },

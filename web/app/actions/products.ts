@@ -9,7 +9,8 @@ import { reserveStock, releaseStock } from '@/lib/stock';
 import { isPhoneShop } from '@/lib/businessTypes';
 import { ProductStatus } from '@/lib/models/tenant/Product';
 import { generateProductCode } from '@/lib/productId';
-import { clampQtyToStock, parseQtyField } from '@/lib/productQuantity';
+import { checkSaleQty, clampQtyToStock, isStockless, parseQtyField } from '@/lib/productQuantity';
+import { parseBundleItems, parseProductKind } from '@/lib/productKinds';
 import { isFractionalUnit, parseQty, priceTimesQty, qtyLabel, roundQty } from '@/lib/qty';
 import { parseProductFields, productFieldErrorText, type ProductFieldsResult } from '@/lib/productFields';
 import { resolveWarehouseBranchId } from '@/lib/warehouseBranch';
@@ -84,6 +85,11 @@ function readBrand(formData: FormData): string | undefined | 'keep' | 'tooLong' 
   const brand = normalizeCatalogName(formData.get('brand'));
   if (brand.length > BRAND_NAME_MAX) return 'tooLong';
   return brand || undefined;
+}
+
+/** To'plam tarkibi xato matnlari (lib/productKinds.ts → parseBundleItems) */
+function bundleMsgs(m: Dict['stock']['msg']) {
+  return { empty: m.bundleEmpty, invalid: m.bundleInvalid, tooMany: m.bundleTooMany, notFound: m.bundleNotFound, notCountable: m.bundleNotCountable };
 }
 
 /** Eski narx: yoqish tugmasi o'chiq bo'lsa 0 (olib tashlanadi), noto'g'ri bo'lsa null */
@@ -206,11 +212,14 @@ export async function createProductAction(_prev: State, formData: FormData): Pro
   const purchasePrice = parsePrice(String(formData.get('purchasePrice') || ''));
   const salePrice = parseOptionalPrice(String(formData.get('salePrice') || ''));
   const wholesalePrice = parseOptionalPrice(String(formData.get('wholesalePrice') || ''));
-  const trackQuantity = formData.get('trackQuantity') === 'on';
+  // Tur: tovar / xizmat / to'plam. Xizmat va to'plamning qoldig'i, IMEI'si va yetkazib beruvchi qarzi yo'q
+  const kind = parseProductKind(formData.get('kind'));
+  const stockless = kind !== 'goods';
+  const trackQuantity = !stockless && formData.get('trackQuantity') === 'on';
   const quantityRaw = String(formData.get('quantity') || '1');
 
   if (!name) return { error: m.nameRequired };
-  if (phoneShop) {
+  if (phoneShop && !stockless) {
     if (!imei || imei.length < 10) return { error: m.imeiMin };
   } else {
     if (barcode) imei = normalizeImei(barcode);
@@ -232,7 +241,7 @@ export async function createProductAction(_prev: State, formData: FormData): Pro
   { const photoErr = await photoUrlError(photoUrl, features.mediaUpload, m); if (photoErr) return photoErr; }
   const supplierChoice = await readSupplierChoice(formData, user, Supplier);
   if (supplierChoice === 'invalid') return { error: (await getDict()).stock.suppliers.msg.badSupplier };
-  const supplierId = supplierChoice instanceof Types.ObjectId ? supplierChoice : undefined;
+  const supplierId = !stockless && supplierChoice instanceof Types.ObjectId ? supplierChoice : undefined;
   const supplierDebt = !!supplierId && formData.get('supplierDebt') === 'on' && purchasePrice > 0;
 
   // Mahsulot joriy profilga qo'shiladi (tanlovsiz):
@@ -248,14 +257,24 @@ export async function createProductAction(_prev: State, formData: FormData): Pro
   const dup = await Product.findOne({ imei }).lean();
   if (dup) return { error: m.imeiDup };
 
+  // To'plam tarkibi — shu omborning sanaladigan tovarlari; kelish narxi berilmasa — tarkib tannarxi
+  let bundle: { items: { productId: Types.ObjectId; qty: number }[]; cost: number } | null = null;
+  if (kind === 'bundle') {
+    const parsed = await parseBundleItems(Product, formData.get('bundleItems'), targetBranchId, bundleMsgs(m));
+    if (!parsed.ok) return { error: parsed.error };
+    bundle = parsed;
+  }
+
   try {
     const product = await Product.create({
       productId: generateProductCode(),
+      kind,
+      ...(bundle ? { bundleItems: bundle.items } : {}),
       name,
       imei,
       barcode: barcode || undefined,
       color: color || undefined,
-      purchasePrice,
+      purchasePrice: bundle && !purchasePrice ? bundle.cost : purchasePrice,
       salePrice,
       wholesalePrice: wholesalePrice || undefined,
       oldPrice: oldPrice || undefined,
@@ -407,6 +426,18 @@ export async function updateProductAction(_prev: State, formData: FormData): Pro
     product.categoryId = categoryChoice.categoryId;
     product.category = categoryChoice.category;
   }
+  const stockless = isStockless(product);
+  if (stockless) {
+    // Xizmat/to'plam: qoldiq yo'q; to'plam tarkibi formada bo'lsa — yangilanadi (shu ombor tovarlari)
+    product.trackQuantity = false;
+    product.quantity = 1;
+    product.soldQuantity = 0;
+    if (product.kind === 'bundle' && formData.has('bundleItems')) {
+      const parsed = await parseBundleItems(Product, formData.get('bundleItems'), product.branchId, bundleMsgs(m));
+      if (!parsed.ok) return { error: parsed.error };
+      product.set('bundleItems', parsed.items);
+    }
+  } else {
   product.trackQuantity = trackQuantity;
   if (trackQuantity) {
     // Birlik shu formada o'zgargan bo'lishi mumkin — yangisi bo'yicha (kg → kasr, dona → butun)
@@ -423,12 +454,14 @@ export async function updateProductAction(_prev: State, formData: FormData): Pro
     product.quantity = 1;
     product.soldQuantity = product.status === 'sold' ? 1 : 0;
   }
+  }
   if (!product.productId) product.productId = generateProductCode();
   if (!product.createdBy) product.createdBy = user.username;
 
   const prevStatus = product.status;
 
-  const locationErr = applyLocationStatus(
+  // Xizmat/to'plam doim sotuvda — «sotildi» holatiga o'tkazilmaydi
+  const locationErr = stockless ? null : applyLocationStatus(
     product,
     locationStatus,
     soldPaymentType,
@@ -507,8 +540,10 @@ export async function quickMarkSoldAction(_prev: State, formData: FormData): Pro
   }
 
   // dona — butun, kg/m… — ≤3 xona kasr; qoldiqdan oshsa qoldiqqacha qisqaradi
-  const picked = clampQtyToStock(found, parseQty(qtyRaw, found.unit));
-  if (!picked.ok) return { error: picked.reason === 'noStock' ? m.noStock : m.sellQtyInvalid };
+  // Xizmat/to'plam — qoldiqqa qisqartirilmaydi (to'plam tarkibini reserveStock atomik tekshiradi)
+  const reqQty = parseQty(qtyRaw, found.unit);
+  const picked = isStockless(found) ? checkSaleQty(found, reqQty) : clampQtyToStock(found, reqQty);
+  if (!picked.ok) return { error: picked.reason === 'badQty' ? m.sellQtyInvalid : m.noStock };
   const saleQty = picked.qty;
 
   const now = new Date();

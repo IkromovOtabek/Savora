@@ -1,7 +1,7 @@
 import { getTenantSession } from '@/lib/tenantSession';
 import { branchFilter } from '@/lib/branchScope';
 import { isPhoneShop } from '@/lib/businessTypes';
-import { getStockQty } from '@/lib/productQuantity';
+import { sellableInfo } from '@/lib/productKinds';
 import SaleForm from '@/components/tenant/SaleForm';
 import { requirePermission } from '@/lib/permissionGuard';
 import { getDict } from '@/lib/i18n/server';
@@ -23,6 +23,7 @@ export default async function NewSalePage({
 
   // Filial login — faqat o'z filiali mahsulotlarini sota oladi
   const inStock = await Product.find({ ...branchFilter(user), status: 'in_stock' }).sort({ name: 1 }).lean();
+  const sellOf = await sellableInfo(Product, inStock);
   const branches = await Branch.find().lean();
   const branchMap = Object.fromEntries(branches.map((b) => [String(b._id), b.name]));
   const creditBanks = features.creditKassa
@@ -43,8 +44,8 @@ export default async function NewSalePage({
         salePrice: p.salePrice,
         branchName: branchMap[String(p.branchId)] ?? '—',
         imei: p.imei,
-        trackQuantity: p.trackQuantity ?? false,
-        available: getStockQty(p),
+        trackQuantity: sellOf(p).tracked,
+        available: sellOf(p).available,
         unit: p.unit ?? null,
       }))}
     />

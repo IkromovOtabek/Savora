@@ -7,6 +7,7 @@ import { reserveStock, releaseStock } from './stock';
 import { generateSaleNo } from './sales';
 import { recordAudit } from './audit';
 import { isValidQty, priceTimesQty, qtyLabel } from './qty';
+import { isStockless } from './productQuantity';
 
 /**
  * Oflayn POS sinxronlash — mobil ilova internetsiz qilgan NAQD sotuvlarni serverga yozadi.
@@ -73,10 +74,12 @@ export async function applyOfflineSale(
   const product = await Product.findOne({ _id: item.productId, ...scope }).lean();
   if (!product) return { ...base, status: 'rejected', reason: 'productNotFound' };
 
-  const qty = product.trackQuantity ? item.qty : 1;
-  if (!product.trackQuantity && item.qty !== 1) return { ...base, status: 'rejected', reason: 'badQty' };
+  // Xizmat/to'plam ham miqdor bilan sotiladi (to'plam — butun son, tarkibini reserveStock tekshiradi)
+  const counted = product.trackQuantity || isStockless(product);
+  const qty = counted ? item.qty : 1;
+  if (!counted && item.qty !== 1) return { ...base, status: 'rejected', reason: 'badQty' };
   // dona — butun, kg/m… — ≤3 xona kasr
-  if (!isValidQty(qty, product.unit)) return { ...base, status: 'rejected', reason: 'badQty' };
+  if (!isValidQty(qty, product.kind === 'bundle' ? 'dona' : product.unit)) return { ...base, status: 'rejected', reason: 'badQty' };
 
   const listTotal = priceTimesQty(product.salePrice, qty);
   if (product.salePrice > 0 && item.totalAmount < listTotal && !perms.canDiscount) {

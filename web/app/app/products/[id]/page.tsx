@@ -1,6 +1,7 @@
 import { notFound } from 'next/navigation';
 import { fmtQty } from '@/lib/qty';
 import { getStockQty } from '@/lib/productQuantity';
+import { loadBundleCandidates, sellableInfo } from '@/lib/productKinds';
 import { Types } from 'mongoose';
 import { getTenantSession } from '@/lib/tenantSession';
 import { isImeiEnabled } from '@/lib/features';
@@ -66,12 +67,19 @@ export default async function ProductDetailPage({
   const filialBranches = branches.filter((b) => !b.isMain).map((b) => ({ id: String(b._id), name: b.name }));
   const trackQuantity = product.trackQuantity ?? false;
   const available = trackQuantity ? getStockQty(product) : 1;
+  // Xizmat/to'plam: o'z qoldig'i yo'q — sotuv uchun mavjud son tarkibdan (to'plam) yoki cheklovsiz (xizmat)
+  const kind = product.kind ?? 'goods';
+  const stockless = kind !== 'goods';
+  const sell = stockless ? (await sellableInfo(Product, [product]))(product) : null;
+  const bundleCandidates = product.kind === 'bundle'
+    ? await loadBundleCandidates(Product, product.branchId, { includeIds: (product.bundleItems ?? []).map((i) => String(i.productId)), canViewCost })
+    : [];
   const unitSuffix = product.unit && product.unit !== 'dona' ? ` ${d.stock.fields.units[product.unit]}` : '';
   const salePrice = product.salePrice ?? 0;
   const profit = salePrice - (product.purchasePrice ?? 0);
   const showImei = isImeiEnabled(org);
   const canSell = features.sales && perms.has('sale.create');
-  const canTransfer = perms.has('transfer.create');
+  const canTransfer = perms.has('transfer.create') && !stockless;
   const canDelete = perms.has('product.delete');
   const status = product.status as ProductStatus;
   const initialLetter = (product.name ?? '').trim().charAt(0).toUpperCase() || '?';
@@ -128,7 +136,14 @@ export default async function ProductDetailPage({
         </div>
         <div className="st-hero-body">
           <div className="st-hero-top">
-            <span className={`st-pill st-pill--${status}`}>{d.stock.status[status] ?? status}</span>
+            {stockless ? (
+              <span className="st-pill st-pill--kind">{d.stock.form.kinds[kind]}</span>
+            ) : (
+              <span className={`st-pill st-pill--${status}`}>{d.stock.status[status] ?? status}</span>
+            )}
+            {kind === 'bundle' && sell && (
+              <span className={`st-qty${sell.available === 0 ? ' st-qty--zero' : ''}`}>{fmtQty(sell.available)}<small> {t.left}</small></span>
+            )}
             {trackQuantity && (
               <span className={`st-qty${available === 0 ? ' st-qty--zero' : available <= 2 ? ' st-qty--low' : ''}`}>
                 {fmtQty(available)}<small>/{fmtQty(product.quantity ?? 0)}{unitSuffix} {t.left}</small>
@@ -206,8 +221,8 @@ export default async function ProductDetailPage({
             productName={product.name}
             status={product.status}
             currentBranchId={String(product.branchId)}
-            trackQuantity={trackQuantity}
-            available={available}
+            trackQuantity={sell ? sell.tracked : trackQuantity}
+            available={sell ? sell.available : available}
             unit={product.unit ?? null}
             salePrice={salePrice}
             canInstallment={!!(features.variant || features.nasiya)}
@@ -242,10 +257,13 @@ export default async function ProductDetailPage({
           productFields={productFields}
           categories={categories.map((c) => ({ id: String(c._id), name: c.name, parentId: c.parentId ? String(c.parentId) : null }))}
           brands={brands.map((b) => ({ id: String(b._id), name: b.name }))}
+          bundleCandidates={bundleCandidates}
           currentBranchId={user.branchId}
           branches={branches.map((b) => ({ id: String(b._id), name: b.name }))}
           initial={{
             id: String(product._id),
+            kind: product.kind ?? 'goods',
+            bundleItems: (product.bundleItems ?? []).map((i) => ({ productId: String(i.productId), qty: i.qty })),
             name: product.name,
             imei: product.imei,
             barcode: product.barcode ?? '',

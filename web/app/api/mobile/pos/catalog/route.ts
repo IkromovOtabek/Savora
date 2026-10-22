@@ -4,7 +4,7 @@ import { mobilePermissionDenied } from '@/lib/permissionGuard';
 import { getTenantModels } from '@/lib/tenantDb';
 import { branchFilter } from '@/lib/branchScope';
 import { getMobileFeatures } from '@/lib/mobileOrg';
-import { getStockQty } from '@/lib/productQuantity';
+import { sellableInfo } from '@/lib/productKinds';
 
 /** Oflayn katalogda eng ko'p mahsulot (telefon xotirasi va trafik chegarasi) */
 const CATALOG_LIMIT = 5000;
@@ -26,12 +26,13 @@ export async function GET(req: Request) {
   const { Product } = await getTenantModels(user.dbName);
   const filter = { ...branchFilter(user), status: 'in_stock' };
   const [items, total] = await Promise.all([
-    Product.find(filter, { name: 1, imei: 1, barcode: 1, salePrice: 1, trackQuantity: 1, quantity: 1, soldQuantity: 1, status: 1, unit: 1 })
+    Product.find(filter, { name: 1, imei: 1, barcode: 1, salePrice: 1, trackQuantity: 1, quantity: 1, soldQuantity: 1, status: 1, unit: 1, kind: 1, bundleItems: 1 })
       .sort({ name: 1 })
       .limit(CATALOG_LIMIT)
       .lean(),
     Product.countDocuments(filter),
   ]);
+  const sellOf = await sellableInfo(Product, items);
 
   return NextResponse.json({
     serverTime: new Date().toISOString(),
@@ -43,8 +44,9 @@ export async function GET(req: Request) {
       imei: p.imei,
       barcode: p.barcode ?? null,
       salePrice: p.salePrice,
-      trackQuantity: p.trackQuantity ?? false,
-      available: getStockQty(p),
+      kind: p.kind ?? 'goods',
+      trackQuantity: sellOf(p).tracked,
+      available: sellOf(p).available,
       unit: p.unit ?? null,
     })),
   });

@@ -8,7 +8,7 @@ import { useAuth } from '@/lib/auth';
 import { digits, grouped } from '@/lib/format';
 import { isFractionalUnit, parseQty } from '@/lib/qty';
 import {
-  Screen, ModalBar, Field, Button, SegmentedControl, Switch, FormCard, PickRow, InlineAction,
+  Screen, ModalBar, Field, Button, SegmentedControl, Switch, FormCard, PickRow, InlineAction, AddRow,
 } from '@/components/ui';
 import { Text } from '@/components/ui/Text';
 import type { ProductFieldKey, ProductFieldSpec } from '@/lib/auth';
@@ -16,8 +16,9 @@ import { useTheme } from '@/lib/theme';
 import { useDict, tr } from '@/lib/i18n';
 import {
   takeChoice, generateArticle, generateBarcode, uploadPhoto, fileUri,
-  type NamedItem, type CategoryChoice,
+  type NamedItem, type CategoryChoice, type BundleChoice,
 } from '@/lib/catalog';
+import { qtyWithUnit } from '@/lib/qty';
 
 /** "31032027" → "31.03.2027" (yozish davomida nuqtalar qo'yiladi) */
 function maskDate(v: string): string {
@@ -53,13 +54,16 @@ interface BarcodeLookup {
 
 export default function ProductNew() {
   const router = useRouter();
-  const { code } = useLocalSearchParams<{ code?: string }>();
+  const { code, kind: kindParam } = useLocalSearchParams<{ code?: string; kind?: string }>();
+  // Tur: tovar / xizmat / to'plam (product-kind varag'idan). Xizmat va to'plamning qoldig'i, IMEI'si, variantlari yo'q
+  const kind: 'goods' | 'service' | 'bundle' = kindParam === 'service' || kindParam === 'bundle' ? kindParam : 'goods';
+  const stockless = kind !== 'goods';
   const { me } = useAuth();
   const { c } = useTheme();
   const d = useDict();
   const f = d.productForm;
   const t = me?.terms;
-  const hasImei = !!t?.hasImei;
+  const hasImei = !!t?.hasImei && !stockless;
 
   // Rasm
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
@@ -86,6 +90,9 @@ export default function ProductNew() {
 
   // Tovarlar soni (IMEI'siz yo'nalishlarda). Bo'sh — eskicha bitta dona
   const [qty, setQty] = useState('');
+
+  // To'plam tarkibi: tanlangan tovar va 1 to'plamdagi miqdori
+  const [bundle, setBundle] = useState<(BundleChoice & { qty: string })[]>([]);
 
   // Xususiyatlar
   const [brand, setBrand] = useState<NamedItem | null>(null);
@@ -131,7 +138,7 @@ export default function ProductNew() {
   // Yopishda (tugma yoki pastga surish) — kiritilgan ma'lumot bo'lsa tasdiq so'raladi
   const navigation = useNavigation();
   const allowLeave = useRef(false);
-  const dirty = !!(name.trim() || buy || sell || qty || photoUrl || notes.trim() || brand || supplier || category || hasVariants || Object.values(extra).some(Boolean));
+  const dirty = !!(name.trim() || buy || sell || qty || photoUrl || notes.trim() || brand || supplier || category || hasVariants || bundle.length || Object.values(extra).some(Boolean));
   const dirtyRef = useRef(dirty);
   dirtyRef.current = dirty;
   useEffect(() => navigation.addListener('beforeRemove', (e) => {
@@ -149,6 +156,8 @@ export default function ProductNew() {
     const b = takeChoice('brand'); if (b !== undefined) setBrand(b);
     const s = takeChoice('supplier'); if (s !== undefined) setSupplier(s);
     const cat = takeChoice('category'); if (cat !== undefined) setCategory(cat);
+    const bi = takeChoice('bundleItem');
+    if (bi) setBundle((xs) => (xs.some((x) => x.id === bi.id) ? xs : [...xs, { ...bi, qty: '1' }]));
     const bc = takeChoice('barcode');
     if (bc !== undefined) {
       const target = scanTarget.current;
@@ -214,6 +223,12 @@ export default function ProductNew() {
   const qtyBad = (v: string) => v.trim() !== '' && parseQty(v, unit) === null;
   const qtyErr = touched && !hasVariants && qtyBad(qty) ? f.qtyInvalid : null;
   const fractional = isFractionalUnit(unit);
+  // To'plam: har tarkib miqdori birlikka mos bo'lishi shart; nechta yig'ilishi — eng kam yetadigan tarkib bo'yicha
+  const bundleBad = (x: { qty: string; unit: string | null }) => parseQty(x.qty, x.unit) === null;
+  const bundleErr = touched && kind === 'bundle' ? (!bundle.length ? d.bundle.required : bundle.some(bundleBad) ? f.qtyInvalid : null) : null;
+  const canMake = bundle.length && !bundle.some(bundleBad)
+    ? Math.min(...bundle.map((x) => Math.floor(x.available / (parseQty(x.qty, x.unit) as number))))
+    : 0;
   const imeiOk = (v: string) => v.replace(/\s/g, '').length >= 10;
   const articleErr = touched && hasImei && !hasVariants && !imeiOk(article) ? d.productNew.imeiRequired : null;
 
@@ -236,7 +251,8 @@ export default function ProductNew() {
   async function onSave() {
     setTouched(true);
     const variantsOk = !hasVariants || (variants.length > 0 && variants.every((v) => !variantError(v)));
-    if (!name.trim() || (!hasVariants && !freePrice && !sellN) || (!hasVariants && qtyBad(qty)) || (hasImei && !hasVariants && !imeiOk(article)) || !variantsOk || fields.some((x) => fieldError(x))) {
+    const bundleOk = kind !== 'bundle' || (bundle.length > 0 && !bundle.some(bundleBad));
+    if (!name.trim() || (!hasVariants && !freePrice && !sellN) || (!hasVariants && qtyBad(qty)) || (hasImei && !hasVariants && !imeiOk(article)) || !variantsOk || !bundleOk || fields.some((x) => fieldError(x))) {
       if (hasVariants && !variants.length) Alert.alert(d.common.error, f.variantsRequired);
       return;
     }
@@ -251,8 +267,10 @@ export default function ProductNew() {
           purchasePrice: buyN,
           salePrice: freePrice ? 0 : sellN,
           freePrice,
+          kind,
+          ...(kind === 'bundle' ? { bundleItems: bundle.map((x) => ({ productId: x.id, qty: parseQty(x.qty, x.unit) })) } : {}),
           oldPrice: oldOn && !freePrice ? Number(digits(oldPrice)) || 0 : 0,
-          ...(!hasImei && !hasVariants && qty.trim() ? { quantity: parseQty(qty, unit) } : {}),
+          ...(!hasImei && !stockless && !hasVariants && qty.trim() ? { quantity: parseQty(qty, unit) } : {}),
           unit,
           photoUrl: photoUrl ?? '',
           brand: brand?.name ?? '',
@@ -289,7 +307,7 @@ export default function ProductNew() {
     <Screen
       keyboard
       gap={14}
-      bar={<ModalBar title={f.title} actionLabel={d.common.save} onAction={onSave} actionBusy={busy} actionDisabled={photoBusy} />}
+      bar={<ModalBar title={kind === 'service' ? d.productKind.newService : kind === 'bundle' ? d.productKind.newBundle : f.title} actionLabel={d.common.save} onAction={onSave} actionBusy={busy} actionDisabled={photoBusy} />}
       footer={!hasVariants ? (
         <Button title={f.scanBarcode} icon="barcode-outline" variant="gray" size="lg" full onPress={() => openScan('main')} />
       ) : undefined}
@@ -362,7 +380,8 @@ export default function ProductNew() {
         <PickRow label={f.unit} value={unitLabel} placeholder={f.notSelected} onPress={() => router.push(`/product-unit?value=${encodeURIComponent(unit)}`)} />
       </FormCard>
 
-      {/* Variativlik */}
+      {/* Variativlik (xizmat/to'plamda yo'q) */}
+      {!stockless ? (
       <FormCard title={f.variants}>
         <SegmentedControl
           options={[{ key: 'no', label: f.variantsNo }, { key: 'yes', label: f.variantsYes }]}
@@ -440,6 +459,40 @@ export default function ProductNew() {
           </>
         ) : null}
       </FormCard>
+      ) : null}
+
+      {/* To'plam tarkibi — sotilganda shu tovarlar ombordan ayriladi */}
+      {kind === 'bundle' ? (
+        <FormCard title={d.bundle.section}>
+          <Text style={[st.hint, { color: c.ink3 }]}>{d.bundle.hint}</Text>
+          {bundle.length === 0 ? (
+            <Text style={[st.hint, { color: bundleErr ? c.bad : c.ink3 }]}>{bundleErr ?? d.bundle.empty}</Text>
+          ) : bundle.map((x) => (
+            <View key={x.id} style={[st.variant, { borderColor: bundleBad(x) && touched ? c.bad : c.sep }]}>
+              <View style={st.variantHead}>
+                <View style={{ flex: 1 }}>
+                  <Text style={[st.variantT, { color: c.ink }]} numberOfLines={1}>{x.name}</Text>
+                  <Text style={[st.hint, { color: c.ink3 }]}>{tr(d.bundle.left, { n: qtyWithUnit(x.available, x.unit, pf.units) })}</Text>
+                </View>
+                <Pressable onPress={() => setBundle((xs) => xs.filter((y) => y.id !== x.id))} hitSlop={10} accessibilityRole="button" accessibilityLabel={f.variantRemove}>
+                  <Ionicons name="trash-outline" size={20} color={c.bad} />
+                </Pressable>
+              </View>
+              <Field
+                label={d.bundle.qty}
+                value={x.qty}
+                onChangeText={(v) => setBundle((xs) => xs.map((y) => (y.id === x.id ? { ...y, qty: v.replace(isFractionalUnit(x.unit) ? /[^\d.,]/g : /\D/g, '') } : y)))}
+                keyboardType={isFractionalUnit(x.unit) ? 'decimal-pad' : 'numeric'}
+                suffix={pf.units[x.unit ?? 'dona'] ?? x.unit ?? ''}
+              />
+            </View>
+          ))}
+          {bundle.length > 0 && !bundle.some(bundleBad) ? (
+            <Text style={[st.hint, { color: c.ink2 }]}>{tr(d.bundle.canMake, { n: canMake })}</Text>
+          ) : null}
+          <AddRow title={d.bundle.add} onPress={() => router.push(`/bundle-pick?skip=${bundle.map((x) => x.id).join(',')}`)} />
+        </FormCard>
+      ) : null}
 
       {/* Narxlari */}
       <FormCard title={f.prices}>
@@ -472,7 +525,7 @@ export default function ProductNew() {
       </FormCard>
 
       {/* Tovarlar soni — qaysi omborga va nechta (IMEI'li yo'nalishda har biri alohida dona) */}
-      {!hasImei && !hasVariants ? (
+      {!hasImei && !stockless && !hasVariants ? (
         <FormCard title={f.stock}>
           <Field
             label={me?.stockBranch?.name ?? f.qty}

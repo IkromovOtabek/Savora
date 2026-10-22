@@ -18,7 +18,8 @@ export default async function StockAdjustPage({ mode, initialIds }: { mode: 'rev
   const canViewCost = await userCan(user, 'product.viewCost');
 
   const [products, docs] = await Promise.all([
-    Product.find({ ...branchFilter(user), status: 'in_stock' })
+    // Xizmat/to'plamning o'z qoldig'i yo'q — hisobdan chiqarish va qayta baholashda ko'rinmaydi
+    Product.find({ ...branchFilter(user), status: 'in_stock', kind: { $nin: ['service', 'bundle'] } })
       .select('name imei barcode productId salePrice wholesalePrice purchasePrice trackQuantity quantity soldQuantity status unit')
       .sort({ name: 1 })
       .limit(PRODUCT_LIMIT)

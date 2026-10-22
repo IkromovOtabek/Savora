@@ -19,6 +19,7 @@ import { addQty, roundQty } from './qty';
 export interface CatalogItem {
   id: string;
   name: string;
+  kind?: string;
   imei: string;
   barcode: string | null;
   salePrice: number;
@@ -131,7 +132,7 @@ export function findByCode(cat: Catalog | null, code: string): CatalogItem | nul
 }
 
 export function toPicked(p: CatalogItem): PickedProduct {
-  return { id: p.id, name: p.name, salePrice: p.salePrice, available: p.available, trackQuantity: p.trackQuantity, status: p.available > 0 ? 'in_stock' : 'sold', unit: p.unit ?? null };
+  return { id: p.id, name: p.name, salePrice: p.salePrice, available: p.available, trackQuantity: p.trackQuantity, status: p.available > 0 ? 'in_stock' : 'sold', unit: p.unit ?? null, kind: p.kind };
 }
 
 // ── Navbat ───────────────────────────────────────────────────────────────

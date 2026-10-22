@@ -83,7 +83,7 @@ export default function Home() {
       badge: sum && sum.debtTotal > 0 ? fmtCompact(sum.debtTotal) : undefined,
       onPress: () => router.push('/(tabs)/sales?type=debt'),
     },
-    ...(can('product.create') ? [{ key: 'add', label: me?.terms?.addItem ?? d.terms.addItem, icon: 'cube' as const, color: c.sq.o, onPress: () => router.push('/product-new') }] : []),
+    ...(can('product.create') ? [{ key: 'add', label: me?.terms?.addItem ?? d.terms.addItem, icon: 'cube' as const, color: c.sq.o, onPress: () => router.push('/product-kind') }] : []),
     ...(f.kassa && can('kassa.view') ? [{ key: 'shifts', label: d.profile.shifts, icon: 'time' as const, color: c.sq.o, onPress: () => router.push('/shifts') }] : []),
     ...(f.transferred && can('transfer.create') ? [{ key: 'transfer', label: d.home.transfer, icon: 'swap-horizontal' as const, color: c.sq.g, onPress: () => router.push('/transfer') }] : []),
     ...(f.kirimChiqim && isAdmin ? [{ key: 'kc', label: d.home.kirimChiqim, icon: 'cash' as const, color: c.sq.o, onPress: () => router.push('/kirim-chiqim') }] : []),

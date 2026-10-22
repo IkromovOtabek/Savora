@@ -16,6 +16,8 @@ interface Detail {
   imei: string; barcode: string | null; color: string | null;
   purchasePrice: number; salePrice: number; profit: number; status: string; costHidden?: boolean;
   trackQuantity: boolean; quantity: number; soldQuantity: number; available: number; unit?: string | null;
+  kind?: string;
+  bundleItems?: { productId: string; name: string; qty: number; unit: string | null }[];
   branch: string | null; notes: string | null; createdAt: string;
   history: { action: string; detail: string | null; by: string | null; at: string }[];
 }
@@ -47,7 +49,8 @@ export default function ProductDetail() {
   const canSell = p.status === 'in_stock' && p.available > 0;
   const q = (o: Record<string, string | number | boolean>) =>
     Object.entries(o).map(([k, v]) => `${k}=${encodeURIComponent(String(v))}`).join('&');
-  const sellHref = `/sale-new?${q({ productId: p.id, name: p.name, price: p.salePrice, track: p.trackQuantity ? 1 : 0, available: p.available, unit: p.unit ?? '' })}`;
+  const stockless = p.kind === 'service' || p.kind === 'bundle';
+  const sellHref = `/sale-new?${q({ productId: p.id, name: p.name, price: p.salePrice, track: p.trackQuantity ? 1 : 0, available: p.available, unit: p.unit ?? '', kind: p.kind ?? 'goods' })}`;
   const transferHref = `/transfer?${q({ productId: p.id, name: p.name, track: p.trackQuantity ? 1 : 0, available: p.available, unit: p.unit ?? '' })}`;
 
   return (
@@ -58,7 +61,7 @@ export default function ProductDetail() {
       footer={canSell ? (
         <View style={{ flexDirection: 'row', gap: 10 }}>
           {can('sale.create') ? <Button title={d.productDetail.sell} icon="cart" size="lg" style={{ flex: 1 }} onPress={() => router.push(sellHref as never)} /> : null}
-          {f.transferred && can('transfer.create') ? <Button title={d.productDetail.give} icon="swap-horizontal" variant="tinted" size="lg" style={{ flex: 1 }} onPress={() => router.push(transferHref as never)} /> : null}
+          {f.transferred && can('transfer.create') && !stockless ? <Button title={d.productDetail.give} icon="swap-horizontal" variant="tinted" size="lg" style={{ flex: 1 }} onPress={() => router.push(transferHref as never)} /> : null}
         </View>
       ) : undefined}
     >
@@ -67,7 +70,10 @@ export default function ProductDetail() {
         title={p.name}
         subtitle={[p.brand, p.deviceModel, p.color].filter(Boolean).join(' · ') || undefined}
       />
-      <View style={{ flexDirection: 'row' }}><Pill label={st.t} tone={st.tone} /></View>
+      <View style={{ flexDirection: 'row', gap: 6 }}>
+        {stockless ? <Pill label={p.kind === 'service' ? d.productKind.service : d.productKind.bundle} tone="br" /> : <Pill label={st.t} tone={st.tone} />}
+        {p.kind === 'bundle' ? <Pill label={tr(d.common.pcs, { n: fmtQty(p.available) })} tone={p.available > 0 ? 'ok' : 'bad'} /> : null}
+      </View>
 
       {res.error ? <InlineError message={res.error} onRetry={res.refresh} /> : null}
 
@@ -81,10 +87,18 @@ export default function ProductDetail() {
         <Cell title={terms?.codeLabel ?? d.productDetail.code} value={p.imei} valueMono={MONO} />
         {p.barcode ? <Cell title={d.productDetail.barcode} value={p.barcode} valueMono={MONO} /> : null}
         {p.branch ? <Cell title={d.common.branch} value={p.branch} /> : null}
-        {p.trackQuantity ? <Cell title={d.common.remaining} value={tr(d.productDetail.remainingVal, { a: fmtQty(p.available), b: qtyWithUnit(p.quantity, p.unit, d.productFields.units) })} valueColor={p.available > 0 ? undefined : c.bad} /> : null}
+        {p.trackQuantity && !stockless ? <Cell title={d.common.remaining} value={tr(d.productDetail.remainingVal, { a: fmtQty(p.available), b: qtyWithUnit(p.quantity, p.unit, d.productFields.units) })} valueColor={p.available > 0 ? undefined : c.bad} /> : null}
         <Cell title={d.productDetail.added} value={fmtDate(p.createdAt)} />
         {p.notes ? <Cell title={d.common.note} value={p.notes} wrapValue /> : null}
       </Group>
+
+      {p.kind === 'bundle' && p.bundleItems?.length ? (
+        <Group header={d.bundle.items}>
+          {p.bundleItems.map((i) => (
+            <Cell key={i.productId} icon="cube" title={i.name} value={qtyWithUnit(i.qty, i.unit, d.productFields.units)} onPress={() => router.push(`/product/${i.productId}`)} chevron />
+          ))}
+        </Group>
+      ) : null}
 
       {p.history.length > 0 ? (
         <Group header={d.productDetail.history}>

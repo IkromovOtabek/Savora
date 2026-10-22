@@ -125,7 +125,7 @@ export default function Profile() {
 
       {/* Amallar — web menyusi kabi bo'limlarga guruhlangan (BILLZ) */}
       <Group header={d.profile.secProducts} icon="cube-outline">
-        {can('product.create') ? <Cell icon="add-circle" iconColor={c.sq.b} title={t?.addItem ?? d.terms.addItem} chevron onPress={() => router.push('/product-new')} /> : null}
+        {can('product.create') ? <Cell icon="add-circle" iconColor={c.sq.b} title={t?.addItem ?? d.terms.addItem} chevron onPress={() => router.push('/product-kind')} /> : null}
         <Cell icon="barcode" iconColor={c.sq.o} title={d.common.barcodeScanner} chevron onPress={() => router.push('/scan')} />
         {f.transferred && can('transfer.create') ? <Cell icon="swap-horizontal" iconColor={c.sq.g} title={d.profile.transfer} chevron onPress={() => router.push('/transfer')} /> : null}
       </Group>

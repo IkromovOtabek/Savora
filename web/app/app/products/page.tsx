@@ -6,6 +6,7 @@ import { getTenantSession } from '@/lib/tenantSession';
 import { branchFilter, isBranchScoped } from '@/lib/branchScope';
 import { escapeRegExp, searchPattern } from '@/lib/security';
 import { categorySubtreeIds, flattenCategories } from '@/lib/productCatalog';
+import { sellableInfo } from '@/lib/productKinds';
 import { isImeiEnabled } from '@/lib/features';
 import { resolveOrgPlan } from '@/lib/plans';
 import { PRODUCT_STATUS_LABELS, ProductStatus } from '@/lib/models/tenant/Product';
@@ -103,6 +104,8 @@ export default async function ProductsPage({
   ]);
 
   const totalPages = Math.ceil(total / PAGE_SIZE);
+  // Xizmat/to'plam: sotuvda mavjud son (to'plam — tarkibdan), ko'chirib bo'lmaydi
+  const sellOf = await sellableInfo(Product, products);
 
   // Yumshoq mahsulot chegarasi — faqat admin uchun (org bo'yicha umumiy son)
   const isAdmin = user.role === 'admin';
@@ -293,7 +296,10 @@ export default async function ProductsPage({
               const qtyCls = p.trackQuantity
                 ? avail === 0 ? ' st-qty--zero' : avail <= LOW_STOCK ? ' st-qty--low' : ''
                 : '';
-              const qtyPill = p.trackQuantity ? (
+              // Xizmat/to'plam — qoldiq o'rniga turi ko'rsatiladi
+              const qtyPill = p.kind === 'service' || p.kind === 'bundle' ? (
+                <span className="st-pill st-pill--kind">{d.stock.form.kinds[p.kind]}</span>
+              ) : p.trackQuantity ? (
                 <span className={`st-qty${qtyCls}`} title={t.qtyTitle}>
                   {fmtQty(avail)}<small>/{fmtQty(p.quantity ?? 0)}{p.unit && p.unit !== 'dona' ? ` ${d.stock.fields.units[p.unit]}` : ''}</small>
                 </span>
@@ -346,14 +352,14 @@ export default async function ProductsPage({
                       productName={p.name}
                       status={p.status}
                       currentBranchId={String(p.branchId)}
-                      trackQuantity={p.trackQuantity ?? false}
-                      available={avail}
+                      trackQuantity={sellOf(p).tracked}
+                      available={p.kind === 'service' || p.kind === 'bundle' ? sellOf(p).available : avail}
                       unit={p.unit ?? null}
                       salePrice={p.salePrice ?? 0}
                       canInstallment={canInstallment}
                       canCredit={canCredit}
                       canSell={features.sales && perms.has('sale.create')}
-                      canTransfer={perms.has('transfer.create')}
+                      canTransfer={perms.has('transfer.create') && p.kind !== 'service' && p.kind !== 'bundle'}
                       branches={filialBranches}
                     />
                   </div>

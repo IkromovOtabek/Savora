@@ -743,3 +743,38 @@ a.st-card:focus-visible { outline: 3px solid var(--brand-ring); outline-offset: 
 .st-bc-hint--warn { color: var(--warn, #b26b00); }
 .st-bc-hint a { font-weight: 600; }
 .st-bc-apply { border: 0; background: var(--brand-soft); color: var(--brand); font: inherit; font-weight: 600; border-radius: var(--r-pill); padding: 2px 10px; cursor: pointer; }
+
+/* Mahsulot turi: tovar / xizmat / to'plam */
+.st-pill--kind { background: var(--brand-soft); color: var(--brand); }
+.st-kind { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-bottom: 16px; }
+.st-kind-opt {
+  display: flex; align-items: center; gap: 12px; padding: 14px; border: 1.5px solid transparent; border-radius: var(--r-lg);
+  background: var(--surface); box-shadow: var(--shadow-sm); color: var(--ink-1); font: inherit; text-align: left; cursor: pointer;
+}
+.st-kind-opt svg { flex: none; color: var(--brand); }
+.st-kind-opt span { display: grid; gap: 2px; min-width: 0; }
+.st-kind-opt small { color: var(--ink-3); font-size: 12.5px; }
+.st-kind-opt[aria-checked="true"] { border-color: var(--brand); background: var(--brand-soft); }
+.st-kind-opt:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--brand-ring); }
+.st-kind-fixed { display: inline-flex; align-items: center; gap: 6px; margin: 0 0 12px; color: var(--brand); font-weight: 600; }
+@media (max-width: 700px) { .st-kind { grid-template-columns: 1fr; } }
+
+/* To'plam tarkibi */
+.st-bundle { display: grid; gap: 10px; }
+.st-bundle-empty { margin: 0; color: var(--ink-3); font-size: 14px; }
+.st-bundle-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.st-bundle-list li { display: flex; align-items: center; gap: 10px; padding: 8px 8px 8px 12px; border-radius: var(--r-sm); background: var(--fill-2); }
+.st-bundle-list li.is-bad { box-shadow: inset 0 0 0 1.5px var(--danger); }
+.st-bundle-name { flex: 1; min-width: 0; display: grid; }
+.st-bundle-name b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.st-bundle-name small, .st-bundle-qty small { color: var(--ink-3); font-size: 12.5px; }
+.st-bundle-qty { display: flex; align-items: center; gap: 6px; }
+.st-bundle-qty .input { width: 80px; min-height: 38px; padding: 7px 10px; text-align: right; }
+.st-bundle-del { width: 34px; padding: 0; justify-content: center; }
+.st-bundle-add { position: relative; }
+.st-bundle-opts { list-style: none; margin: 6px 0 0; padding: 6px; border-radius: var(--r); background: var(--surface); box-shadow: var(--shadow); display: grid; gap: 2px; }
+.st-bundle-opts button { width: 100%; display: flex; align-items: center; gap: 10px; padding: 9px 10px; border: 0; border-radius: var(--r-sm); background: transparent; color: var(--ink-1); font: inherit; text-align: left; cursor: pointer; }
+.st-bundle-opts button:hover { background: var(--fill-2); }
+.st-bundle-opts span { flex: 1; min-width: 0; font-weight: 600; }
+.st-bundle-opts small { color: var(--ink-3); }
+.st-bundle-sum { margin: 0; color: var(--ink-2); font-size: 13.5px; font-weight: 500; }

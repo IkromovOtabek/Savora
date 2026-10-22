@@ -5,6 +5,8 @@ import { getUsdRate } from '@/lib/currency';
 import { requirePermission, userCan } from '@/lib/permissionGuard';
 import { getDict } from '@/lib/i18n/server';
 import { productFieldsFor } from '@/lib/businessTypes';
+import { ensureMainBranchId } from '@/lib/mainBranch';
+import { loadBundleCandidates } from '@/lib/productKinds';
 
 export async function generateMetadata() {
   const d = await getDict();
@@ -13,7 +15,7 @@ export async function generateMetadata() {
 
 export default async function NewProductPage() {
   await requirePermission('product.create');
-  const { user, Branch, org, features, Supplier, ShopSettings, ProductCategory, Brand } = await getTenantSession();
+  const { user, Branch, org, features, Supplier, ShopSettings, ProductCategory, Brand, Product } = await getTenantSession();
   const usd = await getUsdRate(ShopSettings);
   const isAdmin = user.role === 'admin';
   // Admin barcha filialni tanlaydi; filial-login uchun faqat o'z filiali
@@ -26,9 +28,12 @@ export default async function NewProductPage() {
 
   const productFields = productFieldsFor(org.businessType);
   // Katalog: turkumlar (daraxt formada quriladi) va brendlar — mobil /api/mobile/catalog/* bilan bir xil
-  const [categories, brands] = await Promise.all([
+  // To'plam tarkibi — mahsulot tushadigan ombor tovarlaridan (createProductAction bilan bir xil ombor)
+  const targetBranchId = user.role === 'user' && user.branchId ? user.branchId : await ensureMainBranchId(Branch);
+  const [categories, brands, bundleCandidates] = await Promise.all([
     ProductCategory.find({}, { name: 1, parentId: 1 }).sort({ name: 1 }).limit(2000).lean(),
     Brand.find({}, { name: 1 }).sort({ name: 1 }).limit(1000).lean(),
+    loadBundleCandidates(Product, targetBranchId, { canViewCost: await userCan(user, 'product.viewCost') }),
   ]);
 
   return (
@@ -44,6 +49,7 @@ export default async function NewProductPage() {
       productFields={productFields}
       categories={categories.map((c) => ({ id: String(c._id), name: c.name, parentId: c.parentId ? String(c.parentId) : null }))}
       brands={brands.map((b) => ({ id: String(b._id), name: b.name }))}
+      bundleCandidates={bundleCandidates}
     />
   );
 }

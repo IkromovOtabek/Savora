@@ -1,7 +1,17 @@
 import type { IProduct, ProductStatus } from './models/tenant/Product';
 import { isFractionalUnit, isValidQty, roundQty } from './qty';
 
-export function getStockQty(p: Pick<IProduct, 'trackQuantity' | 'quantity' | 'soldQuantity' | 'status'>): number {
+/** Xizmat va to'plamning o'z qoldig'i yo'q (to'plam — tarkibidagi tovarlardan) */
+export function isStockless(p: { kind?: string | null }): boolean {
+  return p.kind === 'service' || p.kind === 'bundle';
+}
+
+/**
+ * Ombordagi jismoniy qoldiq (hisobot, inventarizatsiya, ombor qiymati).
+ * Xizmat/to'plam — 0: ularning o'z zaxirasi yo'q. Sotuv uchun mavjud son — lib/productKinds.ts → sellableInfo.
+ */
+export function getStockQty(p: Pick<IProduct, 'trackQuantity' | 'quantity' | 'soldQuantity' | 'status'> & { kind?: string | null }): number {
+  if (isStockless(p)) return 0;
   if (p.trackQuantity) return Math.max(0, roundQty((p.quantity ?? 0) - (p.soldQuantity ?? 0)));
   return p.status === 'in_stock' ? 1 : 0;
 }
@@ -34,7 +44,7 @@ export function resolveStatusAfterSale(
   return roundQty(soldQuantity - quantity) >= 0 ? 'sold' : 'in_stock';
 }
 
-type QtyProduct = Pick<IProduct, 'trackQuantity' | 'quantity' | 'soldQuantity' | 'status' | 'unit'>;
+type QtyProduct = Pick<IProduct, 'trackQuantity' | 'quantity' | 'soldQuantity' | 'status' | 'unit'> & { kind?: string | null };
 
 export type SaleQtyCheck =
   | { ok: true; qty: number }
@@ -47,6 +57,13 @@ export type SaleQtyCheck =
  * tekshiruvi baribir reserveStock'da. `undefined` — kiritilmagan (1), `null` — yaroqsiz kiritish.
  */
 export function checkSaleQty(p: QtyProduct, requested: number | null | undefined): SaleQtyCheck {
+  // Xizmat — istalgan miqdor (birlikka mos); to'plam — butun son, tarkib qoldig'ini reserveStock atomik tekshiradi
+  if (isStockless(p)) {
+    if (requested === null) return { ok: false, reason: 'badQty' };
+    const qty = requested ?? 1;
+    const unit = p.kind === 'bundle' ? 'dona' : p.unit;
+    return isValidQty(qty, unit) ? { ok: true, qty: roundQty(qty) } : { ok: false, reason: 'badQty' };
+  }
   if (!p.trackQuantity) return { ok: true, qty: 1 };
   if (requested === null) return { ok: false, reason: 'badQty' };
   const qty = requested ?? 1;
@@ -63,6 +80,8 @@ export type ClampQtyResult = { ok: true; qty: number } | { ok: false; reason: 'n
  * Qoldiq yo'q → noStock; miqdor birlikka mos emas yoki `null` (yaroqsiz kiritish) → badQty.
  */
 export function clampQtyToStock(p: QtyProduct, requested: number | null | undefined): ClampQtyResult {
+  // Xizmat/to'plamni ko'chirib bo'lmaydi (qoldig'i yo'q); ro'yxatdan tez sotuvda — 1 dona
+  if (isStockless(p)) return { ok: false, reason: 'noStock' };
   if (!p.trackQuantity) return { ok: true, qty: 1 };
   const available = getStockQty(p);
   if (!(available > 0)) return { ok: false, reason: 'noStock' };

@@ -16,7 +16,12 @@ interface Choices {
   supplier: NamedItem | null;
   category: CategoryChoice | null;
   barcode: string;
+  /** To'plam tarkibiga tanlangan tovar (bundle-pick ekranidan) */
+  bundleItem: BundleChoice;
 }
+
+/** To'plamga qo'shiladigan tovar: shu omborning sanaladigan tovari */
+export interface BundleChoice { id: string; name: string; unit: string | null; available: number }
 
 const pending: Partial<Choices> = {};
 

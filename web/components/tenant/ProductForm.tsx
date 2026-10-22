@@ -5,9 +5,10 @@ import { useActionState, useEffect, useRef, useState, useTransition, type Keyboa
 import { useToastOnState } from '@/lib/useToastOnState';
 import { createBrandAction, createCategoryAction, createProductAction, lookupBarcodeAction, updateProductAction } from '@/app/actions/products';
 import type { BarcodeLookupResult } from '@/lib/barcodeLookup';
-import { ProductStatus, SoldPaymentType } from '@/lib/models/tenant/Product';
+import { ProductStatus, SoldPaymentType, type ProductKind } from '@/lib/models/tenant/Product';
 import BackLink from '@/components/ui/BackLink';
 import BarcodeInputField from '@/components/ui/BarcodeInputField';
+import BundleComposer, { type BundleCandidate } from '@/components/tenant/BundleComposer';
 import Icon from '@/components/icons/Icon';
 import ImageUploadField from '@/components/ui/ImageUploadField';
 import PriceInput from '@/components/ui/PriceInput';
@@ -53,8 +54,12 @@ interface Props {
   categories?: CategoryItem[];
   /** Brendlar (Brand) — tanlash uchun ro'yxat; mahsulotda nomi saqlanadi */
   brands?: { id: string; name: string }[];
+  /** To'plam tarkibiga qo'shsa bo'ladigan tovarlar (shu omborning sanaladigan tovarlari) */
+  bundleCandidates?: BundleCandidate[];
   initial?: {
     id: string;
+    kind?: ProductKind;
+    bundleItems?: { productId: string; qty: number }[];
     name: string;
     imei: string;
     barcode?: string;
@@ -96,6 +101,7 @@ export default function ProductForm({
   productFields = [],
   categories = [],
   brands = [],
+  bundleCandidates = [],
   initial,
 }: Props) {
   const d = useDict();
@@ -112,6 +118,9 @@ export default function ProductForm({
   const [soldPaymentType, setSoldPaymentType] = useState<SoldPaymentType>(
     initial?.soldPaymentType ?? 'cash'
   );
+  // Tur: tovar / xizmat / to'plam — faqat yaratishda tanlanadi (keyin o'zgarmaydi)
+  const [kind, setKind] = useState<ProductKind>(initial?.kind ?? 'goods');
+  const isGoods = kind === 'goods';
   const [trackQuantity, setTrackQuantity] = useState(initial?.trackQuantity ?? false);
   const [qtyRaw, setQtyRaw] = useState(fmtQty(initial?.quantity ?? 1));
   // O'lchov birligi: kg/m… — miqdor kasr (1,5), aks holda butun
@@ -209,14 +218,37 @@ export default function ProductForm({
       ) : (
         <>
         <nav className="st-fnav ux-scrollx" aria-label={t.navLabel}>
-          {FORM_SECTIONS.map((s, i) => (
+          {FORM_SECTIONS.filter((s) => !(s.key === 'stock' && kind === 'service')).map((s, i) => (
             <a key={s.id} href={`#${s.id}`} aria-current={activeSec === s.id ? 'step' : undefined}>
-              <span className="st-fnav-n" aria-hidden="true">{i + 1}</span>{t.sections[s.key]}
+              <span className="st-fnav-n" aria-hidden="true">{i + 1}</span>{s.key === 'stock' && kind === 'bundle' ? t.kinds.bundleSection : t.sections[s.key]}
             </a>
           ))}
         </nav>
         <form action={formAction} className="st-form">
           {mode === 'edit' && initial && <input type="hidden" name="productId" value={initial.id} />}
+          <input type="hidden" name="kind" value={kind} />
+
+          {/* Tur: yaratishda tanlanadi (BILLZ kabi: tovar / xizmat / to'plam) */}
+          {isCreate ? (
+            <div className="st-kind" role="radiogroup" aria-label={t.kinds.label}>
+              {(['goods', 'service', 'bundle'] as const).map((k) => (
+                <button
+                  key={k}
+                  type="button"
+                  role="radio"
+                  aria-checked={kind === k}
+                  className="st-kind-opt"
+                  onClick={() => setKind(k)}
+                  disabled={isPending}
+                >
+                  <Icon name={k === 'goods' ? 'box' : k === 'service' ? 'wrench' : 'grid'} size={20} />
+                  <span><b>{t.kinds[k]}</b><small>{t.kinds[`${k}Hint`]}</small></span>
+                </button>
+              ))}
+            </div>
+          ) : !isGoods ? (
+            <p className="st-kind-fixed"><Icon name={kind === 'service' ? 'wrench' : 'grid'} size={15} /> {t.kinds[kind]}</p>
+          ) : null}
 
           {/* Filial tanlovi YO'Q — mahsulot joriy profilga qo'shiladi (admin → asosiy ombor,
               filial → o'z filiali). Boshqa filialga "Filialga berish" orqali o'tkaziladi. */}
@@ -239,7 +271,7 @@ export default function ProductForm({
                   <input ref={nameRef} id="name" name="name" type="text" required defaultValue={initial?.name} disabled={isPending} placeholder={t.namePlaceholder} />
                 </div>
 
-                {showImei ? (
+                {showImei && isGoods ? (
                   <div className="form-row">
                     <div className="auth-field">
                       <label htmlFor="imei">{t.imeiLabel}</label>
@@ -326,8 +358,9 @@ export default function ProductForm({
                 <div className="form-row">
                   {showCost && (
                     <div className="auth-field">
-                      <label htmlFor="purchasePrice">{t.purchaseLabel}</label>
-                      <PriceInput id="purchasePrice" name="purchasePrice" required value={purchaseRaw} onValueChange={setPurchaseRaw} disabled={isPending} placeholder="0" />
+                      <label htmlFor="purchasePrice">{isGoods ? t.purchaseLabel : t.purchaseLabel.replace(/\s*\*$/, '')}</label>
+                      {/* To'plamda bo'sh qolsa — tarkib tannarxi; xizmatda — ixtiyoriy */}
+                      <PriceInput id="purchasePrice" name="purchasePrice" required={isGoods} value={purchaseRaw} onValueChange={setPurchaseRaw} disabled={isPending} placeholder={isGoods ? '0' : d.common.optional} />
                     </div>
                   )}
                   <div className="auth-field">
@@ -405,7 +438,23 @@ export default function ProductForm({
             </div>
           </section>
 
+          {/* ---- To'plam tarkibi (o'z qoldig'i yo'q) ---- */}
+          {kind === 'bundle' && (
+            <section id="st-sec-stock" className="st-fsec" aria-labelledby="st-f-bundle">
+              <div className="st-ghead st-ghead--form">
+                <span id="st-f-bundle"><span className="st-fgroup-ic" aria-hidden="true"><Icon name="grid" size={13} /></span>{t.kinds.bundleSection}</span>
+              </div>
+              <div className="st-group">
+                <div className="st-fgroup-body">
+                  <p className="field-hint">{t.kinds.bundleSectionHint}</p>
+                  <BundleComposer candidates={bundleCandidates} initial={initial?.bundleItems} disabled={isPending} showCost={showCost} />
+                </div>
+              </div>
+            </section>
+          )}
+
           {/* ---- Ombor ---- */}
+          {isGoods && (
           <section id="st-sec-stock" className="st-fsec" aria-labelledby="st-f-stock">
             <div className="st-ghead st-ghead--form">
               <span id="st-f-stock"><span className="st-fgroup-ic" aria-hidden="true"><Icon name="building" size={13} /></span>{t.sections.stock}</span>
@@ -568,6 +617,7 @@ export default function ProductForm({
               </div>
             </div>
           </section>
+          )}
 
           {/* ---- Qo'shimcha ---- */}
           <section id="st-sec-extra" className="st-fsec" aria-labelledby="st-f-extra">
@@ -582,7 +632,7 @@ export default function ProductForm({
                     <ImageUploadField defaultValue={initial?.photoUrl} disabled={isPending} />
                   </div>
                 )}
-                {suppliers && suppliers.length > 0 && (
+                {suppliers && suppliers.length > 0 && isGoods && (
                   <div className="auth-field">
                     <label htmlFor="supplierId">{d.stock.suppliers.productField}</label>
                     <select id="supplierId" name="supplierId" value={supplierId} onChange={(e) => setSupplierId(e.target.value)} disabled={isPending}>
