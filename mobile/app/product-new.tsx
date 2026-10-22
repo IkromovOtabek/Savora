@@ -1,11 +1,12 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { View, Alert, Image, Pressable, ActivityIndicator, StyleSheet } from 'react-native';
-import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
+import { useFocusEffect, useLocalSearchParams, useNavigation, useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
 import { api, errMsg } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { digits, grouped } from '@/lib/format';
+import { isFractionalUnit, parseQty } from '@/lib/qty';
 import {
   Screen, ModalBar, Field, Button, SegmentedControl, Switch, FormCard, PickRow, InlineAction,
 } from '@/components/ui';
@@ -39,10 +40,16 @@ function markupOf(buy: number, sell: number): string {
   return String(Math.round(((sell - buy) / buy) * 1000) / 10);
 }
 
-interface Variant { key: string; name: string; code: string; barcode: string; sell: string }
+interface Variant { key: string; name: string; code: string; barcode: string; sell: string; qty: string }
 
 let variantSeq = 0;
-const newVariant = (): Variant => ({ key: `v${++variantSeq}`, name: '', code: '', barcode: '', sell: '' });
+const newVariant = (): Variant => ({ key: `v${++variantSeq}`, name: '', code: '', barcode: '', sell: '', qty: '' });
+
+/** Shtrix-kod bo'yicha: omborda bormi / ochiq bazadan nomi (server: lib/barcodeLookup.ts) */
+interface BarcodeLookup {
+  existing: { id: string; name: string; status: string } | null;
+  suggestion: { name: string; brand: string | null } | null;
+}
 
 export default function ProductNew() {
   const router = useRouter();
@@ -74,6 +81,11 @@ export default function ProductNew() {
   const [markup, setMarkup] = useState('');
   const [oldOn, setOldOn] = useState(false);
   const [oldPrice, setOldPrice] = useState('');
+  // Erkin narx — sotuv narxi 0, kassada har safar qo'lda kiritiladi
+  const [freePrice, setFreePrice] = useState(false);
+
+  // Tovarlar soni (IMEI'siz yo'nalishlarda). Bo'sh — eskicha bitta dona
+  const [qty, setQty] = useState('');
 
   // Xususiyatlar
   const [brand, setBrand] = useState<NamedItem | null>(null);
@@ -91,6 +103,45 @@ export default function ProductNew() {
 
   // Skaner natijasi qaysi maydonga: 'main' yoki variant kaliti
   const scanTarget = useRef<string>('main');
+
+  // Shtrix-kod o'zgarsa (yozish yoki skaner) — omborda bormi va ochiq bazadan nomi.
+  // Nom bo'sh bo'lsa topilgan nom o'zi yoziladi; to'lgan bo'lsa — «Nomga qo'yish» taklifi
+  const [bcInfo, setBcInfo] = useState<(BarcodeLookup & { filled: boolean }) | null>(null);
+  const nameRef = useRef(name);
+  nameRef.current = name;
+  useEffect(() => {
+    const code = barcode.replace(/\s/g, '');
+    if (hasVariants || code.length < 8) { setBcInfo(null); return; }
+    let alive = true;
+    const timer = setTimeout(async () => {
+      try {
+        const r = await api<BarcodeLookup>(`/api/mobile/products/lookup?code=${encodeURIComponent(code)}`);
+        if (!alive) return;
+        const fill = !!r.suggestion && !nameRef.current.trim();
+        if (fill && r.suggestion) setName(r.suggestion.name);
+        setBcInfo(r.existing || r.suggestion ? { ...r, filled: fill } : null);
+      } catch {
+        // Qidiruv ishlamasa ham forma ishlayveradi
+        if (alive) setBcInfo(null);
+      }
+    }, 450);
+    return () => { alive = false; clearTimeout(timer); };
+  }, [barcode, hasVariants]);
+
+  // Yopishda (tugma yoki pastga surish) — kiritilgan ma'lumot bo'lsa tasdiq so'raladi
+  const navigation = useNavigation();
+  const allowLeave = useRef(false);
+  const dirty = !!(name.trim() || buy || sell || qty || photoUrl || notes.trim() || brand || supplier || category || hasVariants || Object.values(extra).some(Boolean));
+  const dirtyRef = useRef(dirty);
+  dirtyRef.current = dirty;
+  useEffect(() => navigation.addListener('beforeRemove', (e) => {
+    if (allowLeave.current || !dirtyRef.current) return;
+    e.preventDefault();
+    Alert.alert(f.cancelTitle, f.cancelMsg, [
+      { text: f.cancelNo, style: 'cancel' },
+      { text: f.cancelYes, style: 'destructive', onPress: () => { allowLeave.current = true; navigation.dispatch(e.data.action); } },
+    ]);
+  }), [navigation, f]);
 
   // Tanlov ekranlaridan qaytganda natijani olamiz
   useFocusEffect(useCallback(() => {
@@ -158,14 +209,19 @@ export default function ProductNew() {
   /* ───────── Tekshiruv va saqlash ───────── */
 
   const nameErr = touched && !name.trim() ? d.productNew.nameRequired : null;
-  const sellErr = touched && !hasVariants && !sellN ? d.productNew.sellRequired : null;
+  const sellErr = touched && !hasVariants && !freePrice && !sellN ? d.productNew.sellRequired : null;
+  // Miqdor: bo'sh — yuborilmaydi; aks holda birlikka mos (kg → kasr, dona → butun)
+  const qtyBad = (v: string) => v.trim() !== '' && parseQty(v, unit) === null;
+  const qtyErr = touched && !hasVariants && qtyBad(qty) ? f.qtyInvalid : null;
+  const fractional = isFractionalUnit(unit);
   const imeiOk = (v: string) => v.replace(/\s/g, '').length >= 10;
   const articleErr = touched && hasImei && !hasVariants && !imeiOk(article) ? d.productNew.imeiRequired : null;
 
   function variantError(v: Variant): string | null {
     if (!v.name.trim()) return f.variantNameRequired;
     if (hasImei && !imeiOk(v.code)) return d.productNew.imeiRequired;
-    if (!(Number(digits(v.sell)) || sellN)) return d.productNew.sellRequired;
+    if (!freePrice && !(Number(digits(v.sell)) || sellN)) return d.productNew.sellRequired;
+    if (!hasImei && qtyBad(v.qty)) return f.qtyInvalid;
     return null;
   }
 
@@ -180,7 +236,7 @@ export default function ProductNew() {
   async function onSave() {
     setTouched(true);
     const variantsOk = !hasVariants || (variants.length > 0 && variants.every((v) => !variantError(v)));
-    if (!name.trim() || (!hasVariants && !sellN) || (hasImei && !hasVariants && !imeiOk(article)) || !variantsOk || fields.some((x) => fieldError(x))) {
+    if (!name.trim() || (!hasVariants && !freePrice && !sellN) || (!hasVariants && qtyBad(qty)) || (hasImei && !hasVariants && !imeiOk(article)) || !variantsOk || fields.some((x) => fieldError(x))) {
       if (hasVariants && !variants.length) Alert.alert(d.common.error, f.variantsRequired);
       return;
     }
@@ -193,8 +249,10 @@ export default function ProductNew() {
           code: hasVariants ? '' : article.trim(),
           barcode: hasVariants ? '' : barcode.trim(),
           purchasePrice: buyN,
-          salePrice: sellN,
-          oldPrice: oldOn ? Number(digits(oldPrice)) || 0 : 0,
+          salePrice: freePrice ? 0 : sellN,
+          freePrice,
+          oldPrice: oldOn && !freePrice ? Number(digits(oldPrice)) || 0 : 0,
+          ...(!hasImei && !hasVariants && qty.trim() ? { quantity: parseQty(qty, unit) } : {}),
           unit,
           photoUrl: photoUrl ?? '',
           brand: brand?.name ?? '',
@@ -207,12 +265,14 @@ export default function ProductNew() {
               name: v.name.trim(),
               code: v.code.trim(),
               barcode: v.barcode.trim(),
-              salePrice: Number(digits(v.sell)) || sellN,
+              salePrice: freePrice ? 0 : Number(digits(v.sell)) || sellN,
               purchasePrice: buyN,
+              ...(!hasImei && v.qty.trim() ? { quantity: parseQty(v.qty, unit) } : {}),
             })),
           } : {}),
         },
       });
+      allowLeave.current = true;
       Alert.alert(
         d.productNew.saved,
         r.count > 1 ? tr(f.variantsSaved, { n: r.count }) : tr(d.productNew.savedMsg, { item: t?.item ?? d.terms.item }),
@@ -230,6 +290,9 @@ export default function ProductNew() {
       keyboard
       gap={14}
       bar={<ModalBar title={f.title} actionLabel={d.common.save} onAction={onSave} actionBusy={busy} actionDisabled={photoBusy} />}
+      footer={!hasVariants ? (
+        <Button title={f.scanBarcode} icon="barcode-outline" variant="gray" size="lg" full onPress={() => openScan('main')} />
+      ) : undefined}
     >
       {/* Rasm */}
       <FormCard>
@@ -277,6 +340,23 @@ export default function ProductNew() {
                 </View>
               )}
             />
+            {bcInfo?.existing ? (
+              <Pressable onPress={() => router.push(`/product/${bcInfo.existing!.id}`)} accessibilityRole="link" style={({ pressed }) => [st.bcHint, { backgroundColor: c.badSoft }, pressed && { opacity: 0.6 }]}>
+                <Ionicons name="alert-circle" size={18} color={c.bad} />
+                <Text style={[st.bcText, { color: c.bad }]}>{tr(f.barcodeExists, { name: bcInfo.existing.name })}</Text>
+                <Text style={[st.bcLink, { color: c.bad }]}>{f.barcodeOpen}</Text>
+              </Pressable>
+            ) : bcInfo?.suggestion ? (
+              <View style={[st.bcHint, { backgroundColor: c.tintSoft }]}>
+                <Ionicons name="sparkles" size={18} color={c.tint} />
+                <Text style={[st.bcText, { color: c.tint }]}>
+                  {bcInfo.filled ? f.barcodeFilled : tr(f.barcodeFound, { name: bcInfo.suggestion.name })}
+                </Text>
+                {!bcInfo.filled ? (
+                  <InlineAction title={f.barcodeApply} onPress={() => { setName(bcInfo.suggestion!.name); setBcInfo({ ...bcInfo, filled: true }); }} />
+                ) : null}
+              </View>
+            ) : null}
           </>
         ) : null}
         <PickRow label={f.unit} value={unitLabel} placeholder={f.notSelected} onPress={() => router.push(`/product-unit?value=${encodeURIComponent(unit)}`)} />
@@ -340,7 +420,18 @@ export default function ProductNew() {
                     placeholder={sellN ? grouped(String(sellN)) : '0'}
                     keyboardType="numeric"
                     suffix={f.currency}
+                    editable={!freePrice}
                   />
+                  {!hasImei ? (
+                    <Field
+                      label={f.qty}
+                      value={v.qty}
+                      onChangeText={(x) => updVariant(v.key, { qty: x.replace(fractional ? /[^\d.,]/g : /\D/g, '') })}
+                      placeholder="1"
+                      keyboardType={fractional ? 'decimal-pad' : 'numeric'}
+                      suffix={unitLabel}
+                    />
+                  ) : null}
                   {err ? <Text style={[st.hint, { color: c.bad }]}>{err}</Text> : null}
                 </View>
               );
@@ -353,8 +444,20 @@ export default function ProductNew() {
       {/* Narxlari */}
       <FormCard title={f.prices}>
         <Field label={f.buyPrice} value={grouped(buy)} onChangeText={onBuy} placeholder="0" keyboardType="numeric" suffix={f.currency} />
-        <Field label={f.sellPrice} value={grouped(sell)} onChangeText={onSell} placeholder="0" keyboardType="numeric" suffix={f.currency} error={sellErr} />
-        <Field label={f.markup} value={markup} onChangeText={onMarkup} placeholder="0" keyboardType="decimal-pad" suffix="%" />
+        {!freePrice ? (
+          <>
+            <Field label={f.sellPrice} value={grouped(sell)} onChangeText={onSell} placeholder="0" keyboardType="numeric" suffix={f.currency} error={sellErr} />
+            <Field label={f.markup} value={markup} onChangeText={onMarkup} placeholder="0" keyboardType="decimal-pad" suffix="%" />
+          </>
+        ) : null}
+        <View style={st.switchRow}>
+          <View style={{ flex: 1 }}>
+            <Text style={[st.switchT, { color: c.ink }]}>{f.freePrice}</Text>
+            <Text style={[st.hint, { color: c.ink3 }]}>{f.freePriceHint}</Text>
+          </View>
+          <Switch value={freePrice} onValueChange={setFreePrice} />
+        </View>
+        {!freePrice ? (
         <View style={st.switchRow}>
           <View style={{ flex: 1 }}>
             <Text style={[st.switchT, { color: c.ink }]}>{f.oldPrice}</Text>
@@ -362,10 +465,27 @@ export default function ProductNew() {
           </View>
           <Switch value={oldOn} onValueChange={setOldOn} />
         </View>
-        {oldOn ? (
+        ) : null}
+        {oldOn && !freePrice ? (
           <Field label={f.oldPrice} value={grouped(oldPrice)} onChangeText={(v) => setOldPrice(digits(v))} placeholder="0" keyboardType="numeric" suffix={f.currency} />
         ) : null}
       </FormCard>
+
+      {/* Tovarlar soni — qaysi omborga va nechta (IMEI'li yo'nalishda har biri alohida dona) */}
+      {!hasImei && !hasVariants ? (
+        <FormCard title={f.stock}>
+          <Field
+            label={me?.stockBranch?.name ?? f.qty}
+            value={qty}
+            onChangeText={(v) => setQty(v.replace(fractional ? /[^\d.,]/g : /\D/g, ''))}
+            placeholder="1"
+            keyboardType={fractional ? 'decimal-pad' : 'numeric'}
+            suffix={unitLabel}
+            error={qtyErr}
+            hint={f.stockHint}
+          />
+        </FormCard>
+      ) : null}
 
       {/* Xususiyatlar */}
       <FormCard title={f.props}>
@@ -412,4 +532,7 @@ const st = StyleSheet.create({
   variantT: { fontSize: 16, fontWeight: '700' },
   switchRow: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 52 },
   switchT: { fontSize: 16, fontWeight: '600' },
+  bcHint: { flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: 14, paddingHorizontal: 12, paddingVertical: 10 },
+  bcText: { flex: 1, fontSize: 14, fontWeight: '600' },
+  bcLink: { fontSize: 14, fontWeight: '700' },
 });

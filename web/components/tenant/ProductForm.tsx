@@ -1,9 +1,10 @@
 'use client';
 
 import Link from 'next/link';
-import { useActionState, useEffect, useState, useTransition, type KeyboardEvent, type ReactNode } from 'react';
+import { useActionState, useEffect, useRef, useState, useTransition, type KeyboardEvent, type ReactNode } from 'react';
 import { useToastOnState } from '@/lib/useToastOnState';
-import { createBrandAction, createCategoryAction, createProductAction, updateProductAction } from '@/app/actions/products';
+import { createBrandAction, createCategoryAction, createProductAction, lookupBarcodeAction, updateProductAction } from '@/app/actions/products';
+import type { BarcodeLookupResult } from '@/lib/barcodeLookup';
 import { ProductStatus, SoldPaymentType } from '@/lib/models/tenant/Product';
 import BackLink from '@/components/ui/BackLink';
 import BarcodeInputField from '@/components/ui/BarcodeInputField';
@@ -141,6 +142,26 @@ export default function ProductForm({
   const pct = (n: number) => `${n > 0 ? '+' : ''}${n.toFixed(1)}%`;
 
   const isCreate = mode === 'create';
+
+  // Shtrix-kod: omborda bormi va ochiq bazadan nomi (faqat yangi mahsulotda). Nom bo'sh bo'lsa — o'zi yoziladi
+  const nameRef = useRef<HTMLInputElement>(null);
+  const [bcInfo, setBcInfo] = useState<(BarcodeLookupResult & { filled: boolean }) | null>(null);
+  const lookupSeq = useRef(0);
+  function onBarcodeChange(raw: string) {
+    if (!isCreate) return;
+    const code = raw.replace(/\s/g, '');
+    const seq = ++lookupSeq.current;
+    if (code.length < 8) { setBcInfo(null); return; }
+    setTimeout(async () => {
+      if (seq !== lookupSeq.current) return;
+      const r = await lookupBarcodeAction(code).catch(() => null);
+      if (!r || seq !== lookupSeq.current) return;
+      const nameEl = nameRef.current;
+      const fill = !!r.suggestion && !!nameEl && !nameEl.value.trim();
+      if (fill && nameEl && r.suggestion) nameEl.value = r.suggestion.name;
+      setBcInfo(r.existing || r.suggestion ? { ...r, filled: fill } : null);
+    }, 450);
+  }
   // Rang yo'nalish maydoni bo'lsa (kiyim) — umumiy "Rang / xususiyat" o'rniga o'sha chiziladi
   const colorInFields = productFields.some((f) => f.key === 'color');
   // Kategoriya — matn emas, turkumlar daraxtidan tanlanadi (mobil kabi); qolgan yo'nalish maydonlari odatdagidek
@@ -215,7 +236,7 @@ export default function ProductForm({
               <div className="st-fgroup-body">
                 <div className="auth-field">
                   <label htmlFor="name">{t.nameLabel}</label>
-                  <input id="name" name="name" type="text" required defaultValue={initial?.name} disabled={isPending} placeholder={t.namePlaceholder} />
+                  <input ref={nameRef} id="name" name="name" type="text" required defaultValue={initial?.name} disabled={isPending} placeholder={t.namePlaceholder} />
                 </div>
 
                 {showImei ? (
@@ -238,8 +259,31 @@ export default function ProductForm({
                         name="barcode"
                         defaultValue={initial?.barcode}
                         disabled={isPending}
+                        onValueChange={onBarcodeChange}
                       />
-                      <span className="field-hint">{t.barcodeHint}</span>
+                      {bcInfo?.existing ? (
+                        <span className="st-bc-hint st-bc-hint--warn" role="status">
+                          <Icon name="alert" size={15} />
+                          {tr(t.barcodeExists, { name: bcInfo.existing.name })}{' '}
+                          <Link href={`/app/products/${bcInfo.existing.id}`}>{t.barcodeOpen}</Link>
+                        </span>
+                      ) : bcInfo?.suggestion ? (
+                        <span className="st-bc-hint" role="status">
+                          <Icon name="sparkles" size={15} />
+                          {bcInfo.filled ? t.barcodeFilled : tr(t.barcodeFound, { name: bcInfo.suggestion.name })}
+                          {!bcInfo.filled && (
+                            <button
+                              type="button"
+                              className="st-bc-apply"
+                              onClick={() => { if (nameRef.current && bcInfo.suggestion) nameRef.current.value = bcInfo.suggestion.name; setBcInfo({ ...bcInfo, filled: true }); }}
+                            >
+                              {t.barcodeApply}
+                            </button>
+                          )}
+                        </span>
+                      ) : (
+                        <span className="field-hint">{t.barcodeHint}</span>
+                      )}
                     </div>
                     {!colorInFields && (
                       <div className="auth-field">

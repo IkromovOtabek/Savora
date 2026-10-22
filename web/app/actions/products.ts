@@ -25,6 +25,7 @@ import { qtyWithUnit, tr } from '@/lib/i18n/fmt';
 import { logError } from '@/lib/logger';
 import { softDeleteOne } from '@/lib/softDelete';
 import { categoryLevelInDb, findOrCreateBrand, findOrCreateCategory } from '@/lib/catalogStore';
+import { lookupBarcode, type BarcodeLookupResult } from '@/lib/barcodeLookup';
 import { CATEGORY_MAX_DEPTH, CATEGORY_NAME_MAX } from '@/lib/models/tenant/ProductCategory';
 import { BRAND_NAME_MAX } from '@/lib/models/tenant/Brand';
 import { LEGACY_CATEGORY_VALUE, normalizeCatalogName } from '@/lib/productCatalog';
@@ -566,6 +567,13 @@ export async function quickMarkSoldAction(_prev: State, formData: FormData): Pro
   } catch {
     return { error: m.saveFailed };
   }
+}
+
+/** Yangi mahsulot formasi: shtrix-kod omborda bormi va ochiq bazadan nomi (mobil /api/mobile/products/lookup bilan bir xil) */
+export async function lookupBarcodeAction(code: string): Promise<BarcodeLookupResult> {
+  const { user, Product } = await getTenantSession();
+  if (!(await userCan(user, 'product.create'))) return { existing: null, suggestion: null };
+  return lookupBarcode(Product, code, branchFilter(user));
 }
 
 type CatalogResult<T> = { ok: true; item: T } | { ok: false; error: string };

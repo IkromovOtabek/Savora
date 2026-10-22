@@ -14,6 +14,7 @@ import { isTenantUploadUrl } from '@/lib/fileUrl';
 import { Types } from 'mongoose';
 import type { ProductUnit } from '@/lib/businessTypes';
 import { getDictionary } from '@/lib/i18n/dict';
+import { parseQty } from '@/lib/qty';
 
 /** Matn maydonlari uzunlik chegarasi — oshsa 400 (xotira/DB to'ldirish himoyasi) */
 const MAX_LEN = { name: 120, code: 64, barcode: 64, brand: 60, notes: 500 } as const;
@@ -75,7 +76,7 @@ export async function GET(req: Request) {
 /** Variativ tovar: bitta so'rovda turlar soni chegarasi */
 const MAX_VARIANTS = 50;
 
-interface VariantInput { name: string; code: string; barcode: string; salePrice: number; purchasePrice: number }
+interface VariantInput { name: string; code: string; barcode: string; salePrice: number; purchasePrice: number; quantity?: unknown }
 
 /**
  * Yangi mahsulot qo'shish (mobil). Filial-login o'z filialiga, admin asosiy omborga.
@@ -92,10 +93,15 @@ export async function POST(req: Request) {
   let body: {
     name?: string; code?: string; barcode?: string; brand?: string; purchasePrice?: number; salePrice?: number; notes?: string;
     oldPrice?: number; photoUrl?: string; categoryId?: string; supplierId?: string; unit?: string; variants?: unknown;
+    /** Erkin narx — sotuv narxi 0, kassada narx har safar qo'lda kiritiladi */
+    freePrice?: boolean;
+    /** Ombordagi soni (IMEI'siz yo'nalishlarda). Berilsa — mahsulot miqdor bilan hisoblanadi */
+    quantity?: unknown;
   } & Record<string, unknown>;
   try { body = await req.json(); } catch { return NextResponse.json({ error: 'Noto\'g\'ri so\'rov.' }, { status: 400 }); }
 
   const name = String(body.name || '').trim();
+  const freePrice = body.freePrice === true;
   // Butun so'm — kasr/manfiy narx rad etiladi
   const salePrice = parseIntegerSum(body.salePrice ?? 0) ?? 0;
   const purchasePriceParsed = parseIntegerSum(body.purchasePrice ?? 0);
@@ -134,10 +140,10 @@ export async function POST(req: Request) {
       if (tooLong(vName, 60) || tooLong(vCode, MAX_LEN.code) || tooLong(vBarcode, MAX_LEN.barcode)) {
         return NextResponse.json({ error: 'Matn maydoni juda uzun.' }, { status: 400 });
       }
-      if (vSale === null || vSale <= 0 || vBuy === null) return NextResponse.json({ error: `«${vName}» narxi noto'g'ri.` }, { status: 400 });
-      variants.push({ name: vName, code: vCode, barcode: vBarcode, salePrice: vSale, purchasePrice: vBuy });
+      if (vSale === null || (vSale <= 0 && !freePrice) || vBuy === null) return NextResponse.json({ error: `«${vName}» narxi noto'g'ri.` }, { status: 400 });
+      variants.push({ name: vName, code: vCode, barcode: vBarcode, salePrice: vSale, purchasePrice: vBuy, quantity: raw?.quantity });
     }
-  } else if (salePrice <= 0) {
+  } else if (salePrice <= 0 && !freePrice) {
     return NextResponse.json({ error: 'Sotuv narxi noto\'g\'ri.' }, { status: 400 });
   }
 
@@ -150,6 +156,16 @@ export async function POST(req: Request) {
   const hasImei = termsFor(businessType).hasImei;
   if (hasImei && (variants.length ? variants.some((v) => v.code.length < 10) : code.length < 10)) {
     return NextResponse.json({ error: stockDict.msg.imeiMin }, { status: 400 });
+  }
+  // Miqdor: IMEI'li yo'nalishda har biri alohida dona (miqdor yo'q); qolganida berilsa — hisobli mahsulot
+  const unit = (body.unit as ProductUnit | undefined) ?? 'dona';
+  const qtyOf = (raw: unknown): number | null | undefined => {
+    if (hasImei || raw === undefined || raw === null || raw === '') return undefined;
+    return parseQty(raw, unit);
+  };
+  const mainQty = qtyOf(body.quantity);
+  if (mainQty === null || variants.some((v) => qtyOf(v.quantity) === null)) {
+    return NextResponse.json({ error: 'Miqdor noto\'g\'ri.' }, { status: 400 });
   }
   const extra = parseProductFields(businessType, (key) => body[key]);
   if (!extra.ok) {
@@ -184,8 +200,8 @@ export async function POST(req: Request) {
   // Kod/IMEI berilmasa avtomatik yaratamiz — vaqt + tasodifiy qism (bir ms ichida ikki so'rov to'qnashmasin)
   const autoCode = () => `SVR-${Date.now().toString(36).toUpperCase()}-${randomBytes(3).toString('hex').toUpperCase()}`;
   const rows = variants.length
-    ? variants.map((v) => ({ name: `${name} ${v.name}`, variantName: v.name, imei: v.code || autoCode(), barcode: v.barcode, salePrice: v.salePrice, purchasePrice: v.purchasePrice }))
-    : [{ name, variantName: undefined, imei: code || autoCode(), barcode, salePrice, purchasePrice }];
+    ? variants.map((v) => ({ name: `${name} ${v.name}`, variantName: v.name, imei: v.code || autoCode(), barcode: v.barcode, salePrice: v.salePrice, purchasePrice: v.purchasePrice, qty: qtyOf(v.quantity) ?? mainQty }))
+    : [{ name, variantName: undefined, imei: code || autoCode(), barcode, salePrice, purchasePrice, qty: mainQty }];
   const codes = rows.map((r) => r.imei);
   if (new Set(codes).size !== codes.length) return NextResponse.json({ error: 'Turlarning kodlari takrorlanmasin.' }, { status: 400 });
   const dup = await Product.findOne({ imei: { $in: codes } }, { imei: 1 }).lean();
@@ -217,6 +233,8 @@ export async function POST(req: Request) {
       barcode: r.barcode || undefined,
       salePrice: r.salePrice,
       purchasePrice: r.purchasePrice,
+      // Miqdor berilgan bo'lsa — hisobli mahsulot (web formadagi «Miqdorni hisoblash» bilan bir xil)
+      ...(r.qty !== undefined ? { trackQuantity: true, quantity: r.qty, soldQuantity: 0 } : {}),
     })), { ordered: true });
   } catch (err) {
     // Unique indeks (E11000) — findOne va insert orasidagi poyga; 500 emas, 409.

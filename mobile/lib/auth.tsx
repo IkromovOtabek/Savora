@@ -39,6 +39,8 @@ export interface MeResponse {
   /** Eski server javobida bo'lmasligi mumkin — unda faqat umumiy maydonlar */
   productFields?: ProductFieldSpec[];
   productUnits?: string[];
+  /** Yangi mahsulot tushadigan ombor (o'z filiali yoki asosiy). Eski serverda yo'q. */
+  stockBranch?: { id: string; name: string } | null;
 }
 
 /** Standart atamalar — me hali yuklanmagan bo'lsa. */

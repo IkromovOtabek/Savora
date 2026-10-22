@@ -737,3 +737,9 @@ a.st-card:focus-visible { outline: 3px solid var(--brand-ring); outline-offset: 
   .cat-add--brand { grid-template-columns: minmax(0, 1fr) auto; }
   .cat-actions { opacity: 1; }
 }
+
+/* Shtrix-kod bo'yicha topilgan nom / omborda borligi */
+.st-bc-hint { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; font-size: 13px; color: var(--brand); }
+.st-bc-hint--warn { color: var(--warn, #b26b00); }
+.st-bc-hint a { font-weight: 600; }
+.st-bc-apply { border: 0; background: var(--brand-soft); color: var(--brand); font: inherit; font-weight: 600; border-radius: var(--r-pill); padding: 2px 10px; cursor: pointer; }

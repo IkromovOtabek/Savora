@@ -28,6 +28,8 @@ interface Props {
   clearOnScan?: boolean;
   /** Modal ochilganda pistalet rejimi yoqilsin */
   defaultScanActive?: boolean;
+  /** Qiymat o'zgarganda (yozish yoki skaner) — masalan shtrix-kod bo'yicha nom qidirish */
+  onValueChange?: (value: string) => void;
 }
 
 export default function BarcodeInputField({
@@ -40,6 +42,7 @@ export default function BarcodeInputField({
   onScan,
   clearOnScan = false,
   defaultScanActive = false,
+  onValueChange,
 }: Props) {
   const d = useDict();
   const inputRef = useRef<HTMLInputElement>(null);
@@ -60,9 +63,10 @@ export default function BarcodeInputField({
     } else {
       setValue(cleaned);
       if (inputRef.current) inputRef.current.value = cleaned;
+      onValueChange?.(cleaned);
     }
     onScan?.(cleaned);
-  }, [clearOnScan, onScan]);
+  }, [clearOnScan, onScan, onValueChange]);
 
   const onHidReport = useCallback(
     (e: HIDInputReportEvent) => {
@@ -144,7 +148,7 @@ export default function BarcodeInputField({
           name={name}
           type="text"
           value={value}
-          onChange={(e) => setValue(e.target.value)}
+          onChange={(e) => { setValue(e.target.value); onValueChange?.(e.target.value); }}
           onKeyDown={(e) => {
             if (e.key === 'Enter' && value.trim()) {
               e.preventDefault();
