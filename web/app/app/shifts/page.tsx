@@ -102,6 +102,7 @@ export default async function ShiftsPage() {
                       <div><dt>{k.refunds}</dt><dd>− {fmtMoney(t.refunds)}</dd></div>
                       <div><dt>{k.withdrawals}</dt><dd>− {fmtMoney(t.withdrawals)}</dd></div>
                       <div><dt>{k.deposits}</dt><dd className="sh-plus">+ {fmtMoney(t.deposits)}</dd></div>
+                      {t.cardIn > 0 && <div><dt>{k.cardIn}</dt><dd>{fmtMoney(t.cardIn)}</dd></div>}
                     </dl>
                     {canShift && (
                       <div className="sh-acts">

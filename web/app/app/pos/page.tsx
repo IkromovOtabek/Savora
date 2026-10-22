@@ -51,6 +51,7 @@ export default async function PosPage() {
       canEditPrice={canEditPrice}
       noShift={features.kassa && !openShift}
       storageKey={`savora_pos_parked:${org._id}:${user.username}`}
+      shopName={org.name}
     />
   );
 }

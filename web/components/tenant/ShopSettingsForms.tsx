@@ -33,6 +33,10 @@ export function ReceiptSettingsForm({ initial, shop }: { initial: ShopSettings['
           <input id="ss-header" name="headerNote" maxLength={120} value={v.headerNote ?? ''} onChange={(e) => set('headerNote', e.target.value)} placeholder={k.headerNotePh} autoComplete="off" />
         </div>
         <div className="auth-field">
+          <label htmlFor="ss-hours">{k.workHours}</label>
+          <input id="ss-hours" name="workHours" maxLength={40} value={v.workHours ?? ''} onChange={(e) => set('workHours', e.target.value)} placeholder={k.workHoursPh} autoComplete="off" />
+        </div>
+        <div className="auth-field">
           <label htmlFor="ss-footer">{k.footer}</label>
           <input id="ss-footer" name="footer" maxLength={160} value={v.footer ?? ''} onChange={(e) => set('footer', e.target.value)} placeholder={k.footerPh} autoComplete="off" />
         </div>
@@ -64,6 +68,7 @@ export function ReceiptSettingsForm({ initial, shop }: { initial: ShopSettings['
           <b className="ss-p-name">{shop.name}</b>
           {v.headerNote && <span className="ss-p-mut">{v.headerNote}</span>}
           {shop.phone && <span className="ss-p-mut">Tel: {shop.phone}</span>}
+          {v.workHours && <span className="ss-p-mut">{r.workHours}: {v.workHours}</span>}
           <span className="ss-p-title">{r.title}</span>
           <hr />
           <div className="ss-p-row"><span>{r.no}</span><span>S-0001</span></div>

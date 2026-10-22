@@ -3,7 +3,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { posSaleAction } from '@/app/actions/pos';
+import { posSaleAction, type PosDone } from '@/app/actions/pos';
+import { PosDoneModal, PosPayModal, type PosPayment } from './PosCheckout';
 import { DISCOUNT_PRESETS, allocateDiscount, discountAmount, unitPriceFor, type DiscountKind } from '@/lib/posCart';
 import { fmtMoney } from '@/lib/format';
 import { toast } from '@/lib/toast';
@@ -63,12 +64,13 @@ function isTyping(el: EventTarget | null): boolean {
   return !!t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable);
 }
 
-export default function PosScreen({ products, canDiscount, canEditPrice, noShift, storageKey }: {
+export default function PosScreen({ products, canDiscount, canEditPrice, noShift, storageKey, shopName }: {
   products: PosProduct[];
   canDiscount: boolean;
   canEditPrice: boolean;
   noShift: boolean;
   storageKey: string;
+  shopName: string;
 }) {
   const d = useDict();
   const k = d.sales.pos;
@@ -89,6 +91,9 @@ export default function PosScreen({ products, canDiscount, canEditPrice, noShift
   const [showParked, setShowParked] = useState(false);
   // Oxirgi yakunlangan sotuv — kassa chekini chop etish uchun
   const [lastSaleIds, setLastSaleIds] = useState<string[]>([]);
+  // To'lov oynasi va sotuvdan keyingi muvaffaqiyat oynasi
+  const [payOpen, setPayOpen] = useState(false);
+  const [done, setDone] = useState<PosDone | null>(null);
 
   const searchRef = useRef<HTMLInputElement>(null);
   const customerRef = useRef<HTMLInputElement>(null);
@@ -173,7 +178,10 @@ export default function PosScreen({ products, canDiscount, canEditPrice, noShift
     setCustomerName(''); setCustomerPhone(''); setNote(''); setWholesale(false);
   }, []);
 
-  const pay = useCallback(() => {
+  const canPay = cart.length > 0 && !pending && !missingPrice && total > 0;
+  const openPay = useCallback(() => { if (canPay) setPayOpen(true); }, [canPay]);
+
+  const pay = useCallback((payment: PosPayment) => {
     if (!cart.length || pending || missingPrice) return;
     startTransition(async () => {
       const res = await posSaleAction({
@@ -183,10 +191,12 @@ export default function PosScreen({ products, canDiscount, canEditPrice, noShift
         customerName: customerName.trim() || undefined,
         customerPhone: customerPhone.trim() || undefined,
         note: note.trim() || undefined,
+        payment,
       });
       if (res?.success) {
-        toast(res.success, 'success');
         setLastSaleIds(res.saleIds ?? []);
+        setPayOpen(false);
+        if (res.done) setDone(res.done); else toast(res.success, 'success');
         resetSale();
         router.refresh();
         searchRef.current?.focus();
@@ -233,6 +243,7 @@ export default function PosScreen({ products, canDiscount, canEditPrice, noShift
 
   // Klaviatura: / qidiruv · J mijoz · K chegirma · L to'lash · O kechiktirish · ↑↓ qator · +/− son · Delete
   useEffect(() => {
+    if (payOpen || done) return; // oyna ochiq — o'z tugmalari bor
     function onKey(e: KeyboardEvent) {
       if (e.metaKey || e.ctrlKey || e.altKey) return;
       if (e.key === 'Escape') { (document.activeElement as HTMLElement | null)?.blur(); setShowParked(false); return; }
@@ -241,7 +252,7 @@ export default function PosScreen({ products, canDiscount, canEditPrice, noShift
       if (key === '/') { e.preventDefault(); searchRef.current?.focus(); }
       else if (key === 'j') { e.preventDefault(); customerRef.current?.focus(); }
       else if (key === 'k' && canDiscount) { e.preventDefault(); discountRef.current?.focus(); }
-      else if (key === 'l') { e.preventDefault(); pay(); }
+      else if (key === 'l') { e.preventDefault(); openPay(); }
       else if (key === 'o') { e.preventDefault(); park(); }
       else if (e.key === 'ArrowDown') { e.preventDefault(); setSel((s) => Math.min(cart.length - 1, s + 1)); }
       else if (e.key === 'ArrowUp') { e.preventDefault(); setSel((s) => Math.max(0, s - 1)); }
@@ -251,7 +262,7 @@ export default function PosScreen({ products, canDiscount, canEditPrice, noShift
     }
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [cart.length, sel, canDiscount, pay, park, changeQty, removeLine]);
+  }, [cart.length, sel, canDiscount, openPay, park, changeQty, removeLine, payOpen, done]);
 
   function onSearchKey(e: React.KeyboardEvent<HTMLInputElement>) {
     if (e.key === 'ArrowDown') { e.preventDefault(); setHit((h) => Math.min(results.length - 1, h + 1)); }
@@ -467,7 +478,7 @@ export default function PosScreen({ products, canDiscount, canEditPrice, noShift
           )}
           <div className="pos-sum"><span>{k.subtotal}</span><b>{fmtMoney(subtotal)} {d.common.sum}</b></div>
           {discount > 0 && <div className="pos-sum pos-sum--disc"><span>{k.discount}</span><b>− {fmtMoney(discount)} {d.common.sum}</b></div>}
-          <button type="button" className="pos-pay-btn" onClick={pay} disabled={!rows.length || pending || missingPrice || total <= 0}>
+          <button type="button" className="pos-pay-btn" onClick={openPay} disabled={!canPay}>
             <span>{k.pay} {kbd('L')}</span>
             <b>{fmtMoney(total)} {d.common.sum}</b>
           </button>
@@ -478,6 +489,26 @@ export default function PosScreen({ products, canDiscount, canEditPrice, noShift
           <Link href="/app/sales/new" className="pos-other">{k.otherPayments}<Icon name="arrowRight" size={14} /></Link>
         </div>
       </aside>
+
+      {payOpen && (
+        <PosPayModal
+          total={total}
+          pending={pending}
+          customerName={customerName}
+          customerPhone={customerPhone}
+          onCustomerName={setCustomerName}
+          onCustomerPhone={setCustomerPhone}
+          onCancel={() => setPayOpen(false)}
+          onConfirm={pay}
+        />
+      )}
+      {done && (
+        <PosDoneModal
+          done={done}
+          shopName={shopName}
+          onClose={() => { setDone(null); searchRef.current?.focus(); }}
+        />
+      )}
     </div>
   );
 }

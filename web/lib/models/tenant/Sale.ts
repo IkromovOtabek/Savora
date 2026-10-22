@@ -1,5 +1,6 @@
 import { Schema, Types } from 'mongoose';
 import { PRODUCT_UNITS, type ProductUnit } from '../../businessTypes';
+import { PAY_METHODS, type PayMethod } from '../../payMethods';
 
 export type PaymentType = 'cash' | 'debt' | 'installment' | 'bank_credit';
 export type SaleStatus = 'paid' | 'partial' | 'cancelled';
@@ -9,6 +10,8 @@ export interface ISalePayment {
   paidAt: Date;
   note?: string;
   recordedBy?: string;
+  /** To'lov usuli; yo'q bo'lsa — naqd (eski yozuvlar) */
+  method?: PayMethod;
 }
 
 /** Qisman qaytarish yozuvi — sotuvdan bir necha dona qaytarilganda (to'liq qaytarish = bekor qilish) */
@@ -65,6 +68,10 @@ export interface ISale {
   soldBy: string;
   notes?: string;
   photoUrl?: string;
+  /** Bitta xarid (kassa savatchasi) qatorlarini bog'laydi; ochiq chek havolasi shu kalit bilan */
+  checkoutId?: string;
+  /** Shu qatorga tushgan chegirma (so'm) — chekda ko'rsatish uchun; totalAmount allaqachon chegirmali */
+  discount?: number;
   /** Oflayn POS: qurilma bergan noyob kalit — bir sotuv ikki marta yozilmasin (idempotentlik) */
   clientSaleId?: string;
   /** Oflayn qilingan va keyin sinxronlangan sotuv */
@@ -108,6 +115,7 @@ export const saleSchema = new Schema<ISale>(
       paidAt: { type: Date, required: true, default: Date.now },
       note: { type: String, trim: true },
       recordedBy: { type: String, trim: true },
+      method: { type: String, enum: PAY_METHODS },
     }],
     returns: [{
       qty: { type: Number, required: true, min: 0.001 },
@@ -121,6 +129,8 @@ export const saleSchema = new Schema<ISale>(
     soldBy: { type: String, required: true, trim: true },
     notes: { type: String, trim: true },
     photoUrl: { type: String, trim: true },
+    checkoutId: { type: String, trim: true, maxlength: 32 },
+    discount: { type: Number, min: 0 },
     clientSaleId: { type: String, trim: true, maxlength: 64 },
     offline: { type: Boolean },
     syncedAt: { type: Date },
@@ -133,6 +143,7 @@ saleSchema.index({ branchId: 1, createdAt: -1 }); // filial bo'yicha scoping/his
 saleSchema.index({ status: 1, paymentType: 1 });
 saleSchema.index({ status: 1, dueDate: 1 });
 saleSchema.index({ 'productSnapshot.imei': 1 });
+saleSchema.index({ checkoutId: 1 }, { partialFilterExpression: { checkoutId: { $type: 'string' } } });
 saleSchema.index({ branchId: 1, 'returns.returnedAt': -1 }); // kunlik kassa (qaytarilgan pul)
 // Faqat oflayn sotuvlarda bor — partial unique (null'lar to'qnashmaydi)
 saleSchema.index({ clientSaleId: 1 }, { unique: true, partialFilterExpression: { clientSaleId: { $type: 'string' } } });

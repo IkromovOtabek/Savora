@@ -163,3 +163,74 @@
 }
 .pos-receipt b { margin-left: auto; color: var(--brand); font-weight: 600; }
 .pos-receipt:hover { background: var(--fill-3); }
+
+/* ── To'lov oynasi (BILLZ: katta summa, usul plitkalari, aralash to'lov) ── */
+.pos-pm { max-width: 520px; }
+.pos-pm-body { padding: 4px 20px 16px; display: grid; gap: 14px; max-height: min(64vh, 620px); overflow-y: auto; }
+.pos-pm-total {
+  text-align: center; padding: 14px 0 6px; font-size: 44px; font-weight: 800; letter-spacing: -.03em;
+  font-variant-numeric: tabular-nums; color: var(--ink-1);
+}
+.pos-pm-total small { font-size: 18px; font-weight: 700; margin-left: 8px; color: var(--ink-2); }
+.pos-pm-toggle {
+  display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 16px;
+  background: var(--fill-2); cursor: pointer; position: relative;
+}
+.pos-pm-toggle > span:first-child { flex: 1; display: grid; gap: 2px; }
+.pos-pm-toggle b { font-size: 15px; color: var(--ink-1); }
+.pos-pm-toggle small { font-size: 12.5px; color: var(--ink-3); }
+.pos-pm-toggle input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.pos-pm-toggle input:checked + .pos-switch-ui { background: var(--brand-fill); }
+.pos-pm-toggle input:checked + .pos-switch-ui::after { transform: translateX(16px); }
+.pos-pm-toggle input:focus-visible + .pos-switch-ui { outline: 3px solid var(--brand-ring); outline-offset: 2px; }
+.pos-pm-tiles { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.pos-pm-tile {
+  position: relative; display: grid; justify-items: center; gap: 8px; padding: 18px 8px 14px;
+  border: 2px solid transparent; border-radius: 16px; background: var(--fill-2); color: var(--brand);
+  cursor: pointer; transition: border-color .12s, background .12s;
+}
+.pos-pm-tile b { color: var(--ink-1); font-size: 15px; }
+.pos-pm-tile .pos-kbd { position: absolute; top: 6px; right: 6px; margin: 0; }
+.pos-pm-tile:hover { background: var(--fill-3); }
+.pos-pm-tile.is-on { border-color: var(--brand); background: var(--brand-soft); }
+.pos-pm-tile:focus-visible { outline: 3px solid var(--brand-ring); outline-offset: 2px; }
+.pos-pm-panel { display: grid; gap: 8px; }
+.pos-pm-big { font-size: 22px; font-weight: 700; text-align: right; font-variant-numeric: tabular-nums; }
+.pos-pm-notes { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.pos-pm-two { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 8px; }
+.pos-pm-warn { margin: 0; font-size: 13px; color: var(--warn); font-weight: 600; }
+.pos-pm-mixed { display: grid; gap: 8px; }
+.pos-pm-mrow { display: grid; grid-template-columns: 110px minmax(0, 1fr) auto; align-items: center; gap: 8px; }
+.pos-pm-mrow .input { text-align: right; font-variant-numeric: tabular-nums; }
+.pos-pm-mlabel { display: inline-flex; align-items: center; gap: 8px; font-weight: 700; color: var(--ink-1); }
+.pos-pm-mlabel svg { color: var(--brand); }
+.pos-pm-foot { padding: 12px 20px 18px; border-top: 1px solid var(--sep); display: grid; gap: 10px; }
+.pos-pm-status { margin: 0; text-align: center; font-size: 14px; color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.pos-pm-status.is-bad { color: var(--danger); }
+.pos-pm-acts { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.pos-pm-acts .btn { min-height: 52px; font-size: 16px; }
+
+/* ── Sotuvdan keyin ── */
+.pos-done { max-width: 440px; padding: 26px 22px 20px; display: grid; gap: 12px; justify-items: center; text-align: center; }
+.pos-done h3 { margin: 4px 0 0; font-size: 20px; font-weight: 800; letter-spacing: -.02em; }
+.pos-done-ic { width: 60px; height: 60px; border-radius: 50%; display: grid; place-items: center; background: var(--accent); color: #fff; }
+.pos-done-sum { margin: 0; font-size: 28px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.pos-done-note { margin: 0; font-size: 14px; font-weight: 600; color: var(--ink-2); }
+.pos-done-note.is-debt { color: var(--warn); }
+.pos-done-grid { width: 100%; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 6px; }
+.pos-done-act {
+  display: grid; justify-items: center; gap: 8px; padding: 16px 8px; border: 0; border-radius: 16px;
+  background: var(--fill-2); color: var(--ink-1); font: inherit; font-weight: 700; text-decoration: none; cursor: pointer;
+}
+.pos-done-act svg { color: var(--brand); }
+.pos-done-act:hover { background: var(--fill-3); }
+.pos-done .pos-pm-toggle { width: 100%; text-align: left; }
+.pos-done-go { min-height: 52px; font-size: 16px; }
+.pos-print-frame { position: fixed; width: 1px; height: 1px; border: 0; opacity: 0; pointer-events: none; left: -9999px; top: 0; }
+
+@media (max-width: 640px) {
+  .pos-pm-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .pos-pm-tile .pos-kbd { display: none; }
+  .pos-pm-total { font-size: 36px; }
+  .pos-pm-mrow { grid-template-columns: 90px minmax(0, 1fr) auto; }
+}

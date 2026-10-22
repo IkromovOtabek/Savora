@@ -1,10 +1,13 @@
 import { ISale, PaymentType } from './models/tenant/Sale';
+import { methodOf, type PayMethod } from './payMethods';
 
 export interface KassaPaymentRow {
   saleId: string;
   saleNo: string;
   customerName: string;
   paymentType: PaymentType;
+  /** To'lov usuli (naqd/karta/o'tkazma); qaytarish — doim naqd */
+  method: PayMethod;
   amount: number;
   paidAt: Date;
   note?: string;
@@ -39,6 +42,7 @@ export function extractKassaPayments(
           saleNo: sale.saleNo,
           customerName: sale.customerSnapshot?.fullName ?? '—',
           paymentType: effectiveType,
+          method: methodOf(p),
           amount: p.amount,
           paidAt,
           note: p.note,
@@ -57,6 +61,7 @@ export function extractKassaPayments(
           saleNo: sale.saleNo,
           customerName: sale.customerSnapshot?.fullName ?? '—',
           paymentType: 'cash',
+          method: 'cash',
           amount: -r.refundAmount,
           paidAt: at,
           note: r.reason,
@@ -70,6 +75,21 @@ export function extractKassaPayments(
   }
 
   return rows.sort((a, b) => b.paidAt.getTime() - a.paidAt.getTime());
+}
+
+/** Kassadagi naqd pulga qo'shiladigan qator: naqd tushum (yoki bosh to'lov) va naqd usul */
+export function isCashRow(r: Pick<KassaPaymentRow, 'paymentType' | 'method'>): boolean {
+  return r.paymentType === 'cash' && r.method === 'cash';
+}
+
+/** Karta/o'tkazma tushumi (naqd kassaga kirmaydi) — usul bo'yicha */
+export function sumByMethod(rows: KassaPaymentRow[]): Partial<Record<PayMethod, number>> {
+  const out: Partial<Record<PayMethod, number>> = {};
+  for (const r of rows) {
+    if (r.isRefund || r.method === 'cash') continue;
+    out[r.method] = (out[r.method] ?? 0) + r.amount;
+  }
+  return out;
 }
 
 export function sumByType(rows: KassaPaymentRow[]): Record<PaymentType, number> {

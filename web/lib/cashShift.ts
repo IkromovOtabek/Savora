@@ -1,4 +1,4 @@
-import { extractKassaPayments } from './kassa';
+import { extractKassaPayments, isCashRow } from './kassa';
 import type { ISale } from './models/tenant/Sale';
 import type { ICashFlow } from './models/tenant/CashFlow';
 
@@ -13,6 +13,8 @@ export interface ShiftTotals {
   deposits: number;
   /** Hozir kassada bo'lishi kerak bo'lgan naqd */
   current: number;
+  /** Karta/o'tkazma bilan tushgan pul (UzCard, HUMO, Click, Payme) — naqd kassaga kirmaydi */
+  cardIn: number;
 }
 
 /**
@@ -28,8 +30,10 @@ export function computeShiftTotals(
 ): ShiftTotals {
   let cashIn = 0;
   let refunds = 0;
+  let cardIn = 0;
   for (const row of extractKassaPayments(sales, from, to)) {
-    if (row.paymentType !== 'cash') continue;
+    if (row.method !== 'cash' && !row.isRefund) { cardIn += row.amount; continue; }
+    if (!isCashRow(row)) continue;
     if (row.isRefund) refunds += -row.amount;
     else cashIn += row.amount;
   }
@@ -41,7 +45,7 @@ export function computeShiftTotals(
     if (f.type === 'expense') withdrawals += f.amount;
     else if (f.type === 'income') deposits += f.amount;
   }
-  return { cashIn, refunds, withdrawals, deposits, current: openingCash + cashIn - refunds - withdrawals + deposits };
+  return { cashIn, refunds, withdrawals, deposits, current: openingCash + cashIn - refunds - withdrawals + deposits, cardIn };
 }
 
 /** Mongo duplicate key (11000) — shu filialda ochiq smena allaqachon bor */

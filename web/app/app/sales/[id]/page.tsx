@@ -1,4 +1,5 @@
 import { notFound } from 'next/navigation';
+import { methodOf } from '@/lib/payMethods';
 import Link from 'next/link';
 import BackLink from '@/components/ui/BackLink';
 import Icon from '@/components/icons/Icon';
@@ -180,7 +181,7 @@ export default async function SaleDetailPage({
                     <span className="sl-pay-ic" aria-hidden><Icon name="check" size={16} /></span>
                     <div className="sl-pay-main">
                       <b>{payNote(p.note)}</b>
-                      <span>{fmtDateTime(p.paidAt)}{p.recordedBy ? ` · ${p.recordedBy}` : ''}</span>
+                      <span>{fmtDateTime(p.paidAt)} · {d.sales.payMethods[methodOf(p)]}{p.recordedBy ? ` · ${p.recordedBy}` : ''}</span>
                     </div>
                     <span className="sl-pay-amt">+{fmtMoney(p.amount)}</span>
                   </li>

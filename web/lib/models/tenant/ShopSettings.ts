@@ -11,6 +11,8 @@ export interface IShopSettings {
     headerNote?: string;
     /** Pastki matn — bo'sh bo'lsa standart "Xaridingiz uchun rahmat!" */
     footer?: string;
+    /** Ish vaqti (chekda): "09:00 – 18:00" */
+    workHours?: string;
     paperWidth: 58 | 80;
     showSeller: boolean;
     showCustomer: boolean;
@@ -39,6 +41,7 @@ export const shopSettingsSchema = new Schema<IShopSettings>(
     receipt: {
       headerNote: { type: String, trim: true, maxlength: 120 },
       footer: { type: String, trim: true, maxlength: 160 },
+      workHours: { type: String, trim: true, maxlength: 40 },
       paperWidth: { type: Number, enum: [58, 80], default: 80 },
       showSeller: { type: Boolean, default: true },
       showCustomer: { type: Boolean, default: true },

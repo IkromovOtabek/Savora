@@ -19,15 +19,17 @@ export async function saveReceiptSettingsAction(_prev: State, formData: FormData
   const parsed = parseInput(z.object({
     headerNote: zText(120),
     footer: zText(160),
+    workHours: zText(40),
     paperWidth: z.enum(['58', '80']),
   }), formToObject(formData), k.failed);
   if (!parsed.ok) return { error: parsed.error };
-  const { headerNote, footer, paperWidth } = parsed.data;
+  const { headerNote, footer, workHours, paperWidth } = parsed.data;
 
   try {
     await saveShopSettingsPart(ShopSettings, 'receipt', {
       headerNote: headerNote || undefined,
       footer: footer || undefined,
+      workHours: workHours || undefined,
       paperWidth: paperWidth === '58' ? 58 : 80,
       showSeller: formData.get('showSeller') === '1',
       showCustomer: formData.get('showCustomer') === '1',

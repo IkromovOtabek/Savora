@@ -1,5 +1,6 @@
 import type { ISale, PaymentType } from './models/tenant/Sale';
 import type { ICashFlow } from './models/tenant/CashFlow';
+import { isCashMethod } from './payMethods';
 
 export interface BranchCashCard {
   id: string;
@@ -23,7 +24,7 @@ export function sumCashFromSales(sales: (ISale & { _id: unknown })[]): Map<strin
     const branchId = String(sale.branchId);
     let branchCash = 0;
     for (const p of sale.payments ?? []) {
-      if (effectivePaymentType(sale, p.note ?? '') === 'cash') {
+      if (isCashMethod(p.method) && effectivePaymentType(sale, p.note ?? '') === 'cash') {
         branchCash += p.amount;
       }
     }

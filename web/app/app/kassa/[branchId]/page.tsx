@@ -3,7 +3,7 @@ import { notFound } from 'next/navigation';
 import { Types } from 'mongoose';
 import { getTenantSession } from '@/lib/tenantSession';
 import { isBranchScoped } from '@/lib/branchScope';
-import { dayRange, extractKassaPayments } from '@/lib/kassa';
+import { dayRange, extractKassaPayments, isCashRow, sumByMethod } from '@/lib/kassa';
 import { fmtDate, fmtDateTime, fmtMoney } from '@/lib/format';
 import KassaDateFilter from '@/components/tenant/KassaDateFilter';
 import BackLink from '@/components/ui/BackLink';
@@ -50,7 +50,10 @@ export default async function KassaBranchPage({
   }).lean();
 
   const allRows = extractKassaPayments(sales, start, end);
-  const rows = allRows.filter((r) => r.paymentType === 'cash');
+  const rows = allRows.filter(isCashRow);
+  // Karta/o'tkazma — naqd kassaga kirmaydi, alohida ko'rsatiladi
+  const byMethod = Object.entries(sumByMethod(allRows));
+  const cardTotal = byMethod.reduce((s, [, v]) => s + (v ?? 0), 0);
   const total = rows.reduce((s, r) => s + r.amount, 0);
   const payRows = rows.filter((r) => !r.isRefund);
 
@@ -98,6 +101,12 @@ export default async function KassaBranchPage({
             <span className="fn-hero-stat-l">{k.avgPayment}</span>
             <span className="fn-hero-stat-v fn-num">{fmtMoney(avg)}</span>
           </div>
+          {cardTotal > 0 && (
+            <div className="fn-hero-stat" title={byMethod.map(([m, v]) => `${d.sales.payMethods[m as keyof typeof d.sales.payMethods]}: ${fmtMoney(v ?? 0)}`).join(' · ')}>
+              <span className="fn-hero-stat-l">{k.cardIn}</span>
+              <span className="fn-hero-stat-v fn-num">{fmtMoney(cardTotal)}</span>
+            </div>
+          )}
         </div>
       </Tilt>
 
