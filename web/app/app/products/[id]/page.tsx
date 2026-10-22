@@ -18,7 +18,7 @@ import MoreMenu from '@/components/ui/MoreMenu';
 import { getDict } from '@/lib/i18n/server';
 import { tr, qtyWithUnit } from '@/lib/i18n/fmt';
 import { productFieldsFor } from '@/lib/businessTypes';
-import { loadCategories, toDateInputValue } from '@/lib/productFields';
+import { toDateInputValue } from '@/lib/productFields';
 
 function fmtMoney(n: number) {
   return new Intl.NumberFormat('uz-UZ').format(n);
@@ -40,7 +40,7 @@ export default async function ProductDetailPage({
   const sp = await searchParams;
   const d = await getDict();
   const t = d.stock.detail;
-  const { user, Product, Branch, CreditBank, org, features, Supplier, ShopSettings } = await getTenantSession();
+  const { user, Product, Branch, CreditBank, org, features, Supplier, ShopSettings, ProductCategory, Brand } = await getTenantSession();
   const usd = await getUsdRate(ShopSettings);
   const isAdmin = user.role === 'admin';
 
@@ -76,7 +76,10 @@ export default async function ProductDetailPage({
   const status = product.status as ProductStatus;
   const initialLetter = (product.name ?? '').trim().charAt(0).toUpperCase() || '?';
   const productFields = productFieldsFor(org.businessType);
-  const categories = await loadCategories(Product);
+  const [categories, brands] = await Promise.all([
+    ProductCategory.find({}, { name: 1, parentId: 1 }).sort({ name: 1 }).limit(2000).lean(),
+    Brand.find({}, { name: 1 }).sort({ name: 1 }).limit(1000).lean(),
+  ]);
   const tf = d.stock.fields;
   // Saqlangan yo'nalish maydonlari (boshqa yo'nalishdan qolganlari ham ko'rsatiladi)
   const expiry = product.expiryDate ? new Date(product.expiryDate) : null;
@@ -237,7 +240,8 @@ export default async function ProductDetailPage({
           suppliers={suppliers?.map((x) => ({ id: String(x._id), name: x.name }))}
           usdRate={usd.rate}
           productFields={productFields}
-          categories={categories}
+          categories={categories.map((c) => ({ id: String(c._id), name: c.name, parentId: c.parentId ? String(c.parentId) : null }))}
+          brands={brands.map((b) => ({ id: String(b._id), name: b.name }))}
           currentBranchId={user.branchId}
           branches={branches.map((b) => ({ id: String(b._id), name: b.name }))}
           initial={{
@@ -256,6 +260,9 @@ export default async function ProductDetailPage({
             purchasePrice: canViewCost ? product.purchasePrice : 0,
             salePrice: product.salePrice,
             wholesalePrice: product.wholesalePrice,
+            oldPrice: product.oldPrice,
+            brand: product.brand ?? '',
+            categoryId: product.categoryId ? String(product.categoryId) : undefined,
             productId: product.productId,
             supplierId: product.supplierId ? String(product.supplierId) : undefined,
             trackQuantity: product.trackQuantity ?? false,

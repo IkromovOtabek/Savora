@@ -398,6 +398,14 @@
 .st-switch:focus-visible { outline: 3px solid var(--brand-ring); outline-offset: 2px; }
 .st-switch:disabled { opacity: .5; cursor: not-allowed; }
 
+/* Katalogdan tanlash (brend, turkum) + shu yerda qo'shish */
+.st-cat-pick { display: flex; gap: 8px; align-items: stretch; }
+.st-cat-pick select { flex: 1; min-width: 0; }
+.st-cat-addbtn { flex: none; width: 44px; padding: 0; justify-content: center; min-height: auto; }
+.st-cat-add { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
+.st-cat-add-row { display: flex; gap: 8px; align-items: center; }
+.st-cat-add-row input { flex: 1; min-width: 0; }
+
 /* Segment (status radio) */
 .st-seg { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; padding: 3px; border-radius: 11px; background: var(--fill); }
 .st-seg label { position: relative; cursor: pointer; }

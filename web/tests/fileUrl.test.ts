@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { isOwnUploadUrl, ownUploadKeyFromUrl, resolvePublicFileUrl, localUploadKeyFromUrl } from '@/lib/fileUrl';
+import { isOwnUploadUrl, isTenantUploadUrl, ownUploadKeyFromUrl, resolvePublicFileUrl, localUploadKeyFromUrl } from '@/lib/fileUrl';
 
 const BASE = 'https://cdn.savora.uz';
 
@@ -59,5 +59,18 @@ describe('resolvePublicFileUrl / localUploadKeyFromUrl', () => {
     expect(resolvePublicFileUrl('/uploads/a/b.jpg')).toBe('/api/uploads/a/b.jpg');
     expect(localUploadKeyFromUrl('/uploads/a/b.jpg')).toBe('a/b.jpg');
     expect(localUploadKeyFromUrl('/api/uploads/../b.jpg')).toBeNull();
+  });
+});
+
+describe('isTenantUploadUrl — faqat shu do\'kon papkasi', () => {
+  it('o\'z papkasidagi rasm qabul qilinadi', () => {
+    expect(isTenantUploadUrl('/api/uploads/biznes_demo/a1b2c3.jpg', 'biznes_demo', '')).toBe(true);
+    expect(isTenantUploadUrl(`${BASE}/biznes_demo/a1b2c3.webp`, 'biznes_demo', BASE)).toBe(true);
+  });
+  it('boshqa do\'kon, chek papkasi va tashqi URL rad etiladi', () => {
+    expect(isTenantUploadUrl('/api/uploads/biznes_other/a1b2c3.jpg', 'biznes_demo', '')).toBe(false);
+    expect(isTenantUploadUrl('/api/uploads/receipts/biznes_demo/a.png', 'biznes_demo', '')).toBe(false);
+    expect(isTenantUploadUrl('/api/uploads/biznes_demo_x/a.png', 'biznes_demo', '')).toBe(false);
+    expect(isTenantUploadUrl('https://evil.example/biznes_demo/a.jpg', 'biznes_demo', BASE)).toBe(false);
   });
 });

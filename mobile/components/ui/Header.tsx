@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Pressable, StyleSheet } from 'react-native';
+import { View, Pressable, StyleSheet, ActivityIndicator } from 'react-native';
 import { Text } from './Text';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -150,7 +150,53 @@ export function NavBar({ backLabel: backLabelProp, title, right, onBack }: NavBa
   );
 }
 
+interface ModalBarProps {
+  title: string;
+  /** Chap matn (standart: «Yopish») */
+  closeLabel?: string;
+  onClose?: () => void;
+  /** O'ng amal (masalan, «Saqlash») */
+  actionLabel?: string;
+  onAction?: () => void;
+  actionBusy?: boolean;
+  actionDisabled?: boolean;
+}
+
+/** Varaq (sheet) ekranlar sarlavhasi: «Yopish» · sarlavha · «Saqlash» — oq yumaloq karta. */
+export function ModalBar({ title, closeLabel, onClose, actionLabel, onAction, actionBusy, actionDisabled }: ModalBarProps) {
+  const { c } = useTheme();
+  const d = useDict();
+  const router = useRouter();
+  const close = onClose ?? (() => (router.canGoBack() ? router.back() : router.replace('/(tabs)')));
+  const off = actionDisabled || actionBusy;
+  return (
+    <View style={s.bar}>
+      <Pressable onPress={close} hitSlop={8} accessibilityRole="button" style={({ pressed }) => [s.mSide, pressed && { opacity: 0.5 }]}>
+        <Text style={[s.mClose, { color: c.ink2 }]} numberOfLines={1}>{closeLabel ?? d.common.close}</Text>
+      </Pressable>
+      <Text style={[T.headline, s.barTitle, { color: c.ink, fontSize: 19, fontWeight: '700' }]} numberOfLines={1} pointerEvents="none">{title}</Text>
+      {actionLabel ? (
+        <Pressable
+          onPress={onAction}
+          disabled={off}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityState={{ disabled: !!off, busy: !!actionBusy }}
+          style={({ pressed }) => [s.mSide, { alignItems: 'flex-end' }, pressed && { opacity: 0.5 }]}
+        >
+          {actionBusy
+            ? <ActivityIndicator color={c.tint} />
+            : <Text style={[s.mAction, { color: c.tint, opacity: actionDisabled ? 0.4 : 1 }]} numberOfLines={1}>{actionLabel}</Text>}
+        </Pressable>
+      ) : <View style={s.mSide} />}
+    </View>
+  );
+}
+
 const s = StyleSheet.create({
+  mSide: { minHeight: 44, minWidth: 70, justifyContent: 'center', zIndex: 1 },
+  mClose: { fontSize: 17, fontWeight: '500' },
+  mAction: { fontSize: 17, fontWeight: '600' },
   navrow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: 36, gap: 12 },
   eyebrow: { fontSize: 13, fontWeight: '600', flexShrink: 1 },
   actions: { flexDirection: 'row', alignItems: 'center', gap: 8 },

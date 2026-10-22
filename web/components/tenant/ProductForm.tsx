@@ -1,9 +1,9 @@
 'use client';
 
 import Link from 'next/link';
-import { useActionState, useEffect, useState, type ReactNode } from 'react';
+import { useActionState, useEffect, useState, useTransition, type KeyboardEvent, type ReactNode } from 'react';
 import { useToastOnState } from '@/lib/useToastOnState';
-import { createProductAction, updateProductAction } from '@/app/actions/products';
+import { createBrandAction, createCategoryAction, createProductAction, updateProductAction } from '@/app/actions/products';
 import { ProductStatus, SoldPaymentType } from '@/lib/models/tenant/Product';
 import BackLink from '@/components/ui/BackLink';
 import BarcodeInputField from '@/components/ui/BarcodeInputField';
@@ -16,6 +16,7 @@ import { useDict } from '@/lib/i18n/client';
 import { tr } from '@/lib/i18n/fmt';
 import { fmtQty, isFractionalUnit, parseQty, priceTimesQty } from '@/lib/qty';
 import { PRODUCT_UNITS, type ProductFieldKey, type ProductFieldSpec, type ProductUnit } from '@/lib/businessTypes';
+import { flattenCategories, LEGACY_CATEGORY_VALUE, type CategoryItem } from '@/lib/productCatalog';
 
 interface BranchOption { id: string; name: string }
 
@@ -47,8 +48,10 @@ interface Props {
   usdRate?: number | null;
   /** Yo'nalishga xos maydonlar (lib/businessTypes.ts → PRODUCT_FIELDS) */
   productFields?: ProductFieldSpec[];
-  /** Mavjud kategoriyalar — kategoriya maydoniga taklif sifatida */
-  categories?: string[];
+  /** Turkumlar (ProductCategory) — tekis ro'yxat, formada daraxt ko'rinishida */
+  categories?: CategoryItem[];
+  /** Brendlar (Brand) — tanlash uchun ro'yxat; mahsulotda nomi saqlanadi */
+  brands?: { id: string; name: string }[];
   initial?: {
     id: string;
     name: string;
@@ -64,6 +67,9 @@ interface Props {
     purchasePrice: number;
     salePrice: number;
     wholesalePrice?: number;
+    oldPrice?: number;
+    brand?: string;
+    categoryId?: string;
     productId?: string;
     trackQuantity?: boolean;
     quantity?: number;
@@ -88,6 +94,7 @@ export default function ProductForm({
   usdRate,
   productFields = [],
   categories = [],
+  brands = [],
   initial,
 }: Props) {
   const d = useDict();
@@ -120,6 +127,8 @@ export default function ProductForm({
     initial?.salePrice !== undefined ? String(initial.salePrice) : ''
   );
   const [wholesaleRaw, setWholesaleRaw] = useState(initial?.wholesalePrice ? String(initial.wholesalePrice) : '');
+  const [oldPriceOn, setOldPriceOn] = useState(!!initial?.oldPrice);
+  const [oldPriceRaw, setOldPriceRaw] = useState(initial?.oldPrice ? String(initial.oldPrice) : '');
   // Foyda ko'rinishi faqat kelish narxini ko'rish huquqi bo'lsa
   const showProfit = showCost && canViewCost;
   const purchaseNum = Number(purchaseRaw) || 0;
@@ -134,6 +143,9 @@ export default function ProductForm({
   const isCreate = mode === 'create';
   // Rang yo'nalish maydoni bo'lsa (kiyim) — umumiy "Rang / xususiyat" o'rniga o'sha chiziladi
   const colorInFields = productFields.some((f) => f.key === 'color');
+  // Kategoriya — matn emas, turkumlar daraxtidan tanlanadi (mobil kabi); qolgan yo'nalish maydonlari odatdagidek
+  const categoryInFields = productFields.some((f) => f.key === 'category');
+  const extraFields = productFields.filter((f) => f.key !== 'category');
 
   // Bo'lim navigatsiyasi — uzun formada "qadam" hissi: ko'rinib turgan bo'lim belgilanadi
   const [activeSec, setActiveSec] = useState<string>(FORM_SECTIONS[0].id);
@@ -237,11 +249,21 @@ export default function ProductForm({
                     )}
                   </>
                 )}
-                {productFields.length > 0 && (
+                <div className="form-row">
+                  <BrandField brands={brands} initial={initial?.brand} disabled={isPending} />
+                  {categoryInFields && (
+                    <CategoryField
+                      categories={categories}
+                      initialId={initial?.categoryId}
+                      initialName={initial?.extra?.category}
+                      disabled={isPending}
+                    />
+                  )}
+                </div>
+                {extraFields.length > 0 && (
                   <ProductExtraFields
-                    fields={productFields}
+                    fields={extraFields}
                     initial={{ color: initial?.color, ...initial?.extra }}
-                    categories={categories}
                     disabled={isPending}
                     onUnitChange={setUnit}
                   />
@@ -274,6 +296,27 @@ export default function ProductForm({
                   <PriceInput id="wholesalePrice" name="wholesalePrice" value={wholesaleRaw} onValueChange={setWholesaleRaw} disabled={isPending} placeholder={d.common.optional} />
                   <span className="field-hint">{t.wholesaleHint}</span>
                 </div>
+                <label className="st-switch-row">
+                  <span className="st-switch-row-t">
+                    <b>{t.oldPriceToggle}</b>
+                    <small>{t.oldPriceHint}</small>
+                  </span>
+                  <input
+                    type="checkbox"
+                    role="switch"
+                    className="st-switch"
+                    name="oldPriceOn"
+                    checked={oldPriceOn}
+                    onChange={(e) => setOldPriceOn(e.target.checked)}
+                    disabled={isPending}
+                  />
+                </label>
+                {oldPriceOn && (
+                  <div className="auth-field">
+                    <label htmlFor="oldPrice">{t.oldPriceLabel}</label>
+                    <PriceInput id="oldPrice" name="oldPrice" value={oldPriceRaw} onValueChange={setOldPriceRaw} disabled={isPending} placeholder="0" />
+                  </div>
+                )}
 
                 {usdRate ? (
                   <UsdPricePanel
@@ -537,13 +580,11 @@ export default function ProductForm({
 function ProductExtraFields({
   fields,
   initial,
-  categories,
   disabled,
   onUnitChange,
 }: {
   fields: ProductFieldSpec[];
   initial: Partial<Record<ProductFieldKey, string>>;
-  categories: string[];
   disabled: boolean;
   /** Birlik o'zgarsa — miqdor maydoni kasr/butun rejimiga o'tadi */
   onUnitChange?: (unit: string) => void;
@@ -570,18 +611,6 @@ function ProductExtraFields({
       case 'expiryDate':
         input = <input {...common} type="date" />;
         break;
-      case 'category':
-        input = (
-          <>
-            <input {...common} type="text" maxLength={60} list={categories.length ? 'pf-category-list' : undefined} placeholder={f.placeholders[key]} autoComplete="off" />
-            {categories.length > 0 && (
-              <datalist id="pf-category-list">
-                {categories.map((c) => <option key={c} value={c} />)}
-              </datalist>
-            )}
-          </>
-        );
-        break;
       default:
         input = <input {...common} type="text" maxLength={key === 'size' ? 20 : 40} placeholder={f.placeholders[key]} autoComplete="off" />;
     }
@@ -603,4 +632,186 @@ function ProductExtraFields({
     );
   }
   return <>{rows}</>;
+}
+
+/**
+ * Katalogdan tanlash + shu yerning o'zida yangisini qo'shish (brend, turkum).
+ * Qo'shish qatori forma maydoni emas (name yo'q) — Enter asosiy formani yubormaydi.
+ */
+function CatalogAdd({
+  placeholder,
+  maxLength,
+  disabled,
+  onSave,
+  onClose,
+  children,
+}: {
+  placeholder: string;
+  maxLength: number;
+  disabled: boolean;
+  /** Xato bo'lsa matn qaytaradi */
+  onSave: (name: string) => Promise<string | null>;
+  onClose: () => void;
+  /** Qo'shimcha tanlov (turkum uchun — qaysi turkum ichida) */
+  children?: ReactNode;
+}) {
+  const d = useDict();
+  const [name, setName] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [saving, startSaving] = useTransition();
+  const save = () => {
+    if (!name.trim()) return;
+    startSaving(async () => {
+      const err = await onSave(name);
+      if (err) setError(err);
+      else onClose();
+    });
+  };
+  const onKey = (e: KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') { e.preventDefault(); save(); }
+    if (e.key === 'Escape') { e.preventDefault(); onClose(); }
+  };
+  const busy = disabled || saving;
+  return (
+    <div className="st-cat-add">
+      {children}
+      <div className="st-cat-add-row">
+        <input
+          type="text"
+          value={name}
+          onChange={(e) => { setName(e.target.value); setError(null); }}
+          onKeyDown={onKey}
+          placeholder={placeholder}
+          maxLength={maxLength}
+          aria-label={placeholder}
+          aria-invalid={!!error || undefined}
+          disabled={busy}
+          autoFocus
+          autoComplete="off"
+        />
+        <button type="button" className="btn btn-primary btn-sm" onClick={save} disabled={busy || !name.trim()}>
+          {saving ? d.common.saving : d.common.add}
+        </button>
+        <button type="button" className="btn btn-plain btn-sm" onClick={onClose} disabled={saving}>
+          {d.common.cancel}
+        </button>
+      </div>
+      {error && <span className="field-error" role="alert">{error}</span>}
+    </div>
+  );
+}
+
+/** Brend: ro'yxatdan tanlash (mahsulotda nomi saqlanadi) yoki yangisini qo'shish */
+function BrandField({ brands, initial, disabled }: { brands: { id: string; name: string }[]; initial?: string; disabled: boolean }) {
+  const t = useDict().stock.form;
+  const [list, setList] = useState(brands);
+  const [value, setValue] = useState(initial ?? '');
+  const [adding, setAdding] = useState(false);
+  // Ro'yxatda yo'q eski brend nomi (mobil/eski yozuv) — yo'qolmasin, tanlovda ko'rinadi
+  const missing = value && !list.some((b) => b.name === value) ? value : null;
+  return (
+    <div className="auth-field">
+      <label htmlFor="brand">{t.brandLabel}</label>
+      <div className="st-cat-pick">
+        <select id="brand" name="brand" value={value} onChange={(e) => setValue(e.target.value)} disabled={disabled}>
+          <option value="">{t.notSelected}</option>
+          {missing && <option value={missing}>{missing}</option>}
+          {list.map((b) => <option key={b.id} value={b.name}>{b.name}</option>)}
+        </select>
+        {!adding && (
+          <button type="button" className="btn btn-tinted btn-sm st-cat-addbtn" onClick={() => setAdding(true)} disabled={disabled} aria-label={t.newBrand} title={t.newBrand}>
+            <Icon name="plus" size={16} />
+          </button>
+        )}
+      </div>
+      {adding && (
+        <CatalogAdd
+          placeholder={t.newBrandPlaceholder}
+          maxLength={60}
+          disabled={disabled}
+          onClose={() => setAdding(false)}
+          onSave={async (name) => {
+            const res = await createBrandAction(name);
+            if (!res.ok) return res.error;
+            setList((prev) => prev.some((b) => b.id === res.item.id)
+              ? prev
+              : [...prev, res.item].sort((a, b) => a.name.localeCompare(b.name)));
+            setValue(res.item.name);
+            return null;
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+/** Turkum: ichma-ich daraxtdan tanlash (categoryId yuboriladi) yoki yangi turkum/subturkum qo'shish */
+function CategoryField({
+  categories,
+  initialId,
+  initialName,
+  disabled,
+}: {
+  categories: CategoryItem[];
+  initialId?: string;
+  /** Mahsulotdagi kategoriya matni */
+  initialName?: string;
+  disabled: boolean;
+}) {
+  const d = useDict();
+  const t = d.stock.form;
+  const [list, setList] = useState(categories);
+  // Turkumga bog'lanmagan (eski matn) yoki turkumi o'chirilgan kategoriya — o'zgartirilmaguncha saqlanadi
+  const known = !!initialId && categories.some((c) => c.id === initialId);
+  const initialLegacy = !known && initialName ? initialName : null;
+  const [value, setValue] = useState(known && initialId ? initialId : initialLegacy ? LEGACY_CATEGORY_VALUE : '');
+  const [adding, setAdding] = useState(false);
+  const [parentId, setParentId] = useState('');
+  const options = flattenCategories(list);
+  // Daraxt ko'rinishi: native select'da chuqurlik bo'shliq bilan
+  const indent = (depth: number) => '\u00A0\u00A0\u00A0'.repeat(depth) + (depth ? '└ ' : '');
+  const openAdd = () => {
+    // Tanlangan turkum ichiga qo'shish — eng ko'p ishlatiladigan holat (subturkum)
+    setParentId(options.some((o) => o.id === value) ? value : '');
+    setAdding(true);
+  };
+  return (
+    <div className="auth-field">
+      <label htmlFor="categoryId">{d.stock.fields.labels.category}</label>
+      <div className="st-cat-pick">
+        <select id="categoryId" name="categoryId" value={value} onChange={(e) => setValue(e.target.value)} disabled={disabled}>
+          <option value="">{t.notSelected}</option>
+          {initialLegacy && <option value={LEGACY_CATEGORY_VALUE}>{tr(t.categoryLegacy, { name: initialLegacy })}</option>}
+          {options.map((o) => <option key={o.id} value={o.id} title={o.path}>{indent(o.depth)}{o.name}</option>)}
+        </select>
+        {!adding && (
+          <button type="button" className="btn btn-tinted btn-sm st-cat-addbtn" onClick={openAdd} disabled={disabled} aria-label={t.newCategory} title={t.newCategory}>
+            <Icon name="plus" size={16} />
+          </button>
+        )}
+      </div>
+      {adding && (
+        <CatalogAdd
+          placeholder={t.newCategoryPlaceholder}
+          maxLength={60}
+          disabled={disabled}
+          onClose={() => setAdding(false)}
+          onSave={async (name) => {
+            const res = await createCategoryAction(name, parentId || null);
+            if (!res.ok) return res.error;
+            setList((prev) => prev.some((c) => c.id === res.item.id)
+              ? prev
+              : [...prev, res.item].sort((a, b) => a.name.localeCompare(b.name)));
+            setValue(res.item.id);
+            return null;
+          }}
+        >
+          <select value={parentId} onChange={(e) => setParentId(e.target.value)} disabled={disabled} aria-label={t.newCategoryParent}>
+            <option value="">{t.newCategoryParent}: {t.newCategoryRoot}</option>
+            {options.map((o) => <option key={o.id} value={o.id}>{indent(o.depth)}{o.name}</option>)}
+          </select>
+        </CatalogAdd>
+      )}
+    </div>
+  );
 }

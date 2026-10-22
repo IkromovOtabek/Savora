@@ -9,6 +9,7 @@ import { api, errMsg } from '@/lib/api';
 import { useOfflinePos } from '@/lib/offlinePos';
 import { findByCode, isNetworkError, toPicked } from '@/lib/offline';
 import { putPicked, type PickedProduct } from '@/lib/pick';
+import { putChoice } from '@/lib/catalog';
 import { Screen, NavBar, EmptyState, Button, Loading } from '@/components/ui';
 import { useDict, tr } from '@/lib/i18n';
 
@@ -18,6 +19,8 @@ export default function Scan() {
   const router = useRouter();
   const { mode } = useLocalSearchParams<{ mode?: string }>();
   const pickMode = mode === 'pick';
+  // capture — kodni o'qib, chaqirgan formaga qaytaradi (mahsulot qidirilmaydi)
+  const captureMode = mode === 'capture';
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
   const d = useDict();
@@ -33,6 +36,11 @@ export default function Scan() {
     if (lock.current) return;
     lock.current = true; setBusy(true);
     const code = String(data || '').trim();
+    if (captureMode) {
+      putChoice('barcode', code);
+      router.back();
+      return;
+    }
     try {
       const r = await api<{ items: Item[] }>(`/api/mobile/products?q=${encodeURIComponent(code)}`);
       // Aniq mos kelganini birinchi olamiz (kod/shtrix), bo'lmasa birinchisi
@@ -70,7 +78,7 @@ export default function Scan() {
       }
       Alert.alert(d.common.error, errMsg(e, d.scan.searchError), [{ text: d.common.retry, onPress: unlock }]);
     }
-  }, [router, pickMode, d, pos]);
+  }, [router, pickMode, captureMode, d, pos]);
 
   if (!permission) return <Loading full />;
 
@@ -107,7 +115,7 @@ export default function Scan() {
         <Pressable style={({ pressed }) => [s.round, pressed && { opacity: 0.5 }]} onPress={() => setTorch((t) => !t)} hitSlop={8} accessibilityLabel={d.scan.torch}>
           <Ionicons name={torch ? 'flash' : 'flash-outline'} size={22} color="#fff" />
         </Pressable>
-        <Text style={s.title}>{pickMode ? d.scan.titlePick : d.scan.title}</Text>
+        <Text style={s.title}>{captureMode ? d.common.barcodeScanner : pickMode ? d.scan.titlePick : d.scan.title}</Text>
         <Pressable style={({ pressed }) => [s.round, pressed && { opacity: 0.5 }]} onPress={() => router.back()} hitSlop={8} accessibilityLabel={d.common.close}>
           <Ionicons name="close" size={24} color="#fff" />
         </Pressable>
@@ -116,7 +124,7 @@ export default function Scan() {
         <View style={[s.frame, { width: frameW, height: frameW * 0.55 }]} />
       </View>
       <View style={[s.hint, { bottom: insets.bottom + 40 }]}>
-        <Text style={s.hintT}>{busy ? d.scan.searching : d.scan.hint}</Text>
+        <Text style={s.hintT}>{busy && !captureMode ? d.scan.searching : d.scan.hint}</Text>
       </View>
     </View>
   );

@@ -24,6 +24,10 @@ import { getDict, type Dict } from '@/lib/i18n/server';
 import { qtyWithUnit, tr } from '@/lib/i18n/fmt';
 import { logError } from '@/lib/logger';
 import { softDeleteOne } from '@/lib/softDelete';
+import { escapeRegExp } from '@/lib/security';
+import { CATEGORY_MAX_DEPTH, CATEGORY_NAME_MAX } from '@/lib/models/tenant/ProductCategory';
+import { BRAND_NAME_MAX } from '@/lib/models/tenant/Brand';
+import { LEGACY_CATEGORY_VALUE, normalizeCatalogName } from '@/lib/productCatalog';
 
 type State = { error?: string; success?: string } | null;
 // Mahsulot holati formada: omborda (o'z filialida) yoki sotilgan.
@@ -49,6 +53,42 @@ async function readSupplierChoice(
   if (!Types.ObjectId.isValid(raw)) return 'invalid';
   const exists = await Supplier.exists({ _id: raw });
   return exists ? new Types.ObjectId(raw) : 'invalid';
+}
+
+type TenantModels = Awaited<ReturnType<typeof getTenantSession>>;
+
+/**
+ * Formadagi turkum (ProductCategory) tanlovi — mobil API bilan bir xil: categoryId + category (nomi):
+ *  - maydon yo'q → 'keep' (eski forma: kategoriya matni yo'nalish maydonlari orqali)
+ *  - LEGACY_CATEGORY_VALUE → 'legacy' (turkumga bog'lanmagan eski matn o'zgarmaydi)
+ *  - '' → null (turkum olib tashlanadi)
+ *  - mavjud id → { categoryId, category }; noma'lum id → 'invalid'
+ */
+async function readCategoryChoice(
+  formData: FormData,
+  ProductCategory: TenantModels['ProductCategory'],
+): Promise<{ categoryId: Types.ObjectId; category: string } | null | 'keep' | 'legacy' | 'invalid'> {
+  if (!formData.has('categoryId')) return 'keep';
+  const raw = String(formData.get('categoryId') || '');
+  if (raw === LEGACY_CATEGORY_VALUE) return 'legacy';
+  if (!raw) return null;
+  if (!Types.ObjectId.isValid(raw)) return 'invalid';
+  const cat = await ProductCategory.findById(raw, { name: 1 }).lean();
+  return cat ? { categoryId: cat._id, category: cat.name } : 'invalid';
+}
+
+/** Brend — nomi saqlanadi (ro'yxat Brand modelida). Maydon yo'q → 'keep', juda uzun → 'tooLong' */
+function readBrand(formData: FormData): string | undefined | 'keep' | 'tooLong' {
+  if (!formData.has('brand')) return 'keep';
+  const brand = normalizeCatalogName(formData.get('brand'));
+  if (brand.length > BRAND_NAME_MAX) return 'tooLong';
+  return brand || undefined;
+}
+
+/** Eski narx: yoqish tugmasi o'chiq bo'lsa 0 (olib tashlanadi), noto'g'ri bo'lsa null */
+function readOldPrice(formData: FormData): number | null {
+  if (formData.get('oldPriceOn') !== 'on') return 0;
+  return parseOptionalPrice(String(formData.get('oldPrice') || ''));
 }
 
 /** Narx — faqat butun so'm (kasr/manfiy → null) */
@@ -151,7 +191,7 @@ function generateSku(): string {
 }
 
 export async function createProductAction(_prev: State, formData: FormData): Promise<State> {
-  const { user, org, Product, Branch, features, Supplier, SupplierEntry } = await getTenantSession();
+  const { user, org, Product, Branch, features, Supplier, SupplierEntry, ProductCategory } = await getTenantSession();
   { const denied = await checkPermission(user, 'product.create'); if (denied) return denied; }
   const m = (await getDict()).stock.msg;
   const phoneShop = isPhoneShop(org);
@@ -178,8 +218,14 @@ export async function createProductAction(_prev: State, formData: FormData): Pro
   if (purchasePrice === null) return { error: m.purchaseInvalid };
   if (salePrice === null) return { error: m.saleInvalid };
   if (wholesalePrice === null) return { error: m.wholesaleInvalid };
+  const oldPrice = readOldPrice(formData);
+  if (oldPrice === null) return { error: m.oldPriceInvalid };
+  const brand = readBrand(formData);
+  if (brand === 'tooLong') return { error: m.brandNameTooLong };
   const extra = await readProductFields(formData, org.businessType);
   if (!extra.ok) return { error: extra.error };
+  const categoryChoice = await readCategoryChoice(formData, ProductCategory);
+  if (categoryChoice === 'invalid') return { error: m.categoryNotFound };
   // Kasrli birlikda (kg, m…) miqdor ≤3 xona kasr, aks holda butun
   const quantity = trackQuantity ? parseQtyField(quantityRaw, 1, extra.values.unit) : 1;
   { const photoErr = await photoUrlError(photoUrl, features.mediaUpload, m); if (photoErr) return photoErr; }
@@ -211,6 +257,8 @@ export async function createProductAction(_prev: State, formData: FormData): Pro
       purchasePrice,
       salePrice,
       wholesalePrice: wholesalePrice || undefined,
+      oldPrice: oldPrice || undefined,
+      brand: brand === 'keep' ? undefined : brand,
       trackQuantity,
       quantity,
       soldQuantity: 0,
@@ -219,6 +267,7 @@ export async function createProductAction(_prev: State, formData: FormData): Pro
       notes: notes || undefined,
       photoUrl: photoUrl || undefined,
       ...extra.values,
+      ...(categoryChoice && typeof categoryChoice === 'object' ? categoryChoice : {}),
       createdBy: user.username,
       supplierId,
       history: [{ action: 'created', detail: branch.name, by: user.username, at: new Date() }],
@@ -257,7 +306,7 @@ export async function createProductAction(_prev: State, formData: FormData): Pro
 }
 
 export async function updateProductAction(_prev: State, formData: FormData): Promise<State> {
-  const { user, org, Product, Sale, CreditBank, features, Supplier } = await getTenantSession();
+  const { user, org, Product, Sale, CreditBank, features, Supplier, ProductCategory } = await getTenantSession();
   { const denied = await checkPermission(user, 'product.edit'); if (denied) return denied; }
   const m = (await getDict()).stock.msg;
   // Kelish narxini ko'rmaydigan xodim formada uni yubormaydi — mavjud qiymat saqlanadi
@@ -286,8 +335,14 @@ export async function updateProductAction(_prev: State, formData: FormData): Pro
   if (purchasePrice === null) return { error: m.purchaseInvalid };
   if (salePrice === null) return { error: m.saleInvalid };
   if (wholesalePrice === null) return { error: m.wholesaleInvalid };
+  const oldPrice = readOldPrice(formData);
+  if (oldPrice === null) return { error: m.oldPriceInvalid };
+  const brand = readBrand(formData);
+  if (brand === 'tooLong') return { error: m.brandNameTooLong };
   const extra = await readProductFields(formData, org.businessType);
   if (!extra.ok) return { error: extra.error };
+  const categoryChoice = await readCategoryChoice(formData, ProductCategory);
+  if (categoryChoice === 'invalid') return { error: m.categoryNotFound };
   { const photoErr = await photoUrlError(photoUrl, features.mediaUpload, m); if (photoErr) return photoErr; }
 
   if (!Types.ObjectId.isValid(productId)) return { error: m.notFound };
@@ -336,8 +391,21 @@ export async function updateProductAction(_prev: State, formData: FormData): Pro
   product.purchasePrice = purchasePrice;
   product.salePrice = salePrice;
   product.wholesalePrice = wholesalePrice || undefined;
-  // Faqat joriy yo'nalish maydonlari yangilanadi; boshqa yo'nalishdan qolgan qiymatlarga tegilmaydi
-  for (const key of extra.keys) product.set(key, extra.values[key]);
+  product.oldPrice = oldPrice || undefined;
+  if (brand !== 'keep') product.brand = brand;
+  // Faqat joriy yo'nalish maydonlari yangilanadi; boshqa yo'nalishdan qolgan qiymatlarga tegilmaydi.
+  // Turkum tanlovi bo'lsa — kategoriya matni categoryId bo'yicha (pastda), yo'nalish maydonidan emas
+  for (const key of extra.keys) {
+    if (key === 'category' && categoryChoice !== 'keep') continue;
+    product.set(key, extra.values[key]);
+  }
+  if (categoryChoice === null) {
+    product.categoryId = undefined;
+    product.category = undefined;
+  } else if (categoryChoice && typeof categoryChoice === 'object') {
+    product.categoryId = categoryChoice.categoryId;
+    product.category = categoryChoice.category;
+  }
   product.trackQuantity = trackQuantity;
   if (trackQuantity) {
     // Birlik shu formada o'zgargan bo'lishi mumkin — yangisi bo'yicha (kg → kasr, dona → butun)
@@ -498,6 +566,67 @@ export async function quickMarkSoldAction(_prev: State, formData: FormData): Pro
   } catch {
     return { error: m.saveFailed };
   }
+}
+
+type CatalogResult<T> = { ok: true; item: T } | { ok: false; error: string };
+
+/** Katalogga (brend/turkum) yozish — mahsulot qo'shish yoki tahrirlash huquqi bilan (mobil: product.create) */
+async function catalogWriter() {
+  const session = await getTenantSession();
+  const allowed = (await userCan(session.user, 'product.create')) || (await userCan(session.user, 'product.edit'));
+  return { session, denied: allowed ? null : permissionDeniedError('product.create') };
+}
+
+/** Formadan yangi brend. Shu nomli brend bo'lsa — mavjudini qaytaradi (mobil API bilan bir xil) */
+export async function createBrandAction(rawName: string): Promise<CatalogResult<{ id: string; name: string }>> {
+  const { session, denied } = await catalogWriter();
+  if (denied) return { ok: false, error: denied.error };
+  const m = (await getDict()).stock.msg;
+  const name = normalizeCatalogName(rawName);
+  if (!name) return { ok: false, error: m.brandNameRequired };
+  if (name.length > BRAND_NAME_MAX) return { ok: false, error: m.brandNameTooLong };
+  const { Brand, user } = session;
+  const existing = await Brand.findOne({ name: { $regex: `^${escapeRegExp(name)}$`, $options: 'i' } }).lean();
+  if (existing) return { ok: true, item: { id: String(existing._id), name: existing.name } };
+  const b = await Brand.create({ name, createdBy: user.username });
+  return { ok: true, item: { id: String(b._id), name: b.name } };
+}
+
+/**
+ * Formadan yangi turkum (ixtiyoriy ota turkum ichida). Shu darajada shu nomli bo'lsa — mavjudi qaytadi.
+ * Chuqurlik chegarasi — CATEGORY_MAX_DEPTH (mobil /api/mobile/catalog/categories bilan bir xil).
+ */
+export async function createCategoryAction(
+  rawName: string,
+  rawParentId: string | null,
+): Promise<CatalogResult<{ id: string; name: string; parentId: string | null }>> {
+  const { session, denied } = await catalogWriter();
+  if (denied) return { ok: false, error: denied.error };
+  const m = (await getDict()).stock.msg;
+  const name = normalizeCatalogName(rawName);
+  if (!name) return { ok: false, error: m.categoryNameRequired };
+  if (name.length > CATEGORY_NAME_MAX) return { ok: false, error: m.categoryNameTooLong };
+  const { ProductCategory, user } = session;
+
+  let parentId: Types.ObjectId | null = null;
+  if (rawParentId) {
+    if (!Types.ObjectId.isValid(String(rawParentId))) return { ok: false, error: m.categoryNotFound };
+    let cur = await ProductCategory.findById(String(rawParentId), { parentId: 1 }).lean();
+    if (!cur) return { ok: false, error: m.categoryNotFound };
+    parentId = cur._id;
+    // Ota zanjiri: yangi turkum chuqurligi = ota chuqurligi + 1
+    let parentDepth = 0;
+    while (cur) {
+      parentDepth++;
+      if (parentDepth >= CATEGORY_MAX_DEPTH) return { ok: false, error: tr(m.categoryTooDeep, { n: CATEGORY_MAX_DEPTH }) };
+      cur = cur.parentId ? await ProductCategory.findById(cur.parentId, { parentId: 1 }).lean() : null;
+    }
+  }
+
+  const same = await ProductCategory.findOne({ parentId, name: { $regex: `^${escapeRegExp(name)}$`, $options: 'i' } }).lean();
+  if (same) return { ok: true, item: { id: String(same._id), name: same.name, parentId: parentId ? String(parentId) : null } };
+  const c = await ProductCategory.create({ name, parentId, createdBy: user.username });
+  return { ok: true, item: { id: String(c._id), name: c.name, parentId: parentId ? String(parentId) : null } };
 }
 
 export async function deleteProductAction(formData: FormData): Promise<void> {

@@ -55,9 +55,17 @@
       [
         "expo-camera",
         {
-          "cameraPermission": "Shtrix kodni skaner qilish uchun kameradan foydalaniladi.",
+          "cameraPermission": "Shtrix kodni skanerlash va mahsulot rasmini olish uchun kameradan foydalaniladi.",
           "microphonePermission": false,
           "recordAudioAndroid": false
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Mahsulot rasmini galereyadan tanlash uchun rasmlarga ruxsat kerak.",
+          "cameraPermission": "Shtrix kodni skanerlash va mahsulot rasmini olish uchun kameradan foydalaniladi.",
+          "microphonePermission": false
         }
       ]
     ],

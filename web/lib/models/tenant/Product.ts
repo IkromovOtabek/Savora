@@ -35,6 +35,8 @@ export interface IProduct {
   color?: string;
   purchasePrice: number;
   salePrice: number;
+  /** Eski narx (chegirma ko'rsatish uchun, ixtiyoriy) — sotuvda ishlatilmaydi */
+  oldPrice?: number;
   /** Ulgurji narx (ixtiyoriy). Kassada "Ulgurji narxlar" yoqilganda shu narxda sotiladi */
   wholesalePrice?: number;
   /** Son/miqdor kuzatish */
@@ -49,6 +51,11 @@ export interface IProduct {
   photoUrl?: string;
   /** Yo'nalishga xos maydonlar (lib/businessTypes.ts → PRODUCT_FIELDS) — hammasi ixtiyoriy */
   category?: string;
+  /** Turkum (ProductCategory) — `category` shu turkum nomi */
+  categoryId?: Types.ObjectId;
+  /** Variativ tovar: bitta guruhdagi turlar (rang/o'lcham) umumiy guruh kaliti va tur nomi */
+  variantGroupId?: string;
+  variantName?: string;
   unit?: ProductUnit;
   size?: string;
   warrantyMonths?: number;
@@ -91,6 +98,7 @@ export const productSchema = new Schema<IProduct>(
     color: { type: String, trim: true },
     purchasePrice: { type: Number, required: true, min: 0 },
     salePrice: { type: Number, required: true, min: 0 },
+    oldPrice: { type: Number, min: 0 },
     wholesalePrice: { type: Number, min: 0 },
     trackQuantity: { type: Boolean, default: false },
     // Kasrli birlikda (kg, m…) 0.001 gacha; butun birlikda butunlik ilova darajasida (lib/qty.ts)
@@ -107,6 +115,9 @@ export const productSchema = new Schema<IProduct>(
     notes: { type: String, trim: true },
     photoUrl: { type: String, trim: true },
     category: { type: String, trim: true },
+    categoryId: { type: Schema.Types.ObjectId, ref: 'ProductCategory' },
+    variantGroupId: { type: String, trim: true },
+    variantName: { type: String, trim: true },
     unit: { type: String, enum: PRODUCT_UNITS },
     size: { type: String, trim: true },
     warrantyMonths: { type: Number, min: 0, max: 120 },
@@ -127,6 +138,8 @@ productSchema.plugin(softDeletePlugin);
 productSchema.index({ branchId: 1, status: 1 });
 productSchema.index({ barcode: 1 }, { sparse: true });
 productSchema.index({ category: 1 }, { sparse: true });
+productSchema.index({ categoryId: 1 }, { sparse: true });
+productSchema.index({ variantGroupId: 1 }, { sparse: true });
 productSchema.index({ name: 'text', brand: 'text', deviceModel: 'text', imei: 'text' });
 
 export const PRODUCT_STATUS_LABELS: Record<ProductStatus, string> = {

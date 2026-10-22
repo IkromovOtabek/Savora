@@ -18,8 +18,10 @@ import { stockAdjustmentSchema, IStockAdjustment } from './models/tenant/StockAd
 import { financeCategorySchema, IFinanceCategory } from './models/tenant/FinanceCategory';
 import { roleSchema, IRole } from './models/tenant/Role';
 import { shopSettingsSchema, IShopSettings } from './models/tenant/ShopSettings';
+import { productCategorySchema, IProductCategory } from './models/tenant/ProductCategory';
+import { brandSchema, IBrand } from './models/tenant/Brand';
 
-const TENANT_MODELS_VERSION = 16;
+const TENANT_MODELS_VERSION = 17;
 
 type TenantModelsMap = Map<string, ReturnType<typeof registerModels>>;
 const globalForTenant = global as unknown as { _savdoproTenantCache?: TenantModelsMap };
@@ -63,7 +65,10 @@ function registerModels(conn: import('mongoose').Connection) {
     (conn.models.FinanceCategory as Model<IFinanceCategory>) || conn.model<IFinanceCategory>('FinanceCategory', financeCategorySchema);
   const Role = (conn.models.Role as Model<IRole>) || conn.model<IRole>('Role', roleSchema);
   const ShopSettings = (conn.models.ShopSettings as Model<IShopSettings>) || conn.model<IShopSettings>('ShopSettings', shopSettingsSchema);
-  return { conn, User, Branch, Product, Customer, Sale, CreditBank, CashFlow, Transfer, AuditLog, LedgerEntry, Task, AiReport, Supplier, SupplierEntry, CashShift, StockAdjustment, FinanceCategory, Role, ShopSettings };
+  const ProductCategory =
+    (conn.models.ProductCategory as Model<IProductCategory>) || conn.model<IProductCategory>('ProductCategory', productCategorySchema);
+  const Brand = (conn.models.Brand as Model<IBrand>) || conn.model<IBrand>('Brand', brandSchema);
+  return { conn, User, Branch, Product, Customer, Sale, CreditBank, CashFlow, Transfer, AuditLog, LedgerEntry, Task, AiReport, Supplier, SupplierEntry, CashShift, StockAdjustment, FinanceCategory, Role, ShopSettings, ProductCategory, Brand };
 }
 
 /**

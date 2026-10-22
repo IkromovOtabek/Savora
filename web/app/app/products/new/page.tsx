@@ -5,7 +5,6 @@ import { getUsdRate } from '@/lib/currency';
 import { requirePermission, userCan } from '@/lib/permissionGuard';
 import { getDict } from '@/lib/i18n/server';
 import { productFieldsFor } from '@/lib/businessTypes';
-import { loadCategories } from '@/lib/productFields';
 
 export async function generateMetadata() {
   const d = await getDict();
@@ -14,7 +13,7 @@ export async function generateMetadata() {
 
 export default async function NewProductPage() {
   await requirePermission('product.create');
-  const { user, Branch, Product, org, features, Supplier, ShopSettings } = await getTenantSession();
+  const { user, Branch, org, features, Supplier, ShopSettings, ProductCategory, Brand } = await getTenantSession();
   const usd = await getUsdRate(ShopSettings);
   const isAdmin = user.role === 'admin';
   // Admin barcha filialni tanlaydi; filial-login uchun faqat o'z filiali
@@ -26,7 +25,11 @@ export default async function NewProductPage() {
     : undefined;
 
   const productFields = productFieldsFor(org.businessType);
-  const categories = await loadCategories(Product);
+  // Katalog: turkumlar (daraxt formada quriladi) va brendlar — mobil /api/mobile/catalog/* bilan bir xil
+  const [categories, brands] = await Promise.all([
+    ProductCategory.find({}, { name: 1, parentId: 1 }).sort({ name: 1 }).limit(2000).lean(),
+    Brand.find({}, { name: 1 }).sort({ name: 1 }).limit(1000).lean(),
+  ]);
 
   return (
     <ProductForm
@@ -39,7 +42,8 @@ export default async function NewProductPage() {
       suppliers={suppliers?.map((x) => ({ id: String(x._id), name: x.name }))}
       usdRate={usd.rate}
       productFields={productFields}
-      categories={categories}
+      categories={categories.map((c) => ({ id: String(c._id), name: c.name, parentId: c.parentId ? String(c.parentId) : null }))}
+      brands={brands.map((b) => ({ id: String(b._id), name: b.name }))}
     />
   );
 }

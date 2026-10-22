@@ -59,6 +59,17 @@ export function ownUploadKeyFromUrl(u: string, publicBase: string = publicStorag
   return key;
 }
 
+/** Do'kon rasmlari papkasi (dbName'dan xavfsiz nom) */
+export function tenantUploadFolder(dbName: string): string {
+  return dbName.replace(/[^a-zA-Z0-9_-]/g, '_');
+}
+
+/** URL aynan shu do'kon papkasidagi yuklangan faylmi (boshqa do'kon faylini bog'lab bo'lmasin) */
+export function isTenantUploadUrl(u: string, dbName: string, publicBase?: string): boolean {
+  const key = ownUploadKeyFromUrl(u, publicBase);
+  return key !== null && key.startsWith(`${tenantUploadFolder(dbName)}/`);
+}
+
 /** URL bizning yuklangan faylimizga ishora qiladimi (saqlashdan/ko'rsatishdan oldin tekshiruv) */
 export function isOwnUploadUrl(u: string, publicBase?: string): boolean {
   return ownUploadKeyFromUrl(u, publicBase) !== null;
