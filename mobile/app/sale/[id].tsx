@@ -1,13 +1,13 @@
 import { useCallback, useRef, useState } from 'react';
-import { View, Modal, Alert, Linking, KeyboardAvoidingView, Platform, ScrollView, StyleSheet } from 'react-native';
+import { View, Modal, Alert, Linking, Share, KeyboardAvoidingView, Platform, ScrollView, StyleSheet } from 'react-native';
 import { Text } from '@/components/ui/Text';
 import { useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { api, errMsg } from '@/lib/api';
-import { useCan } from '@/lib/auth';
+import { api, errMsg, API_URL } from '@/lib/api';
+import { useAuth, useCan } from '@/lib/auth';
 import { useResource } from '@/lib/hooks';
 import { useTheme, tabular, MONO } from '@/lib/theme';
-import { fmtMoney, fmtDate, fmtDayMonth, payLabel, digits, grouped } from '@/lib/format';
+import { fmtMoney, fmtDate, fmtDayMonth, payLabel, payMethodLabel, digits, grouped, PAY_METHODS, type PayMethod } from '@/lib/format';
 import { useDict, tr } from '@/lib/i18n';
 import {
   Screen, NavBar, LargeTitle, Group, Cell, Pill, Ring, Button, Field, Chips, Loading, ErrorState, InlineError, useLayout, type Tone, type IconName,
@@ -15,12 +15,14 @@ import {
 
 interface Month { month: number; amount: number; paidAmount: number; paid: boolean; state: string; dueDate: string }
 interface Plan { total: number; down: number; monthly: number; months: number; monthsPaid: number; remaining: number; overdueCount: number; schedule: Month[] }
-interface Payment { amount: number; paidAt: string; note: string | null; recordedBy: string | null }
+interface Payment { amount: number; paidAt: string; note: string | null; recordedBy: string | null; method?: PayMethod }
 interface Sale {
   id: string; saleNo: string; product: string; imei: string | null; customer: string | null; phone: string | null;
   paymentType: string; bankName: string | null; totalAmount: number; paidAmount: number; remainingAmount: number;
   installmentMonths: number | null; dueDate: string | null; status: string; createdAt: string; soldBy: string | null;
   payments: Payment[]; plan: Plan | null;
+  /** Ochiq chek havolasi (yangi sotuvlarda) */
+  receiptPath?: string | null;
 }
 
 /** Oy holati ko'rinishi — matni lug'atda (d.saleDetail.monthState) */
@@ -37,6 +39,7 @@ export default function SaleDetail() {
   const { c } = useTheme();
   const d = useDict();
   const can = useCan();
+  const { me } = useAuth();
   const res = useResource<Sale>(id ? `/api/mobile/sales/${id}` : null);
   const first = useRef(true);
   useFocusEffect(useCallback(() => { if (first.current) { first.current = false; return; } res.reloadSilently(); }, [res.reloadSilently]));
@@ -120,6 +123,22 @@ export default function SaleDetail() {
         </Group>
       ) : null}
 
+      {s.receiptPath ? (
+        <Group>
+          <Cell
+            icon="share-outline"
+            iconColor={c.sq.b}
+            title={d.saleNew.shareReceipt}
+            chevron
+            onPress={() => {
+              const url = `${API_URL}${s.receiptPath}`;
+              const title = tr(d.saleNew.shareMsg, { shop: me?.org.name ?? 'Savora', no: s.saleNo });
+              Share.share({ title, message: `${title}\n${url}`, url }).catch(() => undefined);
+            }}
+          />
+        </Group>
+      ) : null}
+
       {s.payments.length > 0 ? (
         <Group header={d.saleDetail.paymentsHistory}>
           {[...s.payments].reverse().map((p, i) => (
@@ -128,7 +147,7 @@ export default function SaleDetail() {
               icon="cash"
               iconColor={c.sq.o}
               title={fmtMoney(p.amount, { suffix: true })}
-              subtitle={[fmtDate(p.paidAt), p.note, p.recordedBy].filter(Boolean).join(' · ')}
+              subtitle={[fmtDate(p.paidAt), payMethodLabel(p.method), p.note, p.recordedBy].filter(Boolean).join(' · ')}
             />
           ))}
         </Group>
@@ -153,6 +172,7 @@ function PaySheet({ visible, onClose, sale, suggested, onPaid }: {
   const L = useLayout();
   const insets = useSafeAreaInsets();
   const [amount, setAmount] = useState('');
+  const [method, setMethod] = useState<PayMethod>('cash');
   const [busy, setBusy] = useState(false);
   const val = Number(digits(amount)) || 0;
   const tooMuch = val > sale.remainingAmount;
@@ -162,7 +182,7 @@ function PaySheet({ visible, onClose, sale, suggested, onPaid }: {
     if (tooMuch) { Alert.alert(d.saleDetail.sumTitle, tr(d.saleDetail.sumMax, { v: fmtMoney(sale.remainingAmount, { suffix: true }) })); return; }
     setBusy(true);
     try {
-      await api(`/api/mobile/sales/${sale.id}`, { method: 'POST', body: { amount: val, note: 'Mobil to\'lov' } });
+      await api(`/api/mobile/sales/${sale.id}`, { method: 'POST', body: { amount: val, note: 'Mobil to\'lov', method } });
       setAmount('');
       onPaid();
       Alert.alert(d.saleDetail.accepted, tr(d.saleDetail.acceptedMsg, { v: fmtMoney(val, { suffix: true }) }));
@@ -200,6 +220,7 @@ function PaySheet({ visible, onClose, sale, suggested, onPaid }: {
             error={tooMuch ? d.saleDetail.tooMuch : null}
           />
           <Chips options={quick} value={val || null} onChange={(k) => setAmount(String(k))} />
+          <Chips options={PAY_METHODS.map((m) => ({ key: m, label: payMethodLabel(m) }))} value={method} onChange={setMethod} />
           <Button title={d.saleDetail.accept} value={val ? fmtMoney(val) : undefined} size="lg" full loading={busy} disabled={!val || tooMuch} onPress={pay} />
         </ScrollView>
       </KeyboardAvoidingView>

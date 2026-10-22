@@ -1,5 +1,6 @@
 import type { Model, Types } from 'mongoose';
 import type { ISale } from './models/tenant/Sale';
+import type { PayMethod } from './payMethods';
 
 /**
  * Sotuvga to'lov qo'shish — ATOMIK. Qoldiq sharti (`remainingAmount >= amount`) va yozuv
@@ -12,7 +13,7 @@ export async function applySalePayment(
   Sale: Model<ISale>,
   saleId: string | Types.ObjectId,
   amount: number,
-  opts: { scope?: Record<string, unknown>; note?: string; recordedBy?: string } = {}
+  opts: { scope?: Record<string, unknown>; note?: string; recordedBy?: string; method?: PayMethod } = {}
 ): Promise<{ paidAmount: number; remainingAmount: number; status: ISale['status'] } | null> {
   if (!Number.isSafeInteger(amount) || amount <= 0) return null;
 
@@ -25,7 +26,7 @@ export async function applySalePayment(
     },
     {
       $inc: { paidAmount: amount, remainingAmount: -amount },
-      $push: { payments: { amount, paidAt: new Date(), note: opts.note, recordedBy: opts.recordedBy } },
+      $push: { payments: { amount, paidAt: new Date(), note: opts.note, recordedBy: opts.recordedBy, ...(opts.method ? { method: opts.method } : {}) } },
     },
     { new: true }
   ).lean();

@@ -30,18 +30,39 @@ export default async function PublicReceiptPage({ params }: { params: Promise<{ 
 
   const { Sale, ShopSettings } = await getTenantModels(org.dbName);
   const [sales, settings] = await Promise.all([
-    Sale.find({ checkoutId: ref.checkoutId, status: { $ne: 'cancelled' } }).sort({ saleNo: 1 }).limit(100).lean(),
+    // Proyeksiya: tannarx, mijoz telefoni va ichki maydonlar umuman o'qilmaydi
+    Sale.find({ checkoutId: ref.checkoutId, status: { $ne: 'cancelled' } })
+      .select('-_id saleNo createdAt soldBy paymentType bankName totalAmount paidAmount remainingAmount installmentMonths downPayment dueDate discount productSnapshot.name productSnapshot.imei productSnapshot.saleQuantity productSnapshot.unit customerSnapshot.fullName payments.amount payments.paidAt payments.note payments.method')
+      .sort({ saleNo: 1 }).limit(100).lean(),
     getShopSettings(ShopSettings),
   ]);
   if (!sales.length) notFound();
   const d = await getDict();
+  // Faqat chekka kerakli maydonlar — tannarx, mijoz telefoni, ichki id'lar sahifaga (RSC) tushmasin
+  const safe = sales.map((s) => ({
+    saleNo: s.saleNo,
+    createdAt: s.createdAt,
+    soldBy: s.soldBy,
+    paymentType: s.paymentType,
+    bankName: s.bankName,
+    totalAmount: s.totalAmount,
+    paidAmount: s.paidAmount,
+    remainingAmount: s.remainingAmount,
+    installmentMonths: s.installmentMonths,
+    downPayment: s.downPayment,
+    dueDate: s.dueDate,
+    discount: s.discount,
+    productSnapshot: { name: s.productSnapshot.name, imei: s.productSnapshot.imei, saleQuantity: s.productSnapshot.saleQuantity, unit: s.productSnapshot.unit },
+    customerSnapshot: s.customerSnapshot?.fullName ? { fullName: s.customerSnapshot.fullName, phone: '' } : undefined,
+    payments: (s.payments ?? []).map((x) => ({ amount: x.amount, paidAt: x.paidAt, note: x.note, method: x.method })),
+  }));
 
   return (
     <main className="sl-receipt-wrap" style={{ padding: '24px 16px' }}>
       <div className="sl-receipt-bar no-print" style={{ justifyContent: 'flex-end' }}>
         <PrintReceiptButton defaultWidth={settings.receipt.paperWidth} />
       </div>
-      <ReceiptPaper sales={sales} org={{ name: org.name, phone: org.phone }} receipt={settings.receipt} d={d} publicView />
+      <ReceiptPaper sales={safe} org={{ name: org.name, phone: org.phone }} receipt={settings.receipt} d={d} publicView />
     </main>
   );
 }

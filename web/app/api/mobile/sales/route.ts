@@ -14,6 +14,8 @@ import { reserveStock, releaseStock } from '@/lib/stock';
 import { parseIntegerSum } from '@/lib/security';
 import { addMonthsClamped } from '@/lib/dates';
 import { pq294MonthsError } from '@/lib/pq294';
+import { isPayMethod, type PayMethod } from '@/lib/payMethods';
+import { newCheckoutId, receiptPath } from '@/lib/receiptLink';
 
 type PaymentType = 'cash' | 'debt' | 'installment' | 'bank_credit';
 const PAYMENT_TYPES: PaymentType[] = ['cash', 'debt', 'installment', 'bank_credit'];
@@ -92,6 +94,8 @@ export async function POST(req: Request) {
     productId?: string; paymentType?: string; totalAmount?: number; paidAmount?: number;
     installmentMonths?: number; customerName?: string; customerPhone?: string;
     dueDate?: string; bankName?: string; saleQty?: number | string; notes?: string;
+    /** To'langan qism usuli: cash | uzcard | humo | click | payme (eski ilova yubormaydi — naqd) */
+    payMethod?: string;
   };
   try { body = await req.json(); } catch { return NextResponse.json({ error: 'Noto\'g\'ri so\'rov.' }, { status: 400 }); }
 
@@ -108,6 +112,8 @@ export async function POST(req: Request) {
   const bankName = String(body.bankName || '').trim();
   const dueDateRaw = String(body.dueDate || '').trim();
   const notes = String(body.notes || '').trim();
+  if (body.payMethod != null && !isPayMethod(body.payMethod)) return NextResponse.json({ error: 'To\'lov usuli noto\'g\'ri.' }, { status: 400 });
+  const payMethod: PayMethod = isPayMethod(body.payMethod) ? body.payMethod : 'cash';
 
   if (tooLong(customerName, MAX_LEN.customerName) || tooLong(customerPhoneRaw, MAX_LEN.customerPhone)
     || tooLong(bankName, MAX_LEN.bankName) || tooLong(notes, MAX_LEN.notes)) {
@@ -179,8 +185,9 @@ export async function POST(req: Request) {
   }
 
   const payments = paidAmount > 0
-    ? [{ amount: paidAmount, paidAt: new Date(), note: paymentType === 'cash' ? 'Naqd to\'lov' : 'Boshlang\'ich to\'lov', recordedBy: user.username }]
+    ? [{ amount: paidAmount, paidAt: new Date(), note: paymentType === 'cash' ? (payMethod === 'cash' ? 'Naqd to\'lov' : undefined) : 'Boshlang\'ich to\'lov', recordedBy: user.username, method: payMethod }]
     : [];
+  const checkoutId = newCheckoutId();
 
   // Mijoz — barcha tekshiruvlar o'tgach yaratiladi (rad etilgan sotuvdan "yetim" mijoz qolmaydi)
   let customer: { _id: Types.ObjectId; fullName: string; phone: string } | null = null;
@@ -217,7 +224,7 @@ export async function POST(req: Request) {
       bankName: paymentType === 'bank_credit' ? bankName : undefined,
       totalAmount, paidAmount, remainingAmount, installmentMonths,
       downPayment: paymentType === 'installment' ? paidAmount : undefined,
-      dueDate, status, payments, soldBy: user.username, notes: notes || undefined,
+      dueDate, status, payments, soldBy: user.username, notes: notes || undefined, checkoutId,
     });
   } catch {
     // Kompensatsiya: sotuv yozilmasa — mahsulot omborga qaytadi
@@ -229,9 +236,13 @@ export async function POST(req: Request) {
     action: 'sale.create',
     entity: 'sale',
     entityId: String(sale._id),
-    summary: `Sotuv ${saleNo}: ${product.name} · ${qtyLabel(saleQty, product.unit)} · ${totalAmount.toLocaleString('uz-UZ')} so'm (${paymentType}) (mobil)`,
-    meta: { saleQty, totalAmount, paymentType },
+    summary: `Sotuv ${saleNo}: ${product.name} · ${qtyLabel(saleQty, product.unit)} · ${totalAmount.toLocaleString('uz-UZ')} so'm (${paymentType}${payMethod !== 'cash' ? `, ${payMethod}` : ''}) (mobil)`,
+    meta: { saleQty, totalAmount, paymentType, payMethod },
   });
 
-  return NextResponse.json({ id: String(sale._id), saleNo }, { status: 201 });
+  return NextResponse.json({
+    id: String(sale._id), saleNo, totalAmount, remainingAmount,
+    // Mijozga ulashiladigan ochiq chek (login talab qilmaydi)
+    receiptPath: user.organizationId ? receiptPath(user.organizationId, checkoutId) : null,
+  }, { status: 201 });
 }

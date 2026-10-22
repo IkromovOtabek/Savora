@@ -7,7 +7,7 @@ import { useAuth } from '@/lib/auth';
 import { useDebounced, usePaged } from '@/lib/hooks';
 import { takePicked, type PickedProduct } from '@/lib/pick';
 import { useTheme, tabular } from '@/lib/theme';
-import { digits, grouped, fmtMoney, fmtDateTime, fmtPhoneLocal, phoneLocal, phoneE164, payLabels, type PayType } from '@/lib/format';
+import { digits, grouped, fmtMoney, fmtDateTime, fmtPhoneLocal, phoneLocal, phoneE164, payLabels, payMethodLabel, PAY_METHODS, type PayMethod, type PayType } from '@/lib/format';
 import { useOfflinePos } from '@/lib/offlinePos';
 import { isNetworkError, searchCatalog, toPicked } from '@/lib/offline';
 import { useDict, tr } from '@/lib/i18n';
@@ -42,6 +42,8 @@ export default function SaleNew() {
   const dq = useDebounced(q.trim(), 300);
 
   const [pay, setPay] = useState<PayType>(params.pay === 'installment' && nasiyaOn ? 'installment' : 'cash');
+  // Pul qanday keldi: naqd / UzCard / HUMO / Click / Payme (qarz/nasiyada — hozir to'langan qism)
+  const [method, setMethod] = useState<PayMethod>('cash');
   const [qty, setQty] = useState(1);
   // kg/m… — miqdor matn bilan kiritiladi ("1,5"); dona — Stepper
   const [qtyText, setQtyText] = useState(initial ? fmtQty(Math.min(1, initial.available)) : '1');
@@ -124,10 +126,14 @@ export default function SaleNew() {
       customerPhone: needCustomer ? phoneE164(phone) : '',
       saleQty: picked.trackQuantity ? saleQty ?? undefined : undefined,
       notes: notes.trim() || undefined,
+      payMethod: paidN > 0 ? method : undefined,
     };
     try {
-      const r = await api<{ id: string }>('/api/mobile/sales', { method: 'POST', body });
-      router.replace(`/sale/${r.id}`);
+      const r = await api<{ id: string; saleNo: string; totalAmount: number; remainingAmount: number; receiptPath: string | null }>('/api/mobile/sales', { method: 'POST', body });
+      router.replace({
+        pathname: '/sale-done',
+        params: { id: r.id, no: r.saleNo, total: String(r.totalAmount), remaining: String(r.remainingAmount), receipt: r.receiptPath ?? '' },
+      });
     } catch (e) {
       if (!isNetworkError(e)) {
         Alert.alert(d.saleNew.failTitle, errMsg(e, d.saleNew.failFallback));
@@ -135,7 +141,8 @@ export default function SaleNew() {
       }
       // Internet yo'q: naqd sotuv telefonda saqlanadi va keyin yuboriladi; qarz/nasiya — yo'q
       pos.markOffline();
-      if (pay !== 'cash') {
+      // Oflayn faqat naqd: karta/o'tkazma to'lovini tasdiqlab bo'lmaydi
+      if (pay !== 'cash' || method !== 'cash') {
         Alert.alert(d.offline.bannerTitle, d.offline.cashOnly);
         return;
       }
@@ -284,6 +291,13 @@ export default function SaleNew() {
           suffix={d.format.currency}
           error={show('paid')}
         />
+      ) : null}
+
+      {pay === 'cash' || paidN > 0 ? (
+        <View style={{ gap: 8 }}>
+          <Text style={[s.label, { color: c.ink3 }]}>{d.saleNew.payMethod}</Text>
+          <Chips options={PAY_METHODS.map((m) => ({ key: m, label: payMethodLabel(m) }))} value={method} onChange={setMethod} />
+        </View>
       ) : null}
 
       {pay === 'installment' ? (

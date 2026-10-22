@@ -8,7 +8,9 @@ import { branchFilter } from '@/lib/branchScope';
 import { applySalePayment } from '@/lib/salePayment';
 import { computeInstallmentPlan } from '@/lib/installment';
 import { z } from 'zod';
-import { readJsonInput, zMoney, zText } from '@/lib/validation';
+import { readJsonInput, zMoney, zOneOf, zText } from '@/lib/validation';
+import { PAY_METHODS, methodOf } from '@/lib/payMethods';
+import { receiptPath } from '@/lib/receiptLink';
 
 /** Sotuv detali — nasiya bo'lsa oy jadvali (plan) bilan. */
 export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -42,7 +44,9 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
     status: s.status,
     createdAt: s.createdAt,
     soldBy: s.soldBy,
-    payments: (s.payments ?? []).map((p) => ({ amount: p.amount, paidAt: p.paidAt, note: p.note ?? null, recordedBy: p.recordedBy ?? null })),
+    payments: (s.payments ?? []).map((p) => ({ amount: p.amount, paidAt: p.paidAt, note: p.note ?? null, recordedBy: p.recordedBy ?? null, method: methodOf(p) })),
+    // Ochiq chek havolasi — faqat yangi (checkoutId bor) sotuvlarda
+    receiptPath: s.checkoutId && user.organizationId && s.status !== 'cancelled' ? receiptPath(user.organizationId, s.checkoutId) : null,
     plan: plan ? {
       total: plan.total, down: plan.down, monthly: plan.monthly, months: plan.months,
       monthsPaid: plan.monthsPaid, remaining: plan.remaining, overdueCount: plan.overdueCount,
@@ -65,9 +69,10 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     // Butun so'm — kasr/manfiy summa rad etiladi
     amount: zMoney('To\'lov summasi noto\'g\'ri.', { min: 1 }),
     note: zText(300, 'Izoh juda uzun.'),
+    method: zOneOf(PAY_METHODS, 'To\'lov usuli noto\'g\'ri.').optional(),
   }), { badJson: 'Noto\'g\'ri so\'rov.', fallback: 'Noto\'g\'ri so\'rov.' });
   if (!input.ok) return NextResponse.json({ error: input.error }, { status: 400 });
-  const { amount, note } = input.data;
+  const { amount, note, method } = input.data;
 
   const { Sale } = await getTenantModels(user.dbName);
   const sale = await Sale.findOne({ _id: id, ...branchFilter(user) }).lean();
@@ -81,6 +86,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     scope: branchFilter(user),
     note: note || undefined,
     recordedBy: user.username,
+    method,
   });
   if (!res) {
     return NextResponse.json({ error: 'To\'lov qo\'shilmadi: qoldiq o\'zgargan. Qayta urinib ko\'ring.' }, { status: 409 });

@@ -7,6 +7,12 @@ export type PayType = 'cash' | 'debt' | 'installment' | 'bank_credit';
 export const payLabels = (locale?: Locale): Record<PayType, string> => getDict(locale).format.pay;
 export const payLabel = (t: string, locale?: Locale) => payLabels(locale)[t as PayType] ?? t;
 
+/** To'lov usuli — pul qanday kelgani (web lib/payMethods bilan bir xil) */
+export const PAY_METHODS = ['cash', 'uzcard', 'humo', 'click', 'payme'] as const;
+export type PayMethod = (typeof PAY_METHODS)[number];
+export const payMethodLabel = (m: string | null | undefined, locale?: Locale) =>
+  getDict(locale).format.payMethod[(m as PayMethod) || 'cash'] ?? getDict(locale).format.payMethod.cash;
+
 const group3 = (s: string) => s.replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
 
 /** 1234567 → "1 234 567" (suffix: true → "1 234 567 so'm"). */
