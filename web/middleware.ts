@@ -42,16 +42,8 @@ export function middleware(req: NextRequest) {
   // Path-routing (bitta domen: savora.uz/super/*, savora.uz/t/<slug>/*) — dev VA production'da.
   // Subdomen rejimi uchun NEXT_PUBLIC_USE_PATH_ROUTING=false qo'ying.
   if (usePathRouting) {
-    if (pathname === '/super/login' || pathname.startsWith('/super/login')) {
-      zone = 'super';
-      const url = req.nextUrl.clone();
-      url.pathname = '/login';
-      const requestHeaders = new Headers(req.headers);
-      requestHeaders.set('x-app-zone', zone);
-      requestHeaders.set('x-tenant-slug', '');
-      return applyLangParam(req, NextResponse.rewrite(url, { request: { headers: requestHeaders } }));
-    }
-
+    // /super/login va /t/<slug>/* yo'llari next.config.mjs → rewrites() da almashtiriladi;
+    // bu yerda faqat zona aniqlanadi (pastda sarlavhaga yoziladi)
     if (pathname.startsWith('/super')) {
       zone = 'super';
     } else if (pathname.startsWith('/t/')) {
@@ -59,13 +51,6 @@ export function middleware(req: NextRequest) {
       if (match) {
         slug = match[1];
         zone = 'tenant';
-        const rest = match[2] || '/login';
-        const url = req.nextUrl.clone();
-        url.pathname = rest.startsWith('/') ? rest : `/${rest}`;
-        const requestHeaders = new Headers(req.headers);
-        requestHeaders.set('x-app-zone', zone);
-        requestHeaders.set('x-tenant-slug', slug);
-        return applyLangParam(req, NextResponse.rewrite(url, { request: { headers: requestHeaders } }));
       }
     } else if (pathname.startsWith('/app') || pathname === '/login') {
       // Server Action POST /login — referer orqali zonani aniqlash (rewrite tufayli)

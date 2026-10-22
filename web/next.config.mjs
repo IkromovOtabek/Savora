@@ -101,6 +101,22 @@ const nextConfig = {
   outputFileTracingRoot: path.join(__dirname),
   transpilePackages: ['@zxing/browser', '@zxing/library'],
 
+  /*
+   * Path-routing: savora.uz/super/login → /login, savora.uz/t/<slug>/* → /*.
+   * Zona sarlavhalarini (x-app-zone, x-tenant-slug) middleware qo'yadi, yo'lni esa shu yerda almashtiramiz.
+   * Middleware'dagi NextResponse.rewrite() standalone + nginx (X-Forwarded-Proto: https, HOSTNAME=127.0.0.1)
+   * ortida "tashqi proksi" deb qabul qilinib https://localhost:<port> ga so'rov yuborardi → 500.
+   */
+  async rewrites() {
+    return {
+      beforeFiles: [
+        { source: '/super/login', destination: '/login' },
+        { source: '/t/:slug', destination: '/login' },
+        { source: '/t/:slug/:path+', destination: '/:path+' },
+      ],
+    };
+  },
+
   async headers() {
     // Diqqat: bir nechta mos kelgan qoida bo'lsa, bir xil kalitli sarlavhaning oxirgisi yutadi.
     // Shuning uchun /tg va /app uchun ramkaga ruxsat beruvchi qoida umumiydan KEYIN keladi
