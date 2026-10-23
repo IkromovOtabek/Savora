@@ -4,8 +4,54 @@
     {
       "name": "dev",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "dev"],
+      "runtimeArgs": [
+        "run",
+        "dev"
+      ],
       "port": 3000
+    },
+    {
+      "name": "savora-web-3100",
+      "runtimeExecutable": "sh",
+      "runtimeArgs": [
+        "-c",
+        "cd web && NEXT_PUBLIC_APP_URL=http://localhost:3100 exec npx next dev -p 3100"
+      ],
+      "port": 3100,
+      "autoPort": false
+    },
+    {
+      "name": "savora-web-localdb",
+      "runtimeExecutable": "sh",
+      "runtimeArgs": [
+        "-c",
+        "sh .claude/local-services.sh && cd web && MONGO_URI=mongodb://127.0.0.1:27019/savora REDIS_URL=redis://127.0.0.1:6390 NEXT_PUBLIC_APP_URL=http://localhost:3101 exec npx next dev -p 3101"
+      ],
+      "port": 3101,
+      "autoPort": false
+    },
+    {
+      "name": "brand-static",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "8790",
+        "--directory",
+        "marketing/brand"
+      ],
+      "port": 8790,
+      "autoPort": false
+    },
+    {
+      "name": "savora-mobile",
+      "runtimeExecutable": "sh",
+      "runtimeArgs": [
+        "-c",
+        "cd mobile && exec npx expo start --port 8081"
+      ],
+      "port": 8081,
+      "autoPort": false
     }
   ]
 }
