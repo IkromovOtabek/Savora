@@ -14,6 +14,7 @@
     "super-admin": "node --env-file=.env scripts/super-admin.mjs",
     "migrate:dbs": "node --env-file=.env scripts/migrate-tenant-dbs.mjs",
     "directory:build": "node --env-file=.env scripts/build-user-directory.mjs",
+    "barcodes:build": "node --env-file=.env scripts/build-barcode-catalog.mjs",
     "expire": "node --env-file=.env scripts/expire-orgs.mjs",
     "notify": "node --env-file=.env scripts/notify-expiry.mjs",
     "backup": "node --env-file=.env scripts/backup.mjs",

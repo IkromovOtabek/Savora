@@ -16,6 +16,7 @@ import type { ProductUnit } from '@/lib/businessTypes';
 import { getDictionary } from '@/lib/i18n/dict';
 import { parseQty } from '@/lib/qty';
 import { ensureMainBranchId } from '@/lib/mainBranch';
+import { rememberBarcodeNames } from '@/lib/barcodeLookup';
 
 /** Matn maydonlari uzunlik chegarasi — oshsa 400 (xotira/DB to'ldirish himoyasi) */
 const MAX_LEN = { name: 120, code: 64, barcode: 64, brand: 60, notes: 500 } as const;
@@ -285,6 +286,9 @@ export async function POST(req: Request) {
       summary: `Mahsulot qo'shildi: ${p.name} (mobil)`,
     });
   }
+
+  // Umumiy shtrix-kod lug'ati: boshqa do'kon shu kodni skanerlasa, nom o'zi yoziladi
+  await rememberBarcodeNames(user.organizationId, created.map((p) => ({ code: p.barcode, name: p.name })));
 
   const first = created[0];
   return NextResponse.json({ id: String(first._id), name: first.name, count: created.length }, { status: 201 });

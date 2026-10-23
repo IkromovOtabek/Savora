@@ -98,6 +98,12 @@ const SECTIONS: LegalSection[] = [
           Har bir do&apos;konning ma&apos;lumoti alohida bazada izolyatsiya qilingan.
         </p>
         <p>
+          Istisno &mdash; umumiy shtrix-kod lug&apos;ati: zavod shtrix-kodli tovar qo&apos;shilganda uning kodi va nomi
+          umumiy lug&apos;atga yoziladi, shunda boshqa do&apos;kon shu tovarni skanerlasa nom o&apos;zi chiqadi. Lug&apos;atda
+          do&apos;kon nomi, narx, qoldiq, mijoz yoki sotuv ma&apos;lumoti bo&apos;lmaydi; do&apos;konning ichki kodlari
+          (tarozi yorlig&apos;i va h.k.) yozilmaydi.
+        </p>
+        <p>
           O&apos;zbekiston qonunchiligiga ko&apos;ra biometrik va genetik ma&apos;lumotlar faqat O&apos;zbekiston hududida saqlanadi.
           Boshqa ma&apos;lumotlar xorijda saqlansa, bu faqat qonunda belgilangan asosda &mdash; <Ph>himoya darajasi adekvat deb
           tan olingan davlatda yoki tasdiqlangan namunaviy shartnoma shartlari asosida</Ph> amalga oshiriladi.

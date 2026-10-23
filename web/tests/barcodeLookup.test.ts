@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { hasValidGtinCheckDigit, isRetailBarcode, offProductName } from '@/lib/barcodeLookup';
+import { catalogNameKey, hasValidGtinCheckDigit, isRetailBarcode, isSharedBarcode, offProductName, pickCatalogName } from '@/lib/barcodeLookup';
 
 describe('shtrix-kod tekshiruvi', () => {
   it('EAN-13 nazorat raqami', () => {
@@ -27,5 +27,26 @@ describe('offProductName', () => {
   });
   it('nom yo\'q — null', () => {
     expect(offProductName({ quantity: '1 l' })).toBeNull();
+  });
+});
+
+describe('umumiy shtrix-kod lug\'ati', () => {
+  it('ichki (tarozi/do\'kon) kodlari lug\'atga tushmaydi', () => {
+    expect(isSharedBarcode('4780000000007')).toBe(true);
+    expect(isSharedBarcode('5449000000996')).toBe(true);
+    expect(isSharedBarcode('2000000000008')).toBe(false); // 2xx — do'kon ichki
+    expect(isSharedBarcode('0400000000008')).toBe(false); // 04x — do'kon ichki
+    expect(isSharedBarcode('036000291452')).toBe(true);   // UPC-A
+    expect(isSharedBarcode('96385074')).toBe(true);       // EAN-8
+    expect(isSharedBarcode('5449000000997')).toBe(false); // nazorat raqami xato
+  });
+  it('nom kaliti — katta-kichik harf va probellar farqi yo\'q', () => {
+    expect(catalogNameKey('  Pepsi   1.5 L ')).toBe('pepsi 1.5 l');
+  });
+  it('ko\'pchilik bergan nom tanlanadi, teng bo\'lsa — yangisi', () => {
+    const r = (name: string) => ({ name, nameKey: catalogNameKey(name) });
+    expect(pickCatalogName([r('Pepsi 1,5l'), r('Pepsi 1.5 L'), r('pepsi 1.5 l')])).toBe('Pepsi 1.5 L');
+    expect(pickCatalogName([r('Choy Ahmad'), r('Ahmad Tea')])).toBe('Choy Ahmad');
+    expect(pickCatalogName([])).toBeNull();
   });
 });

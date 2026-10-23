@@ -26,7 +26,7 @@ import { qtyWithUnit, tr } from '@/lib/i18n/fmt';
 import { logError } from '@/lib/logger';
 import { softDeleteOne } from '@/lib/softDelete';
 import { categoryLevelInDb, findOrCreateBrand, findOrCreateCategory } from '@/lib/catalogStore';
-import { lookupBarcode, type BarcodeLookupResult } from '@/lib/barcodeLookup';
+import { lookupBarcode, rememberBarcodeNames, type BarcodeLookupResult } from '@/lib/barcodeLookup';
 import { CATEGORY_MAX_DEPTH, CATEGORY_NAME_MAX } from '@/lib/models/tenant/ProductCategory';
 import { BRAND_NAME_MAX } from '@/lib/models/tenant/Brand';
 import { LEGACY_CATEGORY_VALUE, normalizeCatalogName } from '@/lib/productCatalog';
@@ -316,6 +316,8 @@ export async function createProductAction(_prev: State, formData: FormData): Pro
       summary: `Mahsulot qo'shildi: ${name}`,
     });
     await markOnboardingStep(user.organizationId, 'productAdded');
+    // Umumiy shtrix-kod lug'ati: boshqa do'kon shu kodni skanerlasa, nom o'zi yoziladi
+    if (barcode) await rememberBarcodeNames(user.organizationId, [{ code: barcode, name }]);
     revalidatePath('/app');
     revalidatePath('/app/products');
     redirect(`/app/products/${product._id}?created=1`);
@@ -498,6 +500,7 @@ export async function updateProductAction(_prev: State, formData: FormData): Pro
         ? { prevSalePrice, salePrice, prevPurchasePrice, purchasePrice }
         : undefined,
     });
+    if (product.barcode) await rememberBarcodeNames(user.organizationId, [{ code: product.barcode, name }]);
     revalidatePath('/app');
     revalidatePath('/app/products');
     revalidatePath(`/app/products/${productId}`);

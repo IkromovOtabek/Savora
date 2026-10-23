@@ -302,7 +302,9 @@ export default function ProductForm({
                       ) : bcInfo?.suggestion ? (
                         <span className="st-bc-hint" role="status">
                           <Icon name="sparkles" size={15} />
-                          {bcInfo.filled ? t.barcodeFilled : tr(t.barcodeFound, { name: bcInfo.suggestion.name })}
+                          {bcInfo.filled
+                            ? (bcInfo.suggestion.source === 'savora' ? t.barcodeFilledShared : t.barcodeFilled)
+                            : tr(t.barcodeFound, { name: bcInfo.suggestion.name })}
                           {!bcInfo.filled && (
                             <button
                               type="button"

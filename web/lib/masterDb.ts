@@ -7,6 +7,7 @@ import { reviewSchema, IReview } from './models/master/Review';
 import { paymentRequestSchema, IPaymentRequest } from './models/master/PaymentRequest';
 import { siteVisitSchema, ISiteVisit } from './models/master/SiteVisit';
 import { imeiBlacklistSchema, IImeiBlacklist } from './models/master/ImeiBlacklist';
+import { barcodeCatalogSchema, IBarcodeCatalog } from './models/master/BarcodeCatalog';
 import { telegramAccountSchema, ITelegramAccount } from './models/master/TelegramAccount';
 import { userDirectorySchema, IUserDirectory } from './models/master/UserDirectory';
 import { securityEventSchema, ISecurityEvent } from './models/master/SecurityEvent';
@@ -37,6 +38,9 @@ export async function getMasterModels() {
   const ImeiBlacklist =
     (conn.models.ImeiBlacklist as Model<IImeiBlacklist>) ||
     conn.model<IImeiBlacklist>('ImeiBlacklist', imeiBlacklistSchema);
+  const BarcodeCatalog =
+    (conn.models.BarcodeCatalog as Model<IBarcodeCatalog>) ||
+    conn.model<IBarcodeCatalog>('BarcodeCatalog', barcodeCatalogSchema);
   const TelegramAccount =
     (conn.models.TelegramAccount as Model<ITelegramAccount>) ||
     conn.model<ITelegramAccount>('TelegramAccount', telegramAccountSchema);
@@ -54,7 +58,7 @@ export async function getMasterModels() {
     (conn.models.CronRun as Model<ICronRun>) ||
     conn.model<ICronRun>('CronRun', cronRunSchema);
   return {
-    conn, Organization, SuperAdmin, PlatformSettings, Review, PaymentRequest, SiteVisit, ImeiBlacklist,
+    conn, Organization, SuperAdmin, PlatformSettings, Review, PaymentRequest, SiteVisit, ImeiBlacklist, BarcodeCatalog,
     TelegramAccount, UserDirectory, SecurityEvent, SystemLog, CronRun,
   };
 }
