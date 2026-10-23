@@ -10,3 +10,8 @@ savora-showreel-15/**/.hyperframes/
 savora-showreel-15/**/renders/
 savora-showreel-15/**/.thumbnails/
 savora-showreel-15/**/.waveform-cache/
+savora-reel-*/.hyperframes/
+savora-reel-*/renders/
+savora-reel-*/vo/
+*.m4a
+*.ogg

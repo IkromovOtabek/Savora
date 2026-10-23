@@ -1,0 +1,15 @@
+{
+  "duration": 22,
+  "slots": [
+    [0.30, 1.50, "Do'koningizdan uzoqdasiz."],
+    [1.85, 1.60, "Hozir u yerda nima bo'lyapti?"],
+    [3.55, 1.05, "Kassada qancha pul?"],
+    [4.65, 1.05, "Kim qarzga oldi?"],
+    [5.75, 1.25, "Qaysi tovar tugadi?"],
+    [7.35, 2.25, "Savora bilan — hammasi telefoningizda."],
+    [9.70, 2.95, "Bugungi tushum, har bir sotuv va to'lov — bir qarashda."],
+    [12.75, 2.75, "Kam qolgan tovar va qarzdorlar ham nazoratda."],
+    [15.60, 2.50, "Telefon, texnika va mebel do'konlari uchun."],
+    [18.20, 3.50, "savora.uz — o'n to'rt kun bepul sinab ko'ring!"]
+  ]
+}

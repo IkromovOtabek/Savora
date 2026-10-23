@@ -1,0 +1,527 @@
+<!doctype html>
+<html lang="uz">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1080, height=1920" />
+    <title>Savora Reels #01 — Nazorat</title>
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <style>
+      @font-face { font-family: "Onest"; src: url("assets/fonts/Onest.ttf") format("truetype"); font-weight: 100 900; }
+      @font-face { font-family: "Unbounded"; src: url("assets/fonts/Unbounded.ttf") format("truetype"); font-weight: 200 900; }
+      :root {
+        --bg: #0a1122; --bg2: #0f1a33; --tint: #2f6bff; --brand: #1a5fe0; --cyan: #2cc3ff;
+        --gold: #ffa800; --green: #12b76a; --red: #f04438; --light: #f5f7fb; --muted: #9aa8c7;
+      }
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body { width: 1080px; height: 1920px; overflow: hidden; background: var(--bg); }
+      #root { position: relative; width: 100%; height: 100%; overflow: hidden; background: var(--bg); color: var(--light); font-family: "Onest", sans-serif; }
+      .clip { position: absolute; inset: 0; }
+      .disp { font-family: "Unbounded", sans-serif; }
+      .num { font-variant-numeric: tabular-nums; }
+      svg.ic { fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+
+      /* ---------- background ---------- */
+      #bg { position: absolute; inset: 0; overflow: hidden; background: radial-gradient(ellipse 90% 60% at 50% 40%, #12224a 0%, var(--bg) 70%); }
+      .glow { position: absolute; border-radius: 50%; filter: blur(130px); }
+      #glowA { left: -380px; top: -260px; width: 1100px; height: 1100px; background: rgba(47,107,255,.42); }
+      #glowB { left: 380px; top: 1150px; width: 1000px; height: 1000px; background: rgba(44,195,255,.22); }
+      #glowR { left: 40px; top: 520px; width: 1000px; height: 1000px; background: rgba(240,68,56,.32); opacity: 0; }
+      #grid { position: absolute; left: -300px; top: -300px; width: 1680px; height: 2520px; opacity: .12;
+        background-image: linear-gradient(rgba(160,190,255,.55) 2px, transparent 2px), linear-gradient(90deg, rgba(160,190,255,.55) 2px, transparent 2px);
+        background-size: 108px 108px;
+        -webkit-mask-image: radial-gradient(ellipse 50% 45% at 50% 50%, #000 0%, transparent 80%);
+        mask-image: radial-gradient(ellipse 50% 45% at 50% 50%, #000 0%, transparent 80%); }
+      #vign { position: absolute; inset: 0; background: radial-gradient(ellipse 80% 70% at 50% 50%, transparent 45%, rgba(3,6,14,.8) 100%); }
+      #grain { position: absolute; inset: 0; overflow: hidden; pointer-events: none; opacity: .06; }
+      #grainTex { position: absolute; left: -50%; top: -50%; width: 200%; height: 200%;
+        background: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"); }
+
+      /* ---------- S1 hook ---------- */
+      .rig { position: absolute; inset: 0; }
+      #route { position: absolute; left: 90px; top: 330px; width: 900px; height: 260px; }
+      .pin { position: absolute; display: flex; flex-direction: column; align-items: center; gap: 10px; opacity: 0; }
+      .pin .dot { width: 96px; height: 96px; border-radius: 30px; display: grid; place-items: center; }
+      .pin .dot svg { width: 52px; height: 52px; }
+      .pin .lb { font-weight: 700; font-size: 30px; color: var(--muted); }
+      #pinMe { left: 0; top: 70px; }
+      #pinMe .dot { background: rgba(47,107,255,.2); color: #8fb2ff; box-shadow: inset 0 0 0 3px rgba(47,107,255,.6); }
+      #pinShop { right: 0; top: 70px; }
+      #pinShop .dot { background: rgba(255,168,0,.16); color: var(--gold); box-shadow: inset 0 0 0 3px rgba(255,168,0,.6); }
+      #routeSvg { position: absolute; left: 0; top: 0; width: 900px; height: 260px; overflow: visible; }
+      #km { position: absolute; left: 360px; top: 0; width: 180px; text-align: center; font-family: "Unbounded"; font-weight: 700; font-size: 30px; color: var(--light); opacity: 0; }
+      .hk { position: absolute; left: 0; right: 0; text-align: center; font-family: "Unbounded"; font-weight: 800; letter-spacing: -0.045em; line-height: 1; white-space: nowrap; opacity: 0; }
+      #hA { top: 760px; font-size: 92px; }
+      #hB { top: 880px; font-size: 128px; background: linear-gradient(90deg, #8fd8ff 0%, #2f6bff 60%, #6f8dff 100%); -webkit-background-clip: text; background-clip: text; color: transparent; padding: 0 20px 14px; }
+      #hC { top: 760px; font-size: 92px; }
+      #hD { top: 880px; font-size: 136px; }
+      #hE { top: 1040px; font-size: 118px; color: transparent; -webkit-text-stroke: 4px var(--light); }
+      #live { position: absolute; left: 0; right: 0; top: 1240px; display: flex; justify-content: center; opacity: 0; }
+      #live span { display: inline-flex; align-items: center; gap: 14px; padding: 14px 28px; border-radius: 999px; font-weight: 700; font-size: 30px;
+        background: rgba(240,68,56,.14); color: #ff8a80; box-shadow: inset 0 0 0 2px rgba(240,68,56,.5); }
+      #live i { width: 16px; height: 16px; border-radius: 50%; background: var(--red); box-shadow: 0 0 16px var(--red); display: block; }
+
+      /* ---------- S2 pain ---------- */
+      .q { position: absolute; left: 0; right: 0; top: 700px; display: flex; flex-direction: column; align-items: center; opacity: 0; }
+      .q .ico { width: 150px; height: 150px; border-radius: 44px; display: grid; place-items: center; color: #ff8a80;
+        background: rgba(240,68,56,.14); box-shadow: inset 0 0 0 3px rgba(240,68,56,.55), 0 0 80px rgba(240,68,56,.25); }
+      .q .ico svg { width: 80px; height: 80px; }
+      .q .t { margin-top: 44px; font-family: "Unbounded"; font-weight: 800; font-size: 104px; letter-spacing: -0.045em; line-height: 1.04; text-align: center; white-space: nowrap; }
+      .q .t em { font-style: normal; color: #ff5a4e; }
+      #qmark { position: absolute; left: 0; right: 0; top: 330px; text-align: center; font-family: "Unbounded"; font-weight: 900; font-size: 1300px; line-height: 1;
+        color: transparent; -webkit-text-stroke: 3px rgba(240,68,56,.18); -webkit-text-fill-color: rgba(240,68,56,.03); opacity: 0; }
+      #qnum { position: absolute; left: 0; right: 0; top: 420px; display: flex; justify-content: center; gap: 18px; }
+      #qnum i { display: block; width: 90px; height: 10px; border-radius: 5px; background: rgba(255,255,255,.14); }
+      #qnum i b { display: block; height: 100%; width: 100%; border-radius: 5px; background: var(--red); transform: scaleX(0); transform-origin: 0 50%; }
+      #flash { position: absolute; left: 540px; top: 960px; width: 40px; height: 40px; margin: -20px 0 0 -20px; border-radius: 50%;
+        background: radial-gradient(circle, #ffffff 0%, #8fd8ff 30%, rgba(47,107,255,.6) 60%, rgba(47,107,255,0) 72%); opacity: 0; }
+
+      /* ---------- S3 brand lockup ---------- */
+      #lock { position: absolute; left: 0; top: 440px; width: 1080px; display: flex; flex-direction: column; align-items: center; transform-origin: 50% 0; }
+      #lock .logo { width: 250px; height: 336px; overflow: visible; }
+      #lock .wm { width: 600px; height: 127px; margin-top: 48px; }
+      #sheen { position: absolute; left: 0; top: 0; width: 1080px; height: 560px; overflow: hidden; pointer-events: none; }
+      #sheen i { position: absolute; top: -100px; left: -300px; width: 160px; height: 760px; transform: rotate(20deg);
+        background: linear-gradient(90deg, rgba(255,255,255,0), rgba(255,255,255,.35), rgba(255,255,255,0)); mix-blend-mode: overlay; }
+      #tag { position: absolute; left: 0; right: 0; top: 1130px; text-align: center; font-family: "Unbounded"; font-weight: 700; font-size: 60px; letter-spacing: -0.03em; line-height: 1.2; }
+      #tag .w { display: inline-block; opacity: 0; }
+      #tag em { font-style: normal; color: var(--cyan); }
+
+      /* ---------- S4 phone ---------- */
+      #phoneWrap { position: absolute; left: 0; top: 0; width: 1080px; height: 1920px; perspective: 2200px; }
+      #phone { position: absolute; left: 290px; top: 410px; width: 500px; height: 980px; transform-style: preserve-3d; }
+      #phone .body { position: absolute; inset: 0; border-radius: 76px; background: #04070e;
+        box-shadow: 0 0 0 3px #2a3552, 0 90px 180px rgba(0,0,0,.7), 0 0 160px rgba(47,107,255,.35); }
+      #scr { position: absolute; left: 13px; top: 13px; width: 474px; height: 954px; border-radius: 64px; overflow: hidden; background: #f2f4f8; color: #101828; }
+      #phone .isl { position: absolute; left: 182px; top: 28px; width: 136px; height: 38px; border-radius: 19px; background: #000; z-index: 5; }
+      .sb { position: absolute; left: 40px; right: 40px; top: 30px; display: flex; justify-content: space-between; font-weight: 700; font-size: 22px; }
+      .hdr { position: absolute; left: 24px; right: 24px; top: 90px; display: flex; align-items: center; gap: 14px; }
+      .hdr .av { width: 58px; height: 58px; border-radius: 18px; background: linear-gradient(135deg, #2cc3ff, #1f5be6); color: #fff; display: grid; place-items: center; font-weight: 800; font-size: 24px; }
+      .hdr .nm { font-weight: 800; font-size: 26px; line-height: 1.1; }
+      .hdr .br { font-weight: 500; font-size: 18px; color: #667085; }
+      .hdr .pill { margin-left: auto; padding: 8px 16px; border-radius: 999px; background: #e8efff; color: #1f4fd6; font-weight: 700; font-size: 18px; }
+      .card { position: absolute; left: 18px; right: 18px; background: #fff; border-radius: 30px; box-shadow: 0 2px 10px rgba(16,24,40,.06); }
+      #rev { top: 176px; height: 236px; padding: 24px 26px; }
+      #rev .lb { font-weight: 600; font-size: 20px; color: #667085; }
+      #rev .amt { margin-top: 6px; display: flex; align-items: baseline; gap: 10px; }
+      #rev .amt b { font-weight: 800; font-size: 52px; letter-spacing: -0.03em; }
+      #rev .amt span { font-weight: 700; font-size: 24px; color: #667085; }
+      #rev .cnt { display: inline-block; margin-top: 8px; padding: 6px 14px; border-radius: 999px; background: #e7f8ef; color: #079455; font-weight: 700; font-size: 18px; }
+      #bars { position: absolute; right: 26px; bottom: 24px; display: flex; align-items: flex-end; gap: 9px; height: 96px; }
+      #bars i { display: block; width: 22px; border-radius: 7px; background: #d6e2ff; transform-origin: 50% 100%; }
+      #bars i:last-child { background: var(--tint); }
+      #split { top: 428px; height: 104px; padding: 0 10px; display: flex; align-items: center; background: transparent; box-shadow: none; gap: 10px; left: 18px; right: 18px; }
+      .sp { flex: 1; height: 96px; border-radius: 24px; background: #fff; padding: 14px 16px; box-shadow: 0 2px 10px rgba(16,24,40,.06); }
+      .sp .k { font-weight: 600; font-size: 17px; color: #667085; display: flex; align-items: center; gap: 8px; }
+      .sp .k i { width: 10px; height: 10px; border-radius: 50%; display: block; }
+      .sp .v { font-weight: 800; font-size: 26px; margin-top: 8px; letter-spacing: -0.02em; }
+      #feedT { position: absolute; left: 30px; right: 30px; top: 554px; display: flex; justify-content: space-between; align-items: center; font-weight: 800; font-size: 24px; }
+      #feedT span { display: inline-flex; align-items: center; gap: 8px; font-weight: 700; font-size: 17px; color: #c4261b; }
+      #feedT span i { width: 10px; height: 10px; border-radius: 50%; background: var(--red); display: block; }
+      #feed { position: absolute; left: 18px; right: 18px; top: 600px; height: 280px; overflow: hidden; border-radius: 28px; background: #fff; box-shadow: 0 2px 10px rgba(16,24,40,.06); }
+      .row { position: absolute; left: 0; right: 0; height: 70px; display: flex; align-items: center; gap: 14px; padding: 0 18px; border-bottom: 1px solid #eef0f4; }
+      .row .ri { width: 46px; height: 46px; border-radius: 15px; display: grid; place-items: center; flex: none; }
+      .row .ri svg { width: 26px; height: 26px; }
+      .row .rt { flex: 1; min-width: 0; }
+      .row .rt b { display: block; font-weight: 700; font-size: 19px; white-space: nowrap; }
+      .row .rt span { display: block; font-weight: 500; font-size: 15px; color: #667085; margin-top: 2px; white-space: nowrap; }
+      .row .ra { font-weight: 800; font-size: 19px; white-space: nowrap; }
+      .tab { position: absolute; left: 0; right: 0; bottom: 0; height: 90px; background: rgba(255,255,255,.92); display: flex; justify-content: space-around; align-items: center; color: #98a2b3; border-top: 1px solid #eaecf0; }
+      .tab svg { width: 32px; height: 32px; }
+      .tab .on { color: var(--tint); }
+
+      .alert { position: absolute; width: 490px; white-space: nowrap; padding: 22px 26px; border-radius: 30px; display: flex; align-items: center; gap: 20px; opacity: 0;
+        background: rgba(16,26,52,.92); box-shadow: 0 40px 90px rgba(0,0,0,.6), inset 0 0 0 2px rgba(255,255,255,.12); }
+      .alert .ai { width: 76px; height: 76px; border-radius: 24px; display: grid; place-items: center; flex: none; }
+      .alert .ai svg { width: 42px; height: 42px; }
+      .alert b { display: block; font-weight: 800; font-size: 32px; }
+      .alert span { display: block; font-weight: 600; font-size: 28px; color: #c3cde3; margin-top: 4px; }
+      #alLow { left: 30px; top: 800px; }
+      #alLow .ai { background: rgba(255,168,0,.18); color: var(--gold); box-shadow: inset 0 0 0 2px rgba(255,168,0,.6); }
+      #alDebt { left: 576px; top: 1010px; }
+      #alDebt .ai { background: rgba(240,68,56,.18); color: #ff8a80; box-shadow: inset 0 0 0 2px rgba(240,68,56,.6); }
+      #alDebt { width: 480px; left: 570px; }
+
+      /* ---------- S5 audience + modules ---------- */
+      #aud { position: absolute; left: 0; right: 0; top: 520px; text-align: center; }
+      #slot { position: relative; height: 150px; overflow: hidden; }
+      #slot div { position: absolute; left: 0; right: 0; top: 0; font-family: "Unbounded"; font-weight: 800; font-size: 128px; letter-spacing: -0.045em; line-height: 150px; opacity: 0; }
+      #slot div:nth-child(1) { color: #8fd8ff; }
+      #slot div:nth-child(2) { color: #7ea6ff; }
+      #slot div:nth-child(3) { color: var(--gold); }
+      #audL { margin-top: 8px; font-family: "Unbounded"; font-weight: 700; font-size: 62px; letter-spacing: -0.03em; opacity: 0; }
+      #mods { position: absolute; left: 90px; right: 90px; top: 900px; display: grid; grid-template-columns: 1fr 1fr; gap: 22px; }
+      .mod { height: 120px; border-radius: 32px; display: flex; align-items: center; gap: 20px; padding: 0 26px; opacity: 0;
+        background: rgba(255,255,255,.06); box-shadow: inset 0 0 0 2px rgba(255,255,255,.12); }
+      .mod .mi { width: 68px; height: 68px; border-radius: 22px; display: grid; place-items: center; flex: none; }
+      .mod .mi svg { width: 38px; height: 38px; }
+      .mod b { font-weight: 800; font-size: 34px; white-space: nowrap; }
+
+      /* ---------- S6 CTA ---------- */
+      #cta { position: absolute; left: 0; top: 470px; width: 1080px; display: flex; flex-direction: column; align-items: center; }
+      #cta .logo { width: 210px; height: 282px; overflow: visible; }
+      #cta .wm { width: 520px; height: 110px; margin-top: 40px; }
+      #ctaLead { margin-top: 44px; font-weight: 600; font-size: 38px; color: #c3cde3; opacity: 0; }
+      #btn { position: relative; margin-top: 50px; width: 660px; height: 128px; border-radius: 64px; background: #fff; color: #0a1122; overflow: hidden;
+        display: flex; align-items: center; justify-content: center; gap: 22px; font-family: "Unbounded"; font-weight: 800; font-size: 58px; letter-spacing: -0.03em;
+        box-shadow: 0 30px 80px rgba(47,107,255,.45), 0 0 0 10px rgba(255,255,255,.08); opacity: 0; }
+      #btn svg { width: 54px; height: 54px; color: var(--tint); stroke-width: 2.6; }
+      #btnSheen { position: absolute; top: -40px; left: -200px; width: 120px; height: 220px; transform: rotate(20deg); background: linear-gradient(90deg, rgba(47,107,255,0), rgba(47,107,255,.28), rgba(47,107,255,0)); }
+      #free { margin-top: 56px; font-family: "Unbounded"; font-weight: 800; font-size: 78px; letter-spacing: -0.04em; color: var(--gold); opacity: 0; }
+      #noCard { margin-top: 14px; font-weight: 600; font-size: 34px; color: var(--muted); opacity: 0; }
+      #finger { position: absolute; left: 708px; top: 1082px; width: 120px; height: 120px; opacity: 0; color: #fff; filter: drop-shadow(0 12px 24px rgba(0,0,0,.5)); }
+      #ripple { position: absolute; left: 760px; top: 1102px; width: 100px; height: 100px; margin: -50px 0 0 -50px; border-radius: 50%; background: rgba(255,255,255,.55); opacity: 0; }
+
+      /* ---------- captions ---------- */
+      .sub { position: absolute; left: 60px; right: 60px; top: 1430px; display: flex; justify-content: center; }
+      .sub span { display: inline-block; padding: 14px 30px; border-radius: 22px; background: rgba(4,8,18,.78); font-weight: 700; font-size: 44px; line-height: 1.2; text-align: center; opacity: 0;
+        box-shadow: inset 0 0 0 2px rgba(255,255,255,.08); }
+      .sub em { font-style: normal; color: var(--cyan); }
+    </style>
+  </head>
+  <body>
+    <div id="root" data-composition-id="main" data-start="0" data-duration="22" data-width="1080" data-height="1920" data-fps="30">
+      <!-- BACKGROUND -->
+      <div id="bg" class="clip" data-start="0" data-duration="22" data-track-index="0">
+        <div id="grid"></div>
+        <div id="glowA" class="glow"></div>
+        <div id="glowB" class="glow"></div>
+        <div id="glowR" class="glow"></div>
+        <div id="vign"></div>
+        <div id="grain"><div id="grainTex"></div></div>
+      </div>
+
+      <!-- S1 HOOK 0 - 3.5 -->
+      <section id="s1" class="clip" data-start="0" data-duration="3.55" data-track-index="1">
+        <div id="r1" class="rig">
+          <div id="route">
+            <svg id="routeSvg" viewBox="0 0 900 260">
+              <path id="routePath" d="M96 170 C 260 20, 640 20, 804 170" fill="none" stroke="rgba(160,190,255,.7)" stroke-width="5" stroke-linecap="round" stroke-dasharray="4 18" />
+              <circle id="routeDot" cx="96" cy="170" r="11" fill="#2cc3ff" />
+            </svg>
+            <div id="km">12 km</div>
+            <div id="pinMe" class="pin"><div class="dot"><svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg></div><div class="lb">Siz</div></div>
+            <div id="pinShop" class="pin"><div class="dot"><svg class="ic" viewBox="0 0 24 24"><path d="M3 9l1.5-5h15L21 9"/><path d="M4 9v12h16V9"/><path d="M3 9a3 3 0 0 0 6 0 3 3 0 0 0 6 0 3 3 0 0 0 6 0"/></svg></div><div class="lb">Do'kon</div></div>
+          </div>
+          <div id="hA" class="hk">Do'koningizdan</div>
+          <div id="hB" class="hk">uzoqdasiz.</div>
+          <div id="hC" class="hk">Hozir u yerda</div>
+          <div id="hD" class="hk">nima</div>
+          <div id="hE" class="hk">bo'lyapti?</div>
+          <div id="live"><span><i></i>Do'kon ishlayapti</span></div>
+        </div>
+      </section>
+
+      <!-- S2 PAIN 3.5 - 7.0 -->
+      <section id="s2" class="clip" data-start="3.4" data-duration="3.7" data-track-index="2">
+        <div id="qmark" data-layout-ignore>?</div>
+        <div id="qnum"><i><b></b></i><i><b></b></i><i><b></b></i></div>
+        <div id="q1" class="q">
+          <div class="ico"><svg class="ic" viewBox="0 0 24 24"><rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="3"/><path d="M6 10v4M18 10v4"/></svg></div>
+          <div class="t">Kassada<br />qancha pul<em>?</em></div>
+        </div>
+        <div id="q2" class="q">
+          <div class="ico"><svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg></div>
+          <div class="t">Kim qarzga<br />oldi<em>?</em></div>
+        </div>
+        <div id="q3" class="q">
+          <div class="ico"><svg class="ic" viewBox="0 0 24 24"><path d="M21 8l-9-5-9 5 9 5 9-5z"/><path d="M3 8v8l9 5 9-5V8"/><path d="M12 13v8"/></svg></div>
+          <div class="t">Qaysi tovar<br />tugadi<em>?</em></div>
+        </div>
+        <div id="flash"></div>
+      </section>
+
+      <!-- S3 + S4 header: brand lockup 7.0 - 15.6 -->
+      <section id="s3" class="clip" data-start="6.9" data-duration="8.75" data-track-index="3">
+        <div id="lock">
+          <svg class="logo" data-logo="L" viewBox="6 2 222 298"></svg>
+          <svg class="wm" data-wm="L" viewBox="0 0 3431 724"></svg>
+          <div id="sheen"><i></i></div>
+        </div>
+        <div id="tag"><span class="w">Hammasi</span> <span class="w"><em>telefoningizda.</em></span></div>
+      </section>
+
+      <!-- S4 PROOF 9.3 - 15.6 -->
+      <section id="s4" class="clip" data-start="9.2" data-duration="6.5" data-track-index="4">
+        <div id="phoneWrap">
+          <div id="phone">
+            <div class="body"></div>
+            <div id="scr" data-layout-ignore>
+              <div class="sb"><span>9:41</span><span>5G ▮▮▮</span></div>
+              <div class="hdr">
+                <div class="av">MM</div>
+                <div><div class="nm">Mobi Market</div><div class="br">Asosiy filial</div></div>
+                <div class="pill">Bugun</div>
+              </div>
+              <div id="rev" class="card">
+                <div class="lb">Bugungi tushum</div>
+                <div class="amt"><b id="revAmt" class="num">0</b><span>so'm</span></div>
+                <div class="cnt"><span id="revCnt" class="num">0</span> ta sotuv</div>
+                <div id="bars"><i style="height:40px"></i><i style="height:58px"></i><i style="height:46px"></i><i style="height:70px"></i><i style="height:62px"></i><i style="height:80px"></i><i style="height:96px"></i></div>
+              </div>
+              <div id="split" class="card">
+                <div class="sp"><div class="k"><i style="background:#12b76a"></i>Naqd</div><div class="v">7,1 mln</div></div>
+                <div class="sp"><div class="k"><i style="background:#2f6bff"></i>Karta</div><div class="v">3,2 mln</div></div>
+                <div class="sp"><div class="k"><i style="background:#ffa800"></i>Nasiya</div><div class="v">2,2 mln</div></div>
+              </div>
+              <div id="feedT">Jonli sotuvlar<span><i></i>jonli</span></div>
+              <div id="feed">
+                <div class="row" id="fr1" style="top:0"><div class="ri" style="background:#fff4e0;color:#e08a00"><svg class="ic" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg></div><div class="rt"><b>iPhone 15 128GB</b><span>Nasiya · 6 oy</span></div><div class="ra num">14 900 000</div></div>
+                <div class="row" id="fr2" style="top:70px"><div class="ri" style="background:#e7f8ef;color:#079455"><svg class="ic" viewBox="0 0 24 24"><rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="3"/></svg></div><div class="rt"><b>AirPods Pro 2</b><span>Naqd</span></div><div class="ra num">2 650 000</div></div>
+                <div class="row" id="fr3" style="top:140px"><div class="ri" style="background:#e8efff;color:#2f6bff"><svg class="ic" viewBox="0 0 24 24"><path d="M5 12l5 5 9-10"/></svg></div><div class="rt"><b>To'lov · 3/6-oy</b><span>Click</span></div><div class="ra num" style="color:#05603a">+1 450 000</div></div>
+                <div class="row" id="fr4" style="top:210px"><div class="ri" style="background:#e8efff;color:#2f6bff"><svg class="ic" viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg></div><div class="rt"><b>Artel muzlatgich</b><span>Karta · HUMO</span></div><div class="ra num">6 300 000</div></div>
+              </div>
+              <div class="tab">
+                <svg class="ic on" viewBox="0 0 24 24"><path d="M3 11l9-7 9 7v10H3z"/></svg>
+                <svg class="ic" viewBox="0 0 24 24"><circle cx="9" cy="20" r="1.5"/><circle cx="18" cy="20" r="1.5"/><path d="M2 3h3l2.5 12h11l2-8H6"/></svg>
+                <svg class="ic" viewBox="0 0 24 24"><path d="M21 8l-9-5-9 5 9 5 9-5z"/><path d="M3 8v8l9 5 9-5V8"/></svg>
+                <svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg>
+              </div>
+            </div>
+            <div class="isl"></div>
+          </div>
+        </div>
+        <div id="alLow" class="alert" data-layout-allow-overlap>
+          <div class="ai"><svg class="ic" viewBox="0 0 24 24"><path d="M12 3l10 18H2z"/><path d="M12 10v5M12 18v.5"/></svg></div>
+          <div><b>Kam qoldi</b><span>Zaryadka 20W — 3 dona</span></div>
+        </div>
+        <div id="alDebt" class="alert" data-layout-allow-overlap>
+          <div class="ai"><svg class="ic" viewBox="0 0 24 24"><path d="M4 4h10a4 4 0 0 1 4 4v12H8a4 4 0 0 1-4-4z"/><path d="M8 8h6M8 12h6"/></svg></div>
+          <div><b>Qarzdorlar: 4</b><span>Jami 6 850 000 so'm</span></div>
+        </div>
+      </section>
+
+      <!-- S5 AUDIENCE 15.5 - 18.0 -->
+      <section id="s5" class="clip" data-start="15.4" data-duration="2.75" data-track-index="5">
+        <div id="aud">
+          <div id="slot"><div>Telefon</div><div>Texnika</div><div>Mebel</div></div>
+          <div id="audL">do'konlari uchun</div>
+        </div>
+        <div id="mods">
+          <div class="mod"><div class="mi" style="background:rgba(47,107,255,.2);color:#8fb2ff"><svg class="ic" viewBox="0 0 24 24"><circle cx="9" cy="20" r="1.5"/><circle cx="18" cy="20" r="1.5"/><path d="M2 3h3l2.5 12h11l2-8H6"/></svg></div><b>Kassa</b></div>
+          <div class="mod"><div class="mi" style="background:rgba(44,195,255,.18);color:#8fdcff"><svg class="ic" viewBox="0 0 24 24"><path d="M21 8l-9-5-9 5 9 5 9-5z"/><path d="M3 8v8l9 5 9-5V8"/><path d="M12 13v8"/></svg></div><b>Ombor</b></div>
+          <div class="mod"><div class="mi" style="background:rgba(255,168,0,.18);color:#ffc24d"><svg class="ic" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg></div><b>Nasiya</b></div>
+          <div class="mod"><div class="mi" style="background:rgba(240,68,56,.18);color:#ff8a80"><svg class="ic" viewBox="0 0 24 24"><path d="M4 4h10a4 4 0 0 1 4 4v12H8a4 4 0 0 1-4-4z"/><path d="M8 8h6M8 12h6"/></svg></div><b>Qarz daftari</b></div>
+          <div class="mod"><div class="mi" style="background:rgba(18,183,106,.18);color:#5fe0a5"><svg class="ic" viewBox="0 0 24 24"><path d="M3 21h18M5 21V7l7-4 7 4v14"/><path d="M9 21v-6h6v6"/></svg></div><b>Filiallar</b></div>
+          <div class="mod"><div class="mi" style="background:rgba(122,90,248,.22);color:#b3a2ff"><svg class="ic" viewBox="0 0 24 24"><path d="M12 3l2 6 6 2-6 2-2 6-2-6-6-2 6-2z"/></svg></div><b>AI yordamchi</b></div>
+        </div>
+      </section>
+
+      <!-- S6 CTA 18.0 - 22.0 -->
+      <section id="s6" class="clip" data-start="17.9" data-duration="4.1" data-track-index="6">
+        <div id="cta">
+          <svg class="logo" data-logo="C" viewBox="6 2 222 298"></svg>
+          <svg class="wm" data-wm="C" viewBox="0 0 3431 724"></svg>
+          <div id="ctaLead">Do'koningiz — cho'ntagingizda</div>
+          <div id="btn"><div id="btnSheen"></div>savora.uz<svg class="ic" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg></div>
+          <div id="free">14 kun bepul</div>
+          <div id="noCard">Karta talab qilinmaydi</div>
+        </div>
+        <div id="ripple"></div>
+        <svg id="finger" viewBox="0 0 24 24" fill="#ffffff" stroke="#0a1122" stroke-width="1.2" stroke-linejoin="round"><path d="M9 11V4.5a1.5 1.5 0 0 1 3 0V10l5.2.9a2 2 0 0 1 1.6 2.3l-.9 5A3 3 0 0 1 14.9 21h-3.3a3 3 0 0 1-2.4-1.2L5.6 15a1.5 1.5 0 0 1 2.2-2L9 14z"/></svg>
+      </section>
+
+      <audio id="mix" src="assets/audio/mix.wav" data-start="0" data-duration="22" data-track-index="8" data-volume="1"></audio>
+
+      <!-- CAPTIONS (faqat ekranda matni yo'q VO uchun) -->
+      <div id="caps" class="clip" data-start="9.6" data-duration="5.7" data-track-index="7">
+        <div class="sub" data-t="9.7"><span>Bugungi tushum, har bir sotuv</span></div>
+        <div class="sub" data-t="11.15"><span>va to'lov — <em>bir qarashda.</em></span></div>
+        <div class="sub" data-t="12.75"><span>Kam qolgan tovar va qarzdorlar</span></div>
+        <div class="sub" data-t="14.05"><span>ham <em>nazoratda.</em></span></div>
+      </div>
+    </div>
+
+    <script>
+      (function () {
+        // ---------- brend geometriyasi (web/lib/brand.ts dan aynan)
+        const LOGO = {
+          a: "M165,6 L168,50 C136,61 111,73 99,87 C92,95 91,102 92,110 L130,156 L100,157 C58,157 16,146 10,114 C5,88 20,70 45,58 C80,41 120,25 165,6 Z",
+          b: "M91,116 Q91,103 104,103 C152,106 204,130 217,166 C230,204 214,248 180,269 C155,284 120,292 78,293 L42,273 L148,214 C153,205 153,188 145,174 C135,158 115,149 91,148 Z",
+          bars: [
+            "M26,221 Q26,212 35,212 L38.5,212 Q47.5,212 47.5,221 L47.5,261.2 L26,272.6 Z",
+            "M58.5,205 Q58.5,196 67.5,196 L72,196 Q81,196 81,205 L81,243.5 L58.5,255.4 Z",
+            "M91,188 Q91,179 100,179 L105,179 Q114,179 114,188 L114,226 L91,238.2 Z",
+          ],
+        };
+        const LENS = [549, 680, 149, 149, 149];
+        const WM = [
+          "M313 724Q229 724 152 701.5Q75 679 28 643L83 521Q128 553 189.5 573.5Q251 594 314 594Q362 594 391.5 584.5Q421 575 435 558Q449 541 449 519Q449 491 427 474.5Q405 458 369 447.5Q333 437 289.5 427.5Q246 418 202.5 404Q159 390 123 368Q87 346 64.5 310Q42 274 42 218Q42 158 74.5 108.5Q107 59 172.5 29.5Q238 0 337 0Q403 0 467 15.5Q531 31 580 62L530 185Q481 157 432 143.5Q383 130 336 130Q289 130 259 141Q229 152 216 169.5Q203 187 203 210Q203 237 225 253.5Q247 270 283 280Q319 290 362.5 300Q406 310 449.5 323Q493 336 529 358Q565 380 587.5 416Q610 452 610 507Q610 566 577 615Q544 664 478.5 694Q413 724 313 724Z",
+          "M1015 712V607L1005 584V396Q1005 346 974.5 318Q944 290 881 290Q838 290 796.5 303.5Q755 317 726 340L670 231Q714 200 776 183Q838 166 902 166Q1025 166 1093 224Q1161 282 1161 405V712ZM851 720Q788 720 743 698.5Q698 677 674 640Q650 603 650 557Q650 509 673.5 473Q697 437 748 416.5Q799 396 881 396H1024V487H898Q843 487 822.5 505Q802 523 802 550Q802 580 825.5 597.5Q849 615 890 615Q929 615 960 596.5Q991 578 1005 542L1029 614Q1012 666 967 693Q922 720 851 720Z",
+          "M1423 712 1197 174H1358L1546 637H1466L1661 174H1811L1584 712Z",
+          "M2106 720Q2020 720 1953.5 684Q1887 648 1848.5 585.5Q1810 523 1810 443Q1810 362 1848.5 299.5Q1887 237 1953.5 201.5Q2020 166 2106 166Q2191 166 2258 201.5Q2325 237 2363 299Q2401 361 2401 443Q2401 523 2363 585.5Q2325 648 2258 684Q2191 720 2106 720ZM2106 592Q2145 592 2176 574Q2207 556 2225 522.5Q2243 489 2243 443Q2243 396 2225 363Q2207 330 2176 312Q2145 294 2106 294Q2067 294 2036 312Q2005 330 1986.5 363Q1968 396 1968 443Q1968 489 1986.5 522.5Q2005 556 2036 574Q2067 592 2106 592Z",
+          "M2480 712V174H2629V326L2608 282Q2632 225 2685 195.5Q2738 166 2814 166V310Q2804 309 2796 308.5Q2788 308 2779 308Q2715 308 2675.5 344.5Q2636 381 2636 458V712Z",
+          "M3216 712V607L3206 584V396Q3206 346 3175.5 318Q3145 290 3082 290Q3039 290 2997.5 303.5Q2956 317 2927 340L2871 231Q2915 200 2977 183Q3039 166 3103 166Q3226 166 3294 224Q3362 282 3362 405V712ZM3052 720Q2989 720 2944 698.5Q2899 677 2875 640Q2851 603 2851 557Q2851 509 2874.5 473Q2898 437 2949 416.5Q3000 396 3082 396H3225V487H3099Q3044 487 3023.5 505Q3003 523 3003 550Q3003 580 3026.5 597.5Q3050 615 3091 615Q3130 615 3161 596.5Q3192 578 3206 542L3230 614Q3213 666 3168 693Q3123 720 3052 720Z",
+        ];
+        const NS = "http://www.w3.org/2000/svg";
+        const mk = (tag, attrs, parent) => { const e = document.createElementNS(NS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); if (parent) parent.appendChild(e); return e; };
+        document.querySelectorAll("svg[data-logo]").forEach((svg) => {
+          const id = svg.getAttribute("data-logo");
+          const defs = mk("defs", {}, svg);
+          const grad = (gid, stops, x2, y2) => { const g = mk("linearGradient", { id: gid, x1: "0", y1: "0", x2, y2 }, defs); stops.forEach((c, i) => mk("stop", { offset: String(i / (stops.length - 1)), "stop-color": c }, g)); };
+          grad("ga" + id, ["#2CC3FF", "#1F86F7", "#1F5BE6"], "1", "1");
+          grad("gb" + id, ["#2AA2FF", "#2566F0", "#2238D6"], "0.4", "1");
+          grad("gr" + id, ["#2BB6FF", "#1D5CE8"], "0", "1");
+          const ds = [LOGO.a, LOGO.b, ...LOGO.bars];
+          const fills = ["ga", "gb", "gr", "gr", "gr"];
+          ds.forEach((d, i) => {
+            mk("path", { d, class: "lp lp" + i, fill: "url(#" + fills[i] + id + ")", "fill-opacity": "0", stroke: "#8fd8ff", "stroke-width": "3",
+              "stroke-dasharray": LENS[i], "stroke-dashoffset": LENS[i], "stroke-linejoin": "round" }, svg);
+          });
+        });
+        document.querySelectorAll("svg[data-wm]").forEach((svg) => {
+          WM.forEach((d) => mk("path", { d, class: "wl", fill: "#ffffff" }, svg));
+        });
+
+        const tl = gsap.timeline({ paused: true });
+        const q = (s) => document.querySelector(s);
+        const qa = (s) => [...document.querySelectorAll(s)];
+        const fmt = (n) => Math.round(n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, " ");
+
+        // ---------- fon: sekin kamera dreyfi
+        tl.fromTo("#grid", { x: 0, y: 0 }, { x: -108, y: -324, duration: 22, ease: "none" }, 0);
+        tl.fromTo("#glowA", { x: 0, y: 0, scale: 1 }, { x: 320, y: 420, scale: 1.2, duration: 22, ease: "sine.inOut" }, 0);
+        tl.fromTo("#glowB", { x: 0, y: 0 }, { x: -360, y: -500, duration: 22, ease: "sine.inOut" }, 0);
+        tl.fromTo("#grainTex", { x: 0, y: 0 }, { keyframes: [{ x: -40, y: 30 }, { x: 25, y: -35 }, { x: -15, y: 20 }, { x: 35, y: 10 }], duration: 22, ease: "steps(88)" }, 0);
+        tl.fromTo("#glowR", { opacity: 0 }, { opacity: 1, duration: 0.5, ease: "power2.out" }, 3.4);
+        tl.to("#glowR", { opacity: 0, duration: 0.4, ease: "power2.in" }, 6.75);
+
+        // ================= S1 HOOK =================
+        tl.fromTo("#pinMe", { opacity: 0, y: 40, scale: 0.6 }, { opacity: 1, y: 0, scale: 1, duration: 0.45, ease: "back.out(2)" }, 0.05);
+        tl.fromTo("#pinShop", { opacity: 0, y: 40, scale: 0.6 }, { opacity: 1, y: 0, scale: 1, duration: 0.45, ease: "back.out(2)" }, 0.2);
+        tl.fromTo("#routePath", { strokeDashoffset: 0 }, { strokeDashoffset: -88, duration: 3.4, ease: "none" }, 0);
+        tl.fromTo("#routeSvg", { clipPath: "inset(0 100% 0 0)" }, { clipPath: "inset(0 0% 0 0)", duration: 0.8, ease: "power2.inOut" }, 0.2);
+        tl.fromTo("#km", { opacity: 0, y: 20 }, { opacity: 1, y: 0, duration: 0.3, ease: "power3.out" }, 0.75);
+        // nuqta yo'l bo'ylab (bezier parametri)
+        const dot = { p: 0 };
+        const bz = (t, a, b, c, d) => (1 - t) ** 3 * a + 3 * (1 - t) ** 2 * t * b + 3 * (1 - t) * t * t * c + t ** 3 * d;
+        tl.fromTo(dot, { p: 0 }, { p: 1, duration: 1.6, ease: "power1.inOut", onUpdate: () => {
+          q("#routeDot").setAttribute("cx", bz(dot.p, 96, 260, 640, 804).toFixed(2));
+          q("#routeDot").setAttribute("cy", bz(dot.p, 170, 20, 20, 170).toFixed(2));
+        } }, 0.3);
+        // so'zlar zarbasi (VO 0.30)
+        tl.fromTo("#hA", { opacity: 0, y: 60, scale: 1.25, filter: "blur(10px)" }, { opacity: 1, y: 0, scale: 1, filter: "blur(0px)", duration: 0.32, ease: "power4.out" }, 0.25);
+        tl.fromTo("#hB", { opacity: 0, scale: 1.9, filter: "blur(16px)" }, { opacity: 1, scale: 1, filter: "blur(0px)", duration: 0.34, ease: "power4.out" }, 0.8);
+        tl.fromTo("#r1", { x: 0 }, { keyframes: [{ x: -14, duration: 0.04 }, { x: 10, duration: 0.05 }, { x: -6, duration: 0.05 }, { x: 0, duration: 0.06 }], immediateRender: false }, 0.98);
+        // 1.75 — almashuv: eski ibora orqaga, yangi (VO 1.85)
+        tl.to(["#hA", "#hB"], { opacity: 0, y: -80, scale: 0.8, filter: "blur(10px)", duration: 0.28, ease: "power2.in", stagger: 0.04 }, 1.62);
+        tl.fromTo("#hC", { opacity: 0, y: 70 }, { opacity: 1, y: 0, duration: 0.3, ease: "power4.out" }, 1.85);
+        tl.fromTo("#hD", { opacity: 0, scale: 0.4, rotation: -8 }, { opacity: 1, scale: 1, rotation: 0, duration: 0.32, ease: "back.out(2.2)" }, 2.25);
+        tl.fromTo("#hE", { opacity: 0, scale: 1.7, filter: "blur(14px)" }, { opacity: 1, scale: 1, filter: "blur(0px)", duration: 0.32, ease: "power4.out" }, 2.6);
+        tl.fromTo("#hE", { webkitTextStrokeColor: "#f5f7fb" }, { webkitTextStrokeColor: "#ff6a5e", duration: 0.3, ease: "none", immediateRender: false }, 2.95);
+        tl.fromTo("#live", { opacity: 0, y: 30 }, { opacity: 1, y: 0, duration: 0.3, ease: "back.out(2)" }, 2.3);
+        tl.fromTo("#live i", { opacity: 1 }, { keyframes: [{ opacity: 0.2 }, { opacity: 1 }, { opacity: 0.2 }, { opacity: 1 }], duration: 0.8, ease: "none" }, 2.3);
+        // zoom-through
+        tl.to("#r1", { scale: 2.6, opacity: 0, filter: "blur(18px)", duration: 0.32, ease: "power3.in", transformOrigin: "50% 52%" }, 3.22);
+
+        // ================= S2 PAIN =================
+        tl.fromTo("#qmark", { opacity: 0, scale: 0.6, rotation: -12 }, { opacity: 1, scale: 1, rotation: 6, duration: 3.2, ease: "power1.out" }, 3.45);
+        const qs = ["#q1", "#q2", "#q3"], qt = [3.5, 4.6, 5.7];
+        // kirishlar: slam / chapdan snap / pastdan aylanib
+        tl.fromTo("#q1", { opacity: 0, scale: 1.8, filter: "blur(16px)" }, { opacity: 1, scale: 1, filter: "blur(0px)", duration: 0.3, ease: "power4.out" }, qt[0]);
+        tl.fromTo("#q2", { opacity: 0, x: 700, skewX: -18 }, { opacity: 1, x: 0, skewX: 0, duration: 0.34, ease: "power4.out" }, qt[1]);
+        tl.fromTo("#q3", { opacity: 0, y: 420, rotation: 10 }, { opacity: 1, y: 0, rotation: 0, duration: 0.36, ease: "back.out(1.6)" }, qt[2]);
+        qs.forEach((s, i) => {
+          tl.fromTo(s + " .ico", { scale: 0.3, rotation: -25 }, { scale: 1, rotation: 0, duration: 0.4, ease: "back.out(2.4)" }, qt[i] + 0.05);
+          tl.fromTo(s + " .t em", { opacity: 0, scale: 2.4 }, { opacity: 1, scale: 1, duration: 0.25, ease: "back.out(3)", transformOrigin: "50% 80%" }, qt[i] + 0.3);
+          tl.fromTo(qa("#qnum b")[i], { scaleX: 0 }, { scaleX: 1, duration: 0.35, ease: "power2.out" }, qt[i]);
+          if (i < 2) tl.to(s, { opacity: 0, y: -340, scale: 0.55, filter: "blur(8px)", duration: 0.32, ease: "power2.in" }, qt[i + 1] - 0.12);
+        });
+        tl.fromTo("#s2", { x: 0 }, { keyframes: [{ x: 12, duration: 0.04 }, { x: -9, duration: 0.05 }, { x: 0, duration: 0.06 }], immediateRender: false }, 3.62);
+        // bir nuqtaga yig'ilish -> chaqnash
+        tl.to(["#q3", "#qnum", "#qmark"], { opacity: 0, scale: 0.05, duration: 0.3, ease: "power3.in", transformOrigin: "50% 50%" }, 6.62);
+        tl.fromTo("#flash", { opacity: 0, scale: 0 }, { keyframes: [{ opacity: 1, scale: 30, duration: 0.18, ease: "power2.out" }, { opacity: 0, scale: 60, duration: 0.25, ease: "power2.in" }] }, 6.88);
+
+        // ================= S3 REVEAL =================
+        const lp = (n) => qa("#lock .lp" + n);
+        tl.fromTo("#lock", { scale: 0.82, y: 30 }, { scale: 1, y: 0, duration: 2.2, ease: "power2.out" }, 7.0);
+        [0, 1].forEach((i) => {
+          tl.fromTo(lp(i), { attr: { "stroke-dashoffset": LENS[i] } }, { attr: { "stroke-dashoffset": 0 }, duration: 0.5, ease: "power2.inOut" }, 7.02 + i * 0.12);
+          tl.fromTo(lp(i), { attr: { "fill-opacity": 0, "stroke-opacity": 1 } }, { attr: { "fill-opacity": 1, "stroke-opacity": 0 }, duration: 0.35, ease: "power2.out" }, 7.45 + i * 0.1);
+        });
+        [2, 3, 4].forEach((i, k) => {
+          tl.fromTo(lp(i), { attr: { "fill-opacity": 1, "stroke-opacity": 0 }, scaleY: 0, transformOrigin: "50% 100%" }, { scaleY: 1, duration: 0.4, ease: "back.out(2.2)" }, 7.55 + k * 0.1);
+        });
+        tl.fromTo(qa("#lock .wl"), { y: 760, opacity: 0 }, { y: 0, opacity: 1, duration: 0.5, ease: "power4.out", stagger: 0.05 }, 7.75);
+        tl.fromTo("#sheen i", { x: 0 }, { x: 1500, duration: 0.7, ease: "power2.inOut" }, 8.2);
+        tl.fromTo(qa("#tag .w"), { opacity: 0, y: 50, rotationX: -70 }, { opacity: 1, y: 0, rotationX: 0, duration: 0.4, ease: "back.out(1.8)", stagger: 0.28 }, 8.05);
+        // logo yuqoriga — telefon sarlavhasi bo'ladi
+        tl.to("#tag", { opacity: 0, y: 120, filter: "blur(8px)", duration: 0.3, ease: "power2.in" }, 9.2);
+        tl.to("#lock", { y: -235, scale: 0.34, duration: 0.6, ease: "expo.inOut" }, 9.2);
+        tl.to("#lock", { opacity: 0, y: -300, duration: 0.3, ease: "power2.in" }, 15.3);
+
+        // ================= S4 PROOF =================
+        tl.fromTo("#phone", { y: 1300, rotationX: 38, rotationZ: -6, scale: 0.86 }, { y: 0, rotationX: 0, rotationZ: 0, scale: 1, duration: 0.75, ease: "expo.out" }, 9.3);
+        tl.fromTo("#rev", { opacity: 0, y: 40 }, { opacity: 1, y: 0, duration: 0.35, ease: "power3.out" }, 9.6);
+        const rv = { v: 0, c: 0 };
+        tl.fromTo(rv, { v: 0, c: 0 }, { v: 12480000, c: 34, duration: 1.1, ease: "power3.out", onUpdate: () => {
+          q("#revAmt").textContent = fmt(rv.v); q("#revCnt").textContent = Math.round(rv.c);
+        } }, 9.75);
+        tl.fromTo("#bars i", { scaleY: 0 }, { scaleY: 1, duration: 0.4, ease: "back.out(2)", stagger: 0.06 }, 9.85);
+        tl.fromTo("#split .sp", { opacity: 0, y: 30, scale: 0.9 }, { opacity: 1, y: 0, scale: 1, duration: 0.3, ease: "back.out(2)", stagger: 0.08 }, 10.05);
+        tl.fromTo(["#feedT", "#feed"], { opacity: 0, y: 30 }, { opacity: 1, y: 0, duration: 0.3, ease: "power3.out", stagger: 0.06 }, 10.1);
+        // jonli qatorlar: har biri yuqoriga kiradi, eskilari pastga suriladi
+        const rows = ["#fr1", "#fr2", "#fr3", "#fr4"];
+        rows.forEach((r) => tl.set(r, { opacity: 0 }, 0));
+        [10.2, 10.75, 11.3, 11.85].forEach((t, i) => {
+          // yangi qator (rows[3 - i]) tepada paydo bo'ladi
+          const el = rows[3 - i];
+          tl.fromTo(el, { opacity: 0, y: -70 - (3 - i) * 70, backgroundColor: "#e8efff" }, { opacity: 1, y: -(3 - i) * 70, backgroundColor: "#ffffff", duration: 0.4, ease: "power3.out" }, t);
+          for (let k = 0; k < i; k++) {
+            const prev = rows[3 - k];
+            tl.to(prev, { y: -(3 - k) * 70 + (i - k) * 70, duration: 0.4, ease: "power3.out" }, t);
+          }
+        });
+        tl.fromTo("#feedT span i", { opacity: 1 }, { keyframes: [{ opacity: 0.2 }, { opacity: 1 }, { opacity: 0.2 }, { opacity: 1 }, { opacity: 0.2 }, { opacity: 1 }], duration: 4.8, ease: "none" }, 10.2);
+        // telefon yengil aylanadi + ogohlantirish kartalari chiqadi (VO 12.75)
+        tl.to("#phone", { rotationY: 14, rotationX: 4, scale: 0.95, duration: 1.4, ease: "power2.inOut" }, 12.4);
+        tl.fromTo("#alLow", { opacity: 0, x: 260, z: 0, scale: 0.5 }, { opacity: 1, x: 0, scale: 1, duration: 0.45, ease: "back.out(1.8)" }, 12.75);
+        tl.fromTo("#alDebt", { opacity: 0, x: -260, scale: 0.5 }, { opacity: 1, x: 0, scale: 1, duration: 0.45, ease: "back.out(1.8)" }, 13.4);
+        tl.fromTo(["#alLow", "#alDebt"], { y: 0 }, { y: -18, duration: 1.6, ease: "sine.inOut", yoyo: true, repeat: 1, immediateRender: false }, 13.9);
+        // chiqish — telefon va kartalar chuqurlikka
+        tl.to("#phone", { y: -200, z: -900, rotationY: -20, opacity: 0, duration: 0.45, ease: "power3.in" }, 15.2);
+        tl.to(["#alLow", "#alDebt"], { opacity: 0, scale: 0.6, duration: 0.3, ease: "power2.in", stagger: 0.05 }, 15.15);
+
+        // ================= S5 AUDIENCE =================
+        const sl = qa("#slot div");
+        [15.55, 15.95, 16.35].forEach((t, i) => {
+          tl.fromTo(sl[i], { opacity: 0, y: 150 }, { opacity: 1, y: 0, duration: 0.25, ease: "power4.out" }, t);
+          if (i < 2) tl.to(sl[i], { opacity: 0, y: -150, duration: 0.22, ease: "power3.in" }, t + 0.3);
+        });
+        tl.fromTo("#audL", { opacity: 0, y: 40 }, { opacity: 1, y: 0, duration: 0.35, ease: "power3.out" }, 16.55);
+        tl.fromTo(".mod", { opacity: 0, y: 60, scale: 0.85 }, { opacity: 1, y: 0, scale: 1, duration: 0.35, ease: "back.out(1.8)", stagger: 0.1 }, 15.7);
+        tl.to(["#aud", "#mods"], { opacity: 0, scale: 1.15, filter: "blur(10px)", duration: 0.3, ease: "power2.in" }, 17.82);
+
+        // ================= S6 CTA =================
+        const cp = (n) => qa("#cta .lp" + n);
+        [0, 1, 2, 3, 4].forEach((i) => tl.set(cp(i), { attr: { "stroke-opacity": 0, "fill-opacity": 1 } }, 0));
+        tl.fromTo(qa("#cta .lp"), { scale: 0, rotation: -40, transformOrigin: "50% 50%" }, { scale: 1, rotation: 0, duration: 0.55, ease: "back.out(1.7)", stagger: 0.05 }, 18.0);
+        tl.fromTo(qa("#cta .wl"), { y: 760, opacity: 0 }, { y: 0, opacity: 1, duration: 0.45, ease: "power4.out", stagger: 0.04 }, 18.2);
+        tl.fromTo("#ctaLead", { opacity: 0, y: 30 }, { opacity: 1, y: 0, duration: 0.35, ease: "power3.out" }, 18.5);
+        tl.fromTo("#btn", { opacity: 0, scale: 0.6, y: 40 }, { opacity: 1, scale: 1, y: 0, duration: 0.45, ease: "back.out(1.8)" }, 18.25);
+        tl.fromTo("#btnSheen", { x: 0 }, { x: 1000, duration: 0.8, ease: "power2.inOut" }, 19.0);
+        tl.fromTo("#btnSheen", { x: 0 }, { x: 1000, duration: 0.8, ease: "power2.inOut", immediateRender: false }, 21.0);
+        tl.fromTo("#free", { opacity: 0, scale: 1.8, filter: "blur(12px)" }, { opacity: 1, scale: 1, filter: "blur(0px)", duration: 0.35, ease: "power4.out" }, 19.15);
+        tl.fromTo("#noCard", { opacity: 0, y: 20 }, { opacity: 1, y: 0, duration: 0.3, ease: "power3.out" }, 19.5);
+        tl.fromTo("#finger", { opacity: 0, x: 120, y: 160 }, { opacity: 1, x: 0, y: 0, duration: 0.45, ease: "power3.out" }, 20.1);
+        tl.fromTo("#btn", { scale: 1 }, { keyframes: [{ scale: 0.94, duration: 0.1 }, { scale: 1.04, duration: 0.15 }, { scale: 1, duration: 0.2 }], immediateRender: false }, 20.6);
+        tl.fromTo("#finger", { scale: 1 }, { keyframes: [{ scale: 0.9, duration: 0.1 }, { scale: 1, duration: 0.15 }], immediateRender: false }, 20.6);
+        tl.fromTo("#ripple", { scale: 0, opacity: 0.9 }, { scale: 3.5, opacity: 0, duration: 0.45, ease: "power2.out" }, 20.65);
+        tl.to("#finger", { opacity: 0, y: 60, duration: 0.3, ease: "power2.in" }, 21.2);
+        tl.fromTo("#cta", { y: 0 }, { y: -12, duration: 3.5, ease: "sine.inOut" }, 18.5);
+
+        // ================= Subtitrlar
+        const subs = qa(".sub");
+        subs.forEach((s, i) => {
+          const st = parseFloat(s.getAttribute("data-t"));
+          const sp = s.querySelector("span");
+          tl.fromTo(sp, { y: 18, scale: 0.94, opacity: 0 }, { y: 0, scale: 1, opacity: 1, duration: 0.18, ease: "back.out(2)" }, st);
+          const end = i < subs.length - 1 ? parseFloat(subs[i + 1].getAttribute("data-t")) : 15.25;
+          tl.to(sp, { opacity: 0, duration: 0.08, ease: "none" }, end - 0.08);
+        });
+
+        window.__timelines = window.__timelines || {};
+        window.__timelines["main"] = tl;
+      })();
+    </script>
+  </body>
+</html>
