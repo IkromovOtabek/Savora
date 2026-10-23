@@ -350,7 +350,8 @@ export function helpArticles(trialDays: number): HelpArticle[] {
       title: 'Ma\'lumotlaringiz xavfsizligi',
       summary: 'Alohida baza, shifrlangan parollar, huquqlar va zaxira.',
       paras: [
-        'Har bir do\'kon ma\'lumoti alohida bazada — boshqa do\'kon ko\'ra olmaydi.',
+        'Har bir do\'kon ma\'lumoti alohida bazada — boshqa do\'kon narx, qoldiq, mijoz va sotuvlaringizni ko\'ra olmaydi.',
+        'Istisno — umumiy shtrix-kod lug\'ati: zavod shtrix-kodli tovar nomi lug\'atga tushadi, boshqa do\'kon shu tovarni skanerlasa nom o\'zi chiqadi. Narx, qoldiq va do\'kon nomi u yerga yozilmaydi.',
         'Parollar shifrlangan xesh ko\'rinishida saqlanadi; Savora xodimlari ham parolingizni bilmaydi.',
         'Muntazam zaxira nusxa olinadi. Ma\'lumot sizniki: istalgan vaqtda eksport qilasiz.',
       ],
