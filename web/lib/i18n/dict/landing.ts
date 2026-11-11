@@ -194,7 +194,7 @@ export const uz = {
       { q: 'Bepul sinov tugagach pul yechiladimi?', a: "Yo'q. Ro'yxatdan o'tishda karta talab qilinmaydi. {days} kun tugagach o'zingiz tarif tanlab to'lovni amalga oshirasiz — avtomatik hech narsa yechilmaydi, ma'lumotlaringiz saqlanib turadi." },
       /** {limits} — tariflar bo'yicha chegaralar ro'yxati */
       { q: "Necha filial va xodim qo'sha olaman?", a: "Tarifga bog'liq: {limits}. Istalgan vaqtda tarifni oshirishingiz mumkin." },
-      { q: 'Telefondan ishlaydimi?', a: 'Ha. Savora telefon, planshet va kompyuter brauzerida bir xil ishlaydi, Telegram mini-ilova orqali parolsiz kirish mumkin. Ega va filial uchun mobil ilova ham tayyorlanmoqda.' },
+      { q: 'Telefondan ishlaydimi?', a: 'Ha. Savora telefon, planshet va kompyuter brauzerida bir xil ishlaydi, Telegram mini-ilova orqali parolsiz kirish mumkin. Mobil ilova ham bor — yuklab olish havolalari «Mobil ilova» bo\'limida.' },
       { q: "Eski ma'lumotlarimni (Excel, daftar) ko'chira olamanmi?", a: "Ha. Tovarlar ro'yxati va qarzdorlarni Excel yoki daftardan ko'chirishda jamoamiz bepul yordam beradi." },
       { q: "Qo'llab-quvvatlash qanday?", a: "Telegram va telefon orqali tezkor yordam, Yordam markazida qadamma-qadam qo'llanmalar. Xodimlaringizni o'rgatishga ham yordam beramiz." },
     ],
@@ -554,7 +554,7 @@ export const ru: typeof uz = {
       { q: 'Savora даёт рассрочку или кредит?', a: 'Нет. Savora — программа для учёта. Рассрочку предоставляет сам магазин, платежи поступают напрямую магазину. Мы не берём комиссию с продаж — только ежемесячную подписку.' },
       { q: 'Спишутся ли деньги после окончания пробного периода?', a: 'Нет. При регистрации карта не требуется. По истечении {days} дней вы сами выбираете тариф и оплачиваете — автоматически ничего не списывается, ваши данные сохраняются.' },
       { q: 'Сколько филиалов и сотрудников я могу добавить?', a: 'Зависит от тарифа: {limits}. Повысить тариф можно в любой момент.' },
-      { q: 'Работает ли с телефона?', a: 'Да. Savora одинаково работает в браузере телефона, планшета и компьютера, через мини-приложение Telegram можно входить без пароля. Мобильное приложение для владельца и филиала также готовится.' },
+      { q: 'Работает ли с телефона?', a: 'Да. Savora одинаково работает в браузере телефона, планшета и компьютера, через мини-приложение Telegram можно входить без пароля. Есть и мобильное приложение — ссылки для скачивания в разделе «Мобильное приложение».' },
       { q: 'Могу ли я перенести старые данные (Excel, тетрадь)?', a: 'Да. Наша команда бесплатно поможет перенести список товаров и должников из Excel или тетради.' },
       { q: 'Какая поддержка?', a: 'Оперативная помощь через Telegram и по телефону, пошаговые инструкции в Центре помощи. Поможем и с обучением ваших сотрудников.' },
     ],

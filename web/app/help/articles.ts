@@ -338,7 +338,7 @@ export function helpArticles(trialDays: number): HelpArticle[] {
       paras: [
         'Savora telefon brauzerida to\'liq ishlaydi. Bosh ekranga qo\'shsangiz (Ulashish → «Bosh ekranga qo\'shish»), ilova kabi ochiladi.',
         'Telegram mini-ilova: botda «Savora\'ni ochish» tugmasi — parol kiritmasdan kabinetga kirasiz (hisob bog\'langan bo\'lsa).',
-        'Mobil ilova (iOS va Android) — ega va filial uchun: bugungi tushum, ombor, sotuvlar, nasiya, skaner. Do\'konlarda paydo bo\'lgach, havola shu yerda bo\'ladi.',
+        'Mobil ilova (iOS va Android) — ega va filial uchun: bugungi tushum, ombor, sotuvlar, nasiya, skaner. Yuklab olish: bosh sahifadagi «Mobil ilova» bo\'limi (savora.uz/#ilova) — Android uchun APK, iPhone uchun TestFlight beta.',
       ],
       keywords: 'mobil telefon ilova android ios telegram mini app pwa',
     },

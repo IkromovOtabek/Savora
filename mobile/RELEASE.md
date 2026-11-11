@@ -93,6 +93,33 @@ eas submit -p android --latest              # Google Service Account JSON so'ray
 ```
 `eas.json`da Play track `internal`, holat `draft` — avval ichki test, keyin Console'dan production'ga ko'tariladi.
 
+## Saytga joylash (savora.uz → «Mobil ilova» tugmalari)
+
+Barqaror havolalar: **https://savora.uz/download/android** (APK) va **https://savora.uz/download/ios** (TestFlight/App Store'ga yo'naltiradi). Landing tugmalari shularga ishora qiladi; manba bo'lmasa tugma «Tez kunda».
+
+> EAS artefakt havolalari (`expo.dev/artifacts/...apk`) **~14 kundan keyin o'chadi** (404) — saytga to'g'ridan-to'g'ri qo'ymang. APK serverda saqlanadi.
+
+**Android (har APK relizda):**
+
+1. Mac'da: `cd mobile && npx --yes eas-cli@latest build -p android --profile preview` → oxirida `.apk` havolasi chiqadi.
+2. Serverda (havola 14 kun ichida ishlaydi; `mv` — yarim yozilgan faylni hech kim olmasligi uchun):
+   ```bash
+   mkdir -p /root/savora-downloads
+   curl -fL -o /root/savora-downloads/savora.apk.tmp "<EAS .apk havolasi>"
+   mv /root/savora-downloads/savora.apk.tmp /root/savora-downloads/savora.apk
+   ```
+3. Faqat birinchi marta: `web/.env` → `MOBILE_DOWNLOADS_DIR=/root/savora-downloads` (eski `MOBILE_ANDROID_URL` ni bo'shating), so'ng `pm2 reload savora-b && sleep 10 && pm2 reload savora-a`. Keyingi relizlarda faylni almashtirish kifoya — reload ham shart emas.
+
+Papka repo va `web/public` dan **tashqarida** bo'lsin (deploy uni o'chirmasin, git'ga tushmasin).
+
+**iPhone (bir marta):** App Store Connect → Savora → TestFlight → **External Testing** → guruh yarating → buildni qo'shing → Apple beta ko'rigiga yuboring (demo login kerak, odatda 1 kun) → **Enable Public Link** → `https://testflight.apple.com/join/...` havolani `web/.env` → `MOBILE_IOS_URL=` ga yozing → `pm2 reload`. App Store'ga chiqqach shu qiymatni App Store havolasiga almashtirasiz.
+
+**Tekshiruv:**
+```bash
+curl -sI https://savora.uz/download/android | grep -iE "^HTTP|content-type|content-length"   # 200, application/vnd.android.package-archive
+curl -sI https://savora.uz/download/ios | grep -iE "^HTTP|location"                          # 302 → testflight.apple.com
+```
+
 ## Tez-tez uchraydigan muammolar
 
 | Belgi | Sabab / yechim |

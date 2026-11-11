@@ -11,6 +11,7 @@ import { BUSINESS_TYPES, BUSINESS_TYPE_IDS, TERMS } from '@/lib/businessTypes';
 import { presetFor } from '@/lib/businessPresets';
 import { PQ294_MAX_MONTHS, PQ294_MAX_BHM, PQ294_MAX_AMOUNT, PQ294_MAX_EXTRA_PCT_YEAR } from '@/lib/pq294';
 import { getI18n } from '@/lib/i18n/server';
+import { mobileDownloadLinks } from '@/lib/mobileApp';
 import { tr, fmtDayMonth } from '@/lib/i18n/fmt';
 import Icon from '@/components/icons/Icon';
 import ProductShowcase from '@/components/landing/ProductShowcase';
@@ -49,9 +50,6 @@ const P = {
   apple: <><path d="M16.5 13.2c0-2.3 1.9-3.4 2-3.5a4.3 4.3 0 0 0-3.4-1.8c-1.4-.2-2.8.8-3.5.8s-1.8-.8-3-.8A4.5 4.5 0 0 0 4.8 10.3c-1.6 2.8-.4 6.9 1.1 9.1.8 1.1 1.7 2.3 2.9 2.3s1.6-.7 3-.7 1.8.7 3 .7 2-1.1 2.8-2.2c.9-1.3 1.2-2.5 1.3-2.6-.1 0-2.4-.9-2.4-3.7zM14.3 6.1A4 4 0 0 0 15.2 3a4.2 4.2 0 0 0-2.7 1.4 3.9 3.9 0 0 0-1 2.9 3.4 3.4 0 0 0 2.8-1.2z" /></>,
 };
 
-/** Mobil ilova havolalari (server env). Bo'sh bo'lsa tugma «Tez kunda» bo'ladi — halol holat. */
-const MOBILE_ANDROID_URL = process.env.MOBILE_ANDROID_URL || '';
-const MOBILE_IOS_URL = process.env.MOBILE_IOS_URL || '';
 
 /** Nasiya oqimi qadamlari ikonkalari — matnlar lug'atda (d.landing.flow.steps) */
 const FLOW_ICONS = [P.cart, P.cal, P.sign, P.bell];
@@ -97,6 +95,8 @@ export default async function LandingPage() {
 
   const reviews = await getLatestReviews(6);
   const presets = await getEffectivePlanPresets();
+  /** Mobil ilova tugmalari — manba yo'q bo'lsa «Tez kunda» (halol holat) */
+  const mobileLinks = mobileDownloadLinks();
   const plans = PLANS_STATIC.map(({ tier, featured }) => {
     const p = presets[tier];
     return { name: p.label, desc: p.description, price: money(p.monthlyPrice), isFree: p.monthlyPrice === 0, featured, feats: p.marketingFeatures };
@@ -408,7 +408,7 @@ export default async function LandingPage() {
 
       <Faq trialDays={TRIAL_DAYS} plans={planLimits} />
 
-      {/* MOBIL ILOVA — havola env'da bo'lmasa «Tez kunda» */}
+      {/* MOBIL ILOVA — /download/* (lib/mobileApp); manba bo'lmasa «Tez kunda» */}
       <section className="lp-sec lp-sec--alt" id="ilova">
         <div className="lp-wrap">
           <div className="lp-head lp-reveal">
@@ -418,15 +418,15 @@ export default async function LandingPage() {
           </div>
           <div className="lp-dl">
             {[
-              { key: 'android', icon: P.android, t: L.mobileApp.android, d: L.mobileApp.androidD, btn: L.mobileApp.androidBtn, href: MOBILE_ANDROID_URL },
-              { key: 'ios', icon: P.apple, t: L.mobileApp.ios, d: L.mobileApp.iosD, btn: L.mobileApp.iosBtn, href: MOBILE_IOS_URL },
+              { key: 'android', icon: P.android, t: L.mobileApp.android, d: L.mobileApp.androidD, btn: L.mobileApp.androidBtn, href: mobileLinks.android },
+              { key: 'ios', icon: P.apple, t: L.mobileApp.ios, d: L.mobileApp.iosD, btn: L.mobileApp.iosBtn, href: mobileLinks.ios },
             ].map((s) => (
               <div key={s.key} className="lp-tile lp-dl-card lp-reveal">
                 <span className="ic"><Svg>{s.icon}</Svg></span>
                 <h3>{s.t}</h3>
                 <p>{s.d}</p>
                 {s.href
-                  ? <a href={s.href} className="lp-btn lp-btn--f" rel="noopener">{s.btn}</a>
+                  ? <a href={s.href} className="lp-btn lp-btn--f" rel="nofollow">{s.btn}</a>
                   : <span className="lp-btn lp-btn--g" aria-disabled="true">{L.mobileApp.soon}</span>}
               </div>
             ))}
