@@ -69,6 +69,8 @@
 .st-imei-alert a { color: inherit; font-weight: 700; text-decoration: underline; text-underline-offset: 3px; white-space: nowrap; }
 .st-noimei { margin-left: 6px; padding: 1px 7px; font-size: 11px; }
 .st-imei-hint { color: var(--warn); }
+/* «IMEI kiritish» havolasi: yopishqoq toolbar + bo'lim paneli ostida yorliq bilan ko'rinsin */
+.st-detail #imei { scroll-margin-top: 150px; }
 
 /* ==========================================================================
    1. Ombor ro'yxati — /app/products
