@@ -241,6 +241,9 @@
 .st-x { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .st-row-extra .st-x { font-size: 14px; color: var(--ink-2); }
 .st-row-extra .st-x--none { color: var(--ink-3); }
+/* Joy yetmaganda (data-xinline) — nom ostidagi meta qatorida «Mamlakat: UZ» */
+.st-meta-x { display: none; }
+.st-list-wrap[data-xinline] .st-row-meta .st-meta-x { display: inline; }
 .st-cols-pop { max-height: min(70vh, 480px); overflow-y: auto; }
 .st-cols-sep { padding: 8px 10px 2px; font-size: 12px; font-weight: 600; color: var(--ink-3); border-top: .5px solid var(--sep); margin-top: 4px; }
 
@@ -632,7 +635,7 @@ a.st-card:focus-visible { outline: 3px solid var(--brand-ring); outline-offset: 
   .st-row > .st-thumb { grid-area: thumb; }
   .st-row > .st-row-main { grid-area: main; align-self: center; }
   .st-row > .st-row-actions { grid-area: act; }
-  .st-row > .st-row-branch, .st-row > .st-row-extra { display: none; }
+  .st-row > .st-row-branch, .st-row > .st-row-extra, .st-row-meta .st-meta-x { display: none !important; }
   .st-row > .st-row-status { grid-area: chips; flex-direction: row; flex-wrap: wrap; align-items: center; align-self: center; }
   .st-row > .st-row-price { grid-area: price; align-self: center; }
   .st-row-meta .st-row-meta-branch { display: inline; }

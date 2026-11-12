@@ -298,7 +298,7 @@ export default async function ProductsPage({
               <span className="st-chk"><input type="checkbox" className="st-check-all" aria-label={t.selectAll} /></span>
             )}
             <span aria-hidden="true" />
-            <span aria-hidden="true">{d.common.product}</span>
+            <span aria-hidden="true" className="st-c-name">{d.common.product}</span>
             <span aria-hidden="true" className="st-c-branch">{d.common.branch}</span>
             <span aria-hidden="true" className="st-c-status">{t.colQtyStatus}</span>
             {extraCols.length > 0 && (
@@ -353,6 +353,11 @@ export default async function ProductsPage({
                       {noImei && <span className="st-pill st-pill--transferred st-pill--plain st-noimei">{t.noImeiPill}</span>}
                       {!scoped && <span className="st-row-meta-branch st-dotsep">{branchName}</span>}
                       <span className="st-dotsep st-meta-date">{fmtDate(p.createdAt) ?? '—'}</span>
+                      {/* Qo'shimcha ustunlar uchun joy yetmasa — shu yerda (ProductListShell → data-xinline) */}
+                      {extraCols.map((n, i) => {
+                        const v = p.extraFields?.find((e) => e.name === n)?.value;
+                        return v ? <span key={n} className="st-x st-meta-x st-dotsep" data-x={i}>{n}: {v}</span> : null;
+                      })}
                     </div>
                   </div>
                   <div className="st-row-branch st-c-branch">

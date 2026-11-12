@@ -15,6 +15,10 @@ const X_STORAGE_KEY = 'savora_stock_xcols';
 const X_DEFAULT_VISIBLE = 3;
 const X_COL_W = 120;
 const X_GAP = 12;
+/** Nom ustuni bundan torayib ketsa — qo'shimcha ustunlar nom ostidagi qatorga tushadi */
+const X_NAME_MIN = 200;
+/** Ro'yxat qatoridagi ustunlar orasi (stock.css → .st-row gap) */
+const ROW_GAP = 14;
 
 function readXShown(): string[] | null {
   try {
@@ -64,8 +68,29 @@ export default function ProductListShell({ columns, extraColumns = [], canBulk, 
   const shownSet = new Set(xShown ?? extraColumns.slice(0, X_DEFAULT_VISIBLE));
   const xVisible = extraColumns.filter((n) => shownSet.has(n)).length;
   const xHiddenCss = extraColumns
-    .map((n, i) => (shownSet.has(n) ? '' : `.st-list-wrap .st-x[data-x="${i}"]{display:none}`))
+    .map((n, i) => (shownSet.has(n) ? '' : `.st-list-wrap .st-x[data-x="${i}"]{display:none!important}`))
     .join('');
+  const xWidth = xVisible * X_COL_W + Math.max(0, xVisible - 1) * X_GAP;
+  const [xInline, setXInline] = useState(false);
+  // Kenglikka qarab: ustun sifatida yoki nom ostida. Hozirgi rejimdagi nom kengligidan
+  // ikkinchi rejimdagisi hisoblanadi — rejim almashganda tebranish bo'lmaydi.
+  useEffect(() => {
+    const root = rootRef.current;
+    if (!root || xVisible === 0) { setXInline(false); return; }
+    const measure = () => {
+      const head = root.querySelector<HTMLElement>('.st-list-head');
+      const nameCell = head?.querySelector<HTMLElement>(':scope > .st-c-name');
+      // Sarlavha yashirin (mobil kartalar) — o'lchab bo'lmaydi; nom kengligi 0 bo'lishi esa mumkin (siqilgan)
+      if (!head || !nameCell || head.getBoundingClientRect().width === 0) return;
+      const w = nameCell.getBoundingClientRect().width;
+      setXInline((inline) => (inline ? w : w + xWidth + ROW_GAP) - xWidth - ROW_GAP < X_NAME_MIN);
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(root);
+    return () => ro.disconnect();
+  }, [xVisible, xWidth]);
+  const xColumns = xVisible > 0 && !xInline;
   // Ustunlar menyusi tashqariga bosilganda yopiladi
   useEffect(() => {
     function onDown(e: PointerEvent) {
@@ -122,8 +147,9 @@ export default function ProductListShell({ columns, extraColumns = [], canBulk, 
       className="st-group st-list-wrap"
       data-hide={hidden.join(' ') || undefined}
       data-bulk={canBulk ? '' : undefined}
-      data-noextra={xVisible === 0 ? '' : undefined}
-      style={xVisible > 0 ? ({ '--c-extra': `${xVisible * X_COL_W + (xVisible - 1) * X_GAP}px` } as CSSProperties) : undefined}
+      data-noextra={xColumns ? undefined : ''}
+      data-xinline={xVisible > 0 && xInline ? '' : undefined}
+      style={xColumns ? ({ '--c-extra': `${xWidth}px` } as CSSProperties) : undefined}
       onChange={onChange}
     >
       {xHiddenCss && <style>{xHiddenCss}</style>}
