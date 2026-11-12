@@ -219,6 +219,7 @@ export const uz = {
     iosD: "Hozircha TestFlight orqali beta: avval App Store'dan TestFlight ilovasini o'rnating, so'ng havolani oching.",
     iosBtn: "TestFlight'da ochish",
     soon: 'Tez kunda',
+    heroAria: 'Mobil ilovani yuklab olish',
   },
   cta: {
     title: 'Nasiyani nazorat qiling, pulni vaqtida oling',
@@ -579,6 +580,7 @@ export const ru: typeof uz = {
     iosD: 'Пока бета через TestFlight: сначала установите TestFlight из App Store, затем откройте ссылку.',
     iosBtn: 'Открыть в TestFlight',
     soon: 'Скоро',
+    heroAria: 'Скачать мобильное приложение',
   },
   cta: {
     title: 'Контролируйте рассрочку, получайте деньги вовремя',

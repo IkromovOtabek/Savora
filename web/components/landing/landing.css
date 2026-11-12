@@ -188,6 +188,17 @@
 .lp-coin-1 { right: 12%; top: 10%; }
 .lp-coin-2 { left: 14%; bottom: 10%; width: 44px; height: 44px; font-size: 16px; animation-delay: -3s; }
 
+/* Hero: simulyatsiya ostidagi yuklab olish tugmalari (tekis, iOS uslubi) */
+.lp-hero-side { min-width: 0; display: flex; flex-direction: column; }
+.lp-hero-dl { align-self: center; display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; margin-top: -4px; animation: lp-rise 1s cubic-bezier(.22, .61, .36, 1) .4s both; }
+.lp-store { display: inline-flex; align-items: center; gap: 10px; min-width: 188px; padding: 10px 18px 10px 14px; border-radius: 14px; background: var(--lp-ink); color: var(--lp-bg); text-decoration: none; transition: opacity .15s; }
+.lp-store:hover { opacity: .86; }
+.lp-store:active { opacity: .55; }
+.lp-store:focus-visible { outline: 3px solid var(--lp-brS); outline-offset: 2px; }
+.lp-store span { display: flex; flex-direction: column; line-height: 1.15; text-align: left; }
+.lp-store small { font-size: .74rem; opacity: .72; }
+.lp-store b { font-size: 1rem; font-weight: 600; white-space: nowrap; }
+
 @media (max-width: 960px) {
   .lp-hero-grid { grid-template-columns: 1fr; gap: 10px; }
   .lp-stage { height: 560px; }
@@ -200,6 +211,8 @@
   .lp-toast-a { left: -2%; top: 8%; }
   .lp-toast-b { right: -2%; bottom: 8%; }
   .lp-stats { gap: 20px; }
+  .lp-hero-dl { flex-direction: column; width: 100%; max-width: 320px; gap: 10px; }
+  .lp-store { justify-content: center; }
 }
 
 /* sohalar lentasi */

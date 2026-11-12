@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { mkdtempSync, rmSync, writeFileSync } from 'fs';
 import { tmpdir } from 'os';
 import path from 'path';
-import { httpsUrl, localApk, mobileDownloadLinks, parseRange, APK_FILE_NAME } from '@/lib/mobileApp';
+import { httpsUrl, stableUrl, localApk, mobileDownloadLinks, parseRange, APK_FILE_NAME } from '@/lib/mobileApp';
 import { GET as androidGET, HEAD as androidHEAD } from '@/app/download/android/route';
 import { GET as iosGET } from '@/app/download/ios/route';
 
@@ -29,6 +29,15 @@ describe('httpsUrl — faqat https havola', () => {
     expect(httpsUrl('javascript:alert(1)')).toBe('');
     expect(httpsUrl('savora.apk')).toBe('');
     expect(httpsUrl(undefined)).toBe('');
+  });
+});
+
+describe('stableUrl — EAS artefakti saytga chiqmaydi', () => {
+  it('expo.dev/artifacts rad, boshqa https qabul', () => {
+    expect(stableUrl('https://expo.dev/artifacts/eas/UeLH-YgWjQjfNc.apk')).toBe('');
+    expect(stableUrl('https://play.google.com/store/apps/details?id=uz.savora.app')).toBe('https://play.google.com/store/apps/details?id=uz.savora.app');
+    expect(stableUrl('https://testflight.apple.com/join/Ka55rhfs')).toBe('https://testflight.apple.com/join/Ka55rhfs');
+    expect(stableUrl('https://expo.dev/accounts/otabekikromov')).toBe('https://expo.dev/accounts/otabekikromov');
   });
 });
 
@@ -67,6 +76,10 @@ describe('parseRange', () => {
 describe('mobileDownloadLinks — landing tugmalari', () => {
   it('manba yo\'q — ikkalasi «Tez kunda»', () => {
     expect(mobileDownloadLinks()).toEqual({ android: '', ios: '' });
+  });
+  it('env\'da eskirgan EAS havolasi qolsa ham tugma ochilmaydi', () => {
+    vi.stubEnv('MOBILE_ANDROID_URL', 'https://expo.dev/artifacts/eas/UeLH-YgWjQjfNc.apk');
+    expect(mobileDownloadLinks().android).toBe('');
   });
   it('APK fayl va iOS havola bor — barqaror ichki yo\'llar', () => {
     writeFileSync(path.join(dir, APK_FILE_NAME), 'PK');

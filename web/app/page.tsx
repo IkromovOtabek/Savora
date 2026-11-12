@@ -167,7 +167,23 @@ export default async function LandingPage() {
               <div><b>{L.hero.stat247}</b><span>{L.hero.stat247L}</span></div>
             </div>
           </div>
-          <HeroStage />
+          <div className="lp-hero-side">
+            <HeroStage />
+            {/* Simulyatsiya ostida — ilovani yuklab olish (manbasi bor tugmalargina) */}
+            {(mobileLinks.android || mobileLinks.ios) && (
+              <nav className="lp-hero-dl" aria-label={L.mobileApp.heroAria}>
+                {[
+                  { key: 'android', icon: P.android, top: L.mobileApp.android, main: L.mobileApp.androidBtn, href: mobileLinks.android },
+                  { key: 'ios', icon: P.apple, top: L.mobileApp.ios, main: L.mobileApp.iosBtn, href: mobileLinks.ios },
+                ].filter((s) => s.href).map((s) => (
+                  <a key={s.key} href={s.href} className="lp-store" rel="nofollow">
+                    <Svg size={26}>{s.icon}</Svg>
+                    <span><small>{s.top}</small><b>{s.main}</b></span>
+                  </a>
+                ))}
+              </nav>
+            )}
+          </div>
         </div>
       </section>
 

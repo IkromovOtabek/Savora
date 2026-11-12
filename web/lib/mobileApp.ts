@@ -31,6 +31,18 @@ export function httpsUrl(value: string | undefined): string {
   }
 }
 
+/**
+ * Saytga qo'yib bo'ladigan havola: https va EAS artefakti emas
+ * (`expo.dev/artifacts/...` ~14 kunda 404 bo'ladi — env'da qolib ketsa tugma buzilmasin).
+ */
+export function stableUrl(value: string | undefined): string {
+  const url = httpsUrl(value);
+  if (!url) return '';
+  const u = new URL(url);
+  const isEasArtifact = /(^|\.)expo\.dev$/.test(u.hostname) && u.pathname.startsWith('/artifacts/');
+  return isEasArtifact ? '' : url;
+}
+
 /** Serverdagi APK fayli (bo'lmasa yoki bo'sh bo'lsa — null) */
 export function localApk(dir: string | undefined = process.env.MOBILE_DOWNLOADS_DIR): LocalApk | null {
   if (!dir?.trim()) return null;
@@ -47,12 +59,12 @@ export function localApk(dir: string | undefined = process.env.MOBILE_DOWNLOADS_
 export function androidSource(): { kind: 'file'; apk: LocalApk } | { kind: 'url'; url: string } | null {
   const apk = localApk();
   if (apk) return { kind: 'file', apk };
-  const url = httpsUrl(process.env.MOBILE_ANDROID_URL);
+  const url = stableUrl(process.env.MOBILE_ANDROID_URL);
   return url ? { kind: 'url', url } : null;
 }
 
 export function iosUrl(): string {
-  return httpsUrl(process.env.MOBILE_IOS_URL);
+  return stableUrl(process.env.MOBILE_IOS_URL);
 }
 
 /** Landing tugmalari: barqaror ichki yo'l yoki '' («Tez kunda») */
