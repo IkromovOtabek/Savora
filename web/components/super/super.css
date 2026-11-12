@@ -548,7 +548,7 @@ a.sa-cell:active, label.sa-cell:active { background: var(--sa-fill); }
 .sa-tabs-list.ux-scrollx, .sa-seg--scroll.ux-scrollx { contain: none; width: max-content; min-width: 0; padding-right: 3px; -webkit-mask-image: none; mask-image: none; }
 /* Cheklov konteynerda: u doim to'liq kenglikdagi blok, shuning uchun tablar sahifani (mobilda) kengaytirmaydi */
 .sa-tabs-bar { contain: inline-size; }
-.sa-tabpanel { min-width: 0; max-width: 920px; }
+.sa-tabpanel { min-width: 0; max-width: 920px; display: grid; gap: 16px; align-content: start; }
 .sa-tabpanel[hidden] { display: none; }
 .sa-panel-h { display: flex; align-items: center; gap: 12px; padding: 14px 16px; }
 
@@ -694,3 +694,16 @@ a.sa-cell:active, label.sa-cell:active { background: var(--sa-fill); }
 @media (max-width: 1180px) { .sa-mon-cron { grid-template-columns: repeat(2, minmax(0, 1fr)); } .sa-shell .ux-strip.sa-strip-6 { --ux-cols: 3; } }
 @media (max-width: 860px) { .sa-mon-nav { top: 52px; } }
 @media (max-width: 560px) { .sa-mon-cron { grid-template-columns: minmax(0, 1fr); } .sa-mon-check { grid-template-columns: auto minmax(0, 1fr); } }
+
+/* ── Login/parol tahrirlagich (do'kon → Xodimlar) ─────────────────── */
+.sa-login + .sa-login { box-shadow: inset 0 .5px 0 var(--sa-sep); }
+.sa-login .sa-cell + .sa-cell::before { display: none; }
+.sa-login-form { border-top: .5px solid var(--sa-sep); padding-top: 14px; gap: 12px; background: var(--sa-card); }
+.sa-login-pass { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.sa-login-pass .sa-hint { flex-basis: 100%; }
+.sa-login-check { display: flex; align-items: center; gap: 8px; font-size: 14px; color: var(--ink-2); cursor: pointer; }
+.sa-login-check input { width: 18px; height: 18px; accent-color: var(--brand); }
+
+/* ── Xavfli zona (do'konni o'chirish) ─────────────────── */
+.sa-danger-lead { margin: 0; font-size: 14px; line-height: 1.5; color: var(--ink-1); text-wrap: pretty; }
+.sa-btn--strong { background: var(--sa-bad); color: #fff; }

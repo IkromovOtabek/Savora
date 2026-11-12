@@ -289,6 +289,8 @@ export const EVENT_LABELS: Record<SecurityEventType, string> = {
   cron_forbidden: 'Cron: ruxsatsiz',
   telegram_forbidden: 'Webhook: ruxsatsiz',
   tg_login_fail: 'Mini App xato login',
+  org_deleted: "Do'kon o'chirildi",
+  login_changed: "Login/parol o'zgartirildi",
 };
 
 export const SUSPICIOUS: SecurityEventType[] = ['login_fail', 'login_blocked', 'super_login_fail', 'cron_forbidden', 'telegram_forbidden', 'tg_login_fail'];

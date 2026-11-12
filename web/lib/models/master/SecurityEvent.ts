@@ -12,6 +12,8 @@ export const SECURITY_EVENT_TYPES = [
   'cron_forbidden',    // /api/cron/* noto'g'ri yoki yo'q CRON_SECRET bilan
   'telegram_forbidden',// Telegram webhook noto'g'ri secret bilan
   'tg_login_fail',     // Mini App login xato
+  'org_deleted',       // super admin do'konni butunlay o'chirdi
+  'login_changed',     // super admin do'kon loginini/parolini o'zgartirdi
 ] as const;
 export type SecurityEventType = (typeof SECURITY_EVENT_TYPES)[number];
 

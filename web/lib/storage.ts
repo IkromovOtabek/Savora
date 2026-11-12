@@ -88,6 +88,40 @@ export async function saveFile(
 }
 
 /**
+ * Bitta papkadagi (tenant — dbName) BARCHA fayllarni o'chiradi — do'kon butunlay o'chirilganda.
+ * Hech qachon throw qilmaydi; o'chirilgan obyektlar sonini qaytaradi (lokalda -1 — papka o'chdi).
+ */
+export async function deleteFolder(folder: string): Promise<number> {
+  const safeFolder = folder.replace(/[^a-zA-Z0-9_-]/g, '_');
+  if (!safeFolder || safeFolder.length < 3) return 0;
+  try {
+    if (isRemoteStorageEnabled()) {
+      const { ListObjectsV2Command, DeleteObjectsCommand } = await import('@aws-sdk/client-s3');
+      const s3 = await getS3();
+      let deleted = 0;
+      let token: string | undefined;
+      do {
+        const page = await s3.send(
+          new ListObjectsV2Command({ Bucket: R2_BUCKET, Prefix: `${safeFolder}/`, ContinuationToken: token, MaxKeys: 1000 }),
+        );
+        const keys = (page.Contents ?? []).map((o) => o.Key).filter((k): k is string => !!k);
+        if (keys.length) {
+          await s3.send(new DeleteObjectsCommand({ Bucket: R2_BUCKET, Delete: { Objects: keys.map((Key) => ({ Key })), Quiet: true } }));
+          deleted += keys.length;
+        }
+        token = page.IsTruncated ? page.NextContinuationToken : undefined;
+      } while (token);
+      return deleted;
+    }
+    const { rm } = await import('fs/promises');
+    await rm(path.join(process.cwd(), 'public', 'uploads', safeFolder), { recursive: true, force: true });
+    return -1;
+  } catch {
+    return 0;
+  }
+}
+
+/**
  * Faylni o'chiradi. URL yoki saqlangan key qabul qiladi.
  */
 export async function deleteFile(urlOrKey: string): Promise<void> {

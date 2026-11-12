@@ -7,6 +7,7 @@ import { BUSINESS_TYPE_IDS } from '@/lib/businessTypes';
 import { useDict } from '@/lib/i18n/client';
 import PriceInput from '@/components/ui/PriceInput';
 import { Alert, Sq } from './ui';
+import OrgAdminPasswordReset from './OrgAdminPasswordReset';
 
 interface Props {
   orgId: string;
@@ -67,6 +68,7 @@ export default function OrgEditForm({ orgId, initial }: Props) {
             <span className="sa-cell-t"><b>{s.passwordHashed}</b></span>
             <code className="sa-code">{initial.passwordHash ? '••••••••' : s.notSet}</code>
           </div>
+          {initial.passwordHash && <OrgAdminPasswordReset orgId={orgId} username={initial.adminUsername} />}
         </div>
         <div className="sa-gfoot">{s.loginFoot}</div>
       </div>

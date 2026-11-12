@@ -64,10 +64,17 @@ export interface CreateOrganizationInput {
   isTrial?: boolean;
 }
 
-export async function createOrganization(input: CreateOrganizationInput): Promise<{ orgId: string; slug: string; adminUsername: string }> {
+export async function createOrganization(input: CreateOrganizationInput): Promise<{
+  orgId: string;
+  slug: string;
+  adminUsername: string;
+  /** Parol berilmagan bo'lsa avtomatik yaratilgan vaqtinchalik parol — faqat bir marta ko'rsatiladi */
+  tempPassword?: string;
+}> {
   const name = input.name.trim();
   let adminUsername = (input.adminUsername || '').trim().toLowerCase();
   let adminPassword = input.adminPassword || '';
+  const passwordGenerated = !adminPassword;
 
   if (!name) throw new Error('Do\'kon nomi kiritilishi shart.');
 
@@ -198,7 +205,41 @@ export async function createOrganization(input: CreateOrganizationInput): Promis
     throw new Error('Login registriga yozishda xatolik. Qayta urinib ko\'ring.');
   }
 
-  return { orgId: String(org._id), slug, adminUsername };
+  return {
+    orgId: String(org._id),
+    slug,
+    adminUsername,
+    ...(passwordGenerated ? { tempPassword: adminPassword } : {}),
+  };
+}
+
+/**
+ * Super Admin — do'kon adminiga yangi vaqtinchalik parol beradi (egasi parolni
+ * bilmasa/unutsa va Telegram ulanmagan bo'lsa). Eski parol, tiklash kodi va barcha
+ * ochiq sessiyalar bekor bo'ladi; birinchi kirishda parolni o'zgartirish majburiy.
+ * Parolning o'zi saqlanmaydi — faqat qaytariladi (bir marta ko'rsatish uchun).
+ */
+export async function resetOrgAdminPassword(orgId: string): Promise<{ username: string; password: string; slug: string }> {
+  const { Organization } = await getMasterModels();
+  const org = await Organization.findById(orgId).select('slug dbName adminUsername').lean().catch(() => null);
+  if (!org) throw new Error('Do\'kon topilmadi.');
+
+  const { User } = await getTenantModels(org.dbName);
+  const user =
+    (org.adminUsername ? await User.findOne({ username: org.adminUsername, role: 'admin', active: true }).exec() : null) ??
+    (await User.findOne({ role: 'admin', active: true }).sort({ createdAt: 1 }).exec());
+  if (!user) throw new Error('Do\'kon admini topilmadi.');
+
+  const password = generateTempPassword();
+  user.password = password;
+  user.mustChangePassword = true;
+  user.tokenVersion = (user.tokenVersion ?? 0) + 1;
+  user.resetCodeHash = undefined;
+  user.resetCodeExpiresAt = undefined;
+  user.resetAttempts = undefined;
+  await user.save();
+
+  return { username: user.username, password, slug: org.slug };
 }
 
 /** Super Admin — faqat ko'rish (login + bcrypt hash) */

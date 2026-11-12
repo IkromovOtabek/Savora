@@ -252,7 +252,7 @@ export function AuditPanel({ checks, summary }: { checks: Check[]; summary: Moni
 
 /* ── 6. Xavfsizlik hodisalari ──────────────────────────── */
 
-const EVENT_TONE: Partial<Record<string, PillTone>> = { login_ok: 'ok', super_login_ok: 'br', reset_done: 'ok', login_blocked: 'bad', cron_forbidden: 'bad', telegram_forbidden: 'bad', super_login_fail: 'bad', login_fail: 'warn', tg_login_fail: 'warn', reset_request: 'gold' };
+const EVENT_TONE: Partial<Record<string, PillTone>> = { login_ok: 'ok', super_login_ok: 'br', reset_done: 'ok', login_blocked: 'bad', cron_forbidden: 'bad', telegram_forbidden: 'bad', super_login_fail: 'bad', login_fail: 'warn', tg_login_fail: 'warn', reset_request: 'gold', org_deleted: 'bad', login_changed: 'gold' };
 
 export function EventsPanel({ sec }: { sec: MonitoringSnapshot['security'] }) {
   const s = sec.data;

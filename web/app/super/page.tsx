@@ -9,7 +9,7 @@ import { getDict } from '@/lib/i18n/server';
 import { tr } from '@/lib/i18n/fmt';
 import Icon from '@/components/icons/Icon';
 import OrgList, { type OrgListRow } from '@/components/super/OrgList';
-import { Avatar, Chevron, HeroStat, Kpi, PageTitle, Pill } from '@/components/super/ui';
+import { Alert, Avatar, Chevron, HeroStat, Kpi, PageTitle, Pill } from '@/components/super/ui';
 
 export async function generateMetadata() {
   const d = await getDict();
@@ -24,7 +24,7 @@ function fmtSum(n: number) {
   return new Intl.NumberFormat('uz-UZ').format(Math.round(n));
 }
 
-export default async function SuperDashboard({ searchParams }: { searchParams: Promise<{ f?: string }> }) {
+export default async function SuperDashboard({ searchParams }: { searchParams: Promise<{ f?: string; deleted?: string }> }) {
   const sp = await searchParams;
   await requireSuperAdmin();
   const d = await getDict();
@@ -73,6 +73,7 @@ export default async function SuperDashboard({ searchParams }: { searchParams: P
   return (
     <>
       <PageTitle title={s.orgs.title} sub={s.orgs.sub} />
+      {sp?.deleted && <Alert tone="ok">{tr(s.orgDelete.deletedNotice, { name: sp.deleted.slice(0, 80) })}</Alert>}
 
       <div className="sa-hero-row">
         <HeroStat

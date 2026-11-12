@@ -1,20 +1,63 @@
 'use client';
 
 import { useActionState, useState } from 'react';
-import { createOrganizationAction } from '@/app/actions/organizations';
+import Link from 'next/link';
+import { createOrganizationAction, type CreatedOrgCredentials } from '@/app/actions/organizations';
 import { normalizeSlug } from '@/lib/slug';
 import { PLAN_PRESETS } from '@/lib/plans';
 import { BUSINESS_TYPE_IDS } from '@/lib/businessTypes';
 import { useDict } from '@/lib/i18n/client';
 import { tr } from '@/lib/i18n/fmt';
 import PriceInput from '@/components/ui/PriceInput';
-import { Alert, PageTitle } from '@/components/super/ui';
+import { Alert, PageTitle, Sq } from '@/components/super/ui';
+import CopyButton from '@/components/super/CopyButton';
+
+/** Yaratilgandan keyingi ekran: login + vaqtinchalik parol (faqat shu yerda bir marta ko'rinadi) */
+function CreatedCredentials({ created }: { created: CreatedOrgCredentials }) {
+  const d = useDict();
+  const s = d.superPanel.newOrg;
+  const message = tr(s.doneMessage, { url: created.loginUrl, login: created.username, password: created.password });
+  const rows = [
+    { icon: 'globe' as const, tone: 'b' as const, label: s.doneLoginUrl, value: created.loginUrl },
+    { icon: 'user' as const, tone: 'v' as const, label: s.doneLogin, value: created.username },
+    { icon: 'key' as const, tone: 'g' as const, label: s.donePassword, value: created.password },
+  ];
+
+  return (
+    <div className="sa-stack" style={{ maxWidth: 720 }}>
+      <PageTitle title={s.doneTitle} sub={s.doneSub} back={{ href: '/super', label: d.superPanel.orgs.title }} />
+      <Alert tone="warn">{s.doneWarn}</Alert>
+      <section className="sa-section">
+        <div className="sa-group">
+          {rows.map((r) => (
+            <div key={r.label} className="sa-cell sa-cell--ic">
+              <Sq icon={r.icon} tone={r.tone} />
+              <span className="sa-cell-t"><b>{r.label}</b></span>
+              <code className="sa-code" style={{ userSelect: 'all' }}>{r.value}</code>
+              <CopyButton text={r.value} label={r.label} />
+            </div>
+          ))}
+          <div className="sa-cell">
+            <span className="sa-cell-t"><b>{s.doneCopyAll}</b></span>
+            <CopyButton text={message} label={s.doneCopyAll} />
+          </div>
+        </div>
+        <div className="sa-gfoot">{s.doneFoot}</div>
+      </section>
+      <Link href={`/super/organizations/${created.orgId}?created=1`} className="sa-btn sa-btn--filled sa-btn--lg sa-btn--block">
+        {s.doneOpen}
+      </Link>
+    </div>
+  );
+}
 
 export default function CreateOrgForm() {
   const [state, formAction, isPending] = useActionState(createOrganizationAction, null);
   const [planTier, setPlanTier] = useState('pro');
   const d = useDict();
   const s = d.superPanel.newOrg;
+
+  if (state?.created) return <CreatedCredentials created={state.created} />;
 
   return (
     <div className="sa-stack" style={{ maxWidth: 720 }}>

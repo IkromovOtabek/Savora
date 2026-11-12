@@ -13,6 +13,7 @@ import OrgTenantSummary from '@/components/super/OrgTenantSummary';
 import OrgTabs from '@/components/super/OrgTabs';
 import Icon, { type IconName } from '@/components/icons/Icon';
 import OrgPermissionsMatrix from '@/components/super/OrgPermissionsMatrix';
+import OrgDeleteZone from '@/components/super/OrgDeleteZone';
 import { Alert, OrgStatusPill, PageTitle } from '@/components/super/ui';
 import { daysUntilExpiry } from '@/lib/models/master/Organization';
 
@@ -98,29 +99,34 @@ export default async function OrgDetailPage({
             label: t.tabSettings,
             icon: 'settings',
             content: (
-              <Panel title={t.settingsTitle} sub={t.settingsSub} icon="settings" iconBg="#8a93a8">
-                <OrgEditForm
-                  orgId={String(org._id)}
-                  initial={{
-                    name: org.name,
-                    ownerName: org.ownerName ?? '',
-                    phone: org.phone ?? '',
-                    status: org.status,
-                    planTier: org.plan.tier,
-                    businessType: org.businessType ?? 'general',
-                    expiresAt: expiresValue,
-                    slug: org.slug,
-                    dbName: org.dbName,
-                    maxFilial: org.plan.maxFilial,
-                    maxUsers: org.plan.maxUsers,
-                    monthlyPayment: org.plan.monthlyPayment ?? plan.monthlyPayment,
-                    agreementNote: org.plan.agreementNote ?? '',
-                    adminUsername: credentials.username,
-                    // Xesh brauzerga yuborilmaydi — faqat o'rnatilganmi yoki yo'qligi
-                    passwordHash: credentials.passwordHash ? 'set' : '',
-                  }}
-                />
-              </Panel>
+              <>
+                <Panel title={t.settingsTitle} sub={t.settingsSub} icon="settings" iconBg="#8a93a8">
+                  <OrgEditForm
+                    orgId={String(org._id)}
+                    initial={{
+                      name: org.name,
+                      ownerName: org.ownerName ?? '',
+                      phone: org.phone ?? '',
+                      status: org.status,
+                      planTier: org.plan.tier,
+                      businessType: org.businessType ?? 'general',
+                      expiresAt: expiresValue,
+                      slug: org.slug,
+                      dbName: org.dbName,
+                      maxFilial: org.plan.maxFilial,
+                      maxUsers: org.plan.maxUsers,
+                      monthlyPayment: org.plan.monthlyPayment ?? plan.monthlyPayment,
+                      agreementNote: org.plan.agreementNote ?? '',
+                      adminUsername: credentials.username,
+                      // Xesh brauzerga yuborilmaydi — faqat o'rnatilganmi yoki yo'qligi
+                      passwordHash: credentials.passwordHash ? 'set' : '',
+                    }}
+                  />
+                </Panel>
+                <Panel title={s.orgDelete.title} sub={s.orgDelete.sub} icon="trash" iconBg="#d0362b">
+                  <OrgDeleteZone orgId={String(org._id)} slug={org.slug} />
+                </Panel>
+              </>
             ),
           },
           {
@@ -163,8 +169,8 @@ export default async function OrgDetailPage({
             label: t.tabTeam,
             icon: 'users',
             content: (
-              <Panel title={t.teamTitle} sub={t.viewOnly} icon="users" iconBg="#1287a8">
-                <OrgTenantSummary dbName={org.dbName} />
+              <Panel title={t.teamTitle} sub={t.teamSub} icon="users" iconBg="#1287a8">
+                <OrgTenantSummary orgId={String(org._id)} dbName={org.dbName} />
               </Panel>
             ),
           },
