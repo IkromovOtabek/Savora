@@ -19,6 +19,7 @@ import { tr } from '@/lib/i18n/fmt';
 import { fmtQty, isFractionalUnit, parseQty, priceTimesQty } from '@/lib/qty';
 import { PRODUCT_UNITS, type ProductFieldKey, type ProductFieldSpec, type ProductUnit } from '@/lib/businessTypes';
 import { flattenCategories, LEGACY_CATEGORY_VALUE, type CategoryItem } from '@/lib/productCatalog';
+import ExtraFieldsEditor from '@/components/tenant/ExtraFieldsEditor';
 
 interface BranchOption { id: string; name: string }
 
@@ -62,6 +63,8 @@ interface Props {
     bundleItems?: { productId: string; qty: number }[];
     name: string;
     imei: string;
+    /** IMEI hali kiritilmagan (Excel importi) — maydon bo'sh ko'rsatiladi, bo'sh qoldirish mumkin */
+    imeiPending?: boolean;
     barcode?: string;
     color: string;
     branchId: string;
@@ -83,7 +86,11 @@ interface Props {
     supplierId?: string;
     /** Yo'nalish maydonlari: qiymatlar input ko'rinishida (sana — YYYY-MM-DD) */
     extra?: Partial<Record<ProductFieldKey, string>>;
+    /** Qo'shimcha ustunlar (Excel importi yoki qo'lda) */
+    extraFields?: { name: string; value: string }[];
   };
+  /** Do'kondagi mavjud qo'shimcha ustun nomlari — taklif uchun */
+  extraNames?: string[];
 }
 
 export default function ProductForm({
@@ -103,6 +110,7 @@ export default function ProductForm({
   brands = [],
   bundleCandidates = [],
   initial,
+  extraNames = [],
 }: Props) {
   const d = useDict();
   const t = d.stock.form;
@@ -275,7 +283,8 @@ export default function ProductForm({
                   <div className="form-row">
                     <div className="auth-field">
                       <label htmlFor="imei">{t.imeiLabel}</label>
-                      <input id="imei" name="imei" type="text" required defaultValue={initial?.imei} disabled={isPending} className="imei-input" placeholder="353456789012345" inputMode="numeric" autoComplete="off" />
+                      <input id="imei" name="imei" type="text" required={!initial?.imeiPending} defaultValue={initial?.imeiPending ? '' : initial?.imei} disabled={isPending} className="imei-input" placeholder="353456789012345" inputMode="numeric" autoComplete="off" aria-describedby={initial?.imeiPending ? 'imei-pending-hint' : undefined} />
+                      {initial?.imeiPending && <span id="imei-pending-hint" className="field-hint st-imei-hint">{t.imeiPendingHint}</span>}
                     </div>
                     <div className="auth-field">
                       <label htmlFor="color">{t.colorLabel}</label>
@@ -656,6 +665,7 @@ export default function ProductForm({
                   <label htmlFor="notes">{d.common.note}</label>
                   <textarea id="notes" name="notes" rows={3} defaultValue={initial?.notes} disabled={isPending} className="text-area" />
                 </div>
+                <ExtraFieldsEditor initial={initial?.extraFields} suggestions={extraNames} disabled={isPending} />
               </div>
             </div>
           </section>

@@ -1,0 +1,145 @@
+/* Excel'dan import (app/app/products/import) — stock.css ustiga */
+.im-page { max-width: 920px; display: flex; flex-direction: column; }
+.im-page > .st-alert { margin-bottom: 12px; }
+
+/* Qadamlar */
+.im-steps { list-style: none; display: flex; gap: 6px; margin: 0 0 18px; padding: 0; flex-wrap: wrap; }
+.im-steps li {
+  display: inline-flex; align-items: center; gap: 7px; min-height: 34px; padding: 0 12px 0 5px;
+  border-radius: var(--r-pill); font-size: 14px; font-weight: 600; color: var(--ink-3); background: var(--fill-2);
+}
+.im-step-n {
+  display: inline-grid; place-items: center; width: 24px; height: 24px; border-radius: 50%;
+  background: var(--fill); color: var(--ink-2); font-size: 12px; font-weight: 700;
+}
+.im-steps li[aria-current="step"] { color: var(--brand); background: var(--brand-soft); }
+.im-steps li[aria-current="step"] .im-step-n { background: var(--brand-fill, var(--brand)); color: var(--on-brand); }
+.im-steps li.im-step--done { color: var(--accent); }
+.im-steps li.im-step--done .im-step-n { background: var(--accent-soft); color: var(--accent); }
+
+/* 1. Fayl tashlash maydoni */
+.im-drop {
+  display: grid; justify-items: center; gap: 8px; padding: 40px 20px; text-align: center; cursor: pointer;
+  border-radius: var(--r-lg); background: var(--surface); box-shadow: var(--shadow-sm);
+  outline: 2px dashed var(--sep); outline-offset: -10px; transition: outline-color .15s, background-color .15s;
+}
+.im-drop:hover, .im-drop--over { outline-color: var(--brand); background: var(--brand-soft); }
+.im-drop:focus-within { outline-color: var(--brand); }
+.im-drop--busy { cursor: progress; opacity: .7; }
+.im-drop b { font-size: 17px; color: var(--ink-1); }
+.im-drop small { font-size: 13px; color: var(--ink-3); }
+.im-drop-ic { display: grid; place-items: center; width: 56px; height: 56px; border-radius: 16px; background: var(--brand-soft); color: var(--brand); transform: rotate(180deg); }
+.im-drop-btn { margin-top: 6px; pointer-events: none; }
+.im-known { margin-top: 22px; padding: 0 4px; }
+.im-known h2 { margin: 0 0 6px; font-size: 15px; font-weight: 600; color: var(--ink-1); }
+.im-known p { margin: 0 0 10px; font-size: 14px; line-height: 1.5; color: var(--ink-3); max-width: 70ch; }
+.im-chips { list-style: none; display: flex; flex-wrap: wrap; gap: 6px; margin: 0; padding: 0; }
+.im-chips li { padding: 4px 10px; border-radius: var(--r-pill); background: var(--fill-2); font-size: 13px; color: var(--ink-2); }
+
+/* Fayl ma'lumoti */
+.im-file { display: flex; align-items: center; gap: 12px; padding: 12px 14px; margin-bottom: 20px; }
+.im-file-ic { flex: none; display: grid; place-items: center; width: 38px; height: 38px; border-radius: 10px; background: var(--accent-soft); color: var(--accent); }
+.im-file-main { flex: 1; min-width: 0; display: grid; gap: 8px; }
+.im-file-main > b { font-size: 15px; color: var(--ink-1); overflow-wrap: anywhere; }
+.im-file-opts { display: flex; flex-wrap: wrap; gap: 8px 16px; }
+.im-file-opts label { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--ink-3); }
+.im-file-opts select { min-height: 34px; max-width: 280px; font-size: 13px; }
+
+.im-ghead { margin-top: 4px; align-items: center; }
+.im-ghead + .st-group { margin-bottom: 20px; }
+.im-hint { margin: 0; padding: 12px 16px 4px; font-size: 13px; color: var(--ink-3); line-height: 1.45; }
+
+/* 2. Ustunlar */
+.im-cols { list-style: none; margin: 0; padding: 4px 0; }
+.im-col {
+  display: grid; grid-template-columns: minmax(0, 1fr) 20px minmax(0, 1fr); align-items: center; gap: 10px;
+  padding: 10px 16px;
+}
+.im-col + .im-col { border-top: .5px solid var(--sep); }
+.im-col-src { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.im-col-letter {
+  flex: none; display: grid; place-items: center; min-width: 28px; height: 28px; padding: 0 4px; border-radius: 8px;
+  background: var(--fill); color: var(--ink-2); font-family: var(--font-mono); font-size: 12px; font-weight: 600;
+}
+.im-col-txt { min-width: 0; display: grid; gap: 2px; }
+.im-col-txt b { font-size: 14px; font-weight: 600; color: var(--ink-1); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.im-col-txt small { font-size: 12.5px; color: var(--ink-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.im-col-arrow { color: var(--ink-3); display: grid; place-items: center; }
+.im-col-dst { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.im-col-dst select, .im-col-dst input { width: 100%; min-height: 38px; font-size: 14px; }
+.im-col--skip .im-col-txt b, .im-col--skip .im-col-letter { opacity: .55; }
+
+/* Qo'lda qo'shilgan ustunlar */
+.im-manual { list-style: none; margin: 0; padding: 8px 16px 0; display: grid; gap: 8px; }
+.im-manual-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr) 40px; gap: 8px; align-items: center; }
+.im-manual-row:not(:has(> input + input)) { grid-template-columns: minmax(0, 1fr) minmax(0, 2fr) 40px; }
+.im-manual-row select, .im-manual-row input { width: 100%; min-height: 38px; font-size: 14px; }
+.im-remove { width: 38px; height: 38px; }
+.im-add { margin: 10px 16px 14px; }
+
+/* Takrorlar */
+.im-dup { display: grid; grid-template-columns: 1fr 1fr; }
+.im-dup-opt { display: flex; gap: 10px; align-items: flex-start; padding: 14px 16px; cursor: pointer; }
+.im-dup-opt + .im-dup-opt { border-left: .5px solid var(--sep); }
+.im-dup-opt input { margin: 3px 0 0; width: 17px; height: 17px; accent-color: var(--brand-fill, var(--brand)); flex: none; }
+.im-dup-opt b { display: block; font-size: 14px; color: var(--ink-1); }
+.im-dup-opt small { display: block; margin-top: 2px; font-size: 12.5px; color: var(--ink-3); line-height: 1.4; }
+.im-dup-opt:has(input:checked) { background: var(--brand-soft); }
+
+/* 3. Tekshiruv jadvali */
+.im-counts { display: inline-flex; gap: 6px; text-transform: none; letter-spacing: 0; }
+.im-table-wrap { overflow: hidden; }
+.im-scroll { overflow-x: auto; max-height: 520px; overflow-y: auto; }
+.im-table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+.im-table th {
+  position: sticky; top: 0; z-index: 1; background: var(--surface); text-align: left; white-space: nowrap;
+  padding: 10px 12px; font-size: 12px; font-weight: 600; color: var(--ink-3); border-bottom: .5px solid var(--sep);
+}
+.im-table td { padding: 9px 12px; border-bottom: .5px solid var(--sep); color: var(--ink-1); vertical-align: top; }
+.im-table tr:last-child td { border-bottom: 0; }
+.im-table .r { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.im-line { color: var(--ink-3) !important; font-variant-numeric: tabular-nums; width: 1%; white-space: nowrap; }
+.im-name { min-width: 180px; }
+.im-name small { display: block; margin-top: 2px; font-size: 12px; color: var(--ink-3); }
+.im-tr-bad td { background: var(--danger-soft); }
+.im-ok { display: inline-flex; align-items: center; gap: 4px; color: var(--accent); font-weight: 600; white-space: nowrap; }
+.im-bad { color: var(--danger); font-weight: 500; }
+.im-muted { color: var(--ink-3); }
+.im-only-err { display: flex; align-items: center; gap: 8px; padding: 10px 12px; font-size: 13px; color: var(--ink-2); border-bottom: .5px solid var(--sep); cursor: pointer; }
+.im-only-err input { width: 16px; height: 16px; margin: 0; accent-color: var(--brand-fill, var(--brand)); }
+.im-blocker { display: flex; align-items: center; gap: 8px; margin: 0; padding: 16px; font-size: 14px; color: var(--warn); }
+.im-foot { margin: 0; padding: 10px 12px; font-size: 12.5px; color: var(--ink-3); border-top: .5px solid var(--sep); }
+.im-note { display: flex; align-items: center; gap: 8px; margin: 0; padding: 10px 12px; font-size: 13px; color: var(--warn); background: var(--warn-soft); border-bottom: .5px solid var(--sep); }
+.im-note svg { flex: none; }
+
+.im-submit { display: grid; gap: 8px; margin: 4px 0 40px; }
+.im-submit .btn { min-height: 50px; justify-content: center; font-size: 16px; }
+.im-submit small { font-size: 13px; color: var(--ink-3); text-align: center; }
+.im-progress { height: 6px; border-radius: 3px; background: var(--fill); overflow: hidden; }
+.im-progress span { display: block; height: 100%; background: var(--brand-fill, var(--brand)); transition: width .3s; }
+
+/* Natija */
+.im-done { display: grid; justify-items: center; gap: 12px; padding: 32px 20px; text-align: center; margin-bottom: 20px; }
+.im-done h2 { margin: 0; font-size: 22px; font-weight: 700; letter-spacing: -.02em; }
+.im-done-ic { display: grid; place-items: center; width: 56px; height: 56px; border-radius: 50%; background: var(--accent-soft); color: var(--accent); }
+.im-done-ic--warn { background: var(--warn-soft); color: var(--warn); }
+.im-done .auth-alert { width: 100%; max-width: 520px; }
+.im-stats { list-style: none; display: grid; gap: 6px; margin: 0; padding: 0; }
+.im-stat { font-size: 15px; color: var(--ink-2); }
+.im-stat--ok { color: var(--accent); font-weight: 600; }
+.im-stat--bad { color: var(--danger); }
+.im-done-actions { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; margin-top: 6px; }
+.im-noimei { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: center; margin: 0; font-size: 14px; font-weight: 500; }
+.im-noimei svg { flex: none; }
+.im-noimei a { color: inherit; font-weight: 700; text-decoration: underline; text-underline-offset: 3px; }
+
+@media (max-width: 700px) {
+  .im-col { grid-template-columns: minmax(0, 1fr); gap: 8px; }
+  .im-col-arrow { display: none; }
+  .im-manual-row, .im-manual-row:not(:has(> input + input)) { grid-template-columns: minmax(0, 1fr) 40px; }
+  .im-manual-row > :not(.im-remove) { grid-column: 1; }
+  .im-manual-row > .im-remove { grid-column: 2; grid-row: 1; }
+  .im-dup { grid-template-columns: 1fr; }
+  .im-dup-opt + .im-dup-opt { border-left: 0; border-top: .5px solid var(--sep); }
+  .im-file { flex-wrap: wrap; }
+}

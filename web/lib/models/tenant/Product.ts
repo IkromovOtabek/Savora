@@ -40,6 +40,11 @@ export interface IBundleItem {
   qty: number;
 }
 
+export interface IExtraField {
+  name: string;
+  value: string;
+}
+
 export interface IProduct {
   productId?: string;
   /** Yo'q bo'lsa — 'goods' (eski yozuvlar) */
@@ -49,6 +54,8 @@ export interface IProduct {
   brand?: string;
   deviceModel?: string;
   imei: string;
+  /** Telefon do'koni: IMEI hali kiritilmagan (Excel importi) — `imei`da vaqtinchalik SKU turadi */
+  imeiPending?: boolean;
   barcode?: string;
   color?: string;
   purchasePrice: number;
@@ -80,6 +87,8 @@ export interface IProduct {
   batchNumber?: string;
   expiryDate?: Date;
   oemCode?: string;
+  /** Qo'shimcha ustunlar (Excel importidan yoki qo'lda): «Mamlakat: UZ» — lib/productImport.ts chegaralari */
+  extraFields?: IExtraField[];
   createdBy?: string;
   /** Yetkazib beruvchi (ixtiyoriy) */
   supplierId?: Types.ObjectId;
@@ -112,6 +121,7 @@ export const productSchema = new Schema<IProduct>(
     brand: { type: String, trim: true },
     deviceModel: { type: String, trim: true },
     imei: { type: String, required: true, unique: true, trim: true, uppercase: true },
+    imeiPending: { type: Boolean },
     barcode: { type: String, trim: true },
     color: { type: String, trim: true },
     purchasePrice: { type: Number, required: true, min: 0 },
@@ -151,6 +161,14 @@ export const productSchema = new Schema<IProduct>(
     batchNumber: { type: String, trim: true, uppercase: true },
     expiryDate: { type: Date },
     oemCode: { type: String, trim: true, uppercase: true },
+    extraFields: {
+      type: [{
+        _id: false,
+        name: { type: String, required: true, trim: true, maxlength: 40 },
+        value: { type: String, required: true, trim: true, maxlength: 200 },
+      }],
+      default: undefined,
+    },
     createdBy: { type: String, trim: true },
     supplierId: { type: Schema.Types.ObjectId, ref: 'Supplier' },
     soldAt: { type: Date },
@@ -164,9 +182,13 @@ productSchema.plugin(softDeletePlugin);
 
 productSchema.index({ branchId: 1, status: 1 });
 productSchema.index({ barcode: 1 }, { sparse: true });
+// «IMEI kiriting» bildirishnomasi — IMEI'siz tovarlar soni (faqat belgilanganlari indeksda)
+productSchema.index({ imeiPending: 1 }, { sparse: true });
 productSchema.index({ category: 1 }, { sparse: true });
 productSchema.index({ categoryId: 1 }, { sparse: true });
 productSchema.index({ variantGroupId: 1 }, { sparse: true });
+// Ombor ro'yxatidagi qo'shimcha ustunlar nomlari (distinct) — indeks bo'yicha
+productSchema.index({ 'extraFields.name': 1 }, { sparse: true });
 productSchema.index({ name: 'text', brand: 'text', deviceModel: 'text', imei: 'text' });
 
 export const PRODUCT_STATUS_LABELS: Record<ProductStatus, string> = {

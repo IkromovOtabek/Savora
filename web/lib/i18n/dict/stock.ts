@@ -47,6 +47,11 @@ export const uz = {
     exportCsv: 'CSV yuklab olish',
     created: "Mahsulot qo'shildi.",
     deleted: "Mahsulot o'chirildi.",
+    /** {n} — IMEI'siz tovarlar soni */
+    imeiPending: "{n} ta tovarga IMEI kiritilmagan — IMEI kiriting.",
+    imeiPendingShow: "Ko'rsatish",
+    imeiPendingAll: 'Barcha tovarlar',
+    noImeiPill: 'IMEI kiriting',
     summaryLabel: 'Ombor xulosasi',
     inStock: 'Omborda',
     lowStock: 'Kam qolgan',
@@ -164,6 +169,9 @@ export const uz = {
   detail: {
     metaTitle: 'Mahsulot — Savora',
     createdOk: "Mahsulot muvaffaqiyatli qo'shildi.",
+    imeiPending: "Bu tovarga IMEI kiritilmagan. IMEI kiriting — shundan keyin bu eslatma yo'qoladi.",
+    imeiPendingAction: 'IMEI kiritish',
+    imeiMissing: 'kiritilmagan',
     deleteBlocked: "Bu mahsulotning sotuv tarixi bor — o'chirib bo'lmaydi. Kerak bo'lsa, sotuvni bekor qiling yoki mahsulotni tahrirlang.",
     left: 'qoldi',
     code: 'Kod',
@@ -273,6 +281,7 @@ export const uz = {
     nameLabel: 'Mahsulot nomi *',
     namePlaceholder: 'Masalan: iPhone 15 Pro 256GB',
     imeiLabel: 'IMEI *',
+    imeiPendingHint: "IMEI kiritilmagan — telefon qutisidagi yoki *#06# orqali IMEI'ni kiriting",
     colorLabel: 'Rang',
     barcodeLabel: 'Shtrix-kod / SKU',
     barcodeHint: "Bo'sh qoldirsangiz avtomatik kod beriladi",
@@ -392,14 +401,6 @@ export const uz = {
     confirm: '"{name}" o\'chirilsinmi?',
   },
 
-  /** components/tenant/ProductImportForm.tsx */
-  import: {
-    title: 'CSV import',
-    sample: 'Namuna export',
-    csvLabel: 'CSV (IMEI,Nom,Rang,Kelish,Sotuv,Izoh)',
-    importing: 'Import...',
-    submit: 'Import qilish',
-  },
 
   /** components/tenant/TransferProductForm.tsx */
   transferForm: {
@@ -537,20 +538,6 @@ export const uz = {
     notEnoughStock: "Omborda yetarli qoldiq yo'q yoki mahsulot allaqachon sotilgan.",
     /** {n} — sotilgan soni */
     soldN: '{n} sotildi.',
-    noActiveBranch: 'Faol filial topilmadi.',
-    csvRequired: 'CSV matn kiritilishi shart.',
-    warehouseBranchNotFound: 'Ombor filiali topilmadi.',
-    emptyFile: "Bo'sh fayl.",
-    /** {n} — qator raqami */
-    rowFewFields: 'Qator {n}: maydon yetarli emas',
-    rowImeiInvalid: "Qator {n}: IMEI noto'g'ri",
-    rowNoName: "Qator {n}: nom yo'q",
-    rowPriceInvalid: "Qator {n}: narx noto'g'ri",
-    rowDup: 'Qator {n}: {imei} allaqachon mavjud',
-    rowSaveFailed: 'Qator {n}: saqlash xatosi',
-    nothingImported: 'Hech narsa import qilinmadi.',
-    imported: '{n} ta mahsulot import qilindi.',
-    importErrors: '{n} ta xato.',
     // transfer.ts
     selectRequired: 'Mahsulot va filial tanlanishi shart.',
     onlyInStock: 'Faqat ombordagi mahsulot beriladi.',
@@ -711,6 +698,10 @@ export const ru: typeof uz = {
     exportCsv: 'Скачать CSV',
     created: 'Товар добавлен.',
     deleted: 'Товар удалён.',
+    imeiPending: 'Товаров без IMEI: {n} — введите IMEI.',
+    imeiPendingShow: 'Показать',
+    imeiPendingAll: 'Все товары',
+    noImeiPill: 'Введите IMEI',
     summaryLabel: 'Сводка склада',
     inStock: 'На складе',
     lowStock: 'Мало осталось',
@@ -811,6 +802,9 @@ export const ru: typeof uz = {
   detail: {
     metaTitle: 'Товар — Savora',
     createdOk: 'Товар успешно добавлен.',
+    imeiPending: 'У этого товара не введён IMEI. Введите IMEI — после этого напоминание исчезнет.',
+    imeiPendingAction: 'Ввести IMEI',
+    imeiMissing: 'не введён',
     deleteBlocked: 'У этого товара есть история продаж — удалить нельзя. При необходимости отмените продажу или отредактируйте товар.',
     left: 'осталось',
     code: 'Код',
@@ -918,6 +912,7 @@ export const ru: typeof uz = {
     nameLabel: 'Название товара *',
     namePlaceholder: 'Например: iPhone 15 Pro 256GB',
     imeiLabel: 'IMEI *',
+    imeiPendingHint: 'IMEI не введён — введите IMEI с коробки телефона или через *#06#',
     colorLabel: 'Цвет',
     barcodeLabel: 'Штрих-код / SKU',
     barcodeHint: 'Если оставить пустым, код будет создан автоматически',
@@ -1021,13 +1016,6 @@ export const ru: typeof uz = {
     confirm: 'Удалить «{name}»?',
   },
 
-  import: {
-    title: 'Импорт CSV',
-    sample: 'Пример файла',
-    csvLabel: 'CSV (IMEI,Название,Цвет,Закупка,Продажа,Примечание)',
-    importing: 'Импорт...',
-    submit: 'Импортировать',
-  },
 
   transferForm: {
     title: 'Переместить в другой филиал',
@@ -1149,19 +1137,6 @@ export const ru: typeof uz = {
     sellQtyInvalid: 'Неверное количество для продажи.',
     notEnoughStock: 'На складе недостаточно остатка или товар уже продан.',
     soldN: 'Продано: {n}.',
-    noActiveBranch: 'Активный филиал не найден.',
-    csvRequired: 'Введите текст CSV.',
-    warehouseBranchNotFound: 'Складской филиал не найден.',
-    emptyFile: 'Пустой файл.',
-    rowFewFields: 'Строка {n}: недостаточно полей',
-    rowImeiInvalid: 'Строка {n}: неверный IMEI',
-    rowNoName: 'Строка {n}: нет названия',
-    rowPriceInvalid: 'Строка {n}: неверная цена',
-    rowDup: 'Строка {n}: {imei} уже существует',
-    rowSaveFailed: 'Строка {n}: ошибка сохранения',
-    nothingImported: 'Ничего не импортировано.',
-    imported: 'Импортировано товаров: {n}.',
-    importErrors: 'Ошибок: {n}.',
     selectRequired: 'Выберите товар и филиал.',
     onlyInStock: 'Передать можно только товар со склада.',
     branchNotFound: 'Филиал не найден.',

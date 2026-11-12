@@ -14,12 +14,12 @@ import ProductSearch from '@/components/tenant/ProductSearch';
 import ProductRowActions from '@/components/tenant/ProductRowActions';
 import ProductListShell, { type ToggleCol } from '@/components/tenant/ProductListShell';
 import LimitBanner from '@/components/tenant/LimitBanner';
-import { loadUserPermissions } from '@/lib/permissionGuard';
+import { loadUserPermissions, requirePermission } from '@/lib/permissionGuard';
 import Icon from '@/components/icons/Icon';
 import MoreMenu from '@/components/ui/MoreMenu';
 import { getDict } from '@/lib/i18n/server';
 import { tr } from '@/lib/i18n/fmt';
-// import ProductImportForm from '@/components/tenant/ProductImportForm'; // CSV Import vaqtincha yashirilgan
+import { loadExtraFieldNames } from '@/lib/productFields';
 
 export async function generateMetadata() {
   const d = await getDict();
@@ -41,9 +41,10 @@ function fmtDate(d?: Date | string | null) {
 export default async function ProductsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; branch?: string; status?: string; cat?: string; brand?: string; page?: string; ps?: string; created?: string; deleted?: string }>;
+  searchParams: Promise<{ q?: string; branch?: string; status?: string; cat?: string; brand?: string; page?: string; ps?: string; created?: string; deleted?: string; imei?: string }>;
 }) {
   const sp = await searchParams;
+  await requirePermission('products.view');
   const d = await getDict();
   const t = d.stock.list;
   const { user, Product, Branch, org, features, ProductCategory, Brand } = await getTenantSession();
@@ -53,10 +54,12 @@ export default async function ProductsPage({
   const canInstallment = !!(features.variant || features.nasiya);
   const canCredit = !!features.creditKassa;
 
-  const [branches, catDocs, brandDocs] = await Promise.all([
+  const [branches, catDocs, brandDocs, extraCols] = await Promise.all([
     Branch.find({ active: true }).sort({ name: 1 }).lean(),
     ProductCategory.find({}, { name: 1, parentId: 1 }).sort({ name: 1 }).limit(2000).lean(),
     Brand.find({}, { name: 1 }).sort({ name: 1 }).limit(1000).lean(),
+    // Qo'shimcha ustunlar (Excel importi) — ro'yxatda yoqib-o'chiriladigan ustunlar
+    loadExtraFieldNames(Product, 12),
   ]);
   const catItems = catDocs.map((c) => ({ id: String(c._id), name: c.name, parentId: c.parentId ? String(c.parentId) : null }));
   const catOptions = flattenCategories(catItems).map((c) => ({ id: c.id, name: c.path }));
@@ -90,6 +93,9 @@ export default async function ProductsPage({
   } else {
     filter.status = { $ne: 'sold' };
   }
+  // «IMEI kiriting» — Excel'dan IMEI'siz qo'shilgan telefonlar
+  const imeiFilter = showImei && sp.imei === 'pending';
+  if (imeiFilter) filter.imeiPending = true;
   // Filial login — faqat o'z filiali mahsulotlari (admin tanlovini ham bekor qiladi)
   Object.assign(filter, branchFilter(user));
 
@@ -98,9 +104,11 @@ export default async function ProductsPage({
   const PAGE_SIZE: number = (PAGE_SIZES as readonly number[]).includes(psNum) ? psNum : DEFAULT_PAGE_SIZE;
   const skip = (page - 1) * PAGE_SIZE;
 
-  const [products, total] = await Promise.all([
+  const [products, total, imeiPendingCount] = await Promise.all([
     Product.find(filter).sort({ createdAt: -1 }).skip(skip).limit(PAGE_SIZE).lean(),
     Product.countDocuments(filter),
+    // Bildirishnoma: ombordagi IMEI'siz tovarlar (hammasiga IMEI kiritilgach yo'qoladi)
+    showImei ? Product.countDocuments({ imeiPending: true, status: { $ne: 'sold' }, ...branchFilter(user) }) : 0,
   ]);
 
   const totalPages = Math.ceil(total / PAGE_SIZE);
@@ -119,6 +127,7 @@ export default async function ProductsPage({
     if (sp.status) params.set('status', sp.status);
     if (activeCat) params.set('cat', activeCat);
     if (activeBrand) params.set('brand', activeBrand);
+    if (imeiFilter) params.set('imei', 'pending');
     if (p > 1) params.set('page', String(p));
     if (ps !== DEFAULT_PAGE_SIZE) params.set('ps', String(ps));
     const s = params.toString();
@@ -132,6 +141,7 @@ export default async function ProductsPage({
     if (sp.branch) params.set('branch', sp.branch);
     if (activeCat) params.set('cat', activeCat);
     if (activeBrand) params.set('brand', activeBrand);
+    if (imeiFilter) params.set('imei', 'pending');
     if (status) params.set('status', status);
     if (PAGE_SIZE !== DEFAULT_PAGE_SIZE) params.set('ps', String(PAGE_SIZE));
     const s = params.toString();
@@ -153,8 +163,8 @@ export default async function ProductsPage({
   const scoped = isBranchScoped(user);
   const canCreate = perms.has('product.create');
   const canExport = !!features.export && perms.has('export.data');
-  const hasFilter = !!(q || activeStatus || sp.branch || activeCat || activeBrand);
-  const canBulk = perms.has('stock.adjust');
+  const hasFilter = !!(q || activeStatus || sp.branch || activeCat || activeBrand || imeiFilter);
+  const canBulk = perms.has('stock.adjust') || perms.has('stock.writeOff');
   const toggleCols: { key: ToggleCol; label: string }[] = [
     ...(scoped ? [] : [{ key: 'branch' as const, label: d.common.branch }]),
     { key: 'status', label: t.colStatus },
@@ -183,8 +193,11 @@ export default async function ProductsPage({
             </Link>
           )}
           <MoreMenu label={t.menuLabel}>
+            {canCreate && (
+              <Link href="/app/products/import"><Icon name="download" size={18} /> {d.importer.menuLink}</Link>
+            )}
             <Link href="/app/inventory"><Icon name="clipboard" size={18} /> {t.inventory}</Link>
-            {perms.has('product.edit') && (
+            {perms.has('catalog.manage') && (
               <Link href="/app/products/catalog"><Icon name="grid" size={18} /> {d.stock.catalog.menuLink}</Link>
             )}
             {canExport && (
@@ -196,6 +209,15 @@ export default async function ProductsPage({
 
       {sp?.created === '1' && <div className="auth-alert auth-alert--info st-alert" role="status">{t.created}</div>}
       {sp?.deleted === '1' && <div className="auth-alert auth-alert--info st-alert" role="status">{t.deleted}</div>}
+      {imeiPendingCount > 0 && (
+        <div className="auth-alert auth-alert--warn st-alert st-imei-alert" role="status">
+          <Icon name="alert" size={16} />
+          <span>{tr(t.imeiPending, { n: imeiPendingCount })}</span>
+          {imeiFilter
+            ? <Link href="/app/products">{t.imeiPendingAll}</Link>
+            : <Link href="/app/products?imei=pending">{t.imeiPendingShow}</Link>}
+        </div>
+      )}
 
       {showStats && (
         <section
@@ -248,10 +270,6 @@ export default async function ProductsPage({
         ))}
       </ProductSearch>
 
-      {/* CSV Import vaqtincha yashirilgan
-      <ProductImportForm branches={branches.map((b) => ({ id: String(b._id), name: b.name }))} />
-      */}
-
       {products.length === 0 ? (
         <div className="st-group st-list-wrap">
           <div className="ux-empty">
@@ -274,7 +292,7 @@ export default async function ProductsPage({
           </div>
         </div>
       ) : (
-        <ProductListShell columns={toggleCols} canBulk={canBulk} exportHref={canExport ? '/api/export/products' : undefined}>
+        <ProductListShell columns={toggleCols} extraColumns={extraCols} canBulk={canBulk} canReval={perms.has('stock.adjust')} canWriteOff={perms.has('stock.writeOff')} exportHref={canExport ? '/api/export/products' : undefined}>
           <div className="st-list-head">
             {canBulk && (
               <span className="st-chk"><input type="checkbox" className="st-check-all" aria-label={t.selectAll} /></span>
@@ -283,6 +301,11 @@ export default async function ProductsPage({
             <span aria-hidden="true">{d.common.product}</span>
             <span aria-hidden="true" className="st-c-branch">{d.common.branch}</span>
             <span aria-hidden="true" className="st-c-status">{t.colQtyStatus}</span>
+            {extraCols.length > 0 && (
+              <span aria-hidden="true" className="st-c-extra">
+                {extraCols.map((n, i) => <span key={n} className="st-x" data-x={i} title={n}>{n}</span>)}
+              </span>
+            )}
             <span aria-hidden="true" className="r st-c-price">{d.common.price}</span>
             <span aria-hidden="true" />
           </div>
@@ -292,7 +315,8 @@ export default async function ProductsPage({
               const code = p.productId ?? String(p._id).slice(-8).toUpperCase();
               const branchName = branchMap[String(p.branchId)] ?? '—';
               // Ikkinchi kod (IMEI yoki shtrix) — mobilda ichki kod o'rniga shu ko'rinadi
-              const secCode = showImei ? p.imei || '' : p.barcode && p.barcode !== code ? p.barcode : '';
+              const noImei = showImei && !!p.imeiPending;
+              const secCode = noImei ? '' : showImei ? p.imei || '' : p.barcode && p.barcode !== code ? p.barcode : '';
               const qtyCls = p.trackQuantity
                 ? avail === 0 ? ' st-qty--zero' : avail <= LOW_STOCK ? ' st-qty--low' : ''
                 : '';
@@ -326,6 +350,7 @@ export default async function ProductsPage({
                     <div className="st-row-meta">
                       <code className={`st-mono${secCode ? ' st-meta-code' : ''}`}>{code}</code>
                       {secCode && <code className="st-mono st-dotsep st-meta-sec">{secCode}</code>}
+                      {noImei && <span className="st-pill st-pill--transferred st-pill--plain st-noimei">{t.noImeiPill}</span>}
                       {!scoped && <span className="st-row-meta-branch st-dotsep">{branchName}</span>}
                       <span className="st-dotsep st-meta-date">{fmtDate(p.createdAt) ?? '—'}</span>
                     </div>
@@ -342,6 +367,14 @@ export default async function ProductsPage({
                       </span>
                     )}
                   </div>
+                  {extraCols.length > 0 && (
+                    <div className="st-row-extra st-c-extra">
+                      {extraCols.map((n, i) => {
+                        const v = p.extraFields?.find((e) => e.name === n)?.value;
+                        return <span key={n} className={`st-x${v ? '' : ' st-x--none'}`} data-x={i} title={v ? `${n}: ${v}` : undefined}>{v ?? '—'}</span>;
+                      })}
+                    </div>
+                  )}
                   <div className="st-row-price r st-c-price">
                     {p.salePrice > 0 ? <b>{fmtMoney(p.salePrice)}</b> : <b className="st-noprice">{t.noPrice}</b>}
                     {canViewCost && <small>{tr(t.cost, { sum: fmtMoney(p.purchasePrice) })}</small>}

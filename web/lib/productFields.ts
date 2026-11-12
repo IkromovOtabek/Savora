@@ -138,3 +138,16 @@ export async function loadCategories(Product: { distinct(field: 'category'): Pro
     .sort((a, b) => a.localeCompare(b))
     .slice(0, 200);
 }
+
+/** Do'kondagi qo'shimcha ustun nomlari (Product.extraFields.name), alifbo bo'yicha */
+export async function loadExtraFieldNames(
+  Product: { distinct(field: 'extraFields.name', filter?: Record<string, unknown>): PromiseLike<unknown[]> },
+  limit = 100,
+  filter: Record<string, unknown> = {},
+): Promise<string[]> {
+  const raw = await Product.distinct('extraFields.name', filter);
+  return raw
+    .filter((v): v is string => typeof v === 'string' && v.trim() !== '')
+    .sort((a, b) => a.localeCompare(b))
+    .slice(0, limit);
+}

@@ -4,16 +4,15 @@ import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { Types } from 'mongoose';
 import { getTenantSession } from '@/lib/tenantSession';
-import { branchFilter, isBranchScoped } from '@/lib/branchScope';
+import { branchFilter } from '@/lib/branchScope';
 import { reserveStock, releaseStock } from '@/lib/stock';
 import { isPhoneShop } from '@/lib/businessTypes';
 import { ProductStatus } from '@/lib/models/tenant/Product';
-import { generateProductCode } from '@/lib/productId';
+import { generateProductCode, generateSku } from '@/lib/productId';
 import { checkSaleQty, clampQtyToStock, isStockless, parseQtyField } from '@/lib/productQuantity';
 import { parseBundleItems, parseProductKind } from '@/lib/productKinds';
 import { isFractionalUnit, parseQty, priceTimesQty, qtyLabel, roundQty } from '@/lib/qty';
 import { parseProductFields, productFieldErrorText, type ProductFieldsResult } from '@/lib/productFields';
-import { resolveWarehouseBranchId } from '@/lib/warehouseBranch';
 import { recordAudit } from '@/lib/audit';
 import { markOnboardingStep } from '@/lib/onboarding';
 import { ensureMainBranchId } from '@/lib/mainBranch';
@@ -30,6 +29,7 @@ import { lookupBarcode, rememberBarcodeNames, type BarcodeLookupResult } from '@
 import { CATEGORY_MAX_DEPTH, CATEGORY_NAME_MAX } from '@/lib/models/tenant/ProductCategory';
 import { BRAND_NAME_MAX } from '@/lib/models/tenant/Brand';
 import { LEGACY_CATEGORY_VALUE, normalizeCatalogName } from '@/lib/productCatalog';
+import { parseExtraFieldsJson } from '@/lib/productImport';
 
 type State = { error?: string; success?: string } | null;
 // Mahsulot holati formada: omborda (o'z filialida) yoki sotilgan.
@@ -85,6 +85,12 @@ function readBrand(formData: FormData): string | undefined | 'keep' | 'tooLong' 
   const brand = normalizeCatalogName(formData.get('brand'));
   if (brand.length > BRAND_NAME_MAX) return 'tooLong';
   return brand || undefined;
+}
+
+/** Qo'shimcha ustunlar: maydon yo'q → 'keep', noto'g'ri → null */
+function readExtraFields(formData: FormData): { name: string; value: string }[] | null | 'keep' {
+  if (!formData.has('extraFields')) return 'keep';
+  return parseExtraFieldsJson(formData.get('extraFields'));
 }
 
 /** To'plam tarkibi xato matnlari (lib/productKinds.ts → parseBundleItems) */
@@ -193,10 +199,6 @@ function applyLocationStatus(
   return null;
 }
 
-function generateSku(): string {
-  return `SKU-${Date.now().toString(36).toUpperCase()}${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
-}
-
 export async function createProductAction(_prev: State, formData: FormData): Promise<State> {
   const { user, org, Product, Branch, features, Supplier, SupplierEntry, ProductCategory } = await getTenantSession();
   { const denied = await checkPermission(user, 'product.create'); if (denied) return denied; }
@@ -232,6 +234,8 @@ export async function createProductAction(_prev: State, formData: FormData): Pro
   if (oldPrice === null) return { error: m.oldPriceInvalid };
   const brand = readBrand(formData);
   if (brand === 'tooLong') return { error: m.brandNameTooLong };
+  const extraFields = readExtraFields(formData);
+  if (extraFields === null) return { error: (await getDict()).importer.extra.invalid };
   const extra = await readProductFields(formData, org.businessType);
   if (!extra.ok) return { error: extra.error };
   const categoryChoice = await readCategoryChoice(formData, ProductCategory);
@@ -287,6 +291,7 @@ export async function createProductAction(_prev: State, formData: FormData): Pro
       notes: notes || undefined,
       photoUrl: photoUrl || undefined,
       ...extra.values,
+      ...(Array.isArray(extraFields) && extraFields.length ? { extraFields } : {}),
       ...(categoryChoice && typeof categoryChoice === 'object' ? categoryChoice : {}),
       createdBy: user.username,
       supplierId,
@@ -353,7 +358,8 @@ export async function updateProductAction(_prev: State, formData: FormData): Pro
 
   if (!productId) return { error: m.notFound };
   if (!name) return { error: m.nameRequired };
-  if (phoneShop && (!imeiRaw || imeiRaw.length < 10)) return { error: m.imeiInvalid };
+  // IMEI'siz (Excel importi) tovarda IMEI bo'sh qolishi mumkin — pastda, mahsulot o'qilgach tekshiriladi
+  if (phoneShop && imeiRaw && imeiRaw.length < 10) return { error: m.imeiInvalid };
   if (purchasePrice === null) return { error: m.purchaseInvalid };
   if (salePrice === null) return { error: m.saleInvalid };
   if (wholesalePrice === null) return { error: m.wholesaleInvalid };
@@ -361,6 +367,8 @@ export async function updateProductAction(_prev: State, formData: FormData): Pro
   if (oldPrice === null) return { error: m.oldPriceInvalid };
   const brand = readBrand(formData);
   if (brand === 'tooLong') return { error: m.brandNameTooLong };
+  const extraFields = readExtraFields(formData);
+  if (extraFields === null) return { error: (await getDict()).importer.extra.invalid };
   const extra = await readProductFields(formData, org.businessType);
   if (!extra.ok) return { error: extra.error };
   const categoryChoice = await readCategoryChoice(formData, ProductCategory);
@@ -371,6 +379,7 @@ export async function updateProductAction(_prev: State, formData: FormData): Pro
   // Filial login faqat o'z filiali mahsulotini tahrirlaydi (IDOR himoyasi)
   const product = await Product.findOne({ _id: productId, ...branchFilter(user) });
   if (!product) return { error: m.notFound };
+  if (phoneShop && !imeiRaw && !product.imeiPending) return { error: m.imeiInvalid };
 
   // Tahrir formasi orqali sotish — taqiqlangan (Sale yozuvi va kassa chetlab o'tilardi)
   if (locationStatus === 'sold' && product.status !== 'sold') {
@@ -395,7 +404,7 @@ export async function updateProductAction(_prev: State, formData: FormData): Pro
     if (!bank) return { error: m.bankNotFound };
   }
 
-  if (phoneShop) {
+  if (phoneShop && imeiRaw) {
     const dup = await Product.findOne({ imei: imeiRaw, _id: { $ne: productId } }).lean();
     if (dup) return { error: m.imeiDupOther };
   }
@@ -405,7 +414,11 @@ export async function updateProductAction(_prev: State, formData: FormData): Pro
   if (supplierChoice !== 'keep') product.supplierId = supplierChoice ?? undefined;
 
   product.name = name;
-  if (phoneShop) product.imei = imeiRaw;
+  // IMEI kiritildi — «IMEI kiriting» bildirishnomasi shu tovar uchun yo'qoladi
+  if (phoneShop && imeiRaw) {
+    product.imei = imeiRaw;
+    product.imeiPending = undefined;
+  }
   product.barcode = barcode || undefined;
   product.color = color || undefined;
   product.notes = notes || undefined;
@@ -415,6 +428,7 @@ export async function updateProductAction(_prev: State, formData: FormData): Pro
   product.wholesalePrice = wholesalePrice || undefined;
   product.oldPrice = oldPrice || undefined;
   if (brand !== 'keep') product.brand = brand;
+  if (extraFields !== 'keep') product.extraFields = extraFields.length ? extraFields : undefined;
   // Faqat joriy yo'nalish maydonlari yangilanadi; boshqa yo'nalishdan qolgan qiymatlarga tegilmaydi.
   // Turkum tanlovi bo'lsa — kategoriya matni categoryId bo'yicha (pastda), yo'nalish maydonidan emas
   for (const key of extra.keys) {
@@ -695,102 +709,4 @@ export async function deleteProductAction(formData: FormData): Promise<void> {
   revalidatePath('/app');
   revalidatePath('/app/products');
   redirect('/app/products?deleted=1');
-}
-
-/** CSV import: IMEI,Nom,Rang,Kelish,Sotuv,Izoh */
-export async function importProductsAction(_prev: State, formData: FormData): Promise<State> {
-  const { user, Product, Branch } = await getTenantSession();
-  { const denied = await checkPermission(user, 'product.create'); if (denied) return denied; }
-  const m = (await getDict()).stock.msg;
-
-  const csv = String(formData.get('csv') || '').trim();
-  // Filial-login — faqat O'Z filialiga import qiladi (boshqa filial omboriga yozolmaydi);
-  // admin — asosiy ombor/birinchi faol filial
-  const warehouseBranchId = isBranchScoped(user) ? user.branchId! : await resolveWarehouseBranchId(Branch);
-
-  if (!warehouseBranchId) return { error: m.noActiveBranch };
-  if (!csv) return { error: m.csvRequired };
-
-  if (!Types.ObjectId.isValid(warehouseBranchId)) return { error: m.warehouseBranchNotFound };
-  const branch = await Branch.findOne({ _id: warehouseBranchId, active: true }).lean();
-  if (!branch) return { error: m.warehouseBranchNotFound };
-
-  const lines = csv.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
-  if (lines.length === 0) return { error: m.emptyFile };
-
-  const start = lines[0].toLowerCase().includes('imei') ? 1 : 0;
-  let imported = 0;
-  const errors: string[] = [];
-
-  for (let i = start; i < lines.length; i++) {
-    const cols = lines[i].split(',').map((c) => c.trim().replace(/^"|"$/g, ''));
-    if (cols.length < 2) {
-      errors.push(tr(m.rowFewFields, { n: i + 1 }));
-      continue;
-    }
-
-    const imei = normalizeImei(cols[0]);
-    const name = cols[1];
-    const color = cols[2] || undefined;
-    const purchasePrice = parsePrice(cols[3] ?? '0');
-    const salePrice = parsePrice(cols[4] ?? '0');
-    const notes = cols[5] || undefined;
-
-    if (!imei || imei.length < 10) {
-      errors.push(tr(m.rowImeiInvalid, { n: i + 1 }));
-      continue;
-    }
-    if (!name) {
-      errors.push(tr(m.rowNoName, { n: i + 1 }));
-      continue;
-    }
-    if (purchasePrice === null || salePrice === null) {
-      errors.push(tr(m.rowPriceInvalid, { n: i + 1 }));
-      continue;
-    }
-
-    const dup = await Product.findOne({ imei }).lean();
-    if (dup) {
-      errors.push(tr(m.rowDup, { n: i + 1, imei }));
-      continue;
-    }
-
-    try {
-      await Product.create({
-        productId: generateProductCode(),
-        name,
-        imei,
-        color,
-        purchasePrice,
-        salePrice,
-        trackQuantity: false,
-        quantity: 1,
-        soldQuantity: 0,
-        status: 'in_stock',
-        branchId: warehouseBranchId,
-        notes,
-        createdBy: user.username,
-      });
-      imported++;
-    } catch {
-      errors.push(tr(m.rowSaveFailed, { n: i + 1 }));
-    }
-  }
-
-  await recordAudit(user, {
-    action: 'product.import',
-    entity: 'product',
-    summary: `CSV import: ${imported} ta mahsulot (${branch.name})${errors.length ? `, ${errors.length} ta xato` : ''}`,
-    meta: { imported, errors: errors.length, errorSamples: errors.slice(0, 5) },
-  });
-
-  revalidatePath('/app');
-  revalidatePath('/app/products');
-
-  if (imported === 0) {
-    return { error: errors[0] ?? m.nothingImported };
-  }
-
-  const msg = `${tr(m.imported, { n: imported })}${errors.length ? ` ${tr(m.importErrors, { n: errors.length })}` : ''}`;
-  return errors.length ? { success: msg, error: errors.slice(0, 5).join('; ') } : { success: msg };
 }

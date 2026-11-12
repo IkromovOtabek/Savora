@@ -9,6 +9,7 @@ import * as stock from './stock';
 import * as crm from './crm';
 import * as superPanel from './superPanel';
 import * as ui from './ui';
+import * as importer from './importer';
 
 /**
  * Barcha bo'lim lug'atlari. Yangi bo'lim qo'shish: dict/<nom>.ts yarating (uz + ru: typeof uz),
@@ -26,6 +27,7 @@ export const dictionaries = {
     crm: crm.uz,
     superPanel: superPanel.uz,
     ui: ui.uz,
+    importer: importer.uz,
   },
   ru: {
     common: common.ru,
@@ -38,6 +40,7 @@ export const dictionaries = {
     crm: crm.ru,
     superPanel: superPanel.ru,
     ui: ui.ru,
+    importer: importer.ru,
   },
 } satisfies Record<Locale, unknown>;
 

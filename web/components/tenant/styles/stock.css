@@ -62,6 +62,13 @@
 .st-empty .btn { margin-top: 6px; }
 
 .st-alert { margin-bottom: 16px; }
+/* «IMEI kiriting» — Excel'dan IMEI'siz qo'shilgan telefonlar */
+.st-imei-alert { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-weight: 500; }
+.st-imei-alert svg { flex: none; }
+.st-imei-alert span { flex: 1 1 200px; }
+.st-imei-alert a { color: inherit; font-weight: 700; text-decoration: underline; text-underline-offset: 3px; white-space: nowrap; }
+.st-noimei { margin-left: 6px; padding: 1px 7px; font-size: 11px; }
+.st-imei-hint { color: var(--warn); }
 
 /* ==========================================================================
    1. Ombor ro'yxati — /app/products
@@ -141,7 +148,7 @@
 .st-list-head, .st-row {
   display: grid; align-items: center; gap: 14px;
   /* Ustunlar yashirilsa (data-hide) — o'zgaruvchi bo'shab, trek yo'qoladi */
-  grid-template-columns: var(--c-chk,) 44px minmax(0, 1fr) var(--c-branch,) var(--c-status,) var(--c-price,) 84px;
+  grid-template-columns: var(--c-chk,) 44px minmax(0, 1fr) var(--c-branch,) var(--c-status,) var(--c-extra,) var(--c-price,) 84px;
   padding: 0 16px;
 }
 .st-list-wrap { --c-branch: 150px; --c-status: 130px; --c-price: 130px; }
@@ -228,6 +235,21 @@
   .st-list-wrap[data-hide~="status"] .st-c-status,
   .st-list-wrap[data-hide~="price"] .st-c-price { display: none; }
 }
+/* Qo'shimcha ustunlar (Product.extraFields) — kenglik ProductListShell'da (--c-extra), har biri 120px */
+.st-c-extra { display: grid; grid-auto-flow: column; grid-auto-columns: 120px; gap: 12px; min-width: 0; }
+.st-list-wrap[data-noextra] .st-c-extra { display: none; }
+.st-x { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.st-row-extra .st-x { font-size: 14px; color: var(--ink-2); }
+.st-row-extra .st-x--none { color: var(--ink-3); }
+.st-cols-pop { max-height: min(70vh, 480px); overflow-y: auto; }
+.st-cols-sep { padding: 8px 10px 2px; font-size: 12px; font-weight: 600; color: var(--ink-3); border-top: .5px solid var(--sep); margin-top: 4px; }
+
+/* Mahsulot formasi: qo'shimcha ustunlar muharriri */
+.st-xf-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.st-xf-row { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 3fr) 40px; gap: 8px; align-items: center; }
+.st-xf-row input { width: 100%; min-width: 0; }
+.st-xf-row .icon-btn { width: 40px; height: 40px; }
+.st-xf-add { justify-self: start; }
 .st-foot {
   display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
   padding: 10px 16px; border-top: .5px solid var(--sep);
@@ -610,7 +632,7 @@ a.st-card:focus-visible { outline: 3px solid var(--brand-ring); outline-offset: 
   .st-row > .st-thumb { grid-area: thumb; }
   .st-row > .st-row-main { grid-area: main; align-self: center; }
   .st-row > .st-row-actions { grid-area: act; }
-  .st-row > .st-row-branch { display: none; }
+  .st-row > .st-row-branch, .st-row > .st-row-extra { display: none; }
   .st-row > .st-row-status { grid-area: chips; flex-direction: row; flex-wrap: wrap; align-items: center; align-self: center; }
   .st-row > .st-row-price { grid-area: price; align-self: center; }
   .st-row-meta .st-row-meta-branch { display: inline; }

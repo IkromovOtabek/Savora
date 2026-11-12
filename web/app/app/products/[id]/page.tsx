@@ -1,4 +1,4 @@
-import { notFound } from 'next/navigation';
+import { notFound, redirect } from 'next/navigation';
 import { fmtQty } from '@/lib/qty';
 import { getStockQty } from '@/lib/productQuantity';
 import { loadBundleCandidates, sellableInfo } from '@/lib/productKinds';
@@ -19,7 +19,7 @@ import MoreMenu from '@/components/ui/MoreMenu';
 import { getDict } from '@/lib/i18n/server';
 import { tr, qtyWithUnit } from '@/lib/i18n/fmt';
 import { productFieldsFor } from '@/lib/businessTypes';
-import { toDateInputValue } from '@/lib/productFields';
+import { loadExtraFieldNames, toDateInputValue } from '@/lib/productFields';
 
 function fmtMoney(n: number) {
   return new Intl.NumberFormat('uz-UZ').format(n);
@@ -46,6 +46,11 @@ export default async function ProductDetailPage({
   const isAdmin = user.role === 'admin';
 
   if (!Types.ObjectId.isValid(id)) notFound();
+  // «Omborni ko'rish» yo'q bo'lsa ham — yangi qo'shgan mahsulotini (qo'shish huquqi bilan) ochishi mumkin
+  const viewPerms = await loadUserPermissions(user);
+  if (!viewPerms.has('products.view') && !(sp?.created === '1' && viewPerms.has('product.create'))) {
+    redirect(`/app/locked?p=${encodeURIComponent('products.view')}`);
+  }
   const product = await Product.findById(id).lean();
   if (!product) notFound();
   // Filial-login faqat o'z filiali mahsulotini ko'radi/tahrirlaydi
@@ -78,15 +83,17 @@ export default async function ProductDetailPage({
   const salePrice = product.salePrice ?? 0;
   const profit = salePrice - (product.purchasePrice ?? 0);
   const showImei = isImeiEnabled(org);
+  const imeiPending = showImei && !!product.imeiPending && kind === 'goods';
   const canSell = features.sales && perms.has('sale.create');
   const canTransfer = perms.has('transfer.create') && !stockless;
   const canDelete = perms.has('product.delete');
   const status = product.status as ProductStatus;
   const initialLetter = (product.name ?? '').trim().charAt(0).toUpperCase() || '?';
   const productFields = productFieldsFor(org.businessType);
-  const [categories, brands] = await Promise.all([
+  const [categories, brands, extraNames] = await Promise.all([
     ProductCategory.find({}, { name: 1, parentId: 1 }).sort({ name: 1 }).limit(2000).lean(),
     Brand.find({}, { name: 1 }).sort({ name: 1 }).limit(1000).lean(),
+    loadExtraFieldNames(Product),
   ]);
   const tf = d.stock.fields;
   // Saqlangan yo'nalish maydonlari (boshqa yo'nalishdan qolganlari ham ko'rsatiladi)
@@ -107,6 +114,8 @@ export default async function ProductDetailPage({
         }
       : null,
     product.oemCode ? { key: 'oemCode', label: tf.labels.oemCode, value: product.oemCode } : null,
+    // Qo'shimcha ustunlar (Excel importi yoki qo'lda)
+    ...(product.extraFields ?? []).map((e, i) => ({ key: `x${i}`, label: e.name, value: e.value })),
   ].filter((x): x is NonNullable<typeof x> => !!x);
 
   return (
@@ -117,6 +126,14 @@ export default async function ProductDetailPage({
 
       {sp?.created === '1' && (
         <div className="auth-alert auth-alert--info" role="status">{t.createdOk}</div>
+      )}
+      {/* Excel'dan IMEI'siz qo'shilgan telefon — IMEI kiritilgach (tahrir formasi) yo'qoladi */}
+      {imeiPending && (
+        <div className="auth-alert auth-alert--warn st-imei-alert" role="status">
+          <Icon name="alert" size={16} />
+          <span>{t.imeiPending}</span>
+          <a href="#imei">{t.imeiPendingAction}</a>
+        </div>
       )}
       {sp?.deleteBlocked === '1' && (
         <div className="auth-alert auth-alert--error" role="alert">
@@ -153,7 +170,9 @@ export default async function ProductDetailPage({
           <h1 className="st-hero-name" id="st-hero-name">{product.name}</h1>
           <div className="st-hero-codes">
             {product.productId && <span>ID <code className="st-mono">{product.productId}</code></span>}
-            {showImei && product.imei && <span>IMEI <code className="st-mono">{product.imei}</code></span>}
+            {imeiPending
+              ? <span>IMEI <span className="st-pill st-pill--transferred st-pill--plain">{t.imeiMissing}</span></span>
+              : showImei && product.imei && <span>IMEI <code className="st-mono">{product.imei}</code></span>}
             {!showImei && product.barcode && <span>{t.code} <code className="st-mono">{product.barcode}</code></span>}
           </div>
           <div className="st-hero-price ux-z">
@@ -269,6 +288,7 @@ export default async function ProductDetailPage({
             bundleItems: (product.bundleItems ?? []).map((i) => ({ productId: String(i.productId), qty: i.qty })),
             name: product.name,
             imei: product.imei,
+            imeiPending: imeiPending || undefined,
             barcode: product.barcode ?? '',
             color: product.color ?? '',
             branchId: String(product.branchId),
@@ -298,7 +318,9 @@ export default async function ProductDetailPage({
               expiryDate: toDateInputValue(product.expiryDate),
               oemCode: product.oemCode ?? '',
             },
+            extraFields: (product.extraFields ?? []).map((e) => ({ name: e.name, value: e.value })),
           }}
+          extraNames={extraNames}
         />
         <aside className="st-detail-aside">
           <ProductHistory history={product.history ?? []} />
