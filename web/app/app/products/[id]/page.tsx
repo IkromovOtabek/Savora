@@ -229,6 +229,9 @@ export default async function ProductDetailPage({
             canCredit={!!features.creditKassa}
             canSell={canSell}
             canTransfer={canTransfer}
+            canEditPrice={perms.has('sale.editPrice')}
+            canDiscount={perms.has('sale.discount')}
+            purchasePrice={canViewCost ? product.purchasePrice ?? 0 : 0}
             branches={filialBranches}
           />
         )}

@@ -360,6 +360,9 @@ export default async function ProductsPage({
                       canCredit={canCredit}
                       canSell={features.sales && perms.has('sale.create')}
                       canTransfer={perms.has('transfer.create') && p.kind !== 'service' && p.kind !== 'bundle'}
+                      canEditPrice={perms.has('sale.editPrice')}
+                      canDiscount={perms.has('sale.discount')}
+                      purchasePrice={canViewCost ? p.purchasePrice ?? 0 : 0}
                       branches={filialBranches}
                     />
                   </div>

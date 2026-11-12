@@ -958,6 +958,12 @@ code, pre, kbd { font-family: var(--font-mono); }
 .row-action-qty-label { font-size: 13px; font-weight: 600; color: var(--ink-1); }
 .row-action-qty-label span { font-weight: 400; color: var(--ink-3); }
 .row-action-qty-row { display: flex; align-items: center; gap: 8px; }
+/* Sotish tasdig'i: asl narxdan farq, foyda/zarar, jami */
+.row-action-price-note { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; margin-top: -2px; font-size: 12.5px; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+.row-action-price-note .is-up { color: var(--accent); font-weight: 600; }
+.row-action-price-note .is-down { color: var(--danger); font-weight: 600; }
+.row-action-link { margin-left: auto; padding: 0; border: 0; background: none; font-size: 12.5px; font-weight: 500; color: var(--brand); cursor: pointer; }
+.row-action-link:hover { text-decoration: underline; }
 
 /* ── 11. Modal oynalar (iOS sheet) ───────────────────────── */
 @keyframes sheet-fade { from { opacity: 0; } to { opacity: 1; } }

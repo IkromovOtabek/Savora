@@ -291,6 +291,8 @@
 .st-actionbar .ux-more-btn { width: 44px; height: 44px; }
 .st-actionbar .row-actions { gap: 8px; }
 .st-actionbar .row-action-menu-wrap { display: inline-flex; }
+/* Sotish menyusi ochiq — bo'limlar navigatsiyasi (.st-fnav, z 6) ustida tursin, aks holda tugmalar yopilib qoladi */
+.st-actionbar:has(.row-action-menu) { z-index: 7; }
 
 .st-detail-grid { display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 20px; align-items: start; }
 .st-detail-aside { display: grid; gap: 20px; }

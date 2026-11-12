@@ -362,6 +362,17 @@ export const uz = {
     soldPrice: "Sotilgan narx (so'm)",
     pricePlaceholder: 'Masalan: 4 500 000',
     editAria: 'tahrirlash',
+    /** {step} — ± qadami */
+    priceMinus: 'Narxni {step} ga kamaytirish',
+    pricePlus: 'Narxni {step} ga oshirish',
+    /** {sum} — mahsulotning sotuv narxi */
+    listPrice: 'Asl narx: {sum}',
+    priceReset: 'Qaytarish',
+    noEditPrice: "Narxni o'zgartirish huquqi yo'q",
+    noDiscount: "Asl narxdan arzon sotish huquqi yo'q",
+    profit: "Foyda: {sum} so'm",
+    belowCost: "Kelish narxidan past: −{sum} so'm",
+    total: "Jami: {sum} so'm",
   },
 
   /** components/tenant/ProductHistory.tsx */
@@ -986,6 +997,15 @@ export const ru: typeof uz = {
     soldPrice: 'Цена продажи (сум)',
     pricePlaceholder: 'Например: 4 500 000',
     editAria: 'редактировать',
+    priceMinus: 'Уменьшить цену на {step}',
+    pricePlus: 'Увеличить цену на {step}',
+    listPrice: 'Исходная цена: {sum}',
+    priceReset: 'Сбросить',
+    noEditPrice: 'Нет права менять цену',
+    noDiscount: 'Нет права продавать дешевле исходной цены',
+    profit: 'Прибыль: {sum} сум',
+    belowCost: 'Ниже закупочной: −{sum} сум',
+    total: 'Итого: {sum} сум',
   },
 
   history: {

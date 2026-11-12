@@ -11,7 +11,8 @@ import ReviewModal from '@/components/tenant/ReviewModal';
 import PriceInput from '@/components/ui/PriceInput';
 import { useDict } from '@/lib/i18n/client';
 import { qtyWithUnit, tr } from '@/lib/i18n/fmt';
-import { addQty, fmtQty, isFractionalUnit, parseQty, qtyStep } from '@/lib/qty';
+import { addQty, fmtQty, isFractionalUnit, parseQty, priceTimesQty, qtyStep } from '@/lib/qty';
+import { fmtMoney } from '@/lib/format';
 import type { ProductUnit } from '@/lib/businessTypes';
 
 interface Props {
@@ -32,6 +33,11 @@ interface Props {
   /** Huquqlar: sotish ("sale.create") va filialga berish ("transfer.create") */
   canSell?: boolean;
   canTransfer?: boolean;
+  /** Sotishda narxni o'zgartirish ("sale.editPrice") va arzonlatish ("sale.discount") — server ham tekshiradi */
+  canEditPrice?: boolean;
+  canDiscount?: boolean;
+  /** Kelish narxi — faqat "product.viewCost" huquqi bo'lsa beriladi (foyda/zararni ko'rsatish uchun) */
+  purchasePrice?: number;
   /** "bar" — mahsulot sahifasidagi katta tugma (tahrirlash havolasisiz) */
   variant?: 'row' | 'bar';
 }
@@ -40,7 +46,7 @@ type View = 'menu' | 'sellType' | 'sellQty' | 'branches' | 'branchQty';
 
 export default function ProductRowActions({
   productId, productName, status, branches, currentBranchId, trackQuantity = false, available = 1, unit = null, salePrice = 0, canInstallment = false, canCredit = false,
-  canSell = true, canTransfer = true, variant = 'row',
+  canSell = true, canTransfer = true, canEditPrice = false, canDiscount = false, purchasePrice = 0, variant = 'row',
 }: Props) {
   const d = useDict();
   const t = d.stock.rowActions;
@@ -135,9 +141,18 @@ export default function ProductRowActions({
     router.refresh();
   }
 
+  // Naqd sotuv darhol yozilmaydi: avval tasdiqlash bosqichi — son va narx (± bilan o'zgartiriladi)
+  function openSellStep() {
+    setQty(firstQty);
+    setPrice(needPrice ? '' : String(salePrice));
+    setErr(null);
+    setView('sellQty');
+  }
+
   function doSell() {
     const extra: Record<string, string> = { qty };
-    if (price.trim()) extra.salePrice = price.trim();
+    // Narx faqat o'zgargan (yoki mahsulotda narx yo'q) bo'lsa yuboriladi
+    if (price.trim() && (needPrice || Number(price) !== salePrice)) extra.salePrice = price.trim();
     // Sotilgandan keyin baho modalini ochamiz
     run((fd) => quickMarkSoldAction(null, fd), extra, '/app/sales', () => setReviewOpen(true));
   }
@@ -208,7 +223,7 @@ export default function ProductRowActions({
                     <Icon name="arrowLeft" size={14} /> {d.common.back}
                   </button>
                   <button type="button" className="row-action-item" disabled={busy}
-                    onClick={() => { (needQty || needPrice) ? (setQty(firstQty), setView('sellQty')) : doSell(); }}>
+                    onClick={openSellStep}>
                     <Icon name="wallet" size={15} /> {d.common.cash}
                   </button>
                   {canInstallment && (
@@ -234,11 +249,15 @@ export default function ProductRowActions({
                   qty={qty}
                   setQty={setQty}
                   showQty={needQty}
-                  showPrice={needPrice}
+                  showPrice
                   price={price}
                   setPrice={setPrice}
+                  basePrice={salePrice}
+                  canEditPrice={canEditPrice}
+                  canDiscount={canDiscount}
+                  purchasePrice={purchasePrice}
                   busy={busy}
-                  onBack={() => setView('menu')}
+                  onBack={() => setView('sellType')}
                   onConfirm={doSell}
                   confirmLabel={t.sold}
                 />
@@ -295,22 +314,45 @@ export default function ProductRowActions({
   );
 }
 
+/** ± tugma qadami — narx kattaligiga qarab (4 500 000 → 50 000, 150 000 → 5 000) */
+function priceStep(base: number): number {
+  if (base >= 10_000_000) return 100_000;
+  if (base >= 1_000_000) return 50_000;
+  if (base >= 100_000) return 5_000;
+  if (base >= 10_000) return 1_000;
+  return 100;
+}
+
 function QtyStep({
   label, max, unit = null, qty, setQty, showQty = false, showPrice = false, price = '', setPrice,
+  basePrice = 0, canEditPrice = false, canDiscount = false, purchasePrice = 0,
   busy, onBack, onConfirm, confirmLabel,
 }: {
   label: string; max: number; unit?: ProductUnit | null; qty: string; setQty: (v: string) => void;
   showQty?: boolean; showPrice?: boolean; price?: string; setPrice?: (v: string) => void;
+  /** Mahsulotning sotuv narxi (0 — narx kiritilmagan, istalgan narx yoziladi) */
+  basePrice?: number; canEditPrice?: boolean; canDiscount?: boolean; purchasePrice?: number;
   busy: boolean; onBack: () => void; onConfirm: () => void; confirmLabel: string;
 }) {
   const d = useDict();
   const t = d.stock.rowActions;
-  const priceOk = !showPrice || (!!price.trim() && Number(price) > 0);
   const fractional = isFractionalUnit(unit);
   const step = qtyStep(unit);
   const n = parseQty(qty, unit);
   const qtyOk = !showQty || (n !== null && n <= max);
   const cur = n ?? step;
+
+  // Narx: narxi bor mahsulotda o'zgartirish — "sale.editPrice", arzonlatish — qo'shimcha "sale.discount" (server bilan bir xil)
+  const hasBase = basePrice > 0;
+  const editable = !hasBase || canEditPrice;
+  const p = Number(price) || 0;
+  const pStep = priceStep(hasBase ? basePrice : p);
+  const minPrice = hasBase && !canDiscount ? basePrice : pStep;
+  const diff = hasBase ? p - basePrice : 0;
+  const discountDenied = hasBase && p > 0 && p < basePrice && !canDiscount;
+  const priceOk = !showPrice || (p > 0 && !discountDenied && (editable || p === basePrice));
+  const lineTotal = p > 0 && n !== null ? priceTimesQty(p, n) : 0;
+  const profit = purchasePrice > 0 && p > 0 ? p - purchasePrice : null;
   return (
     <div className="row-action-qty">
       <button type="button" className="row-action-back" onClick={onBack}>
@@ -342,12 +384,45 @@ function QtyStep({
       {showPrice && (
         <>
           <label className="row-action-qty-label">{t.soldPrice}</label>
-          <PriceInput
-            value={String(price ?? '')}
-            onValueChange={(raw) => setPrice?.(raw)}
-            placeholder={t.pricePlaceholder}
-            className="row-action-qty-input"
-          />
+          <div className="row-action-qty-row">
+            {editable && (
+              <button type="button" className="qty-btn" aria-label={tr(t.priceMinus, { step: fmtMoney(pStep) })}
+                disabled={p <= 0 || p - pStep < minPrice}
+                onClick={() => setPrice?.(String(Math.max(minPrice, p - pStep)))}>−</button>
+            )}
+            <PriceInput
+              value={String(price ?? '')}
+              onValueChange={(raw) => setPrice?.(raw)}
+              placeholder={t.pricePlaceholder}
+              className="row-action-qty-input"
+              ariaLabel={t.soldPrice}
+              disabled={!editable}
+            />
+            {editable && (
+              <button type="button" className="qty-btn" aria-label={tr(t.pricePlus, { step: fmtMoney(pStep) })}
+                disabled={p <= 0}
+                onClick={() => setPrice?.(String(p + pStep))}>+</button>
+            )}
+          </div>
+          {hasBase && diff !== 0 && (
+            <div className="row-action-price-note">
+              <span>{tr(t.listPrice, { sum: fmtMoney(basePrice) })}</span>
+              <b className={diff > 0 ? 'is-up' : 'is-down'}>{diff > 0 ? '+' : '−'}{fmtMoney(Math.abs(diff))}</b>
+              <button type="button" className="row-action-link" onClick={() => setPrice?.(String(basePrice))}>{t.priceReset}</button>
+            </div>
+          )}
+          {!editable && <div className="row-action-price-note">{t.noEditPrice}</div>}
+          {discountDenied && <div className="row-action-err">{t.noDiscount}</div>}
+          {profit !== null && (
+            <div className="row-action-price-note">
+              <b className={profit >= 0 ? 'is-up' : 'is-down'}>
+                {profit >= 0 ? tr(t.profit, { sum: fmtMoney(profit) }) : tr(t.belowCost, { sum: fmtMoney(-profit) })}
+              </b>
+            </div>
+          )}
+          {showQty && lineTotal > 0 && n !== 1 && (
+            <div className="row-action-price-note"><span>{tr(t.total, { sum: fmtMoney(lineTotal) })}</span></div>
+          )}
         </>
       )}
       <button type="button" className="btn btn-primary btn-sm" style={{ width: '100%' }} disabled={busy || !priceOk || !qtyOk} onClick={onConfirm}>

@@ -551,11 +551,15 @@ export async function quickMarkSoldAction(_prev: State, formData: FormData): Pro
 
   const now = new Date();
   const totalAmount = priceTimesQty(salePrice, saleQty);
+  const priceChanged = found.salePrice > 0 && salePrice !== found.salePrice;
+  // Miqdorli/xizmat mahsulotda shu sotuvdagi ± narx qolgan zaxiraning asl narxini o'zgartirmaydi;
+  // yagona dona (IMEI) yoki narxi yo'q mahsulotda — sotilgan narx yoziladi
+  const keepListPrice = priceChanged && (!!found.trackQuantity || isStockless(found));
 
   // Atomik: qoldiq tekshiruvi + ayirish bitta so'rovda (parallel sotuvda minusga tushmaydi)
   const product = await reserveStock(Product, found._id, saleQty, {
     scope,
-    set: { salePrice, soldPaymentType: 'cash' },
+    set: keepListPrice ? { soldPaymentType: 'cash' } : { salePrice, soldPaymentType: 'cash' },
     history: { action: 'sold', detail: `${qtyLabel(saleQty, found.unit)} · ${fmtSum(totalAmount)}`, by: user.username, at: now },
   });
   if (!product) return { error: m.notEnoughStock };
@@ -593,8 +597,9 @@ export async function quickMarkSoldAction(_prev: State, formData: FormData): Pro
       action: 'sale.quick',
       entity: 'sale',
       entityId: String(product._id),
-      summary: `Tez sotuv: ${product.name} · ${qtyLabel(saleQty, found.unit)} · ${fmtSum(totalAmount)}`,
-      meta: { saleQty, totalAmount },
+      summary: `Tez sotuv: ${product.name} · ${qtyLabel(saleQty, found.unit)} · ${fmtSum(totalAmount)}`
+        + (priceChanged ? ` · narx ${fmtSum(found.salePrice)} → ${fmtSum(salePrice)}` : ''),
+      meta: { saleQty, totalAmount, ...(priceChanged ? { listPrice: found.salePrice, soldPrice: salePrice } : {}) },
     });
     await markOnboardingStep(user.organizationId, 'saleMade');
     revalidatePath('/app');
