@@ -4,10 +4,10 @@ import { useActionState } from 'react';
 import { superUpdateOrgPermissionsAction } from '@/app/actions/permissions';
 import type { OrgFeatures } from '@/lib/featureKeys';
 import {
-  PERMISSION_GROUP_LABELS,
-  PERMISSION_KEYS,
+  PERMISSION_PAGE_DEFS,
+  PERMISSION_PAGES,
   PERMISSIONS,
-  type PermissionGroup,
+  permissionsOfPage,
   type PermissionKey,
 } from '@/lib/permissions';
 import { useDict } from '@/lib/i18n/client';
@@ -21,10 +21,14 @@ export interface MatrixUser {
   role: 'admin' | 'user';
   active: boolean;
   isDefault: boolean;
+  /** Biriktirilgan rol nomi (bo'lsa — huquqlar roldan) */
+  roleName?: string;
   permissions: PermissionKey[];
 }
 
-const GROUPS = Object.keys(PERMISSION_GROUP_LABELS) as PermissionGroup[];
+// Filialga beriladigan sahifalar — amallari bilan; faqat egasiga xos sahifalar — bitta qulflangan qatorda
+const ASSIGNABLE_PAGES = PERMISSION_PAGES.filter((p) => !PERMISSION_PAGE_DEFS[p].ownerOnly);
+const OWNER_PAGES = PERMISSION_PAGES.filter((p) => PERMISSION_PAGE_DEFS[p].ownerOnly);
 
 export default function OrgPermissionsMatrixForm({
   orgId,
@@ -51,6 +55,7 @@ export default function OrgPermissionsMatrixForm({
       {state?.success && <Alert tone="ok">{state.success}</Alert>}
 
       <p className="sa-gfoot" style={{ padding: 0 }}>{s.intro}</p>
+      {users.some((u) => u.roleName) && <p className="sa-gfoot" style={{ padding: 0 }}>{s.roleNote}</p>}
 
       <div className="sa-matrix-wrap">
         <table className="sa-matrix">
@@ -61,7 +66,7 @@ export default function OrgPermissionsMatrixForm({
                 <th key={u.id} scope="col" title={u.username}>
                   {u.name}
                   <small>
-                    {u.role === 'admin' ? s.roleAdmin : u.isDefault ? s.branchDefault : s.branchCustom}
+                    {u.role === 'admin' ? s.roleAdmin : u.roleName ? tr(s.branchRole, { name: u.roleName }) : u.isDefault ? s.branchDefault : s.branchCustom}
                     {!u.active && s.inactiveSuffix}
                   </small>
                 </th>
@@ -69,39 +74,72 @@ export default function OrgPermissionsMatrixForm({
             </tr>
           </thead>
           <tbody>
-            {GROUPS.flatMap((g) => [
-              <tr key={`g-${g}`} className="sa-matrix-group">
-                <td colSpan={users.length + 1}>{d.catalog.permissionGroups[g]}</td>
-              </tr>,
-              ...PERMISSION_KEYS.filter((k) => PERMISSIONS[k].group === g).map((k) => {
-                const p = PERMISSIONS[k];
-                const label = d.catalog.permissions[k].label;
-                const featureOff = p.feature ? !features[p.feature] : false;
-                return (
-                  <tr key={k} className={featureOff ? 'sa-matrix-off' : undefined}>
-                    <th scope="row" style={{ fontWeight: 500 }}>
-                      {label}
-                      <small style={{ display: 'block', fontSize: 12, color: 'var(--ink-3)', fontWeight: 400 }}>
-                        {k}{p.adminOnly ? s.ownerOnlySuffix : ''}{featureOff ? s.moduleOffSuffix : ''}
-                      </small>
-                    </th>
-                    {users.map((u) => (
-                      <td key={u.id}>
-                        <input
-                          type="checkbox"
-                          className="sa-check"
-                          name={`perm_${u.id}`}
-                          value={k}
-                          defaultChecked={u.permissions.includes(k)}
-                          disabled={isPending || u.role === 'admin' || p.adminOnly}
-                          aria-label={`${u.name}: ${label}`}
-                        />
-                      </td>
-                    ))}
-                  </tr>
-                );
-              }),
-            ])}
+            {ASSIGNABLE_PAGES.flatMap((page) => {
+              const keys = permissionsOfPage(page).filter((k) => !PERMISSIONS[k].adminOnly);
+              if (keys.length === 0) return [];
+              const pf = PERMISSION_PAGE_DEFS[page].feature;
+              return [
+                <tr key={`g-${page}`} className={`sa-matrix-group${pf && !features[pf] ? ' sa-matrix-off' : ''}`}>
+                  <td colSpan={users.length + 1}>
+                    {d.catalog.permissionPages[page]}
+                    {pf && !features[pf] ? s.moduleOffSuffix : ''}
+                  </td>
+                </tr>,
+                ...keys.map((k) => {
+                  const p = PERMISSIONS[k];
+                  const label = d.catalog.permissions[k].label;
+                  const featureOff = p.feature ? !features[p.feature] : false;
+                  return (
+                    <tr key={k} className={featureOff ? 'sa-matrix-off' : undefined}>
+                      <th scope="row" style={{ fontWeight: 500 }}>
+                        {label}
+                        <small style={{ display: 'block', fontSize: 12, color: 'var(--ink-3)', fontWeight: 400 }}>
+                          {d.catalog.permissions[k].description}
+                        </small>
+                      </th>
+                      {users.map((u) => (
+                        <td key={u.id}>
+                          <input
+                            type="checkbox"
+                            className="sa-check"
+                            name={`perm_${u.id}`}
+                            value={k}
+                            defaultChecked={u.permissions.includes(k)}
+                            disabled={isPending || u.role === 'admin'}
+                            aria-label={`${u.name}: ${d.catalog.permissionPages[page]} — ${label}`}
+                          />
+                        </td>
+                      ))}
+                    </tr>
+                  );
+                }),
+              ];
+            })}
+            <tr className="sa-matrix-group">
+              <td colSpan={users.length + 1}>{d.catalog.permissionOwnerPages}</td>
+            </tr>
+            {OWNER_PAGES.map((page) => (
+              <tr key={page}>
+                <th scope="row" style={{ fontWeight: 500 }}>
+                  {d.catalog.permissionPages[page]}
+                  <small style={{ display: 'block', fontSize: 12, color: 'var(--ink-3)', fontWeight: 400 }}>
+                    {d.catalog.permissionPageOwnerOnly}
+                  </small>
+                </th>
+                {users.map((u) => (
+                  <td key={u.id}>
+                    <input
+                      type="checkbox"
+                      className="sa-check"
+                      checked={u.role === 'admin'}
+                      readOnly
+                      disabled
+                      aria-label={`${u.name}: ${d.catalog.permissionPages[page]}`}
+                    />
+                  </td>
+                ))}
+              </tr>
+            ))}
           </tbody>
         </table>
       </div>

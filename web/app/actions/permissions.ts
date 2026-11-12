@@ -7,7 +7,7 @@ import { getTenantAdminSession } from '@/lib/tenantSession';
 import { getTenantModels } from '@/lib/tenantDb';
 import { getMasterModels } from '@/lib/masterDb';
 import { userCan } from '@/lib/permissionGuard';
-import { normalizeUserPermissions, PERMISSIONS, type PermissionKey } from '@/lib/permissions';
+import { effectivePermissionsWithRole, isPermissionKey, normalizeUserPermissions, PERMISSIONS, PERMISSIONS_VERSION, type PermissionKey } from '@/lib/permissions';
 import { recordAudit } from '@/lib/audit';
 import { getDict, type Dict } from '@/lib/i18n/server';
 import { tr } from '@/lib/i18n/fmt';
@@ -34,6 +34,9 @@ async function savePermissions(
 
   const list = reset ? undefined : normalizeUserPermissions(raw);
   target.set('permissions', list);
+  target.set('permVersion', list ? PERMISSIONS_VERSION : undefined);
+  // Shaxsiy sozlash — rol bog'lanishi olib tashlanadi (aks holda rol ustun turib, o'zgarish ta'sir qilmasdi)
+  target.set('roleId', undefined);
   await target.save();
   return { ok: true, username: target.username, list };
 }
@@ -97,12 +100,25 @@ export async function superUpdateOrgPermissionsAction(_prev: State, formData: Fo
   const org = await Organization.findById(orgId).select('dbName').lean();
   if (!org) return { error: d.crm.team.errOrgNotFound };
 
-  const { User } = await getTenantModels(org.dbName);
+  const { User, Role } = await getTenantModels(org.dbName);
   const resetUser = String(formData.get('resetUser') || '');
-  const userIds = [...new Set(formData.getAll('userId').map(String))];
+  const userIds = [...new Set(formData.getAll('userId').map(String))].filter((id) => isValidObjectId(id));
+  // O'zgarmagan ustunlar saqlanmaydi — rol biriktirilgan xodimning roli bekorga uzilmasin
+  const current = await User.find({ _id: { $in: userIds }, role: 'user' }).select('role permissions permVersion roleId').lean();
+  const roleIds = current.map((u) => u.roleId).filter(Boolean);
+  const roles = roleIds.length ? await Role.find({ _id: { $in: roleIds } }).select('permissions permVersion').lean() : [];
+  const roleById = new Map(roles.map((r) => [String(r._id), r]));
+  const currentById = new Map(current.map((u) => [String(u._id), u]));
   let saved = 0;
   for (const userId of userIds) {
-    const res = await savePermissions(User, userId, formData.getAll(`perm_${userId}`), resetUser === userId, d);
+    const raw = formData.getAll(`perm_${userId}`);
+    const cur = currentById.get(userId);
+    if (cur && resetUser !== userId) {
+      const now = effectivePermissionsWithRole(cur, cur.roleId ? roleById.get(String(cur.roleId)) : null);
+      const next = new Set(raw.filter((k): k is PermissionKey => isPermissionKey(k) && !PERMISSIONS[k].adminOnly));
+      if (now.size === next.size && [...now].every((k) => next.has(k))) continue;
+    }
+    const res = await savePermissions(User, userId, raw, resetUser === userId, d);
     if (!res.ok) return { error: res.error };
     saved++;
     await recordAudit(

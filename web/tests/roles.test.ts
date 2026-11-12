@@ -14,7 +14,7 @@ describe('rol shablonlari', () => {
 
   it("rol huquqlari filial xodimiga aynan qo'llanadi (effectivePermissions)", () => {
     const kassir = DEFAULT_ROLES.find((r) => r.name === 'Kassir')!;
-    const set = effectivePermissions({ role: 'user', permissions: kassir.permissions });
+    const set = effectivePermissions({ role: 'user', permissions: kassir.permissions, permVersion: kassir.permVersion });
     expect([...set].sort()).toEqual([...kassir.permissions].sort());
     expect(set.has('product.delete')).toBe(false);
   });

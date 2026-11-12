@@ -1,5 +1,5 @@
 import { getTenantModels } from '@/lib/tenantDb';
-import { effectivePermissions, type PermissionKey } from '@/lib/permissions';
+import { effectivePermissionsWithRole, type PermissionKey } from '@/lib/permissions';
 import type { OrgFeatures } from '@/lib/featureKeys';
 import { getDict } from '@/lib/i18n/server';
 import OrgPermissionsMatrixForm, { type MatrixUser } from './OrgPermissionsMatrixForm';
@@ -17,17 +17,26 @@ export default async function OrgPermissionsMatrix({
   const d = await getDict();
   let users: MatrixUser[] = [];
   try {
-    const { User } = await getTenantModels(dbName);
-    const list = await User.find().select('username fullName role active permissions').sort({ role: 1, createdAt: 1 }).lean();
-    users = list.map((u) => ({
-      id: String(u._id),
-      username: u.username,
-      name: u.fullName || u.username,
-      role: u.role,
-      active: u.active,
-      isDefault: u.role === 'admin' || !Array.isArray(u.permissions),
-      permissions: [...effectivePermissions({ role: u.role, permissions: u.permissions })] as PermissionKey[],
-    }));
+    const { User, Role } = await getTenantModels(dbName);
+    const [list, roles] = await Promise.all([
+      User.find().select('username fullName role active permissions permVersion roleId').sort({ role: 1, createdAt: 1 }).lean(),
+      Role.find().select('name permissions permVersion').lean(),
+    ]);
+    const roleById = new Map(roles.map((r) => [String(r._id), r]));
+    users = list.map((u) => {
+      const role = u.roleId ? roleById.get(String(u.roleId)) : undefined;
+      return {
+        id: String(u._id),
+        username: u.username,
+        name: u.fullName || u.username,
+        role: u.role,
+        active: u.active,
+        isDefault: u.role === 'admin' || (!role && !Array.isArray(u.permissions)),
+        roleName: role?.name,
+        // Rol biriktirilgan bo'lsa — roldan (lib/permissionGuard bilan bir xil qoida)
+        permissions: [...effectivePermissionsWithRole(u, role)] as PermissionKey[],
+      };
+    });
   } catch {
     return <div className="sa-empty">{d.superPanel.loadFailed}</div>;
   }

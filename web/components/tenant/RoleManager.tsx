@@ -6,17 +6,15 @@ import { saveRoleAction, deleteRoleAction } from '@/app/actions/roles';
 import { toast } from '@/lib/toast';
 import Icon from '@/components/icons/Icon';
 import type { OrgFeatures } from '@/lib/featureKeys';
-import { PERMISSION_KEYS, PERMISSIONS, type PermissionGroup, type PermissionKey } from '@/lib/permissions';
+import type { PermissionKey } from '@/lib/permissions';
 import { useDict } from '@/lib/i18n/client';
 import { tr } from '@/lib/i18n/fmt';
+import PermissionPages from './PermissionPages';
 import '@/components/tenant/styles/admin.css';
-
-const GROUPS: readonly PermissionGroup[] = ['savdo', 'ombor', 'moliya', 'boshqaruv'];
-const ASSIGNABLE = PERMISSION_KEYS.filter((k) => !PERMISSIONS[k].adminOnly);
 
 interface RoleRow { id: string; name: string; permissions: string[]; users: number }
 
-/** Rollar ro'yxati + tahrirlagich (nom va guruhlangan huquq switch'lari) */
+/** Rollar ro'yxati + tahrirlagich (nom va sahifalar bo'yicha huquq switch'lari) */
 export default function RoleManager({ roles, features }: { roles: RoleRow[]; features: OrgFeatures }) {
   const d = useDict();
   const r = d.crm.team.roles;
@@ -26,14 +24,6 @@ export default function RoleManager({ roles, features }: { roles: RoleRow[]; fea
 
   function open(row?: RoleRow) {
     setEdit(row ? { id: row.id, name: row.name, perms: new Set(row.permissions as PermissionKey[]) } : { name: '', perms: new Set() });
-  }
-  function toggle(k: PermissionKey) {
-    setEdit((e) => {
-      if (!e) return e;
-      const next = new Set(e.perms);
-      if (next.has(k)) next.delete(k); else next.add(k);
-      return { ...e, perms: next };
-    });
   }
   function save() {
     if (!edit) return;
@@ -79,36 +69,13 @@ export default function RoleManager({ roles, features }: { roles: RoleRow[]; fea
             <label htmlFor="rl-name">{r.name}</label>
             <input id="rl-name" value={edit.name} maxLength={40} onChange={(e) => setEdit({ ...edit, name: e.target.value })} autoComplete="off" />
           </div>
-          <div className="ad-perm-groups">
-            {GROUPS.map((g) => {
-              const keys = ASSIGNABLE.filter((k) => PERMISSIONS[k].group === g);
-              if (!keys.length) return null;
-              return (
-                <section key={g} aria-labelledby={`rl-g-${g}`}>
-                  <div className="ad-sec-head">
-                    <h2 id={`rl-g-${g}`}>{d.catalog.permissionGroups[g]}</h2>
-                    <span>{keys.filter((k) => edit.perms.has(k)).length}/{keys.length}</span>
-                  </div>
-                  <div className="ad-group">
-                    {keys.map((k) => {
-                      const p = PERMISSIONS[k];
-                      const off = p.feature ? !features[p.feature] : false;
-                      const id = `rl-${k.replace('.', '-')}`;
-                      return (
-                        <label key={k} htmlFor={id} className="ad-cell ad-perm-row">
-                          <span className="ad-cell-t">
-                            <b>{d.catalog.permissions[k].label}{off && <span className="ad-pill ad-pill--warn">{d.crm.team.perm.moduleOff}</span>}</b>
-                            <small>{d.catalog.permissions[k].description}</small>
-                          </span>
-                          <input id={id} className="ad-switch" type="checkbox" role="switch" checked={edit.perms.has(k)} onChange={() => toggle(k)} disabled={pending} />
-                        </label>
-                      );
-                    })}
-                  </div>
-                </section>
-              );
-            })}
-          </div>
+          <PermissionPages
+            checked={edit.perms}
+            onChange={(perms) => setEdit((e) => (e ? { ...e, perms } : e))}
+            features={features}
+            disabled={pending}
+            idPrefix="rl"
+          />
           <div className="rl-foot">
             <button type="button" className="btn btn-ghost" onClick={() => setEdit(null)} disabled={pending}>{r.cancel}</button>
             <button type="button" className="btn btn-primary" onClick={save} disabled={pending || !edit.name.trim()}>{r.save}</button>

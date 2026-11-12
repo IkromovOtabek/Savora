@@ -1,4 +1,5 @@
 import { getTenantSession } from '@/lib/tenantSession';
+import { userCan } from '@/lib/permissionGuard';
 import { branchFilter } from '@/lib/branchScope';
 import { fmtMoney, fmtDate } from '@/lib/format';
 import type { LedgerEntryDoc } from '@/lib/models/tenant/LedgerEntry';
@@ -25,6 +26,7 @@ export default async function DaftarPage({
 }) {
   const sp = await searchParams;
   const { user, LedgerEntry } = await getTenantSession();
+  const canDelete = await userCan(user, 'daftar.delete');
   const d = await getDict();
   const k = d.sales.daftar;
 
@@ -85,7 +87,7 @@ export default async function DaftarPage({
                 <Icon name="check" size={14} /> {k.returned}
               </button>
             </form>
-            <DaftarDeleteButton id={id} name={e.personName} />
+            {canDelete && <DaftarDeleteButton id={id} name={e.personName} />}
           </div>
         </div>
       </li>

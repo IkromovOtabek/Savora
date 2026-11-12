@@ -175,7 +175,7 @@ export async function createTaskFromAiAction(_prev: State, formData: FormData): 
 /** Holatni o'zgartirish — ko'rish doirasidagi har kim (filial login o'z/filial topshirig'ini) */
 export async function updateTaskStatusAction(formData: FormData): Promise<void> {
   const { user, features, Task } = await getTenantSession();
-  if (!features.tasks) return;
+  if (!features.tasks || !(await userCan(user, 'tasks.view'))) return;
   const id = String(formData.get('id') || '');
   const status = String(formData.get('status') || '');
   if (!isValidObjectId(id) || !isTaskStatus(status)) return;

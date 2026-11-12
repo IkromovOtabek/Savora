@@ -1,6 +1,7 @@
 import BackLink from '@/components/ui/BackLink';
 import { SupplierForm } from '@/components/tenant/SupplierUi';
 import { getDict } from '@/lib/i18n/server';
+import { requirePermission } from '@/lib/permissionGuard';
 import '@/components/tenant/styles/clients.css';
 
 export async function generateMetadata() {
@@ -9,6 +10,7 @@ export async function generateMetadata() {
 }
 
 export default async function NewSupplierPage() {
+  await requirePermission('suppliers.manage');
   const d = await getDict();
   const s = d.stock.suppliers;
   return (

@@ -206,6 +206,11 @@ a.ad-cell:active { opacity: .6; }
 .ad-perm-row--locked:hover { background: transparent; }
 .ad-perm-row .ad-cell-t b { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 .ad-perm-tags { display: inline-flex; gap: 4px; flex-wrap: wrap; }
+/* Huquqlar — sahifa sarlavhasi (ikonka + nom + modul belgisi) */
+.ad-perm-page-h { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; }
+.ad-perm-page-h .ad-pill { text-transform: none; letter-spacing: 0; }
+.ad-perm-page.is-off .ad-group { opacity: .6; }
+.ad-perm-all .ad-cell-t b { font-weight: 600; }
 .ad-perm-foot {
   position: sticky; bottom: 0; z-index: 1; display: flex; align-items: center; gap: 10px;
   padding: 12px 20px 16px; background: var(--surface); border-top: 1px solid var(--sep);

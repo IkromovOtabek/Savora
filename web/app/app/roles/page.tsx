@@ -1,6 +1,7 @@
 import { getTenantAdminSession } from '@/lib/tenantSession';
 import { ensureDefaultRoles } from '@/lib/roles';
 import RoleManager from '@/components/tenant/RoleManager';
+import { rolePermissionList } from '@/lib/permissions';
 import { getDict } from '@/lib/i18n/server';
 
 export async function generateMetadata() {
@@ -27,7 +28,7 @@ export default async function RolesPage() {
       </div>
       <RoleManager
         features={features}
-        roles={roles.map((x) => ({ id: String(x._id), name: x.name, permissions: x.permissions, users: usersBy.get(String(x._id)) ?? 0 }))}
+        roles={roles.map((x) => ({ id: String(x._id), name: x.name, permissions: rolePermissionList(x), users: usersBy.get(String(x._id)) ?? 0 }))}
       />
     </>
   );

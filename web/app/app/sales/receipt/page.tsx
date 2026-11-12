@@ -1,6 +1,7 @@
 import { notFound } from 'next/navigation';
 import BackLink from '@/components/ui/BackLink';
 import { getTenantSession } from '@/lib/tenantSession';
+import { requireSaleViewScope } from '@/lib/permissionGuard';
 import { branchFilter } from '@/lib/branchScope';
 import { getShopSettings } from '@/lib/shopSettings';
 import PrintReceiptButton from '@/components/tenant/PrintReceiptButton';
@@ -22,8 +23,9 @@ export default async function PosReceiptPage({ searchParams }: { searchParams: P
 
   const { user, org, Sale, ShopSettings } = await getTenantSession();
   const d = await getDict();
+  const scope = await requireSaleViewScope(user);
   const [found, settings] = await Promise.all([
-    Sale.find({ _id: { $in: ids }, status: { $ne: 'cancelled' }, ...branchFilter(user) }).lean(),
+    Sale.find({ _id: { $in: ids }, status: { $ne: 'cancelled' }, ...branchFilter(user), ...scope }).lean(),
     getShopSettings(ShopSettings),
   ]);
   if (!found.length) notFound();

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { authenticateMobile } from '@/lib/mobileAuth';
 import { getTenantModels } from '@/lib/tenantDb';
 import { getMobileFeatures } from '@/lib/mobileOrg';
+import { mobilePermissionDenied } from '@/lib/permissionGuard';
 import { userCan } from '@/lib/permissionGuard';
 import { isTaskOverdue, parseTaskView, taskFilter } from '@/lib/tasks';
 import { isTaskStatus, type TaskDoc } from '@/lib/models/tenant/Task';
@@ -14,6 +15,7 @@ export async function GET(req: Request) {
   if (!user || !user.dbName) return NextResponse.json({ error: 'Avtorizatsiya kerak.' }, { status: 401 });
   const features = await getMobileFeatures(user.organizationId);
   if (!features?.tasks) return NextResponse.json({ error: 'Topshiriqlar moduli yoqilmagan.' }, { status: 403 });
+  { const denied = await mobilePermissionDenied(user, 'tasks.view'); if (denied) return denied; }
 
   const url = new URL(req.url);
   const view = parseTaskView(url.searchParams.get('f'));

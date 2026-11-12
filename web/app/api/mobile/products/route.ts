@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { parseBundleItems, parseProductKind, sellableInfo } from '@/lib/productKinds';
 import { randomBytes } from 'crypto';
 import { authenticateMobile } from '@/lib/mobileAuth';
-import { mobilePermissionDenied, userCan } from '@/lib/permissionGuard';
+import { mobilePermissionDenied, mobilePermissionDeniedAny, userCan } from '@/lib/permissionGuard';
 import { recordAudit } from '@/lib/audit';
 import { getTenantModels } from '@/lib/tenantDb';
 import { branchFilter } from '@/lib/branchScope';
@@ -29,6 +29,8 @@ export async function GET(req: Request) {
   if (!user || !user.dbName) {
     return NextResponse.json({ error: 'Avtorizatsiya kerak.' }, { status: 401 });
   }
+  // Ombor ro'yxati; sotuv/filialga berish/to'plam tuzishda mahsulot tanlash uchun ham kerak
+  { const denied = await mobilePermissionDeniedAny(user, ['products.view', 'sale.create', 'transfer.create', 'product.create']); if (denied) return denied; }
   const { Product, Branch } = await getTenantModels(user.dbName);
   const canViewCost = await userCan(user, 'product.viewCost');
 

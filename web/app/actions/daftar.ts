@@ -72,7 +72,7 @@ export async function returnDaftarAction(formData: FormData): Promise<void> {
 
 export async function deleteDaftarAction(formData: FormData): Promise<void> {
   const { features, LedgerEntry, user } = await getTenantSession();
-  if (!features.daftar || !(await userCan(user, 'daftar.manage'))) return;
+  if (!features.daftar || !(await userCan(user, 'daftar.delete'))) return;
   const parsed = parseInput(zId('bad'), formData.get('id'));
   if (!parsed.ok) return;
   await softDeleteOne(LedgerEntry, { _id: parsed.data, ...branchFilter(user) }, user.username);

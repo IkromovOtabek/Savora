@@ -9,13 +9,13 @@ import { softDeleteOne } from '@/lib/softDelete';
 
 type Ctx = { params: Promise<{ id: string }> };
 
-async function load(req: Request, { params }: Ctx) {
+async function load(req: Request, { params }: Ctx, perm: 'daftar.manage' | 'daftar.delete' = 'daftar.manage') {
   const auth = await authenticateMobile(req);
   if (auth instanceof NextResponse) return auth;
   if (!auth.dbName) return NextResponse.json({ error: 'Avtorizatsiya kerak.' }, { status: 401 });
   const features = await getMobileFeatures(auth.organizationId);
   if (!features?.daftar) return NextResponse.json({ error: 'Daftar moduli yoqilmagan.' }, { status: 403 });
-  const denied = await mobilePermissionDenied(auth, 'daftar.manage');
+  const denied = await mobilePermissionDenied(auth, perm);
   if (denied) return denied;
   const { id } = await params;
   if (!Types.ObjectId.isValid(id)) return NextResponse.json({ error: 'Yozuv topilmadi.' }, { status: 404 });
@@ -39,7 +39,7 @@ export async function PATCH(req: Request, ctx: Ctx) {
 }
 
 export async function DELETE(req: Request, ctx: Ctx) {
-  const r = await load(req, ctx);
+  const r = await load(req, ctx, 'daftar.delete');
   if (r instanceof NextResponse) return r;
   const removed = await softDeleteOne(r.LedgerEntry, r.filter, r.user.username);
   if (!removed) return NextResponse.json({ error: 'Yozuv topilmadi.' }, { status: 404 });

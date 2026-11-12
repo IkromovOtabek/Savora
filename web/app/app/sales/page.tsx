@@ -6,7 +6,7 @@ import { fmtDate, fmtMoney } from '@/lib/format';
 import Icon from '@/components/icons/Icon';
 import MoreMenu from '@/components/ui/MoreMenu';
 import Tilt from '@/components/ui/Tilt';
-import { loadUserPermissions } from '@/lib/permissionGuard';
+import { loadUserPermissions, requirePermission } from '@/lib/permissionGuard';
 import { getDict } from '@/lib/i18n/server';
 import { plural, qtyWithUnit, tr } from '@/lib/i18n/fmt';
 
@@ -29,6 +29,7 @@ export default async function SalesPage({
   searchParams: Promise<{ status?: string; type?: string }>;
 }) {
   const sp = await searchParams;
+  await requirePermission('sales.view');
   const { user, Sale, Product, Branch, features } = await getTenantSession();
   const d = await getDict();
   const k = d.sales.list;

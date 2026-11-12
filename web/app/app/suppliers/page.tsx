@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { getTenantSession } from '@/lib/tenantSession';
+import { userCan } from '@/lib/permissionGuard';
 import { searchPattern } from '@/lib/security';
 import { fmtMoney } from '@/lib/format';
 import { loadSupplierBalances } from '@/lib/suppliers';
@@ -17,7 +18,8 @@ export async function generateMetadata() {
 
 export default async function SuppliersPage({ searchParams }: { searchParams: Promise<{ q?: string }> }) {
   const sp = await searchParams;
-  const { Supplier, SupplierEntry } = await getTenantSession();
+  const { Supplier, SupplierEntry, user } = await getTenantSession();
+  const canManage = await userCan(user, 'suppliers.manage');
   const d = await getDict();
   const s = d.stock.suppliers;
 
@@ -46,11 +48,13 @@ export default async function SuppliersPage({ searchParams }: { searchParams: Pr
           <h1 className="t-page-title">{s.title}</h1>
           <p className="t-page-sub">{s.sub} · <strong>{tr(s.count, { n: suppliers.length })}</strong></p>
         </div>
-        <div className="t-page-actions ux-hide-mobile">
-          <Link href="/app/suppliers/new" className="btn btn-primary btn-with-icon"><Icon name="plus" size={16} /> {s.addBtn}</Link>
-        </div>
+        {canManage && (
+          <div className="t-page-actions ux-hide-mobile">
+            <Link href="/app/suppliers/new" className="btn btn-primary btn-with-icon"><Icon name="plus" size={16} /> {s.addBtn}</Link>
+          </div>
+        )}
       </div>
-      <Link href="/app/suppliers/new" className="ux-fab" aria-label={s.newTitle}><Icon name="plus" size={18} /> {s.addBtn}</Link>
+      {canManage && <Link href="/app/suppliers/new" className="ux-fab" aria-label={s.newTitle}><Icon name="plus" size={18} /> {s.addBtn}</Link>}
 
       <section className="cl-card sp-total" aria-label={s.totalDebt}>
         <span className="sp-total-ic" aria-hidden><Icon name="wallet" size={22} /></span>
@@ -76,7 +80,7 @@ export default async function SuppliersPage({ searchParams }: { searchParams: Pr
           {q ? (
             <EmptyState icon="search" title={s.notFoundTitle} text={tr(s.notFoundText, { q })} />
           ) : (
-            <EmptyState icon="store" title={s.emptyTitle} text={s.emptyText} action={{ href: '/app/suppliers/new', label: s.firstAdd }} />
+            <EmptyState icon="store" title={s.emptyTitle} text={s.emptyText} action={canManage ? { href: '/app/suppliers/new', label: s.firstAdd } : undefined} />
           )}
         </div>
       ) : (

@@ -4,7 +4,7 @@ import { isValidObjectId } from 'mongoose';
 import { revalidatePath } from 'next/cache';
 import { getTenantAdminSession } from '@/lib/tenantSession';
 import { userCan } from '@/lib/permissionGuard';
-import { isPermissionKey, PERMISSION_KEYS, PERMISSIONS } from '@/lib/permissions';
+import { isPermissionKey, PERMISSION_KEYS, PERMISSIONS, PERMISSIONS_VERSION } from '@/lib/permissions';
 import { recordAudit } from '@/lib/audit';
 import { getDict } from '@/lib/i18n/server';
 import { tr } from '@/lib/i18n/fmt';
@@ -36,10 +36,10 @@ export async function saveRoleAction(input: { id?: string; name: string; permiss
   try {
     if (input.id) {
       if (!isValidObjectId(input.id)) return { error: r.notFound };
-      const res = await Role.updateOne({ _id: input.id }, { $set: { name, permissions } });
+      const res = await Role.updateOne({ _id: input.id }, { $set: { name, permissions, permVersion: PERMISSIONS_VERSION } });
       if (!res.matchedCount) return { error: r.notFound };
     } else {
-      await Role.create({ name, permissions });
+      await Role.create({ name, permissions, permVersion: PERMISSIONS_VERSION });
     }
   } catch (e) {
     if ((e as { code?: number }).code === 11000) return { error: r.exists };

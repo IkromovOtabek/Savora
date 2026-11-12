@@ -4,7 +4,7 @@ import type { SessionUser } from './session';
 import { getTenantModels } from './tenantDb';
 import { requireOrgUser } from './auth';
 import {
-  effectivePermissions,
+  effectivePermissionsWithRole,
   PERMISSION_KEYS,
   permissionDeniedError,
   PermissionKey,
@@ -21,14 +21,11 @@ export async function loadUserPermissions(
   if (user.role !== 'user' || !user.dbName) return new Set();
   try {
     const { User, Role } = await getTenantModels(user.dbName);
-    const u = await User.findById(user.id).select('role permissions roleId').lean();
+    const u = await User.findById(user.id).select('role permissions permVersion roleId').lean();
     if (!u) return new Set();
     // Rol biriktirilgan bo'lsa — huquqlar roldan (rol o'chirilgan bo'lsa shaxsiy ro'yxatga qaytadi)
-    if (u.roleId) {
-      const role = await Role.findById(u.roleId).select('permissions').lean();
-      if (role) return effectivePermissions({ role: u.role, permissions: role.permissions });
-    }
-    return effectivePermissions({ role: u.role, permissions: u.permissions });
+    const role = u.roleId ? await Role.findById(u.roleId).select('permissions permVersion').lean() : null;
+    return effectivePermissionsWithRole(u, role);
   } catch {
     // Xatoda — eng xavfsiz holat: huquq yo'q
     return new Set();
@@ -73,4 +70,36 @@ export async function mobilePermissionDenied(
 ): Promise<NextResponse | null> {
   if (await userCan(user, key)) return null;
   return NextResponse.json(permissionDeniedError(key), { status: 403 });
+}
+
+/**
+ * Bitta sotuv/chekni ko'rish doirasi (Sale so'roviga qo'shiladigan filtr):
+ *   «Sotuvlarni ko'rish» bo'lsa — cheklovsiz (filial cheklovi alohida qo'llanadi);
+ *   faqat «Sotuv qilish» bo'lsa — o'zi qilgan sotuvlar (sotuvdan keyin chek chiqarish uchun);
+ *   ikkalasi ham yo'q — null.
+ */
+export function saleViewScope(
+  user: Pick<SessionUser, 'username'>,
+  perms: ReadonlySet<PermissionKey>,
+): Record<string, string> | null {
+  if (perms.has('sales.view')) return {};
+  if (perms.has('sale.create')) return { soldBy: user.username };
+  return null;
+}
+
+/** Sahifa uchun: saleViewScope null bo'lsa /app/locked ga yo'naltiradi */
+export async function requireSaleViewScope(user: SessionUser): Promise<Record<string, string>> {
+  const scope = saleViewScope(user, await loadUserPermissions(user));
+  if (!scope) redirect(`/app/locked?p=${encodeURIComponent('sales.view')}`);
+  return scope;
+}
+
+/** Mobil API uchun: ro'yxatdagi huquqlardan BIRORTASI bo'lmasa — 403 (birinchi kalit nomi bilan) */
+export async function mobilePermissionDeniedAny(
+  user: Pick<SessionUser, 'id' | 'role' | 'dbName'>,
+  keys: readonly PermissionKey[],
+): Promise<NextResponse | null> {
+  const perms = await loadUserPermissions(user);
+  if (keys.some((k) => perms.has(k))) return null;
+  return NextResponse.json(permissionDeniedError(keys[0]), { status: 403 });
 }

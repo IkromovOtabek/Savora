@@ -21,7 +21,7 @@ type Result = { ok: true } | { ok: false; error: string };
 
 async function manager() {
   const session = await getTenantSession();
-  const denied = (await userCan(session.user, 'product.edit')) ? null : permissionDeniedError('product.edit');
+  const denied = (await userCan(session.user, 'catalog.manage')) ? null : permissionDeniedError('catalog.manage');
   const m = (await getDict()).stock.catalog.msg;
   return { ...session, denied, m };
 }

@@ -75,12 +75,12 @@ export const NAV_GROUPS: NavGroup[] = [
   {
     title: 'Mahsulotlar',
     links: [
-      { href: '/app/products', label: 'Ombor', feature: 'products' },
-      { href: '/app/inventory', label: 'Inventar', feature: 'inventory' },
+      { href: '/app/products', label: 'Ombor', feature: 'products', permission: 'products.view' },
+      { href: '/app/inventory', label: 'Inventar', feature: 'inventory', permission: 'inventory.view' },
       { href: '/app/revaluation', label: 'Qayta baholash', feature: 'products', permission: 'stock.adjust' },
-      { href: '/app/write-off', label: 'Hisobdan chiqarish', feature: 'products', permission: 'stock.adjust' },
-      { href: '/app/transferred', label: 'Filialga berildi', feature: 'transferred' },
-      { href: '/app/suppliers', label: 'Yetkazib beruvchilar', feature: 'products', permission: 'suppliers.manage' },
+      { href: '/app/write-off', label: 'Hisobdan chiqarish', feature: 'products', permission: 'stock.writeOff' },
+      { href: '/app/transferred', label: 'Filialga berildi', feature: 'transferred', permission: 'transferred.view' },
+      { href: '/app/suppliers', label: 'Yetkazib beruvchilar', feature: 'products', permission: 'suppliers.view' },
       { href: '/app/imei', label: 'IMEI qidirish', imeiOnly: true, adminOnly: true },
     ],
   },
@@ -90,7 +90,7 @@ export const NAV_GROUPS: NavGroup[] = [
       // Bosh sahifa admin uchun ham ko'rinadi (dashboard admin'da barcha filiallar bo'yicha ishlaydi)
       { href: '/app', label: 'Bosh sahifa', exact: true },
       { href: '/app/pos', label: 'Yangi sotuv', feature: 'sales', permission: 'sale.create' },
-      { href: '/app/sales', label: 'Sotuvlar', feature: 'sales' },
+      { href: '/app/sales', label: 'Sotuvlar', feature: 'sales', permission: 'sales.view' },
       { href: '/app/kassa', label: 'Naqd kassa', feature: 'kassa', permission: 'kassa.view' },
       { href: '/app/shifts', label: 'Kassa smenalari', feature: 'kassa', permission: 'kassa.view' },
     ],
@@ -98,9 +98,9 @@ export const NAV_GROUPS: NavGroup[] = [
   {
     title: 'Mijozlar',
     links: [
-      { href: '/app/customers', label: 'Mijozlar', feature: 'sales', permission: 'customers.manage' },
-      { href: '/app/debts', label: 'Qarzdorlik', feature: 'sales' },
-      { href: '/app/nasiya', label: 'Nasiya', feature: 'nasiya' },
+      { href: '/app/customers', label: 'Mijozlar', feature: 'sales', permission: 'customers.view' },
+      { href: '/app/debts', label: 'Qarzdorlik', feature: 'sales', permission: 'debts.view' },
+      { href: '/app/nasiya', label: 'Nasiya', feature: 'nasiya', permission: 'nasiya.view' },
       { href: '/app/daftar', label: 'Daftar', feature: 'daftar', permission: 'daftar.manage' },
     ],
   },
@@ -127,7 +127,7 @@ export const NAV_GROUPS: NavGroup[] = [
     links: [
       { href: '/app/users', label: 'Filiallar', feature: 'users', permission: 'users.manage', adminOnly: true },
       { href: '/app/roles', label: 'Rollar', feature: 'users', permission: 'users.manage', adminOnly: true },
-      { href: '/app/tasks', label: 'Topshiriqlar', feature: 'tasks' },
+      { href: '/app/tasks', label: 'Topshiriqlar', feature: 'tasks', permission: 'tasks.view' },
       { href: '/app/audit', label: 'Amallar', feature: 'audit', permission: 'audit.view', adminOnly: true },
     ],
   },

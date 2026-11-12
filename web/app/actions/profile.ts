@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { getSession } from '@/lib/session';
 import { getTenantSession } from '@/lib/tenantSession';
+import { userCan } from '@/lib/permissionGuard';
 import { markOnboardingStep } from '@/lib/onboarding';
 import { getDict } from '@/lib/i18n/server';
 
@@ -19,6 +20,9 @@ export async function changePasswordAction(_prev: State, formData: FormData): Pr
   if (!dbUser) return { error: t.userNotFound };
 
   const mustChange = Boolean(dbUser.mustChangePassword);
+
+  // Birinchi kirishdagi majburiy almashtirish — huquqdan qat'i nazar; aks holda «O'z parolini o'zgartirish» kerak
+  if (!mustChange && !(await userCan(user, 'profile.password'))) return { error: t.passwordChangeDenied };
 
   if (!mustChange) {
     if (!current || !(await dbUser.comparePassword(current))) {

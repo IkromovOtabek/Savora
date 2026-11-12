@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 import { Types } from 'mongoose';
 import { authenticateMobile } from '@/lib/mobileAuth';
-import { mobilePermissionDenied } from '@/lib/permissionGuard';
+import { loadUserPermissions, mobilePermissionDenied, saleViewScope } from '@/lib/permissionGuard';
+import { permissionDeniedError } from '@/lib/permissions';
 import { recordAudit } from '@/lib/audit';
 import { getTenantModels } from '@/lib/tenantDb';
 import { branchFilter } from '@/lib/branchScope';
@@ -22,8 +23,11 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
   const { id } = await params;
   if (!Types.ObjectId.isValid(id)) return NextResponse.json({ error: 'Sotuv topilmadi.' }, { status: 404 });
 
+  // «Sotuvlarni ko'rish» yo'q bo'lsa — faqat o'zi qilgan sotuv (chek uchun)
+  const scope = saleViewScope(user, await loadUserPermissions(user));
+  if (!scope) return NextResponse.json(permissionDeniedError('sales.view'), { status: 403 });
   const { Sale } = await getTenantModels(user.dbName);
-  const s = await Sale.findOne({ _id: id, ...branchFilter(user) }).lean();
+  const s = await Sale.findOne({ _id: id, ...branchFilter(user), ...scope }).lean();
   if (!s) return NextResponse.json({ error: 'Sotuv topilmadi.' }, { status: 404 });
 
   const plan = s.paymentType === 'installment' ? computeInstallmentPlan(s) : null;

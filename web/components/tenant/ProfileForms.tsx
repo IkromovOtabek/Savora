@@ -11,10 +11,13 @@ export default function ProfileForms({
   username,
   fullName,
   mustChangePassword,
+  canChangePassword = true,
 }: {
   username: string;
   fullName: string;
   mustChangePassword: boolean;
+  /** «O'z parolini o'zgartirish» huquqi (majburiy almashtirishda e'tiborsiz) */
+  canChangePassword?: boolean;
 }) {
   const [profileState, profileAction, profilePending] = useActionState(updateProfileAction, null);
   const [pwdState, pwdAction, pwdPending] = useActionState(changePasswordAction, null);
@@ -55,6 +58,9 @@ export default function ProfileForms({
       <section id="xavfsizlik" aria-labelledby="sec-xavfsizlik">
         <div className="ad-sec-head"><h2 id="sec-xavfsizlik">{t.security}</h2></div>
         <div className="ad-group ad-form-group">
+          {!mustChangePassword && !canChangePassword ? (
+            <div className="ad-form-row"><div className="auth-alert auth-alert--info" role="status">{t.passwordLocked}</div></div>
+          ) : (
           <form action={pwdAction}>
             {mustChangePassword && (
               <div className="ad-form-row">
@@ -87,6 +93,7 @@ export default function ProfileForms({
               </button>
             </div>
           </form>
+          )}
         </div>
         <p className="ad-sec-foot">{t.passwordFoot}</p>
       </section>

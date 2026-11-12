@@ -589,13 +589,13 @@ export async function cancelSaleAction(_prev: State, formData: FormData): Promis
 /**
  * Qisman qaytarish — sotuvdan bir necha dona omborga qaytadi, summa kamayadi.
  * Avval qarz kamayadi, ortig'i mijozga naqd qaytariladi (kunlik kassada chiqim bo'lib ko'rinadi).
- * Huquq: "sale.cancel" (omborga qaytarish = bekor qilishning bir qismi).
+ * Huquq: "sale.return" (eski ro'yxatlarda "sale.cancel" dan meros — lib/permissions legacy).
  */
 export async function returnSaleItemsAction(_prev: State, formData: FormData): Promise<State> {
   const { user, Product, Sale } = await getTenantSession();
   const { d } = await getI18n();
   const m = d.sales.actions;
-  { const denied = await checkPermission(user, 'sale.cancel'); if (denied) return denied; }
+  { const denied = await checkPermission(user, 'sale.return'); if (denied) return denied; }
 
   const parsed = parseInput(z.object({
     saleId: zId(m.saleNotFound),

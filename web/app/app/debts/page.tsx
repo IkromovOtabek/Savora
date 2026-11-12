@@ -103,7 +103,7 @@ export default async function DebtsPage({
     debtorMap.set(id, cur);
   }
   const debtors = [...debtorMap.values()].sort((a, b) => b.remaining - a.remaining).slice(0, 8);
-  const [canPay, canAct] = await Promise.all([userCan(user, 'payment.accept'), userCan(user, 'customers.manage')]);
+  const [canPay, canAct] = await Promise.all([userCan(user, 'payment.accept'), userCan(user, 'customers.view')]);
 
   // To'lovlar tabi — tanlangan davrda qarz/nasiya sotuvlariga kelgan to'lovlar
   const tab = sp.tab === 'payments' ? 'payments' : 'debts';

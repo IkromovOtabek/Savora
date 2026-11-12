@@ -122,7 +122,7 @@ export interface WriteOffInput {
 export async function writeOffAction(input: WriteOffInput): Promise<State> {
   const { user, features, Product, StockAdjustment } = await getTenantSession();
   if (!features.products) return featureDisabledError('products');
-  const denied = await checkPermission(user, 'stock.adjust');
+  const denied = await checkPermission(user, 'stock.writeOff');
   if (denied) return denied;
   const d = await getDict();
   const k = d.stock.adjust;

@@ -77,7 +77,7 @@ export async function updateSupplierAction(_prev: State, formData: FormData): Pr
 
 export async function deleteSupplierAction(_prev: State, formData: FormData): Promise<State> {
   const { user, Supplier, SupplierEntry, Product } = await getTenantSession();
-  { const denied = await checkPermission(user, 'suppliers.manage'); if (denied) return denied; }
+  { const denied = await checkPermission(user, 'suppliers.delete'); if (denied) return denied; }
   const m = (await getDict()).stock.suppliers.msg;
 
   const parsed = parseInput(zId(m.notFound), formData.get('supplierId'));
@@ -142,7 +142,7 @@ export async function addSupplierEntryAction(_prev: State, formData: FormData): 
 
 export async function deleteSupplierEntryAction(_prev: State, formData: FormData): Promise<State> {
   const { user, Supplier, SupplierEntry } = await getTenantSession();
-  { const denied = await checkPermission(user, 'suppliers.manage'); if (denied) return denied; }
+  { const denied = await checkPermission(user, 'suppliers.delete'); if (denied) return denied; }
   const m = (await getDict()).stock.suppliers.msg;
 
   const parsed = parseInput(zId(m.entryNotFound), formData.get('entryId'));

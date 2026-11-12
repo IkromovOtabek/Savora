@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { sellableInfo } from '@/lib/productKinds';
 import { Types } from 'mongoose';
 import { authenticateMobile } from '@/lib/mobileAuth';
-import { userCan } from '@/lib/permissionGuard';
+import { mobilePermissionDenied, userCan } from '@/lib/permissionGuard';
 import { getTenantModels } from '@/lib/tenantDb';
 import { branchFilter } from '@/lib/branchScope';
 
@@ -19,6 +19,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
     return NextResponse.json({ error: 'Mahsulot topilmadi.' }, { status: 404 });
   }
 
+  { const denied = await mobilePermissionDenied(user, 'products.view'); if (denied) return denied; }
   const { Product, Branch } = await getTenantModels(user.dbName);
   const canViewCost = await userCan(user, 'product.viewCost');
   const p = await Product.findOne({ _id: id, ...branchFilter(user) }).lean();

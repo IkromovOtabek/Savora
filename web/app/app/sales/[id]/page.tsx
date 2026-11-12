@@ -1,4 +1,4 @@
-import { notFound } from 'next/navigation';
+import { notFound, redirect } from 'next/navigation';
 import { methodOf } from '@/lib/payMethods';
 import Link from 'next/link';
 import BackLink from '@/components/ui/BackLink';
@@ -17,7 +17,7 @@ import SaleReviewTrigger from '@/components/tenant/SaleReviewTrigger';
 import Tilt from '@/components/ui/Tilt';
 import { Types } from 'mongoose';
 import { branchFilter } from '@/lib/branchScope';
-import { loadUserPermissions } from '@/lib/permissionGuard';
+import { loadUserPermissions, saleViewScope } from '@/lib/permissionGuard';
 import { getDict } from '@/lib/i18n/server';
 import { plural, tr, qtyWithUnit } from '@/lib/i18n/fmt';
 
@@ -49,11 +49,14 @@ export default async function SaleDetailPage({
   const k = d.sales.detail;
   if (!Types.ObjectId.isValid(id)) notFound();
 
+  const perms = await loadUserPermissions(user);
+  // «Sotuvlarni ko'rish» yo'q bo'lsa — faqat o'zi qilgan sotuv (sotuvdan keyingi chek uchun)
+  const scope = saleViewScope(user, perms);
+  if (!scope) redirect(`/app/locked?p=${encodeURIComponent('sales.view')}`);
   // Filial login faqat o'z filiali sotuvini ko'radi
-  const sale = await Sale.findOne({ _id: id, ...branchFilter(user) }).lean();
+  const sale = await Sale.findOne({ _id: id, ...branchFilter(user), ...scope }).lean();
   if (!sale) notFound();
 
-  const perms = await loadUserPermissions(user);
   const isBank = sale.paymentType === 'bank_credit';
   // Bank krediti: pulni bank o'tkazadi — Kredit kassada bank bo'yicha yoziladi, sotuvga to'lov qo'shilmaydi
   const canPay = sale.status === 'partial' && !isBank && perms.has('payment.accept');
@@ -61,7 +64,7 @@ export default async function SaleDetailPage({
   const canCancel = perms.has('sale.cancel') && sale.status !== 'cancelled';
   // Qisman qaytarish — bir nechta dona sotilganda (bank kreditida emas)
   // Qisman qaytarish: qaytarishdan keyin ham nimadir qolishi kerak (dona — 2+, kg — 0,001 dan ko'p)
-  const canReturn = canCancel && sale.paymentType !== 'bank_credit' && (sale.productSnapshot.saleQuantity ?? 1) > qtyStep(sale.productSnapshot.unit);
+  const canReturn = perms.has('sale.return') && sale.status !== 'cancelled' && sale.paymentType !== 'bank_credit' && (sale.productSnapshot.saleQuantity ?? 1) > qtyStep(sale.productSnapshot.unit);
   const returns = sale.returns ?? [];
 
   // Nasiya (variant) sotuvi bo'lsa — oylik to'lov jadvali

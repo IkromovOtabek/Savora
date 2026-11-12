@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { getTenantSession } from '@/lib/tenantSession';
+import { userCan } from '@/lib/permissionGuard';
 import { searchPattern } from '@/lib/security';
 import { fmtDate } from '@/lib/format';
 import { getDict } from '@/lib/i18n/server';
@@ -21,7 +22,8 @@ export default async function CustomersPage({
   searchParams: Promise<{ q?: string; page?: string; created?: string }>;
 }) {
   const sp = await searchParams;
-  const { Customer } = await getTenantSession();
+  const { Customer, user } = await getTenantSession();
+  const canManage = await userCan(user, 'customers.manage');
   const d = await getDict();
   const cs = d.crm.customers;
 
@@ -64,11 +66,13 @@ export default async function CustomersPage({
             {totalPages > 1 ? ` · ${tr(cs.pageN, { n: page })}` : ''}
           </p>
         </div>
-        <div className="t-page-actions ux-hide-mobile">
-          <Link href="/app/customers/new" className="btn btn-primary btn-with-icon"><Icon name="plus" size={16} /> {cs.addBtn}</Link>
-        </div>
+        {canManage && (
+          <div className="t-page-actions ux-hide-mobile">
+            <Link href="/app/customers/new" className="btn btn-primary btn-with-icon"><Icon name="plus" size={16} /> {cs.addBtn}</Link>
+          </div>
+        )}
       </div>
-      <Link href="/app/customers/new" className="ux-fab" aria-label={cs.addAria}><Icon name="plus" size={18} /> {cs.addBtn}</Link>
+      {canManage && <Link href="/app/customers/new" className="ux-fab" aria-label={cs.addAria}><Icon name="plus" size={18} /> {cs.addBtn}</Link>}
 
       <form method="get" className="cl-search" role="search">
         <label htmlFor="cl-q" className="cl-search-field">
@@ -85,7 +89,7 @@ export default async function CustomersPage({
           {q ? (
             <EmptyState icon="search" title={cs.notFoundTitle} text={tr(cs.notFoundText, { q })} action={{ href: '/app/customers', label: cs.clearSearch }} />
           ) : (
-            <EmptyState icon="users" title={cs.emptyTitle} text={cs.emptyText} action={{ href: '/app/customers/new', label: cs.firstCustomer }} />
+            <EmptyState icon="users" title={cs.emptyTitle} text={cs.emptyText} action={canManage ? { href: '/app/customers/new', label: cs.firstCustomer } : undefined} />
           )}
         </div>
       ) : (

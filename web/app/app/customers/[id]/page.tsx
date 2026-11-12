@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { Types } from 'mongoose';
 import CustomerForm from '@/components/tenant/CustomerForm';
+import { userCan } from '@/lib/permissionGuard';
 import BackLink from '@/components/ui/BackLink';
 import Icon from '@/components/icons/Icon';
 import { Avatar } from '@/components/tenant/ClientsUi';
@@ -21,6 +22,7 @@ export default async function CustomerDetailPage({ params }: { params: Promise<{
   const { id } = await params;
   if (!Types.ObjectId.isValid(id)) notFound();
   const { Customer, Sale, user, features } = await getTenantSession();
+  const canManage = await userCan(user, 'customers.manage');
   const customer = await Customer.findById(id).lean();
   if (!customer) notFound();
   const d = await getDict();
@@ -62,7 +64,7 @@ export default async function CustomerDetailPage({ params }: { params: Promise<{
           {stats?.last && <small className="cl-pcard-since">{tr(c.lastPurchase, { date: fmtDate(stats.last) })}</small>}
         </aside>
 
-        <CustomerForm
+        {canManage && <CustomerForm
           mode="edit"
           mediaEnabled={features.mediaUpload}
           initial={{
@@ -73,7 +75,7 @@ export default async function CustomerDetailPage({ params }: { params: Promise<{
             notes: customer.notes ?? '',
             photoUrl: customer.photoUrl,
           }}
-        />
+        />}
       </div>
     </div>
   );

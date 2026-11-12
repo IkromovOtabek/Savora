@@ -1,6 +1,6 @@
 import { getTenantAdminSession, getOrgWithPlan } from '@/lib/tenantSession';
 import FilialManager from '@/components/tenant/FilialManager';
-import { effectivePermissions } from '@/lib/permissions';
+import { effectivePermissionsWithRole, rolePermissionList } from '@/lib/permissions';
 import { ensureDefaultRoles } from '@/lib/roles';
 import { getDict } from '@/lib/i18n/server';
 
@@ -43,7 +43,7 @@ export default async function UsersPage() {
       phone: branch?.phone ?? '',
       address: branch?.address ?? '',
       // Rol biriktirilgan bo'lsa — huquqlar roldan (lib/permissionGuard bilan bir xil qoida)
-      permissions: [...effectivePermissions({ role: u.role, permissions: (u.roleId && roleById.get(String(u.roleId))?.permissions) || u.permissions })],
+      permissions: [...effectivePermissionsWithRole(u, u.roleId ? roleById.get(String(u.roleId)) : null)],
       permissionsDefault: u.role === 'admin' || (!u.roleId && !Array.isArray(u.permissions)),
       roleId: u.roleId && roleById.has(String(u.roleId)) ? String(u.roleId) : undefined,
       roleName: u.roleId ? roleById.get(String(u.roleId))?.name : undefined,
@@ -58,7 +58,7 @@ export default async function UsersPage() {
           <p className="t-page-sub">{d.crm.team.sub}</p>
         </div>
       </div>
-      <FilialManager rows={rows} maxFilial={maxFilial} activeBranchCount={activeBranches} features={features} roles={roles.map((r) => ({ id: String(r._id), name: r.name, permissions: r.permissions }))} />
+      <FilialManager rows={rows} maxFilial={maxFilial} activeBranchCount={activeBranches} features={features} roles={roles.map((r) => ({ id: String(r._id), name: r.name, permissions: rolePermissionList(r) }))} />
     </>
   );
 }

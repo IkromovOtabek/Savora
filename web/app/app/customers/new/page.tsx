@@ -1,6 +1,7 @@
 import CustomerForm from '@/components/tenant/CustomerForm';
 import BackLink from '@/components/ui/BackLink';
 import { getTenantSession } from '@/lib/tenantSession';
+import { requirePermission } from '@/lib/permissionGuard';
 import { getDict } from '@/lib/i18n/server';
 import '@/components/tenant/styles/clients.css';
 
@@ -15,6 +16,7 @@ export default async function NewCustomerPage({
   searchParams: Promise<{ returnTo?: string }>;
 }) {
   const sp = await searchParams;
+  await requirePermission('customers.manage');
   const { features } = await getTenantSession();
   const d = await getDict();
   const c = d.crm.customers;

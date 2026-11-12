@@ -1,4 +1,5 @@
 import { getTenantSession } from '@/lib/tenantSession';
+import { userCan } from '@/lib/permissionGuard';
 import { getMasterModels } from '@/lib/masterDb';
 import { resolveOrgPlan } from '@/lib/plans';
 import { daysUntilExpiry, isTrialActive } from '@/lib/models/master/Organization';
@@ -166,6 +167,7 @@ export default async function ProfilePage() {
             username={user.username}
             fullName={dbUser?.fullName ?? ''}
             mustChangePassword={Boolean(dbUser?.mustChangePassword)}
+            canChangePassword={await userCan(user, 'profile.password')}
           />
 
           {isAdmin && (

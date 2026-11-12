@@ -9,9 +9,9 @@ export async function generateMetadata() {
   return { title: (await getDict()).stock.catalog.metaTitle };
 }
 
-/** Turkum va brendlarni boshqarish — mahsulot tahrirlash huquqi bilan */
+/** Turkum va brendlarni boshqarish — «Kategoriya va brendlar» huquqi bilan */
 export default async function CatalogPage() {
-  await requirePermission('product.edit');
+  await requirePermission('catalog.manage');
   const { ProductCategory, Brand, Product } = await getTenantSession();
   const t = (await getDict()).stock.catalog;
 

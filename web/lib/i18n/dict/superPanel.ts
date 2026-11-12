@@ -135,6 +135,7 @@ export const uz = {
     tabTeam: 'Xodimlar',
     teamTitle: 'Xodimlar va filiallar',
     viewOnly: "Faqat ko'rish",
+    teamSub: "Loginlar, parollar va filiallar",
     tabsAria: "Do'kon bo'limlari",
   },
 
@@ -145,7 +146,14 @@ export const uz = {
     login: 'Login',
     passwordHashed: 'Parol (shifrlangan)',
     notSet: "o'rnatilmagan",
-    loginFoot: "Faqat ko'rish — parol bazada bcrypt bilan shifrlangan. Egasi profildan o'zgartiradi.",
+    loginFoot: "Parol bazada bcrypt bilan shifrlangan — uni ko'rib bo'lmaydi. Egasi kira olmasa — yangi vaqtinchalik parol bering.",
+    tempPassword: 'Vaqtinchalik parol',
+    resetBtn: 'Yangi parol berish',
+    resetting: 'Yaratilmoqda…',
+    /** {login} — admin logini */
+    resetConfirm: "{login} uchun yangi vaqtinchalik parol yaratilsinmi? Eski parol ishlamay qoladi, ochiq sessiyalar yopiladi.",
+    resetDone: "Yangi parol faqat hozir ko'rinadi — egasiga yuboring. Birinchi kirishda u parolni o'zi almashtiradi.",
+    resetFailed: "Parolni yangilab bo'lmadi. Qayta urinib ko'ring.",
     storeName: "Do'kon nomi *",
     businessType: 'Biznes turi',
     owner: 'Egasi',
@@ -185,7 +193,10 @@ export const uz = {
 
   orgPerms: {
     noLogins: "Login yo'q.",
-    intro: "Admin (do'kon egasi) doim barcha huquqlarga ega. «Faqat egasi» huquqlarini filialga berib bo'lmaydi. Modul o'chiq bo'lsa, huquq amalda ishlamaydi (xira ko'rinadi).",
+    intro: "Huquqlar sahifalar bo'yicha: har sahifada «ko'rish» va shu sahifadagi amallar. Admin (do'kon egasi) doim barcha huquqlarga ega. «Faqat egasi» sahifalarini filialga berib bo'lmaydi. Modul o'chiq bo'lsa, huquq amalda ishlamaydi (xira ko'rinadi).",
+    roleNote: "Rol biriktirilgan xodimning huquqini o'zgartirsangiz, u roldan uziladi va shaxsiy huquqlarga o'tadi.",
+    /** {name} — rol nomi */
+    branchRole: 'Filial · rol: {name}',
     colPermission: 'Huquq',
     roleAdmin: 'Admin',
     branchDefault: 'Filial · standart',
@@ -218,6 +229,48 @@ export const uz = {
     noBranches: "Filial yo'q.",
   },
 
+  orgLogins: {
+    foot: "Login yoki parol o'zgarsa, shu loginning ochiq sessiyalari yopiladi — u yangi ma'lumot bilan qayta kiradi.",
+    edit: "Login/parol",
+    close: 'Yopish',
+    newLogin: 'Login',
+    loginHint: "3–40 belgi: kichik lotin harf, raqam, «_», «.», «-». Butun platformada yagona bo'lishi shart.",
+    newPassword: 'Yangi parol',
+    passwordHint: "Bo'sh qoldirilsa — parol o'zgarmaydi. Kamida 6 belgi.",
+    generate: 'Avtomatik parol',
+    mustChange: 'Keyingi kirishda parolni o\'zi almashtirsin',
+    save: 'Saqlash',
+    saving: 'Saqlanmoqda…',
+    savedLogin: 'Login yangilandi.',
+    savedPassword: 'Parol yangilandi.',
+    savedBoth: 'Login va parol yangilandi.',
+    shownOnce: "Yangi parol faqat hozir ko'rinadi — egasiga yuboring.",
+    failed: "Saqlab bo'lmadi. Qayta urinib ko'ring.",
+    mustChangeTag: 'parol almashtirilishi kerak',
+  },
+
+  orgDelete: {
+    title: "Do'konni o'chirish",
+    sub: 'Xavfli amal — qaytarib bo\'lmaydi',
+    lead: "Do'kon butunlay o'chiriladi: sotuvlar, ombor, mijozlar, qarzlar, kassa, xodimlar va barcha loginlar, yuklangan rasmlar. Tiklash faqat serverdagi kunlik zaxiradan mumkin.",
+    keeps: "Saqlanadi: platformaga to'lovlar tarixi va xavfsizlik jurnali.",
+    open: "Do'konni o'chirish…",
+    /** {slug} — do'kon manzili */
+    slugLabel: "Tasdiqlash uchun do'kon manzilini yozing: {slug}",
+    passwordLabel: 'Super admin paroli',
+    cancel: 'Bekor qilish',
+    submit: "Butunlay o'chirish",
+    deleting: "O'chirilmoqda…",
+    notFound: "Do'kon topilmadi.",
+    slugMismatch: "Do'kon manzili mos kelmadi.",
+    wrongPassword: "Super admin paroli noto'g'ri.",
+    /** {min} — daqiqa */
+    tooMany: "Urinishlar juda ko'p. {min} daqiqadan keyin qayta urinib ko'ring.",
+    failed: "O'chirishda xato. Qayta urinib ko'ring.",
+    /** {name} — do'kon nomi */
+    deletedNotice: "«{name}» do'koni butunlay o'chirildi.",
+  },
+
   copy: {
     copy: 'Nusxa',
     /** {label} — havola nomi */
@@ -238,7 +291,7 @@ export const uz = {
     step2: '2. Admin kirishi',
     login: 'Login *',
     loginPlaceholder: 'masalan: dokon1admin',
-    loginHint: "Lotin harf, raqam, _ (kamida 3 belgi). Egasi birinchi kirishda parolni o'zi belgilaydi.",
+    loginHint: "Lotin harf, raqam, _ (kamida 3 belgi). Vaqtinchalik parol avtomatik yaratiladi va keyingi ekranda ko'rsatiladi.",
     step3: '3. Tarif',
     plan: 'Tarif',
     /** {label} — tarif, {filial} — filial soni, {users} — xodim soni */
@@ -250,6 +303,17 @@ export const uz = {
     trialDays: 'Sinov muddati (kun)',
     creating: 'Yaratilmoqda…',
     create: "Do'kon yaratish",
+    doneTitle: "Do'kon yaratildi",
+    doneSub: "Kirish ma'lumotlarini egasiga yuboring",
+    doneWarn: "Parol faqat hozir ko'rinadi — bazada shifrlangan holda saqlanadi. Yo'qolsa, do'kon sahifasida «Yangi parol berish» tugmasi bor.",
+    doneLoginUrl: 'Kirish manzili',
+    doneLogin: 'Login',
+    donePassword: 'Vaqtinchalik parol',
+    doneFoot: "Egasi birinchi kirishda parolni o'zi almashtiradi.",
+    doneCopyAll: 'Hammasini nusxalash',
+    /** Egasiga yuboriladigan xabar: {url}, {login}, {password} */
+    doneMessage: "Savora kabinetiga kirish\nManzil: {url}\nLogin: {login}\nVaqtinchalik parol: {password}\n(Birinchi kirishda parolni o'zgartiring)",
+    doneOpen: "Do'kon sahifasiga o'tish",
   },
 
   payments: {
@@ -542,6 +606,7 @@ export const ru: typeof uz = {
     tabTeam: 'Сотрудники',
     teamTitle: 'Сотрудники и филиалы',
     viewOnly: 'Только просмотр',
+    teamSub: 'Логины, пароли и филиалы',
     tabsAria: 'Разделы магазина',
   },
 
@@ -552,7 +617,13 @@ export const ru: typeof uz = {
     login: 'Логин',
     passwordHashed: 'Пароль (зашифрован)',
     notSet: 'не задан',
-    loginFoot: 'Только просмотр — пароль хранится в базе в виде bcrypt-хеша. Владелец меняет его в профиле.',
+    loginFoot: 'Пароль хранится в базе в виде bcrypt-хеша — посмотреть его нельзя. Если владелец не может войти — выдайте новый временный пароль.',
+    tempPassword: 'Временный пароль',
+    resetBtn: 'Выдать новый пароль',
+    resetting: 'Создание…',
+    resetConfirm: 'Создать новый временный пароль для {login}? Старый пароль перестанет работать, открытые сессии будут закрыты.',
+    resetDone: 'Новый пароль виден только сейчас — отправьте его владельцу. При первом входе он сменит пароль сам.',
+    resetFailed: 'Не удалось обновить пароль. Попробуйте ещё раз.',
     storeName: 'Название магазина *',
     businessType: 'Тип бизнеса',
     owner: 'Владелец',
@@ -588,7 +659,10 @@ export const ru: typeof uz = {
 
   orgPerms: {
     noLogins: 'Логинов нет.',
-    intro: 'Администратор (владелец магазина) всегда имеет все права. Права «только владелец» нельзя передать филиалу. Если модуль выключен, право фактически не работает (показано блёкло).',
+    intro: 'Права по страницам: на каждой странице — «просмотр» и её действия. Админ (владелец) всегда имеет все права. Страницы «только владелец» филиалу не выдаются. Если модуль отключён, право фактически не работает (показано бледным).',
+    roleNote: 'Если изменить права сотрудника с ролью, он отвязывается от роли и переходит на личные права.',
+    /** {name} — rol nomi */
+    branchRole: 'Филиал · роль: {name}',
     colPermission: 'Право',
     roleAdmin: 'Администратор',
     branchDefault: 'Филиал · стандарт',
@@ -620,6 +694,48 @@ export const ru: typeof uz = {
     noBranches: 'Филиалов нет.',
   },
 
+  orgLogins: {
+    foot: 'При смене логина или пароля открытые сессии этого логина закрываются — нужно войти заново.',
+    edit: 'Логин/пароль',
+    close: 'Закрыть',
+    newLogin: 'Логин',
+    loginHint: '3–40 символов: строчные латинские буквы, цифры, «_», «.», «-». Должен быть уникальным на всей платформе.',
+    newPassword: 'Новый пароль',
+    passwordHint: 'Если оставить пустым — пароль не изменится. Минимум 6 символов.',
+    generate: 'Сгенерировать пароль',
+    mustChange: 'Сменить пароль при следующем входе',
+    save: 'Сохранить',
+    saving: 'Сохранение…',
+    savedLogin: 'Логин обновлён.',
+    savedPassword: 'Пароль обновлён.',
+    savedBoth: 'Логин и пароль обновлены.',
+    shownOnce: 'Новый пароль виден только сейчас — отправьте владельцу.',
+    failed: 'Не удалось сохранить. Попробуйте ещё раз.',
+    mustChangeTag: 'нужно сменить пароль',
+  },
+
+  orgDelete: {
+    title: 'Удалить магазин',
+    sub: 'Опасное действие — необратимо',
+    lead: 'Магазин удаляется полностью: продажи, склад, клиенты, долги, касса, сотрудники и все логины, загруженные фото. Восстановление — только из ежедневной резервной копии сервера.',
+    keeps: 'Сохраняется: история платежей платформе и журнал безопасности.',
+    open: 'Удалить магазин…',
+    /** {slug} — do'kon manzili */
+    slugLabel: 'Для подтверждения введите адрес магазина: {slug}',
+    passwordLabel: 'Пароль суперадмина',
+    cancel: 'Отмена',
+    submit: 'Удалить навсегда',
+    deleting: 'Удаление…',
+    notFound: 'Магазин не найден.',
+    slugMismatch: 'Адрес магазина не совпадает.',
+    wrongPassword: 'Неверный пароль суперадмина.',
+    /** {min} — daqiqa */
+    tooMany: 'Слишком много попыток. Повторите через {min} мин.',
+    failed: 'Ошибка при удалении. Попробуйте ещё раз.',
+    /** {name} — do'kon nomi */
+    deletedNotice: 'Магазин «{name}» удалён полностью.',
+  },
+
   copy: {
     copy: 'Копировать',
     copyLinkAria: 'Скопировать ссылку «{label}»',
@@ -639,7 +755,7 @@ export const ru: typeof uz = {
     step2: '2. Вход администратора',
     login: 'Логин *',
     loginPlaceholder: 'например: dokon1admin',
-    loginHint: 'Латинские буквы, цифры, _ (не менее 3 символов). Пароль владелец задаст сам при первом входе.',
+    loginHint: 'Латинские буквы, цифры, _ (не менее 3 символов). Временный пароль создаётся автоматически и показывается на следующем экране.',
     step3: '3. Тариф',
     plan: 'Тариф',
     planOption: '{label} — филиалов: {filial}, сотрудников: {users}',
@@ -650,6 +766,16 @@ export const ru: typeof uz = {
     trialDays: 'Пробный период (дней)',
     creating: 'Создание…',
     create: 'Создать магазин',
+    doneTitle: 'Магазин создан',
+    doneSub: 'Отправьте данные для входа владельцу',
+    doneWarn: 'Пароль виден только сейчас — в базе он хранится в зашифрованном виде. Если потеряется, на странице магазина есть кнопка «Выдать новый пароль».',
+    doneLoginUrl: 'Адрес входа',
+    doneLogin: 'Логин',
+    donePassword: 'Временный пароль',
+    doneFoot: 'При первом входе владелец сменит пароль сам.',
+    doneCopyAll: 'Скопировать всё',
+    doneMessage: 'Вход в кабинет Savora\nАдрес: {url}\nЛогин: {login}\nВременный пароль: {password}\n(Смените пароль при первом входе)',
+    doneOpen: 'Перейти к магазину',
   },
 
   payments: {

@@ -3,6 +3,6 @@ import { requirePermission } from '@/lib/permissionGuard';
 
 export default async function StockAdjustLayout({ children }: { children: React.ReactNode }) {
   await requireFeature('products');
-  await requirePermission('stock.adjust');
+  await requirePermission('stock.writeOff');
   return children;
 }

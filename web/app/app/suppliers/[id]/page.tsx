@@ -6,6 +6,7 @@ import Icon from '@/components/icons/Icon';
 import { Avatar } from '@/components/tenant/ClientsUi';
 import { SupplierForm, SupplierEntryForm, DeleteSupplierEntryButton, DeleteSupplierBox } from '@/components/tenant/SupplierUi';
 import { getTenantSession } from '@/lib/tenantSession';
+import { loadUserPermissions } from '@/lib/permissionGuard';
 import { loadSupplierBalances } from '@/lib/suppliers';
 import { fmtDate, fmtDateTime, fmtMoney } from '@/lib/format';
 import { getDict } from '@/lib/i18n/server';
@@ -24,7 +25,10 @@ const PRODUCT_LIMIT = 30;
 export default async function SupplierDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   if (!Types.ObjectId.isValid(id)) notFound();
-  const { Supplier, SupplierEntry, Product } = await getTenantSession();
+  const { Supplier, SupplierEntry, Product, user } = await getTenantSession();
+  const perms = await loadUserPermissions(user);
+  const canManage = perms.has('suppliers.manage');
+  const canDelete = perms.has('suppliers.delete');
   const supplier = await Supplier.findById(id).lean();
   if (!supplier) notFound();
   const d = await getDict();
@@ -61,7 +65,7 @@ export default async function SupplierDetailPage({ params }: { params: Promise<{
         </aside>
 
         <div className="sp-main">
-          <SupplierEntryForm supplierId={id} debt={b.debt} />
+          {canManage && <SupplierEntryForm supplierId={id} debt={b.debt} />}
 
           <section className="cl-card" aria-labelledby="sp-hist-h">
             <h2 id="sp-hist-h" className="sp-h sp-h--pad">{s.history.title}</h2>
@@ -81,7 +85,7 @@ export default async function SupplierDetailPage({ params }: { params: Promise<{
                       </span>
                     </div>
                     <span className="sp-entry-amt t-num">{e.type === 'purchase' ? '+' : '−'}{fmtMoney(e.amount)}</span>
-                    <DeleteSupplierEntryButton entryId={String(e._id)} />
+                    {canDelete && <DeleteSupplierEntryButton entryId={String(e._id)} />}
                   </li>
                 ))}
               </ul>
@@ -107,12 +111,14 @@ export default async function SupplierDetailPage({ params }: { params: Promise<{
             )}
           </section>
 
-          <SupplierForm
-            mode="edit"
-            initial={{ id, name: supplier.name, phone: supplier.phone ?? '', company: supplier.company ?? '', notes: supplier.notes ?? '' }}
-          />
+          {canManage && (
+            <SupplierForm
+              mode="edit"
+              initial={{ id, name: supplier.name, phone: supplier.phone ?? '', company: supplier.company ?? '', notes: supplier.notes ?? '' }}
+            />
+          )}
 
-          <DeleteSupplierBox supplierId={id} name={supplier.name} blocked={entries.length > 0 || productCount > 0} />
+          {canDelete && <DeleteSupplierBox supplierId={id} name={supplier.name} blocked={entries.length > 0 || productCount > 0} />}
         </div>
       </div>
     </div>

@@ -3,6 +3,7 @@ import { Types } from 'mongoose';
 import { authenticateMobile } from '@/lib/mobileAuth';
 import { getTenantModels } from '@/lib/tenantDb';
 import { getMobileFeatures } from '@/lib/mobileOrg';
+import { mobilePermissionDenied } from '@/lib/permissionGuard';
 import { recordAudit } from '@/lib/audit';
 import { taskScope } from '@/lib/tasks';
 import { isTaskStatus, TASK_STATUS_LABELS } from '@/lib/models/tenant/Task';
@@ -15,6 +16,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   if (!user || !user.dbName) return NextResponse.json({ error: 'Avtorizatsiya kerak.' }, { status: 401 });
   const features = await getMobileFeatures(user.organizationId);
   if (!features?.tasks) return NextResponse.json({ error: 'Topshiriqlar moduli yoqilmagan.' }, { status: 403 });
+  { const denied = await mobilePermissionDenied(user, 'tasks.view'); if (denied) return denied; }
 
   const { id } = await params;
   if (!Types.ObjectId.isValid(id)) return NextResponse.json({ error: 'Topshiriq topilmadi.' }, { status: 404 });

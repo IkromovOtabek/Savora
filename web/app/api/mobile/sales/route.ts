@@ -38,6 +38,7 @@ export async function GET(req: Request) {
   if (!user || !user.dbName) {
     return NextResponse.json({ error: 'Avtorizatsiya kerak.' }, { status: 401 });
   }
+  { const denied = await mobilePermissionDenied(user, 'sales.view'); if (denied) return denied; }
   const { Sale } = await getTenantModels(user.dbName);
 
   const url = new URL(req.url);
@@ -155,6 +156,10 @@ export async function POST(req: Request) {
   // Sotuv narxidan arzon sotish — "sale.discount" huquqi kerak (web createSaleAction bilan bir xil)
   if (product.salePrice > 0 && totalAmount < priceTimesQty(product.salePrice, saleQty) && !(await userCan(user, 'sale.discount'))) {
     return NextResponse.json(permissionDeniedError('sale.discount'), { status: 403 });
+  }
+  // Sotuv narxidan qimmat sotish (narxni o'zgartirish) — "sale.editPrice" (web createSaleAction bilan bir xil)
+  if (product.salePrice > 0 && totalAmount > priceTimesQty(product.salePrice, saleQty) && !(await userCan(user, 'sale.editPrice'))) {
+    return NextResponse.json(permissionDeniedError('sale.editPrice'), { status: 403 });
   }
 
   let paidAmount = paymentType === 'cash' ? totalAmount : paidAmountRaw;

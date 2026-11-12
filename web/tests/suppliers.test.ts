@@ -17,8 +17,10 @@ describe('sumSupplierEntries', () => {
 });
 
 describe('suppliers.manage huquqi', () => {
-  it("ombor guruhida, standartda faqat egasida", () => {
-    expect(PERMISSIONS['suppliers.manage'].group).toBe('ombor');
+  it("«Yetkazib beruvchilar» sahifasida, standartda faqat egasida", () => {
+    expect(PERMISSIONS['suppliers.manage'].page).toBe('suppliers');
+    expect(PERMISSIONS['suppliers.view'].page).toBe('suppliers');
+    expect(ROLE_DEFAULT_PERMISSIONS.user).not.toContain('suppliers.view');
     expect(ROLE_DEFAULT_PERMISSIONS.user).not.toContain('suppliers.manage');
     expect(hasPermission({ role: 'admin' }, 'suppliers.manage')).toBe(true);
     expect(hasPermission({ role: 'user', permissions: ['suppliers.manage'] }, 'suppliers.manage')).toBe(true);

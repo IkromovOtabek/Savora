@@ -1,11 +1,18 @@
 import { describe, it, expect } from 'vitest';
 import {
   PERMISSION_KEYS,
+  PERMISSION_PAGE_DEFS,
+  PERMISSION_PAGES,
   PERMISSIONS,
+  PERMISSIONS_VERSION,
   ROLE_DEFAULT_PERMISSIONS,
   effectivePermissions,
+  effectivePermissionsWithRole,
   hasPermission,
   normalizeUserPermissions,
+  permissionsOfPage,
+  rolePermissionList,
+  upgradeLegacyPermissions,
 } from '@/lib/permissions';
 import { FEATURE_KEYS } from '@/lib/featureKeys';
 import { userSchema } from '@/lib/models/tenant/User';
@@ -30,8 +37,8 @@ describe('hasPermission', () => {
     expect(hasPermission(u, 'sale.create')).toBe(false);
   });
 
-  it('bo\'sh ro\'yxat — hech qanday huquq', () => {
-    expect(effectivePermissions({ role: 'user', permissions: [] }).size).toBe(0);
+  it('bo\'sh ro\'yxat (joriy versiya) — hech qanday huquq', () => {
+    expect(effectivePermissions({ role: 'user', permissions: [], permVersion: PERMISSIONS_VERSION }).size).toBe(0);
   });
 
   it('adminOnly huquqlar filialga berilmaydi (bazaga yozilgan bo\'lsa ham)', () => {
@@ -79,5 +86,65 @@ describe('huquqlar ro\'yxati butunligi', () => {
     const path = userSchema.path('permissions') as unknown as { defaultValue?: unknown };
     expect(path).toBeDefined();
     expect(path.defaultValue).toBeUndefined();
+  });
+});
+
+describe('sahifa bo\'yicha huquqlar', () => {
+  it('har huquq ma\'lum sahifaga tegishli, har sahifa ta\'riflangan', () => {
+    for (const k of PERMISSION_KEYS) expect(PERMISSION_PAGES as readonly string[]).toContain(PERMISSIONS[k].page);
+    for (const p of PERMISSION_PAGES) expect(PERMISSION_PAGE_DEFS[p].id).toBe(p);
+  });
+
+  it('adminOnly huquqlar faqat «faqat egasi» sahifalarida', () => {
+    for (const k of PERMISSION_KEYS) {
+      expect(!!PERMISSIONS[k].adminOnly, k).toBe(!!PERMISSION_PAGE_DEFS[PERMISSIONS[k].page].ownerOnly);
+    }
+  });
+
+  it('har filial sahifasida amal bor; legacy qoidasi mavjud kalitga ishora qiladi', () => {
+    for (const p of PERMISSION_PAGES) {
+      if (PERMISSION_PAGE_DEFS[p].ownerOnly) continue;
+      expect(permissionsOfPage(p).length, p).toBeGreaterThan(0);
+    }
+    for (const k of PERMISSION_KEYS) {
+      const rule = PERMISSIONS[k].legacy;
+      if (rule && rule !== 'open') expect(PERMISSION_KEYS as readonly string[]).toContain(rule);
+    }
+  });
+});
+
+describe('eski (1-versiya) ro\'yxatlarni yangilash', () => {
+  it('ilgari ochiq bo\'lgan sahifalar saqlanadi, bo\'lingan huquqlar asl kalitdan meros oladi', () => {
+    const up = new Set(upgradeLegacyPermissions(['sale.cancel', 'stock.adjust']));
+    for (const k of ['sales.view', 'products.view', 'debts.view', 'nasiya.view', 'inventory.view', 'transferred.view', 'tasks.view', 'profile.password']) {
+      expect(up.has(k), k).toBe(true);
+    }
+    expect(up.has('sale.return')).toBe(true);
+    expect(up.has('stock.writeOff')).toBe(true);
+    expect(up.has('customers.view')).toBe(false);
+    expect(up.has('suppliers.view')).toBe(false);
+  });
+
+  it('1-versiya bo\'sh ro\'yxat: faqat ilgari ochiq bo\'lgan sahifalar', () => {
+    const set = effectivePermissions({ role: 'user', permissions: [] });
+    expect(set.has('sales.view')).toBe(true);
+    expect(set.has('sale.create')).toBe(false);
+    expect(set.has('customers.view')).toBe(false);
+  });
+
+  it('joriy versiyada saqlangan ro\'yxat o\'zgarmaydi', () => {
+    const set = effectivePermissions({ role: 'user', permissions: ['sale.create'], permVersion: PERMISSIONS_VERSION });
+    expect([...set]).toEqual(['sale.create']);
+  });
+
+  it('eski standart rol ro\'yxati yangilansa — yangi standartga teng', () => {
+    const oldDefaults = ['sale.create', 'sale.discount', 'sale.editPrice', 'payment.accept', 'product.create', 'product.edit', 'product.viewCost', 'transfer.create', 'kassa.view', 'kassa.shift', 'reports.view', 'customers.manage', 'daftar.manage'];
+    expect(new Set(upgradeLegacyPermissions(oldDefaults))).toEqual(new Set(ROLE_DEFAULT_PERMISSIONS.user));
+  });
+
+  it('rol biriktirilgan bo\'lsa — huquqlar roldan', () => {
+    const set = effectivePermissionsWithRole({ role: 'user', permissions: ['sale.create'] }, { permissions: ['kassa.view'], permVersion: PERMISSIONS_VERSION });
+    expect([...set]).toEqual(['kassa.view']);
+    expect(rolePermissionList({ permissions: ['customers.manage'] })).toContain('customers.view');
   });
 });

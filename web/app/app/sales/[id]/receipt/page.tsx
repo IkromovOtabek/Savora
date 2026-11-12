@@ -2,6 +2,7 @@ import { notFound } from 'next/navigation';
 import BackLink from '@/components/ui/BackLink';
 import { Types } from 'mongoose';
 import { getTenantSession } from '@/lib/tenantSession';
+import { requireSaleViewScope } from '@/lib/permissionGuard';
 import { branchFilter } from '@/lib/branchScope';
 import { getShopSettings } from '@/lib/shopSettings';
 import PrintReceiptButton from '@/components/tenant/PrintReceiptButton';
@@ -18,8 +19,9 @@ export default async function SaleReceiptPage({ params }: { params: Promise<{ id
   const { user, org, Sale, ShopSettings } = await getTenantSession();
   const d = await getDict();
   if (!Types.ObjectId.isValid(id)) notFound();
+  const scope = await requireSaleViewScope(user);
   const [sale, settings] = await Promise.all([
-    Sale.findOne({ _id: id, ...branchFilter(user) }).lean(),
+    Sale.findOne({ _id: id, ...branchFilter(user), ...scope }).lean(),
     getShopSettings(ShopSettings),
   ]);
   if (!sale || sale.status === 'cancelled') notFound();
