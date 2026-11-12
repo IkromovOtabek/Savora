@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from 'next';
-import { Onest, Plus_Jakarta_Sans } from 'next/font/google';
+import { fontVariables } from './fonts';
 import './globals.css';
 import Toaster from '@/components/ui/Toaster';
 import PWARegister from '@/components/PWARegister';
@@ -8,10 +8,6 @@ import { siteUrl } from '@/lib/siteUrl';
 import { getLocale } from '@/lib/i18n/server';
 import { I18nProvider } from '@/lib/i18n/client';
 import { LOCALE_TAGS, type Locale } from '@/lib/i18n/config';
-
-// Plus Jakarta Sans — asosiy shrift (geometrik, Gilroy uslubida); Onest — kirill harflari uchun zaxira (globals.css: --font-sans)
-const jakarta = Plus_Jakarta_Sans({ subsets: ['latin', 'latin-ext'], weight: ['400', '500', '600', '700', '800'], variable: '--font-jakarta', display: 'swap' });
-const onest = Onest({ subsets: ['latin', 'cyrillic'], variable: '--font-onest', display: 'swap' });
 
 // Sayt sarlavhasi va tavsifi — tilga qarab (cookie: savora_lang)
 const SITE_META: Record<Locale, { title: string; description: string }> = {
@@ -100,7 +96,7 @@ const themeScript = `
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const locale = await getLocale();
   return (
-    <html lang={LOCALE_TAGS[locale].html} className={`${jakarta.variable} ${onest.variable}`} suppressHydrationWarning>
+    <html lang={LOCALE_TAGS[locale].html} className={fontVariables} suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
       </head>

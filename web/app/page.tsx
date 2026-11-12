@@ -1,6 +1,5 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
-import { Onest } from 'next/font/google';
 import { getAppZone } from '@/lib/tenantContext';
 import { getCurrentUser } from '@/lib/auth';
 import { superDashboardUrl } from '@/lib/urls';
@@ -22,8 +21,6 @@ import LangSwitch from '@/components/LangSwitch';
 import BrandMark, { Wordmark } from '@/components/BrandMark';
 import SavoraJsonLd from '@/components/seo/JsonLd';
 import '@/components/landing/landing.css';
-
-const onest = Onest({ subsets: ['latin', 'cyrillic'], weight: ['400', '500', '600', '700', '800'], variable: '--font-onest', display: 'swap' });
 
 /** Sinov muddati — register action bilan bir xil manba */
 const TRIAL_DAYS = Number(process.env.TRIAL_DAYS || 14);
@@ -124,7 +121,7 @@ export default async function LandingPage() {
   const sched = [8, 9, 10, 11].map((m) => `${fmtDayMonth(new Date(2026, m, 15), locale)} · 1 450 000`);
 
   return (
-    <div className={`lp ${onest.variable}`}>
+    <div className="lp">
       <SavoraJsonLd />
       {/* NAV */}
       <header className="lp-nav">
