@@ -293,6 +293,12 @@ describe('qatorni tekshirish', () => {
     expect(ok.ok && isImeiPending(ok.row, PHONE)).toBe(false);
   });
 
+  it('telefon do\'koni: IMEI\'siz qatorda takror kaliti — shtrix-kod (qayta import ikki marta qo\'shmaydi)', () => {
+    const res = parseImportRow({ line: 2, values: { name: 'Chexol', barcode: 4780000000011 }, extra: [] }, PHONE);
+    expect(res.ok && isImeiPending(res.row, PHONE)).toBe(true);
+    expect(res.ok && duplicateKey(res.row, PHONE)).toBe('4780000000011');
+  });
+
   it('yo\'nalishda yo\'q maydon e\'tiborsiz; majburiy maydon tekshiriladi', () => {
     const res = parseImportRow({ line: 2, values: { name: 'Non', unit: 'tonna', imei: '1' }, extra: [] }, GENERAL);
     expect(res).toMatchObject({ ok: true, row: { name: 'Non' } });

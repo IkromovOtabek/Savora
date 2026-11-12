@@ -488,9 +488,13 @@ export function parseImportRow(raw: RawImportRow, ctx: ImportContext): ParseRowR
   return { ok: true, row };
 }
 
-/** Takrorni aniqlash kaliti: telefon do'konida IMEI, boshqalarda shtrix-kod (yo'q bo'lsa — takror emas) */
+/**
+ * Takrorni aniqlash kaliti: telefon do'konida IMEI (IMEI'siz qatorda — shtrix-kod, aks holda
+ * shu faylni qayta yuklash mahsulotlarni ikki marta qo'shardi), boshqalarda shtrix-kod.
+ * Kod umuman yo'q bo'lsa — takror deb hisoblanmaydi.
+ */
 export function duplicateKey(row: ParsedImportRow, ctx: ImportContext): string | undefined {
-  const code = ctx.phoneShop ? row.imei : row.barcode;
+  const code = ctx.phoneShop ? row.imei ?? row.barcode : row.barcode;
   return code ? code.replace(/\s/g, '').toUpperCase() : undefined;
 }
 
