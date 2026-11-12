@@ -7,7 +7,7 @@ import { featureDisabledError } from '@/lib/featureAction';
 import { getDict } from '@/lib/i18n/server';
 import { tr } from '@/lib/i18n/fmt';
 import { z } from 'zod';
-import { formToObject, parseInput, zId, zMoney, zOneOf, zOptId, zReqText, zText } from '@/lib/validation';
+import { formToObject, parseInput, zId, zMoney, zOneOf, zOptDate, zOptId, zReqText, zText } from '@/lib/validation';
 import { softDeleteOne } from '@/lib/softDelete';
 
 type State = { error?: string; success?: string } | null;
@@ -57,6 +57,77 @@ export async function deleteCreditBankAction(formData: FormData): Promise<void> 
   const bankId = id.data;
 
   await CreditBank.findByIdAndDelete(bankId);
+  revalidatePath('/app/kredit-kassa');
+}
+
+/** Bankdan pul olindi — bank qoldig'idan ayriladi (Kiritilgan − Olingan; manfiy bo'lishi mumkin) */
+export async function createBankReceiptAction(_prev: State, formData: FormData): Promise<State> {
+  const { user, CreditBank, BankReceipt, features } = await getTenantAdminSession();
+  if (!features.creditKassa) return featureDisabledError('creditKassa');
+  const d = await getDict();
+  const m = d.sales.actions;
+  const parsed = parseInput(z.object({
+    bankId: zId(m.bankRequired),
+    amount: zMoney(m.badAmount, { min: 1 }),
+    receivedAt: zOptDate(d.common.invalidInput),
+    note: zText(300, d.common.tooLong),
+  }), formToObject(formData), m.badAmount);
+  if (!parsed.ok) return { error: parsed.error };
+  const { bankId, amount, note } = parsed.data;
+
+  const bank = await CreditBank.findById(bankId).select('name').lean();
+  if (!bank) return { error: m.bankNotFound };
+
+  // Sana kiritilmasa — hozir; kun tanlansa — o'sha kunning hozirgi vaqti (tartib saqlansin), kelajak emas
+  const now = new Date();
+  let receivedAt = now;
+  if (parsed.data.receivedAt) {
+    const day = parsed.data.receivedAt;
+    // <input type=date> → 'YYYY-MM-DD' (UTC yarim tun) — kun UTC bo'yicha olinadi
+    receivedAt = new Date(day.getUTCFullYear(), day.getUTCMonth(), day.getUTCDate(), now.getHours(), now.getMinutes(), now.getSeconds());
+    if (receivedAt.getTime() > now.getTime() + 60_000) return { error: d.common.invalidInput };
+  }
+
+  try {
+    const entry = await BankReceipt.create({
+      bankId: bank._id,
+      bankName: bank.name,
+      amount,
+      receivedAt,
+      note: note || undefined,
+      recordedBy: user.username,
+    });
+    await recordAudit(user, {
+      action: 'finance.bankReceipt',
+      entity: 'finance',
+      entityId: String(entry._id),
+      summary: `Bankdan pul olindi: ${bank.name} · ${fmtSum(amount)}${note ? ` — ${note}` : ''}`,
+      meta: { bankName: bank.name, amount, receivedAt },
+    });
+    revalidatePath('/app/kredit-kassa');
+    return { success: tr(m.receiptAdded, { name: bank.name, sum: new Intl.NumberFormat('uz-UZ').format(amount) }) };
+  } catch {
+    return { error: m.saveFailed };
+  }
+}
+
+/** Xato kiritilgan bank tushumini o'chirish (soft-delete, audit bilan) */
+export async function deleteBankReceiptAction(formData: FormData): Promise<void> {
+  const { user, BankReceipt, features } = await getTenantAdminSession();
+  if (!features.creditKassa) return;
+  const id = parseInput(zId('bad'), formData.get('receiptId'));
+  if (!id.ok) return;
+
+  const deleted = await softDeleteOne(BankReceipt, { _id: id.data }, user.username);
+  if (deleted) {
+    await recordAudit(user, {
+      action: 'finance.bankReceiptDelete',
+      entity: 'finance',
+      entityId: id.data,
+      summary: `Bank tushumi o'chirildi: ${deleted.bankName} · ${fmtSum(deleted.amount)}`,
+      meta: { bankName: deleted.bankName, amount: deleted.amount },
+    });
+  }
   revalidatePath('/app/kredit-kassa');
 }
 

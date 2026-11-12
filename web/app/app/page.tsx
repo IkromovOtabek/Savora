@@ -75,7 +75,8 @@ export default async function TenantDashboard({
       { $match: { ...aggScope, createdAt: { $gte: todayStart }, status: { $ne: 'cancelled' } } },
       { $group: { _id: null, total: { $sum: '$paidAmount' } } },
     ]),
-    Sale.aggregate([{ $match: { ...aggScope, status: 'partial' } }, { $group: { _id: null, total: { $sum: '$remainingAmount' } } }]),
+    // Mijozlar qarzi (bank krediti — bank qarzi, Kredit kassada)
+    Sale.aggregate([{ $match: { ...aggScope, status: 'partial', paymentType: { $ne: 'bank_credit' } } }, { $group: { _id: null, total: { $sum: '$remainingAmount' } } }]),
     Sale.find({ ...scope, status: { $ne: 'cancelled' } }).sort({ createdAt: -1 }).limit(5).lean(),
     User.countDocuments({ active: true }),
     Branch.countDocuments({ active: true }),

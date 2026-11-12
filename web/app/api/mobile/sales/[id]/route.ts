@@ -11,6 +11,7 @@ import { z } from 'zod';
 import { readJsonInput, zMoney, zOneOf, zText } from '@/lib/validation';
 import { PAY_METHODS, methodOf } from '@/lib/payMethods';
 import { receiptPath } from '@/lib/receiptLink';
+import { saleBankParts } from '@/lib/bankCredit';
 
 /** Sotuv detali — nasiya bo'lsa oy jadvali (plan) bilan. */
 export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -36,6 +37,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
     phone: s.customerSnapshot?.phone ?? null,
     paymentType: s.paymentType,
     bankName: s.bankName ?? null,
+    bankParts: saleBankParts(s),
     totalAmount: s.totalAmount,
     paidAmount: s.paidAmount,
     remainingAmount: s.remainingAmount,
@@ -79,6 +81,10 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   if (!sale) return NextResponse.json({ error: 'Sotuv topilmadi.' }, { status: 404 });
   if (sale.status === 'cancelled') return NextResponse.json({ error: 'Bekor qilingan sotuv.' }, { status: 400 });
   if (sale.status === 'paid') return NextResponse.json({ error: 'Allaqachon to\'liq to\'langan.' }, { status: 400 });
+  // Bank krediti: pulni bank o'tkazadi — Kredit kassada yoziladi (ikki marta hisoblanmasin)
+  if (sale.paymentType === 'bank_credit') {
+    return NextResponse.json({ error: 'Bank krediti sotuvida pulni bank o\'tkazadi — uni saytdagi Kredit kassada yozing.' }, { status: 400 });
+  }
   if (amount > sale.remainingAmount) return NextResponse.json({ error: `Qoldiq: ${sale.remainingAmount}` }, { status: 400 });
 
   // Atomik: qoldiq sharti bilan bitta yozuv (parallel to'lovda ortiqcha to'lov bo'lmaydi)

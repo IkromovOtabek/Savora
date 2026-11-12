@@ -497,6 +497,27 @@ button.sl-tl-body:hover .sl-tl-cta--main { opacity: .88; }
 .sl-preview-big strong { font-size: 22px; font-weight: 700; letter-spacing: -.02em; color: var(--warn); font-variant-numeric: tabular-nums; }
 .sl-preview--bank .sl-preview-big span, .sl-preview--bank .sl-preview-big strong { color: var(--brand); }
 .sl-preview-warn { font-size: 13px; color: var(--danger); font-weight: 500; }
+
+/* Bank krediti: bir nechta bank qatori (bank + summa + olib tashlash) */
+.sl-banks { display: flex; flex-direction: column; gap: 8px; }
+.sl-bank-row { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; align-items: center; }
+.sl-bank-row--multi { grid-template-columns: minmax(0, 1fr) minmax(0, 150px) 40px; }
+.sl-bank-del {
+  width: 40px; height: 40px; border: 0; border-radius: 50%; display: grid; place-items: center;
+  background: var(--fill); color: var(--ink-2); cursor: pointer;
+}
+.sl-bank-del:hover { color: var(--danger); }
+.sl-bank-del:focus-visible { outline: 3px solid var(--brand-ring); outline-offset: 1px; }
+.sl-bank-del:disabled { opacity: .5; cursor: default; }
+.sl-bank-sum { font-weight: 600; font-variant-numeric: tabular-nums; }
+.sl-bank-sum--ok { color: var(--accent); }
+.sl-bank-sum--bad { color: var(--danger); }
+.sl-bank-add { align-self: flex-start; display: inline-flex; align-items: center; gap: 6px; margin-top: 4px; }
+@media (max-width: 420px) {
+  .sl-banks { gap: 14px; }
+  .sl-bank-row--multi { grid-template-columns: minmax(0, 1fr) 40px; }
+  .sl-bank-row--multi > select { grid-column: 1 / -1; }
+}
 .sl-submit { min-height: 52px; font-size: 17px; border-radius: 14px; width: 100%; }
 
 /* Muddat tez tanlovi */

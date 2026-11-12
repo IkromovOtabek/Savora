@@ -6,8 +6,9 @@ import type { Dict } from '@/lib/i18n/server';
 import { qtyWithUnit, tr } from '@/lib/i18n/fmt';
 import { isFractionalUnit } from '@/lib/qty';
 import { PAY_METHODS, methodOf, type PayMethod } from '@/lib/payMethods';
+import { saleBankParts } from '@/lib/bankCredit';
 
-type ReceiptSale = Pick<ISale, 'saleNo' | 'productSnapshot' | 'customerSnapshot' | 'paymentType' | 'bankName' | 'totalAmount' | 'paidAmount' | 'remainingAmount' | 'soldBy' | 'dueDate' | 'createdAt' | 'discount'> & Parameters<typeof computeInstallmentPlan>[0];
+type ReceiptSale = Pick<ISale, 'saleNo' | 'productSnapshot' | 'customerSnapshot' | 'paymentType' | 'bankName' | 'bankParts' | 'totalAmount' | 'paidAmount' | 'remainingAmount' | 'soldBy' | 'dueDate' | 'createdAt' | 'discount'> & Parameters<typeof computeInstallmentPlan>[0];
 
 /**
  * Chek qog'ozi — bitta sotuv yoki kassadagi bir nechta qatorli sotuv (har qator — alohida Sale).
@@ -103,12 +104,13 @@ export default function ReceiptPaper({ sales, org, receipt, d, publicView = fals
       {methods.map((m) => (
         <div key={m} className="sl-rc-line"><span>{d.sales.payMethods[m]}</span><span>{fmtMoney(byMethod.get(m) ?? 0)} {d.common.sum}</span></div>
       ))}
-      {sales.length === 1 && first.paymentType === 'bank_credit' && first.bankName && (
-        <div className="sl-rc-line"><span>{d.sales.detail.bank}</span><span>{first.bankName}</span></div>
-      )}
+      {/* Bank krediti: har bank o'z ulushi bilan */}
+      {sales.length === 1 && saleBankParts(first).map((p) => (
+        <div key={p.bankName} className="sl-rc-line"><span>{p.bankName}</span><span>{fmtMoney(p.amount)} {d.common.sum}</span></div>
+      ))}
       {(remaining > 0 || methods.length === 0) && <div className="sl-rc-line"><span>{d.common.paid}</span><span>{fmtMoney(paid)} {d.common.sum}</span></div>}
       {remaining > 0 && (
-        <div className="sl-rc-line sl-rc-rem"><span>{first.paymentType === 'debt' ? k.debtLine : d.common.remaining}</span><span>{fmtMoney(remaining)} {d.common.sum}</span></div>
+        <div className="sl-rc-line sl-rc-rem"><span>{first.paymentType === 'debt' ? k.debtLine : first.paymentType === 'bank_credit' && sameType ? d.sales.newSale.viaBank : d.common.remaining}</span><span>{fmtMoney(remaining)} {d.common.sum}</span></div>
       )}
       {plan && (
         <>

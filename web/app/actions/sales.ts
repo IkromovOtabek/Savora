@@ -6,7 +6,8 @@ import { Types } from 'mongoose';
 import { getTenantSession } from '@/lib/tenantSession';
 import { parsePrice } from '@/lib/format';
 import { calcSaleStatus, generateSaleNo } from '@/lib/sales';
-import { PaymentType } from '@/lib/models/tenant/Sale';
+import { PaymentType, type ISaleBankPart } from '@/lib/models/tenant/Sale';
+import { MAX_BANK_PARTS, bankPartsLabel, parseBankPartsInput, validateBankParts } from '@/lib/bankCredit';
 import type { ProductUnit } from '@/lib/businessTypes';
 import { sendTelegram, tgEscape } from '@/lib/telegram';
 import { featureDisabledError } from '@/lib/featureAction';
@@ -298,6 +299,8 @@ export async function createSaleAction(_prev: State, formData: FormData): Promis
     notes: zText(1000, tooLong),
     photoUrl: zText(500, m.badPhotoUrl),
     bankName: zText(120, tooLong),
+    // Bir nechta bank: [{ bankName, amount }] (JSON) — lib/bankCredit.ts
+    bankParts: zText(4000, tooLong),
     dueDate: zOptDate(d.common.invalidInput),
   }), formToObject(formData), d.common.invalidInput);
   if (!parsed.ok) return { error: parsed.error };
@@ -351,13 +354,33 @@ export async function createSaleAction(_prev: State, formData: FormData): Promis
     return { error: m.creditKassaDisabled };
   }
 
-  if (paymentType === 'bank_credit' && !bankName) {
-    return { error: m.bankRequired };
+  // Bank krediti: qolgan summa bir yoki bir nechta bankka bo'linadi (jami = jami − bosh to'lov)
+  let bankParts: ISaleBankPart[] | undefined;
+  if (paymentType === 'bank_credit') {
+    const financed = totalAmount - paidAmount;
+    const rawParts = parseBankPartsInput(parsed.data.bankParts);
+    if (rawParts === null) return { error: m.bankRequired };
+    // Eski forma / bitta bank: faqat bankName keladi — qolgan summa to'liq shu bankka
+    const input = rawParts.length > 0 ? rawParts : bankName ? [{ bankName, amount: financed }] : [];
+    const v = validateBankParts(input, financed);
+    if (!v.ok) {
+      return {
+        error: {
+          required: m.bankRequired,
+          tooMany: tr(m.bankPartsTooMany, { n: MAX_BANK_PARTS }),
+          duplicate: m.bankPartsDuplicate,
+          badAmount: m.bankPartsBadAmount,
+          nothingFinanced: m.bankNothingFinanced,
+          sumMismatch: tr(m.bankPartsSum, { sum: financed.toLocaleString('uz-UZ') }),
+        }[v.error],
+      };
+    }
+    const names = v.parts.map((p) => p.bankName);
+    const activeCount = await CreditBank.countDocuments({ name: { $in: names }, active: true });
+    if (activeCount !== names.length) return { error: m.bankNotFound };
+    bankParts = v.parts;
   }
-  if (paymentType === 'bank_credit' && features.creditKassa) {
-    const bank = await CreditBank.findOne({ name: bankName, active: true }).lean();
-    if (!bank) return { error: m.bankNotFound };
-  }
+  const bankLabel = bankParts ? bankPartsLabel(bankParts) : '';
 
   let installmentMonths: number | undefined;
   if (paymentType === 'installment') {
@@ -420,7 +443,8 @@ export async function createSaleAction(_prev: State, formData: FormData): Promis
         : {}),
       branchId: product.branchId,
       paymentType,
-      bankName: paymentType === 'bank_credit' ? bankName : undefined,
+      bankName: bankParts ? bankLabel : undefined,
+      bankParts,
       totalAmount,
       paidAmount,
       remainingAmount,
@@ -445,7 +469,7 @@ export async function createSaleAction(_prev: State, formData: FormData): Promis
       entity: 'sale',
       entityId: String(sale._id),
       summary: `Sotuv ${saleNo}: ${product.name} · ${qtyLabel(saleQty, product.unit)} · ${totalAmount.toLocaleString('uz-UZ')} so'm (${paymentType})`,
-      meta: { saleQty, totalAmount, paymentType },
+      meta: { saleQty, totalAmount, paymentType, ...(bankParts ? { bankParts } : {}) },
     });
     await markOnboardingStep(user.organizationId, 'saleMade');
 
@@ -454,7 +478,7 @@ export async function createSaleAction(_prev: State, formData: FormData): Promis
       `${tgEscape(saleNo)} · ${tgEscape(product.name)} (${qtyLabel(saleQty, product.unit)})\n` +
       (customer ? `Mijoz: ${tgEscape(customer.fullName)}\n` : '') +
       `Summa: ${totalAmount.toLocaleString('uz-UZ')} so'm\n` +
-      `To'lov: ${tgEscape(paymentType)}${bankName ? ` (${tgEscape(bankName)})` : ''}`,
+      `To'lov: ${tgEscape(paymentType)}${bankLabel ? ` (${tgEscape(bankLabel)})` : ''}`,
     );
 
     revalidatePath('/app');
@@ -487,6 +511,8 @@ export async function addSalePaymentAction(_prev: State, formData: FormData): Pr
   if (!sale) return { error: m.saleNotFound };
   if (sale.status === 'cancelled') return { error: m.cancelledNoPayment };
   if (sale.status === 'paid') return { error: m.alreadyPaid };
+  // Bank krediti: pulni bank o'tkazadi — Kredit kassada bank bo'yicha yoziladi (ikki marta hisoblanmasin)
+  if (sale.paymentType === 'bank_credit') return { error: m.bankSalePayment };
   if (amount > sale.remainingAmount) return { error: tr(m.remainingIs, { sum: sale.remainingAmount.toLocaleString('uz-UZ') }) };
 
   // Atomik: qoldiq sharti bilan bitta yozuv — ikki parallel to'lov ortiqcha to'lovga olib kelmaydi

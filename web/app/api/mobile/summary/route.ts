@@ -25,7 +25,7 @@ export async function GET(req: Request) {
       { $group: { _id: null, total: { $sum: '$paidAmount' } } },
     ]),
     Sale.aggregate([
-      { $match: { ...aggScope, status: 'partial' } },
+      { $match: { ...aggScope, status: 'partial', paymentType: { $ne: 'bank_credit' } } },
       { $group: { _id: null, total: { $sum: '$remainingAmount' } } },
     ]),
   ]);

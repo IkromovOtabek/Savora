@@ -17,6 +17,8 @@ interface Props {
   disabled?: boolean;
   placeholder?: string;
   className?: string;
+  /** Ko'rinadigan label bo'lmasa (masalan bank qatori summasi) */
+  ariaLabel?: string;
   /** Controlled rejim: value — toza raqam (bo'shliqsiz), onValueChange — toza raqam qaytaradi */
   value?: string;
   onValueChange?: (raw: string) => void;
@@ -34,6 +36,7 @@ export default function PriceInput({
   disabled,
   placeholder,
   className,
+  ariaLabel,
   value,
   onValueChange,
 }: Props) {
@@ -61,6 +64,7 @@ export default function PriceInput({
       disabled={disabled}
       placeholder={placeholder}
       className={className}
+      aria-label={ariaLabel}
     />
   );
 }

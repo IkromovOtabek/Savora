@@ -32,7 +32,7 @@ export default async function PublicReceiptPage({ params }: { params: Promise<{ 
   const [sales, settings] = await Promise.all([
     // Proyeksiya: tannarx, mijoz telefoni va ichki maydonlar umuman o'qilmaydi
     Sale.find({ checkoutId: ref.checkoutId, status: { $ne: 'cancelled' } })
-      .select('-_id saleNo createdAt soldBy paymentType bankName totalAmount paidAmount remainingAmount installmentMonths downPayment dueDate discount productSnapshot.name productSnapshot.imei productSnapshot.saleQuantity productSnapshot.unit customerSnapshot.fullName payments.amount payments.paidAt payments.note payments.method')
+      .select('-_id saleNo createdAt soldBy paymentType bankName bankParts totalAmount paidAmount remainingAmount installmentMonths downPayment dueDate discount productSnapshot.name productSnapshot.imei productSnapshot.saleQuantity productSnapshot.unit customerSnapshot.fullName payments.amount payments.paidAt payments.note payments.method')
       .sort({ saleNo: 1 }).limit(100).lean(),
     getShopSettings(ShopSettings),
   ]);
@@ -45,6 +45,7 @@ export default async function PublicReceiptPage({ params }: { params: Promise<{ 
     soldBy: s.soldBy,
     paymentType: s.paymentType,
     bankName: s.bankName,
+    bankParts: s.bankParts?.map((p) => ({ bankName: p.bankName, amount: p.amount })),
     totalAmount: s.totalAmount,
     paidAmount: s.paidAmount,
     remainingAmount: s.remainingAmount,

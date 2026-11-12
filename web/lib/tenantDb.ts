@@ -6,6 +6,7 @@ import { productSchema, IProduct } from './models/tenant/Product';
 import { customerSchema, ICustomer } from './models/tenant/Customer';
 import { saleSchema, ISale } from './models/tenant/Sale';
 import { creditBankSchema, ICreditBank } from './models/tenant/CreditBank';
+import { bankReceiptSchema, IBankReceipt } from './models/tenant/BankReceipt';
 import { cashFlowSchema, ICashFlow } from './models/tenant/CashFlow';
 import { transferSchema, ITransfer } from './models/tenant/Transfer';
 import { auditLogSchema, IAuditLog } from './models/tenant/AuditLog';
@@ -21,7 +22,7 @@ import { shopSettingsSchema, IShopSettings } from './models/tenant/ShopSettings'
 import { productCategorySchema, IProductCategory } from './models/tenant/ProductCategory';
 import { brandSchema, IBrand } from './models/tenant/Brand';
 
-const TENANT_MODELS_VERSION = 17;
+const TENANT_MODELS_VERSION = 18;
 
 type TenantModelsMap = Map<string, ReturnType<typeof registerModels>>;
 const globalForTenant = global as unknown as { _savdoproTenantCache?: TenantModelsMap };
@@ -42,6 +43,8 @@ function registerModels(conn: import('mongoose').Connection) {
   const Sale = (conn.models.Sale as Model<ISale>) || conn.model<ISale>('Sale', saleSchema);
   const CreditBank =
     (conn.models.CreditBank as Model<ICreditBank>) || conn.model<ICreditBank>('CreditBank', creditBankSchema);
+  const BankReceipt =
+    (conn.models.BankReceipt as Model<IBankReceipt>) || conn.model<IBankReceipt>('BankReceipt', bankReceiptSchema);
   const CashFlow =
     (conn.models.CashFlow as Model<ICashFlow>) || conn.model<ICashFlow>('CashFlow', cashFlowSchema);
   const Transfer =
@@ -68,7 +71,7 @@ function registerModels(conn: import('mongoose').Connection) {
   const ProductCategory =
     (conn.models.ProductCategory as Model<IProductCategory>) || conn.model<IProductCategory>('ProductCategory', productCategorySchema);
   const Brand = (conn.models.Brand as Model<IBrand>) || conn.model<IBrand>('Brand', brandSchema);
-  return { conn, User, Branch, Product, Customer, Sale, CreditBank, CashFlow, Transfer, AuditLog, LedgerEntry, Task, AiReport, Supplier, SupplierEntry, CashShift, StockAdjustment, FinanceCategory, Role, ShopSettings, ProductCategory, Brand };
+  return { conn, User, Branch, Product, Customer, Sale, CreditBank, BankReceipt, CashFlow, Transfer, AuditLog, LedgerEntry, Task, AiReport, Supplier, SupplierEntry, CashShift, StockAdjustment, FinanceCategory, Role, ShopSettings, ProductCategory, Brand };
 }
 
 /**

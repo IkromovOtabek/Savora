@@ -28,6 +28,13 @@ export interface ISaleReturn {
   by: string;
 }
 
+/** Bank krediti: sotuvning bank moliyalashtirgan qismi — bir nechta bank bo'lishi mumkin */
+export interface ISaleBankPart {
+  bankName: string;
+  /** Shu bank zimmasidagi summa (so'm) — Kredit kassada "Kiritilgan" bo'lib hisoblanadi */
+  amount: number;
+}
+
 export interface IProductSnapshot {
   name: string;
   imei: string;
@@ -52,7 +59,10 @@ export interface ISale {
   customerSnapshot?: ICustomerSnapshot;
   branchId: Types.ObjectId;
   paymentType: PaymentType;
+  /** Bank nomi (bir nechta bo'lsa — vergul bilan, ko'rsatish uchun). Hisob-kitob — bankParts bo'yicha */
   bankName?: string;
+  /** Bank ulushlari; yo'q bo'lsa (eski sotuv) — bankName + remainingAmount (lib/bankCredit.ts) */
+  bankParts?: ISaleBankPart[];
   totalAmount: number;
   paidAmount: number;
   remainingAmount: number;
@@ -102,6 +112,14 @@ export const saleSchema = new Schema<ISale>(
     branchId: { type: Schema.Types.ObjectId, ref: 'Branch', required: true },
     paymentType: { type: String, enum: ['cash', 'debt', 'installment', 'bank_credit'], required: true },
     bankName: { type: String, trim: true },
+    bankParts: {
+      type: [{
+        _id: false,
+        bankName: { type: String, required: true, trim: true },
+        amount: { type: Number, required: true, min: 0 },
+      }],
+      default: undefined,
+    },
     totalAmount: { type: Number, required: true, min: 0 },
     paidAmount: { type: Number, required: true, min: 0, default: 0 },
     remainingAmount: { type: Number, required: true, min: 0, default: 0 },

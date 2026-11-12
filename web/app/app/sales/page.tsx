@@ -99,7 +99,7 @@ export default async function SalesPage({
   weekStart.setDate(weekStart.getDate() - 6);
   const todaySales = await Sale.countDocuments({ ...scope, createdAt: { $gte: todayStart }, status: { $ne: 'cancelled' } });
   const debtTotal = await Sale.aggregate([
-    { $match: { ...branchAggMatch(user), status: 'partial' } },
+    { $match: { ...branchAggMatch(user), status: 'partial', paymentType: { $ne: 'bank_credit' } } },
     { $group: { _id: null, total: { $sum: '$remainingAmount' } } },
   ]);
 

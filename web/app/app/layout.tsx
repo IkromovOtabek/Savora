@@ -31,9 +31,9 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   // Sidebar badge'lar — faol qarzdor sotuvlar. Filial login faqat o'zinikini sanaydi.
   const scope = branchFilter(user);
   const [debtCount, nasiyaCount, openTaskCount, navUser] = await Promise.all([
-    // Qarzdorlik — barcha qisman to'langan (qoldiqli) sotuvlar
+    // Qarzdorlik — mijoz qarzi bor sotuvlar (bank krediti — bank qarzi, Kredit kassada)
     features.sales
-      ? Sale.countDocuments({ ...scope, status: 'partial', remainingAmount: { $gt: 0 } })
+      ? Sale.countDocuments({ ...scope, status: 'partial', remainingAmount: { $gt: 0 }, paymentType: { $ne: 'bank_credit' } })
       : Promise.resolve(0),
     // Nasiya — faqat bo'lib to'lash (installment) turidagi qoldiqli sotuvlar
     features.nasiya

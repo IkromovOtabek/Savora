@@ -29,7 +29,7 @@ export default async function CustomerDetailPage({ params }: { params: Promise<{
   // 360° xulosa — bitta aggregate (filial login faqat o'z filiali bo'yicha)
   const [stats] = await Sale.aggregate<{ count: number; total: number; remaining: number; last?: Date }>([
     { $match: { customerId: new Types.ObjectId(String(customer._id)), status: { $ne: 'cancelled' }, ...branchAggMatch(user) } },
-    { $group: { _id: null, count: { $sum: 1 }, total: { $sum: '$totalAmount' }, remaining: { $sum: '$remainingAmount' }, last: { $max: '$createdAt' } } },
+    { $group: { _id: null, count: { $sum: 1 }, total: { $sum: '$totalAmount' }, remaining: { $sum: { $cond: [{ $eq: ['$paymentType', 'bank_credit'] }, 0, '$remainingAmount'] } }, last: { $max: '$createdAt' } } },
   ]);
 
   return (

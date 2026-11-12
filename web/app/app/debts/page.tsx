@@ -50,8 +50,9 @@ export default async function DebtsPage({
   const k = d.sales.debts;
   const nCustomers = (n: number) => tr(plural(n, d.sales.nCustomers), { n });
 
-  // Faqat qarzdor (qisman to'langan) sotuvlar — filial login faqat o'z filiali
-  const sales = await Sale.find({ ...branchFilter(user), status: 'partial', remainingAmount: { $gt: 0 } })
+  // Faqat qarzdor (qisman to'langan) sotuvlar — filial login faqat o'z filiali.
+  // Bank krediti qoldig'ini mijoz emas, bank to'laydi — u Kredit kassada yuritiladi
+  const sales = await Sale.find({ ...branchFilter(user), status: 'partial', remainingAmount: { $gt: 0 }, paymentType: { $ne: 'bank_credit' } })
     .sort({ dueDate: 1, createdAt: -1 })
     .limit(500)
     .lean();

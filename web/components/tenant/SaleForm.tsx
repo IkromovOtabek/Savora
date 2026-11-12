@@ -6,7 +6,7 @@ import { useToastOnState } from '@/lib/useToastOnState';
 import { createSaleAction, lookupProductByImei } from '@/app/actions/sales';
 import { PaymentType } from '@/lib/models/tenant/Sale';
 import { OrgFeatures } from '@/lib/features';
-import { BANKS } from '@/lib/banks';
+import { MAX_BANK_PARTS } from '@/lib/bankCredit';
 import { fmtDate, fmtMoney } from '@/lib/format';
 import { addMonthsClamped } from '@/lib/dates';
 import BackLink from '@/components/ui/BackLink';
@@ -109,6 +109,8 @@ export default function SaleForm({ isPhoneShop, products, mediaEnabled, features
   const [months, setMonths] = useState('12');
   const [query, setQuery] = useState('');
   const [dueDate, setDueDate] = useState('');
+  // Bank krediti: bir yoki bir nechta bank. Bitta bank bo'lsa — qolgan summa to'liq unga yoziladi
+  const [bankRows, setBankRows] = useState<{ bank: string; amount: string }[]>([{ bank: '', amount: '' }]);
   // Sana faqat brauzerda (server/klient vaqt mintaqasi farqi hydration xatosiga olib kelmasin)
   const [now, setNow] = useState<Date | null>(null);
   useEffect(() => { setNow(new Date()); }, []);
@@ -121,7 +123,8 @@ export default function SaleForm({ isPhoneShop, products, mediaEnabled, features
     });
   }, [features.variant, features.creditKassa]);
 
-  const bankOptions = features.creditKassa && creditBanks.length > 0 ? creditBanks : [...BANKS];
+  // Bank krediti faqat Kredit kassa yoqilganda — banklar o'sha ro'yxatdan (server ham shuni tekshiradi)
+  const bankOptions = creditBanks;
 
   const selectedOption = products.find((p) => p.id === selectedId);
   const picked = isPhoneShop
@@ -213,6 +216,30 @@ export default function SaleForm({ isPhoneShop, products, mediaEnabled, features
   const lastMonth = monthsN > 0 ? rest - monthly * (monthsN - 1) : 0;
   const overpaid = paymentType !== 'cash' && paid > total && total > 0;
   const fieldsOff = isPending || !picked;
+
+  // Bank ulushlari: bitta bank — qolgan summa to'liq; bir nechta — har biri qo'lda, jami = qolgan summa
+  const multiBank = bankRows.length > 1;
+  const bankAmount = (r: { amount: string }) => (multiBank ? Number(r.amount) || 0 : rest);
+  const unallocated = rest - bankRows.reduce((a, r) => a + bankAmount(r), 0);
+  const bankPartsJson = JSON.stringify(bankRows.map((r) => ({ bankName: r.bank, amount: bankAmount(r) })));
+  // Har bank summasi > 0 va jami = qolgan summa bo'lmaguncha tasdiqlab bo'lmaydi
+  const bankZeroRow = multiBank && bankRows.some((r) => bankAmount(r) < 1);
+  const bankBlocked = paymentType === 'bank_credit' && multiBank && (unallocated !== 0 || bankZeroRow);
+
+  function updateBankRow(i: number, patch: Partial<{ bank: string; amount: string }>) {
+    setBankRows((rows) => rows.map((r, j) => (j === i ? { ...r, ...patch } : r)));
+  }
+  function addBankRow() {
+    setBankRows((rows) => {
+      if (rows.length >= MAX_BANK_PARTS) return rows;
+      // Birinchi qo'shishda: 1-bank hozirgi qoldiqni oladi, yangisi bo'sh — foydalanuvchi bo'lib chiqadi
+      if (rows.length === 1) return [{ ...rows[0], amount: String(rest) }, { bank: '', amount: '' }];
+      return [...rows, { bank: '', amount: unallocated > 0 ? String(unallocated) : '' }];
+    });
+  }
+  function removeBankRow(i: number) {
+    setBankRows((rows) => (rows.length > 1 ? rows.filter((_, j) => j !== i) : rows));
+  }
 
   return (
     <form action={formAction}>
@@ -423,26 +450,10 @@ export default function SaleForm({ isPhoneShop, products, mediaEnabled, features
                 <PriceInput id="totalAmount" name="totalAmount" required value={totalAmount} onValueChange={setTotalAmount} disabled={fieldsOff} />
               </div>
 
-              {paymentType === 'bank_credit' && (
-                <div className="auth-field">
-                  <label htmlFor="bankName">{k.bank}</label>
-                  {bankOptions.length === 0 ? (
-                    <p className="field-hint">
-                      {k.noBank} <Link href="/app/kredit-kassa">{k.creditKassa}</Link>
-                    </p>
-                  ) : (
-                    <select id="bankName" name="bankName" required disabled={fieldsOff}>
-                      <option value="">{k.selectPlaceholder}</option>
-                      {bankOptions.map((b) => <option key={b} value={b}>{b}</option>)}
-                    </select>
-                  )}
-                </div>
-              )}
-
               {paymentType !== 'cash' && (
                 <div className={paymentType === 'installment' ? 'sl-fields-2' : undefined}>
                   <div className="auth-field">
-                    <label htmlFor="paidAmount">{paymentType === 'installment' ? k.downPayment : k.paidNow}</label>
+                    <label htmlFor="paidAmount">{paymentType === 'installment' || paymentType === 'bank_credit' ? k.downPayment : k.paidNow}</label>
                     <PriceInput id="paidAmount" name="paidAmount" value={paidAmount} onValueChange={setPaidAmount} disabled={fieldsOff} />
                   </div>
                   {paymentType === 'installment' && (
@@ -469,7 +480,81 @@ export default function SaleForm({ isPhoneShop, products, mediaEnabled, features
                 </div>
               )}
 
-              {paymentType !== 'cash' && (
+              {paymentType === 'bank_credit' && (
+                <div className="auth-field">
+                  <label id="sl-banks-l">{multiBank ? k.banksLabel : k.bank}</label>
+                  {bankOptions.length === 0 ? (
+                    <p className="field-hint">
+                      {k.noBank} <Link href="/app/kredit-kassa">{k.creditKassa}</Link>
+                    </p>
+                  ) : (
+                    <>
+                      <div className="sl-banks" role="group" aria-labelledby="sl-banks-l">
+                        {bankRows.map((r, i) => (
+                          <div key={i} className={`sl-bank-row${multiBank ? ' sl-bank-row--multi' : ''}`}>
+                            <select
+                              aria-label={tr(k.bankRowAria, { n: i + 1 })}
+                              value={r.bank}
+                              onChange={(e) => updateBankRow(i, { bank: e.target.value })}
+                              required
+                              disabled={fieldsOff}
+                            >
+                              <option value="">{k.selectPlaceholder}</option>
+                              {/* Bir bank ikki qatorda tanlanmasin */}
+                              {bankOptions
+                                .filter((b) => b === r.bank || !bankRows.some((x, j) => j !== i && x.bank === b))
+                                .map((b) => <option key={b} value={b}>{b}</option>)}
+                            </select>
+                            {multiBank && (
+                              <>
+                                <PriceInput
+                                  ariaLabel={tr(k.bankAmountAria, { n: i + 1 })}
+                                  value={r.amount}
+                                  onValueChange={(v) => updateBankRow(i, { amount: v })}
+                                  disabled={fieldsOff}
+                                  placeholder="0"
+                                />
+                                <button
+                                  type="button"
+                                  className="sl-bank-del"
+                                  onClick={() => removeBankRow(i)}
+                                  disabled={fieldsOff}
+                                  aria-label={k.removeBankRow}
+                                  title={k.removeBankRow}
+                                >
+                                  <Icon name="close" size={16} />
+                                </button>
+                              </>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                      <input type="hidden" name="bankParts" value={bankPartsJson} />
+                      {multiBank ? (
+                        <span
+                          className={`field-hint sl-bank-sum${unallocated === 0 && !bankZeroRow ? ' sl-bank-sum--ok' : ' sl-bank-sum--bad'}`}
+                          aria-live="polite"
+                        >
+                          {unallocated === 0
+                            ? bankZeroRow ? d.sales.actions.bankPartsBadAmount : k.allocated
+                            : unallocated > 0
+                              ? tr(k.unallocated, { sum: fmtMoney(unallocated) })
+                              : tr(k.overAllocated, { sum: fmtMoney(-unallocated) })}
+                        </span>
+                      ) : (
+                        <span className="field-hint">{k.bankSingleHint}</span>
+                      )}
+                      {bankRows.length < Math.min(MAX_BANK_PARTS, bankOptions.length) && (
+                        <button type="button" className="sl-quick sl-bank-add" onClick={addBankRow} disabled={fieldsOff}>
+                          <Icon name="plus" size={14} /> {k.addBankRow}
+                        </button>
+                      )}
+                    </>
+                  )}
+                </div>
+              )}
+
+              {paymentType !== 'cash' && paymentType !== 'bank_credit' && (
                 <div className="auth-field">
                   <label htmlFor="dueDate">{d.sales.dueDate} {paymentType === 'installment' ? k.optionalParen : '*'}</label>
                   {/* Tez tanlov — brauzer sana oynasi (ko'pincha ruscha) ikkilamchi bo'lib qoladi */}
@@ -531,7 +616,10 @@ export default function SaleForm({ isPhoneShop, products, mediaEnabled, features
               {picked && paymentType === 'bank_credit' && (
                 <div className="sl-preview sl-preview--bank" aria-live="polite">
                   <div className="sl-preview-big"><span>{k.viaBank}</span><strong>{fmtMoney(rest)} {d.common.sum}</strong></div>
-                  {overpaid && <div className="sl-preview-warn">{k.overpaidPaid}</div>}
+                  {multiBank && bankRows.filter((r) => r.bank).map((r) => (
+                    <div key={r.bank} className="sl-preview-row"><span>{r.bank}</span><strong>{fmtMoney(bankAmount(r))} {d.common.sum}</strong></div>
+                  ))}
+                  {overpaid && <div className="sl-preview-warn">{k.overpaidDown}</div>}
                 </div>
               )}
             </div>
@@ -570,7 +658,7 @@ export default function SaleForm({ isPhoneShop, products, mediaEnabled, features
               </div>
             )}
             <div className="sl-card-body sl-pos-submit">
-              <button type="submit" className="btn btn-primary sl-submit" disabled={isPending || !picked || qtyBad}>
+              <button type="submit" className="btn btn-primary sl-submit" disabled={isPending || !picked || qtyBad || bankBlocked}>
                 {isPending ? k.selling : (
                   <>
                     <span className="ux-hide-mobile">{picked ? k.confirmSale : d.common.confirm}</span>

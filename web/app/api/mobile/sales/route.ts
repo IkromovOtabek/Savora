@@ -16,6 +16,8 @@ import { addMonthsClamped } from '@/lib/dates';
 import { pq294MonthsError } from '@/lib/pq294';
 import { isPayMethod, type PayMethod } from '@/lib/payMethods';
 import { newCheckoutId, receiptPath } from '@/lib/receiptLink';
+import { MAX_BANK_PARTS, bankPartsLabel, parseBankPartsInput, validateBankParts } from '@/lib/bankCredit';
+import type { ISaleBankPart } from '@/lib/models/tenant/Sale';
 
 type PaymentType = 'cash' | 'debt' | 'installment' | 'bank_credit';
 const PAYMENT_TYPES: PaymentType[] = ['cash', 'debt', 'installment', 'bank_credit'];
@@ -48,6 +50,7 @@ export async function GET(req: Request) {
   if (type === 'debt') {
     filter.status = 'partial';
     filter.remainingAmount = { $gt: 0 };
+    filter.paymentType = { $ne: 'bank_credit' }; // bank qarzi — Kredit kassada
   } else if (type === 'installment') {
     filter.paymentType = 'installment';
   }
@@ -94,6 +97,8 @@ export async function POST(req: Request) {
     productId?: string; paymentType?: string; totalAmount?: number; paidAmount?: number;
     installmentMonths?: number; customerName?: string; customerPhone?: string;
     dueDate?: string; bankName?: string; saleQty?: number | string; notes?: string;
+    /** Bir nechta bank: [{ bankName, amount }] — yo'q bo'lsa bankName ga qolgan summa to'liq */
+    bankParts?: unknown;
     /** To'langan qism usuli: cash | uzcard | humo | click | payme (eski ilova yubormaydi — naqd) */
     payMethod?: string;
   };
@@ -158,11 +163,31 @@ export async function POST(req: Request) {
   if (paymentType === 'installment' && !features.variant && !features.nasiya) {
     return NextResponse.json({ error: 'Nasiya moduli yoqilmagan.' }, { status: 403 });
   }
+  // Bank krediti: qolgan summa bir yoki bir nechta bankka (lib/bankCredit.ts — web bilan bir xil qoida)
+  let bankParts: ISaleBankPart[] | undefined;
   if (paymentType === 'bank_credit') {
     if (!features.creditKassa) return NextResponse.json({ error: 'Kredit kassa moduli yoqilmagan.' }, { status: 403 });
-    if (!bankName) return NextResponse.json({ error: 'Bank tanlanishi shart.' }, { status: 400 });
-    const bank = await CreditBank.findOne({ name: bankName, active: true }).lean();
-    if (!bank) return NextResponse.json({ error: 'Tanlangan bank topilmadi.' }, { status: 400 });
+    const financed = totalAmount - paidAmount;
+    const rawParts = parseBankPartsInput(body.bankParts);
+    if (rawParts === null) return NextResponse.json({ error: 'Bank ulushlari noto\'g\'ri.' }, { status: 400 });
+    const input = rawParts.length > 0 ? rawParts : bankName ? [{ bankName, amount: financed }] : [];
+    const v = validateBankParts(input, financed);
+    if (!v.ok) {
+      const msg = {
+        required: 'Bank tanlanishi shart.',
+        tooMany: `Bitta sotuvda ko'pi bilan ${MAX_BANK_PARTS} ta bank bo'lishi mumkin.`,
+        duplicate: 'Bir bank ikki marta tanlangan.',
+        badAmount: 'Har bank summasi butun so\'mda va 0 dan katta bo\'lishi kerak.',
+        nothingFinanced: 'Bank krediti uchun bankka summa qolishi kerak — bosh to\'lov jami summadan kam bo\'lsin.',
+        sumMismatch: `Banklar summasi bankka qoladigan summaga teng bo'lishi kerak: ${financed.toLocaleString('uz-UZ')} so'm.`,
+      }[v.error];
+      return NextResponse.json({ error: msg }, { status: 400 });
+    }
+    const names = v.parts.map((p) => p.bankName);
+    if ((await CreditBank.countDocuments({ name: { $in: names }, active: true })) !== names.length) {
+      return NextResponse.json({ error: 'Tanlangan bank topilmadi.' }, { status: 400 });
+    }
+    bankParts = v.parts;
   }
 
   let installmentMonths: number | undefined;
@@ -221,7 +246,8 @@ export async function POST(req: Request) {
       ...(customer ? { customerId: customer._id, customerSnapshot: { fullName: customer.fullName, phone: customer.phone } } : {}),
       branchId: product.branchId,
       paymentType,
-      bankName: paymentType === 'bank_credit' ? bankName : undefined,
+      bankName: bankParts ? bankPartsLabel(bankParts) : undefined,
+      bankParts,
       totalAmount, paidAmount, remainingAmount, installmentMonths,
       downPayment: paymentType === 'installment' ? paidAmount : undefined,
       dueDate, status, payments, soldBy: user.username, notes: notes || undefined, checkoutId,

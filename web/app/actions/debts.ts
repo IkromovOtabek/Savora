@@ -40,7 +40,8 @@ export async function bulkDebtPaymentAction(input: { customerId: string; amount:
   const { customerId, amount, method } = parsed.data;
   const scope = branchFilter(user);
 
-  const debts = await Sale.find({ ...scope, customerId: new Types.ObjectId(customerId), status: 'partial', remainingAmount: { $gt: 0 } })
+  // Bank krediti sotuvlariga mijoz to'lovi taqsimlanmaydi (bank qarzi — Kredit kassada)
+  const debts = await Sale.find({ ...scope, customerId: new Types.ObjectId(customerId), status: 'partial', remainingAmount: { $gt: 0 }, paymentType: { $ne: 'bank_credit' } })
     .sort({ dueDate: 1, createdAt: 1 })
     .select('saleNo remainingAmount customerSnapshot')
     .lean();

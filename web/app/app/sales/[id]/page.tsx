@@ -6,6 +6,7 @@ import Icon from '@/components/icons/Icon';
 import { getTenantSession } from '@/lib/tenantSession';
 import { fmtDate, fmtDateTime, fmtMoney } from '@/lib/format';
 import { computeDebtInfo } from '@/lib/debts';
+import { saleBankParts } from '@/lib/bankCredit';
 import { computeInstallmentPlan } from '@/lib/installment';
 import InstallmentPlan from '@/components/tenant/InstallmentPlan';
 import SalePaymentForm from '@/components/tenant/SalePaymentForm';
@@ -53,7 +54,10 @@ export default async function SaleDetailPage({
   if (!sale) notFound();
 
   const perms = await loadUserPermissions(user);
-  const canPay = sale.status === 'partial' && perms.has('payment.accept');
+  const isBank = sale.paymentType === 'bank_credit';
+  // Bank krediti: pulni bank o'tkazadi — Kredit kassada bank bo'yicha yoziladi, sotuvga to'lov qo'shilmaydi
+  const canPay = sale.status === 'partial' && !isBank && perms.has('payment.accept');
+  const bankParts = saleBankParts(sale);
   const canCancel = perms.has('sale.cancel') && sale.status !== 'cancelled';
   // Qisman qaytarish — bir nechta dona sotilganda (bank kreditida emas)
   // Qisman qaytarish: qaytarishdan keyin ham nimadir qolishi kerak (dona — 2+, kg — 0,001 dan ko'p)
@@ -65,7 +69,7 @@ export default async function SaleDetailPage({
 
   const cancelled = sale.status === 'cancelled';
   const pct = sale.totalAmount > 0 ? Math.min(100, Math.round((sale.paidAmount / sale.totalAmount) * 100)) : 100;
-  const debtInfo = sale.dueDate && sale.remainingAmount > 0 ? computeDebtInfo(sale) : null;
+  const debtInfo = !isBank && sale.dueDate && sale.remainingAmount > 0 ? computeDebtInfo(sale) : null;
   const customerName = sale.customerSnapshot?.fullName;
   const customerPhone = sale.customerSnapshot?.phone;
   const qty = sale.productSnapshot.saleQuantity ?? 1;
@@ -146,8 +150,8 @@ export default async function SaleDetailPage({
                   <strong>{fmtMoney(sale.paidAmount)}</strong>
                 </div>
                 <div className="sl-hero-cell">
-                  <span>{d.common.remaining}</span>
-                  <strong>{fmtMoney(sale.remainingAmount)}</strong>
+                  <span>{isBank ? d.sales.newSale.viaBank : d.common.remaining}</span>
+                  <strong>{fmtMoney(isBank ? bankParts.reduce((a, p) => a + p.amount, 0) : sale.remainingAmount)}</strong>
                 </div>
                 <div className="sl-hero-cell">
                   <span>{plan ? d.sales.monthlyPayment : k.term}</span>
@@ -243,8 +247,12 @@ export default async function SaleDetailPage({
               {sale.productSnapshot.imei && <li><span>{k.imeiCode}</span><code>{sale.productSnapshot.imei}</code></li>}
               {qty !== 1 && <li><span>{k.qty}</span><span>{qtyWithUnit(qty, sale.productSnapshot.unit, d.stock.fields.units)}</span></li>}
               <li><span>{d.sales.paymentType}</span><span>{d.sales.paymentTypesFull[sale.paymentType]}</span></li>
-              {sale.paymentType === 'bank_credit' && sale.bankName && (
-                <li><span>{k.bank}</span><span>{sale.bankName}</span></li>
+              {/* Bank krediti: har bank o'z ulushi bilan (bir nechta bo'lishi mumkin) */}
+              {bankParts.map((p) => (
+                <li key={p.bankName}><span>{k.bank}</span><span>{p.bankName} · {fmtMoney(p.amount)} {d.common.sum}</span></li>
+              ))}
+              {isBank && !cancelled && (
+                <li><span /><Link href="/app/kredit-kassa">{k.bankMoneyInKassa} →</Link></li>
               )}
               {sale.installmentMonths && <li><span>{d.common.installment}</span><span>{tr(d.common.nMonths, { n: sale.installmentMonths })}</span></li>}
               {sale.dueDate && debtInfo && (

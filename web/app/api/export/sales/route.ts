@@ -41,7 +41,8 @@ export async function GET() {
             s.productSnapshot?.imei ?? '',
             s.productSnapshot?.name ?? '',
             x.paymentTypes[s.paymentType],
-            s.bankName ?? '',
+            // Bir nechta bank — har biri summasi bilan
+            s.bankParts?.length ? s.bankParts.map((p) => `${p.bankName} ${p.amount}`).join('; ') : (s.bankName ?? ''),
             s.totalAmount,
             s.paidAmount,
             s.remainingAmount,
