@@ -92,6 +92,9 @@ function securityHeaders({ framable }) {
 const NOINDEX = [{ key: 'X-Robots-Tag', value: 'noindex, nofollow' }];
 
 const nextConfig = {
+  // Ikkinchi dev-server (masalan, lokal baza bilan 3101) bir .next'ni talashmasligi uchun:
+  // NEXT_DIST_DIR=.next-local next dev -p 3101. Berilmasa — odatdagi .next (build/prod o'zgarmaydi).
+  distDir: process.env.NEXT_DIST_DIR || '.next',
   reactStrictMode: true,
   poweredByHeader: false,
   compress: true,
