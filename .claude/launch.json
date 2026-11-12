@@ -25,7 +25,7 @@
       "runtimeExecutable": "sh",
       "runtimeArgs": [
         "-c",
-        "sh .claude/local-services.sh && cd web && MONGO_URI=mongodb://127.0.0.1:27019/savora REDIS_URL=redis://127.0.0.1:6390 NEXT_PUBLIC_APP_URL=http://localhost:3101 exec npx next dev -p 3101"
+        "sh .claude/local-services.sh && cd web && MONGO_URI=mongodb://127.0.0.1:27019/savora REDIS_URL=redis://127.0.0.1:6390 NEXT_PUBLIC_APP_URL=http://localhost:3101 NEXT_DIST_DIR=.next-localdb exec npx next dev -p 3101"
       ],
       "port": 3101,
       "autoPort": false

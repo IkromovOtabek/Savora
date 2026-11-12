@@ -1,6 +1,7 @@
 # Bog'liqliklar va build (web + mobile)
 node_modules/
 .next/
+.next-*/
 out/
 build/
 .expo/
