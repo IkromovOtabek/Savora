@@ -51,7 +51,7 @@ export function ToolbarTitle({ orgName }: { orgName: string }) {
 }
 
 /** Formalar (yangi/tahrirlash) — pastki tugmalarni FAB yopib qo'ymasin */
-const FAB_HIDDEN = [/^\/app\/sales\/new/, /^\/app\/pos/, /\/new$/, /\/edit(\/|$)/];
+const FAB_HIDDEN = [/^\/app\/sales\/new/, /^\/app\/pos/, /\/new$/, /\/edit(\/|$)/, /^\/app\/products\/import$/];
 
 /**
  * Mobil «Yangi sotuv» — tab bar ustida, o'ng pastda. Desktopda ko'rinmaydi (toolbar tugmasi bor).

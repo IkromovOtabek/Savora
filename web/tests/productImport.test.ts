@@ -15,8 +15,10 @@ import {
   parseUnit,
   parseWarranty,
   parseExtraFieldsJson,
+  templateFieldsFor,
   type ImportContext,
 } from '@/lib/productImport';
+import { uz as importerUz, ru as importerRu } from '@/lib/i18n/dict/importer';
 
 /** Test uchun minimal ZIP yozuvchi (CRC tekshirilmaydi — o'quvchi markaziy katalogga ishonadi) */
 function makeZip(files: Record<string, string>, deflate = true): Uint8Array {
@@ -304,6 +306,36 @@ describe('qatorni tekshirish', () => {
     expect(res).toMatchObject({ ok: true, row: { name: 'Non' } });
     expect(parseImportRow({ line: 2, values: { name: 'Analgin' }, extra: [] }, PHARMACY))
       .toMatchObject({ ok: false, issues: [{ field: 'expiryDate', code: 'required' }] });
+  });
+});
+
+describe('namuna fayl', () => {
+  const CTXS = [GENERAL, GROCERY, PHONE, PHARMACY, { phoneShop: false, businessType: 'auto_parts' }, { phoneShop: false, businessType: 'clothing' }];
+
+  it('namunadagi sarlavhalar (uz va ru) o\'sha maydonlarga o\'zi moslanadi', () => {
+    for (const ctx of CTXS) {
+      const want = templateFieldsFor(ctx);
+      for (const d of [importerUz, importerRu]) {
+        const mapped = autoMapColumns(want.map((f) => d.fields[f]), importFieldsFor(ctx));
+        expect(mapped).toEqual(want.map((field) => ({ type: 'field', field })));
+      }
+    }
+  });
+
+  it('telefon do\'konida IMEI va rang, boshqalarda shtrix-kod va soni', () => {
+    expect(templateFieldsFor(PHONE)).toEqual(expect.arrayContaining(['name', 'imei', 'color', 'purchasePrice', 'salePrice']));
+    expect(templateFieldsFor(PHONE)).not.toContain('quantity');
+    expect(templateFieldsFor(GENERAL)).toEqual(expect.arrayContaining(['name', 'barcode', 'quantity']));
+    expect(templateFieldsFor(GENERAL)).not.toContain('imei');
+    expect(templateFieldsFor(PHARMACY)).toContain('expiryDate');
+  });
+
+  it('har maydon (uz/ru nomi) o\'zi taniladi', () => {
+    for (const d of [importerUz, importerRu]) {
+      for (const f of Object.keys(d.fields) as (keyof typeof d.fields)[]) {
+        expect(guessField(d.fields[f], Object.keys(d.fields) as (keyof typeof d.fields)[])?.field).toBe(f);
+      }
+    }
   });
 });
 

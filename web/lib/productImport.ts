@@ -65,6 +65,22 @@ export function importFieldsFor(ctx: ImportContext): ImportField[] {
   });
 }
 
+/**
+ * Namuna fayl ustunlari: asosiylari + shu yo'nalish maydonlari. Sarlavhalar lug'atdagi `fields` nomlari —
+ * ular autoMapColumns bilan o'zi taniladi (tests/productImport.test.ts tekshiradi).
+ */
+export function templateFieldsFor(ctx: ImportContext): ImportField[] {
+  const allowed = new Set(importFieldsFor(ctx));
+  const out: ImportField[] = ['name', ctx.phoneShop ? 'imei' : 'barcode', 'purchasePrice', 'salePrice'];
+  // Telefon do'konida har IMEI — bitta dona, soni ustuni kerak emas; rang esa muhim
+  out.push(...(ctx.phoneShop ? (['color'] as const) : (['quantity'] as const)), 'category', 'brand');
+  for (const s of productFieldsFor(ctx.businessType)) {
+    const f = s.key as ImportField;
+    if (allowed.has(f) && !out.includes(f)) out.push(f);
+  }
+  return out.filter((f) => allowed.has(f));
+}
+
 /** Yo'nalish bo'yicha majburiy maydonlar (masalan, dorixonada yaroqlilik muddati) */
 function requiredFields(ctx: ImportContext): Set<ProductFieldKey> {
   return new Set(productFieldsFor(ctx.businessType).filter((s) => s.required).map((s) => s.key));
@@ -119,7 +135,7 @@ const SYNONYMS: Record<ImportField, string[]> = {
   color: ['rang', 'rangi', 'ранг', 'ранги', 'цвет', 'color', 'colour'],
   size: ['olcham', 'olchami', 'razmer', 'ўлчам', 'размер', 'size'],
   warrantyMonths: ['kafolat', 'kafolatoy', 'kafolatmuddati', 'garantiya', 'кафолат', 'гарантия', 'гарантиямес', 'warranty'],
-  batchNumber: ['seriya', 'seriyaraqami', 'partiya', 'серия', 'партия', 'номерпартии', 'batch', 'lot', 'batchnumber'],
+  batchNumber: ['seriya', 'seriyaraqami', 'partiya', 'серия', 'партия', 'номерпартии', 'номерсерии', 'batch', 'lot', 'batchnumber'],
   expiryDate: [
     'yaroqlilikmuddati', 'yaroqlilik', 'muddati', 'yaroqlimuddat', 'яроқлиликмуддати',
     'срокгодности', 'годендо', 'срок', 'expiry', 'expirydate', 'bestbefore', 'exp',

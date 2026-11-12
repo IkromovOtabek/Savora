@@ -13,16 +13,18 @@ export const uz = {
   hintAdmin: "Mahsulotlar asosiy omboringizga qo'shiladi.",
   hintBranch: "Mahsulotlar shu filial omboriga qo'shiladi.",
 
-  steps: { file: 'Fayl', columns: 'Ustunlar', check: 'Tekshiruv' },
+  steps: { file: 'Fayl', check: 'Tekshirish', done: 'Natija' },
 
   /** components/tenant/ProductImportWizard.tsx */
   dropTitle: 'Excel yoki CSV faylni shu yerga tashlang',
   dropHint: '.xlsx yoki .csv · {max} tagacha qator · ustun nomlari istalgancha',
   choose: 'Fayl tanlash',
   reading: "Fayl o'qilmoqda...",
-  knownTitle: 'Qanday ustunlar tanib olinadi',
-  knownHint:
-    "Ustunlar nomi bo'yicha avtomatik moslanadi: «Nomi / Наименование», «Narx / Цена», «Soni / Кол-во / Остаток», «Shtrix-kod / Штрихкод», «Kelish narxi / Себестоимость» va boshqalar. Tanilmagan ustunlar qo'shimcha ustun bo'lib saqlanadi — xohlasangiz o'zgartirasiz.",
+  /** Namuna fayl — ustunlari tayyor CSV (lib/productImport.ts → templateFieldsFor) */
+  templateTitle: 'Namuna fayl',
+  templateHint: "Ustunlari tayyor jadval: to'ldiring va shu yerga tashlang. O'z faylingiz ham bo'ladi — ustunlar nomidan o'zi taniladi.",
+  templateBtn: 'Yuklab olish',
+  templateFile: 'savora-namuna.csv',
   readErrors: {
     xls: "Eski .xls format o'qilmaydi — faylni Excel'da «Saqlash → .xlsx» qilib qayta saqlang.",
     corrupt: "Faylni o'qib bo'lmadi — u buzilgan yoki Excel fayli emas.",
@@ -33,15 +35,17 @@ export const uz = {
   fileTooBig: 'Fayl {mb} MB dan katta.',
   tooManyRows: "Faylda {n} ta qator bor — bir martada {max} tagacha. Faylni bo'lib yuklang.",
 
-  fileInfo: '{file} · {n} ta qator',
+  fileRows: '{n} ta qator',
   changeFile: 'Boshqa fayl',
   sheet: 'Varaq',
   headerRow: 'Sarlavha qatori',
   /** {n} — qator raqami, {text} — qatordagi birinchi kataklar */
   headerRowOpt: '{n}-qator: {text}',
 
-  columnsTitle: 'Ustunlarni moslash',
-  columnsHint: "Har bir Excel ustuni mahsulotning qaysi maydoniga yozilishini tanlang.",
+  columnsTitle: 'Ustunlar',
+  /** {n} — olinadigan, {total} — jami ustunlar */
+  columnsCount: '{n} / {total} ta olinadi',
+  columnsHint: "Ustunlar nomidan o'zi moslandi — noto'g'ri bo'lsa, o'zgartiring.",
   colTarget: 'Qayerga yoziladi',
   noHeader: '({col}-ustun)',
   skip: "— O'tkazib yuborish —",
@@ -89,10 +93,18 @@ export const uz = {
   dupRestock: "Qoldiqqa qo'shish",
   dupRestockHint: "Excel'dagi soni qoldiqqa qo'shiladi, narxlar yangilanadi (faqat soni sanaladigan tovarda)",
 
-  previewTitle: 'Tekshiruv',
-  ready: '{n} ta tayyor',
-  invalid: '{n} ta xato',
-  onlyErrors: 'Faqat xatolar',
+  previewTitle: "Ko'rib chiqish",
+  viewAll: 'Hammasi',
+  /** {n} — xato qatorlar */
+  viewErrors: 'Xatolar · {n}',
+  statReady: 'Tayyor',
+  statReadyHint: "qo'shiladi",
+  statErrors: 'Xato',
+  statErrorsHint: "o'tkazib yuboriladi",
+  statNoImei: "IMEI'siz",
+  statNoImeiHint: 'keyin kiritasiz',
+  moreTitle: "Qo'shimcha sozlamalar",
+  moreHint: 'Takror tovarlar, sarlavha qatori, hamma qatorga bir xil qiymat',
   /** {n} — ko'rsatilgan qatorlar soni */
   previewLimit: "Dastlabki {n} ta qator ko'rsatildi",
   line: 'Qator',
@@ -114,15 +126,16 @@ export const uz = {
     required: '{field} majburiy',
   } as Record<ImportErrorCode, string>,
 
-  start: '{n} ta mahsulotni import qilish',
+  start: "{n} ta mahsulotni qo'shish",
   importing: 'Import qilinmoqda... {done} / {total}',
   skipInvalidNote: "Xato qatorlar o'tkazib yuboriladi.",
 
   resultTitle: 'Import tugadi',
-  resCreated: "{n} ta yangi mahsulot qo'shildi",
-  resRestocked: "{n} tasining qoldig'i to'ldirildi",
-  resSkipped: "{n} tasi o'tkazildi (bazada bor)",
-  resFailed: '{n} ta qatorda xato',
+  /** {n} — qo'shilgan yangi mahsulotlar */
+  resLead: "{n} ta yangi mahsulot omborga qo'shildi",
+  resNone: "Yangi mahsulot qo'shilmadi",
+  resTiles: { created: "Qo'shildi", restocked: "To'ldirildi", skipped: "O'tkazildi", failed: 'Xato' },
+  problemsTitle: "O'tkazilgan va xato qatorlar",
   /** {n} — IMEI'siz qo'shilgan tovarlar */
   resNoImei: "{n} ta tovarga IMEI kiritilmagan — omborda IMEI kiriting",
   resNoImeiLink: "IMEI'sizlarni ko'rish",
@@ -169,15 +182,16 @@ export const ru: typeof uz = {
   hintAdmin: 'Товары будут добавлены на ваш основной склад.',
   hintBranch: 'Товары будут добавлены на склад этого филиала.',
 
-  steps: { file: 'Файл', columns: 'Столбцы', check: 'Проверка' },
+  steps: { file: 'Файл', check: 'Проверка', done: 'Итог' },
 
   dropTitle: 'Перетащите сюда файл Excel или CSV',
   dropHint: '.xlsx или .csv · до {max} строк · названия столбцов любые',
   choose: 'Выбрать файл',
   reading: 'Чтение файла...',
-  knownTitle: 'Какие столбцы распознаются',
-  knownHint:
-    'Столбцы сопоставляются по названию автоматически: «Наименование / Nomi», «Цена / Narx», «Кол-во / Остаток / Soni», «Штрихкод», «Себестоимость / Kelish narxi» и другие. Нераспознанные столбцы сохраняются как дополнительные — это можно изменить.',
+  templateTitle: 'Файл-шаблон',
+  templateHint: 'Таблица с готовыми столбцами: заполните и перетащите сюда. Подойдёт и ваш файл — столбцы распознаются по названию.',
+  templateBtn: 'Скачать',
+  templateFile: 'savora-shablon.csv',
   readErrors: {
     xls: 'Старый формат .xls не поддерживается — пересохраните файл в Excel как «.xlsx».',
     corrupt: 'Не удалось прочитать файл — он повреждён или это не файл Excel.',
@@ -188,14 +202,15 @@ export const ru: typeof uz = {
   fileTooBig: 'Файл больше {mb} МБ.',
   tooManyRows: 'В файле {n} строк — за раз можно до {max}. Разделите файл на части.',
 
-  fileInfo: '{file} · строк: {n}',
+  fileRows: 'строк: {n}',
   changeFile: 'Другой файл',
   sheet: 'Лист',
   headerRow: 'Строка заголовков',
   headerRowOpt: 'Строка {n}: {text}',
 
-  columnsTitle: 'Сопоставление столбцов',
-  columnsHint: 'Выберите, в какое поле товара записывать каждый столбец Excel.',
+  columnsTitle: 'Столбцы',
+  columnsCount: 'берём {n} из {total}',
+  columnsHint: 'Столбцы сопоставлены по названию — если неверно, измените.',
   colTarget: 'Куда записать',
   noHeader: '(столбец {col})',
   skip: '— Пропустить —',
@@ -243,10 +258,17 @@ export const ru: typeof uz = {
   dupRestock: 'Добавить к остатку',
   dupRestockHint: 'Количество из Excel прибавится к остатку, цены обновятся (только для товара с учётом количества)',
 
-  previewTitle: 'Проверка',
-  ready: 'готово: {n}',
-  invalid: 'с ошибками: {n}',
-  onlyErrors: 'Только ошибки',
+  previewTitle: 'Предпросмотр',
+  viewAll: 'Все',
+  viewErrors: 'Ошибки · {n}',
+  statReady: 'Готово',
+  statReadyHint: 'будут добавлены',
+  statErrors: 'Ошибки',
+  statErrorsHint: 'будут пропущены',
+  statNoImei: 'Без IMEI',
+  statNoImeiHint: 'введёте позже',
+  moreTitle: 'Дополнительные настройки',
+  moreHint: 'Повторы товаров, строка заголовков, одно значение для всех строк',
   previewLimit: 'Показаны первые {n} строк',
   line: 'Строка',
   status: 'Статус',
@@ -266,15 +288,15 @@ export const ru: typeof uz = {
     required: '{field} — обязательно',
   },
 
-  start: 'Импортировать товары: {n}',
+  start: 'Добавить товары: {n}',
   importing: 'Импорт... {done} / {total}',
   skipInvalidNote: 'Строки с ошибками будут пропущены.',
 
   resultTitle: 'Импорт завершён',
-  resCreated: 'Добавлено новых товаров: {n}',
-  resRestocked: 'Пополнен остаток: {n}',
-  resSkipped: 'Пропущено (уже есть): {n}',
-  resFailed: 'Строк с ошибками: {n}',
+  resLead: 'Добавлено новых товаров на склад: {n}',
+  resNone: 'Новые товары не добавлены',
+  resTiles: { created: 'Добавлено', restocked: 'Пополнено', skipped: 'Пропущено', failed: 'Ошибки' },
+  problemsTitle: 'Пропущенные строки и ошибки',
   resNoImei: 'Товаров без IMEI: {n} — введите IMEI на складе',
   resNoImeiLink: 'Показать без IMEI',
   resStopped: 'Связь с сервером прервалась — сохранено строк: {done}. Загрузите остальное повторно.',
