@@ -347,7 +347,7 @@ export default async function TenantDashboard({
                 <span className="ux-empty-ic" aria-hidden="true"><Icon name="chart" size={26} /></span>
                 <b>{t.weekEmptyTitle}</b>
                 <p>{t.weekEmptyText}</p>
-                {showSaleCta && <Link href="/app/sales/new" className="t-btn t-btn--filled">{t.makeSale}</Link>}
+                {showSaleCta && <Link href="/app/pos" className="t-btn t-btn--filled">{t.makeSale}</Link>}
               </div>
             )}
           </section>
@@ -362,7 +362,7 @@ export default async function TenantDashboard({
             {recentSales.length === 0 ? (
               <div className="t-empty">
                 <p>{t.noSalesYet}</p>
-                {showSaleCta && <Link href="/app/sales/new" className="t-btn t-btn--filled">{t.makeSale}</Link>}
+                {showSaleCta && <Link href="/app/pos" className="t-btn t-btn--filled">{t.makeSale}</Link>}
               </div>
             ) : (
               recentSales.map((s) => (

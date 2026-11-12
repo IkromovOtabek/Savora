@@ -19,6 +19,8 @@ export default async function ReportsHub() {
     { key: 'sellers', href: '/app/reports/sellers', icon: 'users', show: features.sales },
     { key: 'products', href: '/app/reports/products', icon: 'box', show: features.sales },
     { key: 'overview', href: '/app/monitoring', icon: 'chart', show: true },
+    // Sahifa guard'i bilan bir xil: faqat do'kon egasi + Kirim-chiqim moduli
+    { key: 'stockValue', href: '/app/kirim-chiqim', icon: 'wallet', show: user.role === 'admin' && features.kirimChiqim },
     { key: 'shifts', href: '/app/shifts', icon: 'clock', show: features.kassa && perms.has('kassa.view') },
     { key: 'debts', href: '/app/debts', icon: 'bell', show: features.sales },
     { key: 'writeoff', href: '/app/write-off', icon: 'trash', show: features.products && perms.has('stock.adjust') },

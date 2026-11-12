@@ -69,7 +69,7 @@ export default async function KassaPage() {
       </div>
       <NaxtKassaCards total={total} cards={cards} />
       {/* Kompyuterda yuqori paneldagi "Yangi sotuv" yetarli; telefonda — pastki o'ng tugma */}
-      <Link href="/app/sales/new" className="ux-fab">
+      <Link href="/app/pos" className="ux-fab">
         <Icon name="plus" size={20} /> {d.common.sale}
       </Link>
     </>

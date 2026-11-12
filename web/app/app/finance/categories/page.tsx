@@ -3,6 +3,7 @@ import { ensureFinanceCategories } from '@/lib/financeCategories';
 import { toggleFinanceCategoryAction } from '@/app/actions/finance';
 import { FinanceCategoryForm } from '@/components/tenant/FinanceForms';
 import { getDict } from '@/lib/i18n/server';
+import FinanceTabs from '@/components/tenant/FinanceTabs';
 import '@/components/tenant/styles/finance.css';
 
 export async function generateMetadata() {
@@ -43,6 +44,7 @@ export default async function FinanceCategoriesPage() {
           <p className="t-page-sub">{f.catSub}</p>
         </div>
       </div>
+      <FinanceTabs current="cat" />
       <div className="fx-card fx-add"><FinanceCategoryForm /></div>
       <div className="fx-catgrid">
         {col('expense')}

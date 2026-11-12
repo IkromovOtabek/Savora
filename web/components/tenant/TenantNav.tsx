@@ -14,8 +14,13 @@ import LangSwitch from '@/components/LangSwitch';
 import { useDict } from '@/lib/i18n/client';
 import { tr } from '@/lib/i18n/fmt';
 
+function matches(href: string, pathname: string): boolean {
+  return pathname === href || pathname.startsWith(`${href}/`);
+}
+
 function isActive(link: NavLink, pathname: string): boolean {
-  return link.exact ? pathname === link.href : pathname === link.href || pathname.startsWith(`${link.href}/`);
+  if (link.exact) return pathname === link.href;
+  return matches(link.href, pathname) || !!link.also?.some((h) => matches(h, pathname));
 }
 
 function Count({ n, onBrand }: { n: number; onBrand?: boolean }) {

@@ -22,7 +22,7 @@ export default async function MonitoringChart({ rows }: { rows: BranchMonthFlow[
         <span className="ux-empty-ic"><Icon name="chart" size={26} /></span>
         <b>{t.noSalesMonth}</b>
         <p>{t.noSalesMonthText}</p>
-        <Link href="/app/sales/new" className="btn btn-tinted btn-sm">{t.addSale}</Link>
+        <Link href="/app/pos" className="btn btn-tinted btn-sm">{t.addSale}</Link>
       </div>
     );
   }

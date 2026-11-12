@@ -2,6 +2,7 @@ import { getTenantSession } from '@/lib/tenantSession';
 import { sumCashFromSales } from '@/lib/cashKassa';
 import { fmtMoney } from '@/lib/format';
 import { getDict } from '@/lib/i18n/server';
+import FinanceTabs from '@/components/tenant/FinanceTabs';
 import '@/components/tenant/styles/finance.css';
 
 export async function generateMetadata() {
@@ -58,6 +59,7 @@ export default async function FinanceStatePage() {
           <p className="t-page-sub">{f.stateSub}</p>
         </div>
       </div>
+      <FinanceTabs current="state" />
 
       <div className="ux-strip fx-state-strip">
         <div className="ux-stat"><div className="ux-stat-l">{f.colCash}</div><div className="ux-stat-v t-num">{fmtMoney(total.cash)}</div></div>

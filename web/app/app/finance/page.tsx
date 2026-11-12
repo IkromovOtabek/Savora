@@ -7,6 +7,7 @@ import { deleteCashFlowAction } from '@/app/actions/finance';
 import { FinanceTxForm } from '@/components/tenant/FinanceForms';
 import PeriodSeg from '@/components/tenant/PeriodSeg';
 import Icon from '@/components/icons/Icon';
+import FinanceTabs from '@/components/tenant/FinanceTabs';
 import { getDict } from '@/lib/i18n/server';
 import '@/components/tenant/styles/finance.css';
 
@@ -59,6 +60,7 @@ export default async function FinanceTxPage({ searchParams }: { searchParams: Pr
         </div>
         <PeriodSeg basePath={type ? `/app/finance?t=${type}` : '/app/finance'} current={period} defaultKey="month" />
       </div>
+      <FinanceTabs current="tx" />
 
       <div className="t-split">
         <aside className="t-split-rail fx-rail">

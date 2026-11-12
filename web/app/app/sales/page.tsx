@@ -153,7 +153,7 @@ export default async function SalesPage({
           </p>
         </div>
         <div className="t-page-actions sl-list-actions">
-          <Link href="/app/sales/new" className="btn btn-primary btn-with-icon ux-hide-mobile">
+          <Link href="/app/pos" className="btn btn-primary btn-with-icon ux-hide-mobile">
             <Icon name="plus" size={16} />
             {k.newSale}
           </Link>
@@ -237,7 +237,7 @@ export default async function SalesPage({
             {filtered ? (
               <Link href="/app/sales" className="btn btn-ghost">{d.sales.clearFilter}</Link>
             ) : (
-              <Link href="/app/sales/new" className="btn btn-primary">{k.firstSale}</Link>
+              <Link href="/app/pos" className="btn btn-primary">{k.firstSale}</Link>
             )}
           </div>
         ) : (
@@ -289,7 +289,7 @@ export default async function SalesPage({
       </div>
       </div>
 
-      <Link href="/app/sales/new" className="ux-fab">
+      <Link href="/app/pos" className="ux-fab">
         <Icon name="plus" size={20} />
         {k.newSale}
       </Link>

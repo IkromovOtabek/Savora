@@ -71,7 +71,7 @@ export const TENANT_MODULES: Record<FeatureKey, FeatureModule> = {
     key: 'kirimChiqim',
     label: 'Kirim-Chiqim',
     description: 'Kirim va chiqimlar jurnali',
-    route: '/app/kirim-chiqim',
+    route: '/app/finance',
     category: 'boshqaruv',
     adminOnly: true,
     defaultByPlan: { free: false, starter: false, pro: true, business: true, custom: true },

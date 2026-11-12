@@ -272,7 +272,7 @@ export function helpArticles(trialDays: number): HelpArticle[] {
       summary: 'Har filial kassasi: tushum, xarajat va qoldiq.',
       steps: [
         '«Naqd kassa» — filial bo\'yicha kunlik tushum va qoldiq.',
-        '«Kirim-chiqim» — ijara, maosh, yetkazib beruvchiga to\'lov kabi xarajat va qo\'shimcha kirimlarni yozing.',
+        '«Moliya → Tranzaksiyalar» — ijara, maosh, yetkazib beruvchiga to\'lov kabi xarajat va qo\'shimcha kirimlarni yozing. «Hisoblar holati» va «Toifalar» shu sahifadagi tablarda.',
         'Sana filtri bilan istalgan davrni ko\'ring.',
       ],
       keywords: 'kassa naqd xarajat kirim chiqim rasxod',

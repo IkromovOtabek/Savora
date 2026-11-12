@@ -17,6 +17,8 @@ export type NavLink = {
   adminOnly?: boolean;
   imeiOnly?: boolean;
   exact?: boolean;
+  /** Menyuda alohida qatori yo'q, shu havola ichidan ochiladigan sahifalar — ularda ham havola faol */
+  also?: string[];
 };
 
 export type NavGroup = { title: string; links: NavLink[] };
@@ -30,23 +32,18 @@ export const NAV_ICONS: Record<string, IconName> = {
   '/app/pos': 'basket',
   '/app/revaluation': 'trendingUp',
   '/app/write-off': 'trash',
-  '/app/reports': 'grid',
+  '/app/reports': 'chart',
   '/app/finance': 'repeat',
-  '/app/finance/state': 'wallet',
-  '/app/finance/categories': 'clipboard',
   '/app/roles': 'shield',
   '/app/products': 'box',
   '/app/inventory': 'clipboard',
   '/app/imei': 'search',
-  '/app/monitoring': 'chart',
   '/app/users': 'users',
   '/app/profile': 'settings',
   '/app/settings': 'store',
-  '/app/kirim-chiqim': 'repeat',
   '/app/kredit-kassa': 'plans',
   '/app/customers': 'user',
   '/app/suppliers': 'store',
-  '/app/branches': 'building',
   '/app/transferred': 'send',
   '/app/audit': 'history',
   '/app/daftar': 'edit',
@@ -107,18 +104,16 @@ export const NAV_GROUPS: NavGroup[] = [
   {
     title: 'Hisobotlar',
     links: [
-      { href: '/app/reports', label: 'Barcha hisobotlar', feature: 'monitoring', permission: 'reports.view' },
-      { href: '/app/monitoring', label: 'Hisobot', feature: 'monitoring', permission: 'reports.view' },
+      // Umumiy hisobot (monitoring) va Ombor qiymati — hisobotlar markazidagi kartalar orqali
+      { href: '/app/reports', label: 'Hisobotlar', feature: 'monitoring', permission: 'reports.view', also: ['/app/monitoring', '/app/kirim-chiqim'] },
       { href: '/app/ai', label: 'AI yordamchi', feature: 'ai', permission: 'ai.view' },
     ],
   },
   {
     title: 'Moliya',
     links: [
-      { href: '/app/finance', label: 'Tranzaksiyalar', feature: 'kirimChiqim', permission: 'kirimChiqim.manage', adminOnly: true, exact: true },
-      { href: '/app/finance/state', label: 'Hisoblar holati', feature: 'kirimChiqim', permission: 'kirimChiqim.manage', adminOnly: true },
-      { href: '/app/finance/categories', label: 'Toifalar', feature: 'kirimChiqim', permission: 'kirimChiqim.manage', adminOnly: true },
-      { href: '/app/kirim-chiqim', label: 'Kirim-chiqim', feature: 'kirimChiqim', permission: 'kirimChiqim.manage', adminOnly: true },
+      // Hisoblar holati va Toifalar — /app/finance sahifasidagi tablar (FinanceTabs)
+      { href: '/app/finance', label: 'Tranzaksiyalar', feature: 'kirimChiqim', permission: 'kirimChiqim.manage', adminOnly: true },
       { href: '/app/kredit-kassa', label: 'Kredit kassa', feature: 'creditKassa', adminOnly: true },
     ],
   },
@@ -147,10 +142,21 @@ export const NAV_GROUPS: NavGroup[] = [
 const LEGACY_TITLES = new Set(['Savdo', 'Ombor']);
 
 // Pastki tab bar — standart tartib (foydalanuvchi o'z tartibini saqlamagan bo'lsa)
-export const TAB_ORDER = ['/app', '/app/sales', '/app/products', '/app/debts', '/app/nasiya', '/app/kassa', '/app/monitoring', '/app/transferred'];
+export const TAB_ORDER = ['/app', '/app/sales', '/app/products', '/app/debts', '/app/nasiya', '/app/kassa', '/app/reports', '/app/transferred'];
 export const TAB_LABELS: Record<string, string> = {
   '/app': 'Asosiy', '/app/sales': 'Sotuvlar', '/app/products': 'Ombor', '/app/debts': 'Qarzlar',
-  '/app/nasiya': 'Nasiya', '/app/kassa': 'Kassa', '/app/monitoring': 'Hisobot', '/app/transferred': 'Berildi',
+  '/app/nasiya': 'Nasiya', '/app/kassa': 'Kassa', '/app/reports': 'Hisobot', '/app/transferred': 'Berildi',
+};
+
+/**
+ * Menyudan olib tashlanib, boshqa havola ichiga kirgan sahifalar (eski href → endi uni ochadigan havola).
+ * Saqlangan shaxsiy tartibni (User.navLayout) yangi menyuga ko'chirish uchun.
+ */
+export const MERGED_HREFS: Record<string, string> = {
+  '/app/monitoring': '/app/reports',
+  '/app/kirim-chiqim': '/app/reports',
+  '/app/finance/state': '/app/finance',
+  '/app/finance/categories': '/app/finance',
 };
 
 /** Yashirib bo'lmaydigan havolalar — foydalanuvchi o'zini menyusiz qoldirmasin */
@@ -171,6 +177,9 @@ export function sanitizeNavLayout(raw: unknown): NavLayout | null {
   const r = raw as { groups?: unknown; hidden?: unknown };
   if (!Array.isArray(r.groups)) return null;
   const legacy = r.groups.some((g) => !!g && typeof g === 'object' && LEGACY_TITLES.has((g as { title?: unknown }).title as string));
+  const rawHidden = new Set(Array.isArray(r.hidden) ? r.hidden.filter((h): h is string => typeof h === 'string') : []);
+  // Eski tartibda ko'rinib turgan sahifa endi boshqa havola ichida — o'sha havola yashirilib qolmasin
+  const keepVisible = new Set<string>();
 
   const seenTitles = new Set<string>();
   const seenHrefs = new Set<string>();
@@ -182,8 +191,11 @@ export function sanitizeNavLayout(raw: unknown): NavLayout | null {
     seenTitles.add(title);
     const list: string[] = [];
     if (Array.isArray(hrefs)) {
-      for (const h of hrefs.slice(0, 50)) {
-        if (typeof h !== 'string' || !KNOWN_HREFS.has(h) || seenHrefs.has(h)) continue;
+      for (const raw of hrefs.slice(0, 50)) {
+        if (typeof raw !== 'string') continue;
+        const h = MERGED_HREFS[raw] ?? raw;
+        if (h !== raw && !rawHidden.has(raw)) keepVisible.add(h);
+        if (!KNOWN_HREFS.has(h) || seenHrefs.has(h)) continue;
         seenHrefs.add(h);
         list.push(h);
       }
@@ -191,9 +203,7 @@ export function sanitizeNavLayout(raw: unknown): NavLayout | null {
     groups.push({ title, hrefs: list });
   }
 
-  const hidden = Array.isArray(r.hidden)
-    ? [...new Set(r.hidden.filter((h): h is string => typeof h === 'string' && KNOWN_HREFS.has(h) && !NAV_PROTECTED.has(h)))]
-    : [];
+  const hidden = [...rawHidden].filter((h) => KNOWN_HREFS.has(h) && !NAV_PROTECTED.has(h) && !keepVisible.has(h));
 
   // Eski tuzilmadagi tartib yangi bo'limlarga mos kelmaydi — standart tartib + yashirilganlar
   return { groups: legacy ? [] : groups, hidden };

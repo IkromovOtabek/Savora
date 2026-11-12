@@ -480,6 +480,11 @@ a.fn-tl-title:focus-visible { outline: 2px solid var(--brand); outline-offset: 2
 /* ==========================================================================
    MOLIYA v2 — /app/finance, /app/finance/categories, /app/finance/state · Prefiks: fx-
    ========================================================================== */
+/* Bo'lim tablari (FinanceTabs) — do'kon sozlamalaridagi ss-tabs bilan bir xil ko'rinish */
+.fx-pages { display: inline-flex; gap: 4px; padding: 4px; margin-bottom: 16px; max-width: 100%; overflow-x: auto; border-radius: 12px; background: var(--fill); scrollbar-width: none; }
+.fx-pages::-webkit-scrollbar { display: none; }
+.fx-pages a { flex: none; padding: 7px 16px; border-radius: 9px; font-size: 14px; font-weight: 500; color: var(--ink-2); text-decoration: none; white-space: nowrap; }
+.fx-pages a[aria-current] { background: var(--surface); color: var(--ink-1); font-weight: 600; box-shadow: 0 1px 2px rgba(0, 0, 0, .12); }
 .fx-rail { gap: 12px; }
 .fx-sums { display: grid; gap: 10px; }
 .fx-in { color: var(--accent); }

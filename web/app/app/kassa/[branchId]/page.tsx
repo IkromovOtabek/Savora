@@ -78,7 +78,7 @@ export default async function KassaBranchPage({
         </div>
       </div>
       {/* Kompyuterda yuqori paneldagi "Yangi sotuv" yetarli; telefonda — pastki o'ng tugma */}
-      <Link href="/app/sales/new" className="ux-fab">
+      <Link href="/app/pos" className="ux-fab">
         <Icon name="plus" size={20} /> {d.common.sale}
       </Link>
 
@@ -120,7 +120,7 @@ export default async function KassaBranchPage({
             <span className="ux-empty-ic"><Icon name="wallet" size={26} /></span>
             <b>{k.emptyTitle}</b>
             <p>{k.emptyHint}</p>
-            <Link href="/app/sales/new" className="btn btn-tinted btn-sm">{k.addSale}</Link>
+            <Link href="/app/pos" className="btn btn-tinted btn-sm">{k.addSale}</Link>
           </div>
         ) : (
           <ol className="fn-timeline">
