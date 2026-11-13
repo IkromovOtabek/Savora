@@ -67,7 +67,8 @@ export async function sendDailyInstallmentReminders(): Promise<{
 
       // Muddati o'tgan va to'liq to'lanmagan oylar (qisman to'langanlar ham) — overdueCount bilan mos
       const overdue = plan.schedule.filter((m) => !m.paid && m.dueDate.getTime() <= now.getTime());
-      const overdueSum = overdue.reduce((a, m) => a + m.amount, 0);
+      // Qisman to'langan oyning faqat qolgan qismi — mijoz to'lagani eslatmada qarz bo'lib chiqmasin
+      const overdueSum = overdue.reduce((a, m) => a + m.left, 0);
       // Mahsulot/mijoz nomi foydalanuvchi kiritgan matn — Telegram HTML uchun ekranlanadi
       const cust = tgEscape(s.customerSnapshot?.fullName ?? '—');
       const phone = s.customerSnapshot?.phone ? ` · ${tgEscape(s.customerSnapshot.phone)}` : '';

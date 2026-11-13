@@ -7,12 +7,15 @@ import { recordAudit } from '@/lib/audit';
 import { getTenantModels } from '@/lib/tenantDb';
 import { branchFilter } from '@/lib/branchScope';
 import { applySalePayment } from '@/lib/salePayment';
-import { computeInstallmentPlan } from '@/lib/installment';
+import { computeInstallmentPlan, installmentPaymentNote } from '@/lib/installment';
 import { z } from 'zod';
 import { readJsonInput, zMoney, zOneOf, zText } from '@/lib/validation';
 import { PAY_METHODS, methodOf } from '@/lib/payMethods';
 import { receiptPath } from '@/lib/receiptLink';
 import { saleBankParts } from '@/lib/bankCredit';
+
+/** Mobil ilova to'lovga qo'yadigan standart izoh (mobile/app/sale/[id].tsx) */
+const MOBILE_DEFAULT_NOTE = 'Mobil to\'lov';
 
 /** Sotuv detali — nasiya bo'lsa oy jadvali (plan) bilan. */
 export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -56,7 +59,8 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
     plan: plan ? {
       total: plan.total, down: plan.down, monthly: plan.monthly, months: plan.months,
       monthsPaid: plan.monthsPaid, remaining: plan.remaining, overdueCount: plan.overdueCount,
-      schedule: plan.schedule.map((m) => ({ month: m.month, amount: m.amount, paidAmount: m.paidAmount, paid: m.paid, state: m.state, dueDate: m.dueDate })),
+      // left — shu oydan qolgan qism (qisman to'lovda kamayadi); eski ilova uni e'tiborsiz qoldiradi
+      schedule: plan.schedule.map((m) => ({ month: m.month, amount: m.amount, paidAmount: m.paidAmount, left: m.left, paid: m.paid, state: m.state, dueDate: m.dueDate })),
     } : null,
   });
 }
@@ -91,10 +95,15 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   }
   if (amount > sale.remainingAmount) return NextResponse.json({ error: `Qoldiq: ${sale.remainingAmount}` }, { status: 400 });
 
+  // Nasiya: ilovaning standart izohi o'rniga haqiqiy taqsimot ("2-oy (qisman)") — webdagi kabi
+  const autoNote = sale.paymentType === 'installment' && (!note || note === MOBILE_DEFAULT_NOTE)
+    ? installmentPaymentNote(computeInstallmentPlan(sale)?.schedule ?? [], amount)
+    : undefined;
+
   // Atomik: qoldiq sharti bilan bitta yozuv (parallel to'lovda ortiqcha to'lov bo'lmaydi)
   const res = await applySalePayment(Sale, id, amount, {
     scope: branchFilter(user),
-    note: note || undefined,
+    note: autoNote || note || undefined,
     recordedBy: user.username,
     method,
   });

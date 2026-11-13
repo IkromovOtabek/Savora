@@ -61,8 +61,8 @@ function toRow(s: SaleLike, now: Date, today0: Date) {
     isPaid,
     next: unpaid[0],
     lateDays,
-    lateSum: late.reduce((a, m) => a + (m.amount - m.paidAmount), 0),
-    todaySum: dueToday.reduce((a, m) => a + (m.amount - m.paidAmount), 0),
+    lateSum: late.reduce((a, m) => a + m.left, 0),
+    todaySum: dueToday.reduce((a, m) => a + m.left, 0),
     bucket: lateDays > 0 ? BUCKETS.find((bk) => lateDays >= bk.min && lateDays <= bk.max)?.key : undefined,
     progress: s.totalAmount > 0 ? s.paidAmount / s.totalAmount : 0,
   };
@@ -254,7 +254,7 @@ export default async function NasiyaPage({
                         </span>
                         <Progress value={r.progress} tone={r.isPaid ? 'ok' : r.lateDays > 0 ? 'bad' : undefined} label={tr(k.paidShare, { name })} />
                         {!r.isPaid && r.next && (
-                          <small className="cl-row-next t-num">{tr(k.nextPaymentLine, { date: fmtDate(r.next.dueDate), sum: fmtMoney(r.next.amount - r.next.paidAmount) })}</small>
+                          <small className="cl-row-next t-num">{tr(k.nextPaymentLine, { date: fmtDate(r.next.dueDate), sum: fmtMoney(r.next.left) })}</small>
                         )}
                       </span>
                     </Link>
@@ -342,9 +342,10 @@ function NasiyaDetail({ r, back, d }: { r: Row; back: string; d: Dict }) {
                     <b className="t-num">{fmtDate(m.dueDate)}</b>
                     <small>{tr(d.sales.monthN, { n: m.month })}</small>
                   </span>
+                  {/* Qisman to'langan oy — qolgan qismi asosiy summa, rejadagi summa izohda */}
                   <span className="cl-sched-a t-num">
-                    {fmtMoney(m.amount)}
-                    {m.state === 'partial' && <small>{tr(k.paidPart, { sum: fmtMoney(m.paidAmount) })}</small>}
+                    {fmtMoney(m.paid ? m.amount : m.left)}
+                    {m.state === 'partial' && <small>{tr(d.sales.installment.paidOfAmount, { paid: fmtMoney(m.paidAmount), amount: fmtMoney(m.amount) })}</small>}
                   </span>
                   <Pill tone={PILL_TONE[m.state]}>{d.sales.installmentState[m.state]}</Pill>
                 </li>

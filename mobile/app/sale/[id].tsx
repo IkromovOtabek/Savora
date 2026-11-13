@@ -13,7 +13,9 @@ import {
   Screen, NavBar, LargeTitle, Group, Cell, Pill, Ring, Button, Field, Chips, Loading, ErrorState, InlineError, useLayout, type Tone, type IconName,
 } from '@/components/ui';
 
-interface Month { month: number; amount: number; paidAmount: number; paid: boolean; state: string; dueDate: string }
+/** left — shu oydan qolgan qism (eski server bermasa amount − paidAmount) */
+interface Month { month: number; amount: number; paidAmount: number; left?: number; paid: boolean; state: string; dueDate: string }
+const monthLeft = (m: Month) => m.left ?? Math.max(0, m.amount - m.paidAmount);
 interface Plan { total: number; down: number; monthly: number; months: number; monthsPaid: number; remaining: number; overdueCount: number; schedule: Month[] }
 interface Payment { amount: number; paidAt: string; note: string | null; recordedBy: string | null; method?: PayMethod }
 interface Sale {
@@ -54,7 +56,7 @@ export default function SaleDetail() {
   const pct = s.totalAmount > 0 ? s.paidAmount / s.totalAmount : 0;
   const canPay = s.remainingAmount > 0 && s.status !== 'cancelled' && can('payment.accept');
   const nextMonth = s.plan?.schedule.find((m) => !m.paid);
-  const nextDue = nextMonth ? Math.min(Math.max(0, nextMonth.amount - nextMonth.paidAmount), s.remainingAmount) : s.remainingAmount;
+  const nextDue = nextMonth ? Math.min(monthLeft(nextMonth), s.remainingAmount) : s.remainingAmount;
   const statusLabels: Record<string, string> = d.saleDetail.status;
   const monthLabels: Record<string, string> = d.saleDetail.monthState;
   const st = { label: statusLabels[s.status] ?? s.status, tone: STATUS_TONE[s.status] ?? ('mut' as Tone) };
@@ -110,10 +112,11 @@ export default function SaleDetail() {
                 icon={meta.icon}
                 iconColor={c.sq[meta.sq]}
                 title={fmtDayMonth(m.dueDate)}
-                subtitle={m.state === 'partial' ? tr(d.saleDetail.monthPartial, { n: m.month, v: fmtMoney(m.paidAmount) }) : tr(d.saleDetail.monthN, { n: m.month })}
+                subtitle={m.state === 'partial' ? tr(d.saleDetail.monthPartial, { n: m.month, v: fmtMoney(m.paidAmount), a: fmtMoney(m.amount) }) : tr(d.saleDetail.monthN, { n: m.month })}
                 right={
                   <View style={st2.col}>
-                    <Text style={[st2.colAmt, tabular, { color: c.ink }]}>{fmtMoney(m.amount)}</Text>
+                    {/* Qisman to'langan oy — qolgan qismi */}
+                    <Text style={[st2.colAmt, tabular, { color: c.ink }]}>{fmtMoney(m.paid ? m.amount : monthLeft(m))}</Text>
                     <Pill label={monthLabels[m.state] ?? monthLabels.upcoming} tone={meta.tone} />
                   </View>
                 }

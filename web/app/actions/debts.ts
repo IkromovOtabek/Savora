@@ -78,6 +78,7 @@ export async function bulkDebtPaymentAction(input: { customerId: string; amount:
     meta: { amount, method, parts: outcome.results },
   });
   revalidatePath('/app/debts');
+  revalidatePath('/app/nasiya');
   revalidatePath('/app/sales');
   revalidatePath(`/app/customers/${customerId}`);
   revalidatePath('/app');

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { computeInstallmentPlan } from '@/lib/installment';
+import { computeInstallmentPlan, installmentPaymentNote, leftUpToMonth } from '@/lib/installment';
 
 // Yordamchi — minimal sotuv obyekti
 function sale(over: Partial<Parameters<typeof computeInstallmentPlan>[0]> = {}) {
@@ -102,5 +102,42 @@ describe('computeInstallmentPlan', () => {
     expect(plan.monthly).toBe(333);
     expect(plan.schedule.map((m) => m.amount)).toEqual([333, 333, 334]);
     expect(plan.schedule.reduce((a, m) => a + m.amount, 0)).toBe(1000);
+  });
+
+  // REGRESSIYA (2026-11-13): qisman to'lovdan keyin oy summasi kamaymayotgandek ko'rinardi —
+  // jadval rejadagi summani (amount) chiqarardi. Endi har oyda qolgan qism (left) bor.
+  it('qisman to\'lov: oyning qolgan qismi (left) kamayadi, jami qoldiq bilan mos', () => {
+    // 4 950 000, boshlang'ich 950 000, 4 oy → oylik 1 000 000; 1-oyga 300 000 to'langan
+    const plan = computeInstallmentPlan(
+      sale({ totalAmount: 4_950_000, paidAmount: 1_250_000, remainingAmount: 3_700_000, installmentMonths: 4, downPayment: 950_000 })
+    )!;
+    expect(plan.schedule[0]).toMatchObject({ amount: 1_000_000, paidAmount: 300_000, left: 700_000, state: 'partial' });
+    expect(plan.schedule[1].left).toBe(1_000_000);
+    // Oylarning qolgan qismlari yig'indisi = sotuv qoldig'i
+    expect(plan.schedule.reduce((a, m) => a + m.left, 0)).toBe(3_700_000);
+    expect(leftUpToMonth(plan.schedule, 1)).toBe(700_000);
+    expect(leftUpToMonth(plan.schedule, 3)).toBe(2_700_000);
+  });
+});
+
+describe('installmentPaymentNote', () => {
+  const plan = (paid: number) => computeInstallmentPlan(
+    sale({ totalAmount: 4_000_000, paidAmount: paid, remainingAmount: 4_000_000 - paid, installmentMonths: 4, downPayment: 0 })
+  )!.schedule;
+
+  it('bitta oy: to\'liq yoki qisman', () => {
+    expect(installmentPaymentNote(plan(0), 1_000_000)).toBe("1-oy to'lovi");
+    expect(installmentPaymentNote(plan(0), 300_000)).toBe('1-oy (qisman)');
+    // 1-oyga 300 000 to'langan — qolgan 700 000 shu oyni yopadi
+    expect(installmentPaymentNote(plan(300_000), 700_000)).toBe("1-oy to'lovi");
+  });
+
+  it('to\'lov eng erta to\'lanmagan oydan boshlanadi (bir necha oy)', () => {
+    expect(installmentPaymentNote(plan(300_000), 1_700_000)).toBe("1–2-oy to'lovi");
+    expect(installmentPaymentNote(plan(1_000_000), 1_500_000)).toBe("2–3-oy (3-oy qisman)");
+  });
+
+  it('to\'lanadigan oy qolmagan bo\'lsa izoh yo\'q', () => {
+    expect(installmentPaymentNote(plan(4_000_000), 100)).toBeUndefined();
   });
 });

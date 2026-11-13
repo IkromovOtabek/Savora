@@ -528,6 +528,8 @@ button.sl-tl-body:hover .sl-tl-cta--main { opacity: .88; }
 /* To'lov usuli tanlovi (PayMethodPicker) */
 .sl-pm-l { font-size: 13px; font-weight: 500; color: var(--ink-2); }
 .inst-modal-method { padding: 4px 16px 0; }
+/* To'lov qaysi oydan yopilishi haqida izoh (qisman / bir necha oy) */
+.inst-modal-hint { margin: 0 16px 4px; font-size: 13px; line-height: 1.45; color: var(--ink-3); }
 
 /* Mahsulot tanlanmaganda — "0 so'm" o'rniga yo'l-yo'riq */
 .sl-sum-hint { display: grid; grid-template-columns: 40px minmax(0, 1fr); gap: 12px; align-items: center; padding: 16px 18px 6px; }

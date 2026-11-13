@@ -7,8 +7,9 @@ export type InstallmentState = 'paid' | 'partial' | 'upcoming' | 'overdue';
 /** Nasiya (variant) jadvalining bitta oyi. */
 export interface InstallmentMonth {
   month: number; // 1-based
-  amount: number; // shu oy uchun to'lanishi kerak bo'lgan summa
+  amount: number; // shu oy uchun to'lanishi kerak bo'lgan summa (reja bo'yicha, o'zgarmaydi)
   paidAmount: number; // shu oyga to'langan qism (qisman to'lovlar ham hisobga olinadi)
+  left: number; // shu oydan hali to'lanmagan qism = amount − paidAmount (qisman to'lovda kamayadi)
   paid: boolean; // to'liq to'langanmi
   dueDate: Date; // shu oy to'lovi qachon bo'lishi kerak
   state: InstallmentState;
@@ -83,7 +84,7 @@ export function computeInstallmentPlan(sale: SaleForPlan, now: Date = new Date()
         : overdue
           ? 'overdue'
           : 'upcoming';
-    schedule.push({ month: i, amount, paidAmount, paid, dueDate, state });
+    schedule.push({ month: i, amount, paidAmount, left: Math.max(0, amount - paidAmount), paid, dueDate, state });
   }
 
   return {
@@ -98,6 +99,37 @@ export function computeInstallmentPlan(sale: SaleForPlan, now: Date = new Date()
     overdueCount: schedule.filter((s) => !s.paid && s.dueDate.getTime() <= nowT).length,
     schedule,
   };
+}
+
+/** N-oygacha (shu oy ham) to'lanmagan summa — "N-oygacha to'lash" tugmasi uchun. */
+export function leftUpToMonth(schedule: InstallmentMonth[], month: number): number {
+  return schedule.reduce((a, m) => (m.month <= month ? a + m.left : a), 0);
+}
+
+/**
+ * To'lov qaysi oylarga tushishini izohlaydi. To'lov doim eng erta to'lanmagan oydan
+ * boshlab yopiladi (computeInstallmentPlan bilan bir xil tartib), shuning uchun izoh
+ * foydalanuvchi bosgan oydan emas — haqiqiy taqsimotdan yasaladi:
+ * "2-oy to'lovi", "2-oy (qisman)", "2–3-oy to'lovi", "2–4-oy (4-oy qisman)".
+ * Izoh DB'da o'zbekcha saqlanadi (boshqa avtomatik izohlar kabi).
+ */
+export function installmentPaymentNote(schedule: InstallmentMonth[], amount: number): string | undefined {
+  let pool = amount;
+  let first = 0;
+  let last = 0;
+  let lastFull = true;
+  for (const m of schedule) {
+    if (pool <= 0) break;
+    if (m.left <= 0) continue;
+    const part = Math.min(pool, m.left);
+    pool -= part;
+    if (!first) first = m.month;
+    last = m.month;
+    lastFull = part >= m.left;
+  }
+  if (!first) return undefined;
+  if (first === last) return lastFull ? `${first}-oy to'lovi` : `${first}-oy (qisman)`;
+  return lastFull ? `${first}–${last}-oy to'lovi` : `${first}–${last}-oy (${last}-oy qisman)`;
 }
 
 /** Oy holati -> yorliq va rang klassi (UI uchun). */

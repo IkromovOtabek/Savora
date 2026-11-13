@@ -20,6 +20,7 @@ import { reserveStock, releaseStock } from '@/lib/stock';
 import { runWithCompensation } from '@/lib/compensate';
 import { addMonthsClamped } from '@/lib/dates';
 import { applySalePayment } from '@/lib/salePayment';
+import { computeInstallmentPlan, installmentPaymentNote } from '@/lib/installment';
 import { recordAudit } from '@/lib/audit';
 import { markOnboardingStep } from '@/lib/onboarding';
 import { branchFilter } from '@/lib/branchScope';
@@ -524,10 +525,16 @@ export async function addSalePaymentAction(_prev: State, formData: FormData): Pr
   if (sale.paymentType === 'bank_credit') return { error: m.bankSalePayment };
   if (amount > sale.remainingAmount) return { error: tr(m.remainingIs, { sum: sale.remainingAmount.toLocaleString('uz-UZ') }) };
 
+  // Nasiya: izoh haqiqiy taqsimotdan ("2-oy (qisman)", "2–3-oy to'lovi") — to'lov doim
+  // eng erta to'lanmagan oyga tushadi, foydalanuvchi qaysi oyni bosganidan qat'i nazar
+  const autoNote = !note && sale.paymentType === 'installment'
+    ? installmentPaymentNote(computeInstallmentPlan(sale)?.schedule ?? [], amount)
+    : undefined;
+
   // Atomik: qoldiq sharti bilan bitta yozuv — ikki parallel to'lov ortiqcha to'lovga olib kelmaydi
   const res = await applySalePayment(Sale, saleId, amount, {
     scope: branchFilter(user),
-    note: note || undefined,
+    note: note || autoNote,
     recordedBy: user.username,
     method,
   });
@@ -543,6 +550,8 @@ export async function addSalePaymentAction(_prev: State, formData: FormData): Pr
 
   revalidatePath('/app/sales');
   revalidatePath(`/app/sales/${saleId}`);
+  revalidatePath('/app/nasiya');
+  revalidatePath('/app/debts');
   revalidatePath('/app');
   return { success: m.paymentAdded };
 }

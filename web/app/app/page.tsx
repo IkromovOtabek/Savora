@@ -187,7 +187,8 @@ export default async function TenantDashboard({
         product: s.productSnapshot.name,
         customer: s.customerSnapshot?.fullName ?? null,
         months: overdue.length,
-        sum: overdue.reduce((a, m) => a + m.amount, 0),
+        // Qisman to'langan oyning faqat qolgan qismi (to'langani kechikkan summaga kirmaydi)
+        sum: overdue.reduce((a, m) => a + m.left, 0),
         dueDate: overdue[0].dueDate,
       });
     }
