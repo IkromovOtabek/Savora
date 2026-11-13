@@ -3,7 +3,7 @@ import { authenticateMobile } from '@/lib/mobileAuth';
 import { getTenantModels } from '@/lib/tenantDb';
 import { getMobileFeatures } from '@/lib/mobileOrg';
 import { mobilePermissionDenied } from '@/lib/permissionGuard';
-import { branchFilter } from '@/lib/branchScope';
+import { branchFilter, isBranchScoped } from '@/lib/branchScope';
 import { parseLedgerInput } from '@/lib/daftarInput';
 import { createLedgerEntry } from '@/lib/daftarOps';
 import { ledgerRemaining } from '@/lib/models/tenant/LedgerEntry';
@@ -13,21 +13,37 @@ import type { SessionUser } from '@/lib/session';
 const k = getDictionary('uz').sales.daftar;
 const VIA = ' (mobil)';
 
+type Guarded = { user: SessionUser; kassaOn: boolean };
+
 /** Daftar (shaxsiy qarz oldi-berdi) — web /app/daftar bilan bir xil doira va huquq (daftar.manage) */
-async function guard(req: Request): Promise<NextResponse | SessionUser> {
+async function guard(req: Request): Promise<NextResponse | Guarded> {
   const auth = await authenticateMobile(req);
   if (auth instanceof NextResponse) return auth;
   if (!auth.dbName) return NextResponse.json({ error: 'Avtorizatsiya kerak.' }, { status: 401 });
   const features = await getMobileFeatures(auth.organizationId);
   if (!features?.daftar) return NextResponse.json({ error: 'Daftar moduli yoqilmagan.' }, { status: 403 });
   const denied = await mobilePermissionDenied(auth, 'daftar.manage');
-  return denied ?? auth;
+  return denied ?? { user: auth, kassaOn: !!features.kassa };
+}
+
+/**
+ * Kassa savoli uchun: kassa moduli yoqilganmi va (admin uchun) qaysi filial kassalari bor.
+ * Filial xodimiga ro'yxat kerak emas — server o'z filiali kassasini oladi.
+ */
+async function kassaMeta(g: Guarded, Branch: Awaited<ReturnType<typeof getTenantModels>>['Branch']) {
+  if (!g.kassaOn) return { enabled: false, branches: [] as { id: string; name: string }[] };
+  const branches = isBranchScoped(g.user) ? [] : await Branch.find({ active: true }).select('name').sort({ createdAt: 1 }).lean();
+  return { enabled: true, branches: branches.map((b) => ({ id: String(b._id), name: b.name })) };
 }
 
 export async function GET(req: Request) {
-  const user = await guard(req);
-  if (user instanceof NextResponse) return user;
-  const { LedgerEntry } = await getTenantModels(user.dbName!);
+  const g = await guard(req);
+  if (g instanceof NextResponse) return g;
+  const { user } = g;
+  const { LedgerEntry, Branch } = await getTenantModels(user.dbName!);
+  const kassa = await kassaMeta(g, Branch);
+  // Yangi yozuv / qaytarish ekrani uchun — faqat kassa ma'lumoti (ro'yxatsiz)
+  if (new URL(req.url).searchParams.get('meta') === '1') return NextResponse.json({ kassa });
   const entries = await LedgerEntry.find({ ...branchFilter(user) }).sort({ status: 1, dueDate: 1 }).limit(300).lean();
 
   const today = new Date(); today.setHours(0, 0, 0, 0);
@@ -39,6 +55,7 @@ export async function GET(req: Request) {
     if (new Date(e.dueDate) < today) overdue++;
   }
   return NextResponse.json({
+    kassa,
     givenSum,
     takenSum,
     balance: givenSum - takenSum,
@@ -52,6 +69,7 @@ export async function GET(req: Request) {
       paidAmount: e.paidAmount || 0,
       remaining: ledgerRemaining(e),
       viaKassa: !!e.kassaBranchId,
+      kassaBranchId: e.kassaBranchId ? String(e.kassaBranchId) : null,
       customerId: e.customerId ? String(e.customerId) : null,
       dueDate: e.dueDate,
       note: e.note ?? null,
@@ -63,8 +81,9 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
-  const user = await guard(req);
-  if (user instanceof NextResponse) return user;
+  const g = await guard(req);
+  if (g instanceof NextResponse) return g;
+  const { user } = g;
   let body: unknown;
   try { body = await req.json(); } catch { return NextResponse.json({ error: 'Noto\'g\'ri so\'rov.' }, { status: 400 }); }
   const parsed = parseLedgerInput(body);
@@ -72,11 +91,10 @@ export async function POST(req: Request) {
 
   // Kassa: ixtiyoriy `toKassa: true` (+ admin uchun `kassaBranchId`); eski ilova yubormaydi — kassaga yozilmaydi
   const o = (body ?? {}) as { toKassa?: unknown; kassaBranchId?: unknown };
-  const features = await getMobileFeatures(user.organizationId);
   const m = await getTenantModels(user.dbName!);
   const r = await createLedgerEntry(user, m, k, {
     ...parsed.data,
-    toKassa: !!features?.kassa && o.toKassa === true,
+    toKassa: g.kassaOn && o.toKassa === true,
     kassaBranchId: typeof o.kassaBranchId === 'string' ? o.kassaBranchId : undefined,
     via: VIA,
   });

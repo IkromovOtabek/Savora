@@ -22,6 +22,11 @@ interface Entry {
   note: string | null;
   status: 'open' | 'returned';
   returnedAt: string | null;
+  /** Yangi serverda: qisman qaytarish va kassa (eski serverda yo'q) */
+  paidAmount?: number;
+  remaining?: number;
+  viaKassa?: boolean;
+  kassaBranchId?: string | null;
 }
 interface Data { givenSum: number; takenSum: number; balance: number; overdue: number; items: Entry[] }
 
@@ -57,6 +62,14 @@ export default function Daftar() {
     if (n === 0) return { label: k.today, tone: 'warn' };
     if (n <= 3) return { label: tr(k.left, { n }), tone: 'warn' };
     return { label: tr(k.dueOn, { date: fmtDate(e.dueDate) }), tone: 'mut' };
+  }
+
+  /** Qaytarish — summa va kassa savoli alohida ekranda */
+  function openPay(e: Entry) {
+    router.push({
+      pathname: '/daftar-pay',
+      params: { id: e.id, name: e.personName, type: e.type, remaining: String(e.remaining ?? e.amount), kassaBranchId: e.kassaBranchId ?? '' },
+    });
   }
 
   async function setStatus(e: Entry, status: Entry['status']) {
@@ -129,6 +142,9 @@ export default function Daftar() {
               {list.map((e) => {
                 const due = dueInfo(e);
                 const given = e.type === 'given';
+                const paid = e.paidAmount ?? 0;
+                // Ochiq yozuvda — qoldiq; yopilganda — asl summa
+                const shown = e.status === 'open' ? (e.remaining ?? e.amount) : e.amount;
                 return (
                   <Cell
                     key={e.id}
@@ -137,7 +153,7 @@ export default function Daftar() {
                     title={e.personName}
                     subtitle={[`+998 ${fmtPhoneLocal(e.personPhone)}`, e.note].filter(Boolean).join(' · ')}
                     subtitleLines={2}
-                    value={`${given ? '+' : '−'}${fmtMoney(e.amount)}`}
+                    value={`${given ? '+' : '−'}${fmtMoney(shown)}`}
                     valueColor={given ? c.ok : c.bad}
                     valueStrong
                   >
@@ -145,10 +161,12 @@ export default function Daftar() {
                       {e.status === 'open'
                         ? <Pill label={due.label} tone={due.tone} />
                         : <Pill label={tr(k.returnedOn, { date: fmtDate(e.returnedAt) })} tone="ok" />}
+                      {e.viaKassa ? <Pill label={k.viaKassa} tone="mut" /> : null}
+                      {e.status === 'open' && paid > 0 ? <Pill label={tr(k.paidOf, { paid: fmtMoney(paid), left: fmtMoney(shown) })} tone="mut" /> : null}
                       <View style={{ flex: 1 }} />
                       <Button title={k.call} icon="call" size="sm" variant="gray" onPress={() => Linking.openURL(`tel:+${e.personPhone}`)} />
                       {e.status === 'open' ? (
-                        <Button title={k.markReturned} icon="checkmark" size="sm" variant="tinted" loading={busyId === e.id} onPress={() => setStatus(e, 'returned')} />
+                        <Button title={k.markReturned} icon="checkmark" size="sm" variant="tinted" disabled={busyId === e.id} onPress={() => openPay(e)} />
                       ) : (
                         <Button title={k.reopen} size="sm" variant="gray" loading={busyId === e.id} onPress={() => setStatus(e, 'open')} />
                       )}

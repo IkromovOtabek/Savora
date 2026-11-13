@@ -5,6 +5,7 @@ import { api, errMsg } from '@/lib/api';
 import { digits, grouped, fmtPhoneLocal, phoneLocal, phoneE164, startOfToday } from '@/lib/format';
 import { useDict } from '@/lib/i18n';
 import { Screen, NavBar, LargeTitle, SegmentedControl, Chips, Field, Button } from '@/components/ui';
+import { KassaChoice, kassaBody, kassaError, useKassaMeta, type KassaAnswer } from '@/components/DaftarKassa';
 
 type Kind = 'given' | 'taken';
 type DuePreset = '7' | '14' | '30' | '90' | 'other';
@@ -43,6 +44,11 @@ export default function DaftarNew() {
   const [note, setNote] = useState('');
   const [tried, setTried] = useState(false);
   const [busy, setBusy] = useState(false);
+  // Kassa: har safar so'raladi; tur almashsa javob qaytadan so'raladi (savol ma'nosi o'zgaradi)
+  const { meta: kassa, loading: kassaLoading } = useKassaMeta();
+  const [toKassa, setToKassa] = useState<KassaAnswer>(null);
+  const [kassaBranch, setKassaBranch] = useState<string | null>(null);
+  const changeType = (t: Kind) => { setType(t); setToKassa(null); };
 
   const amountN = Number(digits(amount)) || 0;
   const due = preset === 'other' ? parseDmy(custom) : new Date(startOfToday() + Number(preset) * DAY);
@@ -52,16 +58,20 @@ export default function DaftarNew() {
     phone: phoneLocal(phone).length !== 9 ? k.errPhone : null,
     amount: !amountN ? k.errAmount : null,
     due: !due ? k.errDue : duePast ? k.errDuePast : null,
+    kassa: kassaError(kassa, toKassa, kassaBranch, k),
   };
 
   async function save() {
     setTried(true);
-    if (Object.values(errors).some(Boolean) || !due) return;
+    if (Object.values(errors).some(Boolean) || !due || kassaLoading) return;
     setBusy(true);
     try {
       await api('/api/mobile/daftar', {
         method: 'POST',
-        body: { type, personName: name.trim(), personPhone: phoneE164(phone), amount: amountN, dueDate: isoDay(due), note: note.trim() },
+        body: {
+          type, personName: name.trim(), personPhone: phoneE164(phone), amount: amountN, dueDate: isoDay(due), note: note.trim(),
+          ...kassaBody(kassa, toKassa, kassaBranch),
+        },
       });
       router.back();
     } catch (e) {
@@ -78,7 +88,7 @@ export default function DaftarNew() {
         <SegmentedControl<Kind>
           options={[{ key: 'given', label: k.typeGiven }, { key: 'taken', label: k.typeTaken }]}
           value={type}
-          onChange={setType}
+          onChange={changeType}
         />
         <Field label={k.person} value={name} onChangeText={setName} placeholder={k.personPh} autoCapitalize="words" maxLength={80} error={tried ? errors.name : null} />
         <Field
@@ -126,7 +136,17 @@ export default function DaftarNew() {
           )}
         </View>
         <Field label={d.common.note} value={note} onChangeText={setNote} placeholder={k.notePh} maxLength={300} />
-        <Button title={d.common.save} icon="checkmark" full loading={busy} onPress={save} />
+        <KassaChoice
+          meta={kassa}
+          question={type === 'given' ? k.kassaQGiven : k.kassaQTaken}
+          yesLabel={type === 'given' ? k.kassaYesGiven : k.kassaYesTaken}
+          answer={toKassa}
+          onAnswer={setToKassa}
+          branchId={kassaBranch}
+          onBranch={setKassaBranch}
+          error={tried ? errors.kassa : null}
+        />
+        <Button title={d.common.save} icon="checkmark" full loading={busy || kassaLoading} onPress={save} />
       </View>
     </Screen>
   );
