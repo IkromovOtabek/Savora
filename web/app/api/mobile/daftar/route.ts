@@ -5,7 +5,13 @@ import { getMobileFeatures } from '@/lib/mobileOrg';
 import { mobilePermissionDenied } from '@/lib/permissionGuard';
 import { branchFilter } from '@/lib/branchScope';
 import { parseLedgerInput } from '@/lib/daftarInput';
+import { createLedgerEntry } from '@/lib/daftarOps';
+import { ledgerRemaining } from '@/lib/models/tenant/LedgerEntry';
+import { getDictionary } from '@/lib/i18n/dict';
 import type { SessionUser } from '@/lib/session';
+
+const k = getDictionary('uz').sales.daftar;
+const VIA = ' (mobil)';
 
 /** Daftar (shaxsiy qarz oldi-berdi) — web /app/daftar bilan bir xil doira va huquq (daftar.manage) */
 async function guard(req: Request): Promise<NextResponse | SessionUser> {
@@ -28,7 +34,8 @@ export async function GET(req: Request) {
   let givenSum = 0, takenSum = 0, overdue = 0;
   for (const e of entries) {
     if (e.status !== 'open') continue;
-    if (e.type === 'given') givenSum += e.amount || 0; else takenSum += e.amount || 0;
+    const left = ledgerRemaining(e);
+    if (e.type === 'given') givenSum += left; else takenSum += left;
     if (new Date(e.dueDate) < today) overdue++;
   }
   return NextResponse.json({
@@ -42,6 +49,10 @@ export async function GET(req: Request) {
       personName: e.personName,
       personPhone: e.personPhone,
       amount: e.amount,
+      paidAmount: e.paidAmount || 0,
+      remaining: ledgerRemaining(e),
+      viaKassa: !!e.kassaBranchId,
+      customerId: e.customerId ? String(e.customerId) : null,
       dueDate: e.dueDate,
       note: e.note ?? null,
       status: e.status,
@@ -59,13 +70,16 @@ export async function POST(req: Request) {
   const parsed = parseLedgerInput(body);
   if (!parsed.ok) return NextResponse.json({ error: parsed.error }, { status: 400 });
 
-  const { LedgerEntry } = await getTenantModels(user.dbName!);
-  const e = await LedgerEntry.create({
+  // Kassa: ixtiyoriy `toKassa: true` (+ admin uchun `kassaBranchId`); eski ilova yubormaydi — kassaga yozilmaydi
+  const o = (body ?? {}) as { toKassa?: unknown; kassaBranchId?: unknown };
+  const features = await getMobileFeatures(user.organizationId);
+  const m = await getTenantModels(user.dbName!);
+  const r = await createLedgerEntry(user, m, k, {
     ...parsed.data,
-    status: 'open',
-    branchId: user.branchId || undefined,
-    createdBy: user.username,
-    createdByUserId: user.id,
+    toKassa: !!features?.kassa && o.toKassa === true,
+    kassaBranchId: typeof o.kassaBranchId === 'string' ? o.kassaBranchId : undefined,
+    via: VIA,
   });
-  return NextResponse.json({ id: String(e._id) }, { status: 201 });
+  if (!r.ok) return NextResponse.json({ error: r.error }, { status: 400 });
+  return NextResponse.json({ id: r.id }, { status: 201 });
 }

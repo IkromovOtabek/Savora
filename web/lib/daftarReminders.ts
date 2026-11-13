@@ -5,7 +5,7 @@ import { isOrganizationActive } from './models/master/Organization';
 import { sendTelegramTo, tgEscape } from './telegram';
 import { sendSms, normalizePhone, smsSafeText } from './sms';
 import { pushToShop, type PushMessage } from './push';
-import type { LedgerType } from './models/tenant/LedgerEntry';
+import { ledgerRemaining, type LedgerType } from './models/tenant/LedgerEntry';
 
 /** Bir do'kon uchun bir kunlik (bitta cron ishga tushishi) SMS chegarasi */
 const SMS_DAILY_CAP_PER_ORG = 50;
@@ -86,7 +86,9 @@ export async function sendDailyDaftarReminders(): Promise<{
 
     for (const e of due) {
       entries++;
-      const amount = money(e.amount);
+      // Qisman qaytgan bo'lsa — faqat qoldiq eslatiladi
+      const left = ledgerRemaining(e);
+      const amount = money(left);
       const when = dateStr(e.dueDate);
 
       // Egasiga (menga) — shaxsiy Telegram bo'lsa unga, aks holda do'kon Telegram'iga
@@ -120,7 +122,7 @@ export async function sendDailyDaftarReminders(): Promise<{
       }
 
       const key = e.createdByUserId ? String(e.createdByUserId) : '';
-      pushBy.set(key, [...(pushBy.get(key) ?? []), { personName: e.personName, amount: e.amount, type: e.type, dueDate: e.dueDate }]);
+      pushBy.set(key, [...(pushBy.get(key) ?? []), { personName: e.personName, amount: left, type: e.type, dueDate: e.dueDate }]);
 
       e.lastNotifiedAt = now;
       await e.save();

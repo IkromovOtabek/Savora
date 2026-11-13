@@ -23,6 +23,7 @@ import { getLatestReport } from '@/lib/ai/report';
 import { parseAiResult } from '@/lib/ai/validate';
 import { openTaskFilter, isTaskOverdue } from '@/lib/tasks';
 import { BranchPanel, TopProductsPanel, StaffPanel, LowStockPanel, MyTasksPanel } from '@/components/tenant/DashPanels';
+import { ledgerRemaining } from '@/lib/models/tenant/LedgerEntry';
 import '@/components/tenant/styles/ai.css';
 
 export async function generateMetadata() {
@@ -36,7 +37,7 @@ export default async function TenantDashboard({
   searchParams: Promise<{ module?: string; welcome?: string; p?: string }>;
 }) {
   const sp = await searchParams;
-  const { user, org, features, Branch, Product, Sale, User, AiReport, Task } = await getTenantSession();
+  const { user, org, features, Branch, Product, Sale, User, AiReport, Task, LedgerEntry } = await getTenantSession();
   const { locale, d } = await getI18n();
   const t = d.shell.dash;
 
@@ -173,6 +174,21 @@ export default async function TenantDashboard({
   const todayRevenue = todayRevenueAgg[0]?.total ?? 0;
   const debtTotal = debtAgg[0]?.total ?? 0;
 
+  // Daftar balansi — ochiq yozuvlar qoldig'i (berdim − oldim) va kechikkanlar
+  const daftar = features.daftar && perms.has('daftar.manage')
+    ? await LedgerEntry.find({ ...scope, status: 'open' }).select('type amount paidAmount dueDate').limit(1000).lean()
+        .then((rows) => {
+          let given = 0, taken = 0, late = 0;
+          for (const e of rows) {
+            const left = ledgerRemaining(e);
+            if (e.type === 'given') given += left; else taken += left;
+            if (new Date(e.dueDate) < todayStart) late++;
+          }
+          return { given, taken, late };
+        })
+        .catch(() => null)
+    : null;
+
   // Web xabarnoma — muddati o'tib to'lanmagan nasiya oylari
   const overdueInstallments: OverdueInstallment[] = [];
   if (features.variant || features.nasiya) {
@@ -255,7 +271,7 @@ export default async function TenantDashboard({
           {features.sales && weekHasData && <HeroSpark values={week.map((d) => d.total)} />}
         </Tilt>
 
-        <div className="t-stats ux-strip">
+        <div className={`t-stats ux-strip${daftar ? ' t-stats--4' : ''}`}>
           {isAdmin ? (
             <StatCard
               href={features.sales ? '/app/sales' : undefined}
@@ -295,6 +311,19 @@ export default async function TenantDashboard({
             unit={d.common.pcs}
             sub={t.readyForSale}
           />
+          {daftar && (
+            <StatCard
+              href="/app/daftar"
+              icon="clipboard"
+              tone={daftar.late > 0 ? 'red' : 'green'}
+              label={d.sales.daftar.dashLabel}
+              value={`${daftar.given - daftar.taken > 0 ? '+' : ''}${fmtMoney(daftar.given - daftar.taken)}`}
+              unit={d.common.sum}
+              sub={daftar.late > 0
+                ? tr(d.sales.daftar.dashLate, { n: daftar.late })
+                : tr(d.sales.daftar.dashOk, { g: fmtMoney(daftar.given), t: fmtMoney(daftar.taken) })}
+            />
+          )}
         </div>
       </div>
 

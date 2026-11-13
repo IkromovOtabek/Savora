@@ -1,13 +1,13 @@
+import Link from 'next/link';
 import { getTenantSession } from '@/lib/tenantSession';
 import { userCan } from '@/lib/permissionGuard';
-import { branchFilter } from '@/lib/branchScope';
+import { branchFilter, isBranchScoped } from '@/lib/branchScope';
 import { fmtMoney, fmtDate } from '@/lib/format';
-import type { LedgerEntryDoc } from '@/lib/models/tenant/LedgerEntry';
-import DaftarForm, { DaftarDeleteButton } from '@/components/tenant/DaftarForm';
+import { ledgerRemaining, type LedgerEntryDoc } from '@/lib/models/tenant/LedgerEntry';
+import DaftarForm, { DaftarDeleteButton, DaftarPayButton, type DaftarBranch } from '@/components/tenant/DaftarForm';
 import Icon from '@/components/icons/Icon';
 import Tilt from '@/components/ui/Tilt';
 import { Avatar, EmptyState, Pill } from '@/components/tenant/ClientsUi';
-import { returnDaftarAction } from '@/app/actions/daftar';
 import { getDict } from '@/lib/i18n/server';
 import { plural, tr } from '@/lib/i18n/fmt';
 import '@/components/tenant/styles/clients.css';
@@ -25,8 +25,13 @@ export default async function DaftarPage({
   searchParams: Promise<{ created?: string }>;
 }) {
   const sp = await searchParams;
-  const { user, LedgerEntry } = await getTenantSession();
+  const { user, features, LedgerEntry, Branch } = await getTenantSession();
   const canDelete = await userCan(user, 'daftar.delete');
+  // Kassa savoli — kassa moduli yoqilgan bo'lsa; admin uchun filial tanlovi (filial xodimi — o'z kassasi)
+  const kassa = !!features.kassa;
+  const branches: DaftarBranch[] = kassa && !isBranchScoped(user)
+    ? (await Branch.find({ active: true }).select('name').sort({ createdAt: 1 }).lean()).map((b) => ({ id: String(b._id), name: b.name }))
+    : [];
   const d = await getDict();
   const k = d.sales.daftar;
 
@@ -45,8 +50,9 @@ export default async function DaftarPage({
   const closed = entries.filter((e) => e.status !== 'open');
   const given = open.filter((e) => e.type === 'given');
   const taken = open.filter((e) => e.type === 'taken');
-  const givenSum = given.reduce((a, e) => a + (e.amount || 0), 0);
-  const takenSum = taken.reduce((a, e) => a + (e.amount || 0), 0);
+  // Qisman qaytganlarda — faqat qoldiq
+  const givenSum = given.reduce((a, e) => a + ledgerRemaining(e), 0);
+  const takenSum = taken.reduce((a, e) => a + ledgerRemaining(e), 0);
   const balance = givenSum - takenSum;
   const overdueCount = open.filter((e) => new Date(e.dueDate) < today).length;
   // Eslatmalar: muddati o'tgan yoki 3 kun ichida qaytishi kerak bo'lganlar
@@ -63,11 +69,17 @@ export default async function DaftarPage({
   function Entry({ e }: { e: LedgerEntryDoc }) {
     const due = dueLabel(e);
     const id = String(e._id);
+    const left = ledgerRemaining(e);
+    const paid = e.paidAmount || 0;
     return (
       <li className={`cl-lentry${due.tone === 'bad' ? ' cl-lentry--late' : ''}`}>
         <Avatar name={e.personName} />
         <div className="cl-lentry-main">
-          <b className="cl-row-name">{e.personName}</b>
+          <b className="cl-row-name">
+            {e.customerId
+              ? <Link href={`/app/customers/${String(e.customerId)}`} title={k.customerCard}>{e.personName}</Link>
+              : e.personName}
+          </b>
           <small className="cl-row-sub">
             <a href={`tel:${e.personPhone}`} className="t-num">{e.personPhone}</a>
             {e.note ? ` · ${e.note}` : ''}
@@ -77,16 +89,25 @@ export default async function DaftarPage({
             {/* Uzoq muddatda pill sanani o'zi ko'rsatadi — takrorlanmasin */}
             {due.tone !== 'mut' && <small className="t-num">{tr(k.returnDate, { date: fmtDate(e.dueDate) })}</small>}
           </span>
+          {(e.kassaBranchId || paid > 0) && (
+            <span className="cl-lentry-tags">
+              {e.kassaBranchId && <Pill tone="mut">{k.viaKassa}</Pill>}
+              {paid > 0 && <small className="t-num">{tr(k.paidOf, { paid: fmtMoney(paid), left: fmtMoney(left) })}</small>}
+            </span>
+          )}
         </div>
         <div className="cl-lentry-side">
-          <b className="cl-row-amt t-num">{fmtMoney(e.amount)}</b>
+          <b className="cl-row-amt t-num">{fmtMoney(left)}</b>
           <div className="cl-lentry-act">
-            <form action={returnDaftarAction}>
-              <input type="hidden" name="id" value={id} />
-              <button type="submit" className="btn btn-tinted btn-sm btn-with-icon" aria-label={tr(k.markReturnedAria, { name: e.personName })}>
-                <Icon name="check" size={14} /> {k.returned}
-              </button>
-            </form>
+            <DaftarPayButton
+              id={id}
+              name={e.personName}
+              type={e.type}
+              remaining={left}
+              kassa={kassa}
+              branches={branches}
+              kassaBranchId={e.kassaBranchId ? String(e.kassaBranchId) : undefined}
+            />
             {canDelete && <DaftarDeleteButton id={id} name={e.personName} />}
           </div>
         </div>
@@ -141,7 +162,7 @@ export default async function DaftarPage({
                     return (
                       <li key={String(e._id)}>
                         <span>{e.type === 'given' ? k.collect : k.giveBack}: <b>{e.personName}</b></span>
-                        <span className="t-num">{fmtMoney(e.amount)}</span>
+                        <span className="t-num">{fmtMoney(ledgerRemaining(e))}</span>
                         <Pill tone={due.tone}>{due.text}</Pill>
                       </li>
                     );
@@ -152,7 +173,7 @@ export default async function DaftarPage({
           </Tilt>
         </section>
 
-        <DaftarForm />
+        <DaftarForm kassa={kassa} branches={branches} />
       </div>
 
       {open.length === 0 && closed.length === 0 ? (

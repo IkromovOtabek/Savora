@@ -337,6 +337,13 @@ a.cl-kpi[aria-current="page"] { box-shadow: inset 0 0 0 2px var(--brand), var(--
 
 /* ---------- Mijoz profili (360°) ---------- */
 .cl-profile { display: grid; grid-template-columns: minmax(260px, 340px) minmax(0, 1fr); gap: 16px; align-items: start; }
+/* Mijoz kartasi: daftar yozuvlari */
+.cl-pdaftar { padding: 0; overflow: hidden; }
+.cl-pdaftar-h { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 14px 16px; box-shadow: inset 0 -.5px 0 var(--sep); }
+.cl-pdaftar-h h2 { margin: 0; font-size: 17px; font-weight: 600; letter-spacing: -.02em; }
+.cl-pdaftar-h small { font-size: 13px; color: var(--ink-3); }
+.cl-pdaftar-go { transform: rotate(-90deg); }
+.cl-pdaftar .cl-lentry-side { display: grid; justify-items: end; gap: 4px; }
 .cl-pcard { padding: 24px 20px 20px; display: grid; justify-items: center; gap: 6px; text-align: center; position: sticky; top: 76px; }
 .cl-pcard-name { margin: 8px 0 0; font-size: 22px; font-weight: 700; letter-spacing: -.03em; line-height: 1.2; }
 .cl-pcard-since { font-size: 12px; color: var(--ink-3); }
@@ -431,7 +438,7 @@ a.cl-kpi[aria-current="page"] { box-shadow: inset 0 0 0 2px var(--brand), var(--
 /* Ikki bosqichli o'chirish tasdig'i */
 .cl-del-confirm { display: inline-flex; align-items: center; gap: 2px; margin: 0; animation: cl-pop .14s ease-out; }
 /* Tasdiq paytida "Qaytdi" yashirinadi — tor ekranda joy yetsin, tasodifan bosilmasin */
-.cl-lentry-act:has(.cl-del-confirm) > form:not(.cl-del-confirm) { display: none; }
+.cl-lentry-act:has(.cl-del-confirm) > :not(.cl-del-confirm) { display: none; }
 .cl-del-yes { background: var(--danger); color: #fff; }
 .cl-del-yes:hover:not(:disabled) { background: color-mix(in srgb, var(--danger) 88%, #000); }
 .cl-del-yes:focus-visible { outline: 3px solid color-mix(in srgb, var(--danger) 40%, transparent); outline-offset: 2px; }
@@ -448,6 +455,29 @@ a.cl-kpi[aria-current="page"] { box-shadow: inset 0 0 0 2px var(--brand), var(--
 .cl-dquick-btn:focus-visible { outline: 3px solid var(--brand-ring); outline-offset: 1px; }
 .cl-dquick-btn[aria-pressed="true"] { background: var(--brand-fill); color: var(--on-brand); }
 #d-form { scroll-margin-top: 76px; }
+
+/* «Kassaga qo'shilsinmi?» — majburiy tanlov, oldindan belgilanmaydi */
+.cl-dkassa { margin: 0; padding: 12px 14px; border: 0; border-radius: var(--r-lg); background: var(--fill-2); min-width: 0; }
+.cl-dkassa legend { float: left; width: 100%; margin: 0 0 10px; padding: 0; font-size: 14px; font-weight: 600; color: var(--ink-1); }
+.cl-dkassa-opts { clear: both; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.cl-dkassa-opt { position: relative; display: block; cursor: pointer; }
+.cl-dkassa-opt input { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: pointer; }
+.cl-dkassa-opt span {
+  display: flex; align-items: center; justify-content: center; gap: 6px; min-height: 40px; padding: 6px 12px;
+  border-radius: 10px; background: var(--surface); box-shadow: 0 0 0 1px var(--sep);
+  font-size: 14px; font-weight: 500; text-align: center; color: var(--ink-1);
+}
+.cl-dkassa-opt input:checked + span { background: var(--brand-fill); color: var(--on-brand); box-shadow: none; font-weight: 600; }
+.cl-dkassa-opt input:focus-visible + span { outline: 3px solid var(--brand-ring); outline-offset: 1px; }
+.cl-dkassa .auth-field { margin-top: 10px; }
+/* Qaytarish oynasi */
+.cl-pay-modal .cl-dquick { margin-top: -6px; }
+.cl-pay-modal .cl-dkassa { grid-column: auto; }
+/* Yozuvdagi qo'shimcha belgilar: kassa orqali, qisman qaytgan */
+.cl-lentry-tags { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.cl-lentry-tags small { font-size: 12px; color: var(--ink-3); }
+.cl-row-name a { color: inherit; text-decoration: none; }
+.cl-row-name a:hover { text-decoration: underline; }
 
 .cl-flash {
   margin: 0; display: flex; align-items: center; gap: 8px;
@@ -565,10 +595,12 @@ a.cl-kpi[aria-current="page"] { box-shadow: inset 0 0 0 2px var(--brand), var(--
   .cl-form-bar .btn { width: 100%; }
   .cl-lentry { flex-wrap: wrap; }
   .cl-lentry-side { width: 100%; display: flex; justify-content: space-between; align-items: center; padding-left: 52px; }
+  .cl-pdaftar .cl-lentry-side { padding-left: 0; }
   /* Teginish nishoni ≥44px */
   .cl-page .btn-sm, .cl-remind, .cl-dseg-btn, .cl-menu-item { min-height: 44px; }
   .cl-del, .cl-del-no { min-width: 44px; }
   .cl-dquick-btn { min-height: 40px; padding-inline: 14px; }
+  .cl-dkassa-opt span { min-height: 44px; }
 }
 
 @media (max-width: 380px) {

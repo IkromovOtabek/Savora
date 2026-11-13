@@ -1,11 +1,54 @@
 'use client';
 
 import { useActionState, useEffect, useRef, useState } from 'react';
-import { createDaftarAction, deleteDaftarAction } from '@/app/actions/daftar';
+import { createPortal } from 'react-dom';
+import { createDaftarAction, deleteDaftarAction, payDaftarAction } from '@/app/actions/daftar';
 import PriceInput from '@/components/ui/PriceInput';
 import Icon from '@/components/icons/Icon';
 import { useDict } from '@/lib/i18n/client';
 import { tr } from '@/lib/i18n/fmt';
+import { fmtMoney } from '@/lib/format';
+
+export type DaftarBranch = { id: string; name: string };
+
+/**
+ * «Kassaga qo'shilsinmi?» — majburiy savol, oldindan tanlanmaydi (foydalanuvchi har safar o'zi hal qiladi).
+ * Ha + bir nechta filial (admin) bo'lsa — qaysi filial kassasi.
+ */
+function KassaQuestion({
+  idPrefix, question, yesLabel, noLabel, branches, defaultBranchId,
+}: {
+  idPrefix: string; question: string; yesLabel: string; noLabel: string;
+  branches: DaftarBranch[]; defaultBranchId?: string;
+}) {
+  const [answer, setAnswer] = useState<'' | 'yes' | 'no'>('');
+  const d = useDict();
+  const k = d.sales.daftar;
+  return (
+    <fieldset className="cl-dform-wide cl-dkassa">
+      <legend>{question}</legend>
+      <div className="cl-dkassa-opts">
+        <label className="cl-dkassa-opt cl-dkassa-opt--yes">
+          <input type="radio" name="toKassa" value="yes" required checked={answer === 'yes'} onChange={() => setAnswer('yes')} />
+          <span>{yesLabel}</span>
+        </label>
+        <label className="cl-dkassa-opt">
+          <input type="radio" name="toKassa" value="no" required checked={answer === 'no'} onChange={() => setAnswer('no')} />
+          <span>{noLabel}</span>
+        </label>
+      </div>
+      {answer === 'yes' && branches.length > 1 && (
+        <div className="auth-field">
+          <label htmlFor={`${idPrefix}-kbranch`}>{k.kassaBranch}</label>
+          <select id={`${idPrefix}-kbranch`} name="kassaBranchId" required defaultValue={defaultBranchId ?? ''}>
+            <option value="" disabled>—</option>
+            {branches.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
+          </select>
+        </div>
+      )}
+    </fieldset>
+  );
+}
 
 /** Bugundan n kun keyingi sana — `YYYY-MM-DD` (mahalliy vaqt) */
 function plusDays(n: number): string {
@@ -23,7 +66,7 @@ const QUICK_DUE = [
   { days: 90, key: 'month3' },
 ] as const;
 
-export default function DaftarForm() {
+export default function DaftarForm({ kassa, branches }: { kassa: boolean; branches: DaftarBranch[] }) {
   const [state, formAction, pending] = useActionState(createDaftarAction, null);
   const [type, setType] = useState<'given' | 'taken'>('given');
   const [due, setDue] = useState('');
@@ -80,6 +123,16 @@ export default function DaftarForm() {
           <label htmlFor="d-note">{k.noteOptional}</label>
           <input id="d-note" name="note" placeholder={k.notePh} />
         </div>
+        {kassa && (
+          <KassaQuestion
+            key={type}
+            idPrefix="d"
+            question={type === 'given' ? k.kassaQGiven : k.kassaQTaken}
+            yesLabel={type === 'given' ? k.kassaYesGiven : k.kassaYesTaken}
+            noLabel={k.kassaNo}
+            branches={branches}
+          />
+        )}
       </div>
 
       <button type="submit" className="btn btn-primary btn-full btn-with-icon" disabled={pending}>
@@ -136,5 +189,96 @@ export function DaftarDeleteButton({ id, name }: { id: string; name: string }) {
         <Icon name="close" size={15} />
       </button>
     </form>
+  );
+}
+
+/**
+ * Qaytarish — to'liq yoki qisman summa + «kassaga tushdimi?» savoli (oyna).
+ * Oyna body'ga portal orqali chiqadi — ro'yxatning overflow/transform'i uni kesmasin.
+ */
+export function DaftarPayButton({
+  id, name, type, remaining, kassa, branches, kassaBranchId,
+}: {
+  id: string; name: string; type: 'given' | 'taken'; remaining: number;
+  kassa: boolean; branches: DaftarBranch[]; kassaBranchId?: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const [amount, setAmount] = useState(String(remaining));
+  const [state, formAction, pending] = useActionState(payDaftarAction, null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const d = useDict();
+  const k = d.sales.daftar;
+
+  // Saqlangach — oyna yopiladi (ro'yxat revalidatePath bilan yangilanadi)
+  useEffect(() => {
+    if (state?.success) setOpen(false);
+  }, [state]);
+
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape' && !pending) setOpen(false); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [open, pending]);
+
+  function close() {
+    if (pending) return;
+    setOpen(false);
+    requestAnimationFrame(() => triggerRef.current?.focus());
+  }
+
+  const titleId = `pay-${id}-title`;
+  return (
+    <>
+      <button
+        ref={triggerRef}
+        type="button"
+        className="btn btn-tinted btn-sm btn-with-icon"
+        aria-label={tr(k.payAria, { name })}
+        onClick={() => { setAmount(String(remaining)); setOpen(true); }}
+      >
+        <Icon name="check" size={14} /> {k.returned}
+      </button>
+      {open && createPortal(
+        <div className="u-modal-overlay" onClick={close}>
+          <div className="u-modal cl-pay-modal" role="dialog" aria-modal="true" aria-labelledby={titleId} onClick={(e) => e.stopPropagation()}>
+            <div className="u-modal-head">
+              <h3 id={titleId}>{k.payTitle} · {name}</h3>
+              <button type="button" className="u-icon-btn" aria-label={d.common.close} onClick={close} disabled={pending}>
+                <Icon name="close" size={18} />
+              </button>
+            </div>
+            <form action={formAction}>
+              <input type="hidden" name="id" value={id} />
+              {state?.error && <div className="auth-alert auth-alert--error" role="alert">{state.error}</div>}
+              <div className="auth-field">
+                <label htmlFor={`pay-${id}-amount`}>{k.payAmount}</label>
+                <PriceInput id={`pay-${id}-amount`} name="amount" required value={amount} onValueChange={setAmount} />
+              </div>
+              <div className="cl-dquick">
+                <button type="button" className="cl-dquick-btn" aria-pressed={amount === String(remaining)} onClick={() => setAmount(String(remaining))}>
+                  {tr(k.payFull, { v: fmtMoney(remaining) })}
+                </button>
+              </div>
+              {kassa && (
+                <KassaQuestion
+                  idPrefix={`pay-${id}`}
+                  question={type === 'given' ? k.payQGiven : k.payQTaken}
+                  yesLabel={type === 'given' ? k.kassaYesTaken : k.kassaYesGiven}
+                  noLabel={k.kassaNo}
+                  branches={branches}
+                  defaultBranchId={kassaBranchId}
+                />
+              )}
+              <div className="u-modal-actions">
+                <button type="button" className="btn btn-ghost btn-sm" onClick={close} disabled={pending}>{d.common.cancel}</button>
+                <button type="submit" className="btn btn-primary btn-sm" disabled={pending}>{pending ? d.common.saving : k.paySubmit}</button>
+              </div>
+            </form>
+          </div>
+        </div>,
+        document.body,
+      )}
+    </>
   );
 }

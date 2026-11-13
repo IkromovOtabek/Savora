@@ -670,6 +670,8 @@ a.t-stat:active { background: var(--t-fill-2); }
 @media (max-width: 1100px) {
   .t-top { grid-template-columns: minmax(0, 1fr); gap: 0; }
   .t-stats.ux-strip { --ux-cols: 3; grid-auto-rows: auto; margin-bottom: 0; }
+  /* Daftar kartasi qo'shilganda — 2×2 (yetim karta qolmasin) */
+  .t-stats.ux-strip.t-stats--4 { --ux-cols: 2; }
 }
 @media (max-width: 700px) {
   .t-hero { min-height: 0; padding: 18px 18px 16px; }
