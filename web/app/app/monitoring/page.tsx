@@ -1,7 +1,8 @@
 import { getTenantSession } from '@/lib/tenantSession';
 import { userCan } from '@/lib/permissionGuard';
 import { branchFilter, isBranchScoped } from '@/lib/branchScope';
-import { statsFromSales, monthRange } from '@/lib/monitoring';
+import { statsFromSales, monthRange, opexFromFlows } from '@/lib/monitoring';
+import Link from 'next/link';
 import { PAYMENT_TYPE_LABELS, PaymentType } from '@/lib/models/tenant/Sale';
 import { getI18n } from '@/lib/i18n/server';
 import { tr, fmtMonthYear } from '@/lib/i18n/fmt';
@@ -29,16 +30,22 @@ export default async function MonitoringPage({
   const [y, m] = (sp.month ?? `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`).split('-').map(Number);
   const { start, end } = monthRange(y, m);
 
-  const { user, Sale, Branch, Product, features } = await getTenantSession();
+  const { user, Sale, Branch, Product, CashFlow, FinanceCategory, features } = await getTenantSession();
   const { locale, d } = await getI18n();
   const t = d.shell.monitoring;
   const canExport = features.export && (await userCan(user, 'export.data'));
+  // Sof foyda (xarajatlar bilan) — Moliya bo'limi kabi faqat do'kon egasiga: ish haqi, ijara — butun biznes puli
+  const showNet = user.role === 'admin' && features.kirimChiqim;
 
   // Filial login — faqat o'z filiali hisoboti; admin — barcha filiallar taqqoslamasi
   const scope = branchFilter(user);
-  const [sales, branchesAll] = await Promise.all([
+  const [sales, branchesAll, flows, financeCategories] = await Promise.all([
     Sale.find({ ...scope, status: { $ne: 'cancelled' }, createdAt: { $gte: start, $lt: end } }).lean(),
     Branch.find({ active: true }).lean(),
+    showNet
+      ? CashFlow.find({ createdAt: { $gte: start, $lt: end }, category: { $nin: [null, ''] } }).select('type amount category branchId').lean()
+      : Promise.resolve([]),
+    showNet ? FinanceCategory.find().select('name type system inProfit').lean() : Promise.resolve([]),
   ]);
   const branches = isBranchScoped(user)
     ? branchesAll.filter((b) => String(b._id) === user.branchId)
@@ -118,6 +125,17 @@ export default async function MonitoringPage({
   const monthIncomingSum = branchFlows.reduce((s, r) => s + r.chiqimSum, 0);
   const monthProfit = branchFlows.reduce((s, r) => s + r.profit, 0);
 
+  // Sof foyda = yalpi foyda + boshqa kirimlar − xarajatlar (faqat foydaga kiruvchi toifalar)
+  const opex = opexFromFlows(flows, financeCategories);
+  const netProfit = monthProfit + opex.income - opex.expense;
+  const branchOpex = (id: string) => {
+    const o = opex.byBranch.get(id);
+    return o ? o.income - o.expense : 0;
+  };
+  // Filialsiz va jadvalda yo'q (nofaol) filial yozuvlari — jami bilan mos kelsin
+  const listedOpex = branchFlows.reduce((s, b) => s + branchOpex(b.branchId), 0);
+  const otherOpex = opex.income - opex.expense - listedOpex;
+
   const ym = (yy: number, mm: number) => {
     const d = new Date(yy, mm - 1, 1);
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
@@ -173,9 +191,18 @@ export default async function MonitoringPage({
         </Tilt>
         <div className="ux-strip fn-bento-tiles">
           <div className="fn-tile">
-            <span className="fn-tile-head"><span className="ux-clay ux-clay--green"><Icon name="sparkles" size={15} /></span> {t.profit}</span>
-            <span className={`fn-tile-v ${monthProfit >= 0 ? 'fn-in' : 'fn-out'}`}>{fmtMoney(monthProfit)}</span>
-            <span className="fn-tile-s">{t.profitSub}</span>
+            <span className="fn-tile-head"><span className="ux-clay ux-clay--green"><Icon name="sparkles" size={15} /></span> {showNet ? t.netProfit : t.profit}</span>
+            {showNet ? (
+              <>
+                <span className={`fn-tile-v ${netProfit >= 0 ? 'fn-in' : 'fn-out'}`}>{fmtMoney(netProfit)}</span>
+                <span className="fn-tile-s">{t.netProfitSub}</span>
+              </>
+            ) : (
+              <>
+                <span className={`fn-tile-v ${monthProfit >= 0 ? 'fn-in' : 'fn-out'}`}>{fmtMoney(monthProfit)}</span>
+                <span className="fn-tile-s">{t.profitSub}</span>
+              </>
+            )}
           </div>
           <div className="fn-tile">
             <span className="fn-tile-head"><span className="ux-clay"><Icon name="cart" size={15} /></span> {t.sold}</span>
@@ -194,6 +221,61 @@ export default async function MonitoringPage({
           </div>
         </div>
       </section>
+
+      {showNet && (
+        <div className="fn-two">
+          <section className="fn-panel" aria-labelledby="mon-pl">
+            <div className="fn-panel-head">
+              <h2 id="mon-pl">{t.plTitle}</h2>
+              <small>{monthLabel}</small>
+            </div>
+            <div className="fn-panel-body">
+              <div className="fn-pass-rows fn-pl">
+                <div className="fn-pass-row">
+                  <span>{t.grossProfit} <small className="fn-pl-hint">({t.profitSub})</small></span>
+                  <strong className={monthProfit >= 0 ? '' : 'fn-out'}>{fmtMoney(monthProfit)}</strong>
+                </div>
+                <div className="fn-pass-row">
+                  <span>{t.otherIncome}</span>
+                  <strong className="fn-in">+ {fmtMoney(opex.income)}</strong>
+                </div>
+                <div className="fn-pass-row">
+                  <span>{t.expenses}</span>
+                  <strong className="fn-out">− {fmtMoney(opex.expense)}</strong>
+                </div>
+                <div className="fn-pass-row fn-pl-total">
+                  <span>{t.netProfit}</span>
+                  <strong className={netProfit >= 0 ? 'fn-in' : 'fn-out'}>{fmtMoney(netProfit)} {d.common.sum}</strong>
+                </div>
+              </div>
+              <p className="fn-pl-note">
+                {t.plNote} <Link href="/app/finance/categories">{t.plSettings}</Link>
+              </p>
+            </div>
+          </section>
+
+          <section className="fn-panel" aria-labelledby="mon-pl-cat">
+            <div className="fn-panel-head">
+              <h2 id="mon-pl-cat">{d.sales.fin.byCategory}</h2>
+              <small>{fmtMoney(opex.income - opex.expense)} {d.common.sum}</small>
+            </div>
+            <div className="fn-panel-body">
+              {opex.byCategory.length === 0 ? (
+                <p className="fn-pl-note" style={{ margin: 0 }}>{t.plEmpty}</p>
+              ) : (
+                <ul className="fx-cats">
+                  {opex.byCategory.map((c) => (
+                    <li key={`${c.type}-${c.category}`}>
+                      <span>{c.category}</span>
+                      <b className={`t-num ${c.type === 'income' ? 'fx-in' : 'fx-out'}`}>{c.type === 'income' ? '+' : '−'} {fmtMoney(c.total)}</b>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </section>
+        </div>
+      )}
 
       <div className="fn-two">
         <section className="fn-panel" aria-labelledby="mon-rank">
@@ -252,13 +334,17 @@ export default async function MonitoringPage({
                   <th className="fn-right">{t.incomingQty}</th>
                   <th className="fn-right">{t.saleSum}</th>
                   <th className="fn-right">{t.purchaseSum}</th>
-                  <th className="fn-right">{t.profit}</th>
+                  <th className="fn-right">{showNet ? t.grossProfit : t.profit}</th>
+                  {showNet && <th className="fn-right">{t.opexCol}</th>}
+                  {showNet && <th className="fn-right">{t.netProfit}</th>}
                   <th className="fn-right">{t.transaction}</th>
                 </tr>
               </thead>
               <tbody>
                 {branchFlows.map((b) => {
                   const saleRow = branchStats.find((s) => s.name === b.name);
+                  const bOpex = branchOpex(b.branchId);
+                  const bNet = b.profit + bOpex;
                   return (
                     <tr key={b.branchId}>
                       <td data-label={d.common.branch}><span className="cell-main">{b.name}</span></td>
@@ -266,11 +352,32 @@ export default async function MonitoringPage({
                       <td data-label={t.incomingQty} className="fn-right">{b.chiqimQty}</td>
                       <td data-label={t.saleSum} className="fn-right">{fmtMoney(b.kirimSum)}</td>
                       <td data-label={t.purchaseSum} className="fn-right">{fmtMoney(b.chiqimSum)}</td>
-                      <td data-label={t.profit} className={`fn-right ${b.profit >= 0 ? 'fn-in' : 'fn-out'}`}><strong>{fmtMoney(b.profit)}</strong></td>
+                      {showNet ? (
+                        <>
+                          <td data-label={t.grossProfit} className="fn-right">{fmtMoney(b.profit)}</td>
+                          <td data-label={t.opexCol} className={`fn-right ${bOpex < 0 ? 'fn-out' : ''}`}>{fmtMoney(bOpex)}</td>
+                          <td data-label={t.netProfit} className={`fn-right ${bNet >= 0 ? 'fn-in' : 'fn-out'}`}><strong>{fmtMoney(bNet)}</strong></td>
+                        </>
+                      ) : (
+                        <td data-label={t.profit} className={`fn-right ${b.profit >= 0 ? 'fn-in' : 'fn-out'}`}><strong>{fmtMoney(b.profit)}</strong></td>
+                      )}
                       <td data-label={t.transaction} className="fn-right">{saleRow?.salesCount ?? 0}</td>
                     </tr>
                   );
                 })}
+                {showNet && otherOpex !== 0 && (
+                  <tr>
+                    <td data-label={d.common.branch}><span className="cell-main">{t.unbranched}</span></td>
+                    <td data-label={t.soldQty} className="fn-right">—</td>
+                    <td data-label={t.incomingQty} className="fn-right">—</td>
+                    <td data-label={t.saleSum} className="fn-right">—</td>
+                    <td data-label={t.purchaseSum} className="fn-right">—</td>
+                    <td data-label={t.grossProfit} className="fn-right">—</td>
+                    <td data-label={t.opexCol} className={`fn-right ${otherOpex < 0 ? 'fn-out' : ''}`}>{fmtMoney(otherOpex)}</td>
+                    <td data-label={t.netProfit} className={`fn-right ${otherOpex >= 0 ? 'fn-in' : 'fn-out'}`}><strong>{fmtMoney(otherOpex)}</strong></td>
+                    <td data-label={t.transaction} className="fn-right">—</td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>

@@ -256,3 +256,28 @@ export async function toggleFinanceCategoryAction(formData: FormData): Promise<v
   revalidatePath('/app/finance/categories');
   revalidatePath('/app/finance');
 }
+
+/** Toifani sof foyda hisobiga qo'shish/chiqarish (tizim toifalari — doim chiqarilgan) */
+export async function toggleFinanceCategoryProfitAction(formData: FormData): Promise<void> {
+  const { user, FinanceCategory, features } = await getTenantAdminSession();
+  if (!features.kirimChiqim) return;
+  const id = parseInput(zId('bad'), formData.get('categoryId'));
+  if (!id.ok) return;
+  const inProfit = formData.get('inProfit') === '1';
+  const cat = await FinanceCategory.findOneAndUpdate(
+    { _id: id.data, system: { $ne: true } },
+    { $set: { inProfit } },
+    { new: true },
+  ).select('name type').lean();
+  if (cat) {
+    await recordAudit(user, {
+      action: 'finance.categoryProfit',
+      entity: 'finance',
+      entityId: id.data,
+      summary: `Toifa «${cat.name}» ${inProfit ? 'foydaga qo\'shildi' : 'foydadan chiqarildi'}`,
+      meta: { name: cat.name, type: cat.type, inProfit },
+    });
+  }
+  revalidatePath('/app/finance/categories');
+  revalidatePath('/app/monitoring');
+}
