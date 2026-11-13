@@ -1,4 +1,5 @@
 import { getTenantAdminSession } from '@/lib/tenantSession';
+import { isImeiEnabled } from '@/lib/features';
 import { lineFromProduct } from '@/lib/inventoryFlow';
 import KirimChiqimCards, { BranchFlowCard } from '@/components/tenant/KirimChiqimCards';
 import { getDict } from '@/lib/i18n/server';
@@ -12,7 +13,7 @@ export async function generateMetadata() {
 }
 
 export default async function KirimChiqimPage() {
-  const { Product, Branch, Sale } = await getTenantAdminSession();
+  const { Product, Branch, Sale, org } = await getTenantAdminSession();
   const d = await getDict();
   const k = d.sales.kirimChiqim;
   const branches = await Branch.find({ active: true }).sort({ createdAt: 1 }).lean();
@@ -69,7 +70,7 @@ export default async function KirimChiqimPage() {
           <p className="t-page-sub">{tr(k.sub, { branches: tr(plural(branches.length, d.sales.nBranches), { n: branches.length }) })}</p>
         </div>
       </div>
-      <KirimChiqimCards total={total} cards={cards} />
+      <KirimChiqimCards total={total} cards={cards} showImei={isImeiEnabled(org)} />
     </>
   );
 }

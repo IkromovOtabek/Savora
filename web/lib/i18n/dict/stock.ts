@@ -63,7 +63,9 @@ export const uz = {
     pageHint: "Shu sahifadagi {n} ta mahsulot bo'yicha",
     emptyFilter: 'Mahsulot topilmadi',
     emptyNoProducts: "Ombor hozircha bo'sh",
-    emptyQueryHint: '"{q}" bo\'yicha mahsulot yo\'q. Shtrix-kod, IMEI yoki nomni tekshirib ko\'ring.',
+    emptyQueryHint: '"{q}" bo\'yicha mahsulot yo\'q. Shtrix-kod, kod yoki nomni tekshirib ko\'ring.',
+    /** Telefon do'kon (IMEI rejimi) */
+    emptyQueryHintImei: '"{q}" bo\'yicha mahsulot yo\'q. Shtrix-kod, IMEI yoki nomni tekshirib ko\'ring.',
     emptyFilterHint: "Tanlangan filtr bo'yicha omborda mahsulot yo'q.",
     emptyHint: "Birinchi mahsulotni qo'shing — u shu yerda ko'rinadi.",
     clearFilter: 'Filtrni tozalash',
@@ -94,8 +96,11 @@ export const uz = {
   /** components/tenant/ProductSearch.tsx */
   search: {
     label: 'Mahsulot qidiruvi',
-    srLabel: 'Qidiruv (shtrix, IMEI, nom)',
-    placeholder: 'Shtrix-kod, IMEI yoki nom…',
+    srLabel: 'Qidiruv (shtrix, kod, nom)',
+    placeholder: 'Shtrix-kod, kod yoki nom…',
+    /** Telefon do'kon (IMEI rejimi) */
+    srLabelImei: 'Qidiruv (shtrix, IMEI, nom)',
+    placeholderImei: 'Shtrix-kod, IMEI yoki nom…',
     scanner: 'Skaner',
     filterLabel: 'Filtr: filial va holat',
     allBranches: 'Barcha filiallar',
@@ -713,7 +718,8 @@ export const ru: typeof uz = {
     pageHint: 'По {n} товарам на этой странице',
     emptyFilter: 'Товар не найден',
     emptyNoProducts: 'Склад пока пуст',
-    emptyQueryHint: 'По запросу «{q}» товаров нет. Проверьте штрих-код, IMEI или название.',
+    emptyQueryHint: 'По запросу «{q}» товаров нет. Проверьте штрих-код, код или название.',
+    emptyQueryHintImei: 'По запросу «{q}» товаров нет. Проверьте штрих-код, IMEI или название.',
     emptyFilterHint: 'По выбранному фильтру товаров на складе нет.',
     emptyHint: 'Добавьте первый товар — он появится здесь.',
     clearFilter: 'Сбросить фильтр',
@@ -740,8 +746,10 @@ export const ru: typeof uz = {
 
   search: {
     label: 'Поиск товара',
-    srLabel: 'Поиск (штрих-код, IMEI, название)',
-    placeholder: 'Штрих-код, IMEI или название…',
+    srLabel: 'Поиск (штрих-код, код, название)',
+    placeholder: 'Штрих-код, код или название…',
+    srLabelImei: 'Поиск (штрих-код, IMEI, название)',
+    placeholderImei: 'Штрих-код, IMEI или название…',
     scanner: 'Сканер',
     filterLabel: 'Фильтр: филиал и статус',
     allBranches: 'Все филиалы',

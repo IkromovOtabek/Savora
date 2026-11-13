@@ -4,7 +4,7 @@ import ProductForm from '@/components/tenant/ProductForm';
 import { getUsdRate } from '@/lib/currency';
 import { requirePermission, userCan } from '@/lib/permissionGuard';
 import { getDict } from '@/lib/i18n/server';
-import { productFieldsFor } from '@/lib/businessTypes';
+import { parseBusinessType, productFieldsFor } from '@/lib/businessTypes';
 import { ensureMainBranchId } from '@/lib/mainBranch';
 import { loadBundleCandidates } from '@/lib/productKinds';
 import { loadExtraFieldNames } from '@/lib/productFields';
@@ -16,6 +16,7 @@ export async function generateMetadata() {
 
 export default async function NewProductPage() {
   await requirePermission('product.create');
+  const d = await getDict();
   const { user, Branch, org, features, Supplier, ShopSettings, ProductCategory, Brand, Product } = await getTenantSession();
   const usd = await getUsdRate(ShopSettings);
   const isAdmin = user.role === 'admin';
@@ -42,6 +43,7 @@ export default async function NewProductPage() {
     <ProductForm
       mode="create"
       showImei={isImeiEnabled(org)}
+      createTitle={d.catalog.terms[parseBusinessType(org.businessType || 'general')].addItem}
       mediaEnabled={features.mediaUpload}
       isAdmin={isAdmin}
       currentBranchId={user.branchId}

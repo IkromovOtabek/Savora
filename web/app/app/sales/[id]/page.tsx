@@ -4,6 +4,7 @@ import Link from 'next/link';
 import BackLink from '@/components/ui/BackLink';
 import Icon from '@/components/icons/Icon';
 import { getTenantSession } from '@/lib/tenantSession';
+import { isImeiEnabled } from '@/lib/features';
 import { fmtDate, fmtDateTime, fmtMoney } from '@/lib/format';
 import { computeDebtInfo } from '@/lib/debts';
 import { saleBankParts } from '@/lib/bankCredit';
@@ -44,7 +45,7 @@ export default async function SaleDetailPage({
 }) {
   const { id } = await params;
   const sp = await searchParams;
-  const { user, Sale } = await getTenantSession();
+  const { user, Sale, org } = await getTenantSession();
   const d = await getDict();
   const k = d.sales.detail;
   if (!Types.ObjectId.isValid(id)) notFound();
@@ -247,7 +248,7 @@ export default async function SaleDetailPage({
             <div className="sl-card-head"><h2 id="sl-prod-h">{k.productAndPayment}</h2></div>
             <ul className="sl-kv">
               <li><span>{d.common.product}</span><Link href={`/app/products/${sale.productId}`}>{sale.productSnapshot.name}</Link></li>
-              {sale.productSnapshot.imei && <li><span>{k.imeiCode}</span><code>{sale.productSnapshot.imei}</code></li>}
+              {sale.productSnapshot.imei && <li><span>{isImeiEnabled(org) ? k.imeiCode : d.stock.detail.code}</span><code>{sale.productSnapshot.imei}</code></li>}
               {qty !== 1 && <li><span>{k.qty}</span><span>{qtyWithUnit(qty, sale.productSnapshot.unit, d.stock.fields.units)}</span></li>}
               <li><span>{d.sales.paymentType}</span><span>{d.sales.paymentTypesFull[sale.paymentType]}</span></li>
               {/* Bank krediti: har bank o'z ulushi bilan (bir nechta bo'lishi mumkin) */}

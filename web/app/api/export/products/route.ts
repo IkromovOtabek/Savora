@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getApiTenantContext } from '@/lib/auth';
 import { getTenantModels } from '@/lib/tenantDb';
-import { isFeatureEnabled } from '@/lib/features';
+import { isFeatureEnabled, isImeiEnabled } from '@/lib/features';
 import { loadUserPermissions } from '@/lib/permissionGuard';
 import { branchFilter } from '@/lib/branchScope';
 import { csvCell } from '@/lib/security';
@@ -12,7 +12,8 @@ const MAX_ROWS = 20000;
 export async function GET() {
   // To'liq tekshiruv: sessiya + tokenVersion/faol user + do'kon holati (sessiya do'koni)
   const ctx = await getApiTenantContext();
-  const x = (await getDict()).stock.export;
+  const dict = await getDict();
+  const x = dict.stock.export;
   if (!ctx) return NextResponse.json({ error: x.authRequired }, { status: 401 });
   const { user, org } = ctx;
   if (!isFeatureEnabled(org, 'export')) {
@@ -26,7 +27,8 @@ export async function GET() {
   const cursor = Product.find(branchFilter(user)).sort({ createdAt: -1 }).limit(MAX_ROWS).lean().cursor();
 
   // Ustun sarlavhalari — tilga qarab (d.stock.export.productsHeader)
-  const header = x.productsHeader.join(',');
+  // Kod ustuni: telefon do'konda «IMEI», boshqa yo'nalishlarda «Kod»
+  const header = x.productsHeader.map((h, i) => (i === 0 && !isImeiEnabled(org) ? dict.stock.detail.code : h)).join(',');
   const canViewCost = perms.has('product.viewCost');
   const encoder = new TextEncoder();
   const stream = new ReadableStream<Uint8Array>({

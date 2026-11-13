@@ -15,9 +15,11 @@ interface Props {
   initial: { q: string; branch: string; status: string; cat?: string; brand?: string };
   /** Holat chiplari — filial tanlovi bilan bitta gorizontal lentada chiqadi */
   children?: ReactNode;
+  /** Telefon do'kon: qidiruv yorlig'ida IMEI ko'rinadi, boshqa yo'nalishlarda — kod */
+  showImei?: boolean;
 }
 
-export default function ProductSearch({ branches, categories = [], brands = [], initial, children }: Props) {
+export default function ProductSearch({ branches, categories = [], brands = [], initial, children, showImei = false }: Props) {
   const d = useDict();
   const t = d.stock.search;
   const router = useRouter();
@@ -60,7 +62,7 @@ export default function ProductSearch({ branches, categories = [], brands = [], 
         <input type="hidden" name="status" value={initial.status} />
         <div className="st-search-field">
           <Icon name="search" size={18} />
-          <label htmlFor="q" className="sr-only">{t.srLabel}</label>
+          <label htmlFor="q" className="sr-only">{showImei ? t.srLabelImei : t.srLabel}</label>
           <input
             key={initial.q}
             ref={qRef}
@@ -68,7 +70,7 @@ export default function ProductSearch({ branches, categories = [], brands = [], 
             name="q"
             type="search"
             defaultValue={initial.q}
-            placeholder={t.placeholder}
+            placeholder={showImei ? t.placeholderImei : t.placeholder}
             autoComplete="off"
             enterKeyHint="search"
           />

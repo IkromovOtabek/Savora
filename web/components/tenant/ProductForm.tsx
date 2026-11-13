@@ -41,6 +41,8 @@ interface Props {
   isAdmin: boolean;
   currentBranchId?: string;
   showImei: boolean;
+  /** Yangi mahsulot sarlavhasi yo'nalish atamasi bilan («Mebel qo'shish») — bo'lmasa umumiy matn */
+  createTitle?: string;
   mediaEnabled?: boolean;
   creditKassaEnabled?: boolean;
   creditBanks?: { id: string; name: string }[];
@@ -100,6 +102,7 @@ export default function ProductForm({
   isAdmin,
   currentBranchId,
   showImei,
+  createTitle,
   mediaEnabled,
   creditKassaEnabled = false,
   creditBanks = [],
@@ -208,7 +211,7 @@ export default function ProductForm({
         <div className="st-form-head">
           <BackLink href="/app/products" className="btn btn-plain btn-sm st-form-back">{t.back}</BackLink>
           <div>
-            <h1>{t.newTitle}</h1>
+            <h1>{createTitle || t.newTitle}</h1>
             <p>{isAdmin ? t.newHintAdmin : t.newHintBranch}</p>
           </div>
         </div>

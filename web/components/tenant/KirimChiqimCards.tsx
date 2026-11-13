@@ -69,11 +69,13 @@ export function FlowSplit({
   );
 }
 
-export default function KirimChiqimCards({ total, cards }: { total: BranchFlowCard; cards: BranchFlowCard[] }) {
+export default function KirimChiqimCards({ total, cards, showImei = false }: { total: BranchFlowCard; cards: BranchFlowCard[]; showImei?: boolean }) {
   const router = useRouter();
   const [q, setQ] = useState('');
   const d = useDict();
   const k = d.sales.kirimChiqim;
+  // Qidiruv ombor sahifasiga o'tadi — yorliq ham ombor qidiruvi bilan bir xil (IMEI faqat telefon do'konda)
+  const searchLabel = showImei ? d.stock.search.placeholderImei : d.stock.search.placeholder;
 
   function onSearch(e: React.FormEvent) {
     e.preventDefault();
@@ -92,14 +94,14 @@ export default function KirimChiqimCards({ total, cards }: { total: BranchFlowCa
       <form className="fn-search" onSubmit={onSearch} role="search">
         <Icon name="search" size={18} />
         <label htmlFor="kc-imei" className="sr-only">
-          {k.imeiSearch}
+          {searchLabel}
         </label>
         <input
           id="kc-imei"
           type="search"
           value={q}
           onChange={(e) => setQ(e.target.value)}
-          placeholder={k.imeiSearch}
+          placeholder={searchLabel}
           inputMode="search"
         />
         {q.trim() && <button type="submit" className="btn btn-tinted btn-sm">{k.searchBtn}</button>}

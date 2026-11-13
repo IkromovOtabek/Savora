@@ -8,6 +8,7 @@ import { escapeRegExp, searchPattern } from '@/lib/security';
 import { categorySubtreeIds, flattenCategories } from '@/lib/productCatalog';
 import { sellableInfo } from '@/lib/productKinds';
 import { isImeiEnabled } from '@/lib/features';
+import { parseBusinessType } from '@/lib/businessTypes';
 import { resolveOrgPlan } from '@/lib/plans';
 import { PRODUCT_STATUS_LABELS, ProductStatus } from '@/lib/models/tenant/Product';
 import ProductSearch from '@/components/tenant/ProductSearch';
@@ -49,6 +50,8 @@ export default async function ProductsPage({
   const t = d.stock.list;
   const { user, Product, Branch, org, features, ProductCategory, Brand } = await getTenantSession();
   const showImei = isImeiEnabled(org);
+  // Yo'nalish atamalari: «Mebel qo'shish», «Menyu» … (d.catalog.terms)
+  const terms = d.catalog.terms[parseBusinessType(org.businessType || 'general')];
   const perms = await loadUserPermissions(user);
   const canViewCost = perms.has('product.viewCost');
   const canInstallment = !!(features.variant || features.nasiya);
@@ -180,7 +183,7 @@ export default async function ProductsPage({
       {isAdmin && <LimitBanner label={d.common.products} current={orgProductCount} max={maxProducts} />}
       <div className="t-page-head st-head">
         <div>
-          <h1 className="t-page-title">{t.title}</h1>
+          <h1 className="t-page-title">{terms.items}</h1>
           <p className="t-page-sub">
             {t.subtitle}
             {totalPages > 1 ? tr(t.pageOf, { page, total: totalPages }) : ''}
@@ -189,7 +192,7 @@ export default async function ProductsPage({
         <div className="t-page-actions">
           {canCreate && (
             <Link href="/app/products/new" className="btn btn-primary btn-with-icon ux-hide-mobile">
-              <Icon name="plus" size={18} /> {t.addProduct}
+              <Icon name="plus" size={18} /> {terms.addItem}
             </Link>
           )}
           <MoreMenu label={t.menuLabel}>
@@ -261,6 +264,7 @@ export default async function ProductsPage({
         categories={catOptions}
         brands={brandOptions}
         initial={{ q: sp.q ?? '', branch: sp.branch ?? '', status: activeStatus, cat: activeCat, brand: activeBrand }}
+        showImei={showImei}
       >
         <Link href={statusUrl('')} className="st-chip" aria-current={activeStatus === '' ? 'page' : undefined}>{d.common.all}</Link>
         {statusChips.map((s) => (
@@ -277,7 +281,7 @@ export default async function ProductsPage({
             <b>{q ? d.common.nothingFound : hasFilter ? t.emptyFilter : t.emptyNoProducts}</b>
             <p>
               {q
-                ? tr(t.emptyQueryHint, { q })
+                ? tr(showImei ? t.emptyQueryHintImei : t.emptyQueryHint, { q })
                 : hasFilter
                   ? t.emptyFilterHint
                   : t.emptyHint}
@@ -286,7 +290,7 @@ export default async function ProductsPage({
               <Link href="/app/products" className="btn btn-tinted">{t.clearFilter}</Link>
             ) : canCreate && (
               <Link href="/app/products/new" className="btn btn-primary btn-with-icon">
-                <Icon name="plus" size={18} /> {t.addProduct}
+                <Icon name="plus" size={18} /> {terms.addItem}
               </Link>
             )}
           </div>
@@ -432,7 +436,7 @@ export default async function ProductsPage({
       )}
 
       {canCreate && (
-        <Link href="/app/products/new" className="ux-fab" aria-label={t.addProduct}>
+        <Link href="/app/products/new" className="ux-fab" aria-label={terms.addItem}>
           <Icon name="plus" size={20} /> {t.fab}
         </Link>
       )}
