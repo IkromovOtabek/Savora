@@ -640,6 +640,8 @@ export const uz = {
     },
     productField: 'Yetkazib beruvchi',
     productNone: '— Tanlanmagan —',
+    productNew: 'Yangi yetkazib beruvchi',
+    productNewPlaceholder: 'Yetkazib beruvchi nomi',
     productAsDebt: 'Kelish summasini ({sum} so\'m) yetkazib beruvchiga qarz sifatida yozish',
     productAsDebtHint: "Tovarni qarzga olgan bo'lsangiz belgilang — yetkazib beruvchi sahifasida qarz ko'rinadi.",
     msg: {
@@ -1234,6 +1236,8 @@ export const ru: typeof uz = {
     },
     productField: 'Поставщик',
     productNone: '— Не выбран —',
+    productNew: 'Новый поставщик',
+    productNewPlaceholder: 'Название поставщика',
     productAsDebt: 'Записать закупочную сумму ({sum} сум) как долг поставщику',
     productAsDebtHint: 'Отметьте, если товар взят в долг — долг появится на странице поставщика.',
     msg: {

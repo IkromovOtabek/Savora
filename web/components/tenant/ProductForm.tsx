@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useActionState, useEffect, useRef, useState, useTransition, type KeyboardEvent, type ReactNode } from 'react';
 import { useToastOnState } from '@/lib/useToastOnState';
 import { createBrandAction, createCategoryAction, createProductAction, lookupBarcodeAction, updateProductAction } from '@/app/actions/products';
+import { createSupplierQuickAction } from '@/app/actions/suppliers';
 import type { BarcodeLookupResult } from '@/lib/barcodeLookup';
 import { ProductStatus, SoldPaymentType, type ProductKind } from '@/lib/models/tenant/Product';
 import BackLink from '@/components/ui/BackLink';
@@ -643,13 +644,10 @@ export default function ProductForm({
                     <ImageUploadField defaultValue={initial?.photoUrl} disabled={isPending} />
                   </div>
                 )}
-                {suppliers && suppliers.length > 0 && isGoods && (
+                {/* Ro'yxat bo'sh bo'lsa ham ko'rinadi — yangi yetkazib beruvchini shu yerdan qo'shish mumkin */}
+                {suppliers && isGoods && (
                   <div className="auth-field">
-                    <label htmlFor="supplierId">{d.stock.suppliers.productField}</label>
-                    <select id="supplierId" name="supplierId" value={supplierId} onChange={(e) => setSupplierId(e.target.value)} disabled={isPending}>
-                      <option value="">{d.stock.suppliers.productNone}</option>
-                      {suppliers.map((sp) => <option key={sp.id} value={sp.id}>{sp.name}</option>)}
-                    </select>
+                    <SupplierField suppliers={suppliers} value={supplierId} onChange={setSupplierId} disabled={isPending} />
                     {isCreate && supplierId && purchaseNum > 0 && (
                       <label className="st-switch-row">
                         <span className="st-switch-row-t">
@@ -804,6 +802,51 @@ function CatalogAdd({
       </div>
       {error && <span className="field-error" role="alert">{error}</span>}
     </div>
+  );
+}
+
+/** Yetkazib beruvchi: ro'yxatdan tanlash (supplierId yuboriladi) yoki nomini yozib yangisini qo'shish */
+function SupplierField({ suppliers, value, onChange, disabled }: {
+  suppliers: { id: string; name: string }[];
+  value: string;
+  onChange: (id: string) => void;
+  disabled: boolean;
+}) {
+  const t = useDict().stock.suppliers;
+  const [list, setList] = useState(suppliers);
+  const [adding, setAdding] = useState(false);
+  return (
+    <>
+      <label htmlFor="supplierId">{t.productField}</label>
+      <div className="st-cat-pick">
+        <select id="supplierId" name="supplierId" value={value} onChange={(e) => onChange(e.target.value)} disabled={disabled}>
+          <option value="">{t.productNone}</option>
+          {list.map((sp) => <option key={sp.id} value={sp.id}>{sp.name}</option>)}
+        </select>
+        {!adding && (
+          <button type="button" className="btn btn-tinted btn-sm st-cat-addbtn" onClick={() => setAdding(true)} disabled={disabled} aria-label={t.productNew} title={t.productNew}>
+            <Icon name="plus" size={16} />
+          </button>
+        )}
+      </div>
+      {adding && (
+        <CatalogAdd
+          placeholder={t.productNewPlaceholder}
+          maxLength={120}
+          disabled={disabled}
+          onClose={() => setAdding(false)}
+          onSave={async (name) => {
+            const res = await createSupplierQuickAction(name);
+            if (!res.ok) return res.error;
+            setList((prev) => prev.some((x) => x.id === res.item.id)
+              ? prev
+              : [...prev, res.item].sort((a, b) => a.name.localeCompare(b.name)));
+            onChange(res.item.id);
+            return null;
+          }}
+        />
+      )}
+    </>
   );
 }
 

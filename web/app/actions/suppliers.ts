@@ -12,6 +12,7 @@ import { tr } from '@/lib/i18n/fmt';
 import { z } from 'zod';
 import { formToObject, parseInput, zId, zMoney, zOneOf, zReqText, zText } from '@/lib/validation';
 import { softDeleteOne } from '@/lib/softDelete';
+import { normalizeCatalogName } from '@/lib/productCatalog';
 
 type State = { error?: string; success?: string } | null;
 type Dict = Awaited<ReturnType<typeof getDict>>;
@@ -50,6 +51,35 @@ export async function createSupplierAction(_prev: State, formData: FormData): Pr
     if (err && typeof err === 'object' && 'digest' in err) throw err;
     logError('createSupplierAction failed', err, { user: user.username, dbName: user.dbName });
     return { error: m.failed };
+  }
+}
+
+/**
+ * Mahsulot formasidan tezkor qo'shish (faqat nom). Shu nomli yetkazib beruvchi bo'lsa — mavjudi qaytadi
+ * (mobil POST /api/mobile/catalog/suppliers bilan bir xil huquq: "suppliers.manage").
+ */
+export async function createSupplierQuickAction(
+  rawName: string,
+): Promise<{ ok: true; item: { id: string; name: string } } | { ok: false; error: string }> {
+  const { user, Supplier } = await getTenantSession();
+  { const denied = await checkPermission(user, 'suppliers.manage'); if (denied) return { ok: false, error: denied.error }; }
+  const d = await getDict();
+  const m = d.stock.suppliers.msg;
+  const name = normalizeCatalogName(rawName);
+  if (!name) return { ok: false, error: m.nameRequired };
+  if (name.length > 120) return { ok: false, error: d.common.tooLong };
+
+  try {
+    const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const existing = await Supplier.findOne({ name: new RegExp(`^${escaped}$`, 'i') }, { name: 1 }).lean();
+    if (existing) return { ok: true, item: { id: String(existing._id), name: existing.name } };
+    const s = await Supplier.create({ name, createdBy: user.username });
+    await recordAudit(user, { action: 'supplier.create', entity: 'supplier', entityId: String(s._id), summary: `Yetkazib beruvchi qo'shildi: ${name} (mahsulot formasidan)` });
+    revalidatePath('/app/suppliers');
+    return { ok: true, item: { id: String(s._id), name: s.name } };
+  } catch (err) {
+    logError('createSupplierQuickAction failed', err, { user: user.username, dbName: user.dbName });
+    return { ok: false, error: m.failed };
   }
 }
 
