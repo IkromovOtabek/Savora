@@ -106,6 +106,7 @@ openssl rand -hex 32      # TELEGRAM_WEBHOOK_SECRET
 | `TELEGRAM_BOT_USERNAME` | Telegram bo'lsa | `@` siz. |
 | `TELEGRAM_WEBHOOK_SECRET` | Telegram bo'lsa | `A-Z a-z 0-9 _ -`, 1–256. |
 | `TELEGRAM_CHAT_ID` | yo'q | Platforma egasi uchun bildirishnomalar. |
+| `EXPO_ACCESS_TOKEN` | yo'q | Mobil ilova push'i. Faqat Expo'da «Enhanced push security» yoqilsa kerak; usiz ham push ishlaydi. |
 | `ESKIZ_EMAIL`, `ESKIZ_PASSWORD`, `ESKIZ_FROM` | yo'q | Eskiz.uz SMS (Daftar eslatmalari). |
 | `R2_*` | tavsiya | Cloudflare R2 — rasmlar. Bo'lmasa `uploads` volume'ga yoziladi. |
 | `ERROR_WEBHOOK_URL` | yo'q | Xatolar JSON POST qilinadigan manzil (Slack/Discord/n8n). |

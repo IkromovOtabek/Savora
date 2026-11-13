@@ -13,6 +13,7 @@ import { userDirectorySchema, IUserDirectory } from './models/master/UserDirecto
 import { securityEventSchema, ISecurityEvent } from './models/master/SecurityEvent';
 import { systemLogSchema, ISystemLog } from './models/master/SystemLog';
 import { cronRunSchema, ICronRun } from './models/master/CronRun';
+import { pushDeviceSchema, IPushDevice } from './models/master/PushDevice';
 
 /** Master DB modellari (Organization, SuperAdmin, Review) */
 export async function getMasterModels() {
@@ -57,8 +58,12 @@ export async function getMasterModels() {
   const CronRun =
     (conn.models.CronRun as Model<ICronRun>) ||
     conn.model<ICronRun>('CronRun', cronRunSchema);
+  // Mobil ilova push tokenlari (lib/push.ts)
+  const PushDevice =
+    (conn.models.PushDevice as Model<IPushDevice>) ||
+    conn.model<IPushDevice>('PushDevice', pushDeviceSchema);
   return {
     conn, Organization, SuperAdmin, PlatformSettings, Review, PaymentRequest, SiteVisit, ImeiBlacklist, BarcodeCatalog,
-    TelegramAccount, UserDirectory, SecurityEvent, SystemLog, CronRun,
+    TelegramAccount, UserDirectory, SecurityEvent, SystemLog, CronRun, PushDevice,
   };
 }

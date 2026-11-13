@@ -1,4 +1,5 @@
-import { Alert, View } from 'react-native';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { Alert, AppState, Linking, View } from 'react-native';
 import { Text } from '@/components/ui/Text';
 import { useRouter } from 'expo-router';
 import Constants from 'expo-constants';
@@ -8,6 +9,7 @@ import { useResource } from '@/lib/hooks';
 import { fmtDate } from '@/lib/format';
 import { useI18n, tr, type Locale, LOCALES, LOCALE_SHORT } from '@/lib/i18n';
 import { Screen, TopBar, Group, Cell, Avatar, Pill, SegmentedControl, Card, type Tone } from '@/components/ui';
+import { getPushStatus, registerForPush, type PushStatus } from '@/lib/push';
 
 interface AiResp {
   report: null | {
@@ -57,6 +59,55 @@ function AiCard() {
         <Text style={{ fontSize: 12, color: c.ink3 }}>{tr(d.profile.updated, { v: fmtDate(r.createdAt) })}</Text>
       </Card>
     </View>
+  );
+}
+
+/** Bildirishnomalar: holat; ruxsat so'ralmagan bo'lsa — so'raydi, rad etilgan bo'lsa — telefon sozlamalariga */
+function NotifyGroup({ isAdmin }: { isAdmin: boolean }) {
+  const { c } = useTheme();
+  const { d } = useI18n();
+  const [status, setStatus] = useState<PushStatus | null>(null);
+  const prev = useRef<PushStatus | null>(null);
+
+  const refresh = useCallback(async () => {
+    const s = await getPushStatus();
+    // Telefon sozlamasida endi yoqilgan bo'lsa — qurilmani serverga yozamiz
+    if (s === 'granted' && prev.current && prev.current !== 'granted') void registerForPush();
+    prev.current = s;
+    setStatus(s);
+  }, []);
+
+  useEffect(() => {
+    void refresh();
+    const sub = AppState.addEventListener('change', (st) => { if (st === 'active') void refresh(); });
+    return () => sub.remove();
+  }, [refresh]);
+
+  // Simulyator / push'ni qo'llamaydigan qurilma — ko'rsatmaymiz
+  if (!status || status === 'unsupported') return null;
+  const on = status === 'granted';
+
+  async function onPress() {
+    if (status === 'undetermined') {
+      const s = await registerForPush();
+      prev.current = s;
+      setStatus(s);
+      return;
+    }
+    void Linking.openSettings();
+  }
+
+  return (
+    <Group header={d.profile.notify} icon="notifications-outline" footer={isAdmin ? d.profile.notifyFooterAdmin : d.profile.notifyFooter}>
+      <Cell
+        icon="notifications"
+        iconColor={c.sq.r}
+        title={d.profile.notify}
+        right={<Pill label={on ? d.profile.notifyOn : d.profile.notifyOff} tone={on ? 'ok' : 'warn'} />}
+        chevron
+        onPress={onPress}
+      />
+    </Group>
   );
 }
 
@@ -122,6 +173,8 @@ export default function Profile() {
           />
         </View>
       </Group>
+
+      <NotifyGroup isAdmin={isAdmin} />
 
       {/* Amallar — web menyusi kabi bo'limlarga guruhlangan (BILLZ) */}
       <Group header={d.profile.secProducts} icon="cube-outline">

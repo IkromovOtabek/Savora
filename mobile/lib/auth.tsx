@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { api, setToken, clearToken, getToken, setUnauthorizedHandler, ApiError, errMsg } from './api';
+import { unregisterPush } from './push';
 
 /** Oxirgi muvaffaqiyatli profil — internetsiz ochilganda ilova (oflayn sotuv) ishlashi uchun */
 const ME_CACHE_KEY = 'savora_me_cache';
@@ -116,6 +117,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [refresh]);
 
   const logout = useCallback(async () => {
+    // Avval serverdan qurilmani o'chiramiz (token hali amal qiladi) — chiqqan telefonga push bormasin
+    await unregisterPush();
     await clearToken();
     void cacheMe(null);
     setMe(null); setError(null); setFromCache(false);

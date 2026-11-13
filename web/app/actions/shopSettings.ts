@@ -74,11 +74,15 @@ export async function refreshCbuRateAction(): Promise<State> {
   return info.cbuRate ? { success: k.refreshed } : { error: k.cbuNone };
 }
 
-/** Telegram bildirishnomalari: qaysi xabarlar yuborilsin */
+/** Bildirishnomalar (Telegram va mobil ilova push): qaysi xabarlar yuborilsin */
 export async function saveNotifySettingsAction(_prev: State, formData: FormData): Promise<State> {
   const { user, ShopSettings } = await getTenantAdminSession();
   const k = (await getDict()).shell.shopSettings;
-  const value = { shiftDiff: formData.get('shiftDiff') === '1', dailySummary: formData.get('dailySummary') === '1' };
+  const value = {
+    shiftDiff: formData.get('shiftDiff') === '1',
+    dailySummary: formData.get('dailySummary') === '1',
+    newSale: formData.get('newSale') === '1',
+  };
   try {
     await saveShopSettingsPart(ShopSettings, 'notify', value, user.username);
   } catch {
@@ -86,7 +90,7 @@ export async function saveNotifySettingsAction(_prev: State, formData: FormData)
   }
   await recordAudit(user, {
     action: 'settings.notify', entity: 'branch',
-    summary: `Bildirishnomalar: smena farqi ${value.shiftDiff ? 'yoqildi' : "o'chirildi"}, kunlik yakun ${value.dailySummary ? 'yoqildi' : "o'chirildi"}`,
+    summary: `Bildirishnomalar: smena farqi ${value.shiftDiff ? 'yoqildi' : "o'chirildi"}, kunlik yakun ${value.dailySummary ? 'yoqildi' : "o'chirildi"}, yangi sotuv ${value.newSale ? 'yoqildi' : "o'chirildi"}`,
   });
   revalidatePath('/app/settings');
   return { success: k.saved };

@@ -24,6 +24,7 @@ import { checkSaleQty } from '@/lib/productQuantity';
 import { isFractionalUnit, priceTimesQty, qtyLabel } from '@/lib/qty';
 import { getI18n } from '@/lib/i18n/server';
 import { tr } from '@/lib/i18n/fmt';
+import { notifyNewSale, salePayLabel } from '@/lib/shopNotify';
 
 /** Muvaffaqiyatli kassa sotuvi natijasi — muvaffaqiyat oynasi va chek uchun */
 export interface PosDone {
@@ -241,6 +242,10 @@ export async function posSaleAction(input: PosSaleInput): Promise<State> {
   if (isDebt) revalidatePath('/app/debts');
   const saleIds = outcome.results.map((r) => r.saleId);
   const sorted = [...saleNos].sort();
+  void notifyNewSale(user, {
+    saleNo: sorted[0], items: outcome.results.length, firstItem: outcome.results[0]?.name ?? '—', total: soldTotal,
+    payment: salePayLabel(isDebt ? 'debt' : 'cash', settled.parts.map((p) => p.method)), by: user.username,
+  });
   return {
     success: tr(m.quickSold, { n: soldCount, sum: soldTotal.toLocaleString('uz-UZ') }),
     saleIds,

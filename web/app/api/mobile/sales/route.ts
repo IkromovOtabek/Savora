@@ -18,6 +18,7 @@ import { isPayMethod, type PayMethod } from '@/lib/payMethods';
 import { newCheckoutId, receiptPath } from '@/lib/receiptLink';
 import { MAX_BANK_PARTS, bankPartsLabel, parseBankPartsInput, validateBankParts } from '@/lib/bankCredit';
 import type { ISaleBankPart } from '@/lib/models/tenant/Sale';
+import { notifyNewSale, salePayLabel } from '@/lib/shopNotify';
 
 type PaymentType = 'cash' | 'debt' | 'installment' | 'bank_credit';
 const PAYMENT_TYPES: PaymentType[] = ['cash', 'debt', 'installment', 'bank_credit'];
@@ -269,6 +270,10 @@ export async function POST(req: Request) {
     entityId: String(sale._id),
     summary: `Sotuv ${saleNo}: ${product.name} · ${qtyLabel(saleQty, product.unit)} · ${totalAmount.toLocaleString('uz-UZ')} so'm (${paymentType}${payMethod !== 'cash' ? `, ${payMethod}` : ''}) (mobil)`,
     meta: { saleQty, totalAmount, paymentType, payMethod },
+  });
+  void notifyNewSale(user, {
+    saleNo, items: 1, firstItem: product.name, total: totalAmount,
+    payment: salePayLabel(paymentType, [payMethod]), by: user.username,
   });
 
   return NextResponse.json({

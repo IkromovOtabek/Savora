@@ -6,7 +6,7 @@ export type ShopSettings = Omit<IShopSettings, 'key' | 'createdAt' | 'updatedAt'
 export const DEFAULT_SHOP_SETTINGS: ShopSettings = {
   receipt: { paperWidth: 80, showSeller: true, showCustomer: true },
   currency: { rateMode: 'cbu' },
-  notify: { dailySummary: false, shiftDiff: true },
+  notify: { dailySummary: false, shiftDiff: true, newSale: false },
 };
 
 /** Saqlangan qiymatlarni standartlar ustiga qo'yadi (hujjat yo'q yoki eski bo'lsa ham to'liq obyekt) */

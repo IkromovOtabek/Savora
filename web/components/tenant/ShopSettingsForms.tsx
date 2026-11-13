@@ -149,7 +149,7 @@ export function CurrencySettingsForm({ initial, cbu, active }: {
   );
 }
 
-/** Telegram bildirishnomalari */
+/** Bildirishnomalar: Telegram va mobil ilova (push) */
 export function NotifySettingsForm({ initial, telegram }: { initial: ShopSettings['notify']; telegram: boolean }) {
   const k = useDict().shell.shopSettings;
   const [state, action, pending] = useActionState(saveNotifySettingsAction, null);
@@ -157,6 +157,7 @@ export function NotifySettingsForm({ initial, telegram }: { initial: ShopSetting
   const items = [
     { key: 'shiftDiff' as const, title: k.shiftDiff, sub: k.shiftDiffSub },
     { key: 'dailySummary' as const, title: k.dailySummary, sub: k.dailySummarySub },
+    { key: 'newSale' as const, title: k.newSale, sub: k.newSaleSub },
   ];
   return (
     <form action={action} className="ss-card ss-form ss-notify">

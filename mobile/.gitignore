@@ -17,3 +17,6 @@ android/
 *.jks
 *.keystore
 credentials.json
+# Firebase service account (FCM push kaliti) — maxfiy
+*firebase-adminsdk*.json
+fcm-service-account*.json

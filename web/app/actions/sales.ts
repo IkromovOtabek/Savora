@@ -10,6 +10,7 @@ import { PaymentType, type ISaleBankPart } from '@/lib/models/tenant/Sale';
 import { MAX_BANK_PARTS, bankPartsLabel, parseBankPartsInput, validateBankParts } from '@/lib/bankCredit';
 import type { ProductUnit } from '@/lib/businessTypes';
 import { sendTelegram, tgEscape } from '@/lib/telegram';
+import { notifyNewSale, salePayLabel } from '@/lib/shopNotify';
 import { featureDisabledError } from '@/lib/featureAction';
 import { isOwnUploadUrl } from '@/lib/fileUrl';
 import { checkSaleQty } from '@/lib/productQuantity';
@@ -271,6 +272,10 @@ export async function quickSaleBatchAction(items: QuickSaleLine[]): Promise<Stat
     ? outcome.results.length
     : outcome.results.reduce((s, r) => s + r.saleQty, 0);
   const soldTotal = outcome.results.reduce((s, r) => s + r.lineTotal, 0);
+  void notifyNewSale(user, {
+    items: outcome.results.length, firstItem: outcome.results[0]?.name ?? '—', total: soldTotal,
+    payment: salePayLabel('cash'), by: user.username,
+  });
 
   await markOnboardingStep(user.organizationId, 'saleMade');
   revalidatePath('/app');
@@ -480,6 +485,10 @@ export async function createSaleAction(_prev: State, formData: FormData): Promis
       `Summa: ${totalAmount.toLocaleString('uz-UZ')} so'm\n` +
       `To'lov: ${tgEscape(paymentType)}${bankLabel ? ` (${tgEscape(bankLabel)})` : ''}`,
     );
+    void notifyNewSale(user, {
+      saleNo, items: 1, firstItem: product.name, total: totalAmount,
+      payment: salePayLabel(paymentType), by: user.username,
+    });
 
     revalidatePath('/app');
     revalidatePath('/app/sales');

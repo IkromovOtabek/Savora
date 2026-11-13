@@ -8,6 +8,7 @@ Chiqish (1024×1024):
   adaptive-icon.png            shaffof fon, logo markaziy 66% zonada (Android; fon — app.json backgroundColor)
   splash-icon.png              shaffof fon, logo
   android-icon-monochrome.png  oq logo (Android 13+ tematik ikonka)
+  notification-icon.png        oq logo, 96×96 (Android bildirishnoma ikonkasi; macOS `sips` bilan kichraytiriladi)
 """
 import os
 import re
@@ -62,3 +63,5 @@ render('icon.png', '<rect width="1024" height="1024" fill="url(#t)"/>' + logo(76
 render('adaptive-icon.png', logo(560))
 render('splash-icon.png', logo(700))
 render('android-icon-monochrome.png', logo(560, mono=True))
+render('notification-icon.png', logo(900, mono=True))
+subprocess.run(['sips', '-z', '96', '96', os.path.join(HERE, 'notification-icon.png')], check=True, stdout=subprocess.DEVNULL)

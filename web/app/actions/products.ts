@@ -30,6 +30,7 @@ import { CATEGORY_MAX_DEPTH, CATEGORY_NAME_MAX } from '@/lib/models/tenant/Produ
 import { BRAND_NAME_MAX } from '@/lib/models/tenant/Brand';
 import { LEGACY_CATEGORY_VALUE, normalizeCatalogName } from '@/lib/productCatalog';
 import { parseExtraFieldsJson } from '@/lib/productImport';
+import { notifyNewSale, salePayLabel } from '@/lib/shopNotify';
 
 type State = { error?: string; success?: string } | null;
 // Mahsulot holati formada: omborda (o'z filialida) yoki sotilgan.
@@ -615,6 +616,7 @@ export async function quickMarkSoldAction(_prev: State, formData: FormData): Pro
         + (priceChanged ? ` · narx ${fmtSum(found.salePrice)} → ${fmtSum(salePrice)}` : ''),
       meta: { saleQty, totalAmount, ...(priceChanged ? { listPrice: found.salePrice, soldPrice: salePrice } : {}) },
     });
+    void notifyNewSale(user, { items: 1, firstItem: product.name, total: totalAmount, payment: salePayLabel('cash'), by: user.username });
     await markOnboardingStep(user.organizationId, 'saleMade');
     revalidatePath('/app');
     revalidatePath('/app/products');

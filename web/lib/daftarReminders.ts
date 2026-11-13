@@ -4,6 +4,8 @@ import { resolveOrgFeatures } from './features';
 import { isOrganizationActive } from './models/master/Organization';
 import { sendTelegramTo, tgEscape } from './telegram';
 import { sendSms, normalizePhone, smsSafeText } from './sms';
+import { pushToShop, type PushMessage } from './push';
+import type { LedgerType } from './models/tenant/LedgerEntry';
 
 /** Bir do'kon uchun bir kunlik (bitta cron ishga tushishi) SMS chegarasi */
 const SMS_DAILY_CAP_PER_ORG = 50;
@@ -15,14 +17,33 @@ function dateStr(d: Date): string {
   return new Date(d).toLocaleDateString('uz-UZ');
 }
 
+export interface DaftarDue { personName: string; amount: number; type: LedgerType; dueDate: Date }
+
+/** Push — bir foydalanuvchiga bitta umumlashgan xabar */
+export function daftarPush(list: DaftarDue[]): PushMessage {
+  const first = list[0];
+  if (list.length === 1) {
+    return {
+      title: `Daftar: ${first.personName} — ${money(first.amount)} so'm`,
+      body: `${first.type === 'given' ? 'Sizga qarzdor' : 'Siz qarzdorsiz'}. Muddat: ${dateStr(first.dueDate)}`,
+      url: '/daftar',
+    };
+  }
+  return {
+    title: `Daftar: ${list.length} ta qarz muddati keldi`,
+    body: `${first.personName} — ${money(first.amount)} so'm va boshqalar`,
+    url: '/daftar',
+  };
+}
+
 /**
  * Kunlik cron: muddati kelgan/o'tgan ochiq daftar yozuvlari uchun har kuni bir marta:
- *  - egasiga (menga) Telegram orqali eslatma,
+ *  - egasiga (menga) Telegram va ilovaga push orqali eslatma (yozuvni kiritgan odamga; u noma'lum bo'lsa — adminlarga),
  *  - qarzdorga (do'stga) SMS orqali eslatma ("berdim" turida).
  * Kunlik takror bo'lmasligi uchun `lastNotifiedAt` ishlatiladi.
  */
 export async function sendDailyDaftarReminders(): Promise<{
-  orgs: number; telegram: number; sms: number; entries: number;
+  orgs: number; telegram: number; sms: number; entries: number; push: number;
 }> {
   const { Organization, TelegramAccount } = await getMasterModels();
   const orgs = await Organization.find({ status: 'active' }).lean();
@@ -31,7 +52,7 @@ export async function sendDailyDaftarReminders(): Promise<{
   const todayStart = new Date(now); todayStart.setHours(0, 0, 0, 0);
   const todayEnd = new Date(now); todayEnd.setHours(23, 59, 59, 999);
 
-  let telegram = 0, sms = 0, entries = 0, orgCount = 0;
+  let telegram = 0, sms = 0, entries = 0, orgCount = 0, push = 0;
 
   for (const org of orgs) {
     if (!isOrganizationActive(org)) continue;
@@ -60,6 +81,8 @@ export async function sendDailyDaftarReminders(): Promise<{
     const orgLabel = smsSafeText(org.name, 40);
     let orgSmsCount = 0;
     const smsSentPhones = new Set<string>();
+    // Push: kimga qaysi yozuvlar (kalit '' — kiritgan noma'lum, adminlarga)
+    const pushBy = new Map<string, DaftarDue[]>();
 
     for (const e of due) {
       entries++;
@@ -96,10 +119,17 @@ export async function sendDailyDaftarReminders(): Promise<{
         }
       }
 
+      const key = e.createdByUserId ? String(e.createdByUserId) : '';
+      pushBy.set(key, [...(pushBy.get(key) ?? []), { personName: e.personName, amount: e.amount, type: e.type, dueDate: e.dueDate }]);
+
       e.lastNotifiedAt = now;
       await e.save();
     }
+
+    for (const [userId, list] of pushBy) {
+      push += await pushToShop(org.dbName, userId ? { userIds: [userId] } : { admins: true }, daftarPush(list));
+    }
   }
 
-  return { orgs: orgCount, telegram, sms, entries };
+  return { orgs: orgCount, telegram, sms, entries, push };
 }

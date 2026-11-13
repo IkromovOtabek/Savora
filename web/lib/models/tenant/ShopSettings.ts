@@ -29,6 +29,8 @@ export interface IShopSettings {
   notify: {
     dailySummary: boolean;
     shiftDiff: boolean;
+    /** Har bir sotuv — faqat mobil ilovaga push (Telegram'ga emas) */
+    newSale: boolean;
   };
   updatedBy?: string;
   createdAt?: Date;
@@ -56,6 +58,7 @@ export const shopSettingsSchema = new Schema<IShopSettings>(
     notify: {
       dailySummary: { type: Boolean, default: false },
       shiftDiff: { type: Boolean, default: true },
+      newSale: { type: Boolean, default: false },
     },
     updatedBy: { type: String },
   },

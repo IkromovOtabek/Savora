@@ -93,6 +93,34 @@ eas submit -p android --latest              # Google Service Account JSON so'ray
 ```
 `eas.json`da Play track `internal`, holat `draft` — avval ichki test, keyin Console'dan production'ga ko'tariladi.
 
+## Push bildirishnomalar (bir martalik sozlash, v1.4.0 dan)
+
+Push quyidagicha ishlaydi: server (`web/lib/push.ts`) xabarni Expo Push xizmatiga yuboradi, Expo uni
+**APNs** (Apple'ning iPhone'ga push yetkazuvchi xizmati) yoki **FCM** (Google'ning Android'ga yetkazuvchi
+xizmati) orqali telefonga yetkazadi. Ikkalasiga ham EAS'da kalit kerak; kalitsiz build yig'iladi,
+lekin push kelmaydi.
+
+**iOS (APNs kaliti)**
+1. developer.apple.com → Certificates, IDs & Profiles → **Keys** → «+» → nom: `Savora Push`,
+   **Apple Push Notifications service (APNs)** ni belgilang → Continue → Register → `.p8` ni yuklab oling
+   (faqat bir marta beriladi; `~/AppleKeys/` ga qo'ying, git'ga emas).
+2. `npx --yes eas-cli@latest credentials -p ios` → production → **Push Notifications** → kalitni yuklash
+   (`.p8`, Key ID, Team ID `KT45JW6RSH`).
+3. App ID'da Push capability'ni EAS build o'zi yoqadi (`expo-notifications` plagini entitlement qo'shadi).
+
+**Android (FCM v1)**
+1. console.firebase.google.com → yangi loyiha `Savora` → Android ilova qo'shish, paket `uz.savora.app`.
+2. `google-services.json` ni yuklab, `mobile/google-services.json` ga qo'ying va `app.json` → `android`
+   ga `"googleServicesFile": "./google-services.json"` qo'shing (bu fayl maxfiy emas, commit qilinadi).
+3. Firebase → Project settings → **Service accounts** → «Generate new private key» (JSON). Bu fayl
+   **maxfiy**: git'ga ham, chatga ham qo'ymang.
+4. `npx --yes eas-cli@latest credentials -p android` → production → **Google Service Account** →
+   «Manage your Google Service Account Key for Push Notifications (FCM V1)» → JSON'ni yuklash.
+
+**Sinov** — faqat haqiqiy telefonda (simulyator push token bermaydi): yangi build o'rnating, kiring,
+ruxsat bering → web'da smena farq bilan yoping yoki «Sozlamalar → Bildirishnomalar → Yangi sotuv» ni
+yoqib boshqa xodim bilan sotuv qiling. Profil → «Bildirishnomalar» qatori holatni ko'rsatadi.
+
 ## Saytga joylash (savora.uz → «Mobil ilova» tugmalari)
 
 Barqaror havolalar: **https://savora.uz/download/android** (APK) va **https://savora.uz/download/ios** (TestFlight/App Store'ga yo'naltiradi). Landing tugmalari shularga ishora qiladi; manba bo'lmasa tugma «Tez kunda».

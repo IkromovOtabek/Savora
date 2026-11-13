@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Stack, useRouter, useSegments } from 'expo-router';
+import * as Notifications from 'expo-notifications';
 import { StatusBar } from 'expo-status-bar';
 import * as SplashScreen from 'expo-splash-screen';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -9,6 +10,7 @@ import { ThemeProvider, useTheme } from '@/lib/theme';
 import { I18nProvider } from '@/lib/i18n';
 import { AnimatedSplash } from '@/components/AnimatedSplash';
 import { OfflinePosProvider } from '@/lib/offlinePos';
+import { registerForPush, pushUrlOf } from '@/lib/push';
 import {
   useFonts, Onest_400Regular, Onest_500Medium, Onest_600SemiBold, Onest_700Bold, Onest_800ExtraBold,
 } from '@expo-google-fonts/onest';
@@ -27,6 +29,33 @@ function AuthGate() {
     // Kirmagan foydalanuvchi faqat kirish va ro'yxatdan o'tish ekranlarida qola oladi
     if (segments[0] !== 'login' && segments[0] !== 'register') router.replace('/login');
   }, [loading, me, error, segments, router]);
+  return null;
+}
+
+/**
+ * Push: kirgandan keyin qurilmani ro'yxatdan o'tkazadi; bildirishnoma bosilsa — tegishli ekranga.
+ * Ilova yopiq bo'lganda bosilgan bildirishnoma ham (sovuq start) kirish tugagach ochiladi.
+ */
+function PushGate() {
+  const { me, fromCache } = useAuth();
+  const segments = useSegments();
+  const router = useRouter();
+  const userId = me && !fromCache ? me.user.id : null;
+  useEffect(() => { if (userId) void registerForPush(); }, [userId]);
+
+  const response = Notifications.useLastNotificationResponse();
+  const handled = useRef<string | null>(null);
+  // Bosh sahifa yo'naltirishi tugaguncha kutamiz (aks holda u bizning o'tishni bosib ketadi)
+  const ready = !!me && segments.length > 0 && segments[0] !== 'login' && segments[0] !== 'register';
+  useEffect(() => {
+    if (!ready || !response) return;
+    const id = response.notification.request.identifier;
+    if (handled.current === id) return;
+    handled.current = id;
+    Notifications.clearLastNotificationResponse();
+    const url = pushUrlOf(response.notification.request.content.data);
+    if (url) router.push(url);
+  }, [ready, response, router]);
   return null;
 }
 
@@ -59,6 +88,7 @@ function Navigation() {
     <NavThemeProvider value={navTheme}>
       <StatusBar style={dark ? 'light' : 'dark'} />
       <AuthGate />
+      <PushGate />
       <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: c.bg } }}>
         <Stack.Screen name="index" />
         <Stack.Screen name="login" options={{ animation: 'fade' }} />

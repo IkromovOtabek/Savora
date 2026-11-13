@@ -48,7 +48,7 @@ export interface DeletedOrgInfo {
  * qora ro'yxati saqlanadi — ular platformaga tegishli yoki boshqa do'konlar ham foydalanadi.
  */
 export async function deleteOrganizationPermanently(orgId: string): Promise<DeletedOrgInfo> {
-  const { Organization, TelegramAccount, Review } = await getMasterModels();
+  const { Organization, TelegramAccount, Review, PushDevice } = await getMasterModels();
   const org = await Organization.findById(orgId).select('name slug dbName').lean().catch(() => null);
   if (!org) throw new Error("Do'kon topilmadi.");
   if (!isDeletableTenantDb(org.dbName)) throw new Error(`«${org.dbName}» bazasini o'chirish taqiqlangan.`);
@@ -56,6 +56,7 @@ export async function deleteOrganizationPermanently(orgId: string): Promise<Dele
   await Organization.updateOne({ _id: org._id }, { $set: { status: 'suspended' } });
   await releaseUsernamesForOrg(String(org._id));
   await TelegramAccount.deleteMany({ organizationId: org._id });
+  await PushDevice.deleteMany({ organizationId: org._id });
   await Review.deleteMany({ organizationId: org._id });
 
   await dropTenantDatabase(org.dbName);
