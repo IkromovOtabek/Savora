@@ -205,7 +205,8 @@ export async function POST(req: Request) {
     category = { categoryId: cat._id, category: cat.name };
   }
   let supplierId: Types.ObjectId | undefined;
-  if (body.supplierId) {
+  // Web readSupplierChoice bilan bir xil: «Yetkazib beruvchilar» huquqisiz tanlov e'tiborsiz qoldiriladi
+  if (body.supplierId && (await userCan(user, 'suppliers.manage'))) {
     const sup = Types.ObjectId.isValid(String(body.supplierId))
       ? await Supplier.findById(String(body.supplierId), { _id: 1 }).lean() : null;
     if (!sup) return NextResponse.json({ error: 'Yetkazib beruvchi topilmadi.' }, { status: 400 });

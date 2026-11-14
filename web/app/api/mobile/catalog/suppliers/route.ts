@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { authenticateMobile } from '@/lib/mobileAuth';
-import { mobilePermissionDenied } from '@/lib/permissionGuard';
+import { mobilePermissionDenied, mobilePermissionDeniedAny } from '@/lib/permissionGuard';
 import { getTenantModels } from '@/lib/tenantDb';
 import { recordAudit } from '@/lib/audit';
 
@@ -9,6 +9,8 @@ export async function GET(req: Request) {
   const auth = await authenticateMobile(req);
   if (auth instanceof NextResponse) return auth;
   if (!auth.dbName) return NextResponse.json({ error: 'Avtorizatsiya kerak.' }, { status: 401 });
+  // Ism + telefon — web bilan bir xil: «Yetkazib beruvchilar» huquqi bo'lganlarga (web formasi ham huquqsizga ko'rsatmaydi)
+  { const denied = await mobilePermissionDeniedAny(auth, ['suppliers.view', 'suppliers.manage']); if (denied) return denied; }
   const { Supplier } = await getTenantModels(auth.dbName);
   const items = await Supplier.find({}, { name: 1, phone: 1, company: 1 }).sort({ name: 1 }).limit(1000).lean();
   return NextResponse.json({

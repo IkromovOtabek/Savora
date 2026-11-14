@@ -6,6 +6,7 @@ import { loadUserPermissions } from '@/lib/permissionGuard';
 import { branchFilter } from '@/lib/branchScope';
 import { csvCell } from '@/lib/security';
 import { getDict } from '@/lib/i18n/server';
+import { tr } from '@/lib/i18n/fmt';
 
 const MAX_ROWS = 20000;
 
@@ -21,6 +22,10 @@ export async function GET() {
   }
   const perms = await loadUserPermissions(user);
   if (!perms.has('export.data')) return NextResponse.json({ error: x.noPermission }, { status: 403 });
+  // Ombor ro'yxati — «Omborni ko'rish» ham kerak (o'chiq «Ombor» modulida bu huquq yo'q)
+  if (!perms.has('products.view')) {
+    return NextResponse.json({ error: tr(dict.catalog.permissionDeniedNamed, { label: dict.catalog.permissions['products.view'].label }) }, { status: 403 });
+  }
 
   const { Product } = await getTenantModels(user.dbName!);
   // Filial login faqat o'z filiali mahsulotlarini yuklab oladi

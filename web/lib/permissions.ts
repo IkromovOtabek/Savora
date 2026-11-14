@@ -13,7 +13,7 @@
  *
  * Bu fayl client'da ham ishlaydi (DB importi yo'q).
  */
-import type { FeatureKey } from './featureKeys';
+import type { FeatureKey, OrgFeatures } from './featureKeys';
 
 export const PERMISSION_KEYS = [
   // Yangi sotuv (kassa oynasi, tez sotuv)
@@ -305,6 +305,32 @@ export function rolePermissionList(role: { permissions?: readonly string[] | nul
 export function hasPermission(user: PermissionSubject | null | undefined, key: PermissionKey): boolean {
   if (!user) return false;
   return effectivePermissions(user).has(key);
+}
+
+/** Huquq bog'langan modul do'konda o'chiq bo'lsa — o'sha modul kaliti; aks holda null (modulsiz huquq — doim null) */
+export function disabledModuleOf(key: PermissionKey, features: Readonly<OrgFeatures>): FeatureKey | null {
+  const f = PERMISSIONS[key].feature;
+  return f && !features[f] ? f : null;
+}
+
+/**
+ * Modul qatlami huquqdan ustun: Super Admin o'chirgan modulning huquqlari amalda yo'q
+ * (do'kon egasi uchun ham). Server tekshiruvi (permissionGuard) shu bilan kesadi.
+ */
+export function withEnabledModules(perms: Iterable<PermissionKey>, features: Readonly<OrgFeatures>): Set<PermissionKey> {
+  return new Set([...perms].filter((k) => !disabledModuleOf(k, features)));
+}
+
+/**
+ * Do'kon egasi saqlayotgan huquqlar: o'chiq modul huquqini YANGIDAN berib bo'lmaydi —
+ * bunday kalit faqat avval ham bo'lgan bo'lsa qoladi (olib tashlash mumkin).
+ */
+export function blockDisabledModuleGrants(
+  next: readonly unknown[],
+  prev: ReadonlySet<PermissionKey>,
+  features: Readonly<OrgFeatures>,
+): PermissionKey[] {
+  return next.filter((k): k is PermissionKey => isPermissionKey(k) && (!disabledModuleOf(k, features) || prev.has(k)));
 }
 
 /**

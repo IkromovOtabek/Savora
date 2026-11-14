@@ -7,7 +7,7 @@ import { getTenantAdminSession } from '@/lib/tenantSession';
 import { getTenantModels } from '@/lib/tenantDb';
 import { getMasterModels } from '@/lib/masterDb';
 import { userCan } from '@/lib/permissionGuard';
-import { effectivePermissionsWithRole, isPermissionKey, normalizeUserPermissions, PERMISSIONS, PERMISSIONS_VERSION, type PermissionKey } from '@/lib/permissions';
+import { blockDisabledModuleGrants, effectivePermissionsWithRole, isPermissionKey, normalizeUserPermissions, PERMISSIONS, PERMISSIONS_VERSION, type PermissionKey } from '@/lib/permissions';
 import { recordAudit } from '@/lib/audit';
 import { getDict, type Dict } from '@/lib/i18n/server';
 import { tr } from '@/lib/i18n/fmt';
@@ -49,7 +49,7 @@ function summaryOf(list: PermissionKey[] | undefined): string {
 
 /** Do'kon egasi — filial login huquqlarini o'zgartiradi (/app/users) */
 export async function updateUserPermissionsAction(_prev: State, formData: FormData): Promise<State> {
-  const { user, User } = await getTenantAdminSession();
+  const { user, User, features } = await getTenantAdminSession();
   const d = await getDict();
   if (!(await userCan(user, 'users.manage'))) return { error: tr(d.catalog.permissionDeniedNamed, { label: d.catalog.permissions['users.manage'].label }) };
 
@@ -69,10 +69,21 @@ export async function updateUserPermissionsAction(_prev: State, formData: FormDa
     revalidatePath('/app/users');
     return { success: tr(d.crm.team.roles.assigned, { name: role.name }) };
   }
+  // O'chiq modul (Super Admin) huquqini egasi yangidan bera olmaydi — faqat avval bori qoladi.
+  // Avvalgi holat rol bog'lanishi uzilishidan OLDIN o'qiladi.
+  let prev = new Set<PermissionKey>();
+  if (isValidObjectId(userId)) {
+    const { Role } = await getTenantModels(user.dbName!);
+    const cur = await User.findOne({ _id: userId, role: 'user' }).select('role permissions permVersion roleId').lean();
+    const curRole = cur?.roleId ? await Role.findById(cur.roleId).select('permissions permVersion').lean() : null;
+    if (cur) prev = effectivePermissionsWithRole(cur, curRole);
+  }
+  const raw = blockDisabledModuleGrants(formData.getAll('perm'), prev, features);
+
   // Shaxsiy sozlash — rol bog'lanishi olib tashlanadi
   if (isValidObjectId(userId)) await User.updateOne({ _id: userId, role: 'user' }, { $unset: { roleId: 1 } });
 
-  const res = await savePermissions(User, userId, formData.getAll('perm'), reset, d);
+  const res = await savePermissions(User, userId, raw, reset, d);
   if (!res.ok) return { error: res.error };
 
   await recordAudit(user, {

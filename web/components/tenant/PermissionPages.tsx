@@ -66,6 +66,12 @@ export default function PermissionPages({
         const keys = permissionsOfPage(page).filter((k) => !PERMISSIONS[k].adminOnly);
         const on = keys.filter((k) => checked.has(k)).length;
         const pageOff = def.feature ? !features[def.feature] : false;
+        // Super Admin o'chirgan modul huquqi: yangidan yoqib bo'lmaydi, faqat avval bori o'chiriladi (server ham shunday)
+        const isOff = (k: PermissionKey) => {
+          const f = PERMISSIONS[k].feature;
+          return pageOff || (!!f && !features[f]);
+        };
+        const grantable = keys.filter((k) => !isOff(k) || checked.has(k));
         const hid = `${idPrefix}-pg-${page}`;
         return (
           <section key={page} aria-labelledby={hid} className={pageOff ? 'ad-perm-page is-off' : 'ad-perm-page'}>
@@ -88,8 +94,8 @@ export default function PermissionPages({
                     role="switch"
                     checked={on === keys.length}
                     aria-checked={on === keys.length ? 'true' : on === 0 ? 'false' : 'mixed'}
-                    onChange={(e) => setKeys(keys, e.target.checked)}
-                    disabled={disabled}
+                    onChange={(e) => setKeys(e.target.checked ? grantable : keys, e.target.checked)}
+                    disabled={disabled || (on === 0 && grantable.length === 0)}
                   />
                 </label>
               )}
@@ -117,7 +123,7 @@ export default function PermissionPages({
                       role="switch"
                       checked={checked.has(k)}
                       onChange={(e) => setKeys([k], e.target.checked)}
-                      disabled={disabled}
+                      disabled={disabled || (isOff(k) && !checked.has(k))}
                     />
                   </label>
                 );

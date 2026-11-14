@@ -4,7 +4,7 @@ import { isValidObjectId } from 'mongoose';
 import { revalidatePath } from 'next/cache';
 import { getTenantAdminSession } from '@/lib/tenantSession';
 import { userCan } from '@/lib/permissionGuard';
-import { isPermissionKey, PERMISSION_KEYS, PERMISSIONS, PERMISSIONS_VERSION } from '@/lib/permissions';
+import { blockDisabledModuleGrants, isPermissionKey, PERMISSION_KEYS, PERMISSIONS, PERMISSIONS_VERSION, rolePermissionList } from '@/lib/permissions';
 import { recordAudit } from '@/lib/audit';
 import { getDict } from '@/lib/i18n/server';
 import { tr } from '@/lib/i18n/fmt';
@@ -27,12 +27,15 @@ async function guard() {
 }
 
 export async function saveRoleAction(input: { id?: string; name: string; permissions: string[] }): Promise<State> {
-  const { user, Role, d, denied } = await guard();
+  const { user, Role, features, d, denied } = await guard();
   if (denied) return { error: denied };
   const r = d.crm.team.roles;
   const name = String(input?.name ?? '').trim().slice(0, 40);
   if (!name) return { error: r.badName };
-  const permissions = cleanPermissions(Array.isArray(input?.permissions) ? input.permissions : []);
+  // O'chiq modul (Super Admin) huquqini rolga yangidan qo'shib bo'lmaydi — faqat rolda avval bori qoladi
+  const prevRole = input?.id && isValidObjectId(input.id) ? await Role.findById(input.id).select('permissions permVersion').lean() : null;
+  const prev = new Set(prevRole ? rolePermissionList(prevRole) : []);
+  const permissions = cleanPermissions(blockDisabledModuleGrants(Array.isArray(input?.permissions) ? input.permissions : [], prev, features));
   try {
     if (input.id) {
       if (!isValidObjectId(input.id)) return { error: r.notFound };

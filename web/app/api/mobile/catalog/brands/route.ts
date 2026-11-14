@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { authenticateMobile } from '@/lib/mobileAuth';
-import { mobilePermissionDenied } from '@/lib/permissionGuard';
+import { mobilePermissionDenied, mobilePermissionDeniedAny } from '@/lib/permissionGuard';
 import { getTenantModels } from '@/lib/tenantDb';
 import { findOrCreateBrand } from '@/lib/catalogStore';
 import { BRAND_NAME_MAX } from '@/lib/models/tenant/Brand';
@@ -10,6 +10,8 @@ export async function GET(req: Request) {
   const auth = await authenticateMobile(req);
   if (auth instanceof NextResponse) return auth;
   if (!auth.dbName) return NextResponse.json({ error: 'Avtorizatsiya kerak.' }, { status: 401 });
+  // Tovar formasi uchun — ombor huquqlaridan biri («Ombor» moduli o'chiq bo'lsa — 403)
+  { const denied = await mobilePermissionDeniedAny(auth, ['product.create', 'product.edit', 'products.view']); if (denied) return denied; }
   const { Brand } = await getTenantModels(auth.dbName);
   const items = await Brand.find({}, { name: 1 }).sort({ name: 1 }).limit(1000).lean();
   return NextResponse.json({ items: items.map((b) => ({ id: String(b._id), name: b.name })) });

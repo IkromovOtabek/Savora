@@ -3,6 +3,7 @@ import { authenticateMobile } from '@/lib/mobileAuth';
 import { getMasterModels } from '@/lib/masterDb';
 import { recordAudit } from '@/lib/audit';
 import { parseBusinessType, BUSINESS_TYPES, termsFor } from '@/lib/businessTypes';
+import { diffFeatureOverrides, resolveOrgFeatures } from '@/lib/features';
 
 /** GET — mavjud biznes turlari ro'yxati (tanlash uchun). */
 export async function GET(req: Request) {
@@ -37,7 +38,18 @@ export async function PATCH(req: Request) {
 
   const bt = parseBusinessType(String(body.businessType || ''));
   const { Organization } = await getMasterModels();
-  await Organization.updateOne({ _id: user.organizationId }, { $set: { businessType: bt, updatedAt: new Date() } });
+  const org = await Organization.findById(user.organizationId).select('plan features businessType').lean();
+  if (!org) return NextResponse.json({ error: 'Do\'kon topilmadi.' }, { status: 404 });
+  // Modullar — Super Admin ixtiyorida: yo'nalish o'zgarsa ham amaldagi modullar o'zgarmaydi
+  // (aks holda yangi preset Super Admin o'chirib qo'ygan modulni qayta yoqib yuborardi).
+  // Faqat atamalar va mahsulot maydonlari almashadi — override'lar yangi bazaga nisbatan qayta hisoblanadi.
+  const keep = diffFeatureOverrides({ plan: org.plan, businessType: bt }, resolveOrgFeatures(org));
+  await Organization.updateOne(
+    { _id: user.organizationId },
+    Object.keys(keep).length
+      ? { $set: { businessType: bt, features: keep, updatedAt: new Date() } }
+      : { $set: { businessType: bt, updatedAt: new Date() }, $unset: { features: 1 } },
+  );
   // AuditEntity'da 'org' yo'q — do'kon sozlamasi egasi (user) nomidan yoziladi
   await recordAudit(user, {
     action: 'org.businessType',

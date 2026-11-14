@@ -117,6 +117,8 @@ function toScannedProduct(
 
 export async function lookupProductByImei(imei: string): Promise<ScannedProduct | null> {
   const { user, Product, Branch } = await getTenantSession();
+  // Sotuv formasi uchun — «Sotuv qilish» huquqi (o'chiq «Sotuv» modulida huquq ham yo'q)
+  if (typeof imei !== 'string' || !(await userCan(user, 'sale.create'))) return null;
   const normalized = normalizeImei(imei);
   if (!normalized) return null;
 
@@ -138,6 +140,7 @@ export async function lookupProductByImei(imei: string): Promise<ScannedProduct 
 /** Shtrix, IMEI yoki mahsulot kodi bo'yicha qidiruv (skaner pistalet uchun) */
 export async function lookupProductByScan(code: string): Promise<ScannedProduct | null> {
   const { user, Product, Branch } = await getTenantSession();
+  if (typeof code !== 'string' || !(await userCan(user, 'sale.create'))) return null;
   const trimmed = code.trim();
   if (!trimmed) return null;
 

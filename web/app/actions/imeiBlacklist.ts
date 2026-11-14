@@ -8,6 +8,8 @@ import { BlacklistReason } from '@/lib/models/master/ImeiBlacklist';
 import { logError } from '@/lib/logger';
 import { getDict } from '@/lib/i18n/server';
 import { hitRateLimit } from '@/lib/rateLimit';
+import { featureDisabledError } from '@/lib/featureAction';
+import { isImeiEnabled } from '@/lib/features';
 
 type State = { error?: string; success?: string } | null;
 
@@ -17,8 +19,11 @@ function parseReason(v: string): BlacklistReason {
 
 /** Do'kon admini — IMEI'ni qora ro'yxatga qo'shadi */
 export async function addImeiBlacklistAction(_prev: State, formData: FormData): Promise<State> {
-  const { user, org } = await getTenantAdminSession();
+  const { user, org, features } = await getTenantAdminSession();
+  // /app/imei layout bilan bir xil: «Ombor» moduli + IMEI rejimi (action to'g'ridan-to'g'ri chaqirilsa ham)
+  if (!features.products) return featureDisabledError('products');
   const m = (await getDict()).stock.msg;
+  if (!isImeiEnabled(org)) return { error: m.addFailed };
 
   const imei = normImei(String(formData.get('imei') || ''));
   const reason = parseReason(String(formData.get('reason') || 'debt'));
@@ -55,9 +60,11 @@ export async function addImeiBlacklistAction(_prev: State, formData: FormData): 
 
 /** Do'kon admini — o'z yozuvini hal qilingan deb belgilaydi (qarz yopildi) */
 export async function resolveImeiBlacklistAction(_prev: State, formData: FormData): Promise<State> {
-  const { org } = await getTenantAdminSession();
+  const { org, features } = await getTenantAdminSession();
+  if (!features.products) return featureDisabledError('products');
   const d = await getDict();
   const m = d.stock.msg;
+  if (!isImeiEnabled(org)) return { error: d.common.error };
   const id = String(formData.get('id') || '');
   if (!id) return { error: m.recordNotFound };
 
@@ -78,7 +85,8 @@ export async function resolveImeiBlacklistAction(_prev: State, formData: FormDat
 
 /** Qidiruv — IMEI'larni qora ro'yxatdan tekshirish (barcha do'konlar bo'yicha) */
 export async function checkImeiBlacklistAction(imeis: string[]): Promise<BlacklistHit[]> {
-  const { org } = await getTenantAdminSession();
+  const { org, features } = await getTenantAdminSession();
+  if (!features.products || !isImeiEnabled(org)) return [];
   // Qora ro'yxat barcha do'konlar bo'yicha umumiy — katta partiyalarda IMEI diapazonlarini
   // sinab boshqa do'konlar mijozlarini yig'ib olish (PII) mumkin edi: massiv va chastota cheklanadi
   if (!Array.isArray(imeis)) return [];

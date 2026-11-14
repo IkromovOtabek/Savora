@@ -8,6 +8,7 @@ import { addOrgUser, updateOrgUserByBranch, removeOrgUserByBranch } from '@/lib/
 import { reserveUsername, releaseUsername, isUsernameAvailable, UsernameTakenError } from '@/lib/userDirectory';
 import { getDict } from '@/lib/i18n/server';
 import { tr } from '@/lib/i18n/fmt';
+import { checkPermission } from '@/lib/permissionGuard';
 
 type State = { error?: string; success?: string } | null;
 
@@ -18,6 +19,8 @@ function normalizeLogin(v: string): string {
 /** Filial yaratish — filial + uning login/paroli birga yaratiladi */
 export async function createFilialAction(_prev: State, formData: FormData): Promise<State> {
   const { user, User, Branch, org } = await getTenantAdminSession();
+  // «Jamoa» moduli o'chiq bo'lsa (Super Admin) — action to'g'ridan-to'g'ri chaqirilsa ham bloklanadi
+  { const denied = await checkPermission(user, 'users.manage'); if (denied) return denied; }
   const d = await getDict();
   const T = d.crm.team;
 
@@ -85,6 +88,7 @@ export async function createFilialAction(_prev: State, formData: FormData): Prom
 /** Filial yangilash — filial + login (parol, holat) */
 export async function updateFilialAction(_prev: State, formData: FormData): Promise<State> {
   const { user, User, Branch } = await getTenantAdminSession();
+  { const denied = await checkPermission(user, 'users.manage'); if (denied) return denied; }
   const d = await getDict();
   const T = d.crm.team;
 
@@ -142,6 +146,7 @@ export async function updateFilialAction(_prev: State, formData: FormData): Prom
 /** Filialni o'chirish — login va filial yo'q qilinadi (mahsulot bo'lsa bloklanadi) */
 export async function deleteFilialAction(_prev: State, formData: FormData): Promise<State> {
   const { user, User, Branch, Product, Sale } = await getTenantAdminSession();
+  { const denied = await checkPermission(user, 'users.manage'); if (denied) return denied; }
   const d = await getDict();
   const T = d.crm.team;
   const branchId = String(formData.get('branchId') || '');

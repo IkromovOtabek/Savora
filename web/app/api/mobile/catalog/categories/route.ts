@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { Types } from 'mongoose';
 import { authenticateMobile } from '@/lib/mobileAuth';
-import { mobilePermissionDenied } from '@/lib/permissionGuard';
+import { mobilePermissionDenied, mobilePermissionDeniedAny } from '@/lib/permissionGuard';
 import { getTenantModels } from '@/lib/tenantDb';
 import { categoryLevelInDb, findOrCreateCategory } from '@/lib/catalogStore';
 import { CATEGORY_MAX_DEPTH, CATEGORY_NAME_MAX } from '@/lib/models/tenant/ProductCategory';
@@ -16,6 +16,8 @@ export async function GET(req: Request) {
   const auth = await authenticateMobile(req);
   if (auth instanceof NextResponse) return auth;
   if (!auth.dbName) return NextResponse.json({ error: 'Avtorizatsiya kerak.' }, { status: 401 });
+  // Tovar formasi uchun — ombor huquqlaridan biri («Ombor» moduli o'chiq bo'lsa — 403)
+  { const denied = await mobilePermissionDeniedAny(auth, ['product.create', 'product.edit', 'products.view']); if (denied) return denied; }
   const { ProductCategory } = await getTenantModels(auth.dbName);
   const items = await ProductCategory.find({}, { name: 1, parentId: 1 }).sort({ name: 1 }).limit(2000).lean();
   return NextResponse.json({

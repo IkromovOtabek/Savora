@@ -6,7 +6,7 @@ import { getTenantSession } from '@/lib/tenantSession';
 import { generateTransferNo } from '@/lib/transfers';
 import { clampQtyToStock } from '@/lib/productQuantity';
 import { parseQty, qtyLabel } from '@/lib/qty';
-import { checkPermission } from '@/lib/permissionGuard';
+import { checkPermission, userCan } from '@/lib/permissionGuard';
 import { branchFilter } from '@/lib/branchScope';
 import { transferStock } from '@/lib/stock';
 import { getDict } from '@/lib/i18n/server';
@@ -82,6 +82,8 @@ export async function transferProductAction(_prev: State, formData: FormData): P
 
 export async function bulkImeiLookup(imeiList: string[]) {
   const { user, Product, Branch } = await getTenantSession();
+  // Ombor ma'lumoti — «Omborni ko'rish» huquqi (o'chiq «Ombor» modulida huquq ham yo'q)
+  if (!Array.isArray(imeiList) || !(await userCan(user, 'products.view'))) return { found: [], missing: [] };
   const normalized = [...new Set(imeiList.map((i) => i.trim().replace(/\s/g, '').toUpperCase()).filter(Boolean))].slice(0, 500);
   if (normalized.length === 0) return { found: [], missing: [] };
 
