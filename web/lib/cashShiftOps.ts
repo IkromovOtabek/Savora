@@ -14,7 +14,7 @@ import { notifyShiftClosed } from './shopNotify';
  * Kassa smenasi amallari — web server action'lari va mobil API uchun umumiy.
  * Kirish (zod) va huquq/modul tekshiruvi chaqiruvchida; bu yerda — biznes mantiq va audit.
  */
-type Models = Pick<Awaited<ReturnType<typeof getTenantModels>>, 'Branch' | 'CashShift' | 'Sale' | 'CashFlow' | 'FinanceCategory'>;
+type Models = Pick<Awaited<ReturnType<typeof getTenantModels>>, 'Branch' | 'CashShift' | 'Sale' | 'CashFlow'>;
 type ShiftDict = Dict['sales']['shifts'];
 export type ShiftOpResult = { error: string } | { success: string };
 
@@ -105,12 +105,7 @@ export async function closeShift(
 /** Smena ichida kassa operatsiyasi: kassaga pul qo'shish yoki olish (CashFlow + filial + smena) */
 export async function shiftCashOp(
   user: SessionUser, m: Models, k: ShiftDict,
-  { shiftId, type, amount, note, category, via = '' }: {
-    shiftId: string; type: 'income' | 'expense'; amount: number; note?: string;
-    /** Olishda: xarajat toifasi (Ijara, Transport…) — sof foydadan ayiriladi; bo'sh — oddiy «Kassadan olindi» */
-    category?: string;
-    via?: string;
-  },
+  { shiftId, type, amount, note, via = '' }: { shiftId: string; type: 'income' | 'expense'; amount: number; note?: string; via?: string },
 ): Promise<ShiftOpResult> {
   const shift = await m.CashShift.findOne({ _id: shiftId, status: 'open' }).lean();
   if (!shift) return { error: k.notFound };
@@ -122,21 +117,11 @@ export async function shiftCashOp(
     if (amount > current) return { error: tr(k.opTooMuch, { v: fmtMoney(current) }) };
   }
 
-  // Xarajat toifasi — faqat faol, tizimdan tashqari chiqim toifasi (kassa hisobi turi bo'yicha, toifaga bog'liq emas)
-  let expenseCategory: string | undefined;
-  if (type === 'expense' && category?.trim()) {
-    const cat = await m.FinanceCategory.findOne({ name: category.trim(), type: 'expense', active: true, system: { $ne: true } })
-      .select('name')
-      .lean();
-    if (!cat) return { error: k.opBadCategory };
-    expenseCategory = cat.name;
-  }
-
   const entry = await m.CashFlow.create({
     type,
     amount,
-    description: note || expenseCategory || (type === 'income' ? k.deposits : k.withdrawals),
-    category: type === 'income' ? SHIFT_DEPOSIT_CATEGORY : expenseCategory ?? SHIFT_WITHDRAW_CATEGORY,
+    description: note || (type === 'income' ? k.deposits : k.withdrawals),
+    category: type === 'income' ? SHIFT_DEPOSIT_CATEGORY : SHIFT_WITHDRAW_CATEGORY,
     branchId: shift.branchId,
     shiftId: shift._id,
     recordedBy: user.username,
@@ -145,8 +130,8 @@ export async function shiftCashOp(
     action: type === 'income' ? 'shift.deposit' : 'shift.withdraw',
     entity: 'finance',
     entityId: String(entry._id),
-    summary: `Smena ${shift.shiftNo}: ${type === 'income' ? 'kassaga qo\'shildi' : expenseCategory ? `xarajat (${expenseCategory})` : 'kassadan olindi'} ${fmtMoney(amount)} so'm${note ? ` — ${note}` : ''}${via}`,
-    meta: { shiftId, type, amount, ...(expenseCategory ? { category: expenseCategory } : {}) },
+    summary: `Smena ${shift.shiftNo}: ${type === 'income' ? 'kassaga qo\'shildi' : 'kassadan olindi'} ${fmtMoney(amount)} so'm${note ? ` — ${note}` : ''}${via}`,
+    meta: { shiftId, type, amount },
   });
   return { success: k.opDone };
 }

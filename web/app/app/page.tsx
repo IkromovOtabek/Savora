@@ -6,6 +6,8 @@ import Icon from '@/components/icons/Icon';
 import OnboardingChecklist from '@/components/tenant/OnboardingChecklist';
 import PlanLimitsBanner from '@/components/tenant/PlanLimitsBanner';
 import QuickSaleTrigger from '@/components/tenant/QuickSaleTrigger';
+import QuickExpense from '@/components/tenant/QuickExpense';
+import { loadExpenseCategories } from '@/lib/financeCategories';
 import InstallmentAlert, { OverdueInstallment } from '@/components/tenant/InstallmentAlert';
 import { computeInstallmentPlan } from '@/lib/installment';
 import { dayBoundaries, toDayPoints, smoothPath } from '@/lib/weekBuckets';
@@ -37,7 +39,7 @@ export default async function TenantDashboard({
   searchParams: Promise<{ module?: string; welcome?: string; p?: string }>;
 }) {
   const sp = await searchParams;
-  const { user, org, features, Branch, Product, Sale, User, AiReport, Task, LedgerEntry } = await getTenantSession();
+  const { user, org, features, Branch, Product, Sale, User, AiReport, Task, LedgerEntry, FinanceCategory } = await getTenantSession();
   const { locale, d } = await getI18n();
   const t = d.shell.dash;
 
@@ -216,7 +218,10 @@ export default async function TenantDashboard({
   const canAddProduct = features.products && perms.has('product.create');
   const canKassa = features.kassa && perms.has('kassa.view');
   const canReports = features.monitoring && perms.has('reports.view');
-  const quickCount = [showSaleCta, canAddProduct, canKassa, canReports].filter(Boolean).length;
+  // Xarajat (sof foydadan ayiriladi) — do'kon egasi, «Kirim-Chiqim» moduli bilan; smenasiz do'konlar ham shu yerdan
+  const canExpense = isAdmin && features.kirimChiqim;
+  const expenseCategories = canExpense ? await loadExpenseCategories(FinanceCategory) : [];
+  const quickCount = [showSaleCta, canAddProduct, canKassa, canExpense, canReports].filter(Boolean).length;
 
   return (
     <div className="t-dash">
@@ -341,6 +346,12 @@ export default async function TenantDashboard({
               <span className="t-qa-ic"><Icon name="wallet" size={20} /></span>
               <span className="t-qa-t">{t.qaKassa}<small>{t.qaKassaSub}</small></span>
             </Link>
+          )}
+          {canExpense && (
+            <QuickExpense
+              categories={expenseCategories}
+              branches={branchList.map((b) => ({ id: String(b._id), name: b.name }))}
+            />
           )}
           {canReports && (
             <Link href="/app/monitoring" className="t-qa">

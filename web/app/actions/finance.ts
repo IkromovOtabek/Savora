@@ -223,6 +223,51 @@ export async function createFinanceTxAction(_prev: State, formData: FormData): P
   }
 }
 
+/**
+ * Tez xarajat (bosh sahifa, kassa): toifa majburiy — toifasiz yozuv sof foydaga kirmasdi.
+ * Izoh bo'sh bo'lsa — toifa nomi. Faqat do'kon egasi (Moliya bo'limi kabi).
+ */
+export async function createQuickExpenseAction(_prev: State, formData: FormData): Promise<State> {
+  const { user, CashFlow, Branch, FinanceCategory, features } = await getTenantAdminSession();
+  if (!features.kirimChiqim) return featureDisabledError('kirimChiqim');
+  const d = await getDict();
+  const m = d.sales.actions;
+  const f = d.sales.fin;
+  const parsed = parseInput(z.object({
+    amount: zMoney(m.badAmount, { min: 1 }),
+    category: zReqText(60, f.badCategory, d.common.tooLong),
+    note: zText(300, d.common.tooLong),
+    branchId: zOptId(f.branch),
+  }), formToObject(formData), m.badAmount);
+  if (!parsed.ok) return { error: parsed.error };
+  const { amount, category, note, branchId } = parsed.data;
+
+  if (!(await FinanceCategory.exists({ name: category, type: 'expense', active: true, system: { $ne: true } }))) return { error: f.badCategory };
+  if (branchId && !(await Branch.exists({ _id: branchId, active: true }))) return { error: f.branch };
+
+  try {
+    const entry = await CashFlow.create({
+      type: 'expense', amount, category, description: note || category, recordedBy: user.username,
+      ...(branchId ? { branchId } : {}),
+    });
+    await recordAudit(user, {
+      action: 'finance.expense',
+      entity: 'finance',
+      entityId: String(entry._id),
+      summary: `Chiqim (${category}): ${fmtSum(amount)} — ${note || category}`,
+      meta: { type: 'expense', amount, category, branchId, quick: true },
+    });
+    revalidatePath('/app');
+    revalidatePath('/app/finance');
+    revalidatePath('/app/finance/state');
+    revalidatePath('/app/monitoring');
+    revalidatePath('/app/kassa');
+    return { success: tr(f.qeAdded, { sum: new Intl.NumberFormat('uz-UZ').format(amount), cat: category }) };
+  } catch {
+    return { error: m.saveFailed };
+  }
+}
+
 export async function createFinanceCategoryAction(_prev: State, formData: FormData): Promise<State> {
   const { user, FinanceCategory, features } = await getTenantAdminSession();
   if (!features.kirimChiqim) return featureDisabledError('kirimChiqim');

@@ -718,16 +718,23 @@ a.t-stat:active { background: var(--t-fill-2); }
 }
 .t-qa-t { display: grid; min-width: 0; font-size: 15px; font-weight: 600; color: var(--ink-1); line-height: 1.25; }
 .t-qa-t small { font-size: 12.5px; font-weight: 500; color: var(--ink-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.t-qa-ic--out { background: var(--t-danger-soft); color: var(--danger); }
 .t-qa--accent { background: var(--brand-fill, var(--brand)); }
 .t-qa--accent .t-qa-ic { background: rgba(255, 255, 255, .18); color: var(--t-on-brand); }
 .t-qa--accent .t-qa-t, .t-qa--accent .t-qa-t small { color: var(--t-on-brand); }
 .t-qa--accent .t-qa-t small { opacity: .82; }
+/* 5 ta plitka: torroq ekranda 2 + 3 (yetim plitka yo'q) */
+@media (max-width: 1000px) {
+  .t-qa-row[data-n="5"] { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+  .t-qa-row[data-n="5"] > * { grid-column: span 2; }
+  .t-qa-row[data-n="5"] > :nth-child(-n+2) { grid-column: span 3; }
+}
 @media (max-width: 700px) {
   .t-qa-row[data-n="4"] { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 @media (max-width: 560px) {
   .t-qa-row { gap: 8px; }
-  .t-qa-row[data-n="3"] .t-qa { flex-direction: column; align-items: flex-start; gap: 8px; padding: 12px; }
+  .t-qa-row[data-n="3"] .t-qa, .t-qa-row[data-n="5"] > :nth-child(n+3) { flex-direction: column; align-items: flex-start; gap: 8px; padding: 12px; }
   .t-qa-t { font-size: 14px; }
   .t-qa-t small { font-size: 12px; white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
   .t-qa-ic { width: 34px; height: 34px; border-radius: 10px; }

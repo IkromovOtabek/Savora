@@ -3,6 +3,8 @@ import { getTenantSession } from '@/lib/tenantSession';
 import Icon from '@/components/icons/Icon';
 import { isBranchScoped } from '@/lib/branchScope';
 import NaxtKassaCards, { KassaCard } from '@/components/tenant/NaxtKassaCards';
+import QuickExpense from '@/components/tenant/QuickExpense';
+import { loadExpenseCategories } from '@/lib/financeCategories';
 import { getDict } from '@/lib/i18n/server';
 import { plural, tr } from '@/lib/i18n/fmt';
 import '@/components/tenant/styles/finance.css';
@@ -13,7 +15,7 @@ export async function generateMetadata() {
 }
 
 export default async function KassaPage() {
-  const { user, Sale, Branch, CashFlow } = await getTenantSession();
+  const { user, Sale, Branch, CashFlow, FinanceCategory, features } = await getTenantSession();
   const d = await getDict();
   const k = d.sales.kassa;
 
@@ -29,6 +31,9 @@ export default async function KassaPage() {
     CashFlow.aggregate([{ $match: { type: 'expense' } }, { $group: { _id: null, total: { $sum: '$amount' } } }]),
   ]);
   const adminTotal = expenseAgg[0]?.total ?? 0;
+  // Xarajat qo'shish — do'kon egasi («Kirim-Chiqim» moduli); kassa «Chiqim» summasiga ham kiradi
+  const canExpense = user.role === 'admin' && features.kirimChiqim;
+  const expenseCategories = canExpense ? await loadExpenseCategories(FinanceCategory) : [];
 
   // Filial bo'yicha naqd tushum
   const map = new Map<string, KassaCard>();
@@ -66,6 +71,15 @@ export default async function KassaPage() {
             {tr(k.sub, { scope: isBranchScoped(user) ? k.yourBranch : tr(plural(branches.length, d.sales.nBranches), { n: branches.length }) })}
           </p>
         </div>
+        {canExpense && (
+          <div className="t-page-actions">
+            <QuickExpense
+              variant="button"
+              categories={expenseCategories}
+              branches={allBranches.map((b) => ({ id: String(b._id), name: b.name }))}
+            />
+          </div>
+        )}
       </div>
       <NaxtKassaCards total={total} cards={cards} />
       {/* Kompyuterda yuqori paneldagi "Yangi sotuv" yetarli; telefonda — pastki o'ng tugma */}
