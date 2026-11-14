@@ -448,6 +448,13 @@ button.sl-tl-body:hover .sl-tl-cta--main { opacity: .88; }
 .sl-picked b { display: block; font-size: 16px; font-weight: 700; overflow-wrap: anywhere; }
 .sl-picked-meta { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 13px; color: var(--ink-2); margin-top: 2px; }
 .sl-picked-meta code { font-family: var(--font-mono); font-size: 12px; }
+/* Sotuv formasi savatchasi: bir nechta tovar (har birida soni va olib tashlash) */
+.sl-items { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.sl-picked--item { grid-template-columns: 44px minmax(0, 1fr) auto; align-items: start; }
+.sl-picked--item .sl-picked-ic { margin-top: 2px; }
+.sl-item-qty { margin-top: 8px; }
+.sl-item-qty .sl-qty button { width: 38px; height: 38px; font-size: 18px; }
+.sl-item-qty .sl-qty input { width: 56px !important; height: 38px !important; }
 
 .sl-qty { display: inline-flex; align-items: center; gap: 0; border-radius: var(--r); background: var(--fill-2); box-shadow: inset 0 0 0 1px var(--sep); overflow: hidden; }
 .sl-qty button {

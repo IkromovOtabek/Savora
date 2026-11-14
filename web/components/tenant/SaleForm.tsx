@@ -7,6 +7,7 @@ import { createSaleAction, lookupProductByImei } from '@/app/actions/sales';
 import { PaymentType } from '@/lib/models/tenant/Sale';
 import { OrgFeatures } from '@/lib/features';
 import { MAX_BANK_PARTS } from '@/lib/bankCredit';
+import { POS_HANDOFF_KEY, POS_HANDOFF_TTL_MS, type PosHandoff } from '@/lib/posCart';
 import { fmtDate, fmtMoney } from '@/lib/format';
 import { addMonthsClamped } from '@/lib/dates';
 import BackLink from '@/components/ui/BackLink';
@@ -30,11 +31,17 @@ interface ProductOption {
   unit?: ProductUnit | null;
 }
 
+/** Savatcha qatori: qty — kiritilayotgan matn ("2", "1,5") */
+interface CartItem extends ProductOption { qty: string }
+
 /** To'lov turlari tartibi (yorliqlar lug'atdan: d.sales.paymentTypes) */
 const PAYMENT_ORDER: PaymentType[] = ['cash', 'debt', 'installment', 'bank_credit'];
 
 /** Ro'yxatda bir vaqtda ko'rsatiladigan mahsulotlar soni (qolgani qidiruv orqali) */
 const PICK_LIMIT = 60;
+
+/** Bir xaridda eng ko'p tovar (server SALE_MAX_LINES bilan bir xil) */
+const MAX_ITEMS = 20;
 
 /** IMEI takliflari: shuncha raqamdan boshlab (oxirgi 4 raqam) va ro'yxatda eng ko'pi */
 const IMEI_MIN_DIGITS = 4;
@@ -64,6 +71,23 @@ function isoDay(d: Date): string {
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
 }
 
+/** Yangi qator: miqdor 1 (kasrli birlikda qoldiq 1 dan kam bo'lsa — boricha) */
+function toItem(p: ProductOption, qty?: number): CartItem {
+  const max = p.trackQuantity && p.available != null ? p.available : Infinity;
+  const q = Math.min(max, qty && qty > 0 ? qty : 1);
+  return { ...p, imei: p.imei ?? '', qty: fmtQty(q) };
+}
+
+/** Qator miqdori (kiritilgan matndan); hisoblanmaydigan tovarda — 1 */
+function itemQty(it: CartItem): number | null {
+  return it.trackQuantity ? parseQty(it.qty, it.unit) : 1;
+}
+
+/** Ro'yxat narxi bo'yicha savatcha jami (server ham shunday hisoblaydi) */
+function cartTotal(items: CartItem[]): number {
+  return items.reduce((s, it) => s + priceTimesQty(it.salePrice, itemQty(it) ?? 1), 0);
+}
+
 interface Props {
   isPhoneShop: boolean;
   products: ProductOption[];
@@ -82,26 +106,8 @@ export default function SaleForm({ isPhoneShop, products, mediaEnabled, features
   const k = d.sales.newSale;
   const preselected = preselectId ? products.find((p) => p.id === preselectId) : undefined;
   const [imei, setImei] = useState('');
-  const [selectedId, setSelectedId] = useState(preselected?.id ?? products[0]?.id ?? '');
-  const [product, setProduct] = useState<{
-    id: string;
-    name: string;
-    imei: string;
-    salePrice: number;
-    branchName: string;
-    trackQuantity?: boolean;
-    available?: number;
-    unit?: ProductUnit | null;
-  } | null>(preselected ? {
-    id: preselected.id,
-    name: preselected.name,
-    imei: preselected.imei ?? '',
-    salePrice: preselected.salePrice,
-    branchName: preselected.branchName,
-    trackQuantity: preselected.trackQuantity,
-    available: preselected.available,
-    unit: preselected.unit,
-  } : null);
+  // Bitta mijozga bir nechta tovar (qarz/bank krediti) — har biri alohida sotuv, bitta xarid
+  const [items, setItems] = useState<CartItem[]>(() => (preselected ? [toItem(preselected)] : []));
   const [lookupError, setLookupError] = useState('');
   const [searching, startSearch] = useTransition();
   const initialPayment: PaymentType =
@@ -110,18 +116,46 @@ export default function SaleForm({ isPhoneShop, products, mediaEnabled, features
     : preselectPayment === 'debt' ? 'debt'
     : 'cash';
   const [paymentType, setPaymentType] = useState<PaymentType>(initialPayment);
-  const [totalAmount, setTotalAmount] = useState(preselected ? String(preselected.salePrice) : (!isPhoneShop && products[0] ? String(products[0].salePrice) : ''));
-  const [saleQty, setSaleQty] = useState('1');
+  const [totalAmount, setTotalAmount] = useState(preselected ? String(preselected.salePrice) : '');
   // Jonli hisob-kitob uchun (forma maydon nomlari o'zgarmagan)
   const [paidAmount, setPaidAmount] = useState('0');
   const [months, setMonths] = useState('12');
   const [query, setQuery] = useState('');
   const [dueDate, setDueDate] = useState('');
+  const [customerName, setCustomerName] = useState('');
+  const [customerPhone, setCustomerPhone] = useState('');
+  const [notes, setNotes] = useState('');
   // Bank krediti: bir yoki bir nechta bank. Bitta bank bo'lsa — qolgan summa to'liq unga yoziladi
   const [bankRows, setBankRows] = useState<{ bank: string; amount: string }[]>([{ bank: '', amount: '' }]);
   // Sana faqat brauzerda (server/klient vaqt mintaqasi farqi hydration xatosiga olib kelmasin)
   const [now, setNow] = useState<Date | null>(null);
   useEffect(() => { setNow(new Date()); }, []);
+
+  // Kassadan (POS) «Nasiya / bank krediti» orqali kelinsa — savatcha va mijoz shu yerga o'tadi (IMEI qayta so'ralmaydi)
+  useEffect(() => {
+    let raw: string | null = null;
+    try {
+      raw = sessionStorage.getItem(POS_HANDOFF_KEY);
+      sessionStorage.removeItem(POS_HANDOFF_KEY);
+    } catch { /* xotira yo'q — oddiy forma */ }
+    if (!raw) return;
+    let h: PosHandoff;
+    try { h = JSON.parse(raw) as PosHandoff; } catch { return; }
+    if (!h || !Array.isArray(h.lines) || Date.now() - (h.at ?? 0) > POS_HANDOFF_TTL_MS) return;
+    const byId = new Map(products.map((p) => [p.id, p]));
+    const next = h.lines.flatMap((l) => {
+      const p = byId.get(l.id);
+      return p ? [toItem(p, l.qty)] : [];
+    }).slice(0, MAX_ITEMS);
+    if (next.length === 0) return;
+    setItems(next);
+    // Kassadagi jami (chegirma/ulgurji bilan) — o'zgarmagan bo'lsa ro'yxat narxi
+    setTotalAmount(String(h.total && h.total > 0 ? h.total : cartTotal(next)));
+    if (h.customerName) setCustomerName(h.customerName);
+    if (h.customerPhone) setCustomerPhone(h.customerPhone);
+    if (h.note) setNotes(h.note);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- faqat birinchi ochilishda
+  }, []);
 
   const paymentTypes = useMemo(() => {
     return PAYMENT_ORDER.filter((t) => {
@@ -134,27 +168,17 @@ export default function SaleForm({ isPhoneShop, products, mediaEnabled, features
   // Bank krediti faqat Kredit kassa yoqilganda — banklar o'sha ro'yxatdan (server ham shuni tekshiradi)
   const bankOptions = creditBanks;
 
-  const selectedOption = products.find((p) => p.id === selectedId);
-  const picked = isPhoneShop
-    ? product
-    : selectedOption
-      ? {
-          id: selectedId,
-          name: selectedOption.name,
-          imei: selectedOption.imei ?? '',
-          salePrice: selectedOption.salePrice,
-          branchName: selectedOption.branchName,
-          trackQuantity: selectedOption.trackQuantity,
-          available: selectedOption.available,
-          unit: selectedOption.unit,
-        }
-      : null;
-
-  const showQty = picked?.trackQuantity === true;
-  // kg/m… — kasr miqdor (1,5); dona — butun
-  const fractional = showQty && isFractionalUnit(picked?.unit);
-  const qtyN = parseQty(saleQty, picked?.unit);
-  const qtyBad = showQty && saleQty.trim() !== '' && qtyN === null;
+  const hasItems = items.length > 0;
+  const inCart = useMemo(() => new Set(items.map((it) => it.id)), [items]);
+  // Nasiya — bitta tovar (har tovarning o'z oylik jadvali bo'lardi); ko'p tovar — qarz yoki bank krediti
+  const installmentMulti = paymentType === 'installment' && items.length > 1;
+  // Miqdori noto'g'ri qator (kasr xato yoki qoldiqdan ko'p) — tasdiqlab bo'lmaydi
+  const qtyBad = items.some((it) => {
+    if (!it.trackQuantity) return false;
+    const q = parseQty(it.qty, it.unit);
+    return q === null || (it.available != null && q > it.available);
+  });
+  const itemsJson = JSON.stringify(items.map((it) => ({ productId: it.id, ...(it.trackQuantity ? { qty: itemQty(it) ?? undefined } : {}) })));
 
   const visibleProducts = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -181,28 +205,44 @@ export default function SaleForm({ isPhoneShop, products, mediaEnabled, features
     }
     return [...ends, ...has];
   }, [isPhoneShop, imeiQuery, products]);
-  // Tanlangan telefonning IMEI'si yozilgan bo'lsa — ro'yxat yopiladi
-  const showImeiMatches = imeiMatches.length > 0 && !(product && product.imei.toUpperCase() === imeiQuery);
+  const showImeiMatches = imeiMatches.length > 0;
 
-  function syncTotal(price: number, qty: number) {
-    setTotalAmount(String(priceTimesQty(price, qty)));
+  /** Savatchani yangilaydi va jami summani ro'yxat narxi bo'yicha qayta hisoblaydi */
+  function applyItems(next: CartItem[]) {
+    setItems(next);
+    setTotalAmount(next.length ? String(cartTotal(next)) : '');
+  }
+
+  function addItem(p: ProductOption) {
+    setLookupError('');
+    if (inCart.has(p.id)) return;
+    // Nasiyada bitta tovar — yangisi avvalgisining o'rnini oladi
+    if (paymentType === 'installment') return applyItems([toItem(p)]);
+    if (items.length >= MAX_ITEMS) {
+      setLookupError(tr(d.sales.actions.tooManyItems, { n: MAX_ITEMS }));
+      return;
+    }
+    applyItems([...items, toItem(p)]);
+  }
+
+  function removeItem(id: string) {
+    applyItems(items.filter((it) => it.id !== id));
+  }
+
+  function setItemQty(id: string, v: string) {
+    applyItems(items.map((it) => (it.id === id ? { ...it, qty: v } : it)));
+  }
+
+  function stepItemQty(it: CartItem, delta: number) {
+    const max = it.available ?? Infinity;
+    const next = Math.min(max, addQty(itemQty(it) ?? 1, delta));
+    if (next < qtyStep(it.unit)) return;
+    setItemQty(it.id, fmtQty(next));
   }
 
   function pickImeiOption(p: ProductOption) {
-    setLookupError('');
-    setProduct({
-      id: p.id,
-      name: p.name,
-      imei: p.imei ?? '',
-      salePrice: p.salePrice,
-      branchName: p.branchName,
-      trackQuantity: p.trackQuantity,
-      available: p.available,
-      unit: p.unit,
-    });
-    setImei(p.imei ?? '');
-    syncTotal(p.salePrice, 1);
-    setSaleQty('1');
+    addItem(p);
+    setImei('');
   }
 
   /** Enter / «Qidirish»: aniq yoki yagona mos telefon — darhol; bir nechta — ro'yxatdan tanlanadi */
@@ -219,43 +259,21 @@ export default function SaleForm({ isPhoneShop, products, mediaEnabled, features
     startSearch(async () => {
       const result = await lookupProductByImei(imei);
       if (!result) {
-        setProduct(null);
         setLookupError(d.sales.productNotFound);
         return;
       }
-      setProduct(result);
-      syncTotal(result.salePrice, result.trackQuantity ? 1 : 1);
-      if (result.trackQuantity) setSaleQty('1');
+      addItem({
+        id: result.id,
+        name: result.name,
+        salePrice: result.salePrice,
+        branchName: result.branchName,
+        imei: result.imei,
+        trackQuantity: result.trackQuantity,
+        available: result.available,
+        unit: result.unit,
+      });
+      setImei('');
     });
-  }
-
-  function handleProductPick(id: string) {
-    setSelectedId(id);
-    const p = products.find((x) => x.id === id);
-    if (p) {
-      // Butun birlikka o'tilsa kasr miqdor (1,5) qolmasin
-      const q = p.trackQuantity ? parseQty(saleQty, p.unit) : 1;
-      if (q === null) setSaleQty('1');
-      setTotalAmount(String(priceTimesQty(p.salePrice, q ?? 1)));
-      if (!p.trackQuantity) setSaleQty('1');
-    }
-  }
-
-  function handleQtyChange(v: string) {
-    setSaleQty(v);
-    const p = isPhoneShop ? product : products.find((x) => x.id === selectedId);
-    if (p?.trackQuantity) {
-      const q = parseQty(v, p.unit);
-      if (q !== null) setTotalAmount(String(priceTimesQty(p.salePrice, q)));
-    }
-  }
-
-  function stepQty(delta: number) {
-    const max = picked?.available ?? Infinity;
-    const cur = qtyN ?? 1;
-    const next = Math.min(max, addQty(cur, delta));
-    if (next < qtyStep(picked?.unit)) return;
-    handleQtyChange(fmtQty(next));
   }
 
   // Jonli ko'rinish (faqat ko'rsatish uchun — server o'zi qayta hisoblaydi)
@@ -266,7 +284,7 @@ export default function SaleForm({ isPhoneShop, products, mediaEnabled, features
   const monthly = monthsN > 0 ? Math.floor(rest / monthsN) : 0;
   const lastMonth = monthsN > 0 ? rest - monthly * (monthsN - 1) : 0;
   const overpaid = paymentType !== 'cash' && paid > total && total > 0;
-  const fieldsOff = isPending || !picked;
+  const fieldsOff = isPending || !hasItems;
 
   // Bank ulushlari: bitta bank — qolgan summa to'liq; bir nechta — har biri qo'lda, jami = qolgan summa
   const multiBank = bankRows.length > 1;
@@ -307,13 +325,93 @@ export default function SaleForm({ isPhoneShop, products, mediaEnabled, features
       <div className="sl-pos">
         <div className="sl-pos-left">
           <section className="sl-card" aria-labelledby="sl-step1">
-            <div className="sl-card-head"><h2 id="sl-step1"><span className="sl-step">1</span>{d.common.product}</h2></div>
+            <div className="sl-card-head">
+              <h2 id="sl-step1"><span className="sl-step">1</span>{d.common.product}</h2>
+              {items.length > 1 && <small>{tr(k.itemsCount, { n: items.length })}</small>}
+            </div>
             <div className="sl-fields">
+              <input type="hidden" name="items" value={itemsJson} />
+
+              {/* Tanlangan tovarlar — har biri alohida sotuv bo'lib yoziladi (bitta xarid) */}
+              {hasItems && (
+                <ul className="sl-items" aria-label={k.selectedItems}>
+                  {items.map((it) => {
+                    const fractional = it.trackQuantity === true && isFractionalUnit(it.unit);
+                    const q = itemQty(it);
+                    const bad = it.trackQuantity === true && (q === null || (it.available != null && q > it.available));
+                    return (
+                      <li key={it.id} className="sl-picked sl-picked--item">
+                        <span className="sl-picked-ic" aria-hidden><Icon name="check" size={20} strokeWidth={2.5} /></span>
+                        <div style={{ minWidth: 0 }}>
+                          <b>{it.name}</b>
+                          <div className="sl-picked-meta">
+                            {isPhoneShop && it.imei && <code>{it.imei}</code>}
+                            <span>{d.common.branch}: {it.branchName}</span>
+                            <span>{d.common.price}: {fmtMoney(it.salePrice)} {d.common.sum}</span>
+                            {it.trackQuantity && it.available != null && <span>{d.common.remaining}: {qtyWithUnit(it.available, it.unit, d.stock.fields.units)}</span>}
+                          </div>
+                          {it.trackQuantity && (
+                            <div className="sl-item-qty">
+                              <div className="sl-qty">
+                                <button type="button" onClick={() => stepItemQty(it, -1)} disabled={isPending || (q ?? 1) - 1 < qtyStep(it.unit)} aria-label={`${k.decrease}: ${it.name}`}>−</button>
+                                {fractional ? (
+                                  <input
+                                    type="text"
+                                    value={it.qty}
+                                    onChange={(e) => setItemQty(it.id, e.target.value.replace(/[^\d.,]/g, ''))}
+                                    disabled={isPending}
+                                    inputMode="decimal"
+                                    aria-label={`${k.qtyLabel} ${it.name}`}
+                                    aria-invalid={bad || undefined}
+                                  />
+                                ) : (
+                                  <input
+                                    type="number"
+                                    min={1}
+                                    max={it.available ?? undefined}
+                                    value={it.qty}
+                                    onChange={(e) => setItemQty(it.id, e.target.value)}
+                                    disabled={isPending}
+                                    inputMode="numeric"
+                                    aria-label={`${k.qtyLabel} ${it.name}`}
+                                    aria-invalid={bad || undefined}
+                                  />
+                                )}
+                                <button
+                                  type="button"
+                                  onClick={() => stepItemQty(it, 1)}
+                                  disabled={isPending || (it.available != null && (q ?? 1) >= it.available)}
+                                  aria-label={`${k.increase}: ${it.name}`}
+                                >+</button>
+                                {fractional && it.unit && <small className="sl-qty-unit">{d.stock.fields.units[it.unit]}</small>}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                        <button
+                          type="button"
+                          className="sl-bank-del"
+                          onClick={() => removeItem(it.id)}
+                          disabled={isPending}
+                          aria-label={`${k.removeItem}: ${it.name}`}
+                          title={k.removeItem}
+                        >
+                          <Icon name="close" size={16} />
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+              {installmentMulti && (
+                <div className="auth-alert auth-alert--warn" role="alert">{d.sales.actions.installmentOneItem}</div>
+              )}
+
               {isPhoneShop ? (
                 <>
                   <div className="sl-imei-row">
                     <div className="auth-field">
-                      <label htmlFor="imei">{k.imeiSearch}</label>
+                      <label htmlFor="imei">{hasItems && paymentType !== 'installment' ? k.imeiAddMore : k.imeiSearch}</label>
                       <input
                         id="imei"
                         type="text"
@@ -350,7 +448,7 @@ export default function SaleForm({ isPhoneShop, products, mediaEnabled, features
                           <button
                             type="button"
                             className="sl-pick"
-                            aria-pressed={product?.id === p.id}
+                            aria-pressed={inCart.has(p.id)}
                             onClick={() => pickImeiOption(p)}
                             disabled={isPending}
                           >
@@ -377,7 +475,7 @@ export default function SaleForm({ isPhoneShop, products, mediaEnabled, features
               ) : (
                 <>
                   <div className="auth-field">
-                    <label htmlFor="productSearch">{k.productSearch}</label>
+                    <label htmlFor="productSearch">{hasItems && paymentType !== 'installment' ? k.listAddMore : k.productSearch}</label>
                     <div className="sl-search">
                       <Icon name="search" size={16} />
                       <input
@@ -400,8 +498,9 @@ export default function SaleForm({ isPhoneShop, products, mediaEnabled, features
                         <button
                           type="button"
                           className="sl-pick"
-                          aria-pressed={p.id === selectedId}
-                          onClick={() => handleProductPick(p.id)}
+                          aria-pressed={inCart.has(p.id)}
+                          // Bosilgan tovar qayta bosilsa — savatchadan chiqadi
+                          onClick={() => (inCart.has(p.id) ? removeItem(p.id) : addItem(p))}
                           disabled={isPending}
                         >
                           <b>{p.name}</b>
@@ -417,64 +516,7 @@ export default function SaleForm({ isPhoneShop, products, mediaEnabled, features
                       <li className="sl-picker-more">{tr(k.moreN, { n: visibleProducts.more })}</li>
                     )}
                   </ul>
-                </>
-              )}
-
-              {picked && (
-                <>
-                  <div className="sl-picked">
-                    <input type="hidden" name="productId" value={picked.id} />
-                    {showQty && <input type="hidden" name="saleQty" value={saleQty} />}
-                    <span className="sl-picked-ic" aria-hidden><Icon name="check" size={20} strokeWidth={2.5} /></span>
-                    <div style={{ minWidth: 0 }}>
-                      <b>{picked.name}</b>
-                      <div className="sl-picked-meta">
-                        {isPhoneShop && picked.imei && <code>{picked.imei}</code>}
-                        <span>{d.common.branch}: {picked.branchName}</span>
-                        <span>{d.common.price}: {fmtMoney(picked.salePrice)} {d.common.sum}</span>
-                        {showQty && picked.available != null && <span>{d.common.remaining}: {qtyWithUnit(picked.available, picked.unit, d.stock.fields.units)}</span>}
-                      </div>
-                    </div>
-                  </div>
-                  {showQty && (
-                    <div className="auth-field">
-                      <label htmlFor="saleQty">
-                        {k.qtyLabel}{fractional && picked.unit ? ` (${d.stock.fields.units[picked.unit]})` : ''}
-                      </label>
-                      <div className="sl-qty">
-                        <button type="button" onClick={() => stepQty(-1)} disabled={isPending || (qtyN ?? 1) - 1 < qtyStep(picked.unit)} aria-label={k.decrease}>−</button>
-                        {fractional ? (
-                          <input
-                            id="saleQty"
-                            type="text"
-                            value={saleQty}
-                            onChange={(e) => handleQtyChange(e.target.value.replace(/[^\d.,]/g, ''))}
-                            disabled={isPending}
-                            inputMode="decimal"
-                            aria-invalid={qtyBad || undefined}
-                          />
-                        ) : (
-                          <input
-                            id="saleQty"
-                            type="number"
-                            min={1}
-                            max={picked.available ?? undefined}
-                            value={saleQty}
-                            onChange={(e) => handleQtyChange(e.target.value)}
-                            disabled={isPending}
-                            inputMode="numeric"
-                          />
-                        )}
-                        <button
-                          type="button"
-                          onClick={() => stepQty(1)}
-                          disabled={isPending || (picked.available != null && (qtyN ?? 1) >= picked.available)}
-                          aria-label={k.increase}
-                        >+</button>
-                      </div>
-                      {fractional && <span className="field-hint">{tr(d.sales.pos.qtyHint, { step: fmtQty(qtyStep(picked.unit)) })}</span>}
-                    </div>
-                  )}
+                  {lookupError && <div className="auth-alert auth-alert--warn" role="alert">{lookupError}</div>}
                 </>
               )}
             </div>
@@ -491,7 +533,7 @@ export default function SaleForm({ isPhoneShop, products, mediaEnabled, features
               )}
               <div className="auth-field">
                 <label htmlFor="notes">{d.common.note}</label>
-                <textarea id="notes" name="notes" rows={2} disabled={fieldsOff} className="text-area" placeholder={d.common.optional} />
+                <textarea id="notes" name="notes" rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} disabled={fieldsOff} className="text-area" placeholder={d.common.optional} />
               </div>
             </div>
           </section>
@@ -661,7 +703,7 @@ export default function SaleForm({ isPhoneShop, products, mediaEnabled, features
 
               {paymentType === 'cash' && <input type="hidden" name="paidAmount" value={totalAmount || '0'} />}
 
-              {picked && paymentType === 'installment' && (
+              {hasItems && paymentType === 'installment' && (
                 <div className="sl-preview" aria-live="polite">
                   <div className="sl-preview-big">
                     <span>{d.sales.monthlyPayment}</span>
@@ -680,13 +722,13 @@ export default function SaleForm({ isPhoneShop, products, mediaEnabled, features
                   {overpaid && <div className="sl-preview-warn">{k.overpaidDown}</div>}
                 </div>
               )}
-              {picked && paymentType === 'debt' && (
+              {hasItems && paymentType === 'debt' && (
                 <div className="sl-preview sl-preview--debt" aria-live="polite">
                   <div className="sl-preview-big"><span>{k.restDebt}</span><strong>{fmtMoney(rest)} {d.common.sum}</strong></div>
                   {overpaid && <div className="sl-preview-warn">{k.overpaidPaid}</div>}
                 </div>
               )}
-              {picked && paymentType === 'bank_credit' && (
+              {hasItems && paymentType === 'bank_credit' && (
                 <div className="sl-preview sl-preview--bank" aria-live="polite">
                   <div className="sl-preview-big"><span>{k.viaBank}</span><strong>{fmtMoney(rest)} {d.common.sum}</strong></div>
                   {multiBank && bankRows.filter((r) => r.bank).map((r) => (
@@ -704,19 +746,19 @@ export default function SaleForm({ isPhoneShop, products, mediaEnabled, features
               <div className="sl-fields">
                 <div className="auth-field">
                   <label htmlFor="customerName">{k.customerName}</label>
-                  <input id="customerName" name="customerName" type="text" required disabled={fieldsOff} placeholder={k.customerNamePh} autoComplete="name" />
+                  <input id="customerName" name="customerName" type="text" required value={customerName} onChange={(e) => setCustomerName(e.target.value)} disabled={fieldsOff} placeholder={k.customerNamePh} autoComplete="name" />
                 </div>
                 <div className="auth-field">
                   <label htmlFor="customerPhone">{k.customerPhone}</label>
-                  <input id="customerPhone" name="customerPhone" type="tel" required disabled={fieldsOff} placeholder="+998..." autoComplete="tel" />
+                  <input id="customerPhone" name="customerPhone" type="tel" required value={customerPhone} onChange={(e) => setCustomerPhone(e.target.value)} disabled={fieldsOff} placeholder="+998..." autoComplete="tel" />
                 </div>
               </div>
             </section>
           )}
 
           {/* Jami — desktopda o'ng ustun pastida, mobilda tab bar ustidagi qotirilgan panel */}
-          <section className={`sl-card sl-pos-total${picked ? '' : ' sl-pos-total--empty'}`} aria-label={d.common.total}>
-            {picked ? (
+          <section className={`sl-card sl-pos-total${hasItems ? '' : ' sl-pos-total--empty'}`} aria-label={d.common.total}>
+            {hasItems ? (
               <div className="sl-summary-total" aria-live="polite">
                 <span>{paymentType === 'cash' ? k.payNow : k.payNowPart}</span>
                 <strong>{fmtMoney(Math.min(paid, total))} <small>{d.common.sum}</small></strong>
@@ -731,10 +773,10 @@ export default function SaleForm({ isPhoneShop, products, mediaEnabled, features
               </div>
             )}
             <div className="sl-card-body sl-pos-submit">
-              <button type="submit" className="btn btn-primary sl-submit" disabled={isPending || !picked || qtyBad || bankBlocked}>
+              <button type="submit" className="btn btn-primary sl-submit" disabled={isPending || !hasItems || qtyBad || bankBlocked || installmentMulti}>
                 {isPending ? k.selling : (
                   <>
-                    <span className="ux-hide-mobile">{picked ? k.confirmSale : d.common.confirm}</span>
+                    <span className="ux-hide-mobile">{hasItems ? k.confirmSale : d.common.confirm}</span>
                     <span className="ux-only-mobile">{d.common.confirm}</span>
                   </>
                 )}

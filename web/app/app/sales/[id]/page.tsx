@@ -58,6 +58,15 @@ export default async function SaleDetailPage({
   const sale = await Sale.findOne({ _id: id, ...branchFilter(user), ...scope }).lean();
   if (!sale) notFound();
 
+  // Bitta xariddagi boshqa tovarlar (kassa savatchasi yoki bir nechta tovarli kredit/qarz sotuvi)
+  const siblings = sale.checkoutId
+    ? await Sale.find({ checkoutId: sale.checkoutId, ...branchFilter(user), ...scope })
+        .select('saleNo productSnapshot.name productSnapshot.imei totalAmount status')
+        .sort({ saleNo: 1 })
+        .limit(50)
+        .lean()
+    : [];
+
   const isBank = sale.paymentType === 'bank_credit';
   // Bank krediti: pulni bank o'tkazadi — Kredit kassada bank bo'yicha yoziladi, sotuvga to'lov qo'shilmaydi
   const canPay = sale.status === 'partial' && !isBank && perms.has('payment.accept');
@@ -270,6 +279,31 @@ export default async function SaleDetailPage({
               {sale.notes && <li><span>{d.common.note}</span><span>{sale.notes}</span></li>}
             </ul>
           </section>
+
+          {siblings.length > 1 && (
+            <section className="sl-card" aria-labelledby="sl-checkout-h">
+              <div className="sl-card-head">
+                <h2 id="sl-checkout-h">{k.sameCheckout}</h2>
+                <small>{tr(d.common.nPcs, { n: siblings.length })}</small>
+              </div>
+              <ul className="sl-kv">
+                {siblings.map((x) => (
+                  <li key={String(x._id)}>
+                    {String(x._id) === id ? (
+                      <b>{x.productSnapshot.name}</b>
+                    ) : (
+                      <Link href={`/app/sales/${x._id}`}>{x.productSnapshot.name}</Link>
+                    )}
+                    <span className={x.status === 'cancelled' ? 'sl-danger-txt' : undefined}>{fmtMoney(x.totalAmount)} {d.common.sum}</span>
+                  </li>
+                ))}
+                <li>
+                  <span>{k.checkoutTotal}</span>
+                  <b>{fmtMoney(siblings.filter((x) => x.status !== 'cancelled').reduce((s, x) => s + x.totalAmount, 0))} {d.common.sum}</b>
+                </li>
+              </ul>
+            </section>
+          )}
 
           {/* Nasiya sotuvida to'lov oy kataklariga bosib qo'shiladi; boshqa qarzlarda esa forma orqali */}
           {canPay && !plan && (

@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { posSaleAction, type PosDone } from '@/app/actions/pos';
 import { PosDoneModal, PosPayModal, type PosPayment } from './PosCheckout';
-import { DISCOUNT_PRESETS, allocateDiscount, discountAmount, unitPriceFor, type DiscountKind } from '@/lib/posCart';
+import { DISCOUNT_PRESETS, POS_HANDOFF_KEY, allocateDiscount, discountAmount, unitPriceFor, type DiscountKind, type PosHandoff } from '@/lib/posCart';
 import { fmtMoney } from '@/lib/format';
 import { toast } from '@/lib/toast';
 import Icon from '@/components/icons/Icon';
@@ -223,6 +223,20 @@ export default function PosScreen({ products, categories = [], canDiscount, canE
       }
     });
   }, [cart.length, pending, missingPrice, rows, wholesale, discountKind, discountValue, canDiscount, canEditPrice, customerName, customerPhone, note, resetSale, router]);
+
+  /** «Nasiya / bank krediti»: savatcha va mijoz sotuv formasiga o'tadi — IMEI qayta kiritilmaydi */
+  const handOff = useCallback(() => {
+    if (!rows.length) return;
+    const h: PosHandoff = {
+      at: Date.now(),
+      lines: rows.map((r) => ({ id: r.p.id, qty: r.line.qty })),
+      total,
+      customerName: customerName.trim() || undefined,
+      customerPhone: customerPhone.trim() || undefined,
+      note: note.trim() || undefined,
+    };
+    try { sessionStorage.setItem(POS_HANDOFF_KEY, JSON.stringify(h)); } catch { /* xotira yo'q — forma bo'sh ochiladi */ }
+  }, [rows, total, customerName, customerPhone, note]);
 
   const park = useCallback(() => {
     if (!cart.length) return;
@@ -521,7 +535,7 @@ export default function PosScreen({ products, categories = [], canDiscount, canE
           <button type="button" className="btn btn-ghost btn-full" onClick={park} disabled={!rows.length || pending}>
             {k.park} {kbd('O')}
           </button>
-          <Link href="/app/sales/new" className="pos-other">{k.otherPayments}<Icon name="arrowRight" size={14} /></Link>
+          <Link href="/app/sales/new?payment=bank_credit" className="pos-other" onClick={handOff}>{k.otherPayments}<Icon name="arrowRight" size={14} /></Link>
         </div>
       </aside>
 

@@ -38,3 +38,19 @@ export function allocateDiscount(lineTotals: number[], discount: number): number
   }
   return parts;
 }
+
+/**
+ * Kassadan «Nasiya / bank krediti» formasiga o'tish: savatcha va mijoz sessionStorage orqali beriladi
+ * (URL'da shaxsiy ma'lumot bo'lmasin). Forma o'qigach o'chiradi; eskirgani e'tiborsiz qoldiriladi.
+ */
+export const POS_HANDOFF_KEY = 'savora_pos_handoff';
+export const POS_HANDOFF_TTL_MS = 10 * 60 * 1000;
+export interface PosHandoff {
+  at: number;
+  lines: { id: string; qty: number }[];
+  /** Kassadagi jami (chegirma/ulgurji bilan) */
+  total?: number;
+  customerName?: string;
+  customerPhone?: string;
+  note?: string;
+}
