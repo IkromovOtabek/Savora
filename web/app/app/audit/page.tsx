@@ -3,6 +3,8 @@ import { getTenantAdminSession } from '@/lib/tenantSession';
 import { fmtDate } from '@/lib/format';
 import { searchPattern } from '@/lib/security';
 import Icon from '@/components/icons/Icon';
+import PeriodSeg from '@/components/tenant/PeriodSeg';
+import { parsePeriod, periodRange } from '@/lib/period';
 import type { AuditEntity } from '@/lib/models/tenant/AuditLog';
 import { getI18n } from '@/lib/i18n/server';
 import { tr, WEEKDAYS } from '@/lib/i18n/fmt';
@@ -37,10 +39,11 @@ function hhmm(d: Date): string {
   return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
 }
 
-function auditHref(sp: { entity?: string; q?: string }, entity: string): string {
+function auditHref(sp: { entity?: string; q?: string }, entity: string, period = 'all'): string {
   const qs = new URLSearchParams();
   if (entity) qs.set('entity', entity);
   if (sp.q?.trim()) qs.set('q', sp.q.trim());
+  if (period !== 'all') qs.set('p', period);
   const s = qs.toString();
   return `/app/audit${s ? `?${s}` : ''}`;
 }
@@ -48,7 +51,7 @@ function auditHref(sp: { entity?: string; q?: string }, entity: string): string 
 export default async function AuditPage({
   searchParams,
 }: {
-  searchParams: Promise<{ entity?: string; q?: string }>;
+  searchParams: Promise<{ entity?: string; q?: string; p?: string }>;
 }) {
   const sp = await searchParams;
   const { AuditLog } = await getTenantAdminSession();
@@ -58,6 +61,12 @@ export default async function AuditPage({
   const filter: Record<string, unknown> = {};
   if (sp.entity && FILTERS.some((f) => f === sp.entity)) filter.entity = sp.entity;
   if (sp.q?.trim()) filter.by = new RegExp(searchPattern(sp.q), 'i');
+  // Davr: Hammasi (sukut) · Kecha · Bugun · Hafta · Oy · Yil · aniq kun — o'sha kundagi amallar
+  const period = parsePeriod(sp.p, 'all');
+  if (period !== 'all') {
+    const { start, end } = periodRange(period);
+    filter.at = { $gte: start, $lt: end };
+  }
 
   const logs = await AuditLog.find(filter).sort({ at: -1 }).limit(300).lean();
 
@@ -117,7 +126,7 @@ export default async function AuditPage({
           {FILTERS.map((f) => (
             <Link
               key={f || 'all'}
-              href={auditHref(sp, f)}
+              href={auditHref(sp, f, period)}
               className="ad-chip"
               aria-current={activeEntity === f ? 'page' : undefined}
             >
@@ -137,7 +146,11 @@ export default async function AuditPage({
             autoComplete="off"
           />
           {activeEntity && <input type="hidden" name="entity" value={activeEntity} />}
+          {period !== 'all' && <input type="hidden" name="p" value={period} />}
           <button className="btn btn-sm btn-ghost" type="submit">{d.common.search}</button>
+        </div>
+        <div className="ad-period">
+          <PeriodSeg basePath={auditHref(sp, activeEntity)} current={period} defaultKey="all" />
         </div>
       </form>
 
@@ -145,7 +158,7 @@ export default async function AuditPage({
         <div className="ad-group">
           <div className="ad-empty">
             <span className="ad-empty-ic"><Icon name="history" size={26} /></span>
-            {searching || activeEntity ? (
+            {searching || activeEntity || period !== 'all' ? (
               <>
                 <h3>{d.common.nothingFound}</h3>
                 <p>{A.notFoundText}</p>

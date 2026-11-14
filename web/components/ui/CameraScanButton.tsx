@@ -10,15 +10,23 @@ interface Props {
   /** Tugma matni (ixtiyoriy) */
   label?: string;
   className?: string;
-  /** inline — input ichidagi ixcham ikonka-tugma (QR belgisi) */
-  variant?: 'button' | 'inline';
+  /** inline — input ichidagi ixcham ikonka-tugma (QR belgisi); headless — tugmasiz, oynani `open` boshqaradi */
+  variant?: 'button' | 'inline' | 'headless';
+  /** Tashqaridan boshqarish (masalan, skaner menyusidan) — berilsa ichki holat ishlatilmaydi */
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }
 
 /** Telefon/noutbuk kamerasi orqali shtrix yoki QR kodni skanerlaydi (barcha zamonaviy brauzerlar). */
-export default function CameraScanButton({ onScan, label, className = '', variant = 'button' }: Props) {
+export default function CameraScanButton({ onScan, label, className = '', variant = 'button', open: openProp, onOpenChange }: Props) {
   const d = useDict();
   const t = d.ui.scan;
-  const [open, setOpen] = useState(false);
+  const [openState, setOpenState] = useState(false);
+  const open = openProp ?? openState;
+  const setOpen = useCallback((v: boolean) => {
+    if (openProp === undefined) setOpenState(v);
+    onOpenChange?.(v);
+  }, [openProp, onOpenChange]);
   const [error, setError] = useState('');
   const [scanning, setScanning] = useState(false);
   const [photoBusy, setPhotoBusy] = useState(false);
@@ -38,7 +46,7 @@ export default function CameraScanButton({ onScan, label, className = '', varian
     setOpen(false);
     setError('');
     handledRef.current = false;
-  }, [stop]);
+  }, [stop, setOpen]);
 
   useEffect(() => {
     if (!open) return;
@@ -101,7 +109,7 @@ export default function CameraScanButton({ onScan, label, className = '', varian
 
   return (
     <>
-      {variant === 'inline' ? (
+      {variant === 'headless' ? null : variant === 'inline' ? (
         <button
           type="button"
           className={`barcode-scan-btn ${className}`.trim()}

@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { Types } from 'mongoose';
 import { getTenantSession } from '@/lib/tenantSession';
 import { branchFilter, branchAggMatch } from '@/lib/branchScope';
 import { fmtDateTime, fmtMoney } from '@/lib/format';
@@ -12,8 +13,9 @@ import InstallmentAlert, { OverdueInstallment } from '@/components/tenant/Instal
 import { computeInstallmentPlan } from '@/lib/installment';
 import { dayBoundaries, toDayPoints, smoothPath } from '@/lib/weekBuckets';
 import WeekChart from '@/components/tenant/WeekChart';
-import { parsePeriod, periodRange } from '@/lib/period';
+import { parsePeriod, periodLabel, periodRange } from '@/lib/period';
 import PeriodSeg from '@/components/tenant/PeriodSeg';
+import DashFilter from '@/components/tenant/DashFilter';
 import Tilt from '@/components/ui/Tilt';
 import type { IconName } from '@/components/icons/Icon';
 import { loadUserPermissions } from '@/lib/permissionGuard';
@@ -36,7 +38,7 @@ export async function generateMetadata() {
 export default async function TenantDashboard({
   searchParams,
 }: {
-  searchParams: Promise<{ module?: string; welcome?: string; p?: string }>;
+  searchParams: Promise<{ module?: string; welcome?: string; p?: string; b?: string }>;
 }) {
   const sp = await searchParams;
   const { user, org, features, Branch, Product, Sale, User, AiReport, Task, LedgerEntry, FinanceCategory } = await getTenantSession();
@@ -63,10 +65,14 @@ export default async function TenantDashboard({
   const scope = branchFilter(user);
   const aggScope = branchAggMatch(user);
 
-  // Tanlangan davr (Kecha · Bugun · Hafta · Oy · Yil) — admin panellari va davr ko'rsatkichlari
+  // Bosh sahifa filtri: davr (Hammasi · Kecha · Bugun · Hafta · Oy · Yil · aniq kun) — admin panellari,
+  // davr ko'rsatkichlari va xodimning «Mening sotuvlarim» kartasi; filial (faqat egasi) — davr ko'rsatkichlari va panellar
   const period = parsePeriod(sp?.p);
   const { start: pStart, end: pEnd } = periodRange(period, todayStart);
   const inPeriod = { createdAt: { $gte: pStart, $lt: pEnd } };
+  const branchSel = user.role === 'admin' && sp?.b && Types.ObjectId.isValid(sp.b) ? sp.b : '';
+  const bMatch = branchSel ? { branchId: new Types.ObjectId(branchSel) } : {};
+  const periodText = periodLabel(period, t.period, (day) => fmtDayMonth(day, locale));
 
   // Haftalik grafik — oxirgi 7 kun, kunlik chegaralar server vaqti bo'yicha (todayStart bilan bir xil)
   const weekBounds = dayBoundaries(todayStart, 7);
@@ -110,7 +116,7 @@ export default async function TenantDashboard({
     isAdmin ? Branch.find({ active: true }).select('name').lean() : Promise.resolve([]),
     isAdmin && features.sales
       ? Sale.aggregate<{ _id: { name?: string; unit: string }; qty: number; revenue: number }>([
-          { $match: { ...inPeriod, ...notCancelled } },
+          { $match: { ...inPeriod, ...bMatch, ...notCancelled } },
           // Nom + birlik bo'yicha — "dona" va "kg" miqdori bir songa qo'shilmasin
           { $group: {
             _id: { name: '$productSnapshot.name', unit: { $ifNull: ['$productSnapshot.unit', 'dona'] } },
@@ -123,7 +129,7 @@ export default async function TenantDashboard({
       : Promise.resolve([]),
     isAdmin && features.sales
       ? Sale.aggregate<{ _id: string; count: number; total: number }>([
-          { $match: { ...inPeriod, ...notCancelled } },
+          { $match: { ...inPeriod, ...bMatch, ...notCancelled } },
           { $group: { _id: '$soldBy', count: { $sum: 1 }, total: { $sum: '$totalAmount' } } },
           { $sort: { total: -1 } },
           { $limit: 6 },
@@ -137,7 +143,7 @@ export default async function TenantDashboard({
       : Promise.resolve([]),
     !isAdmin && features.sales
       ? Sale.aggregate<{ count: number; total: number }>([
-          { $match: { ...aggScope, soldBy: user.username, createdAt: { $gte: todayStart }, ...notCancelled } },
+          { $match: { ...aggScope, soldBy: user.username, ...inPeriod, ...notCancelled } },
           { $group: { _id: null, count: { $sum: 1 }, total: { $sum: '$totalAmount' } } },
         ])
       : Promise.resolve([]),
@@ -146,7 +152,7 @@ export default async function TenantDashboard({
       : Promise.resolve([]),
     isAdmin && features.sales
       ? Sale.aggregate<{ revenue: number; count: number; refunds: number }>([
-          { $match: { ...inPeriod, ...notCancelled } },
+          { $match: { ...inPeriod, ...bMatch, ...notCancelled } },
           { $group: { _id: null, revenue: { $sum: '$totalAmount' }, count: { $sum: 1 }, refunds: { $sum: { $sum: { $ifNull: ['$returns.refundAmount', []] } } } } },
         ])
       : Promise.resolve([]),
@@ -223,14 +229,47 @@ export default async function TenantDashboard({
   const expenseCategories = canExpense ? await loadExpenseCategories(FinanceCategory) : [];
   const quickCount = [showSaleCta, canAddProduct, canKassa, canExpense, canReports].filter(Boolean).length;
 
+  const filterActive = period !== 'today' || branchSel !== '';
+  const dashHref = (p: string, b: string) => {
+    const q = new URLSearchParams();
+    if (p !== 'today') q.set('p', p);
+    if (b) q.set('b', b);
+    const qs = q.toString();
+    return `/app${qs ? `?${qs}` : ''}`;
+  };
+  const head = (
+    <div>
+      <h1 className="t-page-title">{tr(t.greeting, { name: user.username })}</h1>
+      <p className="t-page-sub">{dateLabel} · {isAdmin ? t.scopeAll : t.scopeBranch}</p>
+    </div>
+  );
+
   return (
     <div className="t-dash">
-      <div className="t-page-head">
-        <div>
-          <h1 className="t-page-title">{tr(t.greeting, { name: user.username })}</h1>
-          <p className="t-page-sub">{dateLabel} · {isAdmin ? t.scopeAll : t.scopeBranch}</p>
-        </div>
-      </div>
+      {features.sales ? (
+        <DashFilter head={head} active={filterActive} label={t.filterBtn}>
+          <div className="t-filter-row">
+            <span className="t-filter-l">{t.filterPeriod}</span>
+            <PeriodSeg basePath={dashHref('today', branchSel)} current={period} />
+          </div>
+          {isAdmin && branchList.length > 1 && (
+            <div className="t-filter-row">
+              <span className="t-filter-l">{t.filterBranch}</span>
+              <nav className="t-period-seg" aria-label={t.filterBranch}>
+                <Link href={dashHref(period, '')} scroll={false} aria-current={!branchSel ? 'page' : undefined}>{t.period.all}</Link>
+                {branchList.map((b) => (
+                  <Link key={String(b._id)} href={dashHref(period, String(b._id))} scroll={false} aria-current={branchSel === String(b._id) ? 'page' : undefined}>
+                    {b.name}
+                  </Link>
+                ))}
+              </nav>
+            </div>
+          )}
+          {filterActive && <Link href="/app" scroll={false} className="t-filter-reset">{t.filterReset}</Link>}
+        </DashFilter>
+      ) : (
+        <div className="t-page-head">{head}</div>
+      )}
 
       {sp?.welcome === '1' && (
         <div className="t-note t-note--info">
@@ -295,7 +334,7 @@ export default async function TenantDashboard({
               label={t.mySales}
               value={String(mine.count)}
               unit={d.common.pcs}
-              sub={tr(t.todaySum, { sum: fmtMoney(mine.total) })}
+              sub={period === 'today' ? tr(t.todaySum, { sum: fmtMoney(mine.total) }) : tr(t.periodSum, { period: periodText, sum: fmtMoney(mine.total) })}
             />
           )}
           <StatCard
@@ -432,7 +471,7 @@ export default async function TenantDashboard({
         <section className="t-period" aria-labelledby="t-period-h">
           <div className="t-period-head">
             <h2 id="t-period-h">{t.period.title}</h2>
-            <PeriodSeg basePath="/app" current={period} />
+            <span className="t-card-meta">{periodText}{branchSel ? ` · ${branchName.get(branchSel) ?? d.common.branch}` : ''}</span>
           </div>
           <div className="ux-strip t-period-strip">
             <div className="ux-stat"><div className="ux-stat-l">{t.period.revenue}</div><div className="ux-stat-v t-num">{fmtMoney(pStats.revenue)}<small>{d.common.sum}</small></div></div>
@@ -446,8 +485,8 @@ export default async function TenantDashboard({
       {isAdmin ? (
         <div className="t-panels">
           {features.sales && branchList.length > 1 && <BranchPanel rows={branchRows} />}
-          {features.sales && <TopProductsPanel rows={topRows} meta={t.period[period]} />}
-          {features.sales && <StaffPanel rows={staffRows} meta={t.period[period]} />}
+          {features.sales && <TopProductsPanel rows={topRows} meta={periodText} />}
+          {features.sales && <StaffPanel rows={staffRows} meta={periodText} />}
           {features.products && <LowStockPanel rows={lowRows} />}
         </div>
       ) : (

@@ -6,6 +6,8 @@ import { fmtDate, fmtMoney } from '@/lib/format';
 import Icon from '@/components/icons/Icon';
 import MoreMenu from '@/components/ui/MoreMenu';
 import Tilt from '@/components/ui/Tilt';
+import PeriodSeg from '@/components/tenant/PeriodSeg';
+import { parsePeriod, periodRange, type PeriodKey } from '@/lib/period';
 import { loadUserPermissions, requirePermission } from '@/lib/permissionGuard';
 import { getDict } from '@/lib/i18n/server';
 import { plural, qtyWithUnit, tr } from '@/lib/i18n/fmt';
@@ -26,7 +28,7 @@ type SumRow = { n: number; sum: number };
 export default async function SalesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ status?: string; type?: string }>;
+  searchParams: Promise<{ status?: string; type?: string; p?: string }>;
 }) {
   const sp = await searchParams;
   await requirePermission('sales.view');
@@ -49,6 +51,14 @@ export default async function SalesPage({
   const filter: Record<string, unknown> = { ...scope };
   if (sp.status && sp.status in SALE_STATUS_LABELS) filter.status = sp.status;
   if (sp.type && sp.type in PAYMENT_TYPE_LABELS) filter.paymentType = sp.type;
+  // Davr: Hammasi (sukut) · Kecha · Bugun · Hafta · Oy · Yil · aniq kun
+  const period = parsePeriod(sp.p, 'all');
+  const periodMatch: Record<string, unknown> = {};
+  if (period !== 'all') {
+    const { start, end } = periodRange(period);
+    periodMatch.createdAt = { $gte: start, $lt: end };
+    filter.createdAt = periodMatch.createdAt;
+  }
   const activeStatus = filter.status as SaleStatus | undefined;
   const activeType = filter.paymentType as PaymentType | undefined;
 
@@ -115,7 +125,8 @@ export default async function SalesPage({
     { $match: { ...branchAggMatch(user), status: { $ne: 'cancelled' } } },
     {
       $facet: {
-        byType: [{ $group: { _id: '$paymentType', n: { $sum: 1 } } }],
+        // Tur chiplari soni — tanlangan davr bo'yicha (ro'yxat bilan mos)
+        byType: [{ $match: periodMatch }, { $group: { _id: '$paymentType', n: { $sum: 1 } } }],
         all: [sumGroup],
         week: [{ $match: { createdAt: { $gte: weekStart } } }, sumGroup],
         today: [{ $match: { createdAt: { $gte: todayStart } } }, sumGroup],
@@ -123,6 +134,7 @@ export default async function SalesPage({
     },
   ]);
   const typeCount = Object.fromEntries((summary?.byType ?? []).map((t) => [t._id, t.n])) as Partial<Record<PaymentType, number>>;
+  const typeTotal = (summary?.byType ?? []).reduce((a, t) => a + t.n, 0);
   const all = summary?.all[0] ?? { n: 0, sum: 0 };
   const week = summary?.week[0] ?? { n: 0, sum: 0 };
   const today = summary?.today[0] ?? { n: 0, sum: 0 };
@@ -133,14 +145,15 @@ export default async function SalesPage({
     return true;
   });
 
-  const href = (status?: string, type?: string) => {
+  const href = (status?: string, type?: string, p: PeriodKey = period) => {
     const q = new URLSearchParams();
     if (status) q.set('status', status);
     if (type) q.set('type', type);
+    if (p !== 'all') q.set('p', p);
     const s = q.toString();
     return s ? `/app/sales?${s}` : '/app/sales';
   };
-  const filtered = !!(activeStatus || activeType);
+  const filtered = !!(activeStatus || activeType || period !== 'all');
   const canExport = features.export && perms.has('export.data');
 
   return (
@@ -218,7 +231,7 @@ export default async function SalesPage({
         </nav>
         <nav className="sl-chips ux-scrollx" aria-label={k.typeFilterAria}>
           <Link href={href(activeStatus)} className="sl-chip" aria-current={!activeType ? 'page' : undefined}>
-            {k.allTypes} <b>{all.n}</b>
+            {k.allTypes} <b>{typeTotal}</b>
           </Link>
           {typeChips.map((t) => (
             <Link key={t} href={href(activeStatus, t)} className="sl-chip" aria-current={activeType === t ? 'page' : undefined}>
@@ -226,6 +239,7 @@ export default async function SalesPage({
             </Link>
           ))}
         </nav>
+        <PeriodSeg basePath={href(activeStatus, activeType, 'all')} current={period} defaultKey="all" />
       </div>
 
       <div className="sl-card sl-list-card">

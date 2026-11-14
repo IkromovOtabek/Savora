@@ -564,6 +564,47 @@
   .t-page-actions > .btn, .t-page-actions > a { flex: 1; justify-content: center; }
 }
 
+/* Bosh sahifa: sarlavha yonida ikonkali filtr tugmasi (toggle) va ochiladigan filtr paneli */
+.t-page-head.t-dash-head { flex-direction: row; align-items: flex-start; flex-wrap: nowrap; }
+.t-filter-btn {
+  position: relative; flex: none; width: 44px; height: 44px; display: grid; place-items: center;
+  border: 0; border-radius: 14px; background: var(--surface); color: var(--ink-2);
+  box-shadow: var(--shadow-sm); cursor: pointer;
+  transition: background .22s ease, color .22s ease, transform .18s ease, box-shadow .22s ease;
+}
+.t-filter-btn:hover { color: var(--ink-1); }
+.t-filter-btn:active { transform: scale(.93); }
+.t-filter-btn:focus-visible { outline: 3px solid var(--brand-ring); outline-offset: 2px; }
+.t-filter-btn.is-open { background: var(--brand); color: #fff; box-shadow: 0 6px 18px -6px var(--brand); }
+.t-filter-dot {
+  position: absolute; top: 9px; right: 9px; width: 8px; height: 8px; border-radius: 50%;
+  background: var(--brand); box-shadow: 0 0 0 2px var(--surface);
+}
+.t-filter-btn.is-open .t-filter-dot { background: #fff; box-shadow: 0 0 0 2px var(--brand); }
+.t-filter {
+  display: grid; grid-template-rows: 0fr; opacity: 0; transform: translateY(-8px); margin-bottom: 0;
+  transition: grid-template-rows .34s cubic-bezier(.2, .8, .2, 1), opacity .24s ease,
+    transform .34s cubic-bezier(.2, .8, .2, 1), margin-bottom .34s cubic-bezier(.2, .8, .2, 1);
+}
+.t-filter.is-open { grid-template-rows: 1fr; opacity: 1; transform: none; margin-bottom: 20px; }
+.t-filter-in { min-height: 0; overflow: hidden; }
+.t-filter-card {
+  display: grid; gap: 14px; padding: 14px 16px 16px; margin: 2px 2px 6px; border-radius: 18px;
+  background: var(--surface); box-shadow: var(--shadow-sm);
+}
+.t-filter-row { display: grid; gap: 7px; min-width: 0; }
+.t-filter.is-open .t-filter-row { animation: t-filter-row .38s cubic-bezier(.2, .8, .2, 1) both; }
+.t-filter.is-open .t-filter-row:nth-child(2) { animation-delay: .06s; }
+.t-filter.is-open .t-filter-row:nth-child(3) { animation-delay: .12s; }
+@keyframes t-filter-row { from { opacity: 0; transform: translateY(-6px); } }
+.t-filter-l { font-size: 12px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--ink-3); }
+.t-filter-reset { justify-self: start; font-size: 14px; font-weight: 600; color: var(--brand); text-decoration: none; }
+.t-filter-reset:hover { text-decoration: underline; }
+@media (prefers-reduced-motion: reduce) {
+  .t-filter, .t-filter-btn { transition: none; }
+  .t-filter.is-open .t-filter-row { animation: none; }
+}
+
 .t-note {
   padding: 12px 16px;
   border-radius: 14px;
@@ -1116,3 +1157,17 @@ a.t-cell:active { background: var(--t-fill); }
 .t-period-seg a:hover { color: var(--ink-1); }
 .t-period-seg a[aria-current="page"] { background: var(--fill-3); color: var(--ink-1); font-weight: 700; }
 .t-period-strip .ux-stat-v small { margin-left: 4px; }
+/* Aniq kun — davr tanlagichi oxirida; native date input ko'rinmas holda butun tugma ustida */
+.t-period-day {
+  position: relative; flex: none; min-height: 36px; min-width: 40px; padding: 0 12px;
+  display: inline-flex; align-items: center; justify-content: center; gap: 7px; border-radius: 10px;
+  font-size: 14px; font-weight: 600; color: var(--ink-2); white-space: nowrap; cursor: pointer;
+}
+.t-period-day:hover { color: var(--ink-1); }
+.t-period-day.is-on { background: var(--brand-soft); color: var(--brand); font-weight: 700; }
+.t-period-day:focus-within { box-shadow: 0 0 0 3px var(--brand-ring); }
+.t-period-day input {
+  position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; padding: 0; border: 0;
+  opacity: 0; cursor: pointer; font-size: 16px; color-scheme: light dark;
+}
+.t-period-day input::-webkit-calendar-picker-indicator { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; cursor: pointer; }

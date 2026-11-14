@@ -166,7 +166,7 @@ export function PosPayModal({ total, pending, customerName, customerPhone, onCus
                 <div className="pos-pm-panel">
                   <div className="pos-pm-two">
                     <input className="input" value={customerName} onChange={(e) => onCustomerName(e.target.value)} placeholder={k.customerName.replace(/\s*\(.*\)$/, '')} maxLength={100} aria-label={k.customer} autoComplete="off" />
-                    <input className="input" value={customerPhone} onChange={(e) => onCustomerPhone(e.target.value)} placeholder="+998 90 123 45 67" maxLength={30} inputMode="tel" aria-label={d.common.phone} autoComplete="off" />
+                    <input className="input" type="tel" value={customerPhone} onChange={(e) => onCustomerPhone(e.target.value)} placeholder="+998 90 123 45 67" maxLength={30} inputMode="tel" aria-label={d.common.phone} autoComplete="off" />
                   </div>
                   <label className="pos-label" htmlFor="pos-pm-dpaid">{k.paidNow}</label>
                   <div className="pos-pm-two">

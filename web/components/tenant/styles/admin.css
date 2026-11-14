@@ -227,6 +227,8 @@ a.ad-cell:active { opacity: .6; }
   display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 20px;
 }
 .ad-chips { display: flex; flex-wrap: wrap; gap: 6px; flex: 1; min-width: 0; }
+/* Davr / aniq kun tanlagichi — chiplar va qidiruvdan keyin alohida qatorda */
+.ad-period { flex-basis: 100%; min-width: 0; }
 .ad-chip {
   display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 7px 14px;
   border-radius: var(--r-pill); background: var(--fill); color: var(--ink-1);

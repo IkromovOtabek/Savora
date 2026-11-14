@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { posSaleAction, type PosDone } from '@/app/actions/pos';
 import { PosDoneModal, PosPayModal, type PosPayment } from './PosCheckout';
+import PosScanButton from './PosScanButton';
 import { DISCOUNT_PRESETS, POS_HANDOFF_KEY, allocateDiscount, discountAmount, unitPriceFor, type DiscountKind, type PosHandoff } from '@/lib/posCart';
 import { fmtMoney } from '@/lib/format';
 import { toast } from '@/lib/toast';
@@ -51,6 +52,8 @@ const MAX_RESULTS = 8;
 /** Turkum tanlanganda (qidiruvsiz ham) ko'rsatiladigan mahsulotlar soni */
 const MAX_CAT_RESULTS = 60;
 const MAX_PARKED = 20;
+/** Pistolet skaner rejimi — kassir tanlovi qurilmada eslab qolinadi */
+const GUN_KEY = 'savora_pos_scanner';
 
 function readParked(key: string): ParkedSale[] {
   try {
@@ -109,6 +112,8 @@ export default function PosScreen({ products, categories = [], canDiscount, canE
   const discountRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => { setParked(readParked(storageKey)); }, [storageKey]);
+  const [gun, setGun] = useState(false);
+  useEffect(() => { try { setGun(localStorage.getItem(GUN_KEY) === '1'); } catch { /* xotira yo'q */ } }, []);
   useEffect(() => { searchRef.current?.focus(); }, []);
 
   const byId = useMemo(() => new Map(products.map((p) => [p.id, p])), [products]);
@@ -164,6 +169,22 @@ export default function PosScreen({ products, categories = [], canDiscount, canE
     });
     setQuery('');
     setHit(0);
+  }, []);
+
+  /** Skanerlangan kod: aniq mos tovar savatchaga, topilmasa — xabar */
+  const addByCode = useCallback((code: string) => {
+    const q = code.trim().toLowerCase();
+    if (!q) return;
+    const p = products.find((x) => x.codes.some((c) => c.toLowerCase() === q));
+    if (p) add(p);
+    else { toast(tr(k.scanNotFound, { code: code.trim() }), 'error'); setQuery(''); }
+    searchRef.current?.focus();
+  }, [products, add, k.scanNotFound]);
+
+  const setGunMode = useCallback((on: boolean) => {
+    setGun(on);
+    try { if (on) localStorage.setItem(GUN_KEY, '1'); else localStorage.removeItem(GUN_KEY); } catch { /* xotira yo'q */ }
+    if (on) searchRef.current?.focus();
   }, []);
 
   const changeQty = useCallback((i: number, delta: number) => {
@@ -280,6 +301,8 @@ export default function PosScreen({ products, categories = [], canDiscount, canE
       if (e.metaKey || e.ctrlKey || e.altKey) return;
       if (e.key === 'Escape') { (document.activeElement as HTMLElement | null)?.blur(); setShowParked(false); return; }
       if (isTyping(e.target)) return;
+      // Pistolet skaner: fokus boshqa joyda bo'lsa ham raqamlar qidiruv katagiga tushadi
+      if (gun && /^[0-9]$/.test(e.key)) { searchRef.current?.focus(); return; }
       const key = e.key.toLowerCase();
       if (key === '/') { e.preventDefault(); searchRef.current?.focus(); }
       else if (key === 'j') { e.preventDefault(); customerRef.current?.focus(); }
@@ -294,7 +317,7 @@ export default function PosScreen({ products, categories = [], canDiscount, canE
     }
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [cart.length, sel, canDiscount, openPay, park, changeQty, removeLine, payOpen, done]);
+  }, [cart.length, sel, canDiscount, openPay, park, changeQty, removeLine, payOpen, done, gun]);
 
   function onSearchKey(e: React.KeyboardEvent<HTMLInputElement>) {
     if (e.key === 'ArrowDown') { e.preventDefault(); setHit((h) => Math.min(results.length - 1, h + 1)); }
@@ -306,6 +329,7 @@ export default function PosScreen({ products, categories = [], canDiscount, canE
       const exact = products.find((p) => p.codes.some((c) => c.toLowerCase() === q));
       const pick = exact ?? results[hit];
       if (pick) add(pick);
+      else if (gun && q) { toast(tr(k.scanNotFound, { code: query.trim() }), 'error'); setQuery(''); }
     }
   }
 
@@ -315,7 +339,7 @@ export default function PosScreen({ products, categories = [], canDiscount, canE
   return (
     <div className="pos">
       <section className="pos-main" aria-label={k.cart}>
-        <div className="pos-search">
+        <div className={`pos-search${gun ? ' is-gun' : ''}`}>
           <Icon name="search" size={18} />
           <input
             ref={searchRef}
@@ -323,14 +347,14 @@ export default function PosScreen({ products, categories = [], canDiscount, canE
             value={query}
             onChange={(e) => { setQuery(e.target.value); setHit(0); }}
             onKeyDown={(e) => { if (e.key === 'Escape' && cat) { e.preventDefault(); setCat(''); return; } onSearchKey(e); }}
-            placeholder={k.searchPh}
+            placeholder={gun ? k.scanGunReady : k.searchPh}
             aria-label={k.searchPh}
             autoComplete="off"
             role="combobox"
             aria-expanded={showResults}
             aria-controls="pos-results"
           />
-          {kbd('/')}
+          <PosScanButton gunOn={gun} onGunChange={setGunMode} onCode={addByCode} />
           {showResults && (
             <ul className="pos-results" id="pos-results" role="listbox">
               {results.length === 0 ? (
@@ -484,7 +508,7 @@ export default function PosScreen({ products, categories = [], canDiscount, canE
         <div className="pos-card">
           <label className="pos-label" htmlFor="pos-customer">{k.customer} {kbd('J')}</label>
           <input id="pos-customer" ref={customerRef} className="input" value={customerName} onChange={(e) => setCustomerName(e.target.value)} placeholder={k.customerName} maxLength={100} autoComplete="off" />
-          <input className="input" value={customerPhone} onChange={(e) => setCustomerPhone(e.target.value)} placeholder={k.customerPhone} maxLength={30} inputMode="tel" autoComplete="off" aria-label={k.customerPhone} />
+          <input className="input" type="tel" value={customerPhone} onChange={(e) => setCustomerPhone(e.target.value)} placeholder={k.customerPhone} maxLength={30} inputMode="tel" autoComplete="off" aria-label={k.customerPhone} />
         </div>
 
         {canDiscount && (

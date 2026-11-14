@@ -23,6 +23,40 @@
 .pos-search:focus-within { box-shadow: 0 0 0 3px var(--brand-ring); }
 .pos-search input { flex: 1; min-width: 0; border: 0; background: transparent; outline: none; font-size: 16px; color: var(--ink-1); }
 .pos-search input::placeholder { color: var(--ink-3); }
+.pos-search.is-gun input::placeholder { color: var(--brand); }
+/* Skaner tugmasi — qidiruv katagining o'ng chekkasida; menyu: kamera / pistolet skaner */
+.pos-scan { position: relative; flex: none; margin-right: -6px; }
+.pos-scan-btn {
+  position: relative; display: grid; place-items: center; width: 40px; height: 40px;
+  border: 0; border-radius: 12px; background: var(--fill); color: var(--ink-2); cursor: pointer;
+  transition: background .15s, color .15s;
+}
+.pos-scan-btn:hover { background: var(--fill-3); color: var(--ink-1); }
+.pos-scan-btn:focus-visible { outline: 3px solid var(--brand-ring); outline-offset: 1px; }
+.pos-scan-btn.is-on { background: var(--brand-soft); color: var(--brand); }
+.pos-scan-dot {
+  position: absolute; top: 7px; right: 7px; width: 7px; height: 7px; border-radius: 50%;
+  background: var(--accent); box-shadow: 0 0 0 2px var(--surface);
+  animation: pos-scan-pulse 1.6s ease-in-out infinite;
+}
+@keyframes pos-scan-pulse { 50% { opacity: .35; } }
+.pos-scan-menu {
+  position: absolute; right: 0; top: calc(100% + 8px); z-index: 40; min-width: 250px;
+  display: grid; gap: 2px; padding: 6px; border-radius: 14px;
+  background: var(--surface); border: 1px solid var(--sep); box-shadow: var(--shadow-lg);
+  animation: pos-scan-in .16s ease-out;
+}
+@keyframes pos-scan-in { from { opacity: 0; transform: translateY(-4px); } }
+.pos-scan-menu button {
+  display: flex; align-items: center; gap: 12px; width: 100%; padding: 10px 12px;
+  border: 0; border-radius: 10px; background: transparent; color: var(--ink-1);
+  text-align: left; cursor: pointer;
+}
+.pos-scan-menu button:hover, .pos-scan-menu button:focus-visible { background: var(--fill); outline: none; }
+.pos-scan-menu button > svg { color: var(--brand); flex: none; }
+.pos-scan-menu b { display: block; font-size: 14px; font-weight: 600; }
+.pos-scan-menu small { display: block; font-size: 12px; color: var(--ink-3); margin-top: 1px; }
+@media (prefers-reduced-motion: reduce) { .pos-scan-dot, .pos-scan-menu { animation: none; } }
 .pos-results {
   position: absolute; left: 0; right: 0; top: calc(100% + 8px); z-index: 30;
   list-style: none; margin: 0; padding: 6px; border-radius: 16px;

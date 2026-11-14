@@ -3,6 +3,7 @@ import { fontVariables } from './fonts';
 import './globals.css';
 import Toaster from '@/components/ui/Toaster';
 import PWARegister from '@/components/PWARegister';
+import PhonePrefix from '@/components/ui/PhonePrefix';
 import VisitTracker from '@/components/analytics/VisitTracker';
 import { siteUrl } from '@/lib/siteUrl';
 import { getLocale } from '@/lib/i18n/server';
@@ -106,6 +107,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           <VisitTracker />
           <Toaster />
           <PWARegister />
+          <PhonePrefix />
         </I18nProvider>
       </body>
     </html>
