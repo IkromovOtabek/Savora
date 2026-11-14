@@ -64,13 +64,19 @@ export async function shiftCashOpAction(_prev: State, formData: FormData): Promi
     type: zOneOf(['income', 'expense'] as const, k.badAmount),
     amount: zMoney(k.badAmount, { min: 1 }),
     note: zText(300),
+    // Olishda xarajat toifasi (ixtiyoriy) — faqat «Kirim-Chiqim» moduli yoqilganda
+    category: zText(60),
   }), formToObject(formData), k.badAmount);
   if (!parsed.ok) return { error: parsed.error };
 
-  const res = await shiftCashOp(user, session, k, parsed.data);
+  const res = await shiftCashOp(user, session, k, {
+    ...parsed.data,
+    category: features.kirimChiqim ? parsed.data.category : undefined,
+  });
   if ('success' in res) {
     revalidatePath('/app/shifts');
     revalidatePath('/app/finance');
+    revalidatePath('/app/monitoring');
   }
   return res;
 }

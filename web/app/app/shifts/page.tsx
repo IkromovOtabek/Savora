@@ -3,6 +3,7 @@ import { isBranchScoped } from '@/lib/branchScope';
 import { userCan } from '@/lib/permissionGuard';
 import { type ShiftTotals } from '@/lib/cashShift';
 import { shiftTotalsNow } from '@/lib/cashShiftOps';
+import { ensureFinanceCategories } from '@/lib/financeCategories';
 import { fmtDateTime, fmtMoney } from '@/lib/format';
 import { OpenShiftForm, CloseShiftForm, ShiftCashOpForm } from '@/components/tenant/ShiftForms';
 import Icon from '@/components/icons/Icon';
@@ -16,7 +17,7 @@ export async function generateMetadata() {
 }
 
 export default async function ShiftsPage() {
-  const { user, Branch, CashShift, Sale, CashFlow } = await getTenantSession();
+  const { user, Branch, CashShift, Sale, CashFlow, FinanceCategory, features } = await getTenantSession();
   const d = await getDict();
   const k = d.sales.shifts;
   const scoped = isBranchScoped(user);
@@ -31,6 +32,14 @@ export default async function ShiftsPage() {
     CashShift.find({ status: 'open', branchId: { $in: branchIds } }).sort({ openedAt: 1 }).lean(),
     CashShift.find({ status: 'closed', branchId: { $in: branchIds } }).sort({ closedAt: -1 }).limit(30).lean(),
   ]);
+
+  // Kassadan olishda xarajat toifasi (sof foydadan ayiriladi) — «Kirim-Chiqim» moduli yoqilganda
+  let expenseCategories: string[] = [];
+  if (canShift && features.kirimChiqim && open.length > 0) {
+    await ensureFinanceCategories(FinanceCategory);
+    expenseCategories = (await FinanceCategory.find({ type: 'expense', active: true, system: { $ne: true } })
+      .sort({ name: 1 }).select('name').limit(100).lean()).map((c) => c.name);
+  }
 
   // Ochiq smenalar: joriy kassa — ochilishdan hozirgacha bo'lgan naqd harakatlar
   const now = new Date();
@@ -108,7 +117,7 @@ export default async function ShiftsPage() {
                       <div className="sh-acts">
                         <details className="sh-details">
                           <summary className="btn btn-ghost btn-sm">{k.cashOps}</summary>
-                          <ShiftCashOpForm shiftId={String(s._id)} />
+                          <ShiftCashOpForm shiftId={String(s._id)} expenseCategories={expenseCategories} />
                         </details>
                         <details className="sh-details">
                           <summary className="btn btn-ghost btn-sm">{k.closeBtn}</summary>

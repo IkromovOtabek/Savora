@@ -249,7 +249,7 @@ export default async function MonitoringPage({
                 </div>
               </div>
               <p className="fn-pl-note">
-                {t.plNote} <Link href="/app/finance/categories">{t.plSettings}</Link>
+                {t.plNote} <Link href="/app/finance">{t.plAddExpense}</Link> · <Link href="/app/finance/categories">{t.plSettings}</Link>
               </p>
             </div>
           </section>

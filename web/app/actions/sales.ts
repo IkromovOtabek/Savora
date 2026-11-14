@@ -34,6 +34,7 @@ import { computePartialReturn } from '@/lib/saleReturn';
 import { z } from 'zod';
 import { formToObject, parseInput, zId, zText, zMoney, zInt, zOptInt, zOptQty, zOptDate, zField, zOneOf } from '@/lib/validation';
 import { PAY_METHODS } from '@/lib/payMethods';
+import { escapeRegExp } from '@/lib/security';
 
 /** Tez sotuvda bir martada eng ko'p qator (savatcha) — haddan katta so'rovdan himoya */
 const QUICK_SALE_MAX_LINES = 100;
@@ -114,7 +115,14 @@ export async function lookupProductByImei(imei: string): Promise<ScannedProduct 
   const normalized = normalizeImei(imei);
   if (!normalized) return null;
 
-  const product = await Product.findOne({ ...branchFilter(user), imei: normalized, status: 'in_stock' }).lean();
+  let product = await Product.findOne({ ...branchFilter(user), imei: normalized, status: 'in_stock' }).lean();
+  // Oxirgi 4+ raqam: faqat bitta telefon mos kelsa — o'sha (bir nechta bo'lsa forma ro'yxatdan tanlatadi)
+  if (!product && normalized.length >= 4 && normalized.length < 15) {
+    const tail = await Product.find({ ...branchFilter(user), imei: { $regex: `${escapeRegExp(normalized)}$` }, status: 'in_stock' })
+      .limit(2)
+      .lean();
+    if (tail.length === 1) product = tail[0];
+  }
   if (!product) return null;
 
   const branch = await Branch.findById(product.branchId).lean();

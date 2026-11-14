@@ -80,11 +80,17 @@ export function CloseShiftForm({ shiftId, expected }: { shiftId: string; expecte
 }
 
 /** Smena ichida kassa operatsiyasi: pul qo'shish yoki olish */
-export function ShiftCashOpForm({ shiftId }: { shiftId: string }) {
+export function ShiftCashOpForm({ shiftId, expenseCategories = [] }: {
+  shiftId: string;
+  /** Xarajat toifalari («Kirim-Chiqim» yoqilganda) — olishda tanlansa, sof foydadan ayiriladi */
+  expenseCategories?: string[];
+}) {
   const k = useDict().sales.shifts;
   const [state, action, pending] = useActionState(shiftCashOpAction, null);
   const [type, setType] = useState<'income' | 'expense'>('expense');
+  const [category, setCategory] = useState('');
   useToastOnState(state);
+  const showPurpose = type === 'expense' && expenseCategories.length > 0;
   return (
     <form action={action} className="sh-close">
       <input type="hidden" name="shiftId" value={shiftId} />
@@ -93,6 +99,16 @@ export function ShiftCashOpForm({ shiftId }: { shiftId: string }) {
         <button type="button" role="radio" aria-checked={type === 'expense'} onClick={() => setType('expense')}>{k.opWithdraw}</button>
         <button type="button" role="radio" aria-checked={type === 'income'} onClick={() => setType('income')}>{k.opDeposit}</button>
       </div>
+      {showPurpose && (
+        <div className="auth-field">
+          <label htmlFor={`sh-op-c-${shiftId}`}>{k.opPurpose}</label>
+          <select id={`sh-op-c-${shiftId}`} name="category" value={category} onChange={(e) => setCategory(e.target.value)} disabled={pending}>
+            <option value="">{k.opPurposeCash}</option>
+            {expenseCategories.map((c) => <option key={c} value={c}>{tr(k.opPurposeExpense, { name: c })}</option>)}
+          </select>
+          {category && <span className="field-hint">{k.opPurposeHint}</span>}
+        </div>
+      )}
       <div className="sh-close-grid">
         <div className="auth-field">
           <label htmlFor={`sh-op-a-${shiftId}`}>{k.opAmount}</label>

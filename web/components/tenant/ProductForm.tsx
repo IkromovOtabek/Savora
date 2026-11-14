@@ -383,6 +383,22 @@ export default function ProductForm({
                     <PriceInput id="salePrice" name="salePrice" value={saleRaw} onValueChange={setSaleRaw} disabled={isPending} placeholder={d.common.optional} />
                   </div>
                 </div>
+                {/* Yetkazib beruvchi — kelish narxi yonida (pastdagi «Qo'shimcha»da ko'rinmay qolardi).
+                    Ro'yxat bo'sh bo'lsa ham ko'rinadi — yangi yetkazib beruvchini shu yerdan qo'shish mumkin */}
+                {suppliers && isGoods && (
+                  <div className="auth-field">
+                    <SupplierField suppliers={suppliers} value={supplierId} onChange={setSupplierId} disabled={isPending} />
+                    {isCreate && supplierId && purchaseNum > 0 && (
+                      <label className="st-switch-row">
+                        <span className="st-switch-row-t">
+                          <b>{tr(d.stock.suppliers.productAsDebt, { sum: fmt(priceTimesQty(purchaseNum, trackQuantity ? parseQty(qtyRaw, unit) ?? 1 : 1)) })}</b>
+                          <small>{d.stock.suppliers.productAsDebtHint}</small>
+                        </span>
+                        <input type="checkbox" role="switch" className="st-switch" name="supplierDebt" disabled={isPending} />
+                      </label>
+                    )}
+                  </div>
+                )}
                 <div className="auth-field">
                   <label htmlFor="wholesalePrice">{t.wholesaleLabel}</label>
                   <PriceInput id="wholesalePrice" name="wholesalePrice" value={wholesaleRaw} onValueChange={setWholesaleRaw} disabled={isPending} placeholder={d.common.optional} />
@@ -645,21 +661,6 @@ export default function ProductForm({
                   <div className="auth-field">
                     <span className="st-profit-l">{t.photo}</span>
                     <ImageUploadField defaultValue={initial?.photoUrl} disabled={isPending} />
-                  </div>
-                )}
-                {/* Ro'yxat bo'sh bo'lsa ham ko'rinadi — yangi yetkazib beruvchini shu yerdan qo'shish mumkin */}
-                {suppliers && isGoods && (
-                  <div className="auth-field">
-                    <SupplierField suppliers={suppliers} value={supplierId} onChange={setSupplierId} disabled={isPending} />
-                    {isCreate && supplierId && purchaseNum > 0 && (
-                      <label className="st-switch-row">
-                        <span className="st-switch-row-t">
-                          <b>{tr(d.stock.suppliers.productAsDebt, { sum: fmt(priceTimesQty(purchaseNum, trackQuantity ? parseQty(qtyRaw, unit) ?? 1 : 1)) })}</b>
-                          <small>{d.stock.suppliers.productAsDebtHint}</small>
-                        </span>
-                        <input type="checkbox" role="switch" className="st-switch" name="supplierDebt" disabled={isPending} />
-                      </label>
-                    )}
                   </div>
                 )}
                 <div className="auth-field">

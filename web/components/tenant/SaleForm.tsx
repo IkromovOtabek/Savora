@@ -36,6 +36,14 @@ const PAYMENT_ORDER: PaymentType[] = ['cash', 'debt', 'installment', 'bank_credi
 /** Ro'yxatda bir vaqtda ko'rsatiladigan mahsulotlar soni (qolgani qidiruv orqali) */
 const PICK_LIMIT = 60;
 
+/** IMEI takliflari: shuncha raqamdan boshlab (oxirgi 4 raqam) va ro'yxatda eng ko'pi */
+const IMEI_MIN_DIGITS = 4;
+const IMEI_SUGGEST_LIMIT = 8;
+
+function normImei(v: string): string {
+  return v.trim().replace(/\s/g, '').toUpperCase();
+}
+
 /** To'lov muddati uchun tez tanlovlar (yorliqlar: d.sales.duePresets) */
 const DUE_PRESETS = [
   { key: 'week1', days: 7 },
@@ -159,8 +167,51 @@ export default function SaleForm({ isPhoneShop, products, mediaEnabled, features
     return { items: list.slice(0, PICK_LIMIT), more: Math.max(0, list.length - PICK_LIMIT) };
   }, [products, query]);
 
+  // Telefon do'kon: IMEI'ning oxirgi 4+ raqami yozilsa — mos telefonlar (oxiri mos kelganlari birinchi)
+  const imeiQuery = normImei(imei);
+  const imeiMatches = useMemo(() => {
+    if (!isPhoneShop || imeiQuery.length < IMEI_MIN_DIGITS) return [];
+    const ends: ProductOption[] = [];
+    const has: ProductOption[] = [];
+    for (const p of products) {
+      const code = (p.imei ?? '').toUpperCase();
+      if (!code) continue;
+      if (code.endsWith(imeiQuery)) ends.push(p);
+      else if (code.includes(imeiQuery)) has.push(p);
+    }
+    return [...ends, ...has];
+  }, [isPhoneShop, imeiQuery, products]);
+  // Tanlangan telefonning IMEI'si yozilgan bo'lsa — ro'yxat yopiladi
+  const showImeiMatches = imeiMatches.length > 0 && !(product && product.imei.toUpperCase() === imeiQuery);
+
   function syncTotal(price: number, qty: number) {
     setTotalAmount(String(priceTimesQty(price, qty)));
+  }
+
+  function pickImeiOption(p: ProductOption) {
+    setLookupError('');
+    setProduct({
+      id: p.id,
+      name: p.name,
+      imei: p.imei ?? '',
+      salePrice: p.salePrice,
+      branchName: p.branchName,
+      trackQuantity: p.trackQuantity,
+      available: p.available,
+      unit: p.unit,
+    });
+    setImei(p.imei ?? '');
+    syncTotal(p.salePrice, 1);
+    setSaleQty('1');
+  }
+
+  /** Enter / «Qidirish»: aniq yoki yagona mos telefon — darhol; bir nechta — ro'yxatdan tanlanadi */
+  function submitImei() {
+    if (!imeiQuery || searching) return;
+    const exact = imeiMatches.find((p) => (p.imei ?? '').toUpperCase() === imeiQuery);
+    if (exact) return pickImeiOption(exact);
+    if (imeiMatches.length === 1) return pickImeiOption(imeiMatches[0]);
+    if (imeiMatches.length === 0) handleImeiSearch();
   }
 
   function handleImeiSearch() {
@@ -267,11 +318,11 @@ export default function SaleForm({ isPhoneShop, products, mediaEnabled, features
                         id="imei"
                         type="text"
                         value={imei}
-                        onChange={(e) => setImei(e.target.value.toUpperCase())}
+                        onChange={(e) => { setImei(e.target.value.toUpperCase()); setLookupError(''); }}
                         onKeyDown={(e) => {
                           if (e.key === 'Enter') {
                             e.preventDefault();
-                            if (imei.trim() && !searching) handleImeiSearch();
+                            submitImei();
                           }
                         }}
                         className="imei-input"
@@ -284,7 +335,7 @@ export default function SaleForm({ isPhoneShop, products, mediaEnabled, features
                     <button
                       type="button"
                       className="btn btn-primary btn-with-icon sl-imei-btn"
-                      onClick={handleImeiSearch}
+                      onClick={submitImei}
                       disabled={searching || !imei.trim()}
                       aria-label={searching ? d.sales.searching : d.common.search}
                     >
@@ -292,6 +343,28 @@ export default function SaleForm({ isPhoneShop, products, mediaEnabled, features
                       <span className="ux-hide-mobile">{searching ? d.sales.searching : d.common.search}</span>
                     </button>
                   </div>
+                  {showImeiMatches && (
+                    <ul className="sl-picker" role="group" aria-label={k.imeiMatches}>
+                      {imeiMatches.slice(0, IMEI_SUGGEST_LIMIT).map((p) => (
+                        <li key={p.id}>
+                          <button
+                            type="button"
+                            className="sl-pick"
+                            aria-pressed={product?.id === p.id}
+                            onClick={() => pickImeiOption(p)}
+                            disabled={isPending}
+                          >
+                            <b>{p.name}</b>
+                            <span><code>{p.imei}</code> · {p.branchName}</span>
+                            <strong>{fmtMoney(p.salePrice)}</strong>
+                          </button>
+                        </li>
+                      ))}
+                      {imeiMatches.length > IMEI_SUGGEST_LIMIT && (
+                        <li className="sl-picker-more">{tr(k.imeiMatchesMore, { n: imeiMatches.length - IMEI_SUGGEST_LIMIT })}</li>
+                      )}
+                    </ul>
+                  )}
                   {lookupError && <div className="auth-alert auth-alert--warn" role="alert">{lookupError}</div>}
                 </>
               ) : products.length === 0 ? (
