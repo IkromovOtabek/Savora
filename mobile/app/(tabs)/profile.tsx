@@ -8,7 +8,8 @@ import { useTheme, type ThemeMode } from '@/lib/theme';
 import { useResource } from '@/lib/hooks';
 import { fmtDate } from '@/lib/format';
 import { useI18n, tr, type Locale, LOCALES, LOCALE_SHORT } from '@/lib/i18n';
-import { Screen, TopBar, Group, Cell, Avatar, Pill, SegmentedControl, Card, type Tone } from '@/components/ui';
+import { Screen, TopBar, Group, Cell, Avatar, Pill, SegmentedControl, Switch, Card, type Tone } from '@/components/ui';
+import { api, errMsg } from '@/lib/api';
 import { getPushStatus, registerForPush, type PushStatus } from '@/lib/push';
 
 interface AiResp {
@@ -62,12 +63,20 @@ function AiCard() {
   );
 }
 
-/** Bildirishnomalar: holat; ruxsat so'ralmagan bo'lsa — so'raydi, rad etilgan bo'lsa — telefon sozlamalariga */
+interface NotifyResp { notify: { shiftDiff: boolean; dailySummary: boolean; newSale: boolean }; telegram: boolean }
+type NotifyKey = keyof NotifyResp['notify'];
+
+/**
+ * Bildirishnomalar: telefon ruxsati holati (so'ralmagan bo'lsa — so'raydi, rad etilgan bo'lsa —
+ * telefon sozlamalariga) va egasi uchun web «Sozlamalar → Bildirishnomalar» dagi tanlovlar.
+ */
 function NotifyGroup({ isAdmin }: { isAdmin: boolean }) {
   const { c } = useTheme();
   const { d } = useI18n();
   const [status, setStatus] = useState<PushStatus | null>(null);
   const prev = useRef<PushStatus | null>(null);
+  const prefs = useResource<NotifyResp>(isAdmin ? '/api/mobile/notify' : null);
+  const [saving, setSaving] = useState(false);
 
   const refresh = useCallback(async () => {
     const s = await getPushStatus();
@@ -83,8 +92,27 @@ function NotifyGroup({ isAdmin }: { isAdmin: boolean }) {
     return () => sub.remove();
   }, [refresh]);
 
-  // Simulyator / push'ni qo'llamaydigan qurilma — ko'rsatmaymiz
-  if (!status || status === 'unsupported') return null;
+  // Do'kon sozlamasi (Telegram va ilova uchun umumiy) — darhol saqlanadi, xato bo'lsa qaytariladi
+  async function toggle(key: NotifyKey, v: boolean) {
+    const cur = prefs.data;
+    if (!cur || saving) return;
+    const next = { ...cur.notify, [key]: v };
+    prefs.setData({ ...cur, notify: next });
+    setSaving(true);
+    try {
+      await api('/api/mobile/notify', { method: 'PUT', body: next });
+    } catch (e) {
+      prefs.setData(cur);
+      Alert.alert(d.common.error, errMsg(e));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  // Simulyator / push'ni qo'llamaydigan qurilma — telefon qatori ko'rinmaydi
+  const phone = !!status && status !== 'unsupported';
+  const p = prefs.data;
+  if (!phone && !p) return null;
   const on = status === 'granted';
 
   async function onPress() {
@@ -97,16 +125,50 @@ function NotifyGroup({ isAdmin }: { isAdmin: boolean }) {
     void Linking.openSettings();
   }
 
+  const items: { key: NotifyKey; icon: 'time' | 'stats-chart' | 'cart'; color: string; title: string; sub: string }[] = [
+    { key: 'shiftDiff', icon: 'time', color: c.sq.o, title: d.profile.notifyShiftDiff, sub: d.profile.notifyShiftDiffSub },
+    { key: 'dailySummary', icon: 'stats-chart', color: c.sq.g, title: d.profile.notifyDaily, sub: d.profile.notifyDailySub },
+    { key: 'newSale', icon: 'cart', color: c.sq.p, title: d.profile.notifyNewSale, sub: d.profile.notifyNewSaleSub },
+  ];
+
   return (
     <Group header={d.profile.notify} icon="notifications-outline" footer={isAdmin ? d.profile.notifyFooterAdmin : d.profile.notifyFooter}>
-      <Cell
-        icon="notifications"
-        iconColor={c.sq.r}
-        title={d.profile.notify}
-        right={<Pill label={on ? d.profile.notifyOn : d.profile.notifyOff} tone={on ? 'ok' : 'warn'} />}
-        chevron
-        onPress={onPress}
-      />
+      {[
+        phone ? (
+          <Cell
+            key="phone"
+            icon="notifications"
+            iconColor={c.sq.r}
+            title={d.profile.notifyPhone}
+            right={<Pill label={on ? d.profile.notifyOn : d.profile.notifyOff} tone={on ? 'ok' : 'warn'} />}
+            chevron
+            onPress={onPress}
+          />
+        ) : null,
+        p ? (
+          <Cell
+            key="tg"
+            icon="paper-plane"
+            iconColor={c.sq.b}
+            title="Telegram"
+            subtitle={p.telegram ? undefined : d.profile.notifyTgOffSub}
+            subtitleLines={2}
+            right={<Pill label={p.telegram ? d.profile.notifyTgOn : d.profile.notifyTgOff} tone={p.telegram ? 'ok' : 'mut'} />}
+          />
+        ) : null,
+        ...(p ? items.map((it) => (
+          <Cell
+            key={it.key}
+            icon={it.icon}
+            iconColor={it.color}
+            title={it.title}
+            subtitle={it.sub}
+            titleLines={2}
+            subtitleLines={3}
+            right={<Switch value={p.notify[it.key]} onValueChange={(v) => void toggle(it.key, v)} disabled={saving} />}
+          />
+        )) : []),
+      ]}
     </Group>
   );
 }
