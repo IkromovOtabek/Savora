@@ -9,7 +9,8 @@ import { api, errMsg } from '@/lib/api';
 import { useOfflinePos } from '@/lib/offlinePos';
 import { useCan } from '@/lib/auth';
 import { findByCode, isNetworkError, toPicked } from '@/lib/offline';
-import { putPicked, type PickedProduct } from '@/lib/pick';
+import { putPicked, isSellable, saleHref, type PickedProduct } from '@/lib/pick';
+import { fmtMoney } from '@/lib/format';
 import { putChoice } from '@/lib/catalog';
 import { Screen, NavBar, EmptyState, Button, Loading } from '@/components/ui';
 import { useDict, tr } from '@/lib/i18n';
@@ -26,7 +27,10 @@ export default function Scan() {
   const { width } = useWindowDimensions();
   const d = useDict();
   const pos = useOfflinePos();
-  const canCreate = useCan()('product.create');
+  const can = useCan();
+  const canCreate = can('product.create');
+  const canView = can('products.view');
+  const canSell = can('sale.create');
   const [permission, requestPermission] = useCameraPermissions();
   const [busy, setBusy] = useState(false);
   const [torch, setTorch] = useState(false);
@@ -56,8 +60,12 @@ export default function Scan() {
           }
           putPicked({ id: hit.id, name: hit.name, salePrice: hit.salePrice, available: hit.available, trackQuantity: hit.trackQuantity, status: hit.status, unit: hit.unit ?? null });
           router.back();
-        } else {
+        } else if (canView) {
           router.replace(`/product/${hit.id}`);
+        } else if (canSell && isSellable(hit)) {
+          router.replace(saleHref(hit) as never);
+        } else {
+          Alert.alert(hit.name, tr(d.scan.priceMsg, { price: fmtMoney(hit.salePrice, { suffix: true }) }), [{ text: d.scan.rescan, onPress: unlock }]);
         }
       } else {
         Alert.alert(d.common.notFound, tr(d.scan.notFoundMsg, { code }), [
@@ -80,7 +88,7 @@ export default function Scan() {
       }
       Alert.alert(d.common.error, errMsg(e, d.scan.searchError), [{ text: d.common.retry, onPress: unlock }]);
     }
-  }, [router, pickMode, captureMode, d, pos, canCreate]);
+  }, [router, pickMode, captureMode, d, pos, canCreate, canView, canSell]);
 
   if (!permission) return <Loading full />;
 

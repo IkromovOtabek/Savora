@@ -3,7 +3,7 @@ import { View, Alert, ActivityIndicator, StyleSheet } from 'react-native';
 import { Text } from '@/components/ui/Text';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { api, errMsg } from '@/lib/api';
-import { useAuth } from '@/lib/auth';
+import { useAuth, useCan } from '@/lib/auth';
 import { useDebounced, usePaged } from '@/lib/hooks';
 import { takePicked, type PickedProduct } from '@/lib/pick';
 import { useTheme, tabular } from '@/lib/theme';
@@ -24,6 +24,7 @@ export default function SaleNew() {
   const router = useRouter();
   const params = useLocalSearchParams<{ productId?: string; name?: string; price?: string; track?: string; available?: string; unit?: string; pay?: string; kind?: string }>();
   const { me } = useAuth();
+  const can = useCan();
   const { c } = useTheme();
   const d = useDict();
   const f = me?.features ?? {};
@@ -97,13 +98,23 @@ export default function SaleNew() {
   }
 
   const totalN = Number(digits(total)) || 0;
+  // Narx huquqlari (server bilan bir xil): arzonroq — sale.discount, qimmatroq — sale.editPrice.
+  // Ikkalasi ham yo'q bo'lsa summa narx × miqdorga qulflanadi; narxi 0 mahsulotda cheklov yo'q.
+  const canDiscount = can('sale.discount');
+  const canRaise = can('sale.editPrice');
+  const baseQty = picked?.trackQuantity ? saleQty : 1;
+  const baseTotal = picked && picked.salePrice > 0 && baseQty !== null ? priceTimesQty(picked.salePrice, baseQty) : null;
+  const priceLocked = baseTotal !== null && !canDiscount && !canRaise;
   const paidN = pay === 'cash' ? totalN : Number(digits(paid)) || 0;
   const monthsN = Number(months) || 0;
   const needCustomer = pay !== 'cash';
 
   const errors = {
     qty: fractional && (fracQty === null || fracQty > (picked?.available ?? 0)) ? d.saleNew.errQty : null,
-    total: totalN <= 0 ? d.saleNew.errTotal : null,
+    total: totalN <= 0 ? d.saleNew.errTotal
+      : baseTotal !== null && totalN < baseTotal && !canDiscount ? d.saleNew.errDiscount
+      : baseTotal !== null && totalN > baseTotal && !canRaise ? d.saleNew.errRaise
+      : null,
     paid: pay !== 'cash' && paidN > totalN ? d.saleNew.errPaid : null,
     months: pay === 'installment' && (monthsN < 1 || monthsN > 60) ? d.saleNew.errMonths : null,
     name: needCustomer && !custName.trim() ? d.saleNew.errName : null,
@@ -279,7 +290,10 @@ export default function SaleNew() {
         keyboardType="numeric"
         placeholder="0"
         suffix={d.format.currency}
+        editable={!priceLocked}
+        style={priceLocked ? { color: c.ink2 } : undefined}
         error={show('total')}
+        hint={priceLocked ? d.saleNew.priceLocked : undefined}
       />
 
       {needCustomer ? (

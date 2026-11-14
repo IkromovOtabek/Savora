@@ -362,10 +362,10 @@ export default function ProductNew() {
               )}
             />
             {bcInfo?.existing ? (
-              <Pressable onPress={() => router.push(`/product/${bcInfo.existing!.id}`)} accessibilityRole="link" style={({ pressed }) => [st.bcHint, { backgroundColor: c.badSoft }, pressed && { opacity: 0.6 }]}>
+              <Pressable disabled={!can('products.view')} onPress={() => router.push(`/product/${bcInfo.existing!.id}`)} accessibilityRole={can('products.view') ? 'link' : undefined} style={({ pressed }) => [st.bcHint, { backgroundColor: c.badSoft }, pressed && { opacity: 0.6 }]}>
                 <Ionicons name="alert-circle" size={18} color={c.bad} />
                 <Text style={[st.bcText, { color: c.bad }]}>{tr(f.barcodeExists, { name: bcInfo.existing.name })}</Text>
-                <Text style={[st.bcLink, { color: c.bad }]}>{f.barcodeOpen}</Text>
+                {can('products.view') ? <Text style={[st.bcLink, { color: c.bad }]}>{f.barcodeOpen}</Text> : null}
               </Pressable>
             ) : bcInfo?.suggestion ? (
               <View style={[st.bcHint, { backgroundColor: c.tintSoft }]}>

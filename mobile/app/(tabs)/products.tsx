@@ -5,6 +5,7 @@ import { useAuth, useCan } from '@/lib/auth';
 import { useDebounced, usePaged } from '@/lib/hooks';
 import { useTheme } from '@/lib/theme';
 import { fmtMoney } from '@/lib/format';
+import { isSellable, saleHref } from '@/lib/pick';
 import { useDict, tr } from '@/lib/i18n';
 import {
   Screen, useLayout, TopBar, SearchField, Cell, AmountColumn, Pill, IconButton, listCellStyle,
@@ -14,6 +15,7 @@ import {
 interface Product {
   id: string; name: string; imei: string; barcode: string | null;
   salePrice: number; purchasePrice: number; status: string; trackQuantity: boolean; available: number;
+  unit?: string | null;
   /** goods | service | bundle */
   kind?: string;
 }
@@ -81,6 +83,10 @@ export default function Products() {
         ListFooterComponent={list.loadingMore ? <ActivityIndicator color={c.tint} style={{ marginVertical: 16 }} /> : null}
         renderItem={({ item, index }) => {
           const code = codeOf(item);
+          // Kartochka (GET /products/[id]) — faqat products.view; aks holda sotuvchi mahsulotni darhol sotuvga oladi
+          const open = can('products.view') ? () => router.push(`/product/${item.id}`)
+            : can('sale.create') && isSellable(item) ? () => router.push(saleHref(item) as never)
+            : undefined;
           return (
             <Cell
               sep={index > 0}
@@ -98,8 +104,8 @@ export default function Products() {
                       : <Pill label={d.products.soldOut} tone="bad" />}
                 </AmountColumn>
               }
-              chevron
-              onPress={() => router.push(`/product/${item.id}`)}
+              chevron={!!open}
+              onPress={open}
             />
           );
         }}

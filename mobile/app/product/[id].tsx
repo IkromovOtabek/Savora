@@ -7,6 +7,7 @@ import { useTheme, MONO } from '@/lib/theme';
 import { fmtMoney, fmtDate } from '@/lib/format';
 import { useDict, tr } from '@/lib/i18n';
 import { fmtQty, qtyWithUnit } from '@/lib/qty';
+import { saleHref } from '@/lib/pick';
 import {
   Screen, NavBar, LargeTitle, Group, Cell, Pill, Button, Loading, ErrorState, InlineError, type Tone,
 } from '@/components/ui';
@@ -50,7 +51,7 @@ export default function ProductDetail() {
   const q = (o: Record<string, string | number | boolean>) =>
     Object.entries(o).map(([k, v]) => `${k}=${encodeURIComponent(String(v))}`).join('&');
   const stockless = p.kind === 'service' || p.kind === 'bundle';
-  const sellHref = `/sale-new?${q({ productId: p.id, name: p.name, price: p.salePrice, track: p.trackQuantity ? 1 : 0, available: p.available, unit: p.unit ?? '', kind: p.kind ?? 'goods' })}`;
+  const sellHref = saleHref(p);
   const transferHref = `/transfer?${q({ productId: p.id, name: p.name, track: p.trackQuantity ? 1 : 0, available: p.available, unit: p.unit ?? '' })}`;
 
   return (
