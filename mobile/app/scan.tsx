@@ -7,6 +7,7 @@ import { CameraView, useCameraPermissions } from 'expo-camera';
 import { Ionicons } from '@expo/vector-icons';
 import { api, errMsg } from '@/lib/api';
 import { useOfflinePos } from '@/lib/offlinePos';
+import { useCan } from '@/lib/auth';
 import { findByCode, isNetworkError, toPicked } from '@/lib/offline';
 import { putPicked, type PickedProduct } from '@/lib/pick';
 import { putChoice } from '@/lib/catalog';
@@ -25,6 +26,7 @@ export default function Scan() {
   const { width } = useWindowDimensions();
   const d = useDict();
   const pos = useOfflinePos();
+  const canCreate = useCan()('product.create');
   const [permission, requestPermission] = useCameraPermissions();
   const [busy, setBusy] = useState(false);
   const [torch, setTorch] = useState(false);
@@ -60,7 +62,7 @@ export default function Scan() {
       } else {
         Alert.alert(d.common.notFound, tr(d.scan.notFoundMsg, { code }), [
           { text: d.scan.rescan, style: 'cancel', onPress: unlock },
-          ...(pickMode ? [] : [{ text: d.scan.addNew, onPress: () => router.replace(`/product-new?code=${encodeURIComponent(code)}`) }]),
+          ...(pickMode || !canCreate ? [] : [{ text: d.scan.addNew, onPress: () => router.replace(`/product-new?code=${encodeURIComponent(code)}`) }]),
         ]);
       }
     } catch (e) {
@@ -78,7 +80,7 @@ export default function Scan() {
       }
       Alert.alert(d.common.error, errMsg(e, d.scan.searchError), [{ text: d.common.retry, onPress: unlock }]);
     }
-  }, [router, pickMode, captureMode, d, pos]);
+  }, [router, pickMode, captureMode, d, pos, canCreate]);
 
   if (!permission) return <Loading full />;
 

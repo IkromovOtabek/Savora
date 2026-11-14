@@ -245,22 +245,24 @@ export default function Profile() {
         {f.transferred && can('transfer.create') ? <Cell icon="swap-horizontal" iconColor={c.sq.g} title={d.profile.transfer} chevron onPress={() => router.push('/transfer')} /> : null}
       </Group>
 
+      {can('sales.view') || (f.kassa && can('kassa.view')) ? (
       <Group header={d.profile.secSales} icon="cart-outline">
-        <Cell icon="receipt" iconColor={c.sq.b} title={d.profile.sales} chevron onPress={() => router.push('/(tabs)/sales')} />
+        {can('sales.view') ? <Cell icon="receipt" iconColor={c.sq.b} title={d.profile.sales} chevron onPress={() => router.push('/(tabs)/sales')} /> : null}
         {f.kassa && can('kassa.view') ? <Cell icon="time" iconColor={c.sq.o} title={d.profile.shifts} chevron onPress={() => router.push('/shifts')} /> : null}
       </Group>
+      ) : null}
 
-      {(f.kirimChiqim && isAdmin) || (f.daftar && can('daftar.manage')) ? (
+      {(f.kirimChiqim && isAdmin && can('kirimChiqim.manage')) || (f.daftar && can('daftar.manage')) ? (
         <Group header={d.profile.secFinance} icon="wallet-outline">
-          {f.kirimChiqim && isAdmin ? <Cell icon="cash" iconColor={c.sq.o} title={d.profile.kirimChiqim} chevron onPress={() => router.push('/kirim-chiqim')} /> : null}
+          {f.kirimChiqim && isAdmin && can('kirimChiqim.manage') ? <Cell icon="cash" iconColor={c.sq.o} title={d.profile.kirimChiqim} chevron onPress={() => router.push('/kirim-chiqim')} /> : null}
           {f.daftar && can('daftar.manage') ? <Cell icon="book" iconColor={c.sq.g} title={d.daftar.title} chevron onPress={() => router.push('/daftar')} /> : null}
         </Group>
       ) : null}
 
-      {f.tasks || isAdmin ? (
+      {(f.tasks && can('tasks.view')) || isAdmin ? (
         <Group header={d.profile.secManage} icon="settings-outline">
-          {f.tasks ? <Cell icon="checkmark-done" iconColor={c.sq.o} title={d.profile.tasks} chevron onPress={() => router.push('/tasks')} /> : null}
-          {f.users && isAdmin ? <Cell icon="business" iconColor={c.sq.b} title={d.profile.branches} chevron onPress={() => router.push('/branches')} /> : null}
+          {f.tasks && can('tasks.view') ? <Cell icon="checkmark-done" iconColor={c.sq.o} title={d.profile.tasks} chevron onPress={() => router.push('/tasks')} /> : null}
+          {f.users && isAdmin && can('users.manage') ? <Cell icon="business" iconColor={c.sq.b} title={d.profile.branches} chevron onPress={() => router.push('/branches')} /> : null}
           {isAdmin ? <Cell icon="briefcase" iconColor={c.sq.a} title={d.profile.businessType} value={org?.businessTypeLabel} chevron onPress={() => router.push('/business-type')} /> : null}
         </Group>
       ) : null}

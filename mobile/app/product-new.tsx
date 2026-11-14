@@ -4,7 +4,7 @@ import { useFocusEffect, useLocalSearchParams, useNavigation, useRouter } from '
 import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
 import { api, errMsg } from '@/lib/api';
-import { useAuth } from '@/lib/auth';
+import { useAuth, useCan } from '@/lib/auth';
 import { digits, grouped } from '@/lib/format';
 import { isFractionalUnit, parseQty } from '@/lib/qty';
 import {
@@ -59,6 +59,9 @@ export default function ProductNew() {
   const kind: 'goods' | 'service' | 'bundle' = kindParam === 'service' || kindParam === 'bundle' ? kindParam : 'goods';
   const stockless = kind !== 'goods';
   const { me } = useAuth();
+  const can = useCan();
+  // Yetkazib beruvchi: ro'yxat suppliers.view|manage, biriktirish esa faqat suppliers.manage bilan (server)
+  const canSupplier = can('suppliers.manage');
   const { c } = useTheme();
   const d = useDict();
   const f = d.productForm;
@@ -274,7 +277,7 @@ export default function ProductNew() {
           unit,
           photoUrl: photoUrl ?? '',
           brand: brand?.name ?? '',
-          supplierId: supplier?.id ?? '',
+          supplierId: canSupplier ? supplier?.id ?? '' : '',
           categoryId: category?.id ?? '',
           notes: notes.trim(),
           ...Object.fromEntries(fields.map((x) => [x.key, (extra[x.key] ?? '').trim()])),
@@ -543,7 +546,7 @@ export default function ProductNew() {
       {/* Xususiyatlar */}
       <FormCard title={f.props}>
         <PickRow label={f.brand} value={brand?.name} placeholder={f.notSelected} onPress={() => router.push('/catalog-pick?kind=brand')} />
-        <PickRow label={f.supplier} value={supplier?.name} placeholder={f.notSelected} onPress={() => router.push('/catalog-pick?kind=supplier')} />
+        {canSupplier ? <PickRow label={f.supplier} value={supplier?.name} placeholder={f.notSelected} onPress={() => router.push('/catalog-pick?kind=supplier')} /> : null}
         <PickRow label={f.category} value={category?.path} placeholder={f.notSelected} onPress={() => router.push('/category-pick')} />
         {fields.map((spec) => {
           const label = `${pf.labels[spec.key]}${spec.required ? ' *' : ''}`;

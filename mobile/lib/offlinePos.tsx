@@ -1,6 +1,6 @@
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { AppState } from 'react-native';
-import { useAuth } from './auth';
+import { useAuth, canWith } from './auth';
 import { errMsg } from './api';
 import {
   loadCatalog, refreshCatalog, loadQueue, enqueueSale, syncQueue, dismissQueued, isNetworkError,
@@ -37,7 +37,7 @@ const CATALOG_TTL_MS = 5 * 60_000;
 export function OfflinePosProvider({ children }: { children: React.ReactNode }) {
   const { me, fromCache, refresh: refreshMe } = useAuth();
   const userId = me?.user.id ?? null;
-  const canSell = !!me && (me.features?.sales ?? true) && (!me.permissions || me.user.isAdmin || me.permissions.includes('sale.create'));
+  const canSell = !!me && (me.features?.sales ?? true) && canWith(me, 'sale.create');
 
   const [catalog, setCatalog] = useState<Catalog | null>(null);
   const [queue, setQueue] = useState<QueuedSale[]>([]);

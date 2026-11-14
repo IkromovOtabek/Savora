@@ -137,12 +137,17 @@ export function useAuth(): AuthState {
   return ctx;
 }
 
-/** Huquq tekshiruvi — tugmalarni yashirish uchun. Asosiy himoya serverda. */
+/**
+ * Huquq tekshiruvi — tugmalarni yashirish uchun. Asosiy himoya serverda.
+ * Server ro'yxati Super Admin o'chirgan modullarga ko'ra kesilgan — do'kon egasi uchun ham,
+ * shuning uchun ro'yxat bo'lsa egasi ham unga bo'ysunadi. Eski server (ro'yxatsiz) — hammasi ochiq.
+ */
+export function canWith(me: MeResponse | null, key: string): boolean {
+  if (!me) return false;
+  return me.permissions ? me.permissions.includes(key) : true;
+}
+
 export function useCan(): (key: string) => boolean {
   const { me } = useAuth();
-  return (key: string) => {
-    if (!me) return false;
-    if (me.user.isAdmin) return true;
-    return me.permissions ? me.permissions.includes(key) : true;
-  };
+  return (key: string) => canWith(me, key);
 }

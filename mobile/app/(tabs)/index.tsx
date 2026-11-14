@@ -29,6 +29,8 @@ export default function Home() {
   const can = useCan();
   const isAdmin = !!me?.user.isAdmin;
   const nasiyaOn = !!(f.variant || f.nasiya);
+  // Sotuvlar ro'yxati (GET /sales) — faqat sales.view; aks holda 403, shuning uchun so'ralmaydi ham
+  const canSales = can('sales.view');
 
   const [sum, setSum] = useState<Summary | null>(null);
   const [debts, setDebts] = useState<Sale[]>([]);
@@ -41,10 +43,11 @@ export default function Home() {
 
   const load = useCallback(async () => {
     const id = ++gen.current;
+    const none = Promise.resolve({ items: [] as Sale[] });
     const [s, d, r] = await Promise.allSettled([
       api<Summary>('/api/mobile/summary'),
-      api<{ items: Sale[] }>('/api/mobile/sales?type=debt'),
-      api<{ items: Sale[] }>('/api/mobile/sales?type=all'),
+      canSales ? api<{ items: Sale[] }>('/api/mobile/sales?type=debt') : none,
+      canSales ? api<{ items: Sale[] }>('/api/mobile/sales?type=all') : none,
     ]);
     if (id !== gen.current) return;
     if (s.status === 'fulfilled') setSum(s.value);
@@ -53,7 +56,7 @@ export default function Home() {
     const failed = [s, d, r].find((x) => x.status === 'rejected') as PromiseRejectedResult | undefined;
     setError(failed ? errMsg(failed.reason) : null);
     setLoading(false); setRefreshing(false);
-  }, []);
+  }, [canSales]);
 
   useEffect(() => { load(); }, [load]);
   // Boshqa ekrandan qaytganda — jimgina yangilash
@@ -76,20 +79,22 @@ export default function Home() {
 
   // Modullar — faqat shu do'konda yoqilgan va ruxsat berilgan bo'limlar
   const modules: TileItem[] = [
-    { key: 'sale', label: d.tabs.newSale, icon: 'add-circle', color: c.sq.b, onPress: () => router.push('/sale-new') },
-    { key: 'sales', label: d.home.allSales, icon: 'receipt', color: c.sq.b, onPress: () => router.push('/(tabs)/sales') },
-    {
-      key: 'debt', label: d.home.debtors, icon: 'alert-circle', color: c.sq.r,
-      badge: sum && sum.debtTotal > 0 ? fmtCompact(sum.debtTotal) : undefined,
-      onPress: () => router.push('/(tabs)/sales?type=debt'),
-    },
+    ...(can('sale.create') ? [{ key: 'sale', label: d.tabs.newSale, icon: 'add-circle' as const, color: c.sq.b, onPress: () => router.push('/sale-new') }] : []),
+    ...(canSales ? [
+      { key: 'sales', label: d.home.allSales, icon: 'receipt' as const, color: c.sq.b, onPress: () => router.push('/(tabs)/sales') },
+      {
+        key: 'debt', label: d.home.debtors, icon: 'alert-circle' as const, color: c.sq.r,
+        badge: sum && sum.debtTotal > 0 ? fmtCompact(sum.debtTotal) : undefined,
+        onPress: () => router.push('/(tabs)/sales?type=debt'),
+      },
+    ] : []),
     ...(can('product.create') ? [{ key: 'add', label: me?.terms?.addItem ?? d.terms.addItem, icon: 'cube' as const, color: c.sq.o, onPress: () => router.push('/product-kind') }] : []),
     ...(f.kassa && can('kassa.view') ? [{ key: 'shifts', label: d.profile.shifts, icon: 'time' as const, color: c.sq.o, onPress: () => router.push('/shifts') }] : []),
     ...(f.transferred && can('transfer.create') ? [{ key: 'transfer', label: d.home.transfer, icon: 'swap-horizontal' as const, color: c.sq.g, onPress: () => router.push('/transfer') }] : []),
-    ...(f.kirimChiqim && isAdmin ? [{ key: 'kc', label: d.home.kirimChiqim, icon: 'cash' as const, color: c.sq.o, onPress: () => router.push('/kirim-chiqim') }] : []),
+    ...(f.kirimChiqim && isAdmin && can('kirimChiqim.manage') ? [{ key: 'kc', label: d.home.kirimChiqim, icon: 'cash' as const, color: c.sq.o, onPress: () => router.push('/kirim-chiqim') }] : []),
     ...(f.daftar && can('daftar.manage') ? [{ key: 'daftar', label: d.daftar.title, icon: 'book' as const, color: c.sq.g, onPress: () => router.push('/daftar') }] : []),
-    ...(f.tasks ? [{ key: 'tasks', label: d.profile.tasks, icon: 'checkmark-done' as const, color: c.sq.a, onPress: () => router.push('/tasks') }] : []),
-    ...(f.users && isAdmin ? [{ key: 'branches', label: d.home.branches, icon: 'business' as const, color: c.sq.b, onPress: () => router.push('/branches') }] : []),
+    ...(f.tasks && can('tasks.view') ? [{ key: 'tasks', label: d.profile.tasks, icon: 'checkmark-done' as const, color: c.sq.a, onPress: () => router.push('/tasks') }] : []),
+    ...(f.users && isAdmin && can('users.manage') ? [{ key: 'branches', label: d.home.branches, icon: 'business' as const, color: c.sq.b, onPress: () => router.push('/branches') }] : []),
   ];
 
   if (loading) return <Screen bar={bar}><Loading /></Screen>;
@@ -139,10 +144,10 @@ export default function Home() {
         </View>
       </View>
 
-      <View style={s.mini}>
+      {canSales ? <View style={s.mini}>
         <StatCard label={d.home.expectedToday} value={fmtCompact(sumOf(today))} note={tr(d.home.customers, { n: today.length })} color={c.gold} />
         <StatCard label={d.home.overdue} value={fmtCompact(sumOf(late))} note={tr(d.home.customers, { n: late.length })} color={c.bad} />
-      </View>
+      </View> : null}
 
       {tasks.length > 0 ? (
         <Group
@@ -163,7 +168,7 @@ export default function Home() {
         </Group>
       ) : null}
 
-      <Group header={d.home.recentSales} icon="receipt-outline" headerRight={<GroupLink title={d.common.all} onPress={() => router.push('/(tabs)/sales')} />}>
+      {canSales ? <Group header={d.home.recentSales} icon="receipt-outline" headerRight={<GroupLink title={d.common.all} onPress={() => router.push('/(tabs)/sales')} />}>
         {recent.length === 0 ? (
           <EmptyState icon="bar-chart-outline" title={d.home.noSales} message={d.home.noSalesHint} />
         ) : recent.map((x) => (
@@ -179,7 +184,7 @@ export default function Home() {
             onPress={() => router.push(`/sale/${x.id}`)}
           />
         ))}
-      </Group>
+      </Group> : null}
 
       <Group header={d.home.modules} icon="grid-outline">
         <TileGrid items={modules} />

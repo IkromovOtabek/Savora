@@ -1,4 +1,4 @@
-import React, { forwardRef } from 'react';
+import React, { forwardRef, useState } from 'react';
 import {
   View, Pressable, Switch as RNSwitch, StyleSheet, Platform, type TextInputProps, type StyleProp, type ViewStyle,
 } from 'react-native';
@@ -6,6 +6,7 @@ import { Text, TextInput } from './Text';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme, HAIRLINE, tabular } from '@/lib/theme';
 import { useDict, tr } from '@/lib/i18n';
+import { PHONE_PREFIX, nextPhoneInput, isBarePhone } from '@/lib/phone';
 
 /* ───────── Segmented control ───────── */
 
@@ -128,6 +129,58 @@ export const Field = forwardRef<TextInput, FieldProps>(function Field(
       </View>
       {error ? <Text style={[s.help, { color: c.bad }]}>{error}</Text> : hint ? <Text style={[s.help, { color: c.ink3 }]}>{hint}</Text> : null}
     </View>
+  );
+});
+
+/* ───────── Telefon maydoni ───────── */
+
+type PhoneFieldProps = Omit<FieldProps, 'prefix' | 'keyboardType' | 'value' | 'onChangeText'> & {
+  value: string;
+  onChangeText: (v: string) => void;
+};
+
+/**
+ * Barcha telefon kataklari shu orqali (web PhonePrefix bilan bir xil, lib/phone):
+ * fokusda bo'sh bo'lsa "+998 " o'zi yoziladi (kursor prefiksdan keyin), o'chirsa prefiks ham o'chadi;
+ * yozilganda «+998 90 123 45 67» ko'rinishi; fokusdan chiqishda faqat "+998" qolsa — katak tozalanadi.
+ * Saqlash tugmasi klaviatura ochiq turganda bosilsa fokus chiqmaydi — yuborishda uzPhone9/isBarePhone bilan tekshiring.
+ */
+export const PhoneField = forwardRef<TextInput, PhoneFieldProps>(function PhoneField(
+  { value, onChangeText, onFocus, onBlur, onSelectionChange, placeholder, maxLength = 24, ...rest }, ref,
+) {
+  const d = useDict();
+  // Prefiks yozilgandan keyin kursorni uning oxiriga bir marta qo'yish (Android boshida qoldiradi)
+  const [sel, setSel] = useState<{ start: number; end: number } | undefined>();
+  return (
+    <Field
+      ref={ref}
+      value={value}
+      keyboardType="phone-pad"
+      placeholder={placeholder ?? d.common.phonePlaceholder}
+      maxLength={maxLength}
+      selection={sel}
+      onFocus={(e) => {
+        if (!value.trim() && !rest.readOnly && rest.editable !== false) {
+          onChangeText(PHONE_PREFIX);
+          setSel({ start: PHONE_PREFIX.length, end: PHONE_PREFIX.length });
+        }
+        onFocus?.(e);
+      }}
+      onSelectionChange={(e) => {
+        if (sel && e.nativeEvent.selection.start === sel.start) setSel(undefined);
+        onSelectionChange?.(e);
+      }}
+      onChangeText={(t) => {
+        if (sel) setSel(undefined);
+        onChangeText(nextPhoneInput(value, t));
+      }}
+      onBlur={(e) => {
+        if (sel) setSel(undefined);
+        if (value && isBarePhone(value)) onChangeText('');
+        onBlur?.(e);
+      }}
+      {...rest}
+    />
   );
 });
 

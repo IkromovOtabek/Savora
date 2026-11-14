@@ -3,6 +3,7 @@ import { View, Alert, Linking } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { api, errMsg } from '@/lib/api';
 import { useResource } from '@/lib/hooks';
+import { useCan } from '@/lib/auth';
 import { useTheme } from '@/lib/theme';
 import { fmtMoney, fmtCompact, fmtDate, fmtPhoneLocal, startOfToday } from '@/lib/format';
 import { useDict, tr } from '@/lib/i18n';
@@ -34,6 +35,8 @@ const DAY = 24 * 60 * 60 * 1000;
 
 /** Daftar — shaxsiy qarz oldi-berdi (web /app/daftar bilan bir xil ma'lumot) */
 export default function Daftar() {
+  // O'chirish — alohida huquq (daftar.delete); serverda ham tekshiriladi
+  const canDelete = useCan()('daftar.delete');
   const { c } = useTheme();
   const d = useDict();
   const k = d.daftar;
@@ -170,7 +173,7 @@ export default function Daftar() {
                       ) : (
                         <Button title={k.reopen} size="sm" variant="gray" loading={busyId === e.id} onPress={() => setStatus(e, 'open')} />
                       )}
-                      <Button title="" icon="trash" size="sm" variant="destructive" accessibilityLabel={k.remove} disabled={busyId === e.id} onPress={() => remove(e)} />
+                      {canDelete ? <Button title="" icon="trash" size="sm" variant="destructive" accessibilityLabel={k.remove} disabled={busyId === e.id} onPress={() => remove(e)} /> : null}
                     </View>
                   </Cell>
                 );

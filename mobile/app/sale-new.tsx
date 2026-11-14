@@ -7,14 +7,15 @@ import { useAuth } from '@/lib/auth';
 import { useDebounced, usePaged } from '@/lib/hooks';
 import { takePicked, type PickedProduct } from '@/lib/pick';
 import { useTheme, tabular } from '@/lib/theme';
-import { digits, grouped, fmtMoney, fmtDateTime, fmtPhoneLocal, phoneLocal, phoneE164, payLabels, payMethodLabel, PAY_METHODS, type PayMethod, type PayType } from '@/lib/format';
+import { digits, grouped, fmtMoney, fmtDateTime, payLabels, payMethodLabel, PAY_METHODS, type PayMethod, type PayType } from '@/lib/format';
+import { uzPhone9, uzPhoneE164 } from '@/lib/phone';
 import { useOfflinePos } from '@/lib/offlinePos';
 import { isNetworkError, searchCatalog, toPicked } from '@/lib/offline';
 import { useDict, tr } from '@/lib/i18n';
 import { fmtQty, isFractionalUnit, parseQty, priceTimesQty, qtyWithUnit } from '@/lib/qty';
 import {
   Screen, NavBar, LargeTitle, SearchField, Group, Cell, AmountColumn, Pill, Button, IconButton, SegmentedControl,
-  Field, Chips, Stepper, Loading, EmptyState, ErrorState,
+  Field, PhoneField, Chips, Stepper, Loading, EmptyState, ErrorState,
 } from '@/components/ui';
 
 const MONTH_PRESETS = [3, 6, 9, 12];
@@ -99,7 +100,6 @@ export default function SaleNew() {
   const paidN = pay === 'cash' ? totalN : Number(digits(paid)) || 0;
   const monthsN = Number(months) || 0;
   const needCustomer = pay !== 'cash';
-  const phone = phoneLocal(custPhone);
 
   const errors = {
     qty: fractional && (fracQty === null || fracQty > (picked?.available ?? 0)) ? d.saleNew.errQty : null,
@@ -107,7 +107,7 @@ export default function SaleNew() {
     paid: pay !== 'cash' && paidN > totalN ? d.saleNew.errPaid : null,
     months: pay === 'installment' && (monthsN < 1 || monthsN > 60) ? d.saleNew.errMonths : null,
     name: needCustomer && !custName.trim() ? d.saleNew.errName : null,
-    phone: needCustomer && phone.length !== 9 ? d.saleNew.errPhone : null,
+    phone: needCustomer && !uzPhone9(custPhone) ? d.saleNew.errPhone : null,
   };
   const show = (k: keyof typeof errors) => (tried ? errors[k] : null);
   const valid = !Object.values(errors).some(Boolean);
@@ -124,7 +124,7 @@ export default function SaleNew() {
       paidAmount: paidN,
       installmentMonths: pay === 'installment' ? monthsN : undefined,
       customerName: needCustomer ? custName.trim() : '',
-      customerPhone: needCustomer ? phoneE164(phone) : '',
+      customerPhone: needCustomer ? uzPhoneE164(custPhone) : '',
       saleQty: picked.trackQuantity ? saleQty ?? undefined : undefined,
       notes: notes.trim() || undefined,
       payMethod: paidN > 0 ? method : undefined,
@@ -312,15 +312,10 @@ export default function SaleNew() {
       {needCustomer ? (
         <>
           <Field label={d.saleNew.custName} value={custName} onChangeText={setCustName} placeholder={d.saleNew.custPlaceholder} autoCapitalize="words" textContentType="name" error={show('name')} />
-          <Field
+          <PhoneField
             label={d.common.phone}
-            prefix="+998"
-            value={fmtPhoneLocal(custPhone)}
-            onChangeText={(v) => setCustPhone(phoneLocal(v))}
-            placeholder={d.common.phonePlaceholder}
-            keyboardType="phone-pad"
-            textContentType="telephoneNumber"
-            maxLength={12}
+            value={custPhone}
+            onChangeText={setCustPhone}
             error={show('phone')}
           />
         </>

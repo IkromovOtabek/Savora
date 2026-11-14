@@ -2,6 +2,7 @@ import { useCallback, useMemo, useRef, useState } from 'react';
 import { View, FlatList, RefreshControl, ActivityIndicator } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useDebounced, usePaged } from '@/lib/hooks';
+import { useCan } from '@/lib/auth';
 import { useTheme } from '@/lib/theme';
 import { fmtMoney, fmtCompact, isOverdue, isToday, digits } from '@/lib/format';
 import { useDict, tr, type Dict } from '@/lib/i18n';
@@ -26,6 +27,7 @@ function stateOf(s: Sale, d: Dict): { label: string; tone: Tone } {
 
 export default function Nasiya() {
   const router = useRouter();
+  const canSell = useCan()('sale.create');
   const { c } = useTheme();
   const L = useLayout();
   const d = useDict();
@@ -56,7 +58,7 @@ export default function Nasiya() {
     <TopBar
       title={d.nasiya.title}
       subtitle={list.loading ? ' ' : `${tr(d.common.count, { n: fmtMoney(list.total) })}${!list.hasMore ? tr(d.nasiya.remainingSuffix, { v: fmtCompact(remainingSum) }) : ''}`}
-      actions={<IconButton icon="add" label={d.nasiya.newNasiya} onPress={() => router.push('/sale-new?pay=installment')} />}
+      actions={canSell ? <IconButton icon="add" label={d.nasiya.newNasiya} onPress={() => router.push('/sale-new?pay=installment')} /> : undefined}
     >
       <SearchField value={q} onChangeText={setQ} placeholder={d.nasiya.searchPlaceholder} />
       <SegmentedControl
@@ -87,7 +89,7 @@ export default function Nasiya() {
           list.loading ? <Loading />
             : list.error ? <ErrorState message={list.error} onRetry={list.retry} />
             : filtered ? <EmptyState icon="search" title={d.common.notFound} message={list.hasMore ? d.nasiya.notFoundLoaded : d.nasiya.notFoundOther} />
-            : <EmptyState icon="time-outline" title={d.nasiya.empty} message={d.nasiya.emptyMsg} actionTitle={d.nasiya.sellNasiya} onAction={() => router.push('/sale-new?pay=installment')} />
+            : <EmptyState icon="time-outline" title={d.nasiya.empty} message={d.nasiya.emptyMsg} actionTitle={canSell ? d.nasiya.sellNasiya : undefined} onAction={canSell ? () => router.push('/sale-new?pay=installment') : undefined} />
         }
         ListFooterComponent={
           list.loadingMore ? <ActivityIndicator color={c.tint} style={{ marginVertical: 16 }} />

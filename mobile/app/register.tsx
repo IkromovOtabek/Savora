@@ -9,8 +9,8 @@ import { useAuth } from '@/lib/auth';
 import { useResource } from '@/lib/hooks';
 import { useTheme, useStyles, type Palette } from '@/lib/theme';
 import { useI18n, tr } from '@/lib/i18n';
-import { fmtPhoneLocal, phoneLocal, phoneE164 } from '@/lib/format';
-import { Screen, Group, Field, Button, Switch, IconSquare, BrandMark, type IconName } from '@/components/ui';
+import { uzPhone9, uzPhoneE164 } from '@/lib/phone';
+import { Screen, Group, Field, PhoneField, Button, Switch, IconSquare, BrandMark, type IconName } from '@/components/ui';
 
 interface BType { key: string; label: string; description: string }
 
@@ -60,7 +60,7 @@ export default function Register() {
 
   const errs = {
     name: name.trim().length < 2 ? k.errName : null,
-    phone: phoneLocal(phone).length !== 9 ? k.errPhone : null,
+    phone: !uzPhone9(phone) ? k.errPhone : null,
     username: !LOGIN_RE.test(username) ? k.errLogin : null,
     password: password.length < 6 ? k.errPass : null,
     confirm: confirm !== password ? k.errMatch : null,
@@ -78,7 +78,7 @@ export default function Register() {
     if (!agree) { Alert.alert(k.failTitle, k.errAgree); return; }
     setBusy(true);
     try {
-      await register({ name: name.trim(), phone: phoneE164(phone), businessType: biz, username, password, acceptTerms: true });
+      await register({ name: name.trim(), phone: uzPhoneE164(phone), businessType: biz, username, password, acceptTerms: true });
       router.replace('/(tabs)');
     } catch (e) {
       Alert.alert(k.failTitle, errMsg(e));
@@ -138,16 +138,12 @@ export default function Register() {
         <Group>
           <View style={{ padding: 16, gap: 14 }}>
             <Field label={k.storeName} value={name} onChangeText={setName} placeholder={k.storeNamePh} maxLength={60} error={show(1, errs.name)} />
-            <Field
+            <PhoneField
               label={k.phone}
-              prefix="🇺🇿 +998"
-              value={fmtPhoneLocal(phone)}
-              onChangeText={(v) => setPhone(phoneLocal(v))}
-              placeholder="90 123 45 67"
-              keyboardType="phone-pad"
+              value={phone}
+              onChangeText={setPhone}
               textContentType="telephoneNumber"
               autoComplete="tel"
-              maxLength={12}
               error={show(1, errs.phone)}
             />
           </View>

@@ -105,8 +105,6 @@ export function fmtPhoneLocal(local: string): string {
   const parts = [d.slice(0, 2), d.slice(2, 5), d.slice(5, 7), d.slice(7, 9)].filter(Boolean);
   return parts.join(' ');
 }
-/** Server uchun: "+998901234567" */
-export const phoneE164 = (local: string) => `+998${phoneLocal(local)}`;
 
 /** Ism-familiyadan bosh harflar: "Nodira Alimova" → "NA". */
 export function initials(name?: string | null): string {

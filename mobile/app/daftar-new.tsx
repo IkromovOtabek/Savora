@@ -2,9 +2,10 @@ import { useState } from 'react';
 import { View, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { api, errMsg } from '@/lib/api';
-import { digits, grouped, fmtPhoneLocal, phoneLocal, phoneE164, startOfToday } from '@/lib/format';
+import { digits, grouped, startOfToday } from '@/lib/format';
+import { uzPhone9, uzPhoneE164 } from '@/lib/phone';
 import { useDict } from '@/lib/i18n';
-import { Screen, NavBar, LargeTitle, SegmentedControl, Chips, Field, Button } from '@/components/ui';
+import { Screen, NavBar, LargeTitle, SegmentedControl, Chips, Field, PhoneField, Button } from '@/components/ui';
 import { KassaChoice, kassaBody, kassaError, useKassaMeta, type KassaAnswer } from '@/components/DaftarKassa';
 
 type Kind = 'given' | 'taken';
@@ -55,7 +56,7 @@ export default function DaftarNew() {
   const duePast = !!due && due.getTime() < startOfToday();
   const errors = {
     name: !name.trim() ? k.errName : null,
-    phone: phoneLocal(phone).length !== 9 ? k.errPhone : null,
+    phone: !uzPhone9(phone) ? k.errPhone : null,
     amount: !amountN ? k.errAmount : null,
     due: !due ? k.errDue : duePast ? k.errDuePast : null,
     kassa: kassaError(kassa, toKassa, kassaBranch, k),
@@ -69,7 +70,7 @@ export default function DaftarNew() {
       await api('/api/mobile/daftar', {
         method: 'POST',
         body: {
-          type, personName: name.trim(), personPhone: phoneE164(phone), amount: amountN, dueDate: isoDay(due), note: note.trim(),
+          type, personName: name.trim(), personPhone: uzPhoneE164(phone), amount: amountN, dueDate: isoDay(due), note: note.trim(),
           ...kassaBody(kassa, toKassa, kassaBranch),
         },
       });
@@ -91,13 +92,10 @@ export default function DaftarNew() {
           onChange={changeType}
         />
         <Field label={k.person} value={name} onChangeText={setName} placeholder={k.personPh} autoCapitalize="words" maxLength={80} error={tried ? errors.name : null} />
-        <Field
+        <PhoneField
           label={k.phone}
-          prefix="+998"
-          value={fmtPhoneLocal(phone)}
-          onChangeText={(v) => setPhone(phoneLocal(v))}
-          placeholder="90 123 45 67"
-          keyboardType="phone-pad"
+          value={phone}
+          onChangeText={setPhone}
           error={tried ? errors.phone : null}
         />
         <Field

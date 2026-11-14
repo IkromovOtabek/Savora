@@ -76,7 +76,7 @@ export default function Products() {
           list.loading ? <Loading />
             : list.error ? <ErrorState message={list.error} onRetry={list.retry} />
             : dq ? <EmptyState icon="search" title={d.common.notFound} message={tr(d.products.notFoundMsg, { q: dq })} />
-            : <EmptyState icon="cube-outline" title={tr(d.products.emptyTitle, { item: t?.item ?? d.terms.item })} message={d.products.emptyMsg} actionTitle={t?.addItem ?? d.terms.addItem} onAction={() => router.push('/product-kind')} />
+            : <EmptyState icon="cube-outline" title={tr(d.products.emptyTitle, { item: t?.item ?? d.terms.item })} message={d.products.emptyMsg} actionTitle={can('product.create') ? t?.addItem ?? d.terms.addItem : undefined} onAction={can('product.create') ? () => router.push('/product-kind') : undefined} />
         }
         ListFooterComponent={list.loadingMore ? <ActivityIndicator color={c.tint} style={{ marginVertical: 16 }} /> : null}
         renderItem={({ item, index }) => {

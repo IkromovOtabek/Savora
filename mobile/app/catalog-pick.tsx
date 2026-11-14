@@ -2,9 +2,10 @@ import { useCallback, useMemo, useState } from 'react';
 import { View, Alert, StyleSheet } from 'react-native';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { api, errMsg } from '@/lib/api';
-import { Screen, NavBar, SearchField, Group, Cell, Field, Button, FormCard, AddRow, Loading, ErrorState, EmptyState } from '@/components/ui';
+import { Screen, NavBar, SearchField, Group, Cell, Field, PhoneField, Button, FormCard, AddRow, Loading, ErrorState, EmptyState } from '@/components/ui';
 import { useDict } from '@/lib/i18n';
 import { putChoice, type NamedItem } from '@/lib/catalog';
+import { isBarePhone } from '@/lib/phone';
 
 type Kind = 'brand' | 'supplier';
 interface Row extends NamedItem { phone?: string | null }
@@ -50,7 +51,7 @@ export default function CatalogPick() {
     if (!newName.trim()) return;
     setBusy(true);
     try {
-      const created = await api<Row>(path, { method: 'POST', body: { name: newName.trim(), phone: newPhone.trim() } });
+      const created = await api<Row>(path, { method: 'POST', body: { name: newName.trim(), phone: isBarePhone(newPhone) ? '' : newPhone.trim() } });
       choose(created);
     } catch (e) {
       Alert.alert(d.common.error, errMsg(e));
@@ -76,7 +77,7 @@ export default function CatalogPick() {
               onSubmitEditing={onCreate}
             />
             {kind === 'supplier' ? (
-              <Field label={k.supplierPhone} value={newPhone} onChangeText={setNewPhone} keyboardType="phone-pad" maxLength={40} placeholder={d.common.phonePlaceholder} />
+              <PhoneField label={k.supplierPhone} value={newPhone} onChangeText={setNewPhone} maxLength={40} />
             ) : null}
             <View style={s.btns}>
               <Button title={d.common.cancel} variant="gray" onPress={() => { setAdding(false); setTouched(false); }} style={{ flex: 1 }} />

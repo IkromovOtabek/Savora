@@ -3,10 +3,10 @@ import { View, Alert } from 'react-native';
 import { api, errMsg } from '@/lib/api';
 import { useResource } from '@/lib/hooks';
 import { useTheme } from '@/lib/theme';
-import { fmtPhoneLocal, phoneLocal, phoneE164 } from '@/lib/format';
+import { isBarePhone, uzPhone9, uzPhoneE164 } from '@/lib/phone';
 import { useDict, tr } from '@/lib/i18n';
 import {
-  Screen, NavBar, LargeTitle, Group, Cell, Field, Button, Pill, Loading, ErrorState, InlineError, EmptyState,
+  Screen, NavBar, LargeTitle, Group, Cell, Field, PhoneField, Button, Pill, Loading, ErrorState, InlineError, EmptyState,
 } from '@/components/ui';
 
 interface B { id: string; name: string; address: string | null; isMain: boolean }
@@ -28,7 +28,7 @@ export default function Branches() {
     name: !name.trim() ? d.branches.errName : null,
     username: username.trim().length < 3 ? d.branches.errLogin : null,
     password: password.length < 6 ? d.branches.errPass : null,
-    phone: phone && phoneLocal(phone).length !== 9 ? d.branches.errPhone : null,
+    phone: !isBarePhone(phone) && !uzPhone9(phone) ? d.branches.errPhone : null,
   };
 
   async function create() {
@@ -38,7 +38,7 @@ export default function Branches() {
     try {
       await api('/api/mobile/branches', {
         method: 'POST',
-        body: { name: name.trim(), address: address.trim(), phone: phone ? phoneE164(phone) : '', username: username.trim(), password },
+        body: { name: name.trim(), address: address.trim(), phone: uzPhoneE164(phone), username: username.trim(), password },
       });
       Alert.alert(d.branches.added, tr(d.branches.addedMsg, { name: name.trim() }));
       setOpen(false); setName(''); setAddress(''); setPhone(''); setUsername(''); setPassword(''); setTried(false);
@@ -61,7 +61,7 @@ export default function Branches() {
         <View style={{ gap: 12 }}>
           <Field label={d.branches.nameLabel} value={name} onChangeText={setName} placeholder={d.branches.namePlaceholder} error={tried ? err.name : null} />
           <Field label={d.branches.address} value={address} onChangeText={setAddress} placeholder={d.branches.addressPlaceholder} />
-          <Field label={d.branches.phone} prefix="+998" value={fmtPhoneLocal(phone)} onChangeText={(v) => setPhone(phoneLocal(v))} placeholder={d.common.phonePlaceholder} keyboardType="phone-pad" maxLength={12} error={tried ? err.phone : null} />
+          <PhoneField label={d.branches.phone} value={phone} onChangeText={setPhone} error={tried ? err.phone : null} />
           <Field label={d.common.login} value={username} onChangeText={setUsername} placeholder={d.branches.loginPlaceholder} autoCapitalize="none" error={tried ? err.username : null} />
           <Field label={d.common.password} value={password} onChangeText={setPassword} placeholder={d.branches.passPlaceholder} secureTextEntry error={tried ? err.password : null} />
           <Button title={d.branches.create} full loading={busy} onPress={create} />

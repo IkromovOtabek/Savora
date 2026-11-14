@@ -1,7 +1,7 @@
 import { Tabs, Redirect, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { View, StyleSheet } from 'react-native';
-import { useAuth } from '@/lib/auth';
+import { useAuth, canWith } from '@/lib/auth';
 import { useTheme, HAIRLINE } from '@/lib/theme';
 import type { IconName } from '@/components/ui';
 import { fontFor } from '@/components/ui/Text';
@@ -29,6 +29,10 @@ export default function TabsLayout() {
 
   const f = me.features ?? {};
   const nasiyaOn = !!(f.variant || f.nasiya);
+  const can = (k: string) => canWith(me, k);
+  const canSell = can('sale.create');
+  const canSales = can('sales.view');
+  const canProducts = ['products.view', 'sale.create', 'transfer.create', 'product.create'].some(can);
 
   return (
     <Tabs
@@ -54,11 +58,12 @@ export default function TabsLayout() {
       }}
     >
       <Tabs.Screen name="index" options={{ title: d.tabs.home, tabBarIcon: ({ color, focused }) => <TabIcon name={focused ? 'home' : 'home-outline'} active={focused} color={color} bg={c.tintSoft} /> }} />
-      <Tabs.Screen name="products" options={{ title: me.terms?.items ?? d.terms.items, tabBarIcon: ({ color, focused }) => <TabIcon name={focused ? 'cube' : 'cube-outline'} active={focused} color={color} bg={c.tintSoft} /> }} />
+      <Tabs.Screen name="products" options={{ title: me.terms?.items ?? d.terms.items, href: canProducts ? undefined : null, tabBarIcon: ({ color, focused }) => <TabIcon name={focused ? 'cube' : 'cube-outline'} active={focused} color={color} bg={c.tintSoft} /> }} />
       <Tabs.Screen
         name="sell"
         options={{
           title: d.tabs.sell,
+          href: canSell ? undefined : null,
           tabBarAccessibilityLabel: d.tabs.newSale,
           tabBarLabelStyle: { fontSize: 12, ...fontFor('700'), color: c.tint, marginTop: 3 },
           tabBarIcon: () => (
@@ -71,9 +76,9 @@ export default function TabsLayout() {
           tabPress: (e) => { e.preventDefault(); router.push('/sale-new'); },
         }}
       />
-      <Tabs.Screen name="nasiya" options={{ title: d.tabs.nasiya, href: nasiyaOn ? undefined : null, tabBarIcon: ({ color, focused }) => <TabIcon name={focused ? 'time' : 'time-outline'} active={focused} color={color} bg={c.tintSoft} /> }} />
+      <Tabs.Screen name="nasiya" options={{ title: d.tabs.nasiya, href: nasiyaOn && canSales ? undefined : null, tabBarIcon: ({ color, focused }) => <TabIcon name={focused ? 'time' : 'time-outline'} active={focused} color={color} bg={c.tintSoft} /> }} />
       {/* Nasiya yoqilmagan bo'lsa — uning o'rnida Sotuvlar */}
-      <Tabs.Screen name="sales" options={{ title: d.tabs.sales, href: nasiyaOn ? null : undefined, tabBarIcon: ({ color, focused }) => <TabIcon name={focused ? 'cart' : 'cart-outline'} active={focused} color={color} bg={c.tintSoft} /> }} />
+      <Tabs.Screen name="sales" options={{ title: d.tabs.sales, href: !nasiyaOn && canSales ? undefined : null, tabBarIcon: ({ color, focused }) => <TabIcon name={focused ? 'cart' : 'cart-outline'} active={focused} color={color} bg={c.tintSoft} /> }} />
       <Tabs.Screen name="profile" options={{ title: d.tabs.profile, tabBarIcon: ({ color, focused }) => <TabIcon name={focused ? 'person-circle' : 'person-circle-outline'} active={focused} color={color} bg={c.tintSoft} /> }} />
     </Tabs>
   );
