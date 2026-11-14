@@ -53,6 +53,22 @@ export const uz = {
   moreMenu: {
     label: "Ko'proq amallar",
   },
+  /** SelectAdd — tanlov maydoni ichida «+» (yangisini qo'shish), tanlanganini tahrirlash/o'chirish */
+  selectAdd: {
+    empty: "Hali yo'q — «+» bilan qo'shing",
+    add: "Qo'shish",
+    addNew: "Yangisini qo'shish",
+    newName: 'Yangi nom',
+    edit: 'Tahrirlash',
+    editName: 'Yangi nomi',
+    remove: "O'chirish",
+    removeConfirm: "«{name}» o'chirilsinmi?",
+    save: 'Saqlash',
+    cancel: 'Bekor qilish',
+    saving: 'Saqlanmoqda…',
+    hiddenUsed: "«{name}» bo'yicha {n} ta yozuv bor — ro'yxatdan yashirildi, yozuvlar va hisob saqlandi.",
+    systemLocked: "Tizim toifasini o'zgartirib bo'lmaydi.",
+  },
 };
 
 export const ru: typeof uz = {
@@ -100,5 +116,20 @@ export const ru: typeof uz = {
   },
   moreMenu: {
     label: 'Другие действия',
+  },
+  selectAdd: {
+    empty: 'Пока нет — добавьте кнопкой «+»',
+    add: 'Добавить',
+    addNew: 'Добавить новый',
+    newName: 'Новое название',
+    edit: 'Изменить',
+    editName: 'Новое название',
+    remove: 'Удалить',
+    removeConfirm: 'Удалить «{name}»?',
+    save: 'Сохранить',
+    cancel: 'Отмена',
+    saving: 'Сохранение…',
+    hiddenUsed: 'По «{name}» есть записи ({n}) — категория скрыта из списка, записи и расчёты сохранены.',
+    systemLocked: 'Системную категорию изменить нельзя.',
   },
 };

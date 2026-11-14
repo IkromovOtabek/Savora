@@ -5,6 +5,14 @@
 const NBSP = ' '; // uzluksiz bo'shliq — raqam qatorga bo'linmaydi
 
 /** Minglik ajratuvchi doim uzluksiz-bo'shliq. Masalan: 2916666 -> "2 916 666". */
+/**
+ * Ishorali summa rangi (balans, foyda, qoldiq): manfiy — qizil (amt-neg), musbat — yashil (amt-pos), nol — oddiy.
+ * CSS: app/globals.css. Narx/tushum kabi doim musbat summalarga qo'llanmaydi.
+ */
+export function amtTone(n: number): string {
+  return n < 0 ? 'amt-neg' : n > 0 ? 'amt-pos' : '';
+}
+
 export function fmtMoney(n: number): string {
   const neg = n < 0;
   const digits = Math.abs(Math.round(n)).toString().replace(/\B(?=(\d{3})+(?!\d))/g, NBSP);

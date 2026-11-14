@@ -1,11 +1,11 @@
 'use client';
 
 import { useActionState, useEffect, useState } from 'react';
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { createQuickExpenseAction } from '@/app/actions/finance';
 import { useToastOnState } from '@/lib/useToastOnState';
 import PriceInput from '@/components/ui/PriceInput';
+import FinanceCategorySelect from '@/components/tenant/FinanceCategorySelect';
 import Icon from '@/components/icons/Icon';
 import { useDict } from '@/lib/i18n/client';
 
@@ -25,6 +25,7 @@ export default function QuickExpense({ categories, branches, variant = 'tile' }:
   const t = d.shell.dash;
   const router = useRouter();
   const [open, setOpen] = useState(false);
+  const [category, setCategory] = useState(categories[0] ?? '');
   const [state, action, pending] = useActionState(createQuickExpenseAction, null);
   useToastOnState(state);
 
@@ -70,45 +71,37 @@ export default function QuickExpense({ categories, branches, variant = 'tile' }:
                 <Icon name="close" size={18} />
               </button>
             </div>
-            {categories.length === 0 ? (
-              <form onSubmit={(e) => e.preventDefault()}>
-                <p className="field-hint">{f.qeNoCategory}</p>
-                <Link href="/app/finance/categories" className="btn btn-primary">{f.qeCategories}</Link>
-              </form>
-            ) : (
-              <form action={action}>
-                <p className="field-hint" style={{ margin: 0 }}>{f.qeHint}</p>
+            <form action={action}>
+              <p className="field-hint" style={{ margin: 0 }}>{f.qeHint}</p>
+              <div className="auth-field">
+                <label htmlFor="qe-amount">{f.amount}</label>
+                <PriceInput id="qe-amount" name="amount" required placeholder="0" disabled={pending} />
+              </div>
+              <div className="auth-field">
+                <label htmlFor="qe-cat">{f.category}</label>
+                {/* Ichida «+» — yangi toifa; o'ngda tanlanganini tahrirlash/o'chirish */}
+                <FinanceCategorySelect id="qe-cat" type="expense" categories={categories} value={category} onChange={setCategory} required disabled={pending} />
+              </div>
+              <div className="auth-field">
+                <label htmlFor="qe-note">{f.qeNote}</label>
+                <input id="qe-note" name="note" maxLength={300} placeholder={f.qeNotePh} autoComplete="off" disabled={pending} />
+              </div>
+              {/* Bitta filial — avtomatik o'sha (filial foydasida ko'rinadi); bir nechta — tanlanadi */}
+              {branches.length === 1 && <input type="hidden" name="branchId" value={branches[0].id} />}
+              {branches.length > 1 && (
                 <div className="auth-field">
-                  <label htmlFor="qe-amount">{f.amount}</label>
-                  <PriceInput id="qe-amount" name="amount" required placeholder="0" disabled={pending} />
-                </div>
-                <div className="auth-field">
-                  <label htmlFor="qe-cat">{f.category}</label>
-                  <select id="qe-cat" name="category" required defaultValue={categories[0]} disabled={pending}>
-                    {categories.map((c) => <option key={c} value={c}>{c}</option>)}
+                  <label htmlFor="qe-branch">{f.branch}</label>
+                  <select id="qe-branch" name="branchId" defaultValue="" disabled={pending}>
+                    <option value="">{f.noBranch}</option>
+                    {branches.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
                   </select>
                 </div>
-                <div className="auth-field">
-                  <label htmlFor="qe-note">{f.qeNote}</label>
-                  <input id="qe-note" name="note" maxLength={300} placeholder={f.qeNotePh} autoComplete="off" disabled={pending} />
-                </div>
-                {/* Bitta filial — avtomatik o'sha (filial foydasida ko'rinadi); bir nechta — tanlanadi */}
-                {branches.length === 1 && <input type="hidden" name="branchId" value={branches[0].id} />}
-                {branches.length > 1 && (
-                  <div className="auth-field">
-                    <label htmlFor="qe-branch">{f.branch}</label>
-                    <select id="qe-branch" name="branchId" defaultValue="" disabled={pending}>
-                      <option value="">{f.noBranch}</option>
-                      {branches.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
-                    </select>
-                  </div>
-                )}
-                <div className="u-modal-actions">
-                  <button type="button" className="btn btn-ghost" onClick={() => setOpen(false)} disabled={pending}>{d.common.cancel}</button>
-                  <button type="submit" className="btn btn-primary" disabled={pending}>{f.save}</button>
-                </div>
-              </form>
-            )}
+              )}
+              <div className="u-modal-actions">
+                <button type="button" className="btn btn-ghost" onClick={() => setOpen(false)} disabled={pending}>{d.common.cancel}</button>
+                <button type="submit" className="btn btn-primary" disabled={pending}>{f.save}</button>
+              </div>
+            </form>
           </div>
         </div>
       )}

@@ -2,7 +2,7 @@ import { getTenantSession } from '@/lib/tenantSession';
 import { ensureFinanceCategories } from '@/lib/financeCategories';
 import { toggleFinanceCategoryAction, toggleFinanceCategoryProfitAction } from '@/app/actions/finance';
 import { categoryInProfit } from '@/lib/models/tenant/FinanceCategory';
-import { FinanceCategoryForm } from '@/components/tenant/FinanceForms';
+import { FinanceCategoryEdit, FinanceCategoryForm } from '@/components/tenant/FinanceForms';
 import { getDict } from '@/lib/i18n/server';
 import FinanceTabs from '@/components/tenant/FinanceTabs';
 import '@/components/tenant/styles/finance.css';
@@ -38,11 +38,16 @@ export default async function FinanceCategoriesPage() {
                     <input type="hidden" name="inProfit" value={inProfit ? '0' : '1'} />
                     <button type="submit" className="btn btn-sm btn-ghost">{inProfit ? f.catProfitOff : f.catProfitOn}</button>
                   </form>
-                  <form action={toggleFinanceCategoryAction}>
-                    <input type="hidden" name="categoryId" value={String(c._id)} />
-                    <input type="hidden" name="active" value={c.active ? '0' : '1'} />
-                    <button type="submit" className="btn btn-sm btn-ghost">{c.active ? f.catDisable : f.catEnable}</button>
-                  </form>
+                  {/* Yashirish — savatcha ikonkasi orqali (yozuvi bor toifa yashiriladi); bu yerda faqat qayta yoqish */}
+                  {!c.active && (
+                    <form action={toggleFinanceCategoryAction}>
+                      <input type="hidden" name="categoryId" value={String(c._id)} />
+                      <input type="hidden" name="active" value="1" />
+                      <button type="submit" className="btn btn-sm btn-ghost">{f.catEnable}</button>
+                    </form>
+                  )}
+                  {/* O'ng tomonda: tahrirlash va o'chirish (yozuvi bor toifa — yashiriladi) */}
+                  <FinanceCategoryEdit name={c.name} type={c.type} />
                 </span>
               )}
             </li>

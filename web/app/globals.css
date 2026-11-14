@@ -1579,3 +1579,10 @@ code, pre, kbd { font-family: var(--font-mono); }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; scroll-behavior: auto !important; }
 }
+
+/* Ishorali summalar (lib/format amtTone): manfiy — qizil, musbat — yashil */
+.amt-pos { color: var(--accent); }
+.amt-neg { color: var(--danger); }
+/* Rangli (to'q) kartalar ichida — fonda o'qiladigan och tuslar */
+.fn-hero .amt-pos, .fn-bank .amt-pos { color: #9ef0bf; }
+.fn-hero .amt-neg, .fn-bank .amt-neg { color: #ffb4ac; }

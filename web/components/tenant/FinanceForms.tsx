@@ -1,9 +1,14 @@
 'use client';
 
-import { useActionState, useEffect, useRef, useState } from 'react';
-import { createFinanceTxAction, createFinanceCategoryAction } from '@/app/actions/finance';
+import { useActionState, useEffect, useRef, useState, useTransition } from 'react';
+import { useRouter } from 'next/navigation';
+import { createFinanceTxAction, createFinanceCategoryAction, deleteFinanceCategoryAction, renameFinanceCategoryAction } from '@/app/actions/finance';
+import Icon from '@/components/icons/Icon';
+import { toast } from '@/lib/toast';
+import { tr } from '@/lib/i18n/fmt';
 import { useToastOnState } from '@/lib/useToastOnState';
 import PriceInput from '@/components/ui/PriceInput';
+import FinanceCategorySelect from '@/components/tenant/FinanceCategorySelect';
 import { useDict } from '@/lib/i18n/client';
 
 type Kind = 'income' | 'expense';
@@ -19,15 +24,17 @@ export function FinanceTxForm({ categories, branches }: {
   const formRef = useRef<HTMLFormElement>(null);
   useToastOnState(state);
   useEffect(() => { if (state?.success) formRef.current?.reset(); }, [state]);
-  const list = categories.filter((c) => c.type === type);
+  const names = (k: Kind) => categories.filter((c) => c.type === k).map((c) => c.name);
+  const [category, setCategory] = useState(names('expense')[0] ?? '');
+  const switchType = (k: Kind) => { setType(k); setCategory(names(k)[0] ?? ''); };
 
   return (
     <form ref={formRef} action={action} className="fx-form">
       <h2 className="fx-h">{f.newTx}</h2>
       <input type="hidden" name="type" value={type} />
       <div className="fx-seg" role="radiogroup" aria-label={f.type}>
-        <button type="button" role="radio" aria-checked={type === 'expense'} onClick={() => setType('expense')}>{f.expense}</button>
-        <button type="button" role="radio" aria-checked={type === 'income'} onClick={() => setType('income')}>{f.income}</button>
+        <button type="button" role="radio" aria-checked={type === 'expense'} onClick={() => switchType('expense')}>{f.expense}</button>
+        <button type="button" role="radio" aria-checked={type === 'income'} onClick={() => switchType('income')}>{f.income}</button>
       </div>
       <div className="auth-field">
         <label htmlFor="fx-amount">{f.amount}</label>
@@ -35,10 +42,8 @@ export function FinanceTxForm({ categories, branches }: {
       </div>
       <div className="auth-field">
         <label htmlFor="fx-cat">{f.category}</label>
-        <select id="fx-cat" name="category" key={type} defaultValue={list[0]?.name ?? ''}>
-          <option value="">{f.noCategory}</option>
-          {list.map((c) => <option key={c.name} value={c.name}>{c.name}</option>)}
-        </select>
+        {/* key — tur almashganda ro'yxat qayta olinadi; ichida «+», o'ngda tahrirlash/o'chirish */}
+        <FinanceCategorySelect key={type} id="fx-cat" type={type} categories={names(type)} value={category} onChange={setCategory} placeholder={f.noCategory} disabled={pending} />
       </div>
       <div className="auth-field">
         <label htmlFor="fx-desc">{f.description}</label>
@@ -76,5 +81,60 @@ export function FinanceCategoryForm() {
       </select>
       <button type="submit" className="btn btn-primary" disabled={pending}>{f.catAdd}</button>
     </form>
+  );
+}
+
+/** Toifalar ro'yxatida: qayta nomlash (yozuvlar ham yangi nomga o'tadi) va o'chirish — ikonkalar bilan */
+export function FinanceCategoryEdit({ name, type }: { name: string; type: Kind }) {
+  const d = useDict();
+  const t = d.ui.selectAdd;
+  const router = useRouter();
+  const [editing, setEditing] = useState(false);
+  const [text, setText] = useState(name);
+  const [busy, start] = useTransition();
+
+  const save = () => {
+    const v = text.trim();
+    if (!v || v === name) { setEditing(false); return; }
+    start(async () => {
+      const res = await renameFinanceCategoryAction(name, type, v);
+      if (!res.ok) { toast(res.error, 'error'); return; }
+      setEditing(false);
+      router.refresh();
+    });
+  };
+  const remove = () => {
+    if (!window.confirm(tr(t.removeConfirm, { name }))) return;
+    start(async () => {
+      const res = await deleteFinanceCategoryAction(name, type);
+      if (!res.ok) { toast(res.message ?? d.sales.actions.saveFailed, 'error'); return; }
+      if (res.message) toast(res.message, 'info');
+      router.refresh();
+    });
+  };
+
+  if (editing) {
+    return (
+      <span className="fx-cat-edit">
+        <input
+          className="input"
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); save(); } if (e.key === 'Escape') setEditing(false); }}
+          maxLength={60}
+          aria-label={t.editName}
+          disabled={busy}
+          autoFocus
+        />
+        <button type="button" className="fx-icon-btn" onClick={save} disabled={busy} aria-label={t.save} title={t.save}><Icon name="check" size={16} /></button>
+        <button type="button" className="fx-icon-btn" onClick={() => { setEditing(false); setText(name); }} disabled={busy} aria-label={t.cancel} title={t.cancel}><Icon name="close" size={16} /></button>
+      </span>
+    );
+  }
+  return (
+    <>
+      <button type="button" className="fx-icon-btn" onClick={() => setEditing(true)} disabled={busy} aria-label={`${t.edit}: ${name}`} title={t.edit}><Icon name="edit" size={16} /></button>
+      <button type="button" className="fx-icon-btn fx-icon-btn--del" onClick={remove} disabled={busy} aria-label={`${t.remove}: ${name}`} title={t.remove}><Icon name="trash" size={16} /></button>
+    </>
   );
 }

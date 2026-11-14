@@ -1,6 +1,6 @@
 import { getTenantSession } from '@/lib/tenantSession';
 import { sumCashFromSales } from '@/lib/cashKassa';
-import { fmtMoney } from '@/lib/format';
+import { amtTone, fmtMoney } from '@/lib/format';
 import { getDict } from '@/lib/i18n/server';
 import FinanceTabs from '@/components/tenant/FinanceTabs';
 import '@/components/tenant/styles/finance.css';
@@ -62,10 +62,10 @@ export default async function FinanceStatePage() {
       <FinanceTabs current="state" />
 
       <div className="ux-strip fx-state-strip">
-        <div className="ux-stat"><div className="ux-stat-l">{f.colCash}</div><div className="ux-stat-v t-num">{fmtMoney(total.cash)}</div></div>
+        <div className="ux-stat"><div className="ux-stat-l">{f.colCash}</div><div className={`ux-stat-v t-num ${amtTone(total.cash)}`}>{fmtMoney(total.cash)}</div></div>
         <div className="ux-stat"><div className="ux-stat-l">{f.colDebtors}</div><div className="ux-stat-v t-num">{fmtMoney(total.debtors)}</div></div>
         <div className="ux-stat"><div className="ux-stat-l">{f.colBank}</div><div className="ux-stat-v t-num">{fmtMoney(total.bank)}</div></div>
-        <div className="ux-stat"><div className="ux-stat-l">{f.unbranched}</div><div className="ux-stat-v t-num">{fmtMoney(unIn - unOut)}</div></div>
+        <div className="ux-stat"><div className="ux-stat-l">{f.unbranched}</div><div className={`ux-stat-v t-num ${amtTone(unIn - unOut)}`}>{fmtMoney(unIn - unOut)}</div></div>
       </div>
 
       <div className="table-wrap fx-card fx-state">
@@ -88,7 +88,7 @@ export default async function FinanceStatePage() {
                 <td className="num">{fmtMoney(r.cashSales)}</td>
                 <td className="num fx-in">+ {fmtMoney(r.deposits)}</td>
                 <td className="num fx-out">− {fmtMoney(r.withdrawals)}</td>
-                <td className="num"><b>{fmtMoney(r.cash)}</b></td>
+                <td className={`num ${amtTone(r.cash)}`}><b>{fmtMoney(r.cash)}</b></td>
                 <td className="num">{fmtMoney(r.debtors)}</td>
                 <td className="num">{fmtMoney(r.bank)}</td>
               </tr>
@@ -100,7 +100,7 @@ export default async function FinanceStatePage() {
               <th className="num">{fmtMoney(total.cashSales)}</th>
               <th className="num">+ {fmtMoney(total.deposits)}</th>
               <th className="num">− {fmtMoney(total.withdrawals)}</th>
-              <th className="num">{fmtMoney(total.cash)}</th>
+              <th className={`num ${amtTone(total.cash)}`}>{fmtMoney(total.cash)}</th>
               <th className="num">{fmtMoney(total.debtors)}</th>
               <th className="num">{fmtMoney(total.bank)}</th>
             </tr>

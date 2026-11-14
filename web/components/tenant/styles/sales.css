@@ -509,6 +509,7 @@ button.sl-tl-body:hover .sl-tl-cta--main { opacity: .88; }
 .sl-banks { display: flex; flex-direction: column; gap: 8px; }
 .sl-bank-row { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; align-items: center; }
 .sl-bank-row--multi { grid-template-columns: minmax(0, 1fr) minmax(0, 150px) 40px; }
+.sl-bank-pick { min-width: 0; }
 .sl-bank-del {
   width: 40px; height: 40px; border: 0; border-radius: 50%; display: grid; place-items: center;
   background: var(--fill); color: var(--ink-2); cursor: pointer;
@@ -523,7 +524,7 @@ button.sl-tl-body:hover .sl-tl-cta--main { opacity: .88; }
 @media (max-width: 420px) {
   .sl-banks { gap: 14px; }
   .sl-bank-row--multi { grid-template-columns: minmax(0, 1fr) 40px; }
-  .sl-bank-row--multi > select { grid-column: 1 / -1; }
+  .sl-bank-row--multi > select, .sl-bank-row--multi > .sl-bank-pick { grid-column: 1 / -1; }
 }
 .sl-submit { min-height: 52px; font-size: 17px; border-radius: 14px; width: 100%; }
 

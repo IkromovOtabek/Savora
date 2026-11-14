@@ -326,3 +326,146 @@ export async function toggleFinanceCategoryProfitAction(formData: FormData): Pro
   revalidatePath('/app/finance/categories');
   revalidatePath('/app/monitoring');
 }
+
+/* ── Tanlov maydonidan (SelectAdd) tez amallar: natija qaytaradi, sahifani qayta yuklamaydi ── */
+
+type QuickResult = { ok: true; name: string; id?: string } | { ok: false; error: string };
+
+function escapeRe(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function revalidateFinance() {
+  revalidatePath('/app/finance');
+  revalidatePath('/app/finance/categories');
+  revalidatePath('/app/monitoring');
+  revalidatePath('/app');
+}
+
+/** Toifa qo'shish (xarajat/kirim formasidan). Shu nomli bor bo'lsa — o'sha (yashirilgan bo'lsa qayta yoqiladi) */
+export async function quickFinanceCategoryAction(rawName: string, rawType: string): Promise<QuickResult> {
+  const { user, FinanceCategory, features } = await getTenantAdminSession();
+  const d = await getDict();
+  const f = d.sales.fin;
+  if (!features.kirimChiqim) return { ok: false, error: (await featureDisabledError('kirimChiqim'))?.error ?? f.catBad };
+  const parsed = parseInput(z.object({
+    name: zReqText(60, f.catBad, d.common.tooLong),
+    type: zOneOf(['income', 'expense'] as const, f.catBad),
+  }), { name: rawName, type: rawType }, f.catBad);
+  if (!parsed.ok) return { ok: false, error: parsed.error };
+  const { name, type } = parsed.data;
+
+  const existing = await FinanceCategory.findOne({ type, name: new RegExp(`^${escapeRe(name)}$`, 'i') }).lean();
+  if (existing) {
+    if (existing.system) return { ok: false, error: d.ui.selectAdd.systemLocked };
+    if (!existing.active) await FinanceCategory.updateOne({ _id: existing._id }, { $set: { active: true } });
+    revalidateFinance();
+    return { ok: true, name: existing.name };
+  }
+  try {
+    await FinanceCategory.create({ name, type, active: true });
+  } catch (e) {
+    if ((e as { code?: number }).code === 11000) return { ok: false, error: f.catExists };
+    return { ok: false, error: d.sales.actions.saveFailed };
+  }
+  await recordAudit(user, { action: 'finance.category', entity: 'finance', summary: `Toifa qo'shildi: ${name} (${type})` });
+  revalidateFinance();
+  return { ok: true, name };
+}
+
+/** Toifani qayta nomlash: shu toifadagi yozuvlar ham yangi nomga o'tadi (yozuv toifani nomi bilan saqlaydi) */
+export async function renameFinanceCategoryAction(oldName: string, rawType: string, rawNewName: string): Promise<QuickResult> {
+  const { user, FinanceCategory, CashFlow, features } = await getTenantAdminSession();
+  const d = await getDict();
+  const f = d.sales.fin;
+  if (!features.kirimChiqim) return { ok: false, error: (await featureDisabledError('kirimChiqim'))?.error ?? f.catBad };
+  const parsed = parseInput(z.object({
+    oldName: zReqText(60, f.catBad),
+    name: zReqText(60, f.catBad, d.common.tooLong),
+    type: zOneOf(['income', 'expense'] as const, f.catBad),
+  }), { oldName, name: rawNewName, type: rawType }, f.catBad);
+  if (!parsed.ok) return { ok: false, error: parsed.error };
+  const { name, type } = parsed.data;
+
+  const cat = await FinanceCategory.findOne({ type, name: parsed.data.oldName }).lean();
+  if (!cat) return { ok: false, error: f.badCategory };
+  if (cat.system) return { ok: false, error: d.ui.selectAdd.systemLocked };
+  if (cat.name === name) return { ok: true, name };
+  const dup = await FinanceCategory.exists({ type, _id: { $ne: cat._id }, name: new RegExp(`^${escapeRe(name)}$`, 'i') });
+  if (dup) return { ok: false, error: f.catExists };
+
+  try {
+    await FinanceCategory.updateOne({ _id: cat._id }, { $set: { name } });
+  } catch (e) {
+    if ((e as { code?: number }).code === 11000) return { ok: false, error: f.catExists };
+    return { ok: false, error: d.sales.actions.saveFailed };
+  }
+  const moved = await CashFlow.updateMany({ type, category: cat.name }, { $set: { category: name } });
+  await recordAudit(user, {
+    action: 'finance.categoryRename',
+    entity: 'finance',
+    entityId: String(cat._id),
+    summary: `Toifa «${cat.name}» → «${name}» (${moved.modifiedCount} ta yozuv)`,
+    meta: { from: cat.name, to: name, type, entries: moved.modifiedCount },
+  });
+  revalidateFinance();
+  return { ok: true, name };
+}
+
+/**
+ * Toifani o'chirish: yozuvi yo'q bo'lsa — butunlay; yozuvi bor bo'lsa — faqat ro'yxatdan yashiriladi
+ * (yozuvlar va sof foyda hisobi o'zgarmaydi). Natija: null — o'chirildi, aks holda matn (xato yoki yashirildi).
+ */
+export async function deleteFinanceCategoryAction(name: string, rawType: string): Promise<{ ok: boolean; message?: string }> {
+  const { user, FinanceCategory, CashFlow, features } = await getTenantAdminSession();
+  const d = await getDict();
+  const f = d.sales.fin;
+  if (!features.kirimChiqim) return { ok: false, message: (await featureDisabledError('kirimChiqim'))?.error };
+  const type = rawType === 'income' ? 'income' : 'expense';
+  const cat = await FinanceCategory.findOne({ type, name: String(name ?? '').trim() }).lean();
+  if (!cat) return { ok: false, message: f.badCategory };
+  if (cat.system) return { ok: false, message: d.ui.selectAdd.systemLocked };
+
+  const used = await CashFlow.countDocuments({ type, category: cat.name });
+  if (used > 0) {
+    await FinanceCategory.updateOne({ _id: cat._id }, { $set: { active: false } });
+  } else {
+    await FinanceCategory.deleteOne({ _id: cat._id });
+  }
+  await recordAudit(user, {
+    action: 'finance.categoryDelete',
+    entity: 'finance',
+    entityId: String(cat._id),
+    summary: used > 0 ? `Toifa «${cat.name}» yashirildi (${used} ta yozuv bor)` : `Toifa «${cat.name}» o'chirildi`,
+    meta: { name: cat.name, type, entries: used },
+  });
+  revalidateFinance();
+  return used > 0 ? { ok: true, message: tr(d.ui.selectAdd.hiddenUsed, { name: cat.name, n: used }) } : { ok: true };
+}
+
+/** Bank qo'shish (sotuv formasidagi bank tanlovidan). Shu nomli bor bo'lsa — o'sha (faol bo'lmasa yoqiladi) */
+export async function quickCreditBankAction(rawName: string): Promise<QuickResult> {
+  const { user, CreditBank, features } = await getTenantAdminSession();
+  const d = await getDict();
+  const m = d.sales.actions;
+  if (!features.creditKassa) return { ok: false, error: (await featureDisabledError('creditKassa'))?.error ?? m.bankAddFailed };
+  const parsed = parseInput(zReqText(80, m.bankNameRequired, d.common.tooLong), rawName);
+  if (!parsed.ok) return { ok: false, error: parsed.error };
+  const name = parsed.data;
+
+  const dup = await CreditBank.findOne({ name: new RegExp(`^${escapeRe(name)}$`, 'i') }).lean();
+  if (dup) {
+    if (!dup.active) await CreditBank.updateOne({ _id: dup._id }, { $set: { active: true } });
+    revalidatePath('/app/kredit-kassa');
+    return { ok: true, name: dup.name, id: String(dup._id) };
+  }
+  let id: string;
+  try {
+    id = String((await CreditBank.create({ name, active: true }))._id);
+  } catch {
+    return { ok: false, error: m.bankAddFailed };
+  }
+  await recordAudit(user, { action: 'finance.bank', entity: 'finance', entityId: id, summary: `Bank qo'shildi: ${name}` });
+  revalidatePath('/app/kredit-kassa');
+  return { ok: true, name, id };
+}

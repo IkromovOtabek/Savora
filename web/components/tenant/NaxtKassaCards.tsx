@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { fmtMoney } from '@/lib/format';
+import { amtTone, fmtMoney } from '@/lib/format';
 import Icon from '@/components/icons/Icon';
 import Tilt from '@/components/ui/Tilt';
 import { useDict } from '@/lib/i18n/client';
@@ -37,7 +37,7 @@ function BranchPass({ c }: { c: KassaCard }) {
       </div>
       <div>
         <div className="fn-pass-label">{d.sales.kassa.balance}</div>
-        <div className="fn-pass-value fn-num">{fmtMoney(c.qolgan)}<span className="fn-cur">{d.common.sum}</span></div>
+        <div className={`fn-pass-value fn-num ${amtTone(c.qolgan)}`}>{fmtMoney(c.qolgan)}<span className="fn-cur">{d.common.sum}</span></div>
       </div>
       <div className="fn-split" aria-hidden="true">
         <i className="fn-split-in" style={{ width: `${pct(c.naxtSotuv - c.adminOlgan, c.naxtSotuv)}%` }} />
@@ -63,16 +63,16 @@ export default function NaxtKassaCards({ total, cards }: { total: KassaCard; car
         </div>
         <div>
           <div className="fn-hero-stat-l">{d.sales.kassa.balance}</div>
-          <div className="fn-hero-value fn-num ux-z">{fmtMoney(total.qolgan)}<span className="fn-cur">{d.common.sum}</span></div>
+          <div className={`fn-hero-value fn-num ux-z ${amtTone(total.qolgan)}`}>{fmtMoney(total.qolgan)}<span className="fn-cur">{d.common.sum}</span></div>
         </div>
         <div className="fn-hero-grid">
           <div className="fn-hero-stat">
             <span className="fn-hero-stat-l">{d.sales.kassa.cashSales}</span>
-            <span className="fn-hero-stat-v fn-num">{signed(total.naxtSotuv, '+')}</span>
+            <span className={`fn-hero-stat-v fn-num ${amtTone(total.naxtSotuv)}`}>{signed(total.naxtSotuv, '+')}</span>
           </div>
           <div className="fn-hero-stat">
             <span className="fn-hero-stat-l">{d.sales.kassa.adminTook}</span>
-            <span className="fn-hero-stat-v fn-num">{signed(total.adminOlgan, '−')}</span>
+            <span className={`fn-hero-stat-v fn-num ${amtTone(-total.adminOlgan)}`}>{signed(total.adminOlgan, '−')}</span>
           </div>
         </div>
         <Link href="/app/sales?type=cash" className="fn-hero-link">

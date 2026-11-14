@@ -36,6 +36,7 @@ export default async function NewSalePage({
       mediaEnabled={features.mediaUpload}
       features={features}
       creditBanks={creditBanks}
+      canAddBank={user.role === 'admin' && features.creditKassa}
       preselectId={sp.productId}
       preselectPayment={sp.payment}
       products={inStock.map((p) => ({

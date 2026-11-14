@@ -13,6 +13,8 @@ import { addMonthsClamped } from '@/lib/dates';
 import BackLink from '@/components/ui/BackLink';
 import ImageUploadField from '@/components/ui/ImageUploadField';
 import PriceInput from '@/components/ui/PriceInput';
+import SelectAdd from '@/components/ui/SelectAdd';
+import { quickCreditBankAction } from '@/app/actions/finance';
 import Icon from '@/components/icons/Icon';
 import { PQ294_MAX_MONTHS } from '@/lib/pq294';
 import { useDict } from '@/lib/i18n/client';
@@ -94,12 +96,14 @@ interface Props {
   mediaEnabled?: boolean;
   features: OrgFeatures;
   creditBanks: string[];
+  /** Do'kon egasi — bank tanlovida «+» bilan yangi bank qo'shadi */
+  canAddBank?: boolean;
   preselectId?: string;
   /** Ombor menyusidan tanlangan to'lov turi (cash/installment/bank_credit) */
   preselectPayment?: string;
 }
 
-export default function SaleForm({ isPhoneShop, products, mediaEnabled, features, creditBanks, preselectId, preselectPayment }: Props) {
+export default function SaleForm({ isPhoneShop, products, mediaEnabled, features, creditBanks, canAddBank, preselectId, preselectPayment }: Props) {
   const [state, formAction, isPending] = useActionState(createSaleAction, null);
   useToastOnState(state);
   const d = useDict();
@@ -166,7 +170,16 @@ export default function SaleForm({ isPhoneShop, products, mediaEnabled, features
   }, [features.variant, features.creditKassa]);
 
   // Bank krediti faqat Kredit kassa yoqilganda — banklar o'sha ro'yxatdan (server ham shuni tekshiradi)
-  const bankOptions = creditBanks;
+  const [bankOptions, setBankOptions] = useState(creditBanks);
+  // Egasi bank tanlovining o'zida yangi bank qo'shadi (Kredit kassaga o'tmasdan)
+  const addBank = canAddBank
+    ? async (name: string) => {
+        const res = await quickCreditBankAction(name);
+        if (!res.ok) return { error: res.error };
+        setBankOptions((prev) => (prev.includes(res.name) ? prev : [...prev, res.name].sort((a, b) => a.localeCompare(b))));
+        return { value: res.name, label: res.name };
+      }
+    : undefined;
 
   const hasItems = items.length > 0;
   const inCart = useMemo(() => new Set(items.map((it) => it.id)), [items]);
@@ -598,7 +611,7 @@ export default function SaleForm({ isPhoneShop, products, mediaEnabled, features
               {paymentType === 'bank_credit' && (
                 <div className="auth-field">
                   <label id="sl-banks-l">{multiBank ? k.banksLabel : k.bank}</label>
-                  {bankOptions.length === 0 ? (
+                  {bankOptions.length === 0 && !canAddBank ? (
                     <p className="field-hint">
                       {k.noBank} <Link href="/app/kredit-kassa">{k.creditKassa}</Link>
                     </p>
@@ -607,19 +620,23 @@ export default function SaleForm({ isPhoneShop, products, mediaEnabled, features
                       <div className="sl-banks" role="group" aria-labelledby="sl-banks-l">
                         {bankRows.map((r, i) => (
                           <div key={i} className={`sl-bank-row${multiBank ? ' sl-bank-row--multi' : ''}`}>
-                            <select
-                              aria-label={tr(k.bankRowAria, { n: i + 1 })}
-                              value={r.bank}
-                              onChange={(e) => updateBankRow(i, { bank: e.target.value })}
-                              required
-                              disabled={fieldsOff}
-                            >
-                              <option value="">{k.selectPlaceholder}</option>
-                              {/* Bir bank ikki qatorda tanlanmasin */}
-                              {bankOptions
-                                .filter((b) => b === r.bank || !bankRows.some((x, j) => j !== i && x.bank === b))
-                                .map((b) => <option key={b} value={b}>{b}</option>)}
-                            </select>
+                            <div className="sl-bank-pick">
+                              <SelectAdd
+                                id={`sl-bank-${i}`}
+                                ariaLabel={tr(k.bankRowAria, { n: i + 1 })}
+                                value={r.bank}
+                                onChange={(v) => updateBankRow(i, { bank: v })}
+                                required
+                                disabled={fieldsOff}
+                                placeholder={k.selectPlaceholder}
+                                // Bir bank ikki qatorda tanlanmasin
+                                options={bankOptions
+                                  .filter((b) => b === r.bank || !bankRows.some((x, j) => j !== i && x.bank === b))
+                                  .map((b) => ({ value: b, label: b }))}
+                                maxLength={80}
+                                onAdd={addBank}
+                              />
+                            </div>
                             {multiBank && (
                               <>
                                 <PriceInput

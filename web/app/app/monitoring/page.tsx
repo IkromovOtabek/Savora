@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { PAYMENT_TYPE_LABELS, PaymentType } from '@/lib/models/tenant/Sale';
 import { getI18n } from '@/lib/i18n/server';
 import { tr, fmtMonthYear } from '@/lib/i18n/fmt';
-import { fmtMoney } from '@/lib/format';
+import { amtTone, fmtMoney } from '@/lib/format';
 import MonitoringChart from '@/components/tenant/MonitoringChart';
 import type { BranchMonthFlow } from '@/lib/inventoryFlow';
 import Icon from '@/components/icons/Icon';
@@ -233,7 +233,7 @@ export default async function MonitoringPage({
               <div className="fn-pass-rows fn-pl">
                 <div className="fn-pass-row">
                   <span>{t.grossProfit} <small className="fn-pl-hint">({t.profitSub})</small></span>
-                  <strong className={monthProfit >= 0 ? '' : 'fn-out'}>{fmtMoney(monthProfit)}</strong>
+                  <strong className={amtTone(monthProfit)}>{fmtMoney(monthProfit)}</strong>
                 </div>
                 <div className="fn-pass-row">
                   <span>{t.otherIncome}</span>
@@ -257,7 +257,7 @@ export default async function MonitoringPage({
           <section className="fn-panel" aria-labelledby="mon-pl-cat">
             <div className="fn-panel-head">
               <h2 id="mon-pl-cat">{d.sales.fin.byCategory}</h2>
-              <small>{fmtMoney(opex.income - opex.expense)} {d.common.sum}</small>
+              <small className={amtTone(opex.income - opex.expense)}>{fmtMoney(opex.income - opex.expense)} {d.common.sum}</small>
             </div>
             <div className="fn-panel-body">
               {opex.byCategory.length === 0 ? (
@@ -354,8 +354,8 @@ export default async function MonitoringPage({
                       <td data-label={t.purchaseSum} className="fn-right">{fmtMoney(b.chiqimSum)}</td>
                       {showNet ? (
                         <>
-                          <td data-label={t.grossProfit} className="fn-right">{fmtMoney(b.profit)}</td>
-                          <td data-label={t.opexCol} className={`fn-right ${bOpex < 0 ? 'fn-out' : ''}`}>{fmtMoney(bOpex)}</td>
+                          <td data-label={t.grossProfit} className={`fn-right ${amtTone(b.profit)}`}>{fmtMoney(b.profit)}</td>
+                          <td data-label={t.opexCol} className={`fn-right ${amtTone(bOpex)}`}>{fmtMoney(bOpex)}</td>
                           <td data-label={t.netProfit} className={`fn-right ${bNet >= 0 ? 'fn-in' : 'fn-out'}`}><strong>{fmtMoney(bNet)}</strong></td>
                         </>
                       ) : (
@@ -373,7 +373,7 @@ export default async function MonitoringPage({
                     <td data-label={t.saleSum} className="fn-right">—</td>
                     <td data-label={t.purchaseSum} className="fn-right">—</td>
                     <td data-label={t.grossProfit} className="fn-right">—</td>
-                    <td data-label={t.opexCol} className={`fn-right ${otherOpex < 0 ? 'fn-out' : ''}`}>{fmtMoney(otherOpex)}</td>
+                    <td data-label={t.opexCol} className={`fn-right ${amtTone(otherOpex)}`}>{fmtMoney(otherOpex)}</td>
                     <td data-label={t.netProfit} className={`fn-right ${otherOpex >= 0 ? 'fn-in' : 'fn-out'}`}><strong>{fmtMoney(otherOpex)}</strong></td>
                     <td data-label={t.transaction} className="fn-right">—</td>
                   </tr>

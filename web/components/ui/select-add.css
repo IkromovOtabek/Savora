@@ -1,0 +1,38 @@
+/* SelectAdd — tanlov maydoni ichida «+», o'ngda tahrirlash/o'chirish ikonkalari */
+.sa { display: flex; gap: 6px; align-items: center; min-width: 0; }
+.sa-field { position: relative; flex: 1; min-width: 0; }
+.sa-field > select { width: 100%; }
+/* «+» o'q (chevron) yonida, maydon ichida — matn ostiga tushmasin */
+.auth-field .sa-field--plus > select, .sa-field--plus > select { padding-right: 78px; }
+.sa-plus {
+  position: absolute; top: 50%; right: 34px; transform: translateY(-50%);
+  width: 32px; height: 32px; border: 0; border-radius: 9px;
+  display: grid; place-items: center; cursor: pointer;
+  background: var(--brand-soft); color: var(--brand);
+  transition: background-color .15s, color .15s;
+}
+.sa-plus:hover:not(:disabled) { background: var(--brand); color: var(--on-brand, #fff); }
+.sa-plus:focus-visible { outline: 3px solid var(--brand-ring); outline-offset: 1px; }
+.sa-plus:disabled { opacity: .5; cursor: default; }
+.sa-plus[aria-expanded='true'] { background: var(--brand); color: var(--on-brand, #fff); }
+/* Ro'yxat bo'sh — «+» asosiy harakat */
+.sa-plus.is-cta { background: var(--brand); color: var(--on-brand, #fff); box-shadow: 0 0 0 3px var(--brand-ring); }
+
+.sa-acts { display: flex; gap: 4px; flex: none; }
+.sa-acts button {
+  width: 40px; height: 40px; border: 0; border-radius: 50%;
+  display: grid; place-items: center; cursor: pointer;
+  background: var(--fill); color: var(--ink-2);
+}
+.sa-acts button:hover:not(:disabled) { color: var(--brand); }
+.sa-acts .sa-del:hover:not(:disabled) { color: var(--danger); }
+.sa-acts button:focus-visible { outline: 3px solid var(--brand-ring); outline-offset: 1px; }
+.sa-acts button:disabled { opacity: .5; cursor: default; }
+
+.sa-row-wrap { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
+.sa-row { display: flex; gap: 8px; align-items: center; }
+.sa-row input { flex: 1; min-width: 0; }
+@media (max-width: 480px) {
+  .sa-row { flex-wrap: wrap; }
+  .sa-row input { flex-basis: 100%; }
+}

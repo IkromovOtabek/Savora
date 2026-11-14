@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useActionState, useEffect, useRef, useState, useTransition, type KeyboardEvent, type ReactNode } from 'react';
+import { useActionState, useEffect, useRef, useState, type ReactNode } from 'react';
 import { useToastOnState } from '@/lib/useToastOnState';
 import { createBrandAction, createCategoryAction, createProductAction, lookupBarcodeAction, updateProductAction } from '@/app/actions/products';
 import { createSupplierQuickAction } from '@/app/actions/suppliers';
@@ -13,6 +13,7 @@ import BundleComposer, { type BundleCandidate } from '@/components/tenant/Bundle
 import Icon from '@/components/icons/Icon';
 import ImageUploadField from '@/components/ui/ImageUploadField';
 import PriceInput from '@/components/ui/PriceInput';
+import SelectAdd from '@/components/ui/SelectAdd';
 import UsdPricePanel from '@/components/tenant/UsdPricePanel';
 import { fmtMoney } from '@/lib/format';
 import { useDict } from '@/lib/i18n/client';
@@ -742,74 +743,7 @@ function ProductExtraFields({
   return <>{rows}</>;
 }
 
-/**
- * Katalogdan tanlash + shu yerning o'zida yangisini qo'shish (brend, turkum).
- * Qo'shish qatori forma maydoni emas (name yo'q) — Enter asosiy formani yubormaydi.
- */
-function CatalogAdd({
-  placeholder,
-  maxLength,
-  disabled,
-  onSave,
-  onClose,
-  children,
-}: {
-  placeholder: string;
-  maxLength: number;
-  disabled: boolean;
-  /** Xato bo'lsa matn qaytaradi */
-  onSave: (name: string) => Promise<string | null>;
-  onClose: () => void;
-  /** Qo'shimcha tanlov (turkum uchun — qaysi turkum ichida) */
-  children?: ReactNode;
-}) {
-  const d = useDict();
-  const [name, setName] = useState('');
-  const [error, setError] = useState<string | null>(null);
-  const [saving, startSaving] = useTransition();
-  const save = () => {
-    if (!name.trim()) return;
-    startSaving(async () => {
-      const err = await onSave(name);
-      if (err) setError(err);
-      else onClose();
-    });
-  };
-  const onKey = (e: KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter') { e.preventDefault(); save(); }
-    if (e.key === 'Escape') { e.preventDefault(); onClose(); }
-  };
-  const busy = disabled || saving;
-  return (
-    <div className="st-cat-add">
-      {children}
-      <div className="st-cat-add-row">
-        <input
-          type="text"
-          value={name}
-          onChange={(e) => { setName(e.target.value); setError(null); }}
-          onKeyDown={onKey}
-          placeholder={placeholder}
-          maxLength={maxLength}
-          aria-label={placeholder}
-          aria-invalid={!!error || undefined}
-          disabled={busy}
-          autoFocus
-          autoComplete="off"
-        />
-        <button type="button" className="btn btn-primary btn-sm" onClick={save} disabled={busy || !name.trim()}>
-          {saving ? d.common.saving : d.common.add}
-        </button>
-        <button type="button" className="btn btn-plain btn-sm" onClick={onClose} disabled={saving}>
-          {d.common.cancel}
-        </button>
-      </div>
-      {error && <span className="field-error" role="alert">{error}</span>}
-    </div>
-  );
-}
-
-/** Yetkazib beruvchi: ro'yxatdan tanlash (supplierId yuboriladi) yoki nomini yozib yangisini qo'shish */
+/** Yetkazib beruvchi: ro'yxatdan tanlash (supplierId yuboriladi) yoki maydon ichidagi «+» bilan yangisini qo'shish */
 function SupplierField({ suppliers, value, onChange, disabled }: {
   suppliers: { id: string; name: string }[];
   value: string;
@@ -818,82 +752,63 @@ function SupplierField({ suppliers, value, onChange, disabled }: {
 }) {
   const t = useDict().stock.suppliers;
   const [list, setList] = useState(suppliers);
-  const [adding, setAdding] = useState(false);
   return (
     <>
       <label htmlFor="supplierId">{t.productField}</label>
-      <div className="st-cat-pick">
-        <select id="supplierId" name="supplierId" value={value} onChange={(e) => onChange(e.target.value)} disabled={disabled}>
-          <option value="">{t.productNone}</option>
-          {list.map((sp) => <option key={sp.id} value={sp.id}>{sp.name}</option>)}
-        </select>
-        {!adding && (
-          <button type="button" className="btn btn-tinted btn-sm st-cat-addbtn" onClick={() => setAdding(true)} disabled={disabled} aria-label={t.productNew} title={t.productNew}>
-            <Icon name="plus" size={16} />
-          </button>
-        )}
-      </div>
-      {adding && (
-        <CatalogAdd
-          placeholder={t.productNewPlaceholder}
-          maxLength={120}
-          disabled={disabled}
-          onClose={() => setAdding(false)}
-          onSave={async (name) => {
-            const res = await createSupplierQuickAction(name);
-            if (!res.ok) return res.error;
-            setList((prev) => prev.some((x) => x.id === res.item.id)
-              ? prev
-              : [...prev, res.item].sort((a, b) => a.name.localeCompare(b.name)));
-            onChange(res.item.id);
-            return null;
-          }}
-        />
-      )}
+      <SelectAdd
+        id="supplierId"
+        name="supplierId"
+        value={value}
+        onChange={onChange}
+        options={list.map((sp) => ({ value: sp.id, label: sp.name }))}
+        placeholder={t.productNone}
+        disabled={disabled}
+        addLabel={t.productNew}
+        addPlaceholder={t.productNewPlaceholder}
+        maxLength={120}
+        onAdd={async (name) => {
+          const res = await createSupplierQuickAction(name);
+          if (!res.ok) return { error: res.error };
+          setList((prev) => prev.some((x) => x.id === res.item.id)
+            ? prev
+            : [...prev, res.item].sort((a, b) => a.name.localeCompare(b.name)));
+          return { value: res.item.id, label: res.item.name };
+        }}
+      />
     </>
   );
 }
 
-/** Brend: ro'yxatdan tanlash (mahsulotda nomi saqlanadi) yoki yangisini qo'shish */
+/** Brend: ro'yxatdan tanlash (mahsulotda nomi saqlanadi) yoki maydon ichidagi «+» bilan yangisini qo'shish */
 function BrandField({ brands, initial, disabled }: { brands: { id: string; name: string }[]; initial?: string; disabled: boolean }) {
   const t = useDict().stock.form;
   const [list, setList] = useState(brands);
   const [value, setValue] = useState(initial ?? '');
-  const [adding, setAdding] = useState(false);
   // Ro'yxatda yo'q eski brend nomi (mobil/eski yozuv) — yo'qolmasin, tanlovda ko'rinadi
   const missing = value && !list.some((b) => b.name === value) ? value : null;
   return (
     <div className="auth-field">
       <label htmlFor="brand">{t.brandLabel}</label>
-      <div className="st-cat-pick">
-        <select id="brand" name="brand" value={value} onChange={(e) => setValue(e.target.value)} disabled={disabled}>
-          <option value="">{t.notSelected}</option>
-          {missing && <option value={missing}>{missing}</option>}
-          {list.map((b) => <option key={b.id} value={b.name}>{b.name}</option>)}
-        </select>
-        {!adding && (
-          <button type="button" className="btn btn-tinted btn-sm st-cat-addbtn" onClick={() => setAdding(true)} disabled={disabled} aria-label={t.newBrand} title={t.newBrand}>
-            <Icon name="plus" size={16} />
-          </button>
-        )}
-      </div>
-      {adding && (
-        <CatalogAdd
-          placeholder={t.newBrandPlaceholder}
-          maxLength={60}
-          disabled={disabled}
-          onClose={() => setAdding(false)}
-          onSave={async (name) => {
-            const res = await createBrandAction(name);
-            if (!res.ok) return res.error;
-            setList((prev) => prev.some((b) => b.id === res.item.id)
-              ? prev
-              : [...prev, res.item].sort((a, b) => a.name.localeCompare(b.name)));
-            setValue(res.item.name);
-            return null;
-          }}
-        />
-      )}
+      <SelectAdd
+        id="brand"
+        name="brand"
+        value={value}
+        onChange={setValue}
+        options={list.map((b) => ({ value: b.name, label: b.name }))}
+        extraOptions={missing ? <option value={missing}>{missing}</option> : undefined}
+        placeholder={t.notSelected}
+        disabled={disabled}
+        addLabel={t.newBrand}
+        addPlaceholder={t.newBrandPlaceholder}
+        onAdd={async (name) => {
+          const res = await createBrandAction(name);
+          if (!res.ok) return { error: res.error };
+          setList((prev) => prev.some((b) => b.id === res.item.id)
+            ? prev
+            : [...prev, res.item].sort((a, b) => a.name.localeCompare(b.name)));
+          return { value: res.item.name, label: res.item.name };
+        }}
+      />
     </div>
   );
 }
@@ -918,53 +833,43 @@ function CategoryField({
   const known = !!initialId && categories.some((c) => c.id === initialId);
   const initialLegacy = !known && initialName ? initialName : null;
   const [value, setValue] = useState(known && initialId ? initialId : initialLegacy ? LEGACY_CATEGORY_VALUE : '');
-  const [adding, setAdding] = useState(false);
-  const [parentId, setParentId] = useState('');
+  const [parentId, setParentId] = useState(known && initialId ? initialId : '');
   const options = flattenCategories(list);
   // Daraxt ko'rinishi: native select'da chuqurlik bo'shliq bilan
   const indent = (depth: number) => '\u00A0\u00A0\u00A0'.repeat(depth) + (depth ? '└ ' : '');
-  const openAdd = () => {
-    // Tanlangan turkum ichiga qo'shish — eng ko'p ishlatiladigan holat (subturkum)
-    setParentId(options.some((o) => o.id === value) ? value : '');
-    setAdding(true);
-  };
   return (
     <div className="auth-field">
       <label htmlFor="categoryId">{d.stock.fields.labels.category}</label>
-      <div className="st-cat-pick">
-        <select id="categoryId" name="categoryId" value={value} onChange={(e) => setValue(e.target.value)} disabled={disabled}>
-          <option value="">{t.notSelected}</option>
-          {initialLegacy && <option value={LEGACY_CATEGORY_VALUE}>{tr(t.categoryLegacy, { name: initialLegacy })}</option>}
-          {options.map((o) => <option key={o.id} value={o.id} title={o.path}>{indent(o.depth)}{o.name}</option>)}
-        </select>
-        {!adding && (
-          <button type="button" className="btn btn-tinted btn-sm st-cat-addbtn" onClick={openAdd} disabled={disabled} aria-label={t.newCategory} title={t.newCategory}>
-            <Icon name="plus" size={16} />
-          </button>
-        )}
-      </div>
-      {adding && (
-        <CatalogAdd
-          placeholder={t.newCategoryPlaceholder}
-          maxLength={60}
-          disabled={disabled}
-          onClose={() => setAdding(false)}
-          onSave={async (name) => {
-            const res = await createCategoryAction(name, parentId || null);
-            if (!res.ok) return res.error;
-            setList((prev) => prev.some((c) => c.id === res.item.id)
-              ? prev
-              : [...prev, res.item].sort((a, b) => a.name.localeCompare(b.name)));
-            setValue(res.item.id);
-            return null;
-          }}
-        >
+      <SelectAdd
+        id="categoryId"
+        name="categoryId"
+        value={value}
+        onChange={(v) => {
+          setValue(v);
+          // Yangi turkum odatda tanlangan turkum ichiga (subturkum) qo'shiladi
+          setParentId(options.some((o) => o.id === v) ? v : '');
+        }}
+        options={options.map((o) => ({ value: o.id, label: indent(o.depth) + o.name, title: o.path }))}
+        extraOptions={initialLegacy ? <option value={LEGACY_CATEGORY_VALUE}>{tr(t.categoryLegacy, { name: initialLegacy })}</option> : undefined}
+        placeholder={t.notSelected}
+        disabled={disabled}
+        addLabel={t.newCategory}
+        addPlaceholder={t.newCategoryPlaceholder}
+        addExtra={
           <select value={parentId} onChange={(e) => setParentId(e.target.value)} disabled={disabled} aria-label={t.newCategoryParent}>
             <option value="">{t.newCategoryParent}: {t.newCategoryRoot}</option>
             {options.map((o) => <option key={o.id} value={o.id}>{indent(o.depth)}{o.name}</option>)}
           </select>
-        </CatalogAdd>
-      )}
+        }
+        onAdd={async (name) => {
+          const res = await createCategoryAction(name, parentId || null);
+          if (!res.ok) return { error: res.error };
+          setList((prev) => prev.some((c) => c.id === res.item.id)
+            ? prev
+            : [...prev, res.item].sort((a, b) => a.name.localeCompare(b.name)));
+          return { value: res.item.id, label: res.item.name };
+        }}
+      />
     </div>
   );
 }

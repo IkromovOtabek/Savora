@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { getTenantSession } from '@/lib/tenantSession';
 import { ensureFinanceCategories } from '@/lib/financeCategories';
 import { parsePeriod, periodRange } from '@/lib/period';
-import { fmtDateTime, fmtMoney } from '@/lib/format';
+import { amtTone, fmtDateTime, fmtMoney } from '@/lib/format';
 import { deleteCashFlowAction } from '@/app/actions/finance';
 import { FinanceTxForm } from '@/components/tenant/FinanceForms';
 import PeriodSeg from '@/components/tenant/PeriodSeg';
@@ -67,7 +67,7 @@ export default async function FinanceTxPage({ searchParams }: { searchParams: Pr
           <div className="fx-sums">
             <div className="ux-stat"><div className="ux-stat-l">{f.income}</div><div className="ux-stat-v t-num fx-in">+ {fmtMoney(income)}</div></div>
             <div className="ux-stat"><div className="ux-stat-l">{f.expense}</div><div className="ux-stat-v t-num fx-out">− {fmtMoney(expense)}</div></div>
-            <div className="ux-stat"><div className="ux-stat-l">{f.balance}</div><div className="ux-stat-v t-num">{fmtMoney(income - expense)}<small>{d.common.sum}</small></div></div>
+            <div className="ux-stat"><div className="ux-stat-l">{f.balance}</div><div className={`ux-stat-v t-num ${amtTone(income - expense)}`}>{fmtMoney(income - expense)}<small>{d.common.sum}</small></div></div>
           </div>
           {byCat.length > 0 && (
             <section className="fx-card">

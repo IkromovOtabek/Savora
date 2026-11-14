@@ -7,14 +7,16 @@ import {
   createCreditBankAction,
   deleteBankReceiptAction,
   deleteCreditBankAction,
+  quickCreditBankAction,
   toggleCreditBankAction,
 } from '@/app/actions/finance';
-import { fmtDate, fmtMoney } from '@/lib/format';
+import { amtTone, fmtDate, fmtMoney } from '@/lib/format';
 import { useToastOnState } from '@/lib/useToastOnState';
 import Icon from '@/components/icons/Icon';
 import Tilt from '@/components/ui/Tilt';
 import MoreMenu from '@/components/ui/MoreMenu';
 import PriceInput from '@/components/ui/PriceInput';
+import SelectAdd from '@/components/ui/SelectAdd';
 import { useDict } from '@/lib/i18n/client';
 import { plural, tr } from '@/lib/i18n/fmt';
 import '@/components/tenant/styles/finance.css';
@@ -71,7 +73,7 @@ export default function CreditKassaPanel({
         </div>
         <div>
           <div className="fn-hero-stat-l">{totals.balance < 0 ? k.overpaid : k.bankBalance}</div>
-          <div className="fn-hero-value fn-num">{fmtMoney(totals.balance)}<span className="fn-cur">{d.common.sum}</span></div>
+          <div className={`fn-hero-value fn-num ${amtTone(totals.balance)}`}>{fmtMoney(totals.balance)}<span className="fn-cur">{d.common.sum}</span></div>
         </div>
         <div className="fn-hero-grid">
           <div className="fn-hero-stat">
@@ -135,7 +137,7 @@ export default function CreditKassaPanel({
                 {k.balance}
                 {b.balance < 0 && <span className="fn-bank-chip fn-bank-chip--warn">{k.overpaid}</span>}
               </div>
-              <div className="fn-bank-value fn-num ux-z">{fmtMoney(b.balance)}<span className="fn-cur">{d.common.sum}</span></div>
+              <div className={`fn-bank-value fn-num ux-z ${amtTone(b.balance)}`}>{fmtMoney(b.balance)}<span className="fn-cur">{d.common.sum}</span></div>
               <div className="fn-bank-rows">
                 <div className="fn-bank-row"><span>{k.financed}</span><b className="fn-num">{fmtMoney(b.financed)}</b></div>
                 <div className="fn-bank-row"><span>{k.received}</span><b className="fn-num">{fmtMoney(b.received)}</b></div>
@@ -238,6 +240,8 @@ function ReceiveForm({ banks }: { banks: BankCard[] }) {
   const [state, action, pending] = useActionState(createBankReceiptAction, null);
   useToastOnState(state);
   const [amount, setAmount] = useState('');
+  const [bankId, setBankId] = useState('');
+  const [bankList, setBankList] = useState<Pick<BankCard, 'id' | 'name' | 'balance'>[]>(banks);
   // Sana faqat brauzerda (server/klient vaqt mintaqasi farqi hydration xatosiga olib kelmasin)
   const [today, setToday] = useState('');
   useEffect(() => { setToday(todayIso()); }, []);
@@ -264,14 +268,25 @@ function ReceiveForm({ banks }: { banks: BankCard[] }) {
       <div className="fn-panel-body fn-rc-fields">
         <div className="auth-field">
           <label htmlFor="rcBank">{k.receiveBank}</label>
-          <select id="rcBank" name="bankId" required disabled={pending} defaultValue="">
-            <option value="" disabled>{d.sales.newSale.selectPlaceholder}</option>
-            {banks.map((b) => (
-              <option key={b.id} value={b.id}>
-                {b.name} — {k.balance.toLowerCase()} {fmtMoney(b.balance)} {d.common.sum}
-              </option>
-            ))}
-          </select>
+          {/* Ichida «+» — yangi bank shu yerning o'zida */}
+          <SelectAdd
+            id="rcBank"
+            name="bankId"
+            value={bankId}
+            onChange={setBankId}
+            required
+            disabled={pending}
+            placeholder={d.sales.newSale.selectPlaceholder}
+            options={bankList.map((b) => ({ value: b.id, label: `${b.name} — ${k.balance.toLowerCase()} ${fmtMoney(b.balance)} ${d.common.sum}` }))}
+            maxLength={80}
+            onAdd={async (name) => {
+              const res = await quickCreditBankAction(name);
+              if (!res.ok || !res.id) return { error: res.ok ? '' : res.error };
+              const id = res.id;
+              setBankList((prev) => (prev.some((b) => b.id === id) ? prev : [...prev, { id, name: res.name, balance: 0 }]));
+              return { value: id, label: res.name };
+            }}
+          />
         </div>
         <div className="auth-field">
           <label htmlFor="rcAmount">{k.receiveAmount}</label>
