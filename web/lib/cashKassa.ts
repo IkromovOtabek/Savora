@@ -1,7 +1,7 @@
 import type { ISale } from './models/tenant/Sale';
 import type { ICashFlow } from './models/tenant/CashFlow';
 import { isCashMethod } from './payMethods';
-import { effectivePaymentType } from './kassa';
+import { countsInKassa, effectivePaymentType } from './kassa';
 
 export interface BranchCashCard {
   id: string;
@@ -15,7 +15,8 @@ export interface BranchCashCard {
 export function sumCashFromSales(sales: (ISale & { _id: unknown })[]): Map<string, number> {
   const map = new Map<string, number>();
   for (const sale of sales) {
-    if (sale.status === 'cancelled') continue;
+    // Yangi tartibda bekor qilingan sotuv to'lovlari realizatsiyada qoladi (qaytarilgani — CashFlow chiqimi)
+    if (!countsInKassa(sale)) continue;
     const branchId = String(sale.branchId);
     let branchCash = 0;
     for (const p of sale.payments ?? []) {

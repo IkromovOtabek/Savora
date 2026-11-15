@@ -115,6 +115,9 @@ export default function ReceiptPaper({ sales, org, receipt, d, publicView = fals
       {plan && (
         <>
           <div className="sl-rc-line"><span>{d.common.installment}</span><span>{tr(k.nasiyaLine, { months: plan.months, sum: fmtMoney(plan.monthly) })}</span></div>
+          {first.payDay && (
+            <div className="sl-rc-line"><span>{d.sales.newSale.payDayLabel}</span><span>{tr(d.sales.newSale.payDayEvery, { n: first.payDay })}</span></div>
+          )}
           {nextDue && first.remainingAmount > 0 && (
             <div className="sl-rc-line"><span>{d.sales.nextPayment}</span><span>{fmtDate(nextDue.dueDate)}</span></div>
           )}

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import Icon, { type IconName } from '@/components/icons/Icon';
 import { fmtMoney } from '@/lib/format';
 import { toast } from '@/lib/toast';
@@ -9,7 +9,7 @@ import { tr } from '@/lib/i18n/fmt';
 import { PAY_METHODS, settlePayment, type PayMethod, type PayPart } from '@/lib/payMethods';
 import type { PosDone } from '@/app/actions/pos';
 
-export interface PosPayment { mode: 'full' | 'debt'; parts: PayPart[]; dueDate?: string }
+export interface PosPayment { mode: 'full' | 'debt' | 'installment'; parts: PayPart[]; dueDate?: string; months?: number }
 
 const METHOD_ICON: Record<PayMethod, IconName> = { cash: 'wallet', uzcard: 'plans', humo: 'plans', click: 'phone', payme: 'phone' };
 type Tile = PayMethod | 'debt';
@@ -17,6 +17,19 @@ const TILES: Tile[] = [...PAY_METHODS, 'debt'];
 /** Naqd: tez tanlov — summani shu kupyuraga yaxlitlash */
 const NOTES = [1000, 5000, 10000, 50000, 100000, 200000];
 const AUTO_PRINT_KEY = 'savora_pos_autoprint';
+/** Naqd yetmaganda: qoldiqni qaytarish muddati (kun) yoki nasiya oylari */
+const REST_DUE: { key: 'week1' | 'week2' | 'month1' | 'month3'; days: number }[] = [
+  { key: 'week1', days: 7 }, { key: 'week2', days: 14 }, { key: 'month1', days: 30 }, { key: 'month3', days: 90 },
+];
+const REST_MONTHS = [3, 6, 9, 12];
+
+/** Mahalliy sana YYYY-MM-DD (bugundan n kun keyin) */
+function dayPlus(n: number): string {
+  const x = new Date();
+  x.setDate(x.getDate() + n);
+  const p = (v: number) => String(v).padStart(2, '0');
+  return `${x.getFullYear()}-${p(x.getMonth() + 1)}-${p(x.getDate())}`;
+}
 
 const num = (s: string) => Number(s.replace(/\D/g, '')) || 0;
 const grouped = (s: string) => (s ? fmtMoney(num(s)) : '');
@@ -30,9 +43,13 @@ function isTyping(el: EventTarget | null): boolean {
  * Kassa to'lov oynasi (BILLZ uslubi): katta summa, usul plitkalari (Naqd/UzCard/HUMO/Click/Payme/Qarzga),
  * "Aralash to'lov" — har usulga summa; naqdda "Mijoz bergan pul → Qaytim". Hisob serverdagi settlePayment bilan bir xil.
  */
-export function PosPayModal({ total, pending, customerName, customerPhone, onCustomerName, onCustomerPhone, onCancel, onConfirm }: {
+export function PosPayModal({ total, pending, customerName, customerPhone, onCustomerName, onCustomerPhone, onCancel, onConfirm, lineCount = 1, canInstallment = false }: {
   total: number;
   pending: boolean;
+  /** Savatchadagi qatorlar — nasiya faqat bitta tovarda */
+  lineCount?: number;
+  /** «Nasiya» moduli yoqilgan */
+  canInstallment?: boolean;
   customerName: string;
   customerPhone: string;
   onCustomerName: (v: string) => void;
@@ -49,20 +66,40 @@ export function PosPayModal({ total, pending, customerName, customerPhone, onCus
   const [debtPaid, setDebtPaid] = useState('');
   const [debtMethod, setDebtMethod] = useState<PayMethod>('cash');
   const [dueDate, setDueDate] = useState('');
+  // Naqd yetmasa: qoldiq — qaytarish sanasi (qarz) yoki nasiya (oyma-oy)
+  const [restMode, setRestMode] = useState<'due' | 'installment'>('due');
+  const [restMonths, setRestMonths] = useState(6);
+  const mk = d.crm.money;
+  const installmentOk = canInstallment && lineCount === 1;
+  const cashShort = !mixed && tile === 'cash' && num(received) > 0 && num(received) < total;
+  const restSum = cashShort ? total - num(received) : 0;
+  // Naqd yetmay qolganda qoldiq paneli oyna pastida qolmasin — ko'rinishga aylantiriladi
+  const restRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (cashShort) restRef.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  }, [cashShort]);
 
   const payment: PosPayment = useMemo(() => {
     if (mixed) return { mode: 'full', parts: PAY_METHODS.map((m) => ({ method: m, amount: num(amounts[m] ?? '') })) };
     if (tile === 'debt') return { mode: 'debt', parts: [{ method: debtMethod, amount: num(debtPaid) }], dueDate: dueDate || undefined };
+    if (cashShort) {
+      const parts = [{ method: 'cash' as const, amount: num(received) }];
+      return restMode === 'installment' && installmentOk
+        ? { mode: 'installment', parts, months: restMonths }
+        : { mode: 'debt', parts, dueDate: dueDate || undefined };
+    }
     if (tile === 'cash') return { mode: 'full', parts: [{ method: 'cash', amount: received ? num(received) : total }] };
     return { mode: 'full', parts: [{ method: tile, amount: total }] };
-  }, [mixed, tile, amounts, debtPaid, debtMethod, dueDate, received, total]);
+  }, [mixed, tile, amounts, debtPaid, debtMethod, dueDate, received, total, cashShort, restMode, restMonths, installmentOk]);
 
-  const result = settlePayment(total, payment.parts, payment.mode);
+  const result = settlePayment(total, payment.parts, payment.mode === 'full' ? 'full' : 'debt');
   const entered = payment.parts.reduce((s, p) => s + p.amount, 0);
-  const isDebt = payment.mode === 'debt';
+  const isDebt = payment.mode !== 'full';
   const phoneDigits = customerPhone.replace(/\D/g, '');
   const needCustomer = isDebt && (!customerName.trim() || phoneDigits.length < 9);
-  const canPay = result.ok && !needCustomer && !pending;
+  // Naqd yetmaganda muddat ongli tanlansin: sana yoki nasiya oylari
+  const needTerm = cashShort && payment.mode === 'debt' && !dueDate;
+  const canPay = result.ok && !needCustomer && !needTerm && !pending;
   const due = Math.max(0, total - entered);
 
   // 1–6 — usul, Enter — to'lash, Esc — yopish
@@ -159,6 +196,58 @@ export function PosPayModal({ total, pending, customerName, customerPhone, onCus
                       <button key={n} type="button" aria-pressed={num(received) === n} onClick={() => setReceived(String(n))}>{fmtMoney(n)}</button>
                     ))}
                   </div>
+
+                  {/* Naqd yetmadi — xato emas: qoldiq qarzga (qaytarish sanasi) yoki nasiyaga, Qarzdorlikka avtomatik tushadi */}
+                  {cashShort && (
+                    <div className="pos-pm-rest" role="group" aria-labelledby="pos-pm-rest-t" ref={restRef}>
+                      <p className="pos-pm-rest-t" id="pos-pm-rest-t">
+                        <b>{tr(mk.restTitle, { sum: fmtMoney(restSum) })}</b>
+                        <small>{mk.restHint}</small>
+                      </p>
+                      <div className="pos-seg pos-pm-rest-seg" role="radiogroup" aria-label={mk.restHint}>
+                        <button type="button" role="radio" aria-checked={restMode === 'due'} onClick={() => setRestMode('due')}>{mk.restDue}</button>
+                        <button
+                          type="button"
+                          role="radio"
+                          aria-checked={restMode === 'installment'}
+                          onClick={() => setRestMode('installment')}
+                          disabled={!installmentOk}
+                          title={!installmentOk ? (canInstallment ? mk.restOneItem : undefined) : undefined}
+                        >
+                          {mk.restInstallment}
+                        </button>
+                      </div>
+                      {restMode === 'installment' && installmentOk ? (
+                        <>
+                          <div className="pos-presets">
+                            {REST_MONTHS.map((n) => (
+                              <button key={n} type="button" aria-pressed={restMonths === n} onClick={() => setRestMonths(n)}>{tr(mk.restMonths, { n })}</button>
+                            ))}
+                          </div>
+                          <small className="pos-pm-rest-s">{tr(mk.restMonthly, { sum: fmtMoney(Math.ceil(restSum / restMonths)) })}</small>
+                        </>
+                      ) : (
+                        <>
+                          <div className="pos-presets">
+                            {REST_DUE.map((p) => {
+                              const v = dayPlus(p.days);
+                              return <button key={p.key} type="button" aria-pressed={dueDate === v} onClick={() => setDueDate(v)}>{d.sales.duePresets[p.key]}</button>;
+                            })}
+                          </div>
+                          <input className="input" type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} min={dayPlus(0)} aria-label={mk.restDue} />
+                          {!installmentOk && canInstallment && lineCount > 1 && <small className="pos-pm-rest-s">{mk.restOneItem}</small>}
+                        </>
+                      )}
+                      <div className="pos-pm-two">
+                        <input className="input" value={customerName} onChange={(e) => onCustomerName(e.target.value)} placeholder={k.customerName.replace(/\s*\(.*\)$/, '')} maxLength={100} aria-label={k.customer} autoComplete="off" />
+                        <input className="input" type="tel" value={customerPhone} onChange={(e) => onCustomerPhone(e.target.value)} placeholder="+998 99 000 00 00" maxLength={30} inputMode="tel" aria-label={d.common.phone} autoComplete="off" />
+                      </div>
+                      {needCustomer
+                        ? <p className="pos-pm-warn">{mk.restNeedCustomer}</p>
+                        : needTerm ? <p className="pos-pm-warn">{mk.restPickTerm}</p>
+                          : <small className="pos-pm-rest-s">{mk.restToDebts}</small>}
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -166,7 +255,7 @@ export function PosPayModal({ total, pending, customerName, customerPhone, onCus
                 <div className="pos-pm-panel">
                   <div className="pos-pm-two">
                     <input className="input" value={customerName} onChange={(e) => onCustomerName(e.target.value)} placeholder={k.customerName.replace(/\s*\(.*\)$/, '')} maxLength={100} aria-label={k.customer} autoComplete="off" />
-                    <input className="input" type="tel" value={customerPhone} onChange={(e) => onCustomerPhone(e.target.value)} placeholder="+998 90 123 45 67" maxLength={30} inputMode="tel" aria-label={d.common.phone} autoComplete="off" />
+                    <input className="input" type="tel" value={customerPhone} onChange={(e) => onCustomerPhone(e.target.value)} placeholder="+998 99 000 00 00" maxLength={30} inputMode="tel" aria-label={d.common.phone} autoComplete="off" />
                   </div>
                   <label className="pos-label" htmlFor="pos-pm-dpaid">{k.paidNow}</label>
                   <div className="pos-pm-two">
@@ -195,7 +284,7 @@ export function PosPayModal({ total, pending, customerName, customerPhone, onCus
           <div className="pos-pm-acts">
             <button type="button" className="btn btn-ghost" onClick={onCancel} disabled={pending}>{k.cancel}</button>
             <button type="button" className="btn btn-primary" onClick={() => onConfirm(payment)} disabled={!canPay}>
-              {pending ? '…' : isDebt ? k.confirmDebt : k.confirmPay}
+              {pending ? '…' : payment.mode === 'installment' ? mk.confirmInstallment : isDebt ? k.confirmDebt : k.confirmPay}
             </button>
           </div>
         </div>

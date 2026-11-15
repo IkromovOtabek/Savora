@@ -67,7 +67,7 @@ export default function ImeiBlacklistManager({ rows }: { rows: OwnBlacklistRow[]
             </div>
             <div className="auth-field">
               <label htmlFor="bl-phone">{d.common.phone}</label>
-              <input id="bl-phone" name="customerPhone" type="tel" disabled={pending} placeholder="+998..." />
+              <input id="bl-phone" name="customerPhone" type="tel" disabled={pending} placeholder="+998 99 000 00 00" />
             </div>
           </div>
           <div className="auth-field">

@@ -3,7 +3,7 @@ import { notFound } from 'next/navigation';
 import { Types } from 'mongoose';
 import { getTenantSession } from '@/lib/tenantSession';
 import { isBranchScoped } from '@/lib/branchScope';
-import { dayRange, extractKassaPayments, isCashRow, sumByMethod } from '@/lib/kassa';
+import { KASSA_SALE_FILTER, dayRange, extractKassaPayments, isCashRow, sumByMethod } from '@/lib/kassa';
 import { fmtDate, fmtDateTime, fmtMoney } from '@/lib/format';
 import KassaDateFilter from '@/components/tenant/KassaDateFilter';
 import BackLink from '@/components/ui/BackLink';
@@ -27,7 +27,7 @@ export default async function KassaBranchPage({
 }) {
   const { branchId } = await params;
   const sp = await searchParams;
-  const { user, Sale, Branch } = await getTenantSession();
+  const { user, Sale, Branch, BankReceipt } = await getTenantSession();
   const d = await getDict();
   const k = d.sales.kassa;
 
@@ -41,25 +41,43 @@ export default async function KassaBranchPage({
 
   const sales = await Sale.find({
     branchId: branch._id,
-    status: { $ne: 'cancelled' },
-    $or: [
-      { createdAt: { $gte: new Date(start.getTime() - 90 * 24 * 60 * 60 * 1000) } },
-      { 'payments.paidAt': { $gte: start, $lt: end } },
-      { 'returns.returnedAt': { $gte: start, $lt: end } },
+    // Bekor qilingan (yangi tartib) sotuv to'lovi — realizatsiya bo'lib qoladi (lib/kassa)
+    $and: [
+      KASSA_SALE_FILTER,
+      {
+        $or: [
+          { createdAt: { $gte: new Date(start.getTime() - 90 * 24 * 60 * 60 * 1000) } },
+          { 'payments.paidAt': { $gte: start, $lt: end } },
+          { 'returns.returnedAt': { $gte: start, $lt: end } },
+        ],
+      },
     ],
   }).lean();
 
   const allRows = extractKassaPayments(sales, start, end);
   const rows = allRows.filter(isCashRow);
+  // Kredit kassada shu filial kassasiga olingan bank puli — naqd kassaga qo'shiladi
+  const bankReceipts = await BankReceipt.find({ branchId: branch._id, receivedAt: { $gte: start, $lt: end } })
+    .select('bankName amount receivedAt note').lean();
+  const bankTotal = bankReceipts.reduce((s, r) => s + r.amount, 0);
   // Karta/o'tkazma — naqd kassaga kirmaydi, alohida ko'rsatiladi
   const byMethod = Object.entries(sumByMethod(allRows));
   const cardTotal = byMethod.reduce((s, [, v]) => s + (v ?? 0), 0);
-  const total = rows.reduce((s, r) => s + r.amount, 0);
+  const total = rows.reduce((s, r) => s + r.amount, 0) + bankTotal;
   const payRows = rows.filter((r) => !r.isRefund);
 
   const today = new Date().toISOString().slice(0, 10);
-  // Vaqt chizig'i — kun ichida xronologik tartibda
-  const timeline = [...rows].sort((a, b) => new Date(a.paidAt).getTime() - new Date(b.paidAt).getTime());
+  // Vaqt chizig'i — kun ichida xronologik tartibda (sotuv to'lovlari + bank tushumlari)
+  const timeline = [
+    ...rows.map((r, i) => ({
+      key: `${r.saleId}-${i}`, at: new Date(r.paidAt), href: `/app/sales/${r.saleId}`, title: r.saleNo,
+      sub: `${r.isRefund ? `${k.refundRow} · ` : ''}${r.productName} · ${r.customerName}${r.cancelled ? ` · ${k.cancelledTag}` : ''}`, amount: r.amount, out: r.isRefund,
+    })),
+    ...bankReceipts.map((r) => ({
+      key: `bank-${String(r._id)}`, at: new Date(r.receivedAt), href: '/app/kredit-kassa',
+      title: tr(d.crm.money.bankRowTitle, { name: r.bankName }), sub: r.note || d.crm.money.fromBank, amount: r.amount, out: false,
+    })),
+  ].sort((a, b) => a.at.getTime() - b.at.getTime());
   const payTotal = payRows.reduce((s, r) => s + r.amount, 0);
   const avg = payRows.length > 0 ? Math.round(payTotal / payRows.length) : 0;
   const hhmm = (d: Date | string) => fmtDateTime(d).slice(-5);
@@ -113,7 +131,7 @@ export default async function KassaBranchPage({
       <section className="fn-panel" aria-labelledby="kassa-tl">
         <div className="fn-panel-head">
           <h2 id="kassa-tl">{k.duringDay}</h2>
-          <small>{tr(plural(rows.length, d.sales.nPayments), { n: rows.length })}</small>
+          <small>{tr(plural(timeline.length, d.sales.nPayments), { n: timeline.length })}</small>
         </div>
         {timeline.length === 0 ? (
           <div className="ux-empty">
@@ -124,16 +142,16 @@ export default async function KassaBranchPage({
           </div>
         ) : (
           <ol className="fn-timeline">
-            {timeline.map((r, i) => (
-              <li key={`${r.saleId}-${i}`} className="fn-tl-item">
-                <time className="fn-tl-time" dateTime={new Date(r.paidAt).toISOString()}>{hhmm(r.paidAt)}</time>
+            {timeline.map((r) => (
+              <li key={r.key} className="fn-tl-item">
+                <time className="fn-tl-time" dateTime={r.at.toISOString()}>{hhmm(r.at)}</time>
                 <span className="fn-tl-dot" aria-hidden="true" />
                 <div className="fn-tl-main">
-                  <Link href={`/app/sales/${r.saleId}`} className="fn-tl-title">{r.saleNo}</Link>
-                  <span className="fn-tl-sub">{r.isRefund ? `${k.refundRow} · ` : ''}{r.productName} · {r.customerName}</span>
+                  <Link href={r.href} className="fn-tl-title">{r.title}</Link>
+                  <span className="fn-tl-sub">{r.sub}</span>
                 </div>
-                <span className={`fn-tl-amount${r.isRefund ? ' fn-tl-amount--out' : ''}`}>
-                  {r.isRefund ? '−' : '+'}{fmtMoney(Math.abs(r.amount))}
+                <span className={`fn-tl-amount${r.out ? ' fn-tl-amount--out' : ''}`}>
+                  {r.out ? '−' : '+'}{fmtMoney(Math.abs(r.amount))}
                 </span>
               </li>
             ))}

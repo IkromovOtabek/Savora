@@ -62,7 +62,7 @@ export async function deleteCreditBankAction(formData: FormData): Promise<void> 
 
 /** Bankdan pul olindi — bank qoldig'idan ayriladi (Kiritilgan − Olingan; manfiy bo'lishi mumkin) */
 export async function createBankReceiptAction(_prev: State, formData: FormData): Promise<State> {
-  const { user, CreditBank, BankReceipt, features } = await getTenantAdminSession();
+  const { user, CreditBank, BankReceipt, Branch, features } = await getTenantAdminSession();
   if (!features.creditKassa) return featureDisabledError('creditKassa');
   const d = await getDict();
   const m = d.sales.actions;
@@ -71,12 +71,15 @@ export async function createBankReceiptAction(_prev: State, formData: FormData):
     amount: zMoney(m.badAmount, { min: 1 }),
     receivedAt: zOptDate(d.common.invalidInput),
     note: zText(300, d.common.tooLong),
+    // Pul qaysi filialning naqd kassasiga tushdi
+    branchId: zOptId(d.common.invalidInput),
   }), formToObject(formData), m.badAmount);
   if (!parsed.ok) return { error: parsed.error };
-  const { bankId, amount, note } = parsed.data;
+  const { bankId, amount, note, branchId } = parsed.data;
 
   const bank = await CreditBank.findById(bankId).select('name').lean();
   if (!bank) return { error: m.bankNotFound };
+  if (branchId && !(await Branch.exists({ _id: branchId, active: true }))) return { error: d.common.invalidInput };
 
   // Sana kiritilmasa — hozir; kun tanlansa — o'sha kunning hozirgi vaqti (tartib saqlansin), kelajak emas
   const now = new Date();
@@ -95,6 +98,7 @@ export async function createBankReceiptAction(_prev: State, formData: FormData):
       amount,
       receivedAt,
       note: note || undefined,
+      ...(branchId ? { branchId } : {}),
       recordedBy: user.username,
     });
     await recordAudit(user, {
@@ -102,9 +106,11 @@ export async function createBankReceiptAction(_prev: State, formData: FormData):
       entity: 'finance',
       entityId: String(entry._id),
       summary: `Bankdan pul olindi: ${bank.name} · ${fmtSum(amount)}${note ? ` — ${note}` : ''}`,
-      meta: { bankName: bank.name, amount, receivedAt },
+      meta: { bankName: bank.name, amount, receivedAt, branchId },
     });
     revalidatePath('/app/kredit-kassa');
+    revalidatePath('/app/kassa');
+    revalidatePath('/app/finance/state');
     return { success: tr(m.receiptAdded, { name: bank.name, sum: new Intl.NumberFormat('uz-UZ').format(amount) }) };
   } catch {
     return { error: m.saveFailed };

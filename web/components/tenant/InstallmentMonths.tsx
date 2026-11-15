@@ -1,10 +1,11 @@
 'use client';
 
 import { useActionState, useEffect, useState } from 'react';
+import Link from 'next/link';
 import { addSalePaymentAction } from '@/app/actions/sales';
 import { useToastOnState } from '@/lib/useToastOnState';
 import { fmtMoney, fmtDate } from '@/lib/format';
-import { InstallmentMonth, INSTALLMENT_STATE_META, leftUpToMonth } from '@/lib/installment';
+import { InstallmentMonth, INSTALLMENT_STATE_META, leftUpToMonth, spreadShortfall } from '@/lib/installment';
 import PriceInput from '@/components/ui/PriceInput';
 import PayMethodPicker from '@/components/tenant/PayMethodPicker';
 import type { PayMethod } from '@/lib/payMethods';
@@ -19,6 +20,10 @@ import { tr } from '@/lib/i18n/fmt';
  * To'lov doim eng erta to'lanmagan oydan boshlab yopiladi (lib/installment). Shu sababli
  * keyingi oy bosilsa — "shu oygacha" (oradagi oylar bilan birga) to'lov taklif qilinadi;
  * izohni server haqiqiy taqsimotdan yozadi.
+ *
+ * Qisman to'lov: summa yozilishi bilan oydan qoladigan qism ko'rinadi; «keyingi oylarga bo'lish»
+ * yoqilgan bo'lsa (standart) — oy shu summa bilan yopiladi, qoldiq keyingi oylarga teng bo'linadi
+ * (server ham xuddi shu `spreadShortfall` bilan hisoblaydi). To'lovdan keyin — chek tugmasi.
  */
 export default function InstallmentMonths({
   saleId,
@@ -34,19 +39,27 @@ export default function InstallmentMonths({
   const [openMonth, setOpenMonth] = useState<InstallmentMonth | null>(null);
   const [partial, setPartial] = useState(false);
   const [method, setMethod] = useState<PayMethod>('cash');
+  const [partialAmount, setPartialAmount] = useState('');
+  const [spread, setSpread] = useState(true);
+  // Qabul qilingan to'lov (chek uchun) — modal yopilmaydi, «Chek chiqarish» ko'rsatiladi
+  const [done, setDone] = useState<{ paymentId?: string } | null>(null);
   const [state, formAction, isPending] = useActionState(addSalePaymentAction, null);
   useToastOnState(state);
   const d = useDict();
+  const k = d.sales.installment;
 
   function close() {
     setOpenMonth(null);
     setPartial(false);
     setMethod('cash');
+    setPartialAmount('');
+    setSpread(true);
+    setDone(null);
   }
 
-  // Muvaffaqiyatli to'lovdan keyin modal yopiladi (revalidatePath sahifani yangilaydi)
+  // Muvaffaqiyatli to'lovdan keyin — chek tugmasi (revalidatePath jadvalni yangilaydi)
   useEffect(() => {
-    if (state?.success) close();
+    if (state?.success) setDone({ paymentId: state.paymentId });
   }, [state]);
 
   // ESC bilan yopish + fon scroll blok
@@ -68,6 +81,13 @@ export default function InstallmentMonths({
   // "To'liq" summasi — shu oygacha QOLGAN qism (qisman to'langani ayiriladi), sotuv qoldig'idan oshmaydi
   const fullAmount = openMonth ? Math.min(leftUpToMonth(schedule, openMonth.month), remaining) : 0;
 
+  // Qisman to'lov jonli hisobi: to'lov navbatdagi oyga tushadi (server bilan bir xil qoida)
+  const nextM = schedule.find((m) => !m.paid && m.left > 0);
+  const partialN = Math.max(0, Math.floor(Number(partialAmount) || 0));
+  const shortOf = nextM && partialN > 0 && partialN < nextM.left ? nextM.left - partialN : 0;
+  const spreadPlan = shortOf > 0 ? spreadShortfall(schedule, partialN) : null;
+  const laterCount = spreadPlan ? spreadPlan.to - spreadPlan.from + 1 : 0;
+
   return (
     <>
       <ol className="sl-tl" aria-label={d.sales.installment.monthsAria}>
@@ -84,6 +104,9 @@ export default function InstallmentMonths({
                 <span>
                   {fmtDate(m.dueDate)}
                   {m.state === 'partial' ? ` · ${tr(d.sales.installment.paidOfAmount, { paid: fmtMoney(m.paidAmount), amount: fmtMoney(m.amount) })}` : ''}
+                  {/* Qisman to'lovda yopilgan oy / qoldiq qo'shilgan oy */}
+                  {m.paid && m.amount < m.planned ? ` · ${tr(k.shiftedOut, { sum: fmtMoney(m.planned - m.amount) })}` : ''}
+                  {m.amount > m.planned ? ` · ${tr(k.shiftedIn, { sum: fmtMoney(m.amount - m.planned) })}` : ''}
                 </span>
               </span>
               <span className="sl-tl-r">
@@ -130,6 +153,26 @@ export default function InstallmentMonths({
               <button type="button" className="inst-modal-close" onClick={close} aria-label={d.common.close}><Icon name="close" size={16} /></button>
             </div>
 
+            {done ? (
+              <div className="inst-done" role="status">
+                <span className="inst-done-ic" aria-hidden><Icon name="check" size={22} strokeWidth={3} /></span>
+                <b>{k.paidDone}</b>
+                <div className="inst-modal-actions">
+                  {done.paymentId && (
+                    <Link
+                      href={`/app/sales/${saleId}/payment/${done.paymentId}?print=1`}
+                      target="_blank"
+                      className="btn btn-primary btn-with-icon inst-btn-full"
+                    >
+                      <Icon name="clipboard" size={16} />
+                      {k.printReceipt}
+                    </Link>
+                  )}
+                  <button type="button" className="btn btn-ghost inst-btn-full" onClick={close}>{d.common.close}</button>
+                </div>
+              </div>
+            ) : (
+            <>
             <div className="inst-modal-rows">
               <div className="inst-modal-row">
                 <span>{d.sales.monthlyPayment}</span>
@@ -150,7 +193,8 @@ export default function InstallmentMonths({
                 <strong style={{ color: 'var(--danger)' }}>{fmtMoney(remaining)} {d.common.sum}</strong>
               </div>
             </div>
-            {nextMonth && (rangeFrom || partial) && <p className="inst-modal-hint">{tr(d.sales.installment.fifoHint, { month: nextMonth })}</p>}
+            {/* Qisman to'lov oydan kam bo'lsa — pastdagi «qoladi / bo'lish» bloki tushuntiradi */}
+            {nextMonth && (rangeFrom || (partial && shortOf === 0)) && <p className="inst-modal-hint">{tr(d.sales.installment.fifoHint, { month: nextMonth })}</p>}
 
             {state?.error && <div className="rv-error" style={{ margin: '0 22px' }}>{state.error}</div>}
 
@@ -181,17 +225,46 @@ export default function InstallmentMonths({
               <form action={formAction} className="inst-modal-partial">
                 <input type="hidden" name="saleId" value={saleId} />
                 <input type="hidden" name="method" value={method} />
+                <input type="hidden" name="spread" value={spreadPlan && spread ? '1' : ''} />
                 <label htmlFor="inst-amount">{d.common.amount}</label>
-                <PriceInput id="inst-amount" name="amount" required disabled={isPending} placeholder={String(fullAmount)} />
+                <PriceInput id="inst-amount" name="amount" required disabled={isPending} placeholder={String(fullAmount)} value={partialAmount} onValueChange={setPartialAmount} />
+                {/* Jonli: oydan qancha qoladi va u qayerga ketadi */}
+                {shortOf > 0 && nextM && (
+                  <div className="inst-short" aria-live="polite">
+                    <div className="inst-short-row">
+                      <span>{k.leftAfterPay} <small>({tr(d.sales.monthN, { n: nextM.month })})</small></span>
+                      <strong>{fmtMoney(shortOf)} {d.common.sum}</strong>
+                    </div>
+                    {spreadPlan ? (
+                      <>
+                        <label className="inst-spread">
+                          <input type="checkbox" checked={spread} onChange={(e) => setSpread(e.target.checked)} disabled={isPending} />
+                          <span>{tr(k.spreadToggle, { sum: fmtMoney(shortOf), n: laterCount })}</span>
+                        </label>
+                        <p className="inst-short-hint">
+                          {spread
+                            ? laterCount === 1
+                              ? tr(k.spreadOne, { month: spreadPlan.from, sum: fmtMoney(shortOf) })
+                              : tr(k.spreadEach, { sum: fmtMoney(spreadPlan.perMonth), month: nextM.month })
+                            : k.staysHint}
+                        </p>
+                      </>
+                    ) : (
+                      <p className="inst-short-hint">{k.lastMonthHint}</p>
+                    )}
+                  </div>
+                )}
                 <div className="inst-partial-actions">
                   <button type="button" className="btn btn-ghost" onClick={() => setPartial(false)} disabled={isPending}>
                     {d.common.back}
                   </button>
-                  <button type="submit" className="btn btn-primary" disabled={isPending}>
+                  <button type="submit" className="btn btn-primary" disabled={isPending || partialN < 1}>
                     {isPending ? '...' : d.sales.installment.pay}
                   </button>
                 </div>
               </form>
+            )}
+            </>
             )}
           </div>
         </div>

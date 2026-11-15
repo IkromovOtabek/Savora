@@ -1,6 +1,8 @@
 'use client';
 
 import { useActionState, useEffect, useState } from 'react';
+import Link from 'next/link';
+import Icon from '@/components/icons/Icon';
 import { useToastOnState } from '@/lib/useToastOnState';
 import { addSalePaymentAction } from '@/app/actions/sales';
 import { fmtMoney } from '@/lib/format';
@@ -30,7 +32,17 @@ export default function SalePaymentForm({ saleId, remaining }: { saleId: string;
       <form action={formAction} className="sl-payform">
         <input type="hidden" name="saleId" value={saleId} />
         {state?.error && <div className="auth-alert auth-alert--error">{state.error}</div>}
-        {state?.success && <div className="auth-alert auth-alert--info">{state.success}</div>}
+        {state?.success && (
+          <div className="auth-alert auth-alert--info sl-pay-done">
+            <span>{state.success}</span>
+            {state.paymentId && (
+              <Link href={`/app/sales/${saleId}/payment/${state.paymentId}?print=1`} target="_blank" className="btn btn-tinted btn-sm btn-with-icon">
+                <Icon name="clipboard" size={14} />
+                {d.sales.installment.printReceipt}
+              </Link>
+            )}
+          </div>
+        )}
         <div className="sl-remain-box">
           <span>{d.sales.payForm.remainingDebt}</span>
           <strong>{fmtMoney(remaining)} {d.common.sum}</strong>

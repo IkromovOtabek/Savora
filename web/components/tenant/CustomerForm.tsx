@@ -38,7 +38,7 @@ export default function CustomerForm({ mode, initial, returnTo, mediaEnabled }: 
           </div>
           <div className="auth-field">
             <label htmlFor="phone">{f.phone}</label>
-            <input id="phone" name="phone" type="tel" required defaultValue={initial?.phone} placeholder="+998..." inputMode="tel" autoComplete="tel" />
+            <input id="phone" name="phone" type="tel" required defaultValue={initial?.phone} placeholder="+998 99 000 00 00" inputMode="tel" autoComplete="tel" />
           </div>
         </div>
       </fieldset>

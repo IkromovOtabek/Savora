@@ -8,6 +8,8 @@ import { getTenantSession } from '@/lib/tenantSession';
 import { generateSaleNo } from '@/lib/sales';
 import { reserveStock, releaseStock } from '@/lib/stock';
 import { recordAudit } from '@/lib/audit';
+import { canonicalPhone } from '@/lib/phone';
+import { findCustomerByPhone } from '@/lib/daftarOps';
 import { markOnboardingStep } from '@/lib/onboarding';
 import { branchFilter } from '@/lib/branchScope';
 import { logError } from '@/lib/logger';
@@ -16,7 +18,9 @@ import { checkPermission, userCan } from '@/lib/permissionGuard';
 import { permissionDeniedError } from '@/lib/permissions';
 import { runWithCompensation } from '@/lib/compensate';
 import { allocateDiscount, discountAmount, unitPriceFor } from '@/lib/posCart';
-import { parseInput, zId, zMoney, zOneOf, zOptDate, zOptQty, zText } from '@/lib/validation';
+import { parseInput, zId, zMoney, zOneOf, zOptDate, zOptInt, zOptQty, zText } from '@/lib/validation';
+import { addMonthsClamped } from '@/lib/dates';
+import { pq294MonthsError } from '@/lib/pq294';
 import { PAY_METHODS, allocateParts, settlePayment, type PayMethod } from '@/lib/payMethods';
 import { calcSaleStatus } from '@/lib/sales';
 import { newCheckoutId, receiptPath } from '@/lib/receiptLink';
@@ -51,8 +55,11 @@ export interface PosSaleInput {
   customerName?: string;
   customerPhone?: string;
   note?: string;
-  /** full — to'liq to'lov (aralash bo'lishi mumkin); debt — qarzga (qisman to'lov bilan) */
-  payment: { mode: 'full' | 'debt'; parts: { method: PayMethod; amount: number }[]; dueDate?: string };
+  /**
+   * full — to'liq to'lov (aralash bo'lishi mumkin); debt — qarzga (qisman to'lov bilan, qaytarish sanasi);
+   * installment — qolgani nasiyaga (oyma-oy, `months`) — faqat bitta tovarli savatchada
+   */
+  payment: { mode: 'full' | 'debt' | 'installment'; parts: { method: PayMethod; amount: number }[]; dueDate?: string; months?: number };
 }
 
 /**
@@ -63,7 +70,7 @@ export interface PosSaleInput {
  */
 export async function posSaleAction(input: PosSaleInput): Promise<State> {
   const { user, org, Product, Sale, Customer, features } = await getTenantSession();
-  const { d } = await getI18n();
+  const { d, locale } = await getI18n();
   const m = d.sales.actions;
   const k = d.sales.pos;
   if (!features.sales) return featureDisabledError('sales');
@@ -84,12 +91,13 @@ export async function posSaleAction(input: PosSaleInput): Promise<State> {
     customerPhone: zText(30),
     note: zText(300),
     payment: z.object({
-      mode: zOneOf(['full', 'debt'] as const, k.badPayment),
+      mode: zOneOf(['full', 'debt', 'installment'] as const, k.badPayment),
       parts: z.array(z.object({
         method: zOneOf(PAY_METHODS, k.badPayment),
         amount: zMoney(k.badPayment),
       })).max(PAY_METHODS.length * 2, k.badPayment),
       dueDate: zOptDate(k.badPayment),
+      months: zOptInt(m.monthsRequired, 1, 60),
     }),
   }), input, m.noProductsSelected);
   if (!parsed.ok) return { error: parsed.error };
@@ -97,8 +105,20 @@ export async function posSaleAction(input: PosSaleInput): Promise<State> {
   // Telefon faqat raqamlar — formatlangan kirishlar bir mijozga tushadi (mobil API bilan bir xil)
   const customerPhone = parsed.data.customerPhone.replace(/\D/g, '');
   if (parsed.data.customerPhone && (customerPhone.length < 9 || customerPhone.length > 15)) return { error: k.badPhone };
-  const isDebt = payment.mode === 'debt';
+  // Nasiya ham qarz kabi: mijoz majburiy, qoldiq Qarzdorlik/Nasiya bo'limiga tushadi
+  const isInstall = payment.mode === 'installment';
+  const isDebt = payment.mode !== 'full';
   if (isDebt && (!customerName || !customerPhone)) return { error: k.debtNeedsCustomer };
+  let months: number | undefined;
+  if (isInstall) {
+    if (!features.variant && !features.nasiya) return { error: m.nasiyaDisabled };
+    // Nasiya — har tovarning o'z oylik jadvali bo'lardi; savatchada bitta tovar
+    if (lines.length !== 1) return { error: d.crm.money.restOneItem };
+    months = payment.months;
+    if (!months) return { error: m.monthsRequired };
+    const pqErr = pq294MonthsError(months, new Date(), locale);
+    if (pqErr) return { error: pqErr };
+  }
 
   const scope = branchFilter(user);
   const canEditPrice = await userCan(user, 'sale.editPrice');
@@ -135,17 +155,21 @@ export async function posSaleAction(input: PosSaleInput): Promise<State> {
   const grandTotal = subtotal - disc;
 
   // To'lov: to'liq rejimda summa yetarli bo'lishi, karta summadan oshmasligi; qaytim — faqat naqddan
-  const settled = settlePayment(grandTotal, payment.parts, payment.mode);
+  const settled = settlePayment(grandTotal, payment.parts, isDebt ? 'debt' : 'full');
   if (!settled.ok) return { error: k[settled.reason] };
   const lineParts = allocateParts(finalTotals, settled.parts);
-  const dueDate = isDebt && settled.paid < grandTotal ? payment.dueDate : undefined;
+  // Nasiya: oxirgi oy sanasi; qarz: tanlangan qaytarish sanasi
+  const dueDate = isDebt && settled.paid < grandTotal
+    ? (isInstall && months ? addMonthsClamped(new Date(), months) : payment.dueDate)
+    : undefined;
 
   // Qarzda mijoz kartochkasi majburiy (Qarzdorlar bo'limida ko'rinadi). Telefon bo'yicha topiladi —
   // mavjud mijoz ismi ustidan yozilmaydi (createSaleAction bilan bir xil qoida).
   let customer: { _id?: Types.ObjectId; fullName: string; phone?: string } | undefined;
   if (isDebt) {
-    const found = await Customer.findOne({ phone: customerPhone }).lean();
-    const c = found ?? (await Customer.create({ fullName: customerName, phone: customerPhone })).toObject();
+    const phone = canonicalPhone(customerPhone);
+    const found = await findCustomerByPhone({ Customer }, phone);
+    const c = found ?? (await Customer.create({ fullName: customerName, phone })).toObject();
     customer = { _id: c._id, fullName: c.fullName, phone: c.phone };
   } else if (customerName) {
     customer = { fullName: customerName, phone: customerPhone || undefined };
@@ -186,7 +210,8 @@ export async function posSaleAction(input: PosSaleInput): Promise<State> {
         },
         ...(customer ? { ...(customer._id ? { customerId: customer._id } : {}), customerSnapshot: { fullName: customer.fullName, phone: customer.phone } } : {}),
         branchId: product.branchId,
-        paymentType: isDebt ? 'debt' : 'cash',
+        paymentType: isInstall ? 'installment' : isDebt ? 'debt' : 'cash',
+        ...(isInstall ? { installmentMonths: months, downPayment: paid } : {}),
         totalAmount: total,
         paidAmount: paid,
         remainingAmount: total - paid,
@@ -216,7 +241,9 @@ export async function posSaleAction(input: PosSaleInput): Promise<State> {
     return { error: shortOf ? tr(m.notEnoughStockFor, { name: shortOf }) : m.sellFailed };
   }
 
-  const payLabel = isDebt
+  const payLabel = isInstall
+    ? `nasiya ${months} oy (${settled.paid.toLocaleString('uz-UZ')} to'landi)`
+    : isDebt
     ? `qarz (${settled.paid.toLocaleString('uz-UZ')} to'landi)`
     : settled.parts.map((p) => `${p.method} ${p.amount.toLocaleString('uz-UZ')}`).join(' + ');
   for (const r of outcome.results) {
@@ -240,11 +267,12 @@ export async function posSaleAction(input: PosSaleInput): Promise<State> {
   revalidatePath('/app/sales');
   revalidatePath('/app/shifts');
   if (isDebt) revalidatePath('/app/debts');
+  if (isInstall) revalidatePath('/app/nasiya');
   const saleIds = outcome.results.map((r) => r.saleId);
   const sorted = [...saleNos].sort();
   void notifyNewSale(user, {
     saleNo: sorted[0], items: outcome.results.length, firstItem: outcome.results[0]?.name ?? '—', total: soldTotal,
-    payment: salePayLabel(isDebt ? 'debt' : 'cash', settled.parts.map((p) => p.method)), by: user.username,
+    payment: salePayLabel(isInstall ? 'installment' : isDebt ? 'debt' : 'cash', settled.parts.map((p) => p.method)), by: user.username,
   });
   return {
     success: tr(m.quickSold, { n: soldCount, sum: soldTotal.toLocaleString('uz-UZ') }),

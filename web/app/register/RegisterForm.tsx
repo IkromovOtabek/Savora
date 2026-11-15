@@ -197,7 +197,7 @@ export default function RegisterForm({ plans, fromApp = false }: { plans: PlanPr
                   </div>
                   <div className="rg-field">
                     <label htmlFor="phone">{d.common.phone}</label>
-                    <input id="phone" name="phone" type="tel" disabled={isPending} placeholder="+998..." />
+                    <input id="phone" name="phone" type="tel" disabled={isPending} placeholder="+998 99 000 00 00" />
                   </div>
                 </div>
                 <div className="rg-field">

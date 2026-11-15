@@ -176,6 +176,23 @@ export default async function SaleDetailPage({
             </div>
           </Tilt>
 
+          {cancelled && sale.cancelledAt && (
+            <section className="sl-card sl-cancel" aria-label={d.sales.cancel.cancelledTitle}>
+              <div className="sl-cancelled-box">
+                <span className="sl-pay-ic sl-pay-ic--return" aria-hidden><Icon name="close" size={16} /></span>
+                <div>
+                  <b>{d.sales.cancel.cancelledTitle}</b>
+                  <span>{tr(d.sales.cancel.cancelledLine, { date: fmtDateTime(sale.cancelledAt), by: sale.cancelledBy ?? '—' })}</span>
+                  <strong>
+                    {(sale.cancelRefund ?? 0) > 0
+                      ? tr(d.sales.cancel.refundedLine, { sum: fmtMoney(sale.cancelRefund ?? 0) })
+                      : d.sales.cancel.noRefundLine}
+                  </strong>
+                </div>
+              </div>
+            </section>
+          )}
+
           {plan && (
             <div id="tolov">
               <InstallmentPlan plan={plan} saleId={String(sale._id)} canPay={canPay} />
@@ -193,16 +210,31 @@ export default async function SaleDetailPage({
               </div>
             ) : (
               <ul className="sl-pays">
-                {sale.payments.map((p, i) => (
-                  <li key={i} className="sl-pay">
-                    <span className="sl-pay-ic" aria-hidden><Icon name="check" size={16} /></span>
-                    <div className="sl-pay-main">
-                      <b>{payNote(p.note)}</b>
-                      <span>{fmtDateTime(p.paidAt)} · {d.sales.payMethods[methodOf(p)]}{p.recordedBy ? ` · ${p.recordedBy}` : ''}</span>
-                    </div>
-                    <span className="sl-pay-amt">+{fmtMoney(p.amount)}</span>
-                  </li>
-                ))}
+                {sale.payments.map((p, i) => {
+                  const pid = (p as { _id?: unknown })._id;
+                  return (
+                    <li key={i} className="sl-pay">
+                      <span className="sl-pay-ic" aria-hidden><Icon name="check" size={16} /></span>
+                      <div className="sl-pay-main">
+                        <b>{payNote(p.note)}</b>
+                        <span>{fmtDateTime(p.paidAt)} · {d.sales.payMethods[methodOf(p)]}{p.recordedBy ? ` · ${p.recordedBy}` : ''}</span>
+                      </div>
+                      <span className="sl-pay-amt">+{fmtMoney(p.amount)}</span>
+                      {/* To'lov cheki — nima uchun, qaysi oy, qoldiq (sotuv cheki alohida) */}
+                      {pid != null && !cancelled && (
+                        <Link
+                          href={`/app/sales/${id}/payment/${String(pid)}`}
+                          target="_blank"
+                          className="sl-pay-rc"
+                          aria-label={`${k.receipt}: ${payNote(p.note)}`}
+                          title={k.receipt}
+                        >
+                          <Icon name="clipboard" size={15} />
+                        </Link>
+                      )}
+                    </li>
+                  );
+                })}
               </ul>
             )}
           </section>
@@ -268,6 +300,7 @@ export default async function SaleDetailPage({
                 <li><span /><Link href="/app/kredit-kassa">{k.bankMoneyInKassa} →</Link></li>
               )}
               {sale.installmentMonths && <li><span>{d.common.installment}</span><span>{tr(d.common.nMonths, { n: sale.installmentMonths })}</span></li>}
+              {sale.payDay && <li><span>{d.sales.newSale.payDayLabel}</span><span>{tr(d.sales.newSale.payDayEvery, { n: sale.payDay })}</span></li>}
               {sale.dueDate && debtInfo && (
                 <li>
                   <span>{d.sales.dueDate}</span>
@@ -318,7 +351,7 @@ export default async function SaleDetailPage({
           )}
           {canCancel && (
             <div id="bekor">
-              <CancelSaleButton saleId={String(sale._id)} saleNo={sale.saleNo} />
+              <CancelSaleButton saleId={String(sale._id)} saleNo={sale.saleNo} refund={Math.max(0, sale.paidAmount)} />
             </div>
           )}
         </aside>

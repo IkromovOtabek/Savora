@@ -54,10 +54,13 @@ export default function CreditKassaPanel({
   banks,
   totals,
   receipts,
+  branches = [],
 }: {
   banks: BankCard[];
   totals: { financed: number; received: number; balance: number; salesCount: number };
   receipts: ReceiptRow[];
+  /** Bankdan olingan pul tushadigan filial kassalari */
+  branches?: { id: string; name: string }[];
 }) {
   const [state, formAction, pending] = useActionState(createCreditBankAction, null);
   const [showForm, setShowForm] = useState(false);
@@ -92,7 +95,7 @@ export default function CreditKassaPanel({
       </section>
 
       <div className="fn-wallet-side">
-        {banks.length > 0 && <ReceiveForm banks={banks} />}
+        {banks.length > 0 && <ReceiveForm banks={banks} branches={branches} />}
 
         <h2 className="fn-section-title"><span>{k.banks}</span><span>{tr(d.common.nPcs, { n: banks.length })}</span></h2>
 
@@ -233,8 +236,9 @@ export default function CreditKassaPanel({
 }
 
 /** «Bankdan pul olindi» — bank, summa, sana, izoh */
-function ReceiveForm({ banks }: { banks: BankCard[] }) {
+function ReceiveForm({ banks, branches }: { banks: BankCard[]; branches: { id: string; name: string }[] }) {
   const d = useDict();
+  const mk = d.crm.money;
   const k = d.sales.creditKassa;
   const [open, setOpen] = useState(false);
   const [state, action, pending] = useActionState(createBankReceiptAction, null);
@@ -288,6 +292,17 @@ function ReceiveForm({ banks }: { banks: BankCard[] }) {
             }}
           />
         </div>
+        {/* Pul naqd kassaga qo'shiladi — bitta filial bo'lsa avtomatik o'sha */}
+        {branches.length === 1 && <input type="hidden" name="branchId" value={branches[0].id} />}
+        {branches.length > 1 && (
+          <div className="auth-field">
+            <label htmlFor="rcBranch">{mk.receiveBranch}</label>
+            <select id="rcBranch" name="branchId" required defaultValue={branches[0].id} disabled={pending}>
+              {branches.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
+            </select>
+            <span className="field-hint">{mk.receiveBranchHint}</span>
+          </div>
+        )}
         <div className="auth-field">
           <label htmlFor="rcAmount">{k.receiveAmount}</label>
           <PriceInput id="rcAmount" name="amount" required value={amount} onValueChange={setAmount} disabled={pending} />

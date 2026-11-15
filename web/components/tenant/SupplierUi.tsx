@@ -38,7 +38,7 @@ export function SupplierForm({ mode, initial }: { mode: 'create' | 'edit'; initi
           </div>
           <div className="auth-field">
             <label htmlFor="sp-phone">{f.phone}</label>
-            <input id="sp-phone" name="phone" type="tel" maxLength={40} defaultValue={initial?.phone} placeholder="+998..." inputMode="tel" />
+            <input id="sp-phone" name="phone" type="tel" maxLength={40} defaultValue={initial?.phone} placeholder="+998 99 000 00 00" inputMode="tel" />
           </div>
           <div className="auth-field">
             <label htmlFor="sp-company">{f.company}</label>

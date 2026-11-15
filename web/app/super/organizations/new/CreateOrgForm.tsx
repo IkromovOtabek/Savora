@@ -95,7 +95,7 @@ export default function CreateOrgForm() {
               </div>
               <div className="sa-field">
                 <label htmlFor="phone">{d.common.phone}</label>
-                <input id="phone" name="phone" type="tel" disabled={isPending} placeholder="+998..." />
+                <input id="phone" name="phone" type="tel" disabled={isPending} placeholder="+998 99 000 00 00" />
               </div>
             </div>
           </div>

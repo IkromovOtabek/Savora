@@ -56,6 +56,17 @@ export async function findCustomerIdByPhone(m: Pick<Models, 'Customer'>, normali
   return found.length === 1 ? (found[0]._id as Types.ObjectId) : undefined;
 }
 
+/**
+ * Sotuvdagi mijoz: avval aynan shu raqam, topilmasa — raqamlar bo'yicha (eski yozuvlar «+998901234567»,
+ * yangilari «+998 90 123 45 67» ko'rinishida). Topilmasa — null (chaqiruvchi yangisini ochadi).
+ */
+export async function findCustomerByPhone(m: Pick<Models, 'Customer'>, phone: string) {
+  const exact = await m.Customer.findOne({ phone }).lean();
+  if (exact) return exact;
+  const id = await findCustomerIdByPhone(m, phone);
+  return id ? m.Customer.findById(id).lean() : null;
+}
+
 /** Qaysi filial kassasi: filial xodimi — o'zi; admin — tanlagan filial yoki yagona faol filial */
 async function resolveKassaBranch(user: Actor, m: Pick<Models, 'Branch'>, k: DaftarDict, requested?: string): Promise<{ id: string } | { error: string }> {
   if (user.role === 'user') return user.branchId ? { id: user.branchId } : { error: k.kassaPickBranch };

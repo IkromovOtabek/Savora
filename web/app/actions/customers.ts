@@ -9,6 +9,7 @@ import { tr } from '@/lib/i18n/fmt';
 import { isOwnUploadUrl } from '@/lib/fileUrl';
 import { z } from 'zod';
 import { formToObject, parseInput, zId, zText } from '@/lib/validation';
+import { canonicalPhone } from '@/lib/phone';
 
 /** Mijoz maydonlari — majburiylik xabarlari action ichida (eski tartib saqlanadi) */
 const customerFields = (tooLong: string) => z.object({
@@ -44,7 +45,7 @@ export async function createCustomerAction(_prev: State, formData: FormData): Pr
   try {
     const customer = await Customer.create({
       fullName,
-      phone,
+      phone: canonicalPhone(phone),
       address: address || undefined,
       notes: notes || undefined,
       photoUrl: photoUrl || undefined,
@@ -85,7 +86,7 @@ export async function updateCustomerAction(_prev: State, formData: FormData): Pr
   if (!customer) return { error: d.crm.customers.errNotFound };
 
   customer.fullName = fullName;
-  customer.phone = phone;
+  customer.phone = canonicalPhone(phone);
   customer.address = address || undefined;
   customer.notes = notes || undefined;
   customer.photoUrl = photoUrl || undefined;

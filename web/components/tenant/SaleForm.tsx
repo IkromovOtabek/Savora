@@ -10,6 +10,7 @@ import { MAX_BANK_PARTS } from '@/lib/bankCredit';
 import { POS_HANDOFF_KEY, POS_HANDOFF_TTL_MS, type PosHandoff } from '@/lib/posCart';
 import { fmtDate, fmtMoney } from '@/lib/format';
 import { addMonthsClamped } from '@/lib/dates';
+import { installmentDueDate } from '@/lib/installment';
 import BackLink from '@/components/ui/BackLink';
 import ImageUploadField from '@/components/ui/ImageUploadField';
 import PriceInput from '@/components/ui/PriceInput';
@@ -126,6 +127,8 @@ export default function SaleForm({ isPhoneShop, products, mediaEnabled, features
   const [months, setMonths] = useState('12');
   const [query, setQuery] = useState('');
   const [dueDate, setDueDate] = useState('');
+  // Nasiya: har oyning qaysi kuni to'laydi (standart — bugungi kun, brauzerda qo'yiladi)
+  const [payDay, setPayDay] = useState('');
   const [customerName, setCustomerName] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
   const [notes, setNotes] = useState('');
@@ -133,7 +136,11 @@ export default function SaleForm({ isPhoneShop, products, mediaEnabled, features
   const [bankRows, setBankRows] = useState<{ bank: string; amount: string }[]>([{ bank: '', amount: '' }]);
   // Sana faqat brauzerda (server/klient vaqt mintaqasi farqi hydration xatosiga olib kelmasin)
   const [now, setNow] = useState<Date | null>(null);
-  useEffect(() => { setNow(new Date()); }, []);
+  useEffect(() => {
+    const n = new Date();
+    setNow(n);
+    setPayDay((v) => v || String(n.getDate()));
+  }, []);
 
   // Kassadan (POS) «Nasiya / bank krediti» orqali kelinsa — savatcha va mijoz shu yerga o'tadi (IMEI qayta so'ralmaydi)
   useEffect(() => {
@@ -296,6 +303,7 @@ export default function SaleForm({ isPhoneShop, products, mediaEnabled, features
   const monthsN = Math.min(60, Math.max(0, Math.floor(Number(months) || 0)));
   const monthly = monthsN > 0 ? Math.floor(rest / monthsN) : 0;
   const lastMonth = monthsN > 0 ? rest - monthly * (monthsN - 1) : 0;
+  const payDayN = Number(payDay) || undefined;
   const overpaid = paymentType !== 'cash' && paid > total && total > 0;
   const fieldsOff = isPending || !hasItems;
 
@@ -686,9 +694,28 @@ export default function SaleForm({ isPhoneShop, products, mediaEnabled, features
                 </div>
               )}
 
-              {paymentType !== 'cash' && paymentType !== 'bank_credit' && (
+              {paymentType === 'installment' && (
                 <div className="auth-field">
-                  <label htmlFor="dueDate">{d.sales.dueDate} {paymentType === 'installment' ? k.optionalParen : '*'}</label>
+                  <label htmlFor="payDay">{k.payDay}</label>
+                  <select
+                    id="payDay"
+                    name="payDay"
+                    value={payDay}
+                    onChange={(e) => setPayDay(e.target.value)}
+                    disabled={fieldsOff || !payDay}
+                    required
+                  >
+                    {Array.from({ length: 31 }, (_, i) => String(i + 1)).map((v) => (
+                      <option key={v} value={v}>{tr(k.payDayOption, { n: v })}</option>
+                    ))}
+                  </select>
+                  <small className="field-hint">{k.payDayHint}{(payDayN ?? 0) >= 29 ? ` ${k.payDayEndHint}` : ''}</small>
+                </div>
+              )}
+
+              {paymentType === 'debt' && (
+                <div className="auth-field">
+                  <label htmlFor="dueDate">{d.sales.dueDate} *</label>
                   {/* Tez tanlov — brauzer sana oynasi (ko'pincha ruscha) ikkilamchi bo'lib qoladi */}
                   <div className="sl-due-quick" role="group" aria-label={k.quickDueAria}>
                     {DUE_PRESETS.map((p) => {
@@ -733,7 +760,13 @@ export default function SaleForm({ isPhoneShop, products, mediaEnabled, features
                   {monthsN > 0 && now && (
                     <div className="sl-preview-row">
                       <span>{k.firstPayment}</span>
-                      <strong>{fmtDate(addMonthsClamped(now, 1))}</strong>
+                      <strong>{fmtDate(installmentDueDate(now, 1, payDayN))}</strong>
+                    </div>
+                  )}
+                  {monthsN > 1 && now && (
+                    <div className="sl-preview-row">
+                      <span>{k.lastPayment}</span>
+                      <strong>{fmtDate(installmentDueDate(now, monthsN, payDayN))}</strong>
                     </div>
                   )}
                   {overpaid && <div className="sl-preview-warn">{k.overpaidDown}</div>}
@@ -767,7 +800,7 @@ export default function SaleForm({ isPhoneShop, products, mediaEnabled, features
                 </div>
                 <div className="auth-field">
                   <label htmlFor="customerPhone">{k.customerPhone}</label>
-                  <input id="customerPhone" name="customerPhone" type="tel" required value={customerPhone} onChange={(e) => setCustomerPhone(e.target.value)} disabled={fieldsOff} placeholder="+998..." autoComplete="tel" />
+                  <input id="customerPhone" name="customerPhone" type="tel" required value={customerPhone} onChange={(e) => setCustomerPhone(e.target.value)} disabled={fieldsOff} placeholder="+998 99 000 00 00" autoComplete="tel" />
                 </div>
               </div>
             </section>

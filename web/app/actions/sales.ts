@@ -18,10 +18,12 @@ import { sellableInfo } from '@/lib/productKinds';
 import { isFractionalUnit, priceTimesQty, qtyLabel } from '@/lib/qty';
 import { reserveStock, releaseStock } from '@/lib/stock';
 import { runWithCompensation } from '@/lib/compensate';
-import { addMonthsClamped } from '@/lib/dates';
 import { applySalePayment } from '@/lib/salePayment';
-import { computeInstallmentPlan, installmentPaymentNote } from '@/lib/installment';
+import { SALE_CANCEL_CATEGORY } from '@/lib/models/tenant/FinanceCategory';
+import { computeInstallmentPlan, installmentDueDate, installmentPaymentMonths, installmentPaymentNote, normPayDay, spreadShortfall } from '@/lib/installment';
 import { recordAudit } from '@/lib/audit';
+import { canonicalPhone } from '@/lib/phone';
+import { findCustomerByPhone } from '@/lib/daftarOps';
 import { markOnboardingStep } from '@/lib/onboarding';
 import { branchFilter } from '@/lib/branchScope';
 import { logError } from '@/lib/logger';
@@ -44,7 +46,7 @@ const QUICK_SALE_MAX_LINES = 100;
 /** Sotuv formasida (qarz/kredit) bir xaridda eng ko'p tovar */
 const SALE_MAX_LINES = 20;
 
-type State = { error?: string; success?: string } | null;
+type State = { error?: string; success?: string; paymentId?: string } | null;
 
 function normalizeImei(v: string): string {
   return v.trim().replace(/\s/g, '').toUpperCase();
@@ -320,6 +322,8 @@ export async function createSaleAction(_prev: State, formData: FormData): Promis
     totalAmount: zMoney(m.badTotal, { min: 1 }),
     paidAmount: zMoney(m.badPaid, { optional: true }),
     installmentMonths: zOptInt(m.monthsRequired, 1, 60),
+    // Nasiya: har oyning qaysi kuni to'laydi (1–31)
+    payDay: zOptInt(m.badPayDay, 1, 31),
     notes: zText(1000, tooLong),
     photoUrl: zText(500, m.badPhotoUrl),
     bankName: zText(120, tooLong),
@@ -429,7 +433,9 @@ export async function createSaleAction(_prev: State, formData: FormData): Promis
   const bankLabel = bankParts ? bankPartsLabel(bankParts) : '';
 
   let installmentMonths: number | undefined;
+  let payDay: number | undefined;
   if (paymentType === 'installment') {
+    payDay = normPayDay(parsed.data.payDay);
     installmentMonths = Number.isFinite(installmentMonthsRaw) && installmentMonthsRaw >= 1
       ? Math.min(60, Math.floor(installmentMonthsRaw))
       : undefined;
@@ -442,9 +448,9 @@ export async function createSaleAction(_prev: State, formData: FormData): Promis
   let dueDate: Date | undefined;
   if (totalAmount > paidAmount && paymentType !== 'cash') {
     if (parsed.data.dueDate) dueDate = parsed.data.dueDate;
-    // Nasiya bo'lsa va muddat kiritilmagan bo'lsa — oxirgi oy bo'yicha hisoblaymiz
-    if (!dueDate && paymentType === 'installment' && installmentMonths) {
-      dueDate = addMonthsClamped(new Date(), installmentMonths);
+    // Nasiya: muddat — oxirgi oy to'lovi (to'lov kuni bo'yicha); qarzda — kiritilgan sana
+    if (paymentType === 'installment' && installmentMonths) {
+      dueDate = installmentDueDate(new Date(), installmentMonths, payDay);
     }
   }
 
@@ -452,9 +458,10 @@ export async function createSaleAction(_prev: State, formData: FormData): Promis
   if (customerName && customerPhone) {
     // Shu telefonli mijoz bor bo'lsa — uning ismi USTIDAN YOZILMAYDI (sotuvchi boshqa mijoz
     // kartochkasini o'zgartirib yubormasin); mijoz ismi "Mijozlar" bo'limida tahrirlanadi
-    customer = await Customer.findOne({ phone: customerPhone }).lean();
+    const phone = canonicalPhone(customerPhone);
+    customer = await findCustomerByPhone({ Customer }, phone);
     if (!customer) {
-      customer = (await Customer.create({ fullName: customerName, phone: customerPhone })).toObject();
+      customer = (await Customer.create({ fullName: customerName, phone })).toObject();
     }
   }
 
@@ -510,6 +517,7 @@ export async function createSaleAction(_prev: State, formData: FormData): Promis
         paidAmount: line.paid,
         remainingAmount: remaining,
         installmentMonths,
+        payDay,
         // Nasiya boshlang'ich to'lovi = sotuv paytidagi paidAmount (oy jadvali shu asosda)
         downPayment: paymentType === 'installment' ? line.paid : undefined,
         dueDate: remaining > 0 ? dueDate : undefined,
@@ -588,6 +596,8 @@ export async function addSalePaymentAction(_prev: State, formData: FormData): Pr
     amount: zMoney(m.badPaymentAmount, { min: 1 }),
     method: zOneOf(PAY_METHODS, m.badPayMethod),
     note: zText(300, (await getI18n()).d.common.tooLong),
+    // Nasiya qisman to'lovi: oydan yetmagani keyingi oylarga bo'linsinmi ("1")
+    spread: zText(4),
   }), formToObject(formData), m.badPaymentAmount);
   if (!parsed.ok) return { error: parsed.error };
   const { saleId, amount, method, note } = parsed.data;
@@ -602,17 +612,28 @@ export async function addSalePaymentAction(_prev: State, formData: FormData): Pr
   if (amount > sale.remainingAmount) return { error: tr(m.remainingIs, { sum: sale.remainingAmount.toLocaleString('uz-UZ') }) };
 
   // Nasiya: izoh haqiqiy taqsimotdan ("2-oy (qisman)", "2–3-oy to'lovi") — to'lov doim
-  // eng erta to'lanmagan oyga tushadi, foydalanuvchi qaysi oyni bosganidan qat'i nazar
-  const autoNote = !note && sale.paymentType === 'installment'
-    ? installmentPaymentNote(computeInstallmentPlan(sale)?.schedule ?? [], amount)
-    : undefined;
+  // eng erta to'lanmagan oyga tushadi, foydalanuvchi qaysi oyni bosganidan qat'i nazar.
+  // Qisman to'lovda (navbatdagi oydan kam) "spread" bo'lsa — oy shu summa bilan yopiladi,
+  // yetmagani keyingi oylarga teng bo'linadi (lib/installment spreadShortfall)
+  const schedule = sale.paymentType === 'installment' ? computeInstallmentPlan(sale)?.schedule ?? [] : [];
+  const spread = schedule.length > 0 && parsed.data.spread === '1' ? spreadShortfall(schedule, amount) : null;
+  const months = schedule.length > 0 ? installmentPaymentMonths(schedule, amount) : undefined;
+  const autoNote = !note && schedule.length > 0 ? installmentPaymentNote(schedule, amount, spread) : undefined;
 
-  // Atomik: qoldiq sharti bilan bitta yozuv — ikki parallel to'lov ortiqcha to'lovga olib kelmaydi
+  // Atomik: qoldiq sharti bilan bitta yozuv — ikki parallel to'lov ortiqcha to'lovga olib kelmaydi.
+  // expectPaid: jadval/izoh/qoldiq shu holatdan hisoblandi — orada boshqa to'lov tushsa, qayta urinish
   const res = await applySalePayment(Sale, saleId, amount, {
     scope: branchFilter(user),
     note: note || autoNote,
     recordedBy: user.username,
     method,
+    expectPaid: sale.paidAmount,
+    extra: {
+      balanceAfter: Math.max(0, sale.remainingAmount - amount),
+      ...(months ? { months } : {}),
+      ...(spread ? { carry: { amount: spread.carry, from: spread.from, to: spread.to } } : {}),
+    },
+    set: spread ? { installmentAmounts: spread.amounts } : undefined,
   });
   if (!res) return { error: m.paymentConflict };
 
@@ -620,8 +641,9 @@ export async function addSalePaymentAction(_prev: State, formData: FormData): Pr
     action: 'sale.payment',
     entity: 'sale',
     entityId: saleId,
-    summary: `To'lov qabul qilindi: ${sale.saleNo} · ${amount.toLocaleString('uz-UZ')} so'm, ${method} (qoldiq ${res.remainingAmount.toLocaleString('uz-UZ')} so'm)`,
-    meta: { amount, method, remaining: res.remainingAmount, status: res.status },
+    summary: `To'lov qabul qilindi: ${sale.saleNo} · ${amount.toLocaleString('uz-UZ')} so'm, ${method} (qoldiq ${res.remainingAmount.toLocaleString('uz-UZ')} so'm)`
+      + (spread ? ` · ${spread.month}-oydan ${spread.carry.toLocaleString('uz-UZ')} so'm ${spread.from}–${spread.to}-oylarga bo'lindi` : ''),
+    meta: { amount, method, remaining: res.remainingAmount, status: res.status, ...(spread ? { carry: spread.carry, carryFrom: spread.from, carryTo: spread.to } : {}) },
   });
 
   revalidatePath('/app/sales');
@@ -629,12 +651,13 @@ export async function addSalePaymentAction(_prev: State, formData: FormData): Pr
   revalidatePath('/app/nasiya');
   revalidatePath('/app/debts');
   revalidatePath('/app');
-  return { success: m.paymentAdded };
+  // paymentId — to'lov cheki (/app/sales/[id]/payment/[paymentId])
+  return { success: m.paymentAdded, paymentId: res.paymentId };
 }
 
 export async function cancelSaleAction(_prev: State, formData: FormData): Promise<State> {
   // Admin — doim; filial login — faqat "sale.cancel" huquqi bo'lsa va faqat o'z filiali sotuvini
-  const { user, Product, Sale } = await getTenantSession();
+  const { user, Product, Sale, CashFlow, CashShift, FinanceCategory } = await getTenantSession();
   const m = (await getI18n()).d.sales.actions;
   { const denied = await checkPermission(user, 'sale.cancel'); if (denied) return denied; }
 
@@ -643,16 +666,47 @@ export async function cancelSaleAction(_prev: State, formData: FormData): Promis
   const saleId = parsed.data;
 
   // Idempotent: faqat bekor qilinmagan sotuv bir marta "cancelled" ga o'tadi —
-  // ikki marta bosilsa ham mahsulot omborga ikki marta qaytmaydi.
+  // ikki marta bosilsa ham mahsulot omborga ikki marta qaytmaydi, pul ikki marta chiqmaydi.
+  // cancelledAt — yangi tartib belgisi: to'lovlar kassada realizatsiya bo'lib qoladi (lib/kassa).
   const scope = branchFilter(user);
+  const cancelledAt = new Date();
   const sale = await Sale.findOneAndUpdate(
     { _id: saleId, ...scope, status: { $ne: 'cancelled' } },
-    { $set: { status: 'cancelled', remainingAmount: 0 } },
+    { $set: { status: 'cancelled', remainingAmount: 0, cancelledAt, cancelledBy: user.username } },
     { new: false }
   ).lean();
   if (!sale) {
     const exists = await Sale.exists({ _id: saleId, ...scope });
     return { error: exists ? m.alreadyCancelled : m.saleNotFound };
+  }
+
+  // To'langan pul (qisman qaytarishda qaytgani ayirilgan) mijozga naqd qaytariladi —
+  // Moliya'da «Sotuv bekor qilindi» chiqimi: Hisoblar holati, smena va kirim-chiqimda kassadan ayiriladi
+  const refund = Math.max(0, sale.paidAmount);
+  await Sale.updateOne({ _id: sale._id }, { $set: { cancelRefund: refund } });
+  if (refund > 0) {
+    try {
+      await FinanceCategory.updateOne(
+        { type: 'expense', name: SALE_CANCEL_CATEGORY },
+        { $setOnInsert: { system: true, active: true } },
+        { upsert: true },
+      ).catch(() => { /* parallel upsert — unikal indeks */ });
+      const shift = await CashShift.findOne({ branchId: sale.branchId, status: 'open' }).select('_id').lean();
+      const customer = sale.customerSnapshot?.fullName;
+      await CashFlow.create({
+        type: 'expense',
+        amount: refund,
+        description: `${sale.saleNo} bekor qilindi — mijozga qaytarildi: ${sale.productSnapshot?.name ?? ''}${customer ? `, ${customer}` : ''}`.slice(0, 300),
+        category: SALE_CANCEL_CATEGORY,
+        branchId: sale.branchId,
+        ...(shift ? { shiftId: shift._id } : {}),
+        saleId: sale._id,
+        recordedBy: user.username,
+      });
+    } catch (err) {
+      // Sotuv bekor bo'ldi, lekin chiqim yozilmadi — audit/logda ko'rinadi, qo'lda kiritiladi
+      logError('cancelSaleAction refund cashflow failed', err, { user: user.username, dbName: user.dbName, saleNo: sale.saleNo });
+    }
   }
 
   if (sale.productId) {
@@ -669,15 +723,18 @@ export async function cancelSaleAction(_prev: State, formData: FormData): Promis
     action: 'sale.cancel',
     entity: 'sale',
     entityId: saleId,
-    summary: `Sotuv bekor qilindi: ${sale.saleNo} · ${sale.productSnapshot?.name ?? ''} · ${sale.totalAmount.toLocaleString('uz-UZ')} so'm`,
-    meta: { paidAmount: sale.paidAmount, paymentType: sale.paymentType, totalAmount: sale.totalAmount },
+    summary: `Sotuv bekor qilindi: ${sale.saleNo} · ${sale.productSnapshot?.name ?? ''} · ${sale.totalAmount.toLocaleString('uz-UZ')} so'm`
+      + (refund > 0 ? ` · mijozga qaytarildi ${refund.toLocaleString('uz-UZ')} so'm (kassadan chiqim)` : ''),
+    meta: { paidAmount: sale.paidAmount, paymentType: sale.paymentType, totalAmount: sale.totalAmount, refund },
   });
 
   revalidatePath('/app/sales');
   revalidatePath(`/app/sales/${saleId}`);
   revalidatePath('/app/products');
+  revalidatePath('/app/finance');
+  revalidatePath('/app/kassa');
   revalidatePath('/app');
-  return { success: m.saleCancelled };
+  return { success: refund > 0 ? tr(m.saleCancelledRefund, { sum: refund.toLocaleString('uz-UZ') }) : m.saleCancelled };
 }
 
 /**

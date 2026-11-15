@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { computeInstallmentPlan, installmentPaymentNote, leftUpToMonth } from '@/lib/installment';
+import { computeInstallmentPlan, installmentDueDate, installmentPaymentNote, leftUpToMonth, spreadShortfall } from '@/lib/installment';
 
 // Yordamchi — minimal sotuv obyekti
 function sale(over: Partial<Parameters<typeof computeInstallmentPlan>[0]> = {}) {
@@ -139,5 +139,69 @@ describe('installmentPaymentNote', () => {
 
   it('to\'lanadigan oy qolmagan bo\'lsa izoh yo\'q', () => {
     expect(installmentPaymentNote(plan(4_000_000), 100)).toBeUndefined();
+  });
+});
+
+describe("to'lov kuni (payDay)", () => {
+  it('har oy tanlangan kunda, birinchisi — keyingi oyda', () => {
+    const start = new Date(2026, 10, 15, 10, 0); // 15-noyabr
+    const d1 = installmentDueDate(start, 1, 5);
+    expect([d1.getFullYear(), d1.getMonth(), d1.getDate()]).toEqual([2026, 11, 5]);
+    const d2 = installmentDueDate(start, 2, 5);
+    expect([d2.getFullYear(), d2.getMonth(), d2.getDate()]).toEqual([2027, 0, 5]);
+    // Kun oxirigacha — shu kuni to'lasa kechikkan emas
+    expect(d1.getHours()).toBe(23);
+  });
+
+  it("qisqa oyda — oy oxiri; tanlanmagan bo'lsa — sotuv sanasi + N oy", () => {
+    const start = new Date(2026, 0, 10);
+    const feb = installmentDueDate(start, 1, 31);
+    expect([feb.getMonth(), feb.getDate()]).toEqual([1, 28]);
+    const legacy = installmentDueDate(start, 1, undefined);
+    expect([legacy.getMonth(), legacy.getDate()]).toEqual([1, 10]);
+  });
+
+  it('jadval muddatlari payDay bo\'yicha', () => {
+    const plan = computeInstallmentPlan(sale({
+      totalAmount: 3_000_000, remainingAmount: 3_000_000, installmentMonths: 3, downPayment: 0,
+      createdAt: new Date(2026, 10, 15), payDay: 25,
+    }))!;
+    expect(plan.schedule.map((m) => `${m.dueDate.getMonth() + 1}/${m.dueDate.getDate()}`)).toEqual(['12/25', '1/25', '2/25']);
+  });
+});
+
+describe('spreadShortfall — qisman to\'lov qoldig\'i keyingi oylarga', () => {
+  const base = { totalAmount: 12_000_000, installmentMonths: 12, downPayment: 0 };
+
+  it('1 000 000 o\'rniga 800 000: oy yopiladi, 200 000 qolgan 11 oyga bo\'linadi', () => {
+    const before = computeInstallmentPlan(sale({ ...base, paidAmount: 0, remainingAmount: 12_000_000 }))!;
+    const sp = spreadShortfall(before.schedule, 800_000)!;
+    expect(sp).toMatchObject({ month: 1, carry: 200_000, from: 2, to: 12, perMonth: 18_181 });
+    expect(sp.amounts[0]).toBe(800_000);
+    expect(sp.amounts.reduce((a, x) => a + x, 0)).toBe(12_000_000);
+    expect(sp.amounts[11]).toBe(1_000_000 + 200_000 - 18_181 * 10);
+    expect(installmentPaymentNote(before.schedule, 800_000, sp)).toMatch(/^1-oy \(qisman\) · .+ so'm 2–12-oylarga bo'lindi$/);
+
+    // To'lovdan keyingi holat: 1-oy to'langan, 2-oy — 1 018 181
+    const after = computeInstallmentPlan(sale({ ...base, paidAmount: 800_000, remainingAmount: 11_200_000, installmentAmounts: sp.amounts }))!;
+    expect(after.schedule[0]).toMatchObject({ amount: 800_000, planned: 1_000_000, paid: true, state: 'paid' });
+    expect(after.schedule[1]).toMatchObject({ amount: 1_018_181, paid: false, left: 1_018_181 });
+    expect(after.schedule.reduce((a, m) => a + m.left, 0)).toBe(11_200_000);
+  });
+
+  it("to'liq yoki ortiq to'lov, oxirgi oy — bo'linmaydi", () => {
+    const p = computeInstallmentPlan(sale({ ...base, paidAmount: 0, remainingAmount: 12_000_000 }))!;
+    expect(spreadShortfall(p.schedule, 1_000_000)).toBeNull();
+    expect(spreadShortfall(p.schedule, 1_500_000)).toBeNull();
+    const last = computeInstallmentPlan(sale({ ...base, paidAmount: 11_000_000, remainingAmount: 1_000_000 }))!;
+    expect(spreadShortfall(last.schedule, 400_000)).toBeNull();
+  });
+
+  it("qisman qaytarish qarzni kamaytirsa — farq oxirgi oylardan ayiriladi", () => {
+    const amounts = [800_000, ...Array(10).fill(1_018_181), 1_018_190];
+    const plan = computeInstallmentPlan(sale({ ...base, totalAmount: 11_000_000, paidAmount: 800_000, remainingAmount: 10_200_000, installmentAmounts: amounts }))!;
+    expect(plan.schedule.reduce((a, m) => a + m.amount, 0)).toBe(11_000_000);
+    expect(plan.schedule[0].amount).toBe(800_000);
+    expect(plan.schedule[11].amount).toBe(18_190);
   });
 });

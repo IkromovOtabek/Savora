@@ -16,6 +16,8 @@ export interface ICashFlow {
   shiftId?: Types.ObjectId;
   /** Daftar yozuvi orqali yaratilgan bo'lsa (qarz berish/olish yoki qaytarish) */
   ledgerEntryId?: Types.ObjectId;
+  /** Sotuv bekor qilinganda mijozga qaytarilgan pul — qaysi sotuv */
+  saleId?: Types.ObjectId;
   createdAt?: Date;
   updatedAt?: Date;
 }
@@ -30,6 +32,7 @@ export const cashFlowSchema = new Schema<ICashFlow>(
     category: { type: String, trim: true, maxlength: 60 },
     shiftId: { type: Schema.Types.ObjectId, ref: 'CashShift' },
     ledgerEntryId: { type: Schema.Types.ObjectId, ref: 'LedgerEntry' },
+    saleId: { type: Schema.Types.ObjectId, ref: 'Sale' },
   },
   { timestamps: true, collection: 'cash_flows' }
 );
@@ -42,6 +45,7 @@ cashFlowSchema.index({ type: 1, createdAt: -1 });
 cashFlowSchema.index({ branchId: 1, createdAt: -1 });
 cashFlowSchema.index({ shiftId: 1 }, { sparse: true });
 cashFlowSchema.index({ ledgerEntryId: 1 }, { sparse: true });
+cashFlowSchema.index({ saleId: 1 }, { sparse: true });
 
 export const CASH_FLOW_TYPE_LABELS: Record<CashFlowType, string> = {
   income: 'Kirim',

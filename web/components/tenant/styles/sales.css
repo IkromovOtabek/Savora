@@ -374,10 +374,25 @@ button.sl-tl-body:hover .sl-tl-cta--main { opacity: .88; }
 /* Bekor qilish */
 .sl-return-text { margin: 0; color: var(--ink-3); font-size: 14px; line-height: 1.45; }
 .sl-pay-amt--return { color: var(--danger); }
+.sl-pay:has(.sl-pay-rc) { grid-template-columns: 36px minmax(0, 1fr) auto auto; gap: 8px 12px; }
+.sl-pay-rc { display: grid; place-items: center; width: 32px; height: 32px; margin-left: 4px; border-radius: 9px; color: var(--ink-3); flex: none; }
+.sl-pay-rc:hover { color: var(--accent); background: var(--fill-2); }
+.sl-pay-done { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
 .sl-pay-ic--return { color: var(--danger); background: color-mix(in srgb, var(--danger) 12%, transparent); }
 .sl-cancel { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--danger) 30%, transparent); }
 .sl-cancel .sl-card-head h2 { color: var(--danger); }
 .sl-cancel p { font-size: 14px; color: var(--ink-2); margin: 0 0 12px; }
+.sl-cancel p.sl-cancel-refund {
+  padding: 10px 12px; border-radius: 10px; font-size: 13px; line-height: 1.45; color: var(--ink);
+  background: color-mix(in srgb, var(--danger) 9%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--danger) 22%, transparent);
+}
+/* Bekor qilingan sotuv: qachon/kim va kassadan chiqim */
+.sl-cancelled-box { display: flex; gap: 12px; align-items: flex-start; padding: 14px 18px; }
+.sl-cancelled-box > div { display: grid; gap: 2px; min-width: 0; }
+.sl-cancelled-box b { color: var(--danger); font-size: 14px; }
+.sl-cancelled-box span { font-size: 13px; color: var(--ink-2); }
+.sl-cancelled-box strong { font-size: 13px; font-weight: 600; color: var(--ink); }
 
 @media (max-width: 1000px) {
   .sl-detail { grid-template-columns: minmax(0, 1fr); }
@@ -538,6 +553,20 @@ button.sl-tl-body:hover .sl-tl-cta--main { opacity: .88; }
 .inst-modal-method { padding: 4px 16px 0; }
 /* To'lov qaysi oydan yopilishi haqida izoh (qisman / bir necha oy) */
 .inst-modal-hint { margin: 0 16px 4px; font-size: 13px; line-height: 1.45; color: var(--ink-3); }
+/* Qisman to'lov: oydan qoladigan qism va keyingi oylarga bo'lish */
+.inst-short { display: grid; gap: 8px; margin-top: 4px; padding: 12px; border-radius: var(--r); background: color-mix(in srgb, var(--warn) 10%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--warn) 28%, transparent); }
+.inst-short-row { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.inst-short-row span { font-size: 14px; color: var(--ink-2); }
+.inst-short-row small { color: var(--ink-3); }
+.inst-short-row strong { font-size: 17px; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--ink-1); }
+.inst-spread { display: flex; gap: 9px; align-items: flex-start; font-size: 14px; line-height: 1.4; color: var(--ink-1); cursor: pointer; }
+.inst-spread input { width: 18px; height: 18px; margin: 1px 0 0; flex: none; accent-color: var(--accent); }
+.inst-short-hint { margin: 0; font-size: 13px; line-height: 1.45; color: var(--ink-3); }
+/* To'lov qabul qilindi — chek tugmasi */
+.inst-done { display: grid; justify-items: center; gap: 10px; padding: 18px 0 0; text-align: center; }
+.inst-done > b { font-size: 16px; }
+.inst-done .inst-modal-actions { width: 100%; box-sizing: border-box; }
+.inst-done-ic { display: grid; place-items: center; width: 46px; height: 46px; border-radius: 50%; color: #fff; background: var(--accent); }
 
 /* Mahsulot tanlanmaganda — "0 so'm" o'rniga yo'l-yo'riq */
 .sl-sum-hint { display: grid; grid-template-columns: 40px minmax(0, 1fr); gap: 12px; align-items: center; padding: 16px 18px 6px; }

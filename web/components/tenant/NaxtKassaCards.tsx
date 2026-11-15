@@ -12,6 +12,8 @@ export interface KassaCard {
   id: string;
   name: string;
   naxtSotuv: number;
+  /** Kredit kassada bankdan olingan pul — naqd kassaga qo'shiladi */
+  bankOlgan?: number;
   adminOlgan: number;
   qolgan: number;
 }
@@ -28,6 +30,7 @@ function signed(v: number, sign: '+' | '−') {
 
 function BranchPass({ c }: { c: KassaCard }) {
   const d = useDict();
+  const bank = c.bankOlgan ?? 0;
   return (
     <Link href={`/app/kassa/${c.id}`} className="fn-pass" aria-label={tr(d.sales.kassa.passAria, { name: c.name })}>
       <div className="fn-pass-head">
@@ -40,11 +43,14 @@ function BranchPass({ c }: { c: KassaCard }) {
         <div className={`fn-pass-value fn-num ${amtTone(c.qolgan)}`}>{fmtMoney(c.qolgan)}<span className="fn-cur">{d.common.sum}</span></div>
       </div>
       <div className="fn-split" aria-hidden="true">
-        <i className="fn-split-in" style={{ width: `${pct(c.naxtSotuv - c.adminOlgan, c.naxtSotuv)}%` }} />
-        <i className="fn-split-out" style={{ width: `${pct(c.adminOlgan, c.naxtSotuv)}%` }} />
+        <i className="fn-split-in" style={{ width: `${pct(c.naxtSotuv + bank - c.adminOlgan, c.naxtSotuv + bank)}%` }} />
+        <i className="fn-split-out" style={{ width: `${pct(c.adminOlgan, c.naxtSotuv + bank)}%` }} />
       </div>
       <div className="fn-pass-rows">
         <div className="fn-pass-row"><span>{d.sales.kassa.cashSales}</span><strong className={c.naxtSotuv ? 'fn-in' : undefined}>{signed(c.naxtSotuv, '+')}</strong></div>
+        {bank > 0 && (
+          <div className="fn-pass-row"><span>{d.crm.money.fromBank}</span><strong className="fn-in">{signed(bank, '+')}</strong></div>
+        )}
         <div className="fn-pass-row"><span>{d.sales.kassa.adminTook}</span><strong className={c.adminOlgan ? 'fn-out' : undefined}>{signed(c.adminOlgan, '−')}</strong></div>
       </div>
     </Link>
@@ -70,6 +76,12 @@ export default function NaxtKassaCards({ total, cards }: { total: KassaCard; car
             <span className="fn-hero-stat-l">{d.sales.kassa.cashSales}</span>
             <span className={`fn-hero-stat-v fn-num ${amtTone(total.naxtSotuv)}`}>{signed(total.naxtSotuv, '+')}</span>
           </div>
+          {(total.bankOlgan ?? 0) > 0 && (
+            <div className="fn-hero-stat">
+              <span className="fn-hero-stat-l">{d.crm.money.fromBank}</span>
+              <span className={`fn-hero-stat-v fn-num ${amtTone(total.bankOlgan ?? 0)}`}>{signed(total.bankOlgan ?? 0, '+')}</span>
+            </div>
+          )}
           <div className="fn-hero-stat">
             <span className="fn-hero-stat-l">{d.sales.kassa.adminTook}</span>
             <span className={`fn-hero-stat-v fn-num ${amtTone(-total.adminOlgan)}`}>{signed(total.adminOlgan, '−')}</span>

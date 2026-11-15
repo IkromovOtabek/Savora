@@ -12,6 +12,12 @@ export interface ISalePayment {
   recordedBy?: string;
   /** To'lov usuli; yo'q bo'lsa — naqd (eski yozuvlar) */
   method?: PayMethod;
+  /** Nasiya: to'lov qaysi oylarga tushdi (chek uchun); eski yozuvlarda yo'q — izohdan */
+  months?: { from: number; to: number; partialLast: boolean };
+  /** Nasiya: qisman to'lovda oydan yetmagan summa keyingi oylarga bo'lingan bo'lsa */
+  carry?: { amount: number; from: number; to: number };
+  /** To'lovdan keyingi qoldiq (chek uchun); eski yozuvlarda yo'q */
+  balanceAfter?: number;
 }
 
 /** Qisman qaytarish yozuvi — sotuvdan bir necha dona qaytarilganda (to'liq qaytarish = bekor qilish) */
@@ -67,10 +73,22 @@ export interface ISale {
   paidAmount: number;
   remainingAmount: number;
   installmentMonths?: number;
+  /** Nasiya: har oyning qaysi kuni to'lanadi (1–31; qisqa oyda — oy oxiri). Yo'q — sotuv sanasi + N oy */
+  payDay?: number;
+  /**
+   * Nasiya: oylar bo'yicha summalar — qisman to'lovda oy yopilib, yetmagani keyingi oylarga bo'linganda yoziladi.
+   * Yo'q bo'lsa — teng bo'linadi (lib/installment).
+   */
+  installmentAmounts?: number[];
   /** Nasiya boshlang'ich to'lovi (sotuv paytida) — oy jadvali shu asosda hisoblanadi */
   downPayment?: number;
   dueDate?: Date;
   status: SaleStatus;
+  /** Bekor qilingan vaqt (yangi yozuvlar) — to'lovlar realizatsiya bo'lib qoladi, qaytarilgani kassadan chiqim */
+  cancelledAt?: Date;
+  cancelledBy?: string;
+  /** Bekor qilishda mijozga qaytarilgan summa (Moliya: «Sotuv bekor qilindi» chiqimi) */
+  cancelRefund?: number;
   /** Nasiya muddat o'tgan eslatmasi oxirgi yuborilgan sana (kunlik dedup uchun) */
   lastInstallmentNotifiedAt?: Date;
   payments: ISalePayment[];
@@ -124,16 +142,30 @@ export const saleSchema = new Schema<ISale>(
     paidAmount: { type: Number, required: true, min: 0, default: 0 },
     remainingAmount: { type: Number, required: true, min: 0, default: 0 },
     installmentMonths: { type: Number, min: 1, max: 60 },
+    payDay: { type: Number, min: 1, max: 31 },
+    installmentAmounts: { type: [Number], default: undefined },
     downPayment: { type: Number, min: 0 },
     dueDate: { type: Date },
     lastInstallmentNotifiedAt: { type: Date },
     status: { type: String, enum: ['paid', 'partial', 'cancelled'], default: 'paid' },
+    cancelledAt: { type: Date },
+    cancelledBy: { type: String, trim: true },
+    cancelRefund: { type: Number, min: 0 },
     payments: [{
       amount: { type: Number, required: true, min: 0 },
       paidAt: { type: Date, required: true, default: Date.now },
       note: { type: String, trim: true },
       recordedBy: { type: String, trim: true },
       method: { type: String, enum: PAY_METHODS },
+      months: {
+        type: { _id: false, from: { type: Number, min: 1 }, to: { type: Number, min: 1 }, partialLast: { type: Boolean } },
+        default: undefined,
+      },
+      carry: {
+        type: { _id: false, amount: { type: Number, min: 0 }, from: { type: Number, min: 1 }, to: { type: Number, min: 1 } },
+        default: undefined,
+      },
+      balanceAfter: { type: Number, min: 0 },
     }],
     returns: [{
       qty: { type: Number, required: true, min: 0.001 },

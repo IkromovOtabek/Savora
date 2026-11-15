@@ -288,7 +288,7 @@ export default function FilialManager({
                 </div>
                 <div className="auth-field">
                   <label htmlFor="fc-phone">{t.phone}</label>
-                  <input id="fc-phone" name="phone" type="tel" inputMode="tel" disabled={busy} placeholder="+998..." />
+                  <input id="fc-phone" name="phone" type="tel" inputMode="tel" disabled={busy} placeholder="+998 99 000 00 00" />
                 </div>
                 <div className="auth-field">
                   <label htmlFor="fc-address">{t.address}</label>

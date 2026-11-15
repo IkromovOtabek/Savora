@@ -59,6 +59,7 @@ export default async function PosPage() {
       noShift={features.kassa && !openShift}
       storageKey={`savora_pos_parked:${org._id}:${user.username}`}
       shopName={org.name}
+      canInstallment={!!(features.variant || features.nasiya)}
     />
   );
 }

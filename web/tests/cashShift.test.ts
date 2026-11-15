@@ -49,6 +49,19 @@ describe('computeShiftTotals', () => {
     expect(t).toEqual({ cashIn: 1_300_000, refunds: 150_000, withdrawals: 250_000, deposits: 300_000, current: 200_000 + 1_300_000 - 150_000 - 250_000 + 300_000, cardIn: 0 });
   });
 
+  it("yangi tartibda bekor qilingan sotuv: to'lov realizatsiya, qaytarilgani — CashFlow chiqimi", () => {
+    const sales = [
+      // Ertalab 600 000 naqd to'landi, kechqurun sotuv bekor qilindi — pul mijozga qaytdi
+      sale({ status: 'cancelled', cancelledAt: at(18), payments: [{ amount: 600_000, paidAt: at(10), note: 'Naqd to\'lov' }] }),
+    ];
+    // cancelSaleAction yozadigan chiqim («Sotuv bekor qilindi»)
+    const flows = [{ type: 'expense' as const, amount: 600_000, createdAt: at(18) }];
+    const t = computeShiftTotals(sales, flows, 100_000, from, to);
+    expect(t.cashIn).toBe(600_000);
+    expect(t.withdrawals).toBe(600_000);
+    expect(t.current).toBe(100_000);
+  });
+
   it('harakat bo\'lmasa joriy summa = ochilish summasi', () => {
     expect(computeShiftTotals([], [], 50_000, from, to).current).toBe(50_000);
   });

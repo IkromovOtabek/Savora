@@ -12,7 +12,7 @@ export async function generateMetadata() {
 const RECEIPTS_LIMIT = 50;
 
 export default async function CreditKassaPage() {
-  const { CreditBank, Sale, BankReceipt } = await getTenantAdminSession();
+  const { CreditBank, Sale, BankReceipt, Branch } = await getTenantAdminSession();
   const d = await getDict();
 
   const [banks, creditSales, receiptSums, recent] = await Promise.all([
@@ -25,6 +25,9 @@ export default async function CreditKassaPage() {
     ]),
     BankReceipt.find().sort({ receivedAt: -1, _id: -1 }).limit(RECEIPTS_LIMIT).lean(),
   ]);
+  // Bankdan olingan pul qaysi filial naqd kassasiga tushadi
+  const branches = (await Branch.find({ active: true }).sort({ createdAt: 1 }).select('name').lean())
+    .map((b) => ({ id: String(b._id), name: b.name }));
 
   // Kiritilgan (sotuvlardagi bank ulushlari) − Olingan (bankdan tushgan pul) = Qoldiq
   const balances = computeBankBalances(
@@ -60,7 +63,7 @@ export default async function CreditKassaPage() {
           <p className="t-page-sub">{d.sales.creditKassa.sub}</p>
         </div>
       </div>
-      <CreditKassaPanel banks={bankCards} totals={totals} receipts={receipts} />
+      <CreditKassaPanel banks={bankCards} totals={totals} receipts={receipts} branches={branches} />
     </>
   );
 }

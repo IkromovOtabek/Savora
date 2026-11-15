@@ -4,6 +4,8 @@ import { authenticateMobile } from '@/lib/mobileAuth';
 import { mobilePermissionDenied, userCan } from '@/lib/permissionGuard';
 import { permissionDeniedError } from '@/lib/permissions';
 import { recordAudit } from '@/lib/audit';
+import { canonicalPhone } from '@/lib/phone';
+import { findCustomerByPhone } from '@/lib/daftarOps';
 import { getTenantModels } from '@/lib/tenantDb';
 import { branchFilter } from '@/lib/branchScope';
 import { getMobileFeatures } from '@/lib/mobileOrg';
@@ -12,7 +14,7 @@ import { checkSaleQty } from '@/lib/productQuantity';
 import { parseQty, priceTimesQty, qtyLabel } from '@/lib/qty';
 import { reserveStock, releaseStock } from '@/lib/stock';
 import { parseIntegerSum } from '@/lib/security';
-import { addMonthsClamped } from '@/lib/dates';
+import { installmentDueDate, normPayDay } from '@/lib/installment';
 import { pq294MonthsError } from '@/lib/pq294';
 import { isPayMethod, type PayMethod } from '@/lib/payMethods';
 import { newCheckoutId, receiptPath } from '@/lib/receiptLink';
@@ -98,6 +100,8 @@ export async function POST(req: Request) {
   let body: {
     productId?: string; paymentType?: string; totalAmount?: number; paidAmount?: number;
     installmentMonths?: number; customerName?: string; customerPhone?: string;
+    /** Nasiya: har oyning qaysi kuni to'laydi (1–31); eski ilova yubormaydi — sotuv sanasi + N oy */
+    payDay?: number | string;
     dueDate?: string; bankName?: string; saleQty?: number | string; notes?: string;
     /** Bir nechta bank: [{ bankName, amount }] — yo'q bo'lsa bankName ga qolgan summa to'liq */
     bankParts?: unknown;
@@ -197,6 +201,7 @@ export async function POST(req: Request) {
   }
 
   let installmentMonths: number | undefined;
+  const payDay = paymentType === 'installment' ? normPayDay(body.payDay) : undefined;
   if (paymentType === 'installment') {
     installmentMonths = installmentMonthsRaw >= 1 ? Math.min(60, Math.floor(installmentMonthsRaw)) : undefined;
     if (!installmentMonths) return NextResponse.json({ error: 'Nasiya oylari kiritilishi shart (1–60).' }, { status: 400 });
@@ -210,8 +215,9 @@ export async function POST(req: Request) {
   let dueDate: Date | undefined;
   if (remainingAmount > 0 && paymentType !== 'cash') {
     if (dueDateRaw) { const d = new Date(dueDateRaw); if (!Number.isNaN(d.getTime())) dueDate = d; }
-    if (!dueDate && paymentType === 'installment' && installmentMonths) {
-      dueDate = addMonthsClamped(new Date(), installmentMonths);
+    // Nasiya: muddat — oxirgi oy to'lovi (to'lov kuni bo'yicha)
+    if (paymentType === 'installment' && installmentMonths) {
+      dueDate = installmentDueDate(new Date(), installmentMonths, payDay);
     }
   }
 
@@ -223,11 +229,12 @@ export async function POST(req: Request) {
   // Mijoz — barcha tekshiruvlar o'tgach yaratiladi (rad etilgan sotuvdan "yetim" mijoz qolmaydi)
   let customer: { _id: Types.ObjectId; fullName: string; phone: string } | null = null;
   if (customerName && customerPhone) {
-    const found = await Customer.findOne({ phone: customerPhone }).lean();
+    const phone = canonicalPhone(customerPhone);
+    const found = await findCustomerByPhone({ Customer }, phone);
     if (found) {
       customer = { _id: found._id, fullName: found.fullName, phone: found.phone };
     } else {
-      const c = await Customer.create({ fullName: customerName, phone: customerPhone });
+      const c = await Customer.create({ fullName: customerName, phone });
       customer = { _id: c._id, fullName: c.fullName, phone: c.phone };
     }
   }
@@ -254,7 +261,7 @@ export async function POST(req: Request) {
       paymentType,
       bankName: bankParts ? bankPartsLabel(bankParts) : undefined,
       bankParts,
-      totalAmount, paidAmount, remainingAmount, installmentMonths,
+      totalAmount, paidAmount, remainingAmount, installmentMonths, payDay,
       downPayment: paymentType === 'installment' ? paidAmount : undefined,
       dueDate, status, payments, soldBy: user.username, notes: notes || undefined, checkoutId,
     });

@@ -34,6 +34,9 @@ financeCategorySchema.index({ type: 1, name: 1 }, { unique: true });
 export const SHIFT_DEPOSIT_CATEGORY = "Kassaga qo'shildi";
 export const SHIFT_WITHDRAW_CATEGORY = 'Kassadan olindi';
 
+/** Sotuv bekor qilinganda mijozga qaytarilgan pul — kassadan chiqim, foyda emas (sotuv o'zi hisobotdan chiqadi) */
+export const SALE_CANCEL_CATEGORY = 'Sotuv bekor qilindi';
+
 /** Egasining kiritgan puli — kirim, lekin foyda emas */
 export const INVESTMENT_CATEGORY = 'Investitsiya';
 
@@ -57,6 +60,7 @@ export const DEFAULT_FINANCE_CATEGORIES: { name: string; type: 'income' | 'expen
   { name: 'Reklama', type: 'expense' },
   { name: 'Boshqa xarajat', type: 'expense' },
   { name: SHIFT_WITHDRAW_CATEGORY, type: 'expense', system: true },
+  { name: SALE_CANCEL_CATEGORY, type: 'expense', system: true },
   { name: INVESTMENT_CATEGORY, type: 'income' },
   { name: 'Boshqa kirim', type: 'income' },
   { name: SHIFT_DEPOSIT_CATEGORY, type: 'income', system: true },

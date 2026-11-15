@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { getTenantSession } from '@/lib/tenantSession';
 import Icon from '@/components/icons/Icon';
 import { isBranchScoped } from '@/lib/branchScope';
+import { KASSA_SALE_FILTER } from '@/lib/kassa';
 import NaxtKassaCards, { KassaCard } from '@/components/tenant/NaxtKassaCards';
 import QuickExpense from '@/components/tenant/QuickExpense';
 import { loadExpenseCategories } from '@/lib/financeCategories';
@@ -15,7 +16,7 @@ export async function generateMetadata() {
 }
 
 export default async function KassaPage() {
-  const { user, Sale, Branch, CashFlow, FinanceCategory, features } = await getTenantSession();
+  const { user, Sale, Branch, CashFlow, BankReceipt, FinanceCategory, features } = await getTenantSession();
   const d = await getDict();
   const k = d.sales.kassa;
 
@@ -26,10 +27,14 @@ export default async function KassaPage() {
     : allBranches;
   const branchIds = branches.map((b) => b._id);
 
-  const [sales, expenseAgg] = await Promise.all([
-    Sale.find({ status: { $ne: 'cancelled' }, branchId: { $in: branchIds } }).limit(5000).lean(),
+  const [sales, expenseAgg, bankAgg] = await Promise.all([
+    // Bekor qilingan (yangi tartib) sotuv to'lovi — realizatsiya; qaytarilgani CashFlow chiqimida (lib/kassa)
+    Sale.find({ ...KASSA_SALE_FILTER, branchId: { $in: branchIds } }).limit(5000).lean(),
     CashFlow.aggregate([{ $match: { type: 'expense' } }, { $group: { _id: null, total: { $sum: '$amount' } } }]),
+    // Kredit kassada «Bankdan pul olindi» — naqd kassaga qo'shiladi (filial bo'yicha; eski yozuvlar filialsiz)
+    BankReceipt.aggregate<{ _id: unknown; total: number }>([{ $group: { _id: '$branchId', total: { $sum: '$amount' } } }]),
   ]);
+  const bankByBranch = new Map(bankAgg.map((x) => [x._id ? String(x._id) : '', x.total]));
   const adminTotal = expenseAgg[0]?.total ?? 0;
   // Xarajat qo'shish — do'kon egasi («Kirim-Chiqim» moduli); kassa «Chiqim» summasiga ham kiradi
   const canExpense = user.role === 'admin' && features.kirimChiqim;
@@ -38,7 +43,7 @@ export default async function KassaPage() {
   // Filial bo'yicha naqd tushum
   const map = new Map<string, KassaCard>();
   for (const b of branches) {
-    map.set(String(b._id), { id: String(b._id), name: b.name, naxtSotuv: 0, adminOlgan: 0, qolgan: 0 });
+    map.set(String(b._id), { id: String(b._id), name: b.name, naxtSotuv: 0, bankOlgan: bankByBranch.get(String(b._id)) ?? 0, adminOlgan: 0, qolgan: 0 });
   }
 
   for (const s of sales) {
@@ -50,16 +55,21 @@ export default async function KassaPage() {
   }
 
   const cards = [...map.values()];
-  for (const c of cards) c.qolgan = c.naxtSotuv - c.adminOlgan;
+  for (const c of cards) c.qolgan = c.naxtSotuv + (c.bankOlgan ?? 0) - c.adminOlgan;
 
   const naxtSotuvTotal = cards.reduce((s, c) => s + c.naxtSotuv, 0);
+  // Filial login — faqat o'z filiali; egasi — filialsiz eski tushumlar ham jamida
+  const bankTotal = isBranchScoped(user)
+    ? cards.reduce((s, c) => s + (c.bankOlgan ?? 0), 0)
+    : bankAgg.reduce((s, x) => s + x.total, 0);
   const total: KassaCard = {
     id: 'all',
     // Filial login bitta filialni ko'radi — "barcha filiallar" deyish noto'g'ri
     name: isBranchScoped(user) ? k.yourBranchKassa : k.totalAllBranches,
     naxtSotuv: naxtSotuvTotal,
+    bankOlgan: bankTotal,
     adminOlgan: adminTotal,
-    qolgan: naxtSotuvTotal - adminTotal,
+    qolgan: naxtSotuvTotal + bankTotal - adminTotal,
   };
 
   return (

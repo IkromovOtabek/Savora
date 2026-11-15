@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { getTenantSession } from '@/lib/tenantSession';
+import { loadSupplierBalances } from '@/lib/suppliers';
 import { branchAggMatch, branchFilter } from '@/lib/branchScope';
 import { userCan } from '@/lib/permissionGuard';
 import { parsePeriod, periodRange } from '@/lib/period';
@@ -45,7 +46,7 @@ export default async function DebtsPage({
   searchParams: Promise<{ f?: string; tab?: string; p?: string }>;
 }) {
   const sp = await searchParams;
-  const { user, Sale, org } = await getTenantSession();
+  const { user, Sale, org, Supplier, SupplierEntry } = await getTenantSession();
   const d = await getDict();
   const k = d.sales.debts;
   const nCustomers = (n: number) => tr(plural(n, d.sales.nCustomers), { n });
@@ -105,8 +106,23 @@ export default async function DebtsPage({
   const debtors = [...debtorMap.values()].sort((a, b) => b.remaining - a.remaining).slice(0, 8);
   const [canPay, canAct] = await Promise.all([userCan(user, 'payment.accept'), userCan(user, 'customers.view')]);
 
+  // Bizning qarzimiz — yetkazib beruvchilarga (olingan tovar − to'langan); «suppliers.view» huquqi bilan
+  const canOurs = await userCan(user, 'suppliers.view');
+  const ours = canOurs
+    ? await (async () => {
+        const balances = await loadSupplierBalances(SupplierEntry);
+        const ids = [...balances.entries()].filter(([, b]) => b.debt > 0).map(([id]) => id);
+        const list = ids.length ? await Supplier.find({ _id: { $in: ids } }).select('name company phone').lean() : [];
+        return list
+          .map((x) => ({ id: String(x._id), name: x.name, company: x.company, phone: x.phone, ...balances.get(String(x._id))! }))
+          .sort((a, b) => b.debt - a.debt);
+      })()
+    : [];
+  const oursTotal = ours.reduce((a, x) => a + x.debt, 0);
+  const mk = d.crm.money;
+
   // To'lovlar tabi — tanlangan davrda qarz/nasiya sotuvlariga kelgan to'lovlar
-  const tab = sp.tab === 'payments' ? 'payments' : 'debts';
+  const tab = sp.tab === 'payments' ? 'payments' : sp.tab === 'ours' && canOurs ? 'ours' : 'debts';
   const period = parsePeriod(sp.p, 'month');
   const payments = tab === 'payments'
     ? await (async () => {
@@ -132,12 +148,62 @@ export default async function DebtsPage({
           <p className="t-page-sub">{k.sub}</p>
         </div>
         <nav className="cl-seg dt-tabs" aria-label={k.tabsAria}>
-          <Link href="/app/debts" aria-current={tab === 'debts' ? 'page' : undefined}>{k.tabDebts} <span className="t-num">{rows.length}</span></Link>
+          <Link href="/app/debts" aria-current={tab === 'debts' ? 'page' : undefined}>{mk.tabCustomers} <span className="t-num">{rows.length}</span></Link>
+          {canOurs && (
+            <Link href="/app/debts?tab=ours" aria-current={tab === 'ours' ? 'page' : undefined}>{mk.tabOurs} <span className="t-num">{ours.length}</span></Link>
+          )}
           <Link href="/app/debts?tab=payments" aria-current={tab === 'payments' ? 'page' : undefined}>{k.tabPayments}</Link>
         </nav>
       </div>
 
-      {/* Desktop: chapda qarzlar ro'yxati, o'ngda doimiy statistika ustuni; mobilda statistika tepada */}
+      {tab === 'ours' ? (
+        /* Bizning qarzimiz — yetkazib beruvchilarga; to'lov yetkazib beruvchi sahifasida yoziladi */
+        <div className="t-split">
+          <section className="cl-sum t-split-rail" aria-label={mk.tabOurs}>
+            <Tilt stack className="cl-port cl-port--debt">
+              <span className="ux-clay ux-clay--red cl-port-ic" aria-hidden="true"><Icon name="box" size={20} /></span>
+              <div className="cl-port-txt">
+                <span className="cl-port-l">{mk.oursTotal}</span>
+                <span className={`cl-port-v t-num ux-z${oursTotal > 0 ? ' amt-neg' : ''}`}>{fmtMoney(oursTotal)} <small>{d.common.sum}</small></span>
+                <span className="cl-port-s">{tr(mk.oursCount, { n: ours.length })}</span>
+              </div>
+            </Tilt>
+            <p className="field-hint">{mk.oursSub}</p>
+          </section>
+          <div className="t-split-main">
+            {ours.length === 0 ? (
+              <div className="cl-card"><EmptyState icon="check" title={mk.oursEmpty} text="" /></div>
+            ) : (
+              <div className="table-wrap cl-card">
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th>{d.stock.suppliers.productField}</th>
+                      <th className="num">{mk.oursPurchased}</th>
+                      <th className="num">{mk.oursPaid}</th>
+                      <th className="num">{mk.oursLeft}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {ours.map((x) => (
+                      <tr key={x.id}>
+                        <td>
+                          <Link href={`/app/suppliers/${x.id}`} className="cell-link"><b>{x.name}</b></Link>
+                          {(x.company || x.phone) && <div className="field-hint">{[x.company, x.phone].filter(Boolean).join(' · ')}</div>}
+                        </td>
+                        <td className="num t-num">{fmtMoney(x.purchased)}</td>
+                        <td className="num t-num">{fmtMoney(x.paid)}</td>
+                        <td className="num t-num amt-neg"><b>{fmtMoney(x.debt)}</b></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </div>
+      ) : (
+      /* Desktop: chapda qarzlar ro'yxati, o'ngda doimiy statistika ustuni; mobilda statistika tepada */
       <div className="t-split">
       <section className="cl-sum t-split-rail" aria-label={k.summaryAria}>
         <Tilt stack className="cl-port cl-port--debt">
@@ -295,6 +361,7 @@ export default async function DebtsPage({
       )}
       </div>
       </div>
+      )}
     </div>
   );
 }

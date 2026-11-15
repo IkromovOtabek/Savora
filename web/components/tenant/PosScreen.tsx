@@ -74,8 +74,10 @@ function isTyping(el: EventTarget | null): boolean {
   return !!t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable);
 }
 
-export default function PosScreen({ products, categories = [], canDiscount, canEditPrice, noShift, storageKey, shopName }: {
+export default function PosScreen({ products, categories = [], canDiscount, canEditPrice, noShift, storageKey, shopName, canInstallment = false }: {
   products: PosProduct[];
+  /** «Nasiya» moduli — naqd yetmaganda qoldiqni nasiyaga o'tkazish (bitta tovarda) */
+  canInstallment?: boolean;
   categories?: CategoryItem[];
   canDiscount: boolean;
   canEditPrice: boolean;
@@ -567,6 +569,8 @@ export default function PosScreen({ products, categories = [], canDiscount, canE
         <PosPayModal
           total={total}
           pending={pending}
+          lineCount={rows.length}
+          canInstallment={canInstallment}
           customerName={customerName}
           customerPhone={customerPhone}
           onCustomerName={setCustomerName}

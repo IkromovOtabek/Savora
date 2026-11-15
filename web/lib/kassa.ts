@@ -16,6 +16,20 @@ export interface KassaPaymentRow {
   imei: string;
   /** Qisman qaytarish — mijozga naqd qaytarilgan pul (amount manfiy) */
   isRefund?: boolean;
+  /** Sotuv keyin bekor qilingan (to'lov realizatsiya bo'lib qoladi, qaytarilgani — Moliya chiqimi) */
+  cancelled?: boolean;
+}
+
+/**
+ * Kassa hisobiga kiradigan sotuvlar: bekor qilinmagan yoki yangi tartibda bekor qilingan (`cancelledAt` bor).
+ * Yangi tartibda to'lovlar o'z kunida realizatsiya bo'lib qoladi, mijozga qaytarilgani esa
+ * Moliya'da «Sotuv bekor qilindi» chiqimi (CashFlow) — kassa qoldig'i shu chiqim bilan kamayadi.
+ * Eski bekor qilinganlar (cancelledAt yo'q) — avvalgidek hisobdan butunlay chiqadi (tarix o'zgarmasin).
+ */
+export const KASSA_SALE_FILTER = { $or: [{ status: { $ne: 'cancelled' } }, { cancelledAt: { $exists: true } }] };
+
+export function countsInKassa(sale: { status: string; cancelledAt?: Date | null }): boolean {
+  return sale.status !== 'cancelled' || !!sale.cancelledAt;
 }
 
 /**
@@ -43,7 +57,8 @@ export function extractKassaPayments(
   const rows: KassaPaymentRow[] = [];
 
   for (const sale of sales) {
-    if (sale.status === 'cancelled') continue;
+    if (!countsInKassa(sale)) continue;
+    const cancelled = sale.status === 'cancelled';
     for (const p of sale.payments ?? []) {
       const paidAt = new Date(p.paidAt);
       if (paidAt >= dayStart && paidAt < dayEnd) {
@@ -60,6 +75,7 @@ export function extractKassaPayments(
           recordedBy: p.recordedBy,
           productName: sale.productSnapshot.name,
           imei: sale.productSnapshot.imei,
+          ...(cancelled ? { cancelled } : {}),
         });
       }
     }

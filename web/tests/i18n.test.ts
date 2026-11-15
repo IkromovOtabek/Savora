@@ -42,7 +42,8 @@ describe('i18n lug\'atlari', () => {
   it('ru matnlari o\'zbekcha nusxa emas (kirill bor)', () => {
     // 3 so'zdan uzun, lotin harfli ru qiymatlar — tarjima qilinmagan bo'lishi mumkin.
     const suspicious = Object.entries(ru)
-      .filter(([k, v]) => v.split(/\s+/).length > 3 && !/[А-Яа-яЁё]/.test(v) && uz[k] === v)
+      // Faqat raqam/belgidan iborat qiymat (telefon namunasi «+998 99 000 00 00») — tarjima talab qilmaydi
+      .filter(([k, v]) => v.split(/\s+/).length > 3 && /[A-Za-z]/.test(v) && !/[А-Яа-яЁё]/.test(v) && uz[k] === v)
       .map(([k]) => k);
     expect(suspicious).toEqual([]);
   });
