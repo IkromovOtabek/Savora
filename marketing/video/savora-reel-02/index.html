@@ -1,0 +1,705 @@
+<!doctype html>
+<html lang="uz">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1080, height=1920" />
+    <title>Savora Reels #02 — Bitta tizim</title>
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <style>
+      @font-face { font-family: "Onest"; src: url("assets/fonts/Onest.ttf") format("truetype"); font-weight: 100 900; }
+      @font-face { font-family: "Unbounded"; src: url("assets/fonts/Unbounded.ttf") format("truetype"); font-weight: 200 900; }
+      :root {
+        --bg: #0a1122; --tint: #2f6bff; --cyan: #2cc3ff; --gold: #ffa800; --green: #12b76a; --red: #f04438;
+        --light: #f5f7fb; --muted: #a9b5d1; --glass: rgba(11, 19, 40, .92);
+      }
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body { width: 1080px; height: 1920px; overflow: hidden; background: var(--bg); }
+      #root { position: relative; width: 100%; height: 100%; overflow: hidden; background: var(--bg); color: var(--light); font-family: "Onest", sans-serif; }
+      .clip { position: absolute; inset: 0; }
+      .num { font-variant-numeric: tabular-nums; }
+      svg.ic { fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+
+      /* ---------- 3D dunyo foni ---------- */
+      #bg { overflow: hidden; background: radial-gradient(ellipse 90% 60% at 50% 42%, #142a5c 0%, var(--bg) 72%); }
+      .glow { position: absolute; border-radius: 50%; filter: blur(130px); }
+      #glowA { left: -380px; top: -260px; width: 1100px; height: 1100px; background: rgba(47,107,255,.42); }
+      #glowB { left: 380px; top: 1150px; width: 1000px; height: 1000px; background: rgba(44,195,255,.24); }
+      #floorWrap { position: absolute; inset: 0; overflow: hidden; }
+      #floor { position: absolute; left: -660px; top: 1180px; width: 2400px; height: 2000px; transform: perspective(900px) rotateX(74deg); transform-origin: 50% 0; overflow: hidden;
+        -webkit-mask-image: linear-gradient(180deg, transparent 0%, #000 25%, #000 60%, transparent 100%); mask-image: linear-gradient(180deg, transparent 0%, #000 25%, #000 60%, transparent 100%); }
+      #floorTex { position: absolute; left: 0; top: -240px; width: 2400px; height: 2480px; opacity: .55;
+        background-image: linear-gradient(rgba(120,160,255,.6) 3px, transparent 3px), linear-gradient(90deg, rgba(120,160,255,.6) 3px, transparent 3px);
+        background-size: 120px 120px; }
+      #vign { position: absolute; inset: 0; background: radial-gradient(ellipse 80% 70% at 50% 50%, transparent 45%, rgba(3,6,14,.8) 100%); }
+
+      /* ---------- AI kliplar (vaqt videoda, o'ram vaqtsiz) ---------- */
+      .vw { position: absolute; inset: 0; overflow: hidden; }
+      .vin { position: absolute; inset: 0; }
+      video.clip { width: 100%; height: 100%; object-fit: cover; }
+      #grade { pointer-events: none; }
+      #gradeIn { position: absolute; inset: 0;
+        background: linear-gradient(180deg, rgba(4,8,18,.82) 0%, rgba(4,8,18,.35) 24%, rgba(4,8,18,0) 38%, rgba(4,8,18,0) 50%, rgba(4,8,18,.55) 66%, rgba(4,8,18,.9) 100%); }
+      .ph { position: absolute; left: 0; right: 0; top: 820px; display: flex; justify-content: center; opacity: 0; }
+      .ph span { padding: 16px 28px; border-radius: 20px; background: rgba(0,0,0,.45); box-shadow: inset 0 0 0 2px rgba(255,255,255,.35); font-weight: 700; font-size: 32px; color: #fff; white-space: nowrap; }
+
+      /* ---------- sarlavhalar ---------- */
+      .hlw { position: absolute; left: 72px; right: 72px; top: 236px; }
+      .chip { display: inline-flex; align-items: center; gap: 14px; padding: 12px 24px 12px 14px; border-radius: 999px; font-weight: 800; font-size: 28px; letter-spacing: .14em;
+        background: rgba(47,107,255,.24); box-shadow: inset 0 0 0 2px rgba(130,165,255,.6); color: #dfe7ff; white-space: nowrap; }
+      .chip b { display: grid; place-items: center; width: 52px; height: 52px; border-radius: 50%; background: var(--tint); color: #fff; letter-spacing: 0; font-size: 28px; }
+      .chip.gold { background: rgba(255,168,0,.2); box-shadow: inset 0 0 0 2px rgba(255,190,70,.65); color: #ffe6b8; }
+      .chip.gold b { background: var(--gold); color: #1b1200; }
+      .ln { display: block; margin-top: 18px; font-family: "Unbounded"; font-weight: 800; font-size: 86px; line-height: 1.04; letter-spacing: -0.045em; white-space: nowrap;
+        text-shadow: 0 8px 36px rgba(0,0,0,.5); }
+      .ln.sm { font-size: 58px; color: #dfe7ff; }
+      .ln .w { display: inline-block; }
+      .ln.g .w { background: linear-gradient(90deg, #9fe0ff 0%, #2f8cff 70%); -webkit-background-clip: text; background-clip: text; color: transparent; text-shadow: none; padding-bottom: 10px; }
+      .ln.au .w { background: linear-gradient(90deg, #ffd27a 0%, #ffa800 70%); -webkit-background-clip: text; background-clip: text; color: transparent; text-shadow: none; padding-bottom: 10px; }
+
+      /* ---------- 3D kartalar ---------- */
+      .c3wrap { position: absolute; left: 90px; width: 900px; perspective: 1700px; }
+      .c3 { position: absolute; inset: 0; transform-style: preserve-3d; }
+      .c3 .edge { position: absolute; inset: 0; border-radius: 42px; background: #040914; transform: translateZ(-24px); box-shadow: 0 0 0 2px rgba(80,120,220,.35), 0 60px 120px rgba(0,0,0,.6); }
+      .c3 .face { position: absolute; inset: 0; border-radius: 42px; padding: 34px 38px; overflow: hidden;
+        background: linear-gradient(160deg, rgba(25,40,80,.96) 0%, var(--glass) 55%); box-shadow: inset 0 0 0 2px rgba(255,255,255,.1), inset 0 2px 0 rgba(255,255,255,.22); }
+      .glare { position: absolute; top: -120px; left: -320px; width: 180px; height: 800px; transform: rotate(22deg); background: linear-gradient(90deg, rgba(255,255,255,0), rgba(255,255,255,.16), rgba(255,255,255,0)); }
+      .row1 { display: flex; align-items: center; gap: 20px; }
+      .ico { width: 66px; height: 66px; border-radius: 22px; display: grid; place-items: center; flex: none; }
+      .ico svg { width: 36px; height: 36px; }
+      .ttl { font-weight: 800; font-size: 36px; white-space: nowrap; }
+      .meta { margin-left: auto; font-weight: 700; font-size: 28px; color: var(--muted); white-space: nowrap; }
+      .pill { margin-left: auto; padding: 8px 20px; border-radius: 999px; font-weight: 800; font-size: 28px; white-space: nowrap; }
+      .sub { font-weight: 600; font-size: 29px; color: var(--muted); white-space: nowrap; }
+      .big { font-family: "Unbounded"; font-weight: 800; font-size: 54px; letter-spacing: -0.03em; white-space: nowrap; }
+      .big small { font-family: "Onest"; font-weight: 700; font-size: 28px; color: var(--muted); letter-spacing: 0; margin-left: 10px; }
+
+      /* hook: jonli tushum */
+      #cardH { top: 1130px; height: 300px; left: 120px; width: 840px; }
+      #cardH .lv { display: inline-flex; align-items: center; gap: 10px; margin-left: auto; font-weight: 800; font-size: 28px; color: #ff9a90; }
+      #cardH .lv i { width: 14px; height: 14px; border-radius: 50%; background: var(--red); box-shadow: 0 0 14px var(--red); display: block; }
+      #hAmt { margin-top: 20px; }
+      #hCnt { display: inline-block; margin-top: 16px; padding: 8px 18px; border-radius: 999px; background: rgba(18,183,106,.18); color: #5fe0a5; font-weight: 800; font-size: 28px; }
+      #hBars { position: absolute; right: 40px; bottom: 36px; display: flex; align-items: flex-end; gap: 10px; height: 110px; }
+      #hBars i { display: block; width: 24px; border-radius: 8px; background: rgba(120,160,255,.35); transform-origin: 50% 100%; }
+      #hBars i:last-child { background: var(--cyan); box-shadow: 0 0 20px rgba(44,195,255,.6); }
+
+      /* kassa: chek */
+      #cardK { top: 1070px; height: 400px; }
+      #cardK .ok { background: rgba(18,183,106,.2); color: #5fe0a5; box-shadow: inset 0 0 0 2px rgba(18,183,106,.6); }
+      #kItem { margin-top: 26px; display: flex; align-items: flex-end; justify-content: space-between; }
+      .pays { margin-top: 24px; display: flex; gap: 12px; }
+      .pays span { padding: 10px 20px; border-radius: 16px; font-weight: 800; font-size: 28px; background: rgba(255,255,255,.07); color: #c8d3ec; box-shadow: inset 0 0 0 2px rgba(255,255,255,.1); white-space: nowrap; }
+      .tmr { margin-top: 26px; display: flex; align-items: center; gap: 16px; }
+      .tmr svg { width: 34px; height: 34px; color: var(--cyan); }
+      .tmr .bar { flex: 1; height: 12px; border-radius: 6px; background: rgba(255,255,255,.1); overflow: hidden; }
+      .tmr .bar b { display: block; height: 100%; width: 100%; border-radius: 6px; background: linear-gradient(90deg, #2cc3ff, #2f6bff); transform-origin: 0 50%; }
+      .tmr .tv { font-family: "Unbounded"; font-weight: 700; font-size: 30px; white-space: nowrap; }
+
+      /* nasiya: jadval */
+      #cardN { top: 1070px; height: 400px; }
+      #cardN .gi { background: rgba(255,168,0,.18); color: #ffc24d; box-shadow: inset 0 0 0 2px rgba(255,168,0,.6); }
+      #cardN .pill { background: rgba(255,168,0,.2); color: #ffd27a; }
+      #nWho { margin-top: 22px; display: flex; align-items: baseline; justify-content: space-between; }
+      #nWho .big { font-size: 44px; }
+      .segs { margin-top: 26px; display: flex; gap: 10px; }
+      .seg { flex: 1; }
+      .seg i { display: block; height: 18px; border-radius: 9px; background: rgba(255,255,255,.12); overflow: hidden; }
+      .seg i b { display: block; height: 100%; width: 100%; border-radius: 9px; transform-origin: 0 50%; }
+      .seg span { display: block; margin-top: 10px; text-align: center; font-weight: 700; font-size: 28px; color: var(--muted); }
+      #nNext { margin-top: 20px; display: flex; align-items: center; gap: 12px; }
+      #nNext .paid { padding: 8px 16px; border-radius: 999px; background: rgba(18,183,106,.18); color: #5fe0a5; font-weight: 800; font-size: 28px; white-space: nowrap; }
+      #nNext .nx { font-weight: 700; font-size: 28px; color: #dfe7ff; white-space: nowrap; }
+      #nNext .na { margin-left: auto; font-family: "Unbounded"; font-weight: 800; font-size: 28px; color: var(--gold); white-space: nowrap; }
+
+      /* ombor: skaner */
+      #cardO { top: 1070px; height: 400px; }
+      #cardO .bi { background: rgba(47,107,255,.22); color: #8fb2ff; box-shadow: inset 0 0 0 2px rgba(47,107,255,.6); }
+      #cardO .pill { background: rgba(44,195,255,.16); color: #8fdcff; }
+      #oScan { margin-top: 24px; display: flex; align-items: center; gap: 26px; }
+      #bc { position: relative; width: 250px; height: 112px; border-radius: 16px; background: #f5f7fb; overflow: hidden; flex: none; }
+      #bc svg { position: absolute; left: 16px; top: 14px; width: 218px; height: 84px; }
+      #laser { position: absolute; top: 0; bottom: 0; left: 0; width: 6px; background: #ff3b30; box-shadow: 0 0 18px 4px rgba(255,59,48,.7); }
+      #oScan .it b { display: block; font-weight: 800; font-size: 32px; white-space: nowrap; }
+      #oOk { display: inline-flex; align-items: center; gap: 10px; margin-top: 10px; padding: 8px 16px; border-radius: 999px; background: rgba(18,183,106,.18); color: #5fe0a5; font-weight: 800; font-size: 28px; white-space: nowrap; }
+      #oOk svg { width: 24px; height: 24px; }
+      #oLow { margin-top: 26px; display: flex; align-items: center; gap: 18px; padding: 18px 22px; border-radius: 24px; background: rgba(240,68,56,.14); box-shadow: inset 0 0 0 2px rgba(240,68,56,.5); }
+      #oLow .ri { width: 52px; height: 52px; border-radius: 16px; display: grid; place-items: center; background: rgba(240,68,56,.25); color: #ff8a80; flex: none; }
+      #oLow .ri svg { width: 30px; height: 30px; }
+      #oLow b { display: block; font-weight: 800; font-size: 30px; color: #ffb3ab; white-space: nowrap; }
+      #oLow span { display: block; font-weight: 600; font-size: 28px; color: #ffd9d5; white-space: nowrap; }
+
+      /* ---------- 3D tizim: telefon + modullar ---------- */
+      #stage { position: absolute; inset: 0; perspective: 2400px; perspective-origin: 50% 50%; }
+      #world { position: absolute; inset: 0; transform-style: preserve-3d; }
+      #phone { position: absolute; left: 290px; top: 470px; width: 500px; height: 980px; transform-style: preserve-3d; }
+      #phone .back { position: absolute; inset: 0; border-radius: 76px; background: #050912; transform: translateZ(-22px); box-shadow: 0 0 0 3px #26324f, 0 100px 200px rgba(0,0,0,.65); }
+      #phone .rim { position: absolute; inset: 0; border-radius: 76px; border: 13px solid #04070e; box-shadow: 0 0 0 3px #2a3552, 0 0 160px rgba(47,107,255,.35); }
+      #phone .isl { position: absolute; left: 182px; top: 28px; width: 136px; height: 38px; border-radius: 19px; background: #000; }
+      #scr { position: absolute; left: 13px; top: 13px; width: 474px; height: 954px; border-radius: 64px; overflow: hidden; background: #f2f4f8; color: #101828; }
+      .sb { position: absolute; left: 40px; right: 40px; top: 30px; display: flex; justify-content: space-between; font-weight: 700; font-size: 22px; }
+      .hdr { position: absolute; left: 24px; right: 24px; top: 90px; display: flex; align-items: center; gap: 14px; }
+      .hdr .av { width: 58px; height: 58px; border-radius: 18px; background: linear-gradient(135deg, #2cc3ff, #1f5be6); color: #fff; display: grid; place-items: center; font-weight: 800; font-size: 24px; }
+      .hdr .nm { font-weight: 800; font-size: 26px; line-height: 1.1; white-space: nowrap; }
+      .hdr .br { font-weight: 500; font-size: 18px; color: #667085; white-space: nowrap; }
+      .hdr .pl { margin-left: auto; padding: 8px 16px; border-radius: 999px; background: #e8efff; color: #1f4fd6; font-weight: 700; font-size: 18px; }
+      .card { position: absolute; left: 18px; right: 18px; background: #fff; border-radius: 30px; box-shadow: 0 2px 10px rgba(16,24,40,.06); }
+      #rev { top: 176px; height: 236px; padding: 24px 26px; }
+      #rev .lb { font-weight: 600; font-size: 20px; color: #667085; }
+      #rev .amt { margin-top: 6px; display: flex; align-items: baseline; gap: 10px; }
+      #rev .amt b { font-weight: 800; font-size: 50px; letter-spacing: -0.03em; }
+      #rev .amt span { font-weight: 700; font-size: 24px; color: #667085; }
+      #rev .cnt { display: inline-block; margin-top: 8px; padding: 6px 14px; border-radius: 999px; background: #e7f8ef; color: #079455; font-weight: 700; font-size: 18px; }
+      #bars { position: absolute; right: 26px; bottom: 24px; display: flex; align-items: flex-end; gap: 9px; height: 96px; }
+      #bars i { display: block; width: 22px; border-radius: 7px; background: #d6e2ff; transform-origin: 50% 100%; }
+      #bars i:last-child { background: var(--tint); }
+      #split { top: 428px; height: 104px; display: flex; align-items: center; background: transparent; box-shadow: none; gap: 10px; }
+      .sp { flex: 1; height: 96px; border-radius: 24px; background: #fff; padding: 14px 16px; box-shadow: 0 2px 10px rgba(16,24,40,.06); }
+      .sp .k { font-weight: 600; font-size: 17px; color: #667085; display: flex; align-items: center; gap: 8px; }
+      .sp .k i { width: 10px; height: 10px; border-radius: 50%; display: block; }
+      .sp .v { font-weight: 800; font-size: 26px; margin-top: 8px; letter-spacing: -0.02em; white-space: nowrap; }
+      #feedT { position: absolute; left: 30px; right: 30px; top: 554px; font-weight: 800; font-size: 24px; }
+      #feed { position: absolute; left: 18px; right: 18px; top: 600px; height: 280px; overflow: hidden; border-radius: 28px; background: #fff; box-shadow: 0 2px 10px rgba(16,24,40,.06); }
+      .row { position: absolute; left: 0; right: 0; height: 70px; display: flex; align-items: center; gap: 14px; padding: 0 18px; border-bottom: 1px solid #eef0f4; }
+      .row .ri { width: 46px; height: 46px; border-radius: 15px; display: grid; place-items: center; flex: none; }
+      .row .ri svg { width: 26px; height: 26px; }
+      .row .rt { flex: 1; min-width: 0; }
+      .row .rt b { display: block; font-weight: 700; font-size: 19px; white-space: nowrap; }
+      .row .rt span { display: block; font-weight: 500; font-size: 15px; color: #667085; margin-top: 2px; white-space: nowrap; }
+      .row .ra { font-weight: 800; font-size: 19px; white-space: nowrap; }
+      .tab { position: absolute; left: 0; right: 0; bottom: 0; height: 90px; background: rgba(255,255,255,.92); display: flex; justify-content: space-around; align-items: center; color: #98a2b3; border-top: 1px solid #eaecf0; }
+      .tab svg { width: 32px; height: 32px; }
+      .tab .on { color: var(--tint); }
+
+      .tile { position: absolute; left: 380px; top: 904px; width: 320px; height: 112px; border-radius: 32px; display: flex; align-items: center; gap: 14px; padding: 0 20px; opacity: 0;
+        background: linear-gradient(160deg, rgba(30,46,92,.97), rgba(10,17,36,.97)); box-shadow: inset 0 0 0 2px rgba(255,255,255,.14), inset 0 2px 0 rgba(255,255,255,.22), 0 30px 70px rgba(0,0,0,.55); }
+      .tile .mi { width: 58px; height: 58px; border-radius: 20px; display: grid; place-items: center; flex: none; }
+      .tile .mi svg { width: 32px; height: 32px; }
+      .tile b { font-weight: 800; font-size: 28px; white-space: nowrap; }
+      #sysHead { position: absolute; left: 0; right: 0; top: 236px; text-align: center; }
+      #sysHead .ln { margin-top: 0; }
+      #flash { position: absolute; left: 540px; top: 960px; width: 40px; height: 40px; margin: -20px 0 0 -20px; border-radius: 50%;
+        background: radial-gradient(circle, #ffffff 0%, #8fd8ff 30%, rgba(47,107,255,.6) 60%, rgba(47,107,255,0) 72%); opacity: 0; }
+
+      /* ---------- logo ---------- */
+      #lock { position: absolute; left: 0; top: 470px; width: 1080px; display: flex; flex-direction: column; align-items: center; }
+      #lockIn { display: flex; flex-direction: column; align-items: center; }
+      #lock .logo { width: 250px; height: 336px; overflow: visible; }
+      #lock .wm { width: 600px; height: 127px; margin-top: 48px; }
+      #sheen { position: absolute; left: 0; top: 0; width: 1080px; height: 560px; overflow: hidden; pointer-events: none; }
+      #sheen i { position: absolute; top: -100px; left: -300px; width: 160px; height: 760px; transform: rotate(20deg);
+        background: linear-gradient(90deg, rgba(255,255,255,0), rgba(255,255,255,.35), rgba(255,255,255,0)); mix-blend-mode: overlay; }
+      #tag { position: absolute; left: 0; right: 0; top: 1130px; text-align: center; font-family: "Unbounded"; font-weight: 700; font-size: 52px; letter-spacing: -0.03em; }
+      #tag .w { display: inline-block; opacity: 0; }
+      #tag em { font-style: normal; color: var(--cyan); }
+
+      /* ---------- CTA ---------- */
+      #cta { position: absolute; left: 0; top: 780px; width: 1080px; display: flex; flex-direction: column; align-items: center; }
+      #ctaLead { font-weight: 600; font-size: 36px; color: #c3cde3; opacity: 0; white-space: nowrap; }
+      #btn { position: relative; margin-top: 44px; width: 660px; height: 128px; border-radius: 64px; background: #fff; color: #0a1122; overflow: hidden;
+        display: flex; align-items: center; justify-content: center; gap: 22px; font-family: "Unbounded"; font-weight: 800; font-size: 58px; letter-spacing: -0.03em;
+        box-shadow: 0 30px 80px rgba(47,107,255,.45), 0 0 0 10px rgba(255,255,255,.08); opacity: 0; }
+      #btn svg { width: 54px; height: 54px; color: var(--tint); stroke-width: 2.6; }
+      #btnSheen { position: absolute; top: -40px; left: -200px; width: 120px; height: 220px; transform: rotate(20deg); background: linear-gradient(90deg, rgba(47,107,255,0), rgba(47,107,255,.28), rgba(47,107,255,0)); }
+      #free { margin-top: 56px; font-family: "Unbounded"; font-weight: 800; font-size: 80px; letter-spacing: -0.04em; color: var(--gold); opacity: 0; white-space: nowrap; }
+      #noCard { margin-top: 14px; font-weight: 600; font-size: 34px; color: var(--muted); opacity: 0; white-space: nowrap; }
+      #finger { position: absolute; left: 708px; top: 912px; width: 120px; height: 120px; opacity: 0; color: #fff; filter: drop-shadow(0 12px 24px rgba(0,0,0,.5)); }
+      #ripple { position: absolute; left: 760px; top: 932px; width: 100px; height: 100px; margin: -50px 0 0 -50px; border-radius: 50%; background: rgba(255,255,255,.55); opacity: 0; }
+
+      /* ---------- yuqori qatlam: yorug'lik va don ---------- */
+      #fx { pointer-events: none; }
+      #streak { position: absolute; top: -400px; left: -900px; width: 520px; height: 2800px; transform: rotate(18deg); opacity: 0; mix-blend-mode: screen;
+        background: linear-gradient(90deg, rgba(120,190,255,0), rgba(170,215,255,.55), rgba(120,190,255,0)); }
+      #grain { position: absolute; inset: 0; overflow: hidden; opacity: .05; }
+      #grainTex { position: absolute; left: -50%; top: -50%; width: 200%; height: 200%;
+        background: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"); }
+    </style>
+  </head>
+  <body>
+    <div id="root" data-composition-id="main" data-start="0" data-duration="24" data-width="1080" data-height="1920" data-fps="30">
+      <!-- 3D DUNYO FONI -->
+      <div id="bg" class="clip" data-start="0" data-duration="24" data-track-index="0">
+        <div id="glowA" class="glow" data-layout-allow-overflow></div>
+        <div id="glowB" class="glow" data-layout-allow-overflow></div>
+        <div id="floorWrap"><div id="floor" data-layout-allow-overflow><div id="floorTex" data-layout-allow-overflow></div></div></div>
+        <div id="vign"></div>
+      </div>
+
+      <!-- AI KLIPLAR: o'ram vaqtsiz, vaqt <video> da -->
+      <div id="vw1" class="vw"><div class="vin" data-layout-allow-overflow><video id="v1" class="clip" src="assets/clips/c1.mp4" muted playsinline data-start="0" data-duration="3.15" data-media-start="0" data-track-index="1"></video></div></div>
+      <div id="vw2" class="vw"><div class="vin" data-layout-allow-overflow><video id="v2" class="clip" src="assets/clips/c2.mp4" muted playsinline data-start="2.85" data-duration="3.3" data-media-start="0.4" data-track-index="2"></video></div></div>
+      <div id="vw3" class="vw"><div class="vin" data-layout-allow-overflow><video id="v3" class="clip" src="assets/clips/c3.mp4" muted playsinline data-start="5.85" data-duration="3.3" data-media-start="0.4" data-track-index="3"></video></div></div>
+      <div id="vw4" class="vw"><div class="vin" data-layout-allow-overflow><video id="v4" class="clip" src="assets/clips/c4.mp4" muted playsinline data-start="8.85" data-duration="3.9" data-media-start="0.4" data-track-index="4"></video></div></div>
+
+      <!-- KLIP USTIDAGI GREYD (matn o'qilishi uchun) -->
+      <div id="grade" class="clip" data-start="0" data-duration="12" data-track-index="5">
+        <div id="gradeIn"></div>
+        <div class="ph" id="ph1"><span>AI klip 1 · do'kon egasi uyda (vaqtinchalik)</span></div>
+        <div class="ph" id="ph2"><span>AI klip 2 · kassir, telefon do'koni (vaqtinchalik)</span></div>
+        <div class="ph" id="ph3"><span>AI klip 3 · juftlik, mebel do'koni (vaqtinchalik)</span></div>
+        <div class="ph" id="ph4"><span>AI klip 4 · omborchi skanerda (vaqtinchalik)</span></div>
+      </div>
+
+      <!-- S1 HOOK 0 - 3 -->
+      <section id="sHook" class="clip" data-start="0" data-duration="3.1" data-track-index="6">
+        <div class="hlw" id="hkT">
+          <div class="ln sm"><span class="w">Siz</span> <span class="w">uydasiz.</span></div>
+          <div class="ln"><span class="w">Do'koningiz</span> <span class="w">esa</span></div>
+          <div class="ln g"><span class="w">ishlayapti.</span></div>
+        </div>
+        <div class="c3wrap" id="cardH" data-layout-allow-overlap>
+          <div class="c3">
+            <div class="edge"></div>
+            <div class="face">
+              <div class="row1">
+                <div class="ico" style="background:rgba(44,195,255,.18);color:#8fdcff;box-shadow:inset 0 0 0 2px rgba(44,195,255,.55)"><svg class="ic" viewBox="0 0 24 24"><path d="M3 17l6-6 4 4 8-8"/><path d="M14 7h7v7"/></svg></div>
+                <div class="ttl">Bugungi tushum</div>
+                <div class="lv"><i></i>jonli</div>
+              </div>
+              <div class="big num" id="hAmt"><span id="hAmtV">0</span><small>so'm</small></div>
+              <div id="hCnt"><span id="hCntV" class="num">0</span> ta sotuv</div>
+              <div id="hBars"><i style="height:44px"></i><i style="height:62px"></i><i style="height:50px"></i><i style="height:76px"></i><i style="height:66px"></i><i style="height:110px"></i></div>
+              <div class="glare" data-layout-allow-overflow></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- S2 KASSA 3 - 6 -->
+      <section id="sKassa" class="clip" data-start="2.9" data-duration="3.2" data-track-index="7">
+        <div class="hlw" id="kT">
+          <div class="chip"><b>01</b>KASSA</div>
+          <div class="ln"><span class="w">Sotuv</span></div>
+          <div class="ln g"><span class="w">2</span> <span class="w">daqiqada</span></div>
+        </div>
+        <div class="c3wrap" id="cardK" data-layout-allow-overlap>
+          <div class="c3">
+            <div class="edge"></div>
+            <div class="face">
+              <div class="row1">
+                <div class="ico ok" id="kOk"><svg class="ic" viewBox="0 0 24 24"><path d="M5 12l5 5 9-10"/></svg></div>
+                <div class="ttl">Sotuv tasdiqlandi</div>
+                <div class="meta">S-0128</div>
+              </div>
+              <div id="kItem">
+                <div class="sub">Smartfon 256 GB · 1 dona</div>
+                <div class="big num"><span id="kAmtV">0</span><small>so'm</small></div>
+              </div>
+              <div class="pays"><span>Naqd</span><span id="kCard">Karta</span><span>Nasiya</span><span>Bank krediti</span></div>
+              <div class="tmr">
+                <svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2M9 2h6"/></svg>
+                <div class="bar"><b id="kBar"></b></div>
+                <div class="tv num" id="kTime">0:00</div>
+              </div>
+              <div class="glare" data-layout-allow-overflow></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- S3 NASIYA 6 - 9 -->
+      <section id="sNasiya" class="clip" data-start="5.9" data-duration="3.2" data-track-index="8">
+        <div class="hlw" id="nT">
+          <div class="chip gold"><b>02</b>NASIYA</div>
+          <div class="ln"><span class="w">Har</span> <span class="w">bir</span> <span class="w">to'lov</span></div>
+          <div class="ln au"><span class="w">nazoratda</span></div>
+        </div>
+        <div class="c3wrap" id="cardN" data-layout-allow-overlap>
+          <div class="c3">
+            <div class="edge"></div>
+            <div class="face">
+              <div class="row1">
+                <div class="ico gi"><svg class="ic" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg></div>
+                <div class="ttl">Nasiya jadvali</div>
+                <div class="pill">6 oy</div>
+              </div>
+              <div id="nWho">
+                <div class="sub">Aziz R. · Divan «Komfort»</div>
+                <div class="big num">12 600 000<small>so'm</small></div>
+              </div>
+              <div class="segs">
+                <div class="seg"><i><b style="background:#12b76a"></b></i><span>Sen</span></div>
+                <div class="seg"><i><b style="background:#12b76a"></b></i><span>Okt</span></div>
+                <div class="seg"><i><b style="background:#12b76a"></b></i><span>Noy</span></div>
+                <div class="seg"><i><b style="background:#ffa800"></b></i><span>Dek</span></div>
+                <div class="seg"><i><b style="background:transparent"></b></i><span>Yan</span></div>
+                <div class="seg"><i><b style="background:transparent"></b></i><span>Fev</span></div>
+              </div>
+              <div id="nNext">
+                <div class="paid">3/6 to'landi</div>
+                <div class="nx">Keyingisi · 15.12.2026</div>
+                <div class="na num">2 100 000</div>
+              </div>
+              <div class="glare" data-layout-allow-overflow></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- S4 OMBOR 9 - 12 -->
+      <section id="sOmbor" class="clip" data-start="8.9" data-duration="3" data-track-index="9">
+        <div class="hlw" id="oT">
+          <div class="chip"><b>03</b>OMBOR</div>
+          <div class="ln"><span class="w">Har</span> <span class="w">bir</span> <span class="w">tovar</span></div>
+          <div class="ln g"><span class="w">hisobda</span></div>
+        </div>
+        <div class="c3wrap" id="cardO" data-layout-allow-overlap>
+          <div class="c3">
+            <div class="edge"></div>
+            <div class="face">
+              <div class="row1">
+                <div class="ico bi"><svg class="ic" viewBox="0 0 24 24"><path d="M21 8l-9-5-9 5 9 5 9-5z"/><path d="M3 8v8l9 5 9-5V8"/><path d="M12 13v8"/></svg></div>
+                <div class="ttl">Kirim · Asosiy ombor</div>
+                <div class="pill">Shtrix-kod</div>
+              </div>
+              <div id="oScan">
+                <div id="bc"><svg viewBox="0 0 218 84" id="bcSvg"></svg><div id="laser"></div></div>
+                <div class="it">
+                  <b>Muzlatgich 350 L</b>
+                  <div id="oOk"><svg class="ic" viewBox="0 0 24 24"><path d="M5 12l5 5 9-10"/></svg>+12 dona qabul qilindi</div>
+                </div>
+              </div>
+              <div id="oLow">
+                <div class="ri"><svg class="ic" viewBox="0 0 24 24"><path d="M12 3l10 18H2z"/><path d="M12 10v5M12 18v.5"/></svg></div>
+                <div><b>Kam qoldi: 2 dona</b><span>Kir yuvish mashinasi</span></div>
+              </div>
+              <div class="glare" data-layout-allow-overflow></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- S5 3D TIZIM 12 - 16 -->
+      <section id="sSys" class="clip" data-start="11.9" data-duration="4.3" data-track-index="10">
+        <div id="stage">
+          <div id="world">
+            <div id="phone">
+              <div class="back"></div>
+              <div id="scr" data-layout-ignore>
+                <div class="sb"><span>9:41</span><span>5G ▮▮▮</span></div>
+                <div class="hdr">
+                  <div class="av">MM</div>
+                  <div><div class="nm">Mobi Market</div><div class="br">Asosiy filial</div></div>
+                  <div class="pl">Bugun</div>
+                </div>
+                <div id="rev" class="card">
+                  <div class="lb">Bugungi tushum</div>
+                  <div class="amt"><b id="revAmt" class="num">0</b><span>so'm</span></div>
+                  <div class="cnt"><span id="revCnt" class="num">0</span> ta sotuv</div>
+                  <div id="bars"><i style="height:40px"></i><i style="height:58px"></i><i style="height:46px"></i><i style="height:70px"></i><i style="height:62px"></i><i style="height:80px"></i><i style="height:96px"></i></div>
+                </div>
+                <div id="split" class="card">
+                  <div class="sp"><div class="k"><i style="background:#12b76a"></i>Naqd</div><div class="v">7,1 mln</div></div>
+                  <div class="sp"><div class="k"><i style="background:#2f6bff"></i>Karta</div><div class="v">3,2 mln</div></div>
+                  <div class="sp"><div class="k"><i style="background:#ffa800"></i>Nasiya</div><div class="v">2,2 mln</div></div>
+                </div>
+                <div id="feedT">So'nggi sotuvlar</div>
+                <div id="feed">
+                  <div class="row" style="top:0"><div class="ri" style="background:#fff4e0;color:#e08a00"><svg class="ic" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg></div><div class="rt"><b>Smartfon 256 GB</b><span>Nasiya · 6 oy</span></div><div class="ra num">4 250 000</div></div>
+                  <div class="row" style="top:70px"><div class="ri" style="background:#e7f8ef;color:#079455"><svg class="ic" viewBox="0 0 24 24"><rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="3"/></svg></div><div class="rt"><b>Simsiz quloqchin</b><span>Naqd</span></div><div class="ra num">650 000</div></div>
+                  <div class="row" style="top:140px"><div class="ri" style="background:#e8efff;color:#2f6bff"><svg class="ic" viewBox="0 0 24 24"><path d="M5 12l5 5 9-10"/></svg></div><div class="rt"><b>To'lov · 3/6-oy</b><span>Click</span></div><div class="ra num" style="color:#05603a">+2 100 000</div></div>
+                  <div class="row" style="top:210px"><div class="ri" style="background:#e8efff;color:#2f6bff"><svg class="ic" viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg></div><div class="rt"><b>Muzlatgich 350 L</b><span>Karta · HUMO</span></div><div class="ra num">6 300 000</div></div>
+                </div>
+                <div class="tab">
+                  <svg class="ic on" viewBox="0 0 24 24"><path d="M3 11l9-7 9 7v10H3z"/></svg>
+                  <svg class="ic" viewBox="0 0 24 24"><circle cx="9" cy="20" r="1.5"/><circle cx="18" cy="20" r="1.5"/><path d="M2 3h3l2.5 12h11l2-8H6"/></svg>
+                  <svg class="ic" viewBox="0 0 24 24"><path d="M21 8l-9-5-9 5 9 5 9-5z"/><path d="M3 8v8l9 5 9-5V8"/></svg>
+                  <svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg>
+                </div>
+              </div>
+              <div class="rim"></div>
+              <div class="isl"></div>
+            </div>
+            <div class="tile" data-layout-allow-overlap><div class="mi" style="background:rgba(47,107,255,.24);color:#8fb2ff"><svg class="ic" viewBox="0 0 24 24"><circle cx="9" cy="20" r="1.5"/><circle cx="18" cy="20" r="1.5"/><path d="M2 3h3l2.5 12h11l2-8H6"/></svg></div><b>Kassa</b></div>
+            <div class="tile" data-layout-allow-overlap><div class="mi" style="background:rgba(44,195,255,.2);color:#8fdcff"><svg class="ic" viewBox="0 0 24 24"><path d="M21 8l-9-5-9 5 9 5 9-5z"/><path d="M3 8v8l9 5 9-5V8"/><path d="M12 13v8"/></svg></div><b>Ombor</b></div>
+            <div class="tile" data-layout-allow-overlap><div class="mi" style="background:rgba(255,168,0,.2);color:#ffc24d"><svg class="ic" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg></div><b>Nasiya</b></div>
+            <div class="tile" data-layout-allow-overlap><div class="mi" style="background:rgba(18,183,106,.2);color:#5fe0a5"><svg class="ic" viewBox="0 0 24 24"><path d="M3 21h18M5 21V7l7-4 7 4v14"/><path d="M9 21v-6h6v6"/></svg></div><b>Filiallar</b></div>
+            <div class="tile" data-layout-allow-overlap><div class="mi" style="background:rgba(240,68,56,.2);color:#ff8a80"><svg class="ic" viewBox="0 0 24 24"><path d="M4 4h10a4 4 0 0 1 4 4v12H8a4 4 0 0 1-4-4z"/><path d="M8 8h6M8 12h6"/></svg></div><b>Qarz daftari</b></div>
+            <div class="tile" data-layout-allow-overlap><div class="mi" style="background:rgba(122,90,248,.24);color:#b3a2ff"><svg class="ic" viewBox="0 0 24 24"><path d="M12 3l2 6 6 2-6 2-2 6-2-6-6-2 6-2z"/></svg></div><b>AI yordamchi</b></div>
+          </div>
+        </div>
+        <div id="sysHead">
+          <div class="ln"><span class="w">Hammasi</span></div>
+          <div class="ln g"><span class="w">bitta</span> <span class="w">tizimda</span></div>
+        </div>
+      </section>
+
+      <!-- S6 LOGO 16 - 24 (CTA'da yuqoriga ko'tariladi) -->
+      <section id="sLogo" class="clip" data-start="15.9" data-duration="8.1" data-track-index="11">
+        <div id="lock">
+          <div id="lockIn">
+            <svg class="logo" data-logo="L" viewBox="6 2 222 298"></svg>
+            <svg class="wm" data-wm="L" viewBox="0 0 3431 724"></svg>
+          </div>
+          <div id="sheen"><i data-layout-allow-overflow></i></div>
+        </div>
+        <div id="tag"><span class="w">Do'koningiz</span> <span class="w">uchun</span> <span class="w"><em>yagona</em></span> <span class="w"><em>tizim</em></span></div>
+      </section>
+
+      <!-- S7 CTA 18 - 24 -->
+      <section id="sCta" class="clip" data-start="17.9" data-duration="6.1" data-track-index="12">
+        <div id="cta">
+          <div id="ctaLead">Telefon, texnika va mebel do'konlari uchun</div>
+          <div id="btn"><div id="btnSheen" data-layout-allow-overflow></div>savora.uz<svg class="ic" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg></div>
+          <div id="free">14 kun bepul</div>
+          <div id="noCard">Karta talab qilinmaydi</div>
+        </div>
+        <div id="ripple"></div>
+        <svg id="finger" viewBox="0 0 24 24" fill="#ffffff" stroke="#0a1122" stroke-width="1.2" stroke-linejoin="round"><path d="M9 11V4.5a1.5 1.5 0 0 1 3 0V10l5.2.9a2 2 0 0 1 1.6 2.3l-.9 5A3 3 0 0 1 14.9 21h-3.3a3 3 0 0 1-2.4-1.2L5.6 15a1.5 1.5 0 0 1 2.2-2L9 14z"/></svg>
+      </section>
+
+      <!-- YORUG'LIK, CHAQNASH, DON -->
+      <div id="fx" class="clip" data-start="0" data-duration="24" data-track-index="13">
+        <div id="streak" data-layout-allow-overflow></div>
+        <div id="flash"></div>
+        <div id="grain"><div id="grainTex"></div></div>
+      </div>
+
+      <audio id="mix" src="assets/audio/mix.wav" data-start="0" data-duration="24" data-track-index="14" data-volume="1"></audio>
+    </div>
+
+    <script>
+      (function () {
+        // Haqiqiy AI kliplar assets/clips/ ga qo'yilgach: false qiling (vaqtinchalik yorliqlar yo'qoladi).
+        const PLACEHOLDER = true;
+
+        // ---------- brend geometriyasi (web/lib/brand.ts dan aynan)
+        const LOGO = {
+          a: "M165,6 L168,50 C136,61 111,73 99,87 C92,95 91,102 92,110 L130,156 L100,157 C58,157 16,146 10,114 C5,88 20,70 45,58 C80,41 120,25 165,6 Z",
+          b: "M91,116 Q91,103 104,103 C152,106 204,130 217,166 C230,204 214,248 180,269 C155,284 120,292 78,293 L42,273 L148,214 C153,205 153,188 145,174 C135,158 115,149 91,148 Z",
+          bars: [
+            "M26,221 Q26,212 35,212 L38.5,212 Q47.5,212 47.5,221 L47.5,261.2 L26,272.6 Z",
+            "M58.5,205 Q58.5,196 67.5,196 L72,196 Q81,196 81,205 L81,243.5 L58.5,255.4 Z",
+            "M91,188 Q91,179 100,179 L105,179 Q114,179 114,188 L114,226 L91,238.2 Z",
+          ],
+        };
+        const LENS = [549, 680, 149, 149, 149];
+        const WM = [
+          "M313 724Q229 724 152 701.5Q75 679 28 643L83 521Q128 553 189.5 573.5Q251 594 314 594Q362 594 391.5 584.5Q421 575 435 558Q449 541 449 519Q449 491 427 474.5Q405 458 369 447.5Q333 437 289.5 427.5Q246 418 202.5 404Q159 390 123 368Q87 346 64.5 310Q42 274 42 218Q42 158 74.5 108.5Q107 59 172.5 29.5Q238 0 337 0Q403 0 467 15.5Q531 31 580 62L530 185Q481 157 432 143.5Q383 130 336 130Q289 130 259 141Q229 152 216 169.5Q203 187 203 210Q203 237 225 253.5Q247 270 283 280Q319 290 362.5 300Q406 310 449.5 323Q493 336 529 358Q565 380 587.5 416Q610 452 610 507Q610 566 577 615Q544 664 478.5 694Q413 724 313 724Z",
+          "M1015 712V607L1005 584V396Q1005 346 974.5 318Q944 290 881 290Q838 290 796.5 303.5Q755 317 726 340L670 231Q714 200 776 183Q838 166 902 166Q1025 166 1093 224Q1161 282 1161 405V712ZM851 720Q788 720 743 698.5Q698 677 674 640Q650 603 650 557Q650 509 673.5 473Q697 437 748 416.5Q799 396 881 396H1024V487H898Q843 487 822.5 505Q802 523 802 550Q802 580 825.5 597.5Q849 615 890 615Q929 615 960 596.5Q991 578 1005 542L1029 614Q1012 666 967 693Q922 720 851 720Z",
+          "M1423 712 1197 174H1358L1546 637H1466L1661 174H1811L1584 712Z",
+          "M2106 720Q2020 720 1953.5 684Q1887 648 1848.5 585.5Q1810 523 1810 443Q1810 362 1848.5 299.5Q1887 237 1953.5 201.5Q2020 166 2106 166Q2191 166 2258 201.5Q2325 237 2363 299Q2401 361 2401 443Q2401 523 2363 585.5Q2325 648 2258 684Q2191 720 2106 720ZM2106 592Q2145 592 2176 574Q2207 556 2225 522.5Q2243 489 2243 443Q2243 396 2225 363Q2207 330 2176 312Q2145 294 2106 294Q2067 294 2036 312Q2005 330 1986.5 363Q1968 396 1968 443Q1968 489 1986.5 522.5Q2005 556 2036 574Q2067 592 2106 592Z",
+          "M2480 712V174H2629V326L2608 282Q2632 225 2685 195.5Q2738 166 2814 166V310Q2804 309 2796 308.5Q2788 308 2779 308Q2715 308 2675.5 344.5Q2636 381 2636 458V712Z",
+          "M3216 712V607L3206 584V396Q3206 346 3175.5 318Q3145 290 3082 290Q3039 290 2997.5 303.5Q2956 317 2927 340L2871 231Q2915 200 2977 183Q3039 166 3103 166Q3226 166 3294 224Q3362 282 3362 405V712ZM3052 720Q2989 720 2944 698.5Q2899 677 2875 640Q2851 603 2851 557Q2851 509 2874.5 473Q2898 437 2949 416.5Q3000 396 3082 396H3225V487H3099Q3044 487 3023.5 505Q3003 523 3003 550Q3003 580 3026.5 597.5Q3050 615 3091 615Q3130 615 3161 596.5Q3192 578 3206 542L3230 614Q3213 666 3168 693Q3123 720 3052 720Z",
+        ];
+        const NS = "http://www.w3.org/2000/svg";
+        const mk = (tag, attrs, parent) => { const e = document.createElementNS(NS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); if (parent) parent.appendChild(e); return e; };
+        document.querySelectorAll("svg[data-logo]").forEach((svg) => {
+          const id = svg.getAttribute("data-logo");
+          const defs = mk("defs", {}, svg);
+          const grad = (gid, stops, x2, y2) => { const g = mk("linearGradient", { id: gid, x1: "0", y1: "0", x2, y2 }, defs); stops.forEach((c, i) => mk("stop", { offset: String(i / (stops.length - 1)), "stop-color": c }, g)); };
+          grad("ga" + id, ["#2CC3FF", "#1F86F7", "#1F5BE6"], "1", "1");
+          grad("gb" + id, ["#2AA2FF", "#2566F0", "#2238D6"], "0.4", "1");
+          grad("gr" + id, ["#2BB6FF", "#1D5CE8"], "0", "1");
+          const ds = [LOGO.a, LOGO.b, ...LOGO.bars];
+          const fills = ["ga", "gb", "gr", "gr", "gr"];
+          ds.forEach((d, i) => {
+            mk("path", { d, class: "lp lp" + i, fill: "url(#" + fills[i] + id + ")", "fill-opacity": "0", stroke: "#8fd8ff", "stroke-width": "3",
+              "stroke-dasharray": LENS[i], "stroke-dashoffset": LENS[i], "stroke-linejoin": "round" }, svg);
+          });
+        });
+        document.querySelectorAll("svg[data-wm]").forEach((svg) => { WM.forEach((d) => mk("path", { d, class: "wl", fill: "#ffffff" }, svg)); });
+
+        // shtrix-kod (aniqlangan naqsh, tasodifiy emas)
+        const BC = [3,1,2,1,1,3,2,1,1,2,3,1,2,2,1,1,3,1,1,2,2,1,3,1,1,2,1,3,2,1,1,2,2,3,1,1,2,1,3,1,2,1];
+        let bx = 0; const bcSvg = document.getElementById("bcSvg");
+        BC.forEach((w, i) => { if (i % 2 === 0) mk("rect", { x: bx * 2.4, y: 0, width: w * 2.4, height: 84, fill: "#0a1122" }, bcSvg); bx += w; });
+
+        if (!PLACEHOLDER) document.querySelectorAll(".ph").forEach((e) => e.remove());
+
+        const tl = gsap.timeline({ paused: true });
+        const q = (s) => document.querySelector(s);
+        const qa = (s) => [...document.querySelectorAll(s)];
+        const fmt = (n) => Math.round(n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, " ");
+        const cl = (x) => Math.max(0, Math.min(1, x));
+
+        // ---------- fon: 3D pol va nurlar sekin harakatda
+        tl.fromTo("#floorTex", { y: 0 }, { y: 240 * 4, duration: 24, ease: "none" }, 0);
+        tl.fromTo("#glowA", { x: 0, y: 0, scale: 1 }, { x: 320, y: 420, scale: 1.2, duration: 24, ease: "sine.inOut" }, 0);
+        tl.fromTo("#glowB", { x: 0, y: 0 }, { x: -360, y: -500, duration: 24, ease: "sine.inOut" }, 0);
+        tl.fromTo("#grainTex", { x: 0, y: 0 }, { keyframes: [{ x: -40, y: 30 }, { x: 25, y: -35 }, { x: -15, y: 20 }, { x: 35, y: 10 }], duration: 24, ease: "steps(96)" }, 0);
+
+        // ---------- AI kliplar: tezlik mos keluvchi zoom-through kesimlar
+        const vw = ["#vw1", "#vw2", "#vw3", "#vw4"];
+        const win = [[0, 3.15], [2.85, 6.15], [5.85, 9.15], [8.85, 12.75]];
+        vw.forEach((s, i) => {
+          tl.fromTo(s + " .vin", { scale: 1.0 }, { scale: 1.06, duration: win[i][1] - win[i][0], ease: "none" }, win[i][0]);
+        });
+        [3.0, 6.0, 9.0].forEach((T, i) => {
+          tl.to(vw[i], { scale: 1.3, filter: "blur(16px)", duration: 0.3, ease: "power3.in" }, T - 0.24);
+          tl.to(vw[i], { opacity: 0, duration: 0.12, ease: "none" }, T - 0.02);
+          tl.fromTo(vw[i + 1], { scale: 1.24, filter: "blur(18px)", opacity: 0 }, { scale: 1, filter: "blur(0px)", opacity: 1, duration: 0.42, ease: "power3.out" }, T - 0.06);
+          tl.fromTo("#streak", { x: 0, opacity: 0 }, { keyframes: [{ x: 1100, opacity: 0.9, duration: 0.18 }, { x: 2200, opacity: 0, duration: 0.2 }], ease: "none", immediateRender: false }, T - 0.18);
+        });
+        tl.set(vw[0], { scale: 1, filter: "blur(0px)", opacity: 1 }, 0);
+
+        // vaqtinchalik yorliqlar
+        ["#ph1", "#ph2", "#ph3", "#ph4"].forEach((s, i) => {
+          tl.fromTo(s, { opacity: 0 }, { opacity: 1, duration: 0.2, ease: "none" }, Math.max(0, win[i][0] + 0.1));
+          tl.to(s, { opacity: 0, duration: 0.15, ease: "none" }, Math.min(win[i][1], 11.6) - 0.3);
+        });
+
+        // ---------- umumiy yordamchilar: sarlavha va 3D karta
+        const words = (sel, t, st) => tl.fromTo(qa(sel + " .w"), { opacity: 0, y: 40, rotationX: -95, transformPerspective: 900, transformOrigin: "50% 100%" },
+          { opacity: 1, y: 0, rotationX: 0, duration: 0.5, ease: "back.out(1.6)", stagger: st }, t);
+        const cardIn = (id, t, end) => {
+          tl.fromTo(id, { opacity: 0 }, { opacity: 1, duration: 0.25, ease: "none" }, t);
+          tl.fromTo(id + " .c3", { z: -900, rotationY: -38, rotationX: 24, y: 160 }, { z: 0, rotationY: -9, rotationX: 7, y: 0, duration: 0.8, ease: "expo.out" }, t);
+          tl.fromTo(id + " .c3", { rotationY: -9, rotationX: 7 }, { rotationY: 7, rotationX: 3, duration: end - (t + 0.8), ease: "sine.inOut", immediateRender: false }, t + 0.8);
+          tl.fromTo(id + " .glare", { x: 0 }, { x: 1500, duration: 0.9, ease: "power2.inOut" }, t + 0.35);
+          // chiqish: kamera tomon
+          tl.to(id, { opacity: 0, filter: "blur(10px)", duration: 0.3, ease: "power2.in" }, end);
+          tl.to(id + " .c3", { z: 520, rotationY: 14, duration: 0.3, ease: "power2.in" }, end);
+        };
+        const headOut = (id, t) => tl.to(id, { opacity: 0, y: -70, filter: "blur(10px)", duration: 0.26, ease: "power2.in" }, t);
+
+        // ================= S1 HOOK (VO 0.30 / 1.20)
+        words("#hkT .ln:nth-child(1)", 0.22, 0.12);
+        words("#hkT .ln:nth-child(2)", 1.12, 0.14);
+        words("#hkT .ln:nth-child(3)", 1.5, 0.1);
+        cardIn("#cardH", 0.75, 2.78);
+        const hv = { v: 0, c: 0 };
+        tl.fromTo(hv, { v: 0, c: 0 }, { v: 12480000, c: 34, duration: 1.5, ease: "power3.out", onUpdate: () => {
+          q("#hAmtV").textContent = fmt(hv.v); q("#hCntV").textContent = Math.round(hv.c);
+        } }, 0.95);
+        tl.fromTo("#hBars i", { scaleY: 0 }, { scaleY: 1, duration: 0.45, ease: "back.out(2)", stagger: 0.07 }, 1.05);
+        tl.fromTo("#cardH .lv i", { opacity: 1 }, { keyframes: [{ opacity: 0.2 }, { opacity: 1 }, { opacity: 0.2 }, { opacity: 1 }], duration: 1.6, ease: "none" }, 1.0);
+        headOut("#hkT", 2.78);
+
+        // ================= S2 KASSA (VO 3.20)
+        tl.fromTo("#kT .chip", { opacity: 0, x: -60 }, { opacity: 1, x: 0, duration: 0.4, ease: "power4.out" }, 3.05);
+        words("#kT .ln:nth-child(2)", 3.15, 0.1);
+        words("#kT .ln:nth-child(3)", 3.6, 0.12);
+        cardIn("#cardK", 3.35, 5.78);
+        tl.fromTo("#kOk", { scale: 0, rotation: -40 }, { scale: 1, rotation: 0, duration: 0.45, ease: "back.out(2.4)" }, 3.75);
+        const kv = { v: 0 };
+        tl.fromTo(kv, { v: 0 }, { v: 4250000, duration: 0.9, ease: "power3.out", immediateRender: false, onUpdate: () => { q("#kAmtV").textContent = fmt(kv.v); } }, 3.7);
+        tl.fromTo("#cardK .pays span", { opacity: 0, y: 24 }, { opacity: 1, y: 0, duration: 0.3, ease: "back.out(2)", stagger: 0.07 }, 4.0);
+        tl.fromTo("#kCard", { backgroundColor: "rgba(255,255,255,0.07)", color: "#c8d3ec" }, { backgroundColor: "#2f6bff", color: "#ffffff", duration: 0.2, ease: "none" }, 4.5);
+        tl.fromTo("#kCard", { scale: 1 }, { keyframes: [{ scale: 0.92, duration: 0.08 }, { scale: 1.06, duration: 0.12 }, { scale: 1, duration: 0.15 }], immediateRender: false }, 4.5);
+        const kt = { s: 0 };
+        tl.fromTo(kt, { s: 0 }, { s: 108, duration: 1.1, ease: "power2.out", immediateRender: false, onUpdate: () => {
+          const s = Math.round(kt.s); q("#kTime").textContent = Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0");
+        } }, 4.25);
+        tl.fromTo("#kBar", { scaleX: 0 }, { scaleX: 0.9, duration: 1.1, ease: "power2.out" }, 4.25);
+        headOut("#kT", 5.78);
+
+        // ================= S3 NASIYA (VO 6.20)
+        tl.fromTo("#nT .chip", { opacity: 0, x: -60 }, { opacity: 1, x: 0, duration: 0.4, ease: "power4.out" }, 6.05);
+        words("#nT .ln:nth-child(2)", 6.15, 0.1);
+        words("#nT .ln:nth-child(3)", 6.75, 0.1);
+        cardIn("#cardN", 6.35, 8.78);
+        const segB = qa("#cardN .seg b");
+        tl.set(segB, { scaleX: 0 }, 0);
+        [0, 1, 2].forEach((i) => tl.fromTo(segB[i], { scaleX: 0 }, { scaleX: 1, duration: 0.22, ease: "power2.out", immediateRender: false }, 6.75 + i * 0.12));
+        tl.fromTo(segB[3], { scaleX: 0 }, { scaleX: 0.5, duration: 0.3, ease: "power2.out", immediateRender: false }, 7.12);
+        tl.fromTo("#nNext > *", { opacity: 0, y: 20 }, { opacity: 1, y: 0, duration: 0.3, ease: "back.out(2)", stagger: 0.08 }, 6.95);
+        headOut("#nT", 8.78);
+
+        // ================= S4 OMBOR (VO 9.20)
+        tl.fromTo("#oT .chip", { opacity: 0, x: -60 }, { opacity: 1, x: 0, duration: 0.4, ease: "power4.out" }, 9.05);
+        words("#oT .ln:nth-child(2)", 9.15, 0.1);
+        words("#oT .ln:nth-child(3)", 9.7, 0.1);
+        cardIn("#cardO", 9.25, 11.48);
+        tl.fromTo("#laser", { x: 0 }, { x: 244, duration: 0.5, ease: "power1.inOut" }, 9.5);
+        tl.fromTo("#laser", { opacity: 1 }, { opacity: 0, duration: 0.1, ease: "none", immediateRender: false }, 10.0);
+        tl.fromTo("#oOk", { opacity: 0, scale: 0.6 }, { opacity: 1, scale: 1, duration: 0.35, ease: "back.out(2.4)" }, 9.95);
+        tl.fromTo("#oLow", { opacity: 0, x: 140 }, { opacity: 1, x: 0, duration: 0.4, ease: "power4.out" }, 10.05);
+        headOut("#oT", 11.48);
+
+        // ================= S5 klip telefon ekraniga aylanadi (11.72 - 12.32)
+        tl.to("#gradeIn", { opacity: 0, duration: 0.3, ease: "none" }, 11.6);
+        tl.fromTo("#vw4", { scale: 1, clipPath: "inset(0px 0px 0px 0px round 0px)" },
+          { scale: 0.496875, clipPath: "inset(0px 63px 0px 63px round 129px)", duration: 0.6, ease: "power3.inOut", immediateRender: false }, 11.72);
+        tl.fromTo("#phone .rim", { opacity: 0, scale: 1.06 }, { opacity: 1, scale: 1, duration: 0.3, ease: "power3.out" }, 12.1);
+        tl.fromTo("#phone .isl", { opacity: 0 }, { opacity: 1, duration: 0.2, ease: "none" }, 12.25);
+        tl.fromTo("#scr", { opacity: 0 }, { opacity: 1, duration: 0.25, ease: "none" }, 12.3);
+        tl.fromTo("#phone .back", { opacity: 0 }, { opacity: 1, duration: 0.05, ease: "none" }, 12.56);
+        const rv = { v: 0, c: 0 };
+        tl.fromTo(rv, { v: 0, c: 0 }, { v: 12480000, c: 34, duration: 1.1, ease: "power3.out", immediateRender: false, onUpdate: () => {
+          q("#revAmt").textContent = fmt(rv.v); q("#revCnt").textContent = Math.round(rv.c);
+        } }, 12.35);
+        tl.fromTo("#bars i", { scaleY: 0 }, { scaleY: 1, duration: 0.4, ease: "back.out(2)", stagger: 0.05 }, 12.4);
+        tl.fromTo("#scr .row", { opacity: 0, x: 60 }, { opacity: 1, x: 0, duration: 0.3, ease: "power3.out", stagger: 0.08 }, 12.5);
+        // telefon 3D da buriladi
+        tl.fromTo("#phone", { rotationY: 0, rotationX: 0, y: 0 }, { rotationY: -12, rotationX: 6, y: 20, duration: 1.4, ease: "sine.inOut" }, 12.6);
+        tl.to("#phone", { rotationY: 12, rotationX: 4, y: 0, duration: 1.5, ease: "sine.inOut" }, 14.0);
+        // yig'ilish: modullar telefonga, telefon aylanib yo'qoladi
+        tl.to("#phone", { rotationY: 200, scale: 0.25, duration: 0.45, ease: "power3.in" }, 15.5);
+        tl.to("#stage", { opacity: 0, duration: 0.14, ease: "none" }, 15.84);
+        words("#sysHead .ln:nth-child(1)", 13.95, 0.1);
+        words("#sysHead .ln:nth-child(2)", 14.3, 0.12);
+        headOut("#sysHead", 15.45);
+        tl.fromTo("#flash", { opacity: 0, scale: 0 }, { keyframes: [{ opacity: 1, scale: 34, duration: 0.18, ease: "power2.out" }, { opacity: 0, scale: 64, duration: 0.28, ease: "power2.in" }] }, 15.86);
+
+        // modullar: avval telefon yonida (VO bo'yicha), keyin 3D orbita, so'ng markazga
+        const tiles = qa(".tile");
+        const TILES = [
+          { x: -300, y: -330, ry: 20, o: -150, tp: 12.38 },   // Kassa
+          { x: 300, y: -330, ry: -20, o: 150, tp: 12.82 },    // Ombor
+          { x: -300, y: -70, ry: 20, o: -90, tp: 13.28 },     // Nasiya
+          { x: 300, y: -70, ry: -20, o: 90, tp: 13.78 },      // Filiallar
+          { x: -300, y: 190, ry: 20, o: -30, tp: 14.05 },     // Qarz daftari
+          { x: 300, y: 190, ry: -20, o: 30, tp: 14.3 },       // AI yordamchi
+        ];
+        const R = 360, RZ = 300, RY = 240, Z1 = 170;
+        const eBo = gsap.parseEase("back.out(1.5)"), eIo = gsap.parseEase("power2.inOut"), ePi = gsap.parseEase("power3.in");
+        const renderSys = (t) => {
+          const m = eIo(cl((t - 14.55) / 0.6));      // yon ustunlar -> orbita
+          const a = 75 * Math.max(0, t - 14.55);     // orbita burchagi (daraja)
+          const c = ePi(cl((t - 15.48) / 0.4));      // markazga yig'ilish
+          tiles.forEach((el, i) => {
+            const T = TILES[i];
+            const k = eBo(cl((t - T.tp) / 0.55));
+            const th = ((T.o + a) * Math.PI) / 180;
+            const ox = R * Math.sin(th), oy = RY * Math.cos(th), oz = RZ * Math.cos(th);
+            const sp = k * (1 - c);
+            const x = (T.x + (ox - T.x) * m) * sp;
+            const y = (T.y + (oy - T.y) * m) * sp;
+            const z = (Z1 + (oz - Z1) * m) * sp;
+            const rot = T.ry * (1 - m) + -Math.sin(th) * 16 * m;
+            const shade = 0.5 + 0.5 * cl((oz / RZ + 1) / 2);
+            const op = cl(k * 1.6) * (1 - c) * (1 - m + m * shade);
+            el.style.transform = "translate3d(" + x.toFixed(2) + "px," + y.toFixed(2) + "px," + z.toFixed(2) + "px) rotateY(" + rot.toFixed(2) + "deg) scale(" + Math.max(0.001, sp).toFixed(4) + ")";
+            el.style.opacity = op.toFixed(3);
+          });
+        };
+        const sys = { t: 11.9 };
+        renderSys(11.9);
+        tl.fromTo(sys, { t: 11.9 }, { t: 16.2, duration: 4.3, ease: "none", immediateRender: false, onUpdate: () => renderSys(sys.t) }, 11.9);
+
+        // ================= S6 LOGO (VO 16.05)
+        const lp = (n) => qa("#lock .lp" + n);
+        tl.fromTo("#lockIn", { rotationY: -70, scale: 0.7, transformPerspective: 1200 }, { rotationY: 0, scale: 1, duration: 0.9, ease: "expo.out" }, 15.95);
+        [0, 1].forEach((i) => {
+          tl.fromTo(lp(i), { attr: { "stroke-dashoffset": LENS[i] } }, { attr: { "stroke-dashoffset": 0 }, duration: 0.5, ease: "power2.inOut" }, 15.98 + i * 0.12);
+          tl.fromTo(lp(i), { attr: { "fill-opacity": 0, "stroke-opacity": 1 } }, { attr: { "fill-opacity": 1, "stroke-opacity": 0 }, duration: 0.35, ease: "power2.out" }, 16.4 + i * 0.1);
+        });
+        [2, 3, 4].forEach((i, k) => {
+          tl.fromTo(lp(i), { attr: { "fill-opacity": 1, "stroke-opacity": 0 }, scaleY: 0, transformOrigin: "50% 100%" }, { scaleY: 1, duration: 0.4, ease: "back.out(2.2)" }, 16.5 + k * 0.1);
+        });
+        tl.fromTo(qa("#lock .wl"), { y: 760, opacity: 0 }, { y: 0, opacity: 1, duration: 0.5, ease: "power4.out", stagger: 0.05 }, 16.4);
+        tl.fromTo("#sheen i", { x: 0 }, { x: 1500, duration: 0.7, ease: "power2.inOut" }, 16.95);
+        tl.fromTo(qa("#tag .w"), { opacity: 0, y: 50, rotationX: -70, transformPerspective: 900 }, { opacity: 1, y: 0, rotationX: 0, duration: 0.4, ease: "back.out(1.8)", stagger: 0.08 }, 16.35);
+        tl.to("#tag", { opacity: 0, y: 80, filter: "blur(8px)", duration: 0.28, ease: "power2.in" }, 17.98);
+        // CTA uchun yuqoriga
+        tl.fromTo("#lock", { y: 0, scale: 1 }, { y: -190, scale: 0.68, duration: 0.55, ease: "expo.inOut", transformOrigin: "50% 0%" }, 18.0);
+        tl.fromTo("#lock", { y: -190 }, { y: -205, duration: 5.4, ease: "sine.inOut", immediateRender: false }, 18.55);
+
+        // ================= S7 CTA (VO 18.45)
+        tl.fromTo("#ctaLead", { opacity: 0, y: 30 }, { opacity: 1, y: 0, duration: 0.35, ease: "power3.out" }, 18.3);
+        tl.fromTo("#btn", { opacity: 0, scale: 0.6, y: 40 }, { opacity: 1, scale: 1, y: 0, duration: 0.45, ease: "back.out(1.8)" }, 18.4);
+        tl.fromTo("#btnSheen", { x: 0 }, { x: 1000, duration: 0.8, ease: "power2.inOut" }, 19.0);
+        tl.fromTo("#btnSheen", { x: 0 }, { x: 1000, duration: 0.8, ease: "power2.inOut", immediateRender: false }, 22.4);
+        tl.fromTo("#free", { opacity: 0, scale: 1.8, filter: "blur(12px)" }, { opacity: 1, scale: 1, filter: "blur(0px)", duration: 0.35, ease: "power4.out" }, 19.55);
+        tl.fromTo("#noCard", { opacity: 0, y: 20 }, { opacity: 1, y: 0, duration: 0.3, ease: "power3.out" }, 19.95);
+        tl.fromTo("#finger", { opacity: 0, x: 120, y: 160 }, { opacity: 1, x: 0, y: 0, duration: 0.45, ease: "power3.out" }, 20.95);
+        tl.fromTo("#btn", { scale: 1 }, { keyframes: [{ scale: 0.94, duration: 0.1 }, { scale: 1.04, duration: 0.15 }, { scale: 1, duration: 0.2 }], immediateRender: false }, 21.5);
+        tl.fromTo("#finger", { scale: 1 }, { keyframes: [{ scale: 0.9, duration: 0.1 }, { scale: 1, duration: 0.15 }], immediateRender: false }, 21.5);
+        tl.fromTo("#ripple", { scale: 0, opacity: 0.9 }, { scale: 3.5, opacity: 0, duration: 0.45, ease: "power2.out" }, 21.55);
+        tl.to("#finger", { opacity: 0, y: 60, duration: 0.3, ease: "power2.in" }, 22.1);
+
+        window.__timelines["main"] = tl;
+      })();
+    </script>
+  </body>
+</html>
