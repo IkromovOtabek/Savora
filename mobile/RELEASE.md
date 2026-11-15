@@ -76,6 +76,28 @@ App Store Connect → Savora → **TestFlight**. Build "Processing" (5–30 daqi
 
 Lokal muqobil: `npm run build:ios` → `npm run submit:ios`.
 
+## OTA yangilash — build'siz (v1.5.0 dan)
+
+**OTA** (over-the-air) — ilovani do'konga qayta yubormasdan, ekran/matn/mantiq (JS) o'zgarishlarini
+internet orqali telefonlarga yetkazish (EAS Update). Apple ko'rigi va yangi APK kerak emas.
+
+Qachon OTA bo'ladi: faqat `mobile/app`, `mobile/components`, `mobile/lib` kodi va lug'at o'zgarganda.
+Qachon OTA **bo'lmaydi** (yangi build kerak): yangi `expo-*`/native paket, `app.json` dagi plugins,
+ruxsatlar, ikonka/splash, `version`. Shunda `version` ni oshirib, yuqoridagi «Har keyingi reliz» yo'li.
+
+1. Kerak bo'lsa avval server deploy (yangi ekran yangi API'ga murojaat qilsa — deploy birinchi).
+2. Commit + push `main`.
+3. GitHub → **Actions → Mobile OTA update → Run workflow** → izoh yozing.
+4. Foydalanuvchi ilovani ochganda yangilanish fonda yuklanadi, **keyingi ochilishda** ko'rinadi.
+
+Qaysi telefonlarga yetadi: `app.json` → `version` bir xil bo'lgan buildlar (runtimeVersion = versiya),
+`production` kanali — TestFlight/App Store va saytdagi APK (preview profili ham shu kanalda).
+Holat va orqaga qaytarish: expo.dev → savora-mobile → Updates (`eas update:republish` bilan oldingisiga).
+
+Lokal muqobil (EAS'ga kirilgan bo'lsa):
+`EXPO_PUBLIC_API_URL=https://savora.uz npx --yes eas-cli@latest update --channel production -m "izoh"`
+(API manzilini albatta bering — aks holda lokal `.env` dagi test manzili prod ilovaga tushib qolishi mumkin).
+
 ## App Store'ga (TestFlight'dan keyin) — kerak bo'ladi
 
 - Skrinshotlar: iPhone 6.7" (1290×2796) va 6.5" (1242×2688) — kamida 3 tadan.

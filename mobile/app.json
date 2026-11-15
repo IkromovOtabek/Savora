@@ -3,7 +3,15 @@
     "name": "Savora",
     "slug": "savora-mobile",
     "owner": "otabekikromov",
-    "version": "1.4.0",
+    "version": "1.5.0",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/a4fc9249-18d5-4304-9387-348a62ec1cf9",
+      "checkAutomatically": "ON_LOAD",
+      "fallbackToCacheTimeout": 0
+    },
     "orientation": "portrait",
     "scheme": "savora",
     "icon": "./assets/icon.png",

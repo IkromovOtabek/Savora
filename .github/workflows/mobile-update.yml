@@ -1,0 +1,64 @@
+# Mobil ilovani OTA (havo orqali) yangilash — EAS Update. Do'kon va Apple ko'rigisiz:
+# faqat JS/ekran o'zgarishlari telefonlarga yetadi (ilova keyingi ochilishda yuklab oladi,
+# undan keyingi ochilishda yangisi ko'rinadi).
+#
+# Ishga tushirish: GitHub → Actions → "Mobile OTA update" → Run workflow (izoh yozing).
+#
+# Faqat shu versiyadagi (app.json → version) buildlarga yetadi (runtimeVersion: appVersion).
+# Native modul qo'shilsa yoki o'zgarsa (yangi expo-* paket, app.json plugins/permissions) — OTA EMAS:
+# versiyani oshirib, "Mobile release" bilan yangi build chiqaring. Yo'riqnoma: mobile/RELEASE.md.
+#
+# Kerakli sir: EXPO_TOKEN (mobile-release.yml bilan bir xil).
+name: Mobile OTA update
+
+on:
+  workflow_dispatch:
+    inputs:
+      message:
+        description: Nima o'zgardi (qisqa izoh, expo.dev'da ko'rinadi)
+        type: string
+        required: true
+
+concurrency:
+  group: mobile-update
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mobile
+    env:
+      # OTA paket shu manzil bilan yig'iladi — lokal/test manzili prod ilovaga tushib qolmasin
+      EXPO_PUBLIC_API_URL: https://savora.uz
+      MESSAGE: ${{ github.event.inputs.message }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+
+      - name: EAS CLI
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - run: npm ci
+
+      - name: Type check
+        run: npm run typecheck
+
+      - name: EAS update (production kanali — TestFlight va saytdagi APK)
+        run: eas update --channel production --message "$MESSAGE" --non-interactive
+
+      - name: Natija
+        run: |
+          echo "## Mobile OTA update" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Versiya (runtime): **$(node -p "require('./app.json').expo.version")**, kanal: **production**" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Izoh: $MESSAGE" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Holat: https://expo.dev/accounts/otabekikromov/projects/savora-mobile/updates" >> "$GITHUB_STEP_SUMMARY"
