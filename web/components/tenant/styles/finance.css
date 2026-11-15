@@ -207,6 +207,14 @@ a.fn-tl-title:focus-visible { outline: 2px solid var(--brand); outline-offset: 2
 }
 .fn-flow-net span { font-size: 14px; font-weight: 600; color: var(--ink-2); }
 .fn-flow-net strong { font-size: 22px; font-weight: 700; font-variant-numeric: tabular-nums; }
+/* Butun karta havola bo'lganda (Jami → barcha filiallar batafsil) */
+.fn-flow-link { display: block; color: inherit; text-decoration: none; border-radius: var(--r-xl); }
+.fn-flow-link:focus-visible { outline: 2px solid var(--brand); outline-offset: 3px; }
+.fn-flow-net .fn-flow-more {
+  flex-basis: 100%; display: flex; align-items: center; justify-content: flex-end; gap: 4px;
+  font-size: 13px; color: var(--brand);
+}
+.fn-flow-link:hover .fn-flow-more { text-decoration: underline; }
 
 /* Qidiruv */
 .fn-search {

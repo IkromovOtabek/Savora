@@ -10,11 +10,19 @@ import { fmtMoney, fmtCompact, fmtDayMonth, greeting, isOverdue, isToday, payLab
 import { useDict, tr } from '@/lib/i18n';
 import {
   Screen, TopBar, IconButton, Group, GroupLink, Cell, Avatar, AmountColumn, Pill, StatCard, TileGrid, BrandMark, EmptyState, ErrorState, InlineError, Loading,
+  SegmentedControl,
   type TileItem,
 } from '@/components/ui';
 import { OfflineBanner } from '@/components/OfflineBanner';
 
-interface Summary { inStock: number; todaySales: number; todayRevenue: number; debtTotal: number }
+interface Summary {
+  inStock: number; todaySales: number; todayRevenue: number; debtTotal: number;
+  /** Tanlangan davr bo'yicha (eski server javobida bo'lmasligi mumkin — unda bugungi) */
+  periodSales?: number; periodRevenue?: number;
+}
+/** Web bosh sahifasi bilan bir xil davrlar (server: lib/period.ts) */
+const PERIODS = ['all', 'yesterday', 'today', 'week', 'month', 'year'] as const;
+type Period = (typeof PERIODS)[number];
 interface Sale {
   id: string; saleNo: string; product: string; customer: string | null; paymentType: string;
   totalAmount: number; remainingAmount: number; installmentMonths: number | null; dueDate: string | null;
@@ -39,13 +47,14 @@ export default function Home() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [heroSize, setHeroSize] = useState({ w: 0, h: 0 });
+  const [period, setPeriod] = useState<Period>('today');
   const gen = useRef(0);
 
   const load = useCallback(async () => {
     const id = ++gen.current;
     const none = Promise.resolve({ items: [] as Sale[] });
     const [s, d, r] = await Promise.allSettled([
-      api<Summary>('/api/mobile/summary'),
+      api<Summary>(`/api/mobile/summary?p=${period}`),
       canSales ? api<{ items: Sale[] }>('/api/mobile/sales?type=debt') : none,
       canSales ? api<{ items: Sale[] }>('/api/mobile/sales?type=all') : none,
     ]);
@@ -56,7 +65,7 @@ export default function Home() {
     const failed = [s, d, r].find((x) => x.status === 'rejected') as PromiseRejectedResult | undefined;
     setError(failed ? errMsg(failed.reason) : null);
     setLoading(false); setRefreshing(false);
-  }, [canSales]);
+  }, [canSales, period]);
 
   useEffect(() => { load(); }, [load]);
   // Boshqa ekrandan qaytganda — jimgina yangilash
@@ -97,6 +106,11 @@ export default function Home() {
     ...(f.users && isAdmin && can('users.manage') ? [{ key: 'branches', label: d.home.branches, icon: 'business' as const, color: c.sq.b, onPress: () => router.push('/branches') }] : []),
   ];
 
+  const isTodayPeriod = period === 'today';
+  const periodName = d.home.periods[period];
+  const revenue = sum?.periodRevenue ?? sum?.todayRevenue;
+  const salesN = sum?.periodSales ?? sum?.todaySales ?? 0;
+
   if (loading) return <Screen bar={bar}><Loading /></Screen>;
   if (!sum && error) return <Screen bar={bar} onRefresh={() => { setRefreshing(true); load(); }} refreshing={refreshing}><OfflineBanner /><ErrorState message={error} onRetry={() => { setLoading(true); load(); }} /></Screen>;
 
@@ -111,10 +125,19 @@ export default function Home() {
         </Group>
       ) : null}
 
+      <SegmentedControl
+        options={PERIODS.map((p) => ({ key: p, label: d.home.periods[p] }))}
+        value={period}
+        onChange={setPeriod}
+      />
+
       <View
         style={[s.hero, { backgroundColor: c.hero2 }]}
         onLayout={(e) => { const { width, height } = e.nativeEvent.layout; setHeroSize({ w: width, h: height }); }}
-        accessible accessibilityLabel={tr(d.home.todayRevenueA11y, { v: fmtMoney(sum?.todayRevenue, { suffix: true }) })}>
+        accessible
+        accessibilityLabel={isTodayPeriod
+          ? tr(d.home.todayRevenueA11y, { v: fmtMoney(revenue, { suffix: true }) })
+          : tr(d.home.periodRevenueA11y, { period: periodName, v: fmtMoney(revenue, { suffix: true }) })}>
         <Svg width={heroSize.w} height={heroSize.h} style={StyleSheet.absoluteFill} pointerEvents="none">
           <Defs>
             <LinearGradient id="heroGrad" x1="0" y1="0" x2="1" y2="1">
@@ -131,14 +154,14 @@ export default function Home() {
           <View style={[s.heroBar, { height: 76, opacity: 0.18 }]} />
         </View>
         <View style={s.heroTop}>
-          <Text style={s.heroL}>{d.home.todayRevenue}</Text>
-          <View style={s.heroDate}><Text style={s.heroDateT}>{fmtDayMonth(new Date())}</Text></View>
+          <Text style={s.heroL}>{isTodayPeriod ? d.home.todayRevenue : tr(d.home.periodRevenue, { period: periodName })}</Text>
+          {isTodayPeriod ? <View style={s.heroDate}><Text style={s.heroDateT}>{fmtDayMonth(new Date())}</Text></View> : null}
         </View>
         <Text style={[s.heroV, tabular]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.6}>
-          {fmtMoney(sum?.todayRevenue)}<Text style={s.heroSuffix}> {d.format.currency}</Text>
+          {fmtMoney(revenue)}<Text style={s.heroSuffix}> {d.format.currency}</Text>
         </Text>
         <View style={s.heroRow}>
-          <Text style={[s.heroR, tabular]}>{tr(d.home.salesCount, { n: sum?.todaySales ?? 0 })}</Text>
+          <Text style={[s.heroR, tabular]}>{tr(d.home.salesCount, { n: salesN })}</Text>
           <Text style={[s.heroR, tabular]}>{tr(d.home.inStock, { v: fmtMoney(sum?.inStock) })}</Text>
           {sum && sum.debtTotal > 0 ? <Text style={[s.heroR, tabular]} numberOfLines={1}>{tr(d.home.debt, { v: fmtCompact(sum.debtTotal) })}</Text> : null}
         </View>

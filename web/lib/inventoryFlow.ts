@@ -57,6 +57,34 @@ export function lineFromProduct(
   };
 }
 
+interface SaleRow {
+  _id: { toString(): string };
+  saleNo: string;
+  totalAmount?: number;
+  productSnapshot?: { name?: string; unit?: string | null; saleQuantity?: number; purchasePrice?: number } | null;
+}
+
+/** Chiqim qatori — haqiqiy sotuvdan (Sotildi bilan bir manba): tushum = totalAmount, tannarx = xarid narxi × miqdor */
+export function lineFromSale(s: SaleRow, branchName: string): FlowLine {
+  const qty = s.productSnapshot?.saleQuantity ?? 1;
+  const unitPurchase = s.productSnapshot?.purchasePrice ?? 0;
+  const cost = priceTimesQty(unitPurchase, qty);
+  const revenue = s.totalAmount ?? 0;
+  return {
+    id: String(s._id),
+    productId: s.saleNo,
+    name: s.productSnapshot?.name ?? '—',
+    branchName,
+    qty,
+    unit: s.productSnapshot?.unit ?? null,
+    unitPurchase,
+    unitSale: qty > 0 ? Math.round(revenue / qty) : revenue,
+    cost,
+    revenue,
+    profit: revenue - cost,
+  };
+}
+
 export function aggregateFlowTotals(stockLines: FlowLine[], soldLines: FlowLine[]): FlowTotals {
   const stockQty: QtyByUnit = {};
   let stockCost = 0;

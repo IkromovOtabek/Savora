@@ -1,8 +1,7 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { getTenantAdminSession } from '@/lib/tenantSession';
-import { aggregateFlowTotals, lineFromProduct, type FlowLine } from '@/lib/inventoryFlow';
-import { priceTimesQty } from '@/lib/qty';
+import { aggregateFlowTotals, lineFromProduct, lineFromSale, type FlowLine } from '@/lib/inventoryFlow';
 import KirimChiqimPanel from '@/components/tenant/KirimChiqimPanel';
 import BackLink from '@/components/ui/BackLink';
 import { getDict } from '@/lib/i18n/server';
@@ -46,24 +45,7 @@ export default async function KirimChiqimDetailPage({
   }
 
   // Chiqim — haqiqiy sotuvlar (Sotildi bilan bir manba)
-  const soldLines = sales.map((s): FlowLine => {
-    const qty = s.productSnapshot?.saleQuantity ?? 1;
-    const cost = priceTimesQty(s.productSnapshot?.purchasePrice ?? 0, qty);
-    const revenue = s.totalAmount ?? 0;
-    return {
-      id: String(s._id),
-      productId: s.saleNo,
-      name: s.productSnapshot?.name ?? '—',
-      branchName: branchMap[String(s.branchId)] ?? '—',
-      qty,
-      unit: s.productSnapshot?.unit ?? null,
-      unitPurchase: s.productSnapshot?.purchasePrice ?? 0,
-      unitSale: qty > 0 ? Math.round(revenue / qty) : revenue,
-      cost,
-      revenue,
-      profit: revenue - cost,
-    };
-  });
+  const soldLines = sales.map((s) => lineFromSale(s, branchMap[String(s.branchId)] ?? '—'));
 
   const totals = aggregateFlowTotals(stockLines, soldLines);
   const title = isAll ? k.allBranches : branch!.name;

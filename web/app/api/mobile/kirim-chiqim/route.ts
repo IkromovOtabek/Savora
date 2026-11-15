@@ -1,27 +1,13 @@
 import { NextResponse } from 'next/server';
 import { authenticateMobile } from '@/lib/mobileAuth';
-import { mobilePermissionDenied } from '@/lib/permissionGuard';
 import { recordAudit } from '@/lib/audit';
 import { getTenantModels } from '@/lib/tenantDb';
-import { getMobileFeatures } from '@/lib/mobileOrg';
-import type { SessionUser } from '@/lib/session';
+import { kirimChiqimDenied } from '@/lib/mobileOrg';
 import { z } from 'zod';
 import { readJsonInput, zMoney, zOneOf, zReqText } from '@/lib/validation';
 
 /** Izoh uzunlik chegarasi — oshsa 400 */
 const MAX_DESCRIPTION_LEN = 300;
-
-/** Kirim-chiqim — faqat biznes egasi (admin) va modul yoqilgan bo'lsa (web bilan bir xil) */
-async function denyUnlessAllowed(user: SessionUser): Promise<NextResponse | null> {
-  if (user.role !== 'admin') {
-    return NextResponse.json({ error: 'Faqat biznes egasi uchun.' }, { status: 403 });
-  }
-  const features = await getMobileFeatures(user.organizationId);
-  if (!features?.kirimChiqim) {
-    return NextResponse.json({ error: 'Kirim-chiqim moduli yoqilmagan.' }, { status: 403 });
-  }
-  return null;
-}
 
 /** Kirim-chiqim ro'yxati + jami (kirim, chiqim, qoldiq). */
 export async function GET(req: Request) {
@@ -29,9 +15,8 @@ export async function GET(req: Request) {
   if (auth instanceof NextResponse) return auth;
   const user = auth;
   if (!user || !user.dbName) return NextResponse.json({ error: 'Avtorizatsiya kerak.' }, { status: 401 });
-  const denied = await denyUnlessAllowed(user);
+  const denied = await kirimChiqimDenied(user);
   if (denied) return denied;
-  { const noPerm = await mobilePermissionDenied(user, 'kirimChiqim.manage'); if (noPerm) return noPerm; }
 
   const { CashFlow } = await getTenantModels(user.dbName);
   const [items, agg] = await Promise.all([
@@ -56,9 +41,8 @@ export async function POST(req: Request) {
   if (auth instanceof NextResponse) return auth;
   const user = auth;
   if (!user || !user.dbName) return NextResponse.json({ error: 'Avtorizatsiya kerak.' }, { status: 401 });
-  const denied = await denyUnlessAllowed(user);
+  const denied = await kirimChiqimDenied(user);
   if (denied) return denied;
-  { const noPerm = await mobilePermissionDenied(user, 'kirimChiqim.manage'); if (noPerm) return noPerm; }
 
   const input = await readJsonInput(req, z.object({
     type: zOneOf(['income', 'expense'] as const, 'Tur noto\'g\'ri.'),

@@ -1,5 +1,8 @@
 import { useState } from 'react';
 import { View, Alert } from 'react-native';
+import { useRouter } from 'expo-router';
+import { Text } from '@/components/ui/Text';
+import { FlowTotalCard, type FlowTotals } from '@/components/FlowTotalCard';
 import { api, errMsg } from '@/lib/api';
 import { useResource } from '@/lib/hooks';
 import { useTheme } from '@/lib/theme';
@@ -15,7 +18,10 @@ interface Data { income: number; expense: number; balance: number; items: Entry[
 export default function KirimChiqim() {
   const { c } = useTheme();
   const d = useDict();
+  const router = useRouter();
   const res = useResource<Data>('/api/mobile/kirim-chiqim');
+  // Ombor qiymati jami (web «Kirim-chiqim» kartasi) — faqat jami, ro'yxat batafsil ekranda
+  const flow = useResource<{ totals: FlowTotals }>('/api/mobile/kirim-chiqim/flow?lines=0');
   const [type, setType] = useState<'income' | 'expense'>('income');
   const [amount, setAmount] = useState('');
   const [desc, setDesc] = useState('');
@@ -38,11 +44,20 @@ export default function KirimChiqim() {
 
   const data = res.data;
   return (
-    <Screen keyboard header={<NavBar />} refreshing={res.refreshing} onRefresh={res.refresh}>
+    <Screen keyboard header={<NavBar />} refreshing={res.refreshing} onRefresh={() => { res.refresh(); flow.reloadSilently(); }}>
       <LargeTitle title={d.kirimChiqim.title} />
+      {flow.data ? (
+        <FlowTotalCard
+          totals={flow.data.totals}
+          title={d.kirimChiqim.totalAll}
+          moreLabel={d.kirimChiqim.allDetail}
+          onPress={() => router.push('/kirim-chiqim-all')}
+        />
+      ) : flow.error ? <InlineError message={flow.error} onRetry={flow.retry} /> : null}
       {res.loading && !data ? <Loading /> : !data ? <ErrorState message={res.error} onRetry={res.retry} /> : (
         <>
           {res.error ? <InlineError message={res.error} onRetry={res.refresh} /> : null}
+          <Text style={{ fontSize: 20, fontWeight: '700', color: c.ink, marginTop: 4 }}>{d.kirimChiqim.cashTitle}</Text>
           <View style={{ flexDirection: 'row', gap: 10 }}>
             <StatCard label={d.kirimChiqim.income} value={fmtCompact(data.income)} color={c.ok} />
             <StatCard label={d.kirimChiqim.expense} value={fmtCompact(data.expense)} color={c.bad} />
@@ -58,7 +73,7 @@ export default function KirimChiqim() {
 
           {data.items.length === 0 ? <EmptyState icon="wallet-outline" title={d.kirimChiqim.empty} /> : (
             <Group header={d.kirimChiqim.recent}>
-              {data.items.slice(0, 50).map((e) => (
+              {data.items.map((e) => (
                 <Cell
                   key={e.id}
                   icon={e.type === 'income' ? 'arrow-down' : 'arrow-up'}

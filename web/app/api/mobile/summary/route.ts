@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { authenticateMobile } from '@/lib/mobileAuth';
 import { getTenantModels } from '@/lib/tenantDb';
 import { branchFilter, branchAggMatch } from '@/lib/branchScope';
+import { parsePeriod, periodRange } from '@/lib/period';
 
 export async function GET(req: Request) {
   const auth = await authenticateMobile(req);
@@ -16,12 +17,16 @@ export async function GET(req: Request) {
 
   const todayStart = new Date();
   todayStart.setHours(0, 0, 0, 0);
+  // Bosh sahifa filtri (?p=all|yesterday|today|week|month|year|YYYY-MM-DD) — web bosh sahifasi bilan bir xil davrlar
+  const period = parsePeriod(new URL(req.url).searchParams.get('p'));
+  const { start, end } = periodRange(period, todayStart);
+  const inPeriod = { createdAt: { $gte: start, $lt: end } };
 
-  const [inStock, todaySales, todayRevenueAgg, debtAgg] = await Promise.all([
+  const [inStock, periodSales, periodRevenueAgg, debtAgg] = await Promise.all([
     Product.countDocuments({ ...scope, status: 'in_stock' }),
-    Sale.countDocuments({ ...scope, createdAt: { $gte: todayStart }, status: { $ne: 'cancelled' } }),
+    Sale.countDocuments({ ...scope, ...inPeriod, status: { $ne: 'cancelled' } }),
     Sale.aggregate([
-      { $match: { ...aggScope, createdAt: { $gte: todayStart }, status: { $ne: 'cancelled' } } },
+      { $match: { ...aggScope, ...inPeriod, status: { $ne: 'cancelled' } } },
       { $group: { _id: null, total: { $sum: '$paidAmount' } } },
     ]),
     Sale.aggregate([
@@ -30,10 +35,15 @@ export async function GET(req: Request) {
     ]),
   ]);
 
+  const periodRevenue = periodRevenueAgg[0]?.total ?? 0;
   return NextResponse.json({
     inStock,
-    todaySales,
-    todayRevenue: todayRevenueAgg[0]?.total ?? 0,
+    period,
+    periodSales,
+    periodRevenue,
+    // Eski ilova versiyalari uchun (p= yuborilmasa davr «bugun» — qiymat bir xil)
+    todaySales: periodSales,
+    todayRevenue: periodRevenue,
     debtTotal: debtAgg[0]?.total ?? 0,
   });
 }

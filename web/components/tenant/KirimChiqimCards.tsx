@@ -30,6 +30,8 @@ export function FlowSplit({
   foyda,
   kirimLabel,
   chiqimLabel,
+  href,
+  hrefLabel,
 }: {
   kirimValue: number;
   kirimQty: QtyByUnit;
@@ -38,11 +40,14 @@ export function FlowSplit({
   foyda: number;
   kirimLabel?: string;
   chiqimLabel?: string;
+  /** Berilsa — butun karta havola (masalan, barcha filiallar batafsil ro'yxati) */
+  href?: string;
+  hrefLabel?: string;
 }) {
   const d = useDict();
   const k = d.sales.kirimChiqim;
   const units = d.stock.fields.units;
-  return (
+  const card = (
     /* 3D-lite: sahifaning asosiy ob'ekti — engil egiladi, ikonkalar hajmli */
     <Tilt as="section" max={3} className="fn-flow">
       <div className="fn-flow-side">
@@ -64,9 +69,13 @@ export function FlowSplit({
       <div className="fn-flow-net">
         <span>{k.netProfit}</span>
         <strong className={foyda >= 0 ? 'fn-in' : 'fn-out'}>{fmtMoney(foyda)} {d.common.sum}</strong>
+        {href && hrefLabel && (
+          <span className="fn-flow-more">{hrefLabel}<Icon name="chevron" size={14} /></span>
+        )}
       </div>
     </Tilt>
   );
+  return href ? <Link href={href} className="fn-flow-link">{card}</Link> : card;
 }
 
 export default function KirimChiqimCards({ total, cards, showImei = false }: { total: BranchFlowCard; cards: BranchFlowCard[]; showImei?: boolean }) {
@@ -89,7 +98,7 @@ export default function KirimChiqimCards({ total, cards, showImei = false }: { t
 
   return (
     <div className="fn-page">
-      <FlowSplit {...total} />
+      <FlowSplit {...total} href="/app/kirim-chiqim/all" hrefLabel={k.allBranchesDetail} />
 
       <form className="fn-search" onSubmit={onSearch} role="search">
         <Icon name="search" size={18} />
