@@ -65,9 +65,11 @@ export default async function TenantDashboard({
   const scope = branchFilter(user);
   const aggScope = branchAggMatch(user);
 
-  // Bosh sahifa filtri: davr (Hammasi · Kecha · Bugun · Hafta · Oy · Yil · aniq kun) — admin panellari,
-  // davr ko'rsatkichlari va xodimning «Mening sotuvlarim» kartasi; filial (faqat egasi) — davr ko'rsatkichlari va panellar
+  // Bosh sahifa filtri: davr (Hammasi · Kecha · Bugun · Hafta · Oy · Yil · aniq kun) — tushum kartasi, sotuvlar soni,
+  // so'nggi sotuvlar, admin panellari, davr ko'rsatkichlari va xodimning «Mening sotuvlarim» kartasi;
+  // filial (faqat egasi) — shularga qo'shimcha haftalik grafik ham
   const period = parsePeriod(sp?.p);
+  const isToday = period === 'today';
   const { start: pStart, end: pEnd } = periodRange(period, todayStart);
   const inPeriod = { createdAt: { $gte: pStart, $lt: pEnd } };
   const branchSel = user.role === 'admin' && sp?.b && Types.ObjectId.isValid(sp.b) ? sp.b : '';
@@ -77,22 +79,23 @@ export default async function TenantDashboard({
   // Haftalik grafik — oxirgi 7 kun, kunlik chegaralar server vaqti bo'yicha (todayStart bilan bir xil)
   const weekBounds = dayBoundaries(todayStart, 7);
 
-  const [inStock, todaySalesCount, todayRevenueAgg, debtAgg, recentSales, userCount, branchCount, productCount, weekAgg] = await Promise.all([
+  const [inStock, salesCount, revenueAgg, debtAgg, recentSales, userCount, branchCount, productCount, weekAgg] = await Promise.all([
     Product.countDocuments({ ...scope, status: 'in_stock' }),
-    Sale.countDocuments({ ...scope, createdAt: { $gte: todayStart }, status: { $ne: 'cancelled' } }),
+    Sale.countDocuments({ ...scope, ...bMatch, ...inPeriod, status: { $ne: 'cancelled' } }),
     Sale.aggregate([
-      { $match: { ...aggScope, createdAt: { $gte: todayStart }, status: { $ne: 'cancelled' } } },
+      { $match: { ...aggScope, ...bMatch, ...inPeriod, status: { $ne: 'cancelled' } } },
       { $group: { _id: null, total: { $sum: '$paidAmount' } } },
     ]),
     // Mijozlar qarzi (bank krediti — bank qarzi, Kredit kassada)
     Sale.aggregate([{ $match: { ...aggScope, status: 'partial', paymentType: { $ne: 'bank_credit' } } }, { $group: { _id: null, total: { $sum: '$remainingAmount' } } }]),
-    Sale.find({ ...scope, status: { $ne: 'cancelled' } }).sort({ createdAt: -1 }).limit(5).lean(),
+    // Sukut (Bugun) — eng so'nggi sotuvlar sanasidan qat'i nazar; davr tanlansa — shu davr ichidagilar
+    Sale.find({ ...scope, ...bMatch, ...(isToday ? {} : inPeriod), status: { $ne: 'cancelled' } }).sort({ createdAt: -1 }).limit(5).lean(),
     User.countDocuments({ active: true }),
     Branch.countDocuments({ active: true }),
     Product.countDocuments({ ...scope }),
     features.sales
       ? Sale.aggregate<{ _id: Date; total: number; count: number }>([
-          { $match: { ...aggScope, createdAt: { $gte: weekBounds[0], $lt: weekBounds[weekBounds.length - 1] }, status: { $ne: 'cancelled' } } },
+          { $match: { ...aggScope, ...bMatch, createdAt: { $gte: weekBounds[0], $lt: weekBounds[weekBounds.length - 1] }, status: { $ne: 'cancelled' } } },
           { $bucket: { groupBy: '$createdAt', boundaries: weekBounds, default: 'other', output: { total: { $sum: '$paidAmount' }, count: { $sum: 1 } } } },
         ])
       : Promise.resolve([] as { _id: Date; total: number; count: number }[]),
@@ -177,9 +180,10 @@ export default async function TenantDashboard({
   const weekHasData = week.some((d) => d.total > 0);
   const weekTotal = week.reduce((a, d) => a + d.total, 0);
   const yesterday = week[week.length - 2]?.total ?? 0;
-  const revenueDelta = yesterday > 0 ? Math.round(((todayRevenueAgg[0]?.total ?? 0) / yesterday - 1) * 100) : null;
-
-  const todayRevenue = todayRevenueAgg[0]?.total ?? 0;
+  const revenue = revenueAgg[0]?.total ?? 0;
+  // Kechagiga nisbatan o'zgarish — faqat «Bugun» davrida ma'noli
+  const revenueDelta = isToday && yesterday > 0 ? Math.round((revenue / yesterday - 1) * 100) : null;
+  const scopeName = branchSel ? (branchName.get(branchSel) ?? d.common.branch) : t.allBranches;
   const debtTotal = debtAgg[0]?.total ?? 0;
 
   // Daftar balansi — ochiq yozuvlar qoldig'i (berdim − oldim) va kechikkanlar
@@ -240,7 +244,7 @@ export default async function TenantDashboard({
   const head = (
     <div>
       <h1 className="t-page-title">{tr(t.greeting, { name: user.username })}</h1>
-      <p className="t-page-sub">{dateLabel} · {isAdmin ? t.scopeAll : t.scopeBranch}</p>
+      <p className="t-page-sub">{dateLabel} · {isAdmin ? (branchSel ? scopeName : t.scopeAll) : t.scopeBranch}</p>
     </div>
   );
 
@@ -298,18 +302,18 @@ export default async function TenantDashboard({
         <Tilt stack className="t-hero" as="section">
           <div className="t-hero-l">
             <span className="t-hero-ic" aria-hidden="true"><Icon name="wallet" size={18} /></span>
-            {t.todayRevenue}
+            {isToday ? t.todayRevenue : tr(t.periodRevenue, { period: periodText })}
           </div>
-          <div className="t-hero-v t-num ux-z">{fmtMoney(todayRevenue)}<small>{d.common.sum}</small></div>
+          <div className="t-hero-v t-num ux-z">{fmtMoney(revenue)}<small>{d.common.sum}</small></div>
           <div className="t-hero-foot">
             {revenueDelta !== null ? (
               <span className={`t-hero-delta ${revenueDelta >= 0 ? 'is-up' : 'is-down'}`}>
                 <span aria-hidden="true">{revenueDelta >= 0 ? '▲' : '▼'}</span> {Math.abs(revenueDelta)}%
                 <span className="t-hero-delta-l"> {t.vsYesterday}</span>
               </span>
-            ) : (
-              <span className="t-hero-note">{todayRevenue > 0 ? t.noRevenueYesterday : t.noRevenueToday}</span>
-            )}
+            ) : isToday ? (
+              <span className="t-hero-note">{revenue > 0 ? t.noRevenueYesterday : t.noRevenueToday}</span>
+            ) : null}
             {features.sales && <span className="t-hero-note">{t.weekLabel}: <b className="t-num">{fmtMoney(weekTotal)}</b> {d.common.sum}</span>}
           </div>
           {features.sales && weekHasData && <HeroSpark values={week.map((d) => d.total)} />}
@@ -322,9 +326,9 @@ export default async function TenantDashboard({
               icon="cart"
               tone=""
               label={d.common.sales}
-              value={String(todaySalesCount)}
+              value={String(salesCount)}
               unit={d.common.pcs}
-              sub={t.todayAllBranches}
+              sub={isToday && !branchSel ? t.todayAllBranches : `${periodText} · ${scopeName}`}
             />
           ) : (
             <StatCard
@@ -436,7 +440,7 @@ export default async function TenantDashboard({
         <section aria-labelledby="t-recent-h">
           <div className="t-group-head">
             <h2 id="t-recent-h">{t.recentSales}</h2>
-            {features.sales && <Link href="/app/sales" className="t-link">{t.all}</Link>}
+            {features.sales && <Link href={isToday || period === 'all' ? '/app/sales' : `/app/sales?p=${period}`} className="t-link">{t.all}</Link>}
           </div>
           <div className="t-group">
             {recentSales.length === 0 ? (

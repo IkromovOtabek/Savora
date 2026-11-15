@@ -207,7 +207,8 @@ export const uz = {
       week: 'Hafta',
       month: 'Oy',
       year: 'Yil',
-      revenue: 'Tushum',
+      /** Sotuvlar umumiy summasi (totalAmount) — tepadagi «Tushum» esa to'langan pul (paidAmount) */
+      revenue: 'Sotuv summasi',
       count: 'Sotuvlar soni',
       avg: "O'rtacha chek",
       refunds: 'Qaytarilgan',
@@ -229,6 +230,9 @@ export const uz = {
     noRevenueToday: 'Bugun hali tushum yo\'q',
     weekLabel: '7 kun',
     todayAllBranches: 'bugun, barcha filiallar',
+    /** {period} — davr nomi (Hafta, Oy, 10-noyabr ...) */
+    periodRevenue: 'Tushum · {period}',
+    allBranches: 'barcha filiallar',
     mySales: 'Mening sotuvlarim',
     /** {sum} — summa */
     todaySum: 'bugun · {sum} so\'m',
@@ -590,7 +594,7 @@ export const ru: typeof uz = {
       week: 'Неделя',
       month: 'Месяц',
       year: 'Год',
-      revenue: 'Выручка',
+      revenue: 'Сумма продаж',
       count: 'Количество продаж',
       avg: 'Средний чек',
       refunds: 'Возвраты',
@@ -610,6 +614,8 @@ export const ru: typeof uz = {
     noRevenueToday: 'Сегодня выручки пока нет',
     weekLabel: '7 дней',
     todayAllBranches: 'сегодня, все филиалы',
+    periodRevenue: 'Выручка · {period}',
+    allBranches: 'все филиалы',
     mySales: 'Мои продажи',
     todaySum: 'сегодня · {sum} сум',
     periodSum: '{period} · {sum} сум',
