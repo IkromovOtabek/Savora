@@ -78,7 +78,8 @@ export default async function SaleDetailPage({
   const returns = sale.returns ?? [];
 
   // Nasiya (variant) sotuvi bo'lsa — oylik to'lov jadvali
-  const plan = sale.paymentType === 'installment' ? computeInstallmentPlan(sale) : null;
+  // Bekor qilingan sotuvda jadval (navbatdagi oy, keyingi to'lov) ko'rsatilmaydi — to'lov kutilmaydi
+  const plan = sale.paymentType === 'installment' && sale.status !== 'cancelled' ? computeInstallmentPlan(sale) : null;
 
   const cancelled = sale.status === 'cancelled';
   const pct = sale.totalAmount > 0 ? Math.min(100, Math.round((sale.paidAmount / sale.totalAmount) * 100)) : 100;

@@ -8,6 +8,8 @@ export default defineConfig({
   resolve: {
     alias: { '@': root },
   },
+  // tsconfig jsx: preserve (Next) — testlarda .tsx komponentlarni render qilish uchun
+  oxc: { jsx: { runtime: 'automatic' } },
   test: {
     environment: 'node',
     include: ['tests/**/*.test.ts'],
