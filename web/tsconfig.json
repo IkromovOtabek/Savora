@@ -32,9 +32,10 @@
     "**/*.ts",
     "**/*.tsx",
     ".next-local/types/**/*.ts",
+    ".next-localdb/types/**/*.ts",
     ".next/types/**/*.ts",
     "next-env.d.ts",
-    ".next-localdb/types/**/*.ts"
+    ".next-verify/types/**/*.ts"
   ],
   "exclude": [
     "node_modules"
