@@ -41,9 +41,9 @@ export const STORIES = [
     id: '05-tariflar', icon: 'tariflar', eyebrow: 'Tariflar',
     title: 'Har bir tarif\n**14 kun bepul**',
     rows: [
-      { t: "Boshlang'ich · 1 filial", v: "249 000 so'm/oy" },
-      { t: 'Pro · 5 filial', v: "649 000 so'm/oy", hl: true },
-      { t: 'Biznes · cheksiz', v: "1 290 000 so'm/oy" },
+      { t: "Boshlang'ich · ombor, kassa", v: "249 000 so'm/oy" },
+      { t: 'Pro · nasiya, AI, 5 filial', v: "649 000 so'm/oy", hl: true },
+      { t: 'Biznes · hammasi cheksiz', v: "1 290 000 so'm/oy" },
     ],
     cta: 'Karta shart emas',
   },
