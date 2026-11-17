@@ -5,13 +5,14 @@ import { useActionState, useEffect, useState } from 'react';
 import { registerAction } from '@/app/actions/register';
 import { normalizeSlug } from '@/lib/slug';
 import { BUSINESS_TYPES, type BusinessType } from '@/lib/businessTypes';
-import { DEFAULT_PLAN_PRESETS, fmtPlanPrice, type PlanPreset } from '@/lib/plans';
+import { DEFAULT_PLAN_PRESETS, fmtPlanPrice, prepayAmount, prepaySaving, type PlanPreset } from '@/lib/plans';
 import PasswordField from '@/components/auth/PasswordField';
 import Icon from '@/components/icons/Icon';
 import { AuthAlert } from '@/components/auth/AuthShell';
 import { BrandGlyph, Wordmark } from '@/components/BrandMark';
 import LangSwitch from '@/components/LangSwitch';
 import { useDict } from '@/lib/i18n/client';
+import { tr } from '@/lib/i18n/fmt';
 import '@/components/auth/auth.css';
 import './register.css';
 
@@ -225,8 +226,22 @@ export default function RegisterForm({ plans, fromApp = false }: { plans: PlanPr
                         {p.tier === 'pro' && <span className="rg-plan-badge">{t.popular}</span>}
                       </span>
                       <span className="rg-plan-price">
-                        {p.monthlyPrice === 0 ? t.free : <>{fmtPlanPrice(p.monthlyPrice).replace(/ so'm$/, ` ${d.common.sum}`)}<small> {t.perMonth}</small></>}
+                        {p.monthlyPrice === 0 ? t.free : <>{fmtPlanPrice(p.monthlyPrice).replace(/ so'm$/, '')}<small> {t.perMonth}</small></>}
                       </span>
+                      {p.monthlyPrice > 0 && (
+                        <span className="rg-plan-terms">
+                          {([[6, t.prepay6], [12, t.prepay12]] as const).map(([months, label]) => {
+                            const save = prepaySaving(p.monthlyPrice, months);
+                            return (
+                              <span key={months} className="rg-plan-term">
+                                <span>{label}</span>
+                                <strong>{fmtPlanPrice(prepayAmount(p.monthlyPrice, months), { sum: d.common.sum })}</strong>
+                                <em>{save.freeMonths > 0 ? tr(t.prepayFree, { n: save.freeMonths }) : tr(t.prepaySave, { pct: save.pct })}</em>
+                              </span>
+                            );
+                          })}
+                        </span>
+                      )}
                       <ul>
                         {planFeatures(p).map((f, i) => (
                           <li key={i}><Icon name="check" size={13} strokeWidth={2.6} /> {f}</li>

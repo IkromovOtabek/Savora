@@ -120,7 +120,7 @@ Hozir kodda (`lib/plans.ts`): Bepul 0 · Boshlang'ich 249 000 · Pro 649 000 · 
 | Nasiya Pro | 449 000 | 3 filial, 10 xodim, IMEI, kredit kassa, hisobotlar, 2027 ogohlantirishlari | Asosiy segment (telefon/texnika); Loome'dan (~1,3 mln) ~3 barobar arzon; 1 ta "qutqarilgan" nasiya to'lovi bilan qoplanadi |
 | Tarmoq | 890 000 + 129 000/filial (4-dan) | Cheksiz xodim, audit, AI yordamchi, shaxsiy menejer | Tarmoqlar filial soniga qarab to'laydi, BILLZ modeli bilan tanish |
 
-- Yillik to'lov: −20% (hozirgi yillik narxlar bilan mos).
+- Oldindan to'lov: 6 oy −10%, 1 yil — «2 oy bepul» (12 oy = 10 oy narxi; lib/plans.ts → PREPAY_TERMS).
 - Sinov: 14 kun + bepul ko'chirish (asosiy sotuv dalili).
 - Qo'shimcha daromad (keyin): SMS paketi (1 000 ta — ~140 000), avto-yechish komissiyasi 0,7–1% (integratsiyadan keyin).
 - **Qaror asoschida:** pilotlarda 2 variantni (hozirgi va tavsiya) A/B sinang, 30 kundan keyin trial→paid bo'yicha tanlang.

@@ -105,6 +105,11 @@ export const uz = {
     popular: 'Ommabop',
     free: 'Bepul',
     perMonth: "so'm/oy",
+    /** Oldindan to'lov qatorlari (lib/plans.ts → PREPAY_TERMS) */
+    prepay6: '6 oy',
+    prepay12: '1 yil',
+    prepaySave: '−{pct}%',
+    prepayFree: '{n} oy bepul',
     /** Standart tariflarning marketing ro'yxati (lib/plans.ts bilan mos; super admin o'zgartirgan bo'lsa — o'sha ko'rsatiladi) */
     planFeatures: {
       free: ['1 filial', '2 xodim', '50 mahsulot', 'Ombor + Sotuv', 'Kassa'],
@@ -299,6 +304,10 @@ export const ru: typeof uz = {
     popular: 'Популярный',
     free: 'Бесплатно',
     perMonth: 'сум/мес.',
+    prepay6: '6 мес.',
+    prepay12: '1 год',
+    prepaySave: '−{pct}%',
+    prepayFree: '{n} мес. бесплатно',
     planFeatures: {
       free: ['1 филиал', '2 сотрудника', '50 товаров', 'Склад + Продажи', 'Касса'],
       starter: ['1 филиал', '3 сотрудника', '500 товаров', 'Склад + Продажи', 'Касса', 'Клиенты'],

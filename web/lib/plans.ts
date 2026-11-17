@@ -8,7 +8,6 @@ export interface PlanPreset {
   maxUsers: number;
   maxProducts: number;
   monthlyPrice: number;
-  yearlyPrice: number;
   marketingFeatures: string[];
   isFree?: boolean;
 }
@@ -22,7 +21,6 @@ export const DEFAULT_PLAN_PRESETS: Record<Exclude<PlanTier, 'custom'>, PlanPrese
     maxUsers: 2,
     maxProducts: 50,
     monthlyPrice: 0,
-    yearlyPrice: 0,
     isFree: true,
     marketingFeatures: ['1 filial', '2 xodim', '50 mahsulot', 'Ombor + Sotuv', 'Kassa'],
   },
@@ -34,7 +32,6 @@ export const DEFAULT_PLAN_PRESETS: Record<Exclude<PlanTier, 'custom'>, PlanPrese
     maxUsers: 3,
     maxProducts: 500,
     monthlyPrice: 249_000,
-    yearlyPrice: 199_000,
     marketingFeatures: ['1 filial', '3 xodim', '500 mahsulot', 'Ombor + Sotuv', 'Kassa', 'Mijozlar'],
   },
   pro: {
@@ -45,7 +42,6 @@ export const DEFAULT_PLAN_PRESETS: Record<Exclude<PlanTier, 'custom'>, PlanPrese
     maxUsers: 15,
     maxProducts: 5000,
     monthlyPrice: 649_000,
-    yearlyPrice: 519_000,
     marketingFeatures: ['5 filial', '15 xodim', '5000 mahsulot', 'Barcha modullar', 'Hisobot', 'CSV export'],
   },
   business: {
@@ -56,7 +52,6 @@ export const DEFAULT_PLAN_PRESETS: Record<Exclude<PlanTier, 'custom'>, PlanPrese
     maxUsers: 999,
     maxProducts: 999_999,
     monthlyPrice: 1_290_000,
-    yearlyPrice: 1_030_000,
     marketingFeatures: ['Cheksiz filial', 'Cheksiz xodim', 'Cheksiz mahsulot', 'Barcha imkoniyatlar', 'Shaxsiy yordam'],
   },
 };
@@ -69,7 +64,6 @@ export const CUSTOM_PLAN_PRESET: PlanPreset = {
   maxUsers: 3,
   maxProducts: 500,
   monthlyPrice: 0,
-  yearlyPrice: 0,
   marketingFeatures: ['Individual shartlar', 'Maxsus modullar', 'Kelishuv asosida to\'lov'],
 };
 
@@ -95,9 +89,31 @@ export function fmtPlanPrice(n: number, labels?: { free?: string; sum?: string }
   return Math.round(n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, String.fromCharCode(0xA0)) + ' ' + (labels?.sum ?? 'so\'m');
 }
 
-export function yearlyDiscount(preset: PlanPreset): number {
-  if (!preset.monthlyPrice) return 0;
-  return Math.round(((preset.monthlyPrice - preset.yearlyPrice) / preset.monthlyPrice) * 100);
+/**
+ * Oldindan to'lov chegirmasi. YAGONA MANBA: ro'yxatdan o'tishdagi tarif kartasi, obuna to'lovi formasi va
+ * to'lov so'rovi tekshiruvi shundan oladi. Super admin oylik narxni o'zgartirsa — summalar o'zi qayta hisoblanadi.
+ *   12 oy va undan ko'p — «2 oy bepul» (12 oy = 10 oy narxi); 6 oy va undan ko'p — 10% chegirma.
+ */
+export const PREPAY_TERMS = [
+  { months: 12, num: 10, den: 12 },
+  { months: 6, num: 9, den: 10 },
+] as const;
+
+/** N oyga to'lov summasi: chegirma bo'lsa 10 000 so'mga pastga yaxlitlanadi */
+export function prepayAmount(monthlyPrice: number, months: number): number {
+  if (!(monthlyPrice > 0) || !(months > 0)) return 0;
+  const full = monthlyPrice * months;
+  const term = PREPAY_TERMS.find((t) => months >= t.months);
+  if (!term) return full;
+  return Math.floor((full * term.num) / term.den / 10_000) * 10_000;
+}
+
+/** Chegirma: tejalgan foiz va butun «bepul oylar» soni (masalan 12 oy → 2) */
+export function prepaySaving(monthlyPrice: number, months: number): { pct: number; freeMonths: number } {
+  const full = monthlyPrice * months;
+  if (!(full > 0)) return { pct: 0, freeMonths: 0 };
+  const saved = full - prepayAmount(monthlyPrice, months);
+  return { pct: Math.round((saved / full) * 100), freeMonths: Math.floor(saved / monthlyPrice) };
 }
 
 export interface OrgPlanSource {

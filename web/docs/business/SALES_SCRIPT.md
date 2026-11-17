@@ -35,7 +35,7 @@ Tahrir: 2026-yil oktabr. Demo do'kon: "Demo Telefon" (telefon do'koni turi, 2 fi
 
 | E'tiroz | Javob |
 |---|---|
-| "Qimmat." | "Bitta kechikkan to'lovni vaqtida olsangiz, oylik to'lov qoplanadi. 10 mln lik telefonni BNPL orqali sotsangiz ~3 mln komissiya ketadi — Savora butun oyga {tarif narxi}." Kerak bo'lsa: yillik to'lov −20%, yoki kichik tarif. |
+| "Qimmat." | "Bitta kechikkan to'lovni vaqtida olsangiz, oylik to'lov qoplanadi. 10 mln lik telefonni BNPL orqali sotsangiz ~3 mln komissiya ketadi — Savora butun oyga {tarif narxi}." Kerak bo'lsa: yillik to'lov — 2 oy bepul (6 oyga −10%), yoki kichik tarif. |
 | "Daftarim ham ishlayapti." | "Daftar eslatmaydi. O'tgan oy nechta mijoz kechikdi va siz qachon bildingiz? Savora ertasi kuni ertalab aytadi." |
 | "Menda BILLZ / iDokon bor." | "Kassa uchun yaxshi. Nasiya jadvali, kechikish va eslatma ularda sayoz. Ko'pchilik BILLZ + daftar ishlatadi — Savora ikkalasini bitta qiladi." |
 | "Vaqtim yo'q, o'rganish qiyin." | "Birinchi sotuv 5 daqiqada. Xodimlaringizni o'zimiz o'rgatamiz, ma'lumotni o'zimiz ko'chiramiz." |

@@ -10,6 +10,7 @@ import Icon from '@/components/icons/Icon';
 import PriceInput from '@/components/ui/PriceInput';
 import { useDict } from '@/lib/i18n/client';
 import { tr } from '@/lib/i18n/fmt';
+import { prepayAmount, prepaySaving } from '@/lib/plans';
 import '@/components/tenant/styles/finance.css';
 
 interface OwnRequest {
@@ -45,7 +46,9 @@ export default function PaymentSubmit({ account, monthlyPrice, requests }: Props
   const [busy, setBusy] = useState(false);
 
   const hasAccount = !!account.paymentCardNumber;
-  const amount = monthlyPrice * months;
+  // 6 oy va undan ko'p — oldindan to'lov chegirmasi (lib/plans.ts → PREPAY_TERMS)
+  const amount = prepayAmount(monthlyPrice, months);
+  const savePct = prepaySaving(monthlyPrice, months).pct;
 
   async function onFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -134,7 +137,9 @@ export default function PaymentSubmit({ account, monthlyPrice, requests }: Props
                       type="number" min={1} max={24} value={months} disabled={busy}
                       onChange={(e) => setMonths(Math.min(24, Math.max(1, parseInt(e.target.value, 10) || 1)))}
                     />
-                    <span className="field-hint">{monthlyPrice > 0 ? tr(k.monthsHint, { n: months, sum: fmtSum(monthlyPrice) }) : k.monthsRange}</span>
+                    <span className="field-hint">{monthlyPrice > 0
+                        ? tr(savePct > 0 ? k.monthsHintPrepay : k.monthsHint, { n: months, sum: fmtSum(monthlyPrice), pct: savePct })
+                        : k.monthsRange}</span>
                   </div>
                   <div className="auth-field">
                     <label htmlFor="pay-amount">{k.amount}</label>

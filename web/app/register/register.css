@@ -102,6 +102,10 @@
 .rg-plan-badge { font-size: 12px; font-weight: 700; padding: 3px 9px; border-radius: 999px; background: var(--gold-soft); color: var(--gold); }
 .rg-plan-price { font-size: 24px; font-weight: 800; letter-spacing: -.03em; font-variant-numeric: tabular-nums; }
 .rg-plan-price small { font-size: 13px; font-weight: 500; color: var(--ink-3); letter-spacing: 0; }
+.rg-plan-terms { display: grid; gap: 4px; padding: 8px 0 2px; border-top: 1px solid var(--border); }
+.rg-plan-term { display: grid; grid-template-columns: auto 1fr auto; align-items: baseline; gap: 8px; font-size: 13px; color: var(--ink-2); }
+.rg-plan-term strong { font-weight: 700; color: var(--ink-1); font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; }
+.rg-plan-term em { font-style: normal; font-size: 11.5px; font-weight: 700; padding: 1px 7px; border-radius: 999px; background: var(--gold-soft); color: var(--gold); white-space: nowrap; }
 .rg-plan ul { list-style: none; margin: 4px 0 0; padding: 0; display: grid; gap: 5px; font-size: 13px; color: var(--ink-2); }
 .rg-plan li { display: flex; gap: 6px; align-items: flex-start; }
 .rg-plan li svg { flex: none; margin-top: 3px; color: var(--accent); }

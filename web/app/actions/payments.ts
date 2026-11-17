@@ -6,7 +6,7 @@ import { requireSuperAdmin } from '@/lib/auth';
 import { ownUploadKeyFromUrl } from '@/lib/fileUrl';
 import { getTenantAdminSession } from '@/lib/tenantSession';
 import { getMasterModels } from '@/lib/masterDb';
-import { resolveOrgPlan } from '@/lib/plans';
+import { prepayAmount, resolveOrgPlan } from '@/lib/plans';
 import { logError } from '@/lib/logger';
 import { addMonthsClamped } from '@/lib/dates';
 import { getDict } from '@/lib/i18n/server';
@@ -51,7 +51,8 @@ export async function submitPaymentRequestAction(_prev: State, formData: FormDat
     // Avtomatik tekshiruvlar (yakuniy qaror — super admin'da)
     const flags: string[] = [];
     const plan = resolveOrgPlan(org);
-    const expected = (plan.monthlyPayment || 0) * months;
+    // 6/12 oylik oldindan to'lov — chegirmali summa (ro'yxatdan o'tishda va to'lov formasida shu ko'rsatiladi)
+    const expected = prepayAmount(plan.monthlyPayment || 0, months);
     if (expected > 0 && amount < expected * 0.95) {
       flags.push(`Summa kutilganidan kam (kutilgan ~${expected.toLocaleString('uz-UZ')})`);
     }

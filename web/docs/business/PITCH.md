@@ -38,7 +38,7 @@ Savora **kreditor emas**: pul do'konga to'g'ridan-to'g'ri tushadi, biz faqat obu
 
 ## Biznes modeli
 
-- Obuna: 3 tarif + bepul tarif (lid manbai); yillik −20%.
+- Obuna: 3 tarif + bepul tarif (lid manbai); 6 oy −10%, yillik «2 oy bepul».
 - Keyin: SMS paketlari, kartadan avto-yechish (0,7–1%), bank/BNPL'ga yo'naltirilgan lid komissiyasi (1–3%).
 - Unit-iqtisodiyot (taxmin): ARPU ≈ 430 ming so'm, yalpi marja ~80%, churn 3,5–5%, LTV/CAC 3,4–8.
 
