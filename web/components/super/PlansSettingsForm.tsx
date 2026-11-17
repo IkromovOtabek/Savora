@@ -3,7 +3,7 @@
 import { useActionState } from 'react';
 import { updatePlatformPlansAction } from '@/app/actions/plans';
 import { PlanPreset } from '@/lib/plans';
-import { fmtPlanPrice } from '@/lib/plans';
+import { fmtPlanPrice, prepayAmount } from '@/lib/plans';
 import { useDict } from '@/lib/i18n/client';
 import { tr } from '@/lib/i18n/fmt';
 import PriceInput from '@/components/ui/PriceInput';
@@ -40,6 +40,15 @@ export default function PlansSettingsForm({ presets }: Props) {
                   {/* Nomi — bazadagi tahrirlanadigan qiymat (admin kiritgan matn) */}
                   <h3>{p.label}</h3>
                   <p>{fmtPlanPrice(p.monthlyPrice, priceLabels)}{p.monthlyPrice > 0 ? d.superPanel.perMonth : ''} · {tr(s.limits, { filial: p.maxFilial, users: p.maxUsers })}</p>
+                  {/* Oldindan to'lov summalari (faqat ko'rsatish) — saqlangan oylik narxdan, lib/plans.ts → prepayAmount */}
+                  {p.monthlyPrice > 0 && (
+                    <p>
+                      {tr(d.catalog.billing.prepayLine, {
+                        m6: fmtPlanPrice(prepayAmount(p.monthlyPrice, 6), priceLabels),
+                        m12: fmtPlanPrice(prepayAmount(p.monthlyPrice, 12), priceLabels),
+                      })}
+                    </p>
+                  )}
                 </div>
               </div>
             </div>

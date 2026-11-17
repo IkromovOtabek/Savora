@@ -10,7 +10,11 @@ import Icon from '@/components/icons/Icon';
 import PriceInput from '@/components/ui/PriceInput';
 import { useDict } from '@/lib/i18n/client';
 import { tr } from '@/lib/i18n/fmt';
-import { prepayAmount, prepaySaving } from '@/lib/plans';
+import {
+  BILLING_CYCLES, BILLING_CYCLE_MONTHS, billingCycleFromMonths, parseBillingCycle, prepayAmount, prepaySaving,
+  type BillingCycle,
+} from '@/lib/plans';
+import SegmentSwitch from '@/components/ui/SegmentSwitch';
 import '@/components/tenant/styles/finance.css';
 
 interface OwnRequest {
@@ -26,6 +30,8 @@ interface Props {
   account: { paymentCardNumber: string; paymentCardHolder: string; paymentNote: string };
   monthlyPrice: number;
   requests: OwnRequest[];
+  /** Do'konning to'lov davri (org.plan.billingCycle) — oylar sonining boshlang'ich qiymati: 6 oy / 12 oy / 1 oy */
+  billingCycle?: BillingCycle;
 }
 
 const STATUS_CLS: Record<OwnRequest['status'], string> = {
@@ -34,13 +40,13 @@ const STATUS_CLS: Record<OwnRequest['status'], string> = {
   rejected: 'badge-status--expired',
 };
 
-export default function PaymentSubmit({ account, monthlyPrice, requests }: Props) {
+export default function PaymentSubmit({ account, monthlyPrice, requests, billingCycle }: Props) {
   const router = useRouter();
   const d = useDict();
   const k = d.sales.subscription;
   // Deterministik (server=client) — hydration mosligini buzmaslik uchun Intl ishlatilmaydi
   const fmtSum = (n: number) => Math.round(n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, String.fromCharCode(0xA0)) + ' ' + d.common.sum;
-  const [months, setMonths] = useState(1);
+  const [months, setMonths] = useState(() => BILLING_CYCLE_MONTHS[parseBillingCycle(billingCycle)]);
   const [receiptUrl, setReceiptUrl] = useState('');
   const [uploading, setUploading] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -129,6 +135,18 @@ export default function PaymentSubmit({ account, monthlyPrice, requests }: Props
               </div>
             ) : (
               <form onSubmit={submit} className="form-grid">
+                {/* Tez tanlash: 1 oy / 6 oy / 1 yil — oylar maydonini o'rnatadi; qo'lda 1–24 kiritish ham qoladi */}
+                <SegmentSwitch
+                  options={BILLING_CYCLES.map((c) => ({
+                    value: c,
+                    label: c === 'monthly' ? tr(d.common.nMonths, { n: 1 }) : d.catalog.billing.cycles[c],
+                  }))}
+                  value={billingCycleFromMonths(months)}
+                  onChange={(c) => setMonths(BILLING_CYCLE_MONTHS[c])}
+                  label={d.catalog.billing.cycleGroup}
+                  disabled={busy}
+                  className="seg-sw--sm"
+                />
                 <div className="form-row">
                   <div className="auth-field">
                     <label htmlFor="pay-months">{k.howManyMonths}</label>

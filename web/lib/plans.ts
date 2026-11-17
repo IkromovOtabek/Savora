@@ -116,6 +116,51 @@ export function prepaySaving(monthlyPrice: number, months: number): { pct: numbe
   return { pct: Math.round((saved / full) * 100), freeMonths: Math.floor(saved / monthlyPrice) };
 }
 
+/** Oyiga ekvivalent: N oylik summa / N, 100 so'mga yaxlit (kartadagi «≈223 300 so'm/oy» uchun) */
+export function prepayPerMonth(monthlyPrice: number, months: number): number {
+  const total = prepayAmount(monthlyPrice, months);
+  if (!(total > 0)) return 0;
+  if (months <= 1) return total;
+  return Math.round(total / months / 100) * 100;
+}
+
+/**
+ * To'lov davri — Organization.plan.billingCycle. Ro'yxatdan o'tishda tanlanadi, obuna to'lovi formasida
+ * boshlang'ich oylar soni shundan olinadi. Eski yozuvlarda faqat monthly|yearly bo'lgan — ular ham mos.
+ */
+export const BILLING_CYCLES = ['monthly', 'semiannual', 'yearly'] as const;
+export type BillingCycle = (typeof BILLING_CYCLES)[number];
+
+/** Davrdagi oylar soni */
+export const BILLING_CYCLE_MONTHS: Record<BillingCycle, number> = { monthly: 1, semiannual: 6, yearly: 12 };
+
+/** Formadan/bazadan kelgan qiymat: noma'lum yoki bo'sh — oylik (standart) */
+export function parseBillingCycle(v: unknown): BillingCycle {
+  return typeof v === 'string' && (BILLING_CYCLES as readonly string[]).includes(v) ? (v as BillingCycle) : 'monthly';
+}
+
+/** Oylar soni → davr (to'lov formasidagi tez tanlash): 1/6/12 dan boshqasi — null (qo'lda kiritilgan) */
+export function billingCycleFromMonths(months: number): BillingCycle | null {
+  return BILLING_CYCLES.find((c) => BILLING_CYCLE_MONTHS[c] === months) ?? null;
+}
+
+/** Tarif kartasi narxi tanlangan davr bo'yicha: jami summa, oyiga ekvivalent va tejash */
+export function cyclePrice(monthlyPrice: number, cycle: BillingCycle): {
+  months: number;
+  total: number;
+  perMonth: number;
+  pct: number;
+  freeMonths: number;
+} {
+  const months = BILLING_CYCLE_MONTHS[cycle];
+  return {
+    months,
+    total: prepayAmount(monthlyPrice, months),
+    perMonth: prepayPerMonth(monthlyPrice, months),
+    ...prepaySaving(monthlyPrice, months),
+  };
+}
+
 export interface OrgPlanSource {
   tier: string;
   maxFilial: number;

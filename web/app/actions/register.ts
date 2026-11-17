@@ -7,6 +7,7 @@ import { hitRateLimit } from '@/lib/rateLimit';
 import { clientIpFrom } from '@/lib/security';
 import { createOrganization, normalizeSlug } from '@/lib/organizations';
 import { parseBusinessType } from '@/lib/businessTypes';
+import { parseBillingCycle } from '@/lib/plans';
 import { getSession } from '@/lib/session';
 import { getMasterModels } from '@/lib/masterDb';
 import { getTenantModels } from '@/lib/tenantDb';
@@ -43,6 +44,8 @@ export async function registerAction(_prev: State, formData: FormData): Promise<
   const planTier = (['free', 'starter', 'pro', 'business'].includes(rawTier) ? rawTier : 'pro') as
     | 'free' | 'starter' | 'pro' | 'business';
   const isFree = planTier === 'free';
+  // Tarif ustidagi tugmada tanlangan to'lov davri (oylik / 6 oy / 1 yil); bepul tarifda — oylik
+  const billingCycle = isFree ? 'monthly' : parseBillingCycle(formData.get('billingCycle'));
 
   // Oferta va maxfiylik siyosatiga rozilik (aksept) — majburiy
   if (formData.get('acceptTerms') !== '1') {
@@ -78,6 +81,7 @@ export async function registerAction(_prev: State, formData: FormData): Promise<
       // Tanlangan tarif — modullar `defaultFeaturesForPlan` orqali avtomatik yoqiladi.
       // Bepul: doimiy; pulli: 14 kun sinov, muddati tugagach to'lov kerak.
       planTier,
+      billingCycle,
       isTrial: !isFree,
       trialDays: isFree ? undefined : TRIAL_DAYS,
       mustChangePassword: false,

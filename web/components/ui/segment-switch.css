@@ -1,0 +1,28 @@
+/* SegmentSwitch — «Oylik | 6 oy | 1 yil» kabi segment tugma (radiogroup).
+   Ranglar faqat tokenlar orqali: Kun / Tun / Qora mavzularda o'zi moslashadi.
+   Tanlangan — to'ldirilgan brend tugma (oq matn ≥ 5:1, globals.css --brand-fill). */
+.seg-sw {
+  display: inline-grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 4px;
+  width: fit-content; max-width: 100%; padding: 4px; border-radius: 14px;
+  background: var(--fill);
+}
+.seg-sw > button {
+  min-width: 0; min-height: 38px; padding: 0 18px; border: 0; border-radius: 10px; cursor: pointer;
+  background: transparent; color: var(--ink-2);
+  font: inherit; font-size: 14px; font-weight: 600; line-height: 1.2; white-space: nowrap;
+  transition: background-color .15s, color .15s;
+}
+.seg-sw > button:hover:not(:disabled):not([aria-checked='true']) { background: var(--fill-3); color: var(--ink-1); }
+.seg-sw > button[aria-checked='true'] { background: var(--brand-fill); color: var(--on-brand); box-shadow: 0 4px 12px -6px rgba(26, 95, 224, .7); }
+.seg-sw > button:focus-visible { outline: 3px solid var(--brand-ring); outline-offset: 2px; }
+.seg-sw > button:disabled { opacity: .55; cursor: default; }
+
+/* Ixcham — forma ichida (obuna to'lovi) */
+.seg-sw--sm { border-radius: 12px; }
+.seg-sw--sm > button { min-height: 32px; padding: 0 14px; border-radius: 9px; font-size: 13px; }
+
+/* Telefon: butun kenglik, tugmalar teng */
+@media (max-width: 420px) {
+  .seg-sw--fluid { width: 100%; }
+  .seg-sw > button { padding: 0 10px; }
+}

@@ -295,7 +295,13 @@
 .lp-plan-name { font-size: 1.25rem; font-weight: 700; }
 .lp-plan-desc { color: var(--lp-ink2); font-size: .95rem; margin-top: -6px; }
 .lp-plan-price { font-family: var(--lp-fd); font-size: 2rem; font-weight: 700; letter-spacing: -.03em; color: var(--lp-ink); }
-.lp-plan-price span { font-family: var(--lp-f); font-size: .9rem; font-weight: 500; opacity: .7; letter-spacing: 0; }
+.lp-plan-price span { font-family: var(--lp-f); font-size: .9rem; font-weight: 500; opacity: .7; letter-spacing: 0; white-space: nowrap; }
+/* Davr tugmasi (components/ui/SegmentSwitch) va 6 oy / 1 yil uchun oyiga ekvivalent qatori */
+.lp-cycle { display: flex; justify-content: center; margin: -20px 0 28px; }
+.lp-plan-eq { margin-top: -8px; font-size: .92rem; color: var(--lp-ink2); font-variant-numeric: tabular-nums; }
+.lp-plan-eq b { font-weight: 700; color: var(--lp-ok); white-space: nowrap; }
+.lp-plan--f .lp-plan-eq { color: rgba(255, 255, 255, .85); }
+.lp-plan--f .lp-plan-eq b { color: #8ff0bf; }
 .lp-plan ul { list-style: none; padding: 0; margin: 0 0 6px; display: grid; gap: 9px; flex: 1; }
 .lp-plan li { display: flex; gap: 10px; color: var(--lp-ink2); font-size: .95rem; }
 .lp-plan li svg { flex: none; margin-top: 3px; color: var(--lp-ok); }

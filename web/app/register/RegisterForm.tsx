@@ -5,8 +5,10 @@ import { useActionState, useEffect, useState } from 'react';
 import { registerAction } from '@/app/actions/register';
 import { normalizeSlug } from '@/lib/slug';
 import { BUSINESS_TYPES, type BusinessType } from '@/lib/businessTypes';
-import { DEFAULT_PLAN_PRESETS, fmtPlanPrice, prepayAmount, prepaySaving, type PlanPreset } from '@/lib/plans';
+import { BILLING_CYCLES, DEFAULT_PLAN_PRESETS, cyclePrice, fmtPlanPrice, type BillingCycle, type PlanPreset } from '@/lib/plans';
+import { fmtMoney } from '@/lib/format';
 import PasswordField from '@/components/auth/PasswordField';
+import SegmentSwitch from '@/components/ui/SegmentSwitch';
 import Icon from '@/components/icons/Icon';
 import { AuthAlert } from '@/components/auth/AuthShell';
 import { BrandGlyph, Wordmark } from '@/components/BrandMark';
@@ -30,6 +32,8 @@ export default function RegisterForm({ plans, fromApp = false }: { plans: PlanPr
   const [step, setStep] = useState<1 | 2>(1);
   const [stepError, setStepError] = useState<string | null>(null);
   const [plan, setPlan] = useState<string>(fromApp ? 'free' : 'pro');
+  // To'lov davri (tarif ro'yxati ustidagi tugma) — kartalardagi narx shunga qarab; formaga yashirin maydon bilan ketadi
+  const [cycle, setCycle] = useState<BillingCycle>('monthly');
   const [bizType, setBizType] = useState<BusinessType>('general');
   const [visitorId, setVisitorId] = useState('');
   const [visitSessionId, setVisitSessionId] = useState('');
@@ -47,6 +51,28 @@ export default function RegisterForm({ plans, fromApp = false }: { plans: PlanPr
   const selectedPlan = plans.find((p) => p.tier === plan);
   const biz = BUSINESS_TYPES[bizType];
   const bizText = d.catalog.businessTypes[bizType];
+  const b = d.catalog.billing;
+  // Ilovadan kelganda faqat bepul tarif — davr tugmasi kerak emas
+  const hasPaidPlans = plans.some((p) => p.monthlyPrice > 0);
+
+  // Karta narxi tanlangan davr bo'yicha (lib/plans.ts → cyclePrice — yagona manba)
+  function planPrice(p: PlanPreset) {
+    if (p.monthlyPrice === 0) return <span className="rg-plan-price">{t.free}</span>;
+    const c = cyclePrice(p.monthlyPrice, cycle);
+    if (cycle === 'monthly') {
+      return <span className="rg-plan-price">{fmtMoney(c.total)}<small> {t.perMonth}</small></span>;
+    }
+    const saving = c.freeMonths > 0 ? tr(b.freeMonths, { n: c.freeMonths }) : c.pct > 0 ? tr(b.save, { pct: c.pct }) : '';
+    return (
+      <>
+        <span className="rg-plan-price">{fmtMoney(c.total)}<small> {d.common.sum} {b.per[cycle]}</small></span>
+        <span className="rg-plan-eq">
+          {tr(b.perMonthEq, { sum: fmtPlanPrice(c.perMonth, { sum: d.common.sum }) })}
+          {saving && <> · <b>{saving}</b></>}
+        </span>
+      </>
+    );
+  }
 
   // Tarif nomi va marketing ro'yxati — joriy tilda. Super admin ro'yxatni o'zgartirgan bo'lsa, o'sha (uz) ko'rsatiladi.
   const planLabel = (p: PlanPreset) => d.catalog.planTiers[p.tier] ?? p.label;
@@ -118,6 +144,8 @@ export default function RegisterForm({ plans, fromApp = false }: { plans: PlanPr
             <input type="hidden" name="visitorId" value={visitorId} />
             <input type="hidden" name="visitSessionId" value={visitSessionId} />
             {fromApp && <input type="hidden" name="fromApp" value="1" />}
+            {/* 2-qadamdagi davr tugmasi tanlovi → org.plan.billingCycle (bepul tarifda server oylik qiladi) */}
+            <input type="hidden" name="billingCycle" value={cycle} />
 
             {/* ====== 1-QADAM (2-qadamda yashiriladi, lekin DOM'da qoladi — qiymatlar yuboriladi) ====== */}
             <div className="rg-step" style={{ display: step === 1 ? 'grid' : 'none' }}>
@@ -215,6 +243,18 @@ export default function RegisterForm({ plans, fromApp = false }: { plans: PlanPr
 
             {/* ====== 2-QADAM: tarif ====== */}
             <div className="rg-step" style={{ display: step === 2 ? 'grid' : 'none' }}>
+              {hasPaidPlans && (
+                <div className="rg-cycle">
+                  <SegmentSwitch
+                    options={BILLING_CYCLES.map((c) => ({ value: c, label: b.cycles[c] }))}
+                    value={cycle}
+                    onChange={setCycle}
+                    label={b.cycleGroup}
+                    disabled={isPending}
+                    className="seg-sw--fluid"
+                  />
+                </div>
+              )}
               <div className="rg-plans" role="radiogroup" aria-label={t.planGroup}>
                 {plans.map((p) => {
                   const selected = plan === p.tier;
@@ -225,23 +265,7 @@ export default function RegisterForm({ plans, fromApp = false }: { plans: PlanPr
                         <span className="rg-plan-name">{planLabel(p)}</span>
                         {p.tier === 'pro' && <span className="rg-plan-badge">{t.popular}</span>}
                       </span>
-                      <span className="rg-plan-price">
-                        {p.monthlyPrice === 0 ? t.free : <>{fmtPlanPrice(p.monthlyPrice).replace(/ so'm$/, '')}<small> {t.perMonth}</small></>}
-                      </span>
-                      {p.monthlyPrice > 0 && (
-                        <span className="rg-plan-terms">
-                          {([[6, t.prepay6], [12, t.prepay12]] as const).map(([months, label]) => {
-                            const save = prepaySaving(p.monthlyPrice, months);
-                            return (
-                              <span key={months} className="rg-plan-term">
-                                <span>{label}</span>
-                                <strong>{fmtPlanPrice(prepayAmount(p.monthlyPrice, months), { sum: d.common.sum })}</strong>
-                                <em>{save.freeMonths > 0 ? tr(t.prepayFree, { n: save.freeMonths }) : tr(t.prepaySave, { pct: save.pct })}</em>
-                              </span>
-                            );
-                          })}
-                        </span>
-                      )}
+                      {planPrice(p)}
                       <ul>
                         {planFeatures(p).map((f, i) => (
                           <li key={i}><Icon name="check" size={13} strokeWidth={2.6} /> {f}</li>

@@ -15,6 +15,7 @@ import { tr, fmtDayMonth } from '@/lib/i18n/fmt';
 import Icon from '@/components/icons/Icon';
 import ProductShowcase from '@/components/landing/ProductShowcase';
 import Faq from '@/components/landing/Faq';
+import { PlanCycleScope, PlanCyclePrice } from '@/components/landing/PlanCycle';
 import { RotatingWord, HeroStage, CountUp } from '@/components/landing/HeroMotion';
 import ThemeToggle from '@/components/ThemeToggle';
 import LangSwitch from '@/components/LangSwitch';
@@ -96,7 +97,7 @@ export default async function LandingPage() {
   const mobileLinks = mobileDownloadLinks();
   const plans = PLANS_STATIC.map(({ tier, featured }) => {
     const p = presets[tier];
-    return { name: p.label, desc: p.description, price: money(p.monthlyPrice), isFree: p.monthlyPrice === 0, featured, feats: p.marketingFeatures };
+    return { name: p.label, desc: p.description, monthlyPrice: p.monthlyPrice, featured, feats: p.marketingFeatures };
   });
   const sectors = BUSINESS_TYPE_IDS.map((id) => d.catalog.businessTypes[id].label);
   const sectorCards = BUSINESS_TYPE_IDS.map((id) => {
@@ -404,18 +405,21 @@ export default async function LandingPage() {
             <h2>{L.plans.title}</h2>
             <p>{tr(L.plans.lead, { days: TRIAL_DAYS })}</p>
           </div>
-          <div className="lp-plans">
-            {plans.map((p) => (
-              <div key={p.name} className={`lp-plan lp-reveal${p.featured ? ' lp-plan--f' : ''}`}>
-                {p.featured && <span className="lp-plan-tag">{L.plans.popular}</span>}
-                <div className="lp-plan-name">{p.name}</div>
-                <div className="lp-plan-desc">{p.desc}</div>
-                <div className="lp-plan-price">{p.price}{!p.isFree && <span> {L.plans.perMonth}</span>}</div>
-                <ul>{p.feats.map((ft) => <li key={ft}><Svg size={16}>{P.check}</Svg>{ft}</li>)}</ul>
-                <Link href={LOCALHOST_LINKS.register} className={`lp-btn ${p.featured ? 'lp-btn--w' : 'lp-btn--f'}`}>{L.plans.tryFree}</Link>
-              </div>
-            ))}
-          </div>
+          {/* Davr tugmasi (Oylik | 6 oy | 1 yil) — narx serverdan (super admin narxi), hisob lib/plans.ts da */}
+          <PlanCycleScope>
+            <div className="lp-plans">
+              {plans.map((p) => (
+                <div key={p.name} className={`lp-plan lp-reveal${p.featured ? ' lp-plan--f' : ''}`}>
+                  {p.featured && <span className="lp-plan-tag">{L.plans.popular}</span>}
+                  <div className="lp-plan-name">{p.name}</div>
+                  <div className="lp-plan-desc">{p.desc}</div>
+                  <PlanCyclePrice monthlyPrice={p.monthlyPrice} />
+                  <ul>{p.feats.map((ft) => <li key={ft}><Svg size={16}>{P.check}</Svg>{ft}</li>)}</ul>
+                  <Link href={LOCALHOST_LINKS.register} className={`lp-btn ${p.featured ? 'lp-btn--w' : 'lp-btn--f'}`}>{L.plans.tryFree}</Link>
+                </div>
+              ))}
+            </div>
+          </PlanCycleScope>
         </div>
       </section>
 

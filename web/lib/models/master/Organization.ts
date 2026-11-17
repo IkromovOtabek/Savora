@@ -1,6 +1,7 @@
 import { Schema, Types } from 'mongoose';
 import { FEATURE_KEYS, FeatureKey, OrgFeatures } from '../../featureKeys';
 import { BUSINESS_TYPE_IDS, BusinessType } from '../../businessTypes';
+import { BILLING_CYCLES, type BillingCycle } from '../../plans';
 
 export interface IOrganization {
   name: string;
@@ -19,7 +20,8 @@ export interface IOrganization {
     maxProducts?: number;
     monthlyPayment?: number;
     yearlyPayment?: number;
-    billingCycle?: 'monthly' | 'yearly';
+    /** To'lov davri (ro'yxatdan o'tishda tanlanadi); yo'q bo'lsa — oylik */
+    billingCycle?: BillingCycle;
     agreementNote?: string;
     /** Sinov (trial) rejimi — muddati tugagach to'lov talab qilinadi */
     isTrial?: boolean;
@@ -91,7 +93,7 @@ export const organizationSchema = new Schema<IOrganization>(
       maxProducts: { type: Number, default: 50 },
       monthlyPayment: { type: Number },
       yearlyPayment: { type: Number },
-      billingCycle: { type: String, enum: ['monthly', 'yearly'], default: 'monthly' },
+      billingCycle: { type: String, enum: [...BILLING_CYCLES], default: 'monthly' },
       agreementNote: { type: String, trim: true },
       isTrial: { type: Boolean, default: false },
     },

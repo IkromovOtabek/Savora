@@ -74,7 +74,7 @@ export default async function ExpiredPage() {
       </div>
 
       {isAdmin ? (
-        <PaymentSubmit account={payAccount} monthlyPrice={monthlyPrice} requests={ownRequests} />
+        <PaymentSubmit account={payAccount} monthlyPrice={monthlyPrice} requests={ownRequests} billingCycle={org.plan.billingCycle} />
       ) : (
         <AuthAlert tone="warn">{t.adminOnly}</AuthAlert>
       )}

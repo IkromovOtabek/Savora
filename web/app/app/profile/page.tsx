@@ -1,7 +1,7 @@
 import { getTenantSession } from '@/lib/tenantSession';
 import { userCan } from '@/lib/permissionGuard';
 import { getMasterModels } from '@/lib/masterDb';
-import { resolveOrgPlan } from '@/lib/plans';
+import { prepayAmount, resolveOrgPlan } from '@/lib/plans';
 import { daysUntilExpiry, isTrialActive } from '@/lib/models/master/Organization';
 import { fmtDate, fmtMoney } from '@/lib/format';
 import ProfileForms from '@/components/tenant/ProfileForms';
@@ -138,6 +138,15 @@ export default async function ProfilePage() {
                 </b>
                 <small>{tr(t.expiresAt, { date: fmtDate(org.expiresAt) })}</small>
                 {monthlyPrice > 0 && <small className="ad-num">{fmtMoney(monthlyPrice)} {d.common.sum} {t.perMonth}</small>}
+                {/* Oldindan to'lov summalari — lib/plans.ts → prepayAmount (yagona manba) */}
+                {monthlyPrice > 0 && (
+                  <small className="ad-num">
+                    {tr(d.catalog.billing.prepayLine, {
+                      m6: `${fmtMoney(prepayAmount(monthlyPrice, 6))} ${d.common.sum}`,
+                      m12: `${fmtMoney(prepayAmount(monthlyPrice, 12))} ${d.common.sum}`,
+                    })}
+                  </small>
+                )}
               </div>
             </div>
           </div>
@@ -174,7 +183,7 @@ export default async function ProfilePage() {
             <section aria-labelledby="sec-obuna">
               <div className="ad-sec-head"><h2 id="sec-obuna">{t.subscription}</h2></div>
               <div className="ad-pay">
-                <PaymentSubmit account={payAccount} monthlyPrice={monthlyPrice} requests={ownRequests} />
+                <PaymentSubmit account={payAccount} monthlyPrice={monthlyPrice} requests={ownRequests} billingCycle={org.plan.billingCycle} />
               </div>
             </section>
           )}

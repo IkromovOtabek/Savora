@@ -268,6 +268,25 @@ export const uz = {
   terms: termsUz,
   roles: { admin: "Do'kon egasi", user: 'Xodim', super_admin: 'Super admin' } as Record<'admin' | 'user' | 'super_admin', string>,
   planTiers: { free: 'Bepul', starter: 'Start', pro: 'Pro', business: 'Biznes', custom: 'Maxsus' } as Record<'free' | 'starter' | 'pro' | 'business' | 'custom', string>,
+  /**
+   * To'lov davri (lib/plans.ts → BILLING_CYCLES, cyclePrice): ro'yxatdan o'tish va bosh sahifadagi
+   * davr tugmasi, obuna to'lovi formasi, profil va super admin tarif sozlamalari.
+   */
+  billing: {
+    cycles: { monthly: 'Oylik', semiannual: '6 oy', yearly: '1 yil' } as Record<'monthly' | 'semiannual' | 'yearly', string>,
+    /** Davr tugmasi (radiogroup) nomi — ekran o'quvchi uchun */
+    cycleGroup: "To'lov davri",
+    /** Narx ortidagi davr: «1 340 000 so'm / 6 oy» */
+    per: { monthly: '/ oy', semiannual: '/ 6 oy', yearly: '/ yil' } as Record<'monthly' | 'semiannual' | 'yearly', string>,
+    /** {sum} — oyiga ekvivalent summa: «≈223 300 so'm/oy» */
+    perMonthEq: '≈{sum}/oy',
+    /** {pct} — chegirma foizi */
+    save: '−{pct}%',
+    /** {n} — bepul oylar soni */
+    freeMonths: '{n} oy bepul',
+    /** Profil va super admin: {m6}, {m12} — 6 oylik va yillik summalar */
+    prepayLine: '6 oy: {m6} · 1 yil: {m12}',
+  },
 };
 
 export const ru: typeof uz = {
@@ -286,4 +305,13 @@ export const ru: typeof uz = {
   terms: termsRu,
   roles: { admin: 'Владелец магазина', user: 'Сотрудник', super_admin: 'Суперадмин' },
   planTiers: { free: 'Бесплатный', starter: 'Старт', pro: 'Про', business: 'Бизнес', custom: 'Индивидуальный' },
+  billing: {
+    cycles: { monthly: 'Помесячно', semiannual: '6 мес.', yearly: '1 год' },
+    cycleGroup: 'Период оплаты',
+    per: { monthly: '/ мес.', semiannual: '/ 6 мес.', yearly: '/ год' },
+    perMonthEq: '≈{sum}/мес.',
+    save: '−{pct}%',
+    freeMonths: '{n} мес. бесплатно',
+    prepayLine: '6 мес.: {m6} · 1 год: {m12}',
+  },
 };

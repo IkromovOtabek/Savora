@@ -3,7 +3,7 @@ import { getTenantModels } from './tenantDb';
 import { ensureTenantDatabase } from './tenantSetup';
 import { IOrganization, isOrganizationActive } from './models/master/Organization';
 import { parseBusinessType, BusinessType } from './businessTypes';
-import { getPlanPreset, parsePlanTier, PlanTier } from './plans';
+import { getPlanPreset, parsePlanTier, parseBillingCycle, PlanTier, type BillingCycle } from './plans';
 import { tenantDbName, ensureUniqueSlug } from './slug';
 import { generateTempPassword } from './credentials';
 import { reserveUsername, isUsernameAvailable, UsernameTakenError } from './userDirectory';
@@ -59,7 +59,8 @@ export interface CreateOrganizationInput {
   mustChangePassword?: boolean;
   referredBy?: string;
   termsAcceptedAt?: Date;
-  billingCycle?: 'monthly' | 'yearly';
+  /** To'lov davri; bepul tarifda har doim oylik */
+  billingCycle?: BillingCycle;
   /** Sinov rejimi — muddati tugagach to'lov talab qilinadi */
   isTrial?: boolean;
 }
@@ -151,7 +152,7 @@ export async function createOrganization(input: CreateOrganizationInput): Promis
       maxUsers: input.maxUsers ?? preset.maxUsers,
       maxProducts: input.maxProducts ?? preset.maxProducts,
       monthlyPayment: isFree ? 0 : (input.monthlyPayment ?? preset.monthlyPrice),
-      billingCycle: input.billingCycle ?? 'monthly',
+      billingCycle: isFree ? 'monthly' : parseBillingCycle(input.billingCycle),
       agreementNote: tier === 'custom' ? input.agreementNote?.trim() : undefined,
       isTrial: input.isTrial ?? false,
     },
