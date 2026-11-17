@@ -4,7 +4,7 @@ import { authenticateMobile } from '@/lib/mobileAuth';
 import { mobilePermissionDenied, userCan } from '@/lib/permissionGuard';
 import { getTenantModels } from '@/lib/tenantDb';
 import { getMobileFeatures } from '@/lib/mobileOrg';
-import { applyOfflineSale, type OfflineSaleResult } from '@/lib/posSync';
+import { applyOfflineSale, isClientSaleId, type OfflineSaleResult } from '@/lib/posSync';
 import { markOnboardingStep } from '@/lib/onboarding';
 import { readJsonInput, zDate, zId, zQty, zMoney, zText, zField } from '@/lib/validation';
 
@@ -17,7 +17,7 @@ const saleSchema = z.object({
   // Qurilma bergan noyob kalit: UUID yoki shunga o'xshash 8–64 belgili [A-Za-z0-9-]
   clientSaleId: zField((v, ctx) => {
     const s = String(v ?? '').trim();
-    if (!/^[A-Za-z0-9-]{8,64}$/.test(s)) {
+    if (!isClientSaleId(s)) {
       ctx.addIssue({ code: 'custom', message: 'clientSaleId noto\'g\'ri.' });
       return z.NEVER;
     }

@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { View, Alert, ActivityIndicator, StyleSheet } from 'react-native';
 import { Text } from '@/components/ui/Text';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
@@ -10,7 +10,7 @@ import { useTheme, tabular } from '@/lib/theme';
 import { digits, grouped, fmtMoney, fmtDateTime, payLabels, payMethodLabel, PAY_METHODS, type PayMethod, type PayType } from '@/lib/format';
 import { uzPhone9, uzPhoneE164 } from '@/lib/phone';
 import { useOfflinePos } from '@/lib/offlinePos';
-import { isNetworkError, searchCatalog, toPicked } from '@/lib/offline';
+import { isNetworkError, newClientSaleId, searchCatalog, toPicked } from '@/lib/offline';
 import { useDict, tr } from '@/lib/i18n';
 import { fmtQty, isFractionalUnit, parseQty, priceTimesQty, qtyWithUnit } from '@/lib/qty';
 import {
@@ -59,6 +59,10 @@ export default function SaleNew() {
   const [notes, setNotes] = useState('');
   const [busy, setBusy] = useState(false);
   const [tried, setTried] = useState(false);
+  // Bitta sotuv — bitta kalit: javob kelmay qolsa (timeout) qayta yuborish ham, oflayn navbat ham shu kalit
+  // bilan ketadi — server sotuvni ikki marta yozmaydi. Boshqa mahsulot tanlansa — yangi sotuv, yangi kalit.
+  const saleKey = useRef<string | null>(null);
+  useEffect(() => { saleKey.current = null; }, [picked?.id]);
 
   const list = usePaged<PickedProduct>(picked ? null : `/api/mobile/products?q=${encodeURIComponent(dq)}`);
 
@@ -128,7 +132,10 @@ export default function SaleNew() {
     if (!picked) { Alert.alert(d.saleNew.pickTitle, d.saleNew.pickMsg); return; }
     if (!valid) return;
     setBusy(true);
+    if (!saleKey.current) saleKey.current = newClientSaleId();
+    const clientSaleId = saleKey.current;
     const body = {
+      clientSaleId,
       productId: picked.id,
       paymentType: pay,
       totalAmount: totalN,
@@ -160,6 +167,7 @@ export default function SaleNew() {
       }
       try {
         await pos.enqueue({
+          clientSaleId,
           productId: picked.id,
           name: picked.name,
           qty: picked.trackQuantity ? saleQty ?? 1 : 1,

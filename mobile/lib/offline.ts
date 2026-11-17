@@ -144,13 +144,19 @@ async function saveQueue(userId: string, q: QueuedSale[]): Promise<void> {
   await writeJson(queueKey(userId), q);
 }
 
+/**
+ * Navbatga qo'shiladigan sotuv. `clientSaleId` — onlayn yuborishda ishlatilgan kalit (javob kelmay qolgan
+ * bo'lsa): server sotuvni yozgan bo'lsa, sinxron uni 'duplicate' deb qaytaradi — ikkinchi sotuv yozilmaydi.
+ */
+export type NewQueuedSale = Omit<QueuedSale, 'clientSaleId' | 'soldAt' | 'status'> & { clientSaleId?: string };
+
 /** Oflayn sotuvni navbatga qo'shadi va katalogdagi qoldiqni kamaytiradi */
-export async function enqueueSale(
-  userId: string,
-  sale: Omit<QueuedSale, 'clientSaleId' | 'soldAt' | 'status'>,
-): Promise<QueuedSale> {
-  const item: QueuedSale = { ...sale, clientSaleId: newClientSaleId(), soldAt: new Date().toISOString(), status: 'pending' };
+export async function enqueueSale(userId: string, sale: NewQueuedSale): Promise<QueuedSale> {
   const q = await loadQueue(userId);
+  // Shu kalit navbatda bor (qayta bosildi) — ikkinchi marta qo'shilmaydi, qoldiq ham qayta kamaymaydi
+  const dup = sale.clientSaleId ? q.find((s) => s.clientSaleId === sale.clientSaleId) : undefined;
+  if (dup) return dup;
+  const item: QueuedSale = { ...sale, clientSaleId: sale.clientSaleId || newClientSaleId(), soldAt: new Date().toISOString(), status: 'pending' };
   q.push(item);
   await saveQueue(userId, q);
 

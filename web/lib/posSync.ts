@@ -53,8 +53,13 @@ export function clampSoldAt(soldAt: Date, now: Date = new Date()): Date {
   return soldAt;
 }
 
-function isDupKey(err: unknown): boolean {
+export function isDupKey(err: unknown): boolean {
   return !!err && typeof err === 'object' && (err as { code?: number }).code === 11000;
+}
+
+/** Qurilma bergan sotuv kaliti: UUID yoki shunga o'xshash 8–64 belgili [A-Za-z0-9-] */
+export function isClientSaleId(v: unknown): v is string {
+  return typeof v === 'string' && /^[A-Za-z0-9-]{8,64}$/.test(v);
 }
 
 export async function applyOfflineSale(

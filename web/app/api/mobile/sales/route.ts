@@ -21,6 +21,27 @@ import { newCheckoutId, receiptPath } from '@/lib/receiptLink';
 import { MAX_BANK_PARTS, bankPartsLabel, parseBankPartsInput, validateBankParts } from '@/lib/bankCredit';
 import type { ISaleBankPart } from '@/lib/models/tenant/Sale';
 import { notifyNewSale, salePayLabel } from '@/lib/shopNotify';
+import { isClientSaleId, isDupKey } from '@/lib/posSync';
+import type { SessionUser } from '@/lib/session';
+
+type SaleModel = Awaited<ReturnType<typeof getTenantModels>>['Sale'];
+
+/**
+ * Shu kalit bilan allaqachon yozilgan sotuv — qayta yuborishda o'sha javob qaytadi, yangi sotuv yozilmaydi.
+ * Kalit boshqa xodimniki bo'lsa — 409 (boshqa sotuv ma'lumoti ko'rsatilmaydi).
+ */
+async function existingSaleResponse(Sale: SaleModel, clientSaleId: string, user: SessionUser): Promise<NextResponse | null> {
+  const prev = await Sale.findOne(
+    { clientSaleId },
+    { _id: 1, saleNo: 1, totalAmount: 1, remainingAmount: 1, checkoutId: 1, soldBy: 1 },
+  ).lean();
+  if (!prev) return null;
+  if (prev.soldBy !== user.username) return NextResponse.json({ error: 'Sotuv kaliti band.' }, { status: 409 });
+  return NextResponse.json({
+    id: String(prev._id), saleNo: prev.saleNo, totalAmount: prev.totalAmount, remainingAmount: prev.remainingAmount,
+    receiptPath: user.organizationId && prev.checkoutId ? receiptPath(user.organizationId, prev.checkoutId) : null,
+  }, { status: 200 });
+}
 
 type PaymentType = 'cash' | 'debt' | 'installment' | 'bank_credit';
 const PAYMENT_TYPES: PaymentType[] = ['cash', 'debt', 'installment', 'bank_credit'];
@@ -107,8 +128,19 @@ export async function POST(req: Request) {
     bankParts?: unknown;
     /** To'langan qism usuli: cash | uzcard | humo | click | payme (eski ilova yubormaydi — naqd) */
     payMethod?: string;
+    /**
+     * Qurilma bergan sotuv kaliti (ixtiyoriy; eski ilova yubormaydi). Javob kelmay qolsa (timeout) ilova
+     * shu kalit bilan qayta yuboradi yoki oflayn navbatga qo'yadi — sotuv ikki marta yozilmaydi
+     * (pos/sync bilan umumiy unikal indeks).
+     */
+    clientSaleId?: unknown;
   };
   try { body = await req.json(); } catch { return NextResponse.json({ error: 'Noto\'g\'ri so\'rov.' }, { status: 400 }); }
+
+  const clientSaleId = body.clientSaleId == null || body.clientSaleId === '' ? undefined : body.clientSaleId;
+  if (clientSaleId !== undefined && !isClientSaleId(clientSaleId)) {
+    return NextResponse.json({ error: 'Sotuv kaliti noto\'g\'ri.' }, { status: 400 });
+  }
 
   const productId = String(body.productId || '');
   const paymentType = (PAYMENT_TYPES.includes(body.paymentType as PaymentType) ? body.paymentType : 'cash') as PaymentType;
@@ -140,6 +172,11 @@ export async function POST(req: Request) {
   if (totalAmount <= 0) return NextResponse.json({ error: 'Sotuv summasi noto\'g\'ri.' }, { status: 400 });
 
   const { Product, Sale, Customer, CreditBank } = await getTenantModels(user.dbName);
+  // Qayta yuborish: sotuv birinchi so'rovda yozilgan (mahsulot endi "sotilgan" bo'lishi mumkin) — o'sha javob
+  if (clientSaleId) {
+    const prev = await existingSaleResponse(Sale, clientSaleId, user);
+    if (prev) return prev;
+  }
   const product = await Product.findById(productId).lean();
   if (!product || product.status !== 'in_stock') {
     return NextResponse.json({ error: 'Mahsulot omborda emas yoki sotilgan.' }, { status: 400 });
@@ -264,10 +301,16 @@ export async function POST(req: Request) {
       totalAmount, paidAmount, remainingAmount, installmentMonths, payDay,
       downPayment: paymentType === 'installment' ? paidAmount : undefined,
       dueDate, status, payments, soldBy: user.username, notes: notes || undefined, checkoutId,
+      ...(clientSaleId ? { clientSaleId } : {}),
     });
-  } catch {
+  } catch (err) {
     // Kompensatsiya: sotuv yozilmasa — mahsulot omborga qaytadi
     await releaseStock(Product, product._id, saleQty);
+    // Parallel so'rov (yoki oflayn sinxron) shu kalit bilan allaqachon yozgan — o'sha sotuv qaytadi
+    if (clientSaleId && isDupKey(err)) {
+      const prev = await existingSaleResponse(Sale, clientSaleId, user);
+      if (prev) return prev;
+    }
     return NextResponse.json({ error: 'Sotuvda xatolik yuz berdi.' }, { status: 500 });
   }
 

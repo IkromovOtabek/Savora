@@ -4,7 +4,7 @@ import { useAuth, canWith } from './auth';
 import { errMsg } from './api';
 import {
   loadCatalog, refreshCatalog, loadQueue, enqueueSale, syncQueue, dismissQueued, isNetworkError,
-  type Catalog, type QueuedSale, type SyncReport,
+  type Catalog, type QueuedSale, type NewQueuedSale, type SyncReport,
 } from './offline';
 
 /**
@@ -23,7 +23,7 @@ interface OfflinePosState {
   offline: boolean;
   lastError: string | null;
   lastReport: SyncReport | null;
-  enqueue: (sale: Omit<QueuedSale, 'clientSaleId' | 'soldAt' | 'status'>) => Promise<void>;
+  enqueue: (sale: NewQueuedSale) => Promise<void>;
   syncNow: () => Promise<SyncReport | null>;
   refresh: () => Promise<void>;
   dismiss: (clientSaleId: string) => Promise<void>;
@@ -85,7 +85,7 @@ export function OfflinePosProvider({ children }: { children: React.ReactNode }) 
 
   const refresh = useCallback(async () => { await syncNow(); }, [syncNow]);
 
-  const enqueue = useCallback(async (sale: Omit<QueuedSale, 'clientSaleId' | 'soldAt' | 'status'>) => {
+  const enqueue = useCallback(async (sale: NewQueuedSale) => {
     const id = uid.current;
     if (!id) throw new Error('no user');
     await enqueueSale(id, sale);
