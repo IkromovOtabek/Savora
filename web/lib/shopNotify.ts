@@ -62,7 +62,7 @@ export function dailySummaryPush(shop: string, s: DailySummary): PushMessage {
   return { title: `${shop} — kun yakuni`, body: lines.join('\n'), url: '/' };
 }
 
-const METHOD_LABELS: Record<string, string> = { cash: 'Naqd', uzcard: 'Uzcard', humo: 'Humo', click: 'Click', payme: 'Payme' };
+const METHOD_LABELS: Record<string, string> = { cash: 'Naqd', uzcard: 'Uzcard', humo: 'Humo', click: 'Click', payme: 'Payme', uzqr: 'UzQR' };
 
 /** Push uchun to'lov yorlig'i: qarz/nasiya/kredit — turi; to'liq to'lovda — usuli (naqd, Uzcard...) */
 export function salePayLabel(paymentType: PaymentType, methods: (string | undefined)[] = []): string {

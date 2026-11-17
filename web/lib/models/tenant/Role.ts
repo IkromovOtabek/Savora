@@ -59,4 +59,49 @@ export const DEFAULT_ROLES: { name: string; permissions: PermissionKey[]; permVe
   },
 ];
 
+/**
+ * Restoran rol shablonlari (docs/business/TAKLIF_2026-11_SHABLONLAR.md §1.6). Restoran turidagi do'konda
+ * NOMI bo'yicha yo'q bo'lsa qo'shiladi (lib/roles.ts → ensureDefaultRoles) — egasi tahrirlagan rol ustidan yozilmaydi.
+ */
+export const RESTAURANT_ROLES: { name: string; permissions: PermissionKey[]; permVersion: number }[] = [
+  {
+    // O'z stollari: stol ochish, taom qo'shish, yuborish, yetkazildi, pre-chek; stop-list menyuda ko'rinadi
+    name: 'Ofitsant',
+    permissions: ['order.create', 'tasks.view', 'profile.password'],
+    permVersion: PERMISSIONS_VERSION,
+  },
+  {
+    name: 'Oshpaz',
+    permissions: ['kitchen.view', 'kitchen.bump', 'menu.stopList', 'tasks.view', 'profile.password'],
+    permVersion: PERMISSIONS_VERSION,
+  },
+  {
+    // Oshpaz huquqlari (bar stansiyasi ekranida) + peshtaxtada buyurtma
+    name: 'Barmen',
+    permissions: ['kitchen.view', 'kitchen.bump', 'menu.stopList', 'order.create', 'tasks.view', 'profile.password'],
+    permVersion: PERMISSIONS_VERSION,
+  },
+  {
+    // Mavjud «Kassir» + barcha buyurtmalar, to'lov, hisobni bo'lish
+    name: 'Kassir (restoran)',
+    permissions: [
+      'sale.create', 'sales.view', 'kassa.view', 'kassa.shift', 'customers.view', 'customers.manage',
+      'debts.view', 'payment.accept', 'order.create', 'order.viewAll', 'order.split', 'tasks.view', 'profile.password',
+    ],
+    permVersion: PERMISSIONS_VERSION,
+  },
+  {
+    // Stol o'tkazish, bekor qilish, qayta ochish, chegirma, stollar sozlamasi, hisobotlar, hisobdan chiqarish
+    name: 'Administrator',
+    permissions: [
+      'sale.create', 'sale.discount', 'sales.view', 'sale.cancel', 'sale.return', 'kassa.view', 'kassa.shift',
+      'products.view', 'product.edit', 'stock.writeOff', 'customers.view', 'debts.view', 'payment.accept',
+      'order.create', 'order.viewAll', 'order.transfer', 'order.voidItem', 'order.split', 'order.reopen',
+      'kitchen.view', 'kitchen.bump', 'menu.stopList', 'tables.manage',
+      'reports.view', 'tasks.view', 'tasks.manage', 'profile.password',
+    ],
+    permVersion: PERMISSIONS_VERSION,
+  },
+];
+
 export type RoleDoc = IRole & { _id: Types.ObjectId };

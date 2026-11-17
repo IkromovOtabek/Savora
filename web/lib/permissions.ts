@@ -58,6 +58,17 @@ export const PERMISSION_KEYS = [
   'tasks.view',
   'tasks.manage',
   'profile.password',
+  // Restoran (3-versiya): buyurtma va stollar, oshxona ekrani, stop-list, zal sozlamalari
+  'order.create',
+  'order.viewAll',
+  'order.transfer',
+  'order.voidItem',
+  'order.split',
+  'order.reopen',
+  'kitchen.view',
+  'kitchen.bump',
+  'menu.stopList',
+  'tables.manage',
   // Faqat do'kon egasi
   'kirimChiqim.manage',
   'users.manage',
@@ -87,6 +98,9 @@ export const PERMISSION_PAGES = [
   'reports',
   'ai',
   'tasks',
+  'tables',
+  'kitchen',
+  'restaurant',
   'profile',
   'finance',
   'creditKassa',
@@ -124,6 +138,9 @@ export const PERMISSION_PAGE_DEFS: Record<PermissionPage, PermissionPageDef> = {
   reports: { id: 'reports', href: '/app/reports', feature: 'monitoring' },
   ai: { id: 'ai', href: '/app/ai', feature: 'ai' },
   tasks: { id: 'tasks', href: '/app/tasks', feature: 'tasks' },
+  tables: { id: 'tables', href: '/app/tables', feature: 'tables' },
+  kitchen: { id: 'kitchen', href: '/app/kitchen', feature: 'kitchen' },
+  restaurant: { id: 'restaurant', href: '/app/restaurant', feature: 'tables' },
   profile: { id: 'profile', href: '/app/profile' },
   finance: { id: 'finance', href: '/app/finance', feature: 'kirimChiqim', ownerOnly: true },
   creditKassa: { id: 'creditKassa', href: '/app/kredit-kassa', feature: 'creditKassa', ownerOnly: true },
@@ -143,11 +160,17 @@ export interface PermissionDef {
   /** Faqat do'kon egasi (admin) — filial loginga berib bo'lmaydi */
   adminOnly?: boolean;
   /**
-   * Bu huquq 2-versiyada qo'shilgan. Eski (1-versiya) aniq ro'yxatlarda qanday tiklanadi:
+   * Eski versiyada saqlangan aniq ro'yxatlarda bu huquq qanday tiklanadi (`since` dan oldingi ro'yxatlar uchun):
    *   'open'       — ilgari hech qanday huquq so'ralmas edi → hammaga beriladi (xodim kirishni yo'qotmasin);
    *   PermissionKey — ilgari shu huquq bilan ishlardi → o'sha bo'lsa beriladi.
    */
   legacy?: 'open' | PermissionKey;
+  /**
+   * Huquq qaysi katalog versiyasida qo'shilgan (yo'q — 2). `legacy` qoidasi faqat shu versiyadan
+   * ESKI ro'yxatlarga qo'llanadi — aks holda egasi keyinroq olib qo'ygan huquq har versiya
+   * oshganda qayta qo'shilib qolardi.
+   */
+  since?: number;
 }
 
 const P = (key: PermissionKey, page: PermissionPage, label: string, description: string, extra: Partial<PermissionDef> = {}): PermissionDef =>
@@ -199,14 +222,34 @@ export const PERMISSIONS: Record<PermissionKey, PermissionDef> = {
   'tasks.manage': P('tasks.manage', 'tasks', 'Topshiriqlarni boshqarish', "Topshiriq yaratish, biriktirish va o'chirish", { feature: 'tasks' }),
   'profile.password': P('profile.password', 'profile', "O'z parolini o'zgartirish", "Kabinetda o'z parolini almashtirish (birinchi kirishdagi majburiy almashtirish bundan mustasno)", { legacy: 'open' }),
 
+  // Restoran — 3-versiya. Kundalik ishlar (buyurtma, oshxona) ilgari sotuv qila olgan xodimga meros;
+  // nazorat amallari (o'tkazish, bekor qilish, qayta ochish, sozlama) — faqat aniq berilsa.
+  'order.create': P('order.create', 'tables', 'Buyurtma olish', "Stol ochish, taom qo'shish, oshxonaga yuborish, yetkazildi, pre-chek (o'z stollari)", { feature: 'tables', legacy: 'sale.create', since: 3 }),
+  'order.viewAll': P('order.viewAll', 'tables', "Barcha buyurtmalarni ko'rish", "Boshqa ofitsantlarning stollari va buyurtmalari (kassir, administrator)", { feature: 'tables', legacy: 'sale.create', since: 3 }),
+  'order.transfer': P('order.transfer', 'tables', "Stol/ofitsantni o'tkazish", "Buyurtmani boshqa stolga yoki boshqa ofitsantga o'tkazish", { feature: 'tables', since: 3 }),
+  'order.voidItem': P('order.voidItem', 'tables', 'Yuborilgan taomni bekor qilish', "Oshxonaga yuborilgan taomni bekor qilish (sabab bilan, auditga yoziladi)", { feature: 'tables', since: 3 }),
+  'order.split': P('order.split', 'tables', "Hisobni bo'lish", "Buyurtmani taomlar bo'yicha qismlarga bo'lib to'lash", { feature: 'tables', legacy: 'sale.create', since: 3 }),
+  'order.reopen': P('order.reopen', 'tables', 'Hisobni qayta ochish', "Pre-chek chiqqan buyurtmani o'zgartirish uchun qayta ochish", { feature: 'tables', since: 3 }),
+  'kitchen.view': P('kitchen.view', 'kitchen', "Oshxona ekranini ko'rish", "Oshxona/bar ekrani (KDS): yuborilgan taomlar va taymer", { feature: 'kitchen', legacy: 'sale.create', since: 3 }),
+  'kitchen.bump': P('kitchen.bump', 'kitchen', 'Taom holatini belgilash', "«Boshlandi», «Tayyor» (oshpaz, barmen)", { feature: 'kitchen', legacy: 'sale.create', since: 3 }),
+  'menu.stopList': P('menu.stopList', 'kitchen', 'Stop-list', "Tugagan taomni menyudan vaqtincha olib qo'yish va qaytarish", { feature: 'tables', legacy: 'sale.create', since: 3 }),
+  'tables.manage': P('tables.manage', 'restaurant', 'Zal va stollar sozlamasi', "Zallar, stollar, QR-kodlar, stansiyalar, xizmat haqi va brend", { feature: 'tables', since: 3 }),
+
   // Kirim-chiqim — barcha filiallar bo'yicha umumiy moliya, shuning uchun faqat egasi
   'kirimChiqim.manage': P('kirimChiqim.manage', 'finance', 'Kirim-chiqim', "Kirim/chiqim jurnalini ko'rish va yozish (barcha filiallar)", { feature: 'kirimChiqim', adminOnly: true }),
   'users.manage': P('users.manage', 'team', 'Filial va loginlar', 'Filial ochish, parol, rol va huquqlarni boshqarish', { feature: 'users', adminOnly: true }),
   'audit.view': P('audit.view', 'audit', 'Amallar tarixi', 'Xodimlar amallari jurnali', { feature: 'audit', adminOnly: true }),
 };
 
-/** Huquqlar katalogi versiyasi. Saqlangan ro'yxat eski versiyada bo'lsa — yangi kalitlar `legacy` qoidasi bilan qo'shiladi */
-export const PERMISSIONS_VERSION = 2;
+/**
+ * Huquqlar katalogi versiyasi. Saqlangan ro'yxat eski versiyada bo'lsa — o'sha versiyadan keyin qo'shilgan
+ * kalitlar `legacy` qoidasi bilan qo'shiladi.
+ *   2 — sahifalar bo'yicha bo'lingan huquqlar; 3 — restoran (order.*, kitchen.*, menu.stopList, tables.manage).
+ */
+export const PERMISSIONS_VERSION = 3;
+
+/** `since` ko'rsatilmagan legacy huquqlar 2-versiyada qo'shilgan */
+const DEFAULT_SINCE = 2;
 
 /** Sahifa → shu sahifadagi huquqlar (katalog tartibida) */
 export function permissionsOfPage(page: PermissionPage): PermissionKey[] {
@@ -243,19 +286,27 @@ export const ROLE_DEFAULT_PERMISSIONS: Record<TenantRole, readonly PermissionKey
     'reports.view',
     'tasks.view',
     'profile.password',
+    // Restoran kundalik ishlari (modul yoqilmagan do'konda amalda kesiladi — withEnabledModules)
+    'order.create',
+    'order.viewAll',
+    'order.split',
+    'kitchen.view',
+    'kitchen.bump',
+    'menu.stopList',
   ],
 };
 
 /**
- * 1-versiyada saqlangan aniq ro'yxatni joriy katalogga ko'taradi: yangi kalitlar `legacy` qoidasi
- * bo'yicha qo'shiladi (masalan, ilgari ochiq bo'lgan «Sotuvlarni ko'rish» — hammaga).
- * Shunda yangi huquqlar paydo bo'lganda hech bir xodim kirishni yo'qotmaydi.
+ * Eski versiyada saqlangan aniq ro'yxatni joriy katalogga ko'taradi: `fromVersion` dan keyin qo'shilgan
+ * kalitlar `legacy` qoidasi bo'yicha qo'shiladi (masalan, ilgari ochiq bo'lgan «Sotuvlarni ko'rish» — hammaga).
+ * Shunda yangi huquqlar paydo bo'lganda hech bir xodim kirishni yo'qotmaydi; o'sha versiyada egasi
+ * ataylab olib qo'ygan eski huquqlar esa qayta qo'shilmaydi.
  */
-export function upgradeLegacyPermissions(list: readonly string[]): string[] {
+export function upgradeLegacyPermissions(list: readonly string[], fromVersion = 1): string[] {
   const set = new Set(list);
   for (const k of PERMISSION_KEYS) {
-    const rule = PERMISSIONS[k].legacy;
-    if (!rule || set.has(k)) continue;
+    const { legacy: rule, since = DEFAULT_SINCE } = PERMISSIONS[k];
+    if (!rule || set.has(k) || since <= fromVersion) continue;
     if (rule === 'open' || set.has(rule)) set.add(k);
   }
   return [...set];
@@ -278,7 +329,8 @@ export function effectivePermissions(user: PermissionSubject): Set<PermissionKey
   if (user.role !== 'user') return new Set();
   let list: readonly string[] = ROLE_DEFAULT_PERMISSIONS.user;
   if (Array.isArray(user.permissions)) {
-    list = (user.permVersion ?? 1) < PERMISSIONS_VERSION ? upgradeLegacyPermissions(user.permissions) : user.permissions;
+    const v = user.permVersion ?? 1;
+    list = v < PERMISSIONS_VERSION ? upgradeLegacyPermissions(user.permissions, v) : user.permissions;
   }
   // adminOnly huquqlar filial loginga hech qachon berilmaydi (bazada bo'lsa ham)
   return new Set(list.filter((k): k is PermissionKey => isPermissionKey(k) && !PERMISSIONS[k].adminOnly));

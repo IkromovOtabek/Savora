@@ -50,6 +50,9 @@ export const NAV_ICONS: Record<string, IconName> = {
   '/app/nasiya': 'clock',
   '/app/ai': 'sparkles',
   '/app/tasks': 'check',
+  '/app/tables': 'grid',
+  '/app/kitchen': 'utensils',
+  '/app/restaurant': 'qr',
 };
 
 /** Tor (ikonli) menyuda har bir bo'lim bitta ikonka bilan ko'rinadi */
@@ -87,6 +90,9 @@ export const NAV_GROUPS: NavGroup[] = [
       // Bosh sahifa admin uchun ham ko'rinadi (dashboard admin'da barcha filiallar bo'yicha ishlaydi)
       { href: '/app', label: 'Bosh sahifa', exact: true },
       { href: '/app/pos', label: 'Yangi sotuv', feature: 'sales', permission: 'sale.create' },
+      // Restoran: stollar (ofitsant + kassadagi «Stollar») va oshxona ekrani — docs/RESTORAN_API.md
+      { href: '/app/tables', label: 'Stollar', feature: 'tables', permission: 'order.create' },
+      { href: '/app/kitchen', label: 'Oshxona', feature: 'kitchen', permission: 'kitchen.view' },
       { href: '/app/sales', label: 'Sotuvlar', feature: 'sales', permission: 'sales.view' },
       { href: '/app/kassa', label: 'Naqd kassa', feature: 'kassa', permission: 'kassa.view' },
       { href: '/app/shifts', label: 'Kassa smenalari', feature: 'kassa', permission: 'kassa.view' },
@@ -131,6 +137,7 @@ export const NAV_GROUPS: NavGroup[] = [
     links: [
       { href: '/app/profile', label: 'Kabinet' },
       { href: '/app/settings', label: "Do'kon sozlamalari", adminOnly: true },
+      { href: '/app/restaurant', label: 'Restoran sozlamalari', feature: 'tables', permission: 'tables.manage' },
     ],
   },
 ];

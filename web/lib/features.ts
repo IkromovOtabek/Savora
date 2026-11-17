@@ -176,6 +176,34 @@ export const TENANT_MODULES: Record<FeatureKey, FeatureModule> = {
     category: 'boshqaruv',
     defaultByPlan: { free: false, starter: true, pro: true, business: true, custom: true },
   },
+  // Restoran modullari — standart OFF hamma tarifda; faqat biznes preseti (restaurant) yoki Super Admin yoqadi
+  tables: {
+    key: 'tables',
+    label: 'Stollar',
+    description: 'Zal va stollar, buyurtma, ofitsant va kassadagi «Stollar» bo\'limi',
+    route: '/app/tables',
+    category: 'savdo',
+    defaultByPlan: { free: false, starter: false, pro: false, business: false, custom: false },
+    allowedByPlan: { free: false, starter: true, pro: true, business: true, custom: true },
+  },
+  kitchen: {
+    key: 'kitchen',
+    label: 'Oshxona ekrani',
+    description: 'Oshxona va bar stansiyalari, oshxona ekrani (KDS) va tayyorlanish vaqti',
+    route: '/app/kitchen',
+    category: 'savdo',
+    defaultByPlan: { free: false, starter: false, pro: false, business: false, custom: false },
+    allowedByPlan: { free: false, starter: true, pro: true, business: true, custom: true },
+  },
+  qrMenu: {
+    key: 'qrMenu',
+    label: 'QR-menyu',
+    description: 'Mijoz stoldagi QR orqali menyuni ko\'radi, buyurtma beradi va ofitsantni chaqiradi',
+    route: '/app/restaurant',
+    category: 'savdo',
+    defaultByPlan: { free: false, starter: false, pro: false, business: false, custom: false },
+    allowedByPlan: { free: false, starter: false, pro: true, business: true, custom: true },
+  },
 };
 
 const CATEGORY_LABELS: Record<FeatureModule['category'], string> = {

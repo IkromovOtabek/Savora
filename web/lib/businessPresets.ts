@@ -29,7 +29,7 @@ export const BUSINESS_FEATURE_PRESETS: Record<BusinessType, Partial<Record<Featu
   pharmacy: { ...SMART, nasiya: false, variant: false, creditKassa: false, inventory: true, transferred: true },
   auto_parts: { ...SMART, daftar: true, nasiya: false, variant: false, creditKassa: false, inventory: true },
   wholesale: { ...SMART, daftar: true, nasiya: false, variant: false, creditKassa: false, inventory: true, transferred: true },
-  restaurant: { ...SMART, nasiya: false, variant: false, creditKassa: false, transferred: false, inventory: true, mediaUpload: true },
+  restaurant: { ...SMART, nasiya: false, variant: false, creditKassa: false, transferred: false, inventory: true, mediaUpload: true, tables: true, kitchen: true, qrMenu: true },
   service: { ...SMART, nasiya: false, variant: false, creditKassa: false, inventory: false, transferred: false },
 };
 

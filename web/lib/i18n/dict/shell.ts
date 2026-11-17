@@ -35,6 +35,9 @@ const navUz: NavText = {
     '/app/audit': 'Amallar',
     '/app/profile': 'Kabinet',
     '/app/settings': "Do'kon sozlamalari",
+    '/app/tables': 'Stollar',
+    '/app/kitchen': 'Oshxona',
+    '/app/restaurant': 'Restoran sozlamalari',
   },
   tabs: {
     '/app': 'Asosiy', '/app/sales': 'Sotuvlar', '/app/products': 'Ombor', '/app/debts': 'Qarzlar',
@@ -71,6 +74,9 @@ const navRu: NavText = {
     '/app/audit': 'Действия',
     '/app/profile': 'Кабинет',
     '/app/settings': 'Настройки магазина',
+    '/app/tables': 'Столы',
+    '/app/kitchen': 'Кухня',
+    '/app/restaurant': 'Настройки ресторана',
   },
   tabs: {
     '/app': 'Главная', '/app/sales': 'Продажи', '/app/products': 'Склад', '/app/debts': 'Долги',

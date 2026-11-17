@@ -1,5 +1,6 @@
 import type { Model } from 'mongoose';
 import type { IShopSettings } from './models/tenant/ShopSettings';
+import { DEFAULT_RESTAURANT_SETTINGS } from './restaurant/types';
 
 export type ShopSettings = Omit<IShopSettings, 'key' | 'createdAt' | 'updatedAt'>;
 
@@ -7,6 +8,7 @@ export const DEFAULT_SHOP_SETTINGS: ShopSettings = {
   receipt: { paperWidth: 80, showSeller: true, showCustomer: true },
   currency: { rateMode: 'cbu' },
   notify: { dailySummary: false, shiftDiff: true, newSale: false },
+  restaurant: DEFAULT_RESTAURANT_SETTINGS,
 };
 
 /** Saqlangan qiymatlarni standartlar ustiga qo'yadi (hujjat yo'q yoki eski bo'lsa ham to'liq obyekt) */
@@ -16,6 +18,11 @@ export function mergeShopSettings(doc?: Partial<ShopSettings> | null): ShopSetti
     receipt: { ...d.receipt, ...stripUndef(doc?.receipt) },
     currency: { ...d.currency, ...stripUndef(doc?.currency) },
     notify: { ...d.notify, ...stripUndef(doc?.notify) },
+    restaurant: {
+      ...d.restaurant,
+      ...stripUndef(doc?.restaurant),
+      brand: { ...stripUndef(doc?.restaurant?.brand) },
+    },
     updatedBy: doc?.updatedBy,
   };
 }
@@ -32,7 +39,7 @@ export async function getShopSettings(M: Model<IShopSettings>): Promise<ShopSett
 }
 
 /** Bitta bo'limni yangilash (upsert) */
-export async function saveShopSettingsPart<K extends 'receipt' | 'currency' | 'notify'>(
+export async function saveShopSettingsPart<K extends 'receipt' | 'currency' | 'notify' | 'restaurant'>(
   M: Model<IShopSettings>, part: K, value: Partial<ShopSettings[K]>, by: string,
 ): Promise<void> {
   // by bo'sh — avtomatik yangilanish (CBU kursi), oxirgi tahrirlovchi o'zgarmaydi

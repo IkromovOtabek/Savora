@@ -53,6 +53,8 @@ Barcha biznes turlari presetida `ai` va `tasks` ham `+` (yo'nalishdan qat'i naza
 Tarif ruxsatlari: Nasiya, Variant, Kredit kassa, Inventar, Hisobot, Eksport, Rasm, **AI yordamchi** (`ai`) — **Pro+**.
 **Topshiriqlar** (`tasks`) — barcha pullik tariflar (**Starter+**), bepulda o'chiq.
 Daftar — standart o'chiq, lekin preset **Starter+** da yoqa oladi. Bepul tarifda preset faqat o'chira oladi.
+Restoran modullari — standart o'chiq, faqat `restaurant` preseti (yoki Super Admin) yoqadi: **Stollar** (`tables`) va
+**Oshxona ekrani** (`kitchen`) — **Starter+**, **QR-menyu** (`qrMenu`) — **Pro+**. Batafsil: `docs/RESTORAN_API.md`.
 
 Boshqa farqlar (`lib/businessTypes.ts` → `TERMS`): bo'lim nomi va birlik ("Menyu/Taom", "Dorixona/Dori",
 "Material", "Kiyim"...), kod maydoni ("IMEI", "Artikul", "Shtrix"). IMEI rejimi — faqat `phone_shop`.
@@ -84,6 +86,13 @@ Saqlash: tenant `User.permissions?: string[]`. Bo'sh (`undefined`) → rol stand
 | `users.manage` | Filial va loginlar | ✓ | faqat egasi | `/app/users`, mobil POST /branches |
 | `ai.view` | AI yordamchi | ✓ | — (egasi bera oladi) | `/app/ai` layout, rerunAiAnalysis, createTaskFromAi, mobil GET /ai, dashboard "AI tavsiya" |
 | `tasks.manage` | Topshiriqlarni boshqarish | ✓ | — (egasi bera oladi) | createTask, createTaskFromAi, assignTask, deleteTask |
+
+**Restoran huquqlari (katalog 3-versiya):** `order.create`, `order.viewAll`, `order.split`, `kitchen.view`, `kitchen.bump`,
+`menu.stopList` — filial standartida bor (eski aniq ro'yxatlarda «Sotuv qilish» bo'lsa meros); `order.transfer`,
+`order.voidItem`, `order.reopen`, `tables.manage` — faqat aniq berilsa. Restoran turida Ofitsant / Oshpaz / Barmen /
+Kassir (restoran) / Administrator rol shablonlari qo'shiladi. Server tekshiruvlari va jadval — `docs/RESTORAN_API.md` §1.
+Versiya qoidasi: `PermissionDef.since` — eski ro'yxatga faqat o'sha versiyadan keyin qo'shilgan kalitlarning `legacy`
+qoidasi qo'llanadi (egasi olib qo'ygan eski huquq qayta qo'shilmaydi).
 
 **Topshiriqlar — ko'rish va bajarish huquqsiz:** `tasks` moduli yoqiq bo'lsa, har bir login o'z doirasidagi
 topshiriqlarni ko'radi va holatini o'zgartiradi (updateTaskStatus, mobil PATCH /tasks/[id]).

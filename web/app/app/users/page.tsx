@@ -10,12 +10,12 @@ export async function generateMetadata() {
 }
 
 export default async function UsersPage() {
-  const { user, User, Branch, Role, features } = await getTenantAdminSession();
+  const { user, User, Branch, Role, features, org } = await getTenantAdminSession();
   const d = await getDict();
   const fullOrg = user.organizationId ? await getOrgWithPlan(user.organizationId) : null;
   const maxFilial = fullOrg?.plan.maxFilial ?? 1;
 
-  await ensureDefaultRoles(Role);
+  await ensureDefaultRoles(Role, org.businessType);
   const [branches, users, roles] = await Promise.all([
     Branch.find().sort({ createdAt: 1 }).lean(),
     User.find().sort({ createdAt: 1 }).lean(),

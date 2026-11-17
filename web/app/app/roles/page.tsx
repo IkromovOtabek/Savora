@@ -9,9 +9,9 @@ export async function generateMetadata() {
 }
 
 export default async function RolesPage() {
-  const { Role, User, features } = await getTenantAdminSession();
+  const { Role, User, features, org } = await getTenantAdminSession();
   const r = (await getDict()).crm.team.roles;
-  await ensureDefaultRoles(Role);
+  await ensureDefaultRoles(Role, org.businessType);
   const [roles, counts] = await Promise.all([
     Role.find().sort({ name: 1 }).lean(),
     User.aggregate<{ _id: unknown; n: number }>([{ $match: { roleId: { $exists: true } } }, { $group: { _id: '$roleId', n: { $sum: 1 } } }]),

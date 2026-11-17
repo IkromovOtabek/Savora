@@ -105,6 +105,10 @@ export interface ISale {
   /** Oflayn qilingan va keyin sinxronlangan sotuv */
   offline?: boolean;
   syncedAt?: Date;
+  /** Restoran: qaysi buyurtmadan (Order) — to'lovda har taom alohida qator, umumiy checkoutId */
+  orderId?: Types.ObjectId;
+  /** Restoran: stol raqami (chek va hisobot uchun nusxa) */
+  tableNumber?: number;
   createdAt?: Date;
   updatedAt?: Date;
 }
@@ -184,6 +188,8 @@ export const saleSchema = new Schema<ISale>(
     clientSaleId: { type: String, trim: true, maxlength: 64 },
     offline: { type: Boolean },
     syncedAt: { type: Date },
+    orderId: { type: Schema.Types.ObjectId, ref: 'Order' },
+    tableNumber: { type: Number },
   },
   { timestamps: true, collection: 'sales' }
 );
@@ -197,6 +203,8 @@ saleSchema.index({ checkoutId: 1 }, { partialFilterExpression: { checkoutId: { $
 saleSchema.index({ branchId: 1, 'returns.returnedAt': -1 }); // kunlik kassa (qaytarilgan pul)
 // Faqat oflayn sotuvlarda bor — partial unique (null'lar to'qnashmaydi)
 saleSchema.index({ clientSaleId: 1 }, { unique: true, partialFilterExpression: { clientSaleId: { $type: 'string' } } });
+// Restoran buyurtmasining sotuv qatorlari
+saleSchema.index({ orderId: 1 }, { partialFilterExpression: { orderId: { $type: 'objectId' } } });
 
 export const PAYMENT_TYPE_LABELS: Record<PaymentType, string> = {
   cash: 'Naqd',

@@ -1,4 +1,5 @@
 import { Schema } from 'mongoose';
+import type { RestaurantSettings } from '../../restaurant/types';
 
 /**
  * Do'kon sozlamalari (BILLZ: "Sozlamalar") — do'konda bitta hujjat (key: 'main').
@@ -32,6 +33,11 @@ export interface IShopSettings {
     /** Har bir sotuv — faqat mobil ilovaga push (Telegram'ga emas) */
     newSale: boolean;
   };
+  /**
+   * Restoran (lib/restaurant). QR-menyu manzili alohida saqlanmaydi — do'kon `slug` i ishlatiladi
+   * (master bazada noyob): /m/<slug>/<stol qrToken>.
+   */
+  restaurant: RestaurantSettings;
   updatedBy?: string;
   createdAt?: Date;
   updatedAt?: Date;
@@ -59,6 +65,18 @@ export const shopSettingsSchema = new Schema<IShopSettings>(
       dailySummary: { type: Boolean, default: false },
       shiftDiff: { type: Boolean, default: true },
       newSale: { type: Boolean, default: false },
+    },
+    restaurant: {
+      serviceChargePct: { type: Number, min: 0, max: 30 },
+      takeawayPackFee: { type: Number, min: 0 },
+      requireVoidReason: { type: Boolean },
+      kdsWarnMinutes: { type: Number, min: 1, max: 240 },
+      kdsAlertMinutes: { type: Number, min: 1, max: 480 },
+      brand: {
+        logoUrl: { type: String, trim: true, maxlength: 500 },
+        color: { type: String, trim: true, maxlength: 7 },
+        coverUrl: { type: String, trim: true, maxlength: 500 },
+      },
     },
     updatedBy: { type: String },
   },

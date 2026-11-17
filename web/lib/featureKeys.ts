@@ -17,6 +17,10 @@ export const FEATURE_KEYS = [
   'nasiya',
   'ai',
   'tasks',
+  // Restoran moduli (docs/RESTORAN_API.md): zal/stollar/buyurtma, oshxona ekrani (KDS), mijoz QR-menyusi
+  'tables',
+  'kitchen',
+  'qrMenu',
 ] as const;
 
 export type FeatureKey = (typeof FEATURE_KEYS)[number];

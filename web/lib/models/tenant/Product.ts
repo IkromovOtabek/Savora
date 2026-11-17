@@ -45,6 +45,22 @@ export interface IExtraField {
   value: string;
 }
 
+/** Restoran: modifikator guruhi («Porsiya»: Kichik/Katta, «Qo'shimcha»: Pishloq +5000) — lib/restaurant/modifiers.ts */
+export interface IModifierOption {
+  _id?: Types.ObjectId;
+  name: string;
+  /** Qo'shimcha narx (so'm) */
+  price: number;
+}
+export interface IModifierGroup {
+  _id?: Types.ObjectId;
+  name: string;
+  required: boolean;
+  min: number;
+  max: number;
+  options: IModifierOption[];
+}
+
 export interface IProduct {
   productId?: string;
   /** Yo'q bo'lsa — 'goods' (eski yozuvlar) */
@@ -96,6 +112,16 @@ export interface IProduct {
   soldAt?: Date;
   /** Bajarilgan amallar tarixi */
   history?: IProductHistory[];
+  /** MXIK (IKPU) — soliq tasniflagichi kodi, fiskal chek uchun (ixtiyoriy matn) */
+  ikpu?: string;
+  /** Restoran: qaysi stansiyaga (oshxona/bar) yo'naladi; yo'q — stansiyasiz (yuborilganda darhol «yetkazildi») */
+  stationId?: Types.ObjectId;
+  /** Restoran: modifikator guruhlari */
+  modifierGroups?: IModifierGroup[];
+  /** Restoran: stop-list — tugagan, menyuda va QR-menyuda ko'rinmaydi, oshxonaga yuborilmaydi (mahsulot filialga tegishli) */
+  stopListed?: boolean;
+  /** Tizim mahsuloti (masalan restoran xizmat haqi qatori) — soft-delete holatida, ro'yxatlarda ko'rinmaydi */
+  systemKey?: string;
   createdAt?: Date;
   updatedAt?: Date;
 }
@@ -173,6 +199,26 @@ export const productSchema = new Schema<IProduct>(
     supplierId: { type: Schema.Types.ObjectId, ref: 'Supplier' },
     soldAt: { type: Date },
     history: { type: [productHistorySchema], default: [] },
+    ikpu: { type: String, trim: true, maxlength: 30 },
+    stationId: { type: Schema.Types.ObjectId, ref: 'KitchenStation' },
+    modifierGroups: {
+      type: [{
+        name: { type: String, required: true, trim: true, maxlength: 60 },
+        required: { type: Boolean, default: false },
+        min: { type: Number, default: 0, min: 0, max: 20 },
+        max: { type: Number, default: 1, min: 1, max: 20 },
+        options: {
+          type: [{
+            name: { type: String, required: true, trim: true, maxlength: 60 },
+            price: { type: Number, default: 0, min: 0 },
+          }],
+          default: [],
+        },
+      }],
+      default: undefined,
+    },
+    stopListed: { type: Boolean },
+    systemKey: { type: String, trim: true },
   },
   { timestamps: true, collection: 'products' }
 );
@@ -190,6 +236,8 @@ productSchema.index({ variantGroupId: 1 }, { sparse: true });
 // Ombor ro'yxatidagi qo'shimcha ustunlar nomlari (distinct) — indeks bo'yicha
 productSchema.index({ 'extraFields.name': 1 }, { sparse: true });
 productSchema.index({ name: 'text', brand: 'text', deviceModel: 'text', imei: 'text' });
+// Restoran: oshxona stansiyasiga bog'langan taomlar (stansiya o'chirilganda tozalash)
+productSchema.index({ stationId: 1 }, { sparse: true });
 
 export const PRODUCT_STATUS_LABELS: Record<ProductStatus, string> = {
   in_stock: 'Omborda',

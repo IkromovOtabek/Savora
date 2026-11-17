@@ -11,7 +11,7 @@ import type { PosDone } from '@/app/actions/pos';
 
 export interface PosPayment { mode: 'full' | 'debt' | 'installment'; parts: PayPart[]; dueDate?: string; months?: number }
 
-const METHOD_ICON: Record<PayMethod, IconName> = { cash: 'wallet', uzcard: 'plans', humo: 'plans', click: 'phone', payme: 'phone' };
+const METHOD_ICON: Record<PayMethod, IconName> = { cash: 'wallet', uzcard: 'plans', humo: 'plans', click: 'phone', payme: 'phone', uzqr: 'qr' };
 type Tile = PayMethod | 'debt';
 const TILES: Tile[] = [...PAY_METHODS, 'debt'];
 /** Naqd: tez tanlov — summani shu kupyuraga yaxlitlash */

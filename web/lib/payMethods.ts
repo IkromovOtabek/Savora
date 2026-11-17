@@ -1,10 +1,10 @@
 /**
- * To'lov usullari (BILLZ: Naqd / UzCard / HUMO / Click / Payme).
- * Sotuv to'lovi (Sale.payments[].method) qaysi yo'l bilan kelganini bildiradi.
+ * To'lov usullari (BILLZ: Naqd / UzCard / HUMO / Click / Payme) + UzQR (yagona milliy QR, 2026-07-01 dan
+ * yuridik shaxslar uchun majburiy). Sotuv to'lovi (Sale.payments[].method) qaysi yo'l bilan kelganini bildiradi.
  * Eski yozuvlarda `method` yo'q — ular naqd deb hisoblanadi.
- * Kassa smenasi va naqd kassa faqat naqd usulni sanaydi; karta/o'tkazma alohida ko'rsatiladi.
+ * Kassa smenasi va naqd kassa faqat naqd usulni sanaydi; karta/o'tkazma/QR alohida ko'rsatiladi.
  */
-export const PAY_METHODS = ['cash', 'uzcard', 'humo', 'click', 'payme'] as const;
+export const PAY_METHODS = ['cash', 'uzcard', 'humo', 'click', 'payme', 'uzqr'] as const;
 export type PayMethod = (typeof PAY_METHODS)[number];
 
 /** Naqd bo'lmagan usullar (kassadagi naqd pulga qo'shilmaydi) */

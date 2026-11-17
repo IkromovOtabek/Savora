@@ -21,8 +21,12 @@ import { roleSchema, IRole } from './models/tenant/Role';
 import { shopSettingsSchema, IShopSettings } from './models/tenant/ShopSettings';
 import { productCategorySchema, IProductCategory } from './models/tenant/ProductCategory';
 import { brandSchema, IBrand } from './models/tenant/Brand';
+import { hallSchema, IHall } from './models/tenant/Hall';
+import { tableSchema, ITable } from './models/tenant/Table';
+import { kitchenStationSchema, IKitchenStation } from './models/tenant/KitchenStation';
+import { orderSchema, IOrder } from './models/tenant/Order';
 
-const TENANT_MODELS_VERSION = 18;
+const TENANT_MODELS_VERSION = 19;
 
 type TenantModelsMap = Map<string, ReturnType<typeof registerModels>>;
 const globalForTenant = global as unknown as { _savdoproTenantCache?: TenantModelsMap };
@@ -71,7 +75,13 @@ function registerModels(conn: import('mongoose').Connection) {
   const ProductCategory =
     (conn.models.ProductCategory as Model<IProductCategory>) || conn.model<IProductCategory>('ProductCategory', productCategorySchema);
   const Brand = (conn.models.Brand as Model<IBrand>) || conn.model<IBrand>('Brand', brandSchema);
-  return { conn, User, Branch, Product, Customer, Sale, CreditBank, BankReceipt, CashFlow, Transfer, AuditLog, LedgerEntry, Task, AiReport, Supplier, SupplierEntry, CashShift, StockAdjustment, FinanceCategory, Role, ShopSettings, ProductCategory, Brand };
+  // Restoran (lib/restaurant, docs/RESTORAN_API.md)
+  const Hall = (conn.models.Hall as Model<IHall>) || conn.model<IHall>('Hall', hallSchema);
+  const Table = (conn.models.Table as Model<ITable>) || conn.model<ITable>('Table', tableSchema);
+  const KitchenStation =
+    (conn.models.KitchenStation as Model<IKitchenStation>) || conn.model<IKitchenStation>('KitchenStation', kitchenStationSchema);
+  const Order = (conn.models.Order as Model<IOrder>) || conn.model<IOrder>('Order', orderSchema);
+  return { conn, User, Branch, Product, Customer, Sale, CreditBank, BankReceipt, CashFlow, Transfer, AuditLog, LedgerEntry, Task, AiReport, Supplier, SupplierEntry, CashShift, StockAdjustment, FinanceCategory, Role, ShopSettings, ProductCategory, Brand, Hall, Table, KitchenStation, Order };
 }
 
 /**

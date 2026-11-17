@@ -11,7 +11,7 @@ export const uz = {
   /** To'lov turlari (to'liq — sotuv detali, chek) */
   paymentTypesFull: { cash: 'Naqd', debt: 'Qarz', installment: "Nasiya (bo'lib to'lash)", bank_credit: 'Bank krediti' },
   /** To'lov usullari (kassa, chek, smena) — lib/payMethods */
-  payMethods: { cash: 'Naqd', uzcard: 'UzCard', humo: 'HUMO', click: 'Click', payme: 'Payme' },
+  payMethods: { cash: 'Naqd', uzcard: 'UzCard', humo: 'HUMO', click: 'Click', payme: 'Payme', uzqr: 'UzQR' },
   saleStatus: { paid: "To'liq to'langan", partial: 'Qisman / qarzdor', cancelled: 'Bekor qilingan' },
   installmentState: { paid: "To'landi", partial: 'Qisman', upcoming: 'Muddat kelmagan', overdue: "To'lanmagan" },
   /** Qarz muddati yorlig'i (lib/debts.ts holatlari bo'yicha) */
@@ -955,7 +955,7 @@ export const uz = {
 export const ru: typeof uz = {
   paymentTypes: { cash: 'Наличные', debt: 'Долг', installment: 'Рассрочка', bank_credit: 'Банковский кредит' },
   paymentTypesFull: { cash: 'Наличные', debt: 'Долг', installment: 'Рассрочка', bank_credit: 'Банковский кредит' },
-  payMethods: { cash: 'Наличные', uzcard: 'UzCard', humo: 'HUMO', click: 'Click', payme: 'Payme' },
+  payMethods: { cash: 'Наличные', uzcard: 'UzCard', humo: 'HUMO', click: 'Click', payme: 'Payme', uzqr: 'UzQR' },
   saleStatus: { paid: 'Оплачено полностью', partial: 'Частично / задолженность', cancelled: 'Отменена' },
   installmentState: { paid: 'Оплачен', partial: 'Частично', upcoming: 'Срок не наступил', overdue: 'Не оплачен' },
   debtLabel: { noDate: 'Срок не указан', dueToday: 'Срок сегодня' },

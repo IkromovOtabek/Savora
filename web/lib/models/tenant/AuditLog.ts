@@ -16,7 +16,8 @@ export type AuditEntity =
   | 'creditBank'
   | 'auth'
   | 'task'
-  | 'ai';
+  | 'ai'
+  | 'order';
 
 export interface IAuditLog {
   /** Mashina o'qiydigan amal kodi: 'product.delete', 'sale.create', ... */
@@ -38,7 +39,7 @@ export const auditLogSchema = new Schema<IAuditLog>(
     action: { type: String, required: true, trim: true },
     entity: {
       type: String,
-      enum: ['product', 'sale', 'user', 'branch', 'customer', 'supplier', 'finance', 'transfer', 'creditBank', 'auth', 'task', 'ai'],
+      enum: ['product', 'sale', 'user', 'branch', 'customer', 'supplier', 'finance', 'transfer', 'creditBank', 'auth', 'task', 'ai', 'order'],
       required: true,
     },
     entityId: { type: String, trim: true },
