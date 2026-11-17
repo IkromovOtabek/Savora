@@ -202,7 +202,7 @@ export const uz = {
   signupPrompt: {
     title: "Do'koningizni raqamlashtiring",
     lead: "Savora bilan ombor, sotuv, kassa va filiallarni bir joydan boshqaring.",
-    trial: '7 kun bepul',
+    trial: '14 kun bepul',
     trialTail: "sinab ko'ring — karta talab qilinmaydi.",
     points: ['Tez sotuv — skaner pistalet', "Ko'p filial va xodimlar", 'Qarz va kassa hisoboti'],
     start: 'Bepul boshlash',
@@ -563,7 +563,7 @@ export const ru: typeof uz = {
   signupPrompt: {
     title: 'Переведите магазин в цифру',
     lead: 'Управляйте складом, продажами, кассой и филиалами в одном месте с Savora.',
-    trial: '7 дней бесплатно',
+    trial: '14 дней бесплатно',
     trialTail: '— карта не требуется.',
     points: ['Быстрая продажа со сканером', 'Несколько филиалов и сотрудников', 'Отчёты по долгам и кассе'],
     start: 'Начать бесплатно',
