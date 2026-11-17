@@ -1,9 +1,10 @@
 /**
- * Miqdor qoidalari — kasrli o'lchov birliklari (kg, g, m, m2, l). Client va server bir xil
- * ishlatadi (DB importi yo'q); mobil nusxasi: mobile/lib/qty.ts.
+ * Miqdor qoidalari — kasrli o'lchov birliklari (kg, g, m, m2, l, m3, t, list, rulon). Client va server
+ * bir xil ishlatadi (DB importi yo'q); mobil nusxasi: mobile/lib/qty.ts (yangi birliklar u yerda hali yo'q).
  *
  *  - Kasrli birlikda miqdor > 0 va ko'pi bilan 3 xona (1 g / 1 ml / 1 mm aniqlik).
- *  - dona/qop/quti/paket va birligi yo'q mahsulot — butun son (≥ 1), avvalgidek.
+ *  - dona/qop/quti/paket/juft va birligi yo'q mahsulot — butun son (≥ 1), avvalgidek.
+ *  - list va rulon — kasr: sexda qismi sarflanadi (0,25 list, 1,5 rulon); m3 va t — kasr.
  *  - Miqdor `Number` sifatida saqlanadi, lekin doim 3 xonaga yaxlitlanadi; Mongo'dagi atomik
  *    yangilashlar ham `$round` bilan (lib/stock.ts) — 0.1 + 0.2 kabi float qoldiqlari to'planmaydi.
  *  - Narx × miqdor jami butun so'mga yaxlitlanadi (narxlar butun so'm).
@@ -15,7 +16,7 @@ const SCALE = 10 ** QTY_DECIMALS;
 /** Bitta qatordagi eng katta miqdor (sotuv/ko'chirish validatsiyasi bilan bir xil) */
 export const QTY_MAX = 1_000_000;
 
-export const FRACTIONAL_UNITS: readonly ProductUnit[] = ['kg', 'g', 'm', 'm2', 'l'];
+export const FRACTIONAL_UNITS: readonly ProductUnit[] = ['kg', 'g', 'm', 'm2', 'l', 'm3', 't', 'list', 'rulon'];
 
 export function isFractionalUnit(unit?: string | null): boolean {
   return !!unit && (FRACTIONAL_UNITS as readonly string[]).includes(unit);
@@ -75,5 +76,5 @@ export function fmtQty(n: number): string {
  */
 export function qtyLabel(n: number, unit?: string | null): string {
   if (!unit || unit === 'dona') return `${fmtQty(n)} ta`;
-  return `${fmtQty(n)} ${unit === 'm2' ? 'm²' : unit}`;
+  return `${fmtQty(n)} ${unit === 'm2' ? 'm²' : unit === 'm3' ? 'm³' : unit}`;
 }

@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { createOrganization } from '@/lib/organizations';
 import { normalizeSlug } from '@/lib/slug';
-import { BUSINESS_TYPE_IDS, parseBusinessType } from '@/lib/businessTypes';
+import { BUSINESS_TYPE_IDS, parseBusinessType, parseIndustryProfile } from '@/lib/businessTypes';
 import { getMasterModels } from '@/lib/masterDb';
 import { getTenantModels } from '@/lib/tenantDb';
 import { isOrganizationActive } from '@/lib/models/master/Organization';
@@ -30,6 +30,8 @@ export async function POST(req: Request) {
   const input = await readJsonInput(req, z.object({
     name: z.string().trim().min(2, "Do'kon nomini kiriting.").max(60, "Do'kon nomi juda uzun."),
     businessType: z.string().optional(),
+    /** Ishlab chiqarish sexi kichik yo'nalishi (ixtiyoriy) — lib/businessTypes.ts INDUSTRY_PROFILES */
+    industryProfile: z.string().max(40).optional(),
     username: z.string().trim().toLowerCase().regex(/^[a-z0-9_]{3,40}$/, "Login 3–40 belgi: lotin harf, raqam yoki _."),
     password: z.string().min(6, "Parol kamida 6 ta belgidan iborat bo'lsin.").max(128),
     phone: z.string().trim().max(30).optional(),
@@ -53,6 +55,7 @@ export async function POST(req: Request) {
       adminUsername: username,
       phone: phone || undefined,
       businessType,
+      industryProfile: parseIndustryProfile(input.data.industryProfile, businessType),
       adminPassword: password,
       planTier: 'free',
       isTrial: false,

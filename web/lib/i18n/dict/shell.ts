@@ -7,7 +7,7 @@ type NavText = { groups: Record<string, string>; links: Record<string, string>; 
 type OnbTips = Partial<Record<BusinessType, { product?: string; sale?: string }>>;
 
 const navUz: NavText = {
-  groups: { Mahsulotlar: 'Mahsulotlar', Sotuvlar: 'Sotuvlar', Mijozlar: 'Mijozlar', Hisobotlar: 'Hisobotlar', Moliya: 'Moliya', Boshqaruv: 'Boshqaruv', Sozlamalar: 'Sozlamalar' },
+  groups: { Mahsulotlar: 'Mahsulotlar', 'Ishlab chiqarish': 'Ishlab chiqarish', Sotuvlar: 'Sotuvlar', Mijozlar: 'Mijozlar', Hisobotlar: 'Hisobotlar', Moliya: 'Moliya', Boshqaruv: 'Boshqaruv', Sozlamalar: 'Sozlamalar' },
   links: {
     '/app': 'Bosh sahifa',
     '/app/sales': 'Sotuvlar',
@@ -38,6 +38,12 @@ const navUz: NavText = {
     '/app/tables': 'Stollar',
     '/app/kitchen': 'Oshxona',
     '/app/restaurant': 'Restoran sozlamalari',
+    '/app/restaurant/reports': 'Restoran hisobotlari',
+    '/app/production': 'Ishlab chiqarish',
+    '/app/production/recipes': 'Texkartalar',
+    '/app/receipts': 'Kirim',
+    '/app/purchase-orders': 'Xaridlar',
+    '/app/piecework': 'Ishbay',
   },
   tabs: {
     '/app': 'Asosiy', '/app/sales': 'Sotuvlar', '/app/products': 'Ombor', '/app/debts': 'Qarzlar',
@@ -46,7 +52,7 @@ const navUz: NavText = {
 };
 
 const navRu: NavText = {
-  groups: { Mahsulotlar: 'Товары', Sotuvlar: 'Продажи', Mijozlar: 'Клиенты', Hisobotlar: 'Отчёты', Moliya: 'Финансы', Boshqaruv: 'Управление', Sozlamalar: 'Настройки' },
+  groups: { Mahsulotlar: 'Товары', 'Ishlab chiqarish': 'Производство', Sotuvlar: 'Продажи', Mijozlar: 'Клиенты', Hisobotlar: 'Отчёты', Moliya: 'Финансы', Boshqaruv: 'Управление', Sozlamalar: 'Настройки' },
   links: {
     '/app': 'Главная',
     '/app/sales': 'Продажи',
@@ -77,6 +83,12 @@ const navRu: NavText = {
     '/app/tables': 'Столы',
     '/app/kitchen': 'Кухня',
     '/app/restaurant': 'Настройки ресторана',
+    '/app/restaurant/reports': 'Отчёты ресторана',
+    '/app/production': 'Производство',
+    '/app/production/recipes': 'Техкарты',
+    '/app/receipts': 'Приход',
+    '/app/purchase-orders': 'Закупки',
+    '/app/piecework': 'Сдельная оплата',
   },
   tabs: {
     '/app': 'Главная', '/app/sales': 'Продажи', '/app/products': 'Склад', '/app/debts': 'Долги',
@@ -183,6 +195,7 @@ export const uz = {
       debts: { t: 'Qarzdorlik', d: "Muddati o'tgan va yaqinlashayotgan qarzlar" },
       writeoff: { t: 'Hisobdan chiqarish', d: "Yaroqsiz va yo'qolgan tovarlar zarari" },
       ai: { t: 'AI tahlil', d: 'Biznes holati va tavsiyalar' },
+      restaurant: { t: 'Restoran', d: 'Oshxona vaqtlari, ofitsantlar, bekor qilinganlar va zal savdosi' },
     },
     sellersTitle: 'Sotuvchilar hisoboti',
     sellersMeta: 'Sotuvchilar hisoboti — Savora',
@@ -570,6 +583,7 @@ export const ru: typeof uz = {
       debts: { t: 'Долги', d: 'Просроченные и приближающиеся долги' },
       writeoff: { t: 'Списания', d: 'Убыток от брака и утерянного товара' },
       ai: { t: 'AI-анализ', d: 'Состояние бизнеса и рекомендации' },
+      restaurant: { t: 'Ресторан', d: 'Время кухни, официанты, отмены и продажи зала' },
     },
     sellersTitle: 'Отчёт по продавцам',
     sellersMeta: 'Отчёт по продавцам — Savora',

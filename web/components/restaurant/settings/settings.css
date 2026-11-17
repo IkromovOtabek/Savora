@@ -1,0 +1,357 @@
+/* Restoran sozlamalari (/app/restaurant/*) — prefiks rs-. Ranglar faqat tokenlar (Kun/Tun/Qora);
+   tugmalar tekis (globals .btn). Chop etish varag'i — oq qog'oz (#fff/#000). */
+
+/* ── Tablar va filial ─────────────────────────────────────── */
+.rs-tabs {
+  display: flex; gap: 4px; padding: 4px; margin-bottom: 16px; border-radius: 14px; background: var(--fill);
+  overflow-x: auto; scrollbar-width: none; width: fit-content; max-width: 100%;
+}
+.rs-tabs::-webkit-scrollbar { display: none; }
+.rs-tabs a {
+  flex: none; padding: 8px 16px; border-radius: 10px; font-size: 14px; font-weight: 500; color: var(--ink-2);
+  text-decoration: none; white-space: nowrap; transition: background-color .15s, color .15s;
+}
+.rs-tabs a:hover { color: var(--ink-1); }
+.rs-tabs a[aria-current] { background: var(--surface); color: var(--ink-1); font-weight: 600; box-shadow: var(--shadow-sm); }
+.rs-tabs a:focus-visible { outline: 3px solid var(--brand-ring); outline-offset: 1px; }
+
+.rs-branch { display: inline-flex; align-items: center; gap: 10px; margin-bottom: 16px; font-size: 13px; font-weight: 600; color: var(--ink-3); }
+.rs-branch .input { width: auto; min-width: 200px; min-height: 40px; padding: 8px 12px; background: var(--surface); box-shadow: var(--shadow-sm); }
+
+/* ── Umumiy kartalar ─────────────────────────────────────── */
+.rs-stack { display: grid; gap: 16px; min-width: 0; }
+.rs-card { display: grid; gap: 14px; min-width: 0; padding: 20px; border-radius: var(--r-lg); background: var(--surface); box-shadow: var(--shadow-sm); }
+.rs-card.is-off { background: color-mix(in srgb, var(--surface) 92%, var(--fill-3)); }
+.rs-card-head { display: flex; align-items: center; justify-content: space-between; gap: 10px 12px; flex-wrap: wrap; min-width: 0; }
+.rs-form { gap: 16px; }
+.rs-h { margin: 0; font-size: 17px; font-weight: 700; letter-spacing: -.01em; color: var(--ink-1); }
+.rs-hint { margin: 0; font-size: 13px; line-height: 1.45; color: var(--ink-3); }
+.rs-error { margin: 0; font-size: 13px; font-weight: 500; line-height: 1.4; color: var(--danger); }
+.rs-label { font-size: 13px; font-weight: 600; color: var(--ink-2); }
+.rs-muted { font-size: 13px; color: var(--ink-3); font-weight: 500; }
+.rs-empty { margin: 0; padding: 18px 12px; text-align: center; font-size: 14px; color: var(--ink-3); }
+.rs-center { justify-self: center; }
+.rs-note { margin: 0; }
+.rs-grid2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+.rs-law {
+  margin: 0; padding: 10px 14px; border-radius: 12px; background: var(--brand-soft); color: var(--ink-2);
+  font-size: 13px; line-height: 1.5; border-left: 3px solid var(--brand);
+}
+.rs-fieldset { display: grid; gap: 10px; margin: 0; padding: 14px 0 0; border: 0; border-top: .5px solid var(--sep); min-width: 0; }
+.rs-fieldset legend { float: left; width: 100%; padding: 0; margin-bottom: 2px; }
+.rs-fieldset legend + * { clear: both; }
+.rs-dot { display: inline-block; width: 9px; height: 9px; margin-right: 7px; border-radius: 50%; vertical-align: 1px; }
+.rs-dot--warn { background: var(--gold); }
+.rs-dot--bad { background: var(--danger); }
+.rs-toggle { display: flex; align-items: center; justify-content: space-between; gap: 16px; cursor: pointer; }
+.rs-toggle > span { display: grid; gap: 2px; min-width: 0; }
+.rs-toggle b { font-size: 15px; font-weight: 600; }
+.rs-toggle small { font-size: 13px; line-height: 1.4; color: var(--ink-3); }
+.rs-toggle input, .rs-check input { flex: none; width: 20px; height: 20px; margin: 0; accent-color: var(--brand-fill, var(--brand)); }
+.rs-check { display: inline-flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 500; cursor: pointer; }
+.rs-savebar { display: flex; gap: 10px; }
+.rs-savebar .btn { min-width: 160px; }
+
+.rs-split { display: grid; grid-template-columns: minmax(0, 620px) minmax(0, 1fr); gap: 20px; align-items: start; }
+
+/* Rang */
+.rs-color { display: grid; gap: 8px; }
+.rs-color-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.rs-swatch {
+  flex: none; width: 44px; height: 44px; padding: 0; border: 0; border-radius: 12px; cursor: pointer;
+  background: none; box-shadow: inset 0 0 0 1px var(--sep);
+}
+.rs-swatch::-webkit-color-swatch-wrapper { padding: 3px; }
+.rs-swatch::-webkit-color-swatch { border: 0; border-radius: 9px; }
+.rs-swatch::-moz-color-swatch { border: 0; border-radius: 9px; }
+.rs-swatch:focus-visible { outline: 3px solid var(--brand-ring); outline-offset: 1px; }
+.rs-hex { width: 130px; font-family: var(--font-mono); text-transform: uppercase; }
+.rs-hex[aria-invalid="true"] { border-color: var(--danger); }
+
+/* Manzil */
+.rs-url { display: grid; gap: 6px; min-width: 0; }
+.rs-url code, .rs-url-row code {
+  display: block; min-width: 0; padding: 9px 12px; border-radius: 10px; background: var(--fill-2);
+  font-family: var(--font-mono); font-size: 13px; color: var(--ink-2); overflow-wrap: anywhere;
+}
+.rs-url-row { display: flex; align-items: center; gap: 8px; }
+.rs-url-row code { flex: 1; }
+
+/* Rasm yuklash */
+.rs-img { display: grid; gap: 8px; }
+.rs-img-row { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.rs-img-box {
+  flex: none; display: grid; place-items: center; overflow: hidden; color: var(--ink-3);
+  background: var(--fill-2); box-shadow: inset 0 0 0 1px var(--sep);
+}
+.rs-img--square .rs-img-box { width: 72px; height: 72px; border-radius: 16px; }
+.rs-img--wide .rs-img-box { width: 160px; height: 72px; border-radius: 12px; }
+.rs-img-box img { width: 100%; height: 100%; object-fit: cover; }
+.rs-img-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+
+/* ── Oldindan ko'rish (QR-menyu va chek) ───────────────────── */
+.rs-preview { display: grid; justify-items: center; gap: 14px; position: sticky; top: 16px; }
+.rs-preview-l { font-size: 12px; font-weight: 600; color: var(--ink-3); text-transform: uppercase; letter-spacing: .08em; }
+.rs-pv-phone {
+  width: 260px; max-width: 100%; overflow: hidden; padding-bottom: 14px; border-radius: 28px;
+  background: var(--surface); box-shadow: 0 0 0 8px var(--fill), var(--shadow);
+}
+.rs-pv-cover {
+  height: 92px; background-color: var(--rs-accent); background-size: cover; background-position: center;
+  background-image: linear-gradient(135deg, color-mix(in srgb, var(--rs-accent) 70%, #fff), var(--rs-accent));
+}
+.rs-pv-id { display: flex; align-items: flex-end; gap: 10px; margin: -26px 14px 0; }
+.rs-pv-logo {
+  flex: none; display: grid; place-items: center; width: 54px; height: 54px; overflow: hidden; border-radius: 16px;
+  background: var(--surface); box-shadow: 0 0 0 3px var(--surface), var(--shadow-sm); color: var(--rs-accent); font-size: 22px;
+}
+.rs-pv-logo img { width: 100%; height: 100%; object-fit: cover; }
+.rs-pv-name { display: grid; min-width: 0; padding-bottom: 2px; }
+.rs-pv-name b { font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rs-pv-name small { font-size: 12px; color: var(--ink-3); }
+.rs-pv-note {
+  margin: 12px 14px 0; padding: 6px 10px; border-radius: 10px; font-size: 11.5px; line-height: 1.35;
+  background: color-mix(in srgb, var(--rs-accent) 12%, transparent); color: var(--ink-2);
+}
+.rs-pv-cat { display: block; margin: 12px 14px 6px; font-size: 12px; font-weight: 700; color: var(--ink-3); text-transform: uppercase; letter-spacing: .06em; }
+.rs-pv-dish { display: flex; align-items: center; gap: 10px; margin: 0 14px; padding: 8px; border-radius: 14px; background: var(--fill-2); }
+.rs-pv-dish-img { flex: none; width: 44px; height: 44px; border-radius: 10px; background: linear-gradient(135deg, var(--gold-soft), var(--fill)); }
+.rs-pv-dish-t { display: grid; flex: 1; min-width: 0; }
+.rs-pv-dish-t b { font-size: 14px; }
+.rs-pv-dish-t small { font-size: 12px; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+.rs-pv-add { padding: 6px 10px; border-radius: 999px; font-size: 12px; font-weight: 600; background: var(--rs-accent); color: var(--rs-on-accent); }
+.rs-pv-receipt {
+  width: 240px; max-width: 100%; display: grid; gap: 3px; justify-items: center; padding: 16px 14px;
+  border-radius: 4px; background: #fff; color: #111; font-size: 12px; font-variant-numeric: tabular-nums;
+  box-shadow: 0 10px 30px -12px rgba(0, 0, 0, .35);
+}
+.rs-pv-receipt hr { width: 100%; margin: 6px 0; border: 0; border-top: 1px dashed #999; }
+.rs-pv-rlogo { width: 40px; height: 40px; object-fit: contain; filter: grayscale(1); }
+.rs-pv-rrow { width: 100%; display: flex; justify-content: space-between; gap: 8px; }
+.rs-pv-rrow span:first-child { color: #555; }
+.rs-pv-rtotal b { font-size: 14px; }
+
+/* ── Chiplar (zal, filtr) ─────────────────────────────────── */
+.rs-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.rs-chip {
+  display: inline-flex; align-items: center; gap: 8px; min-height: 38px; padding: 7px 14px; border: 0; border-radius: 999px;
+  background: var(--fill); color: var(--ink-1); font: inherit; font-size: 14px; font-weight: 500; cursor: pointer; text-decoration: none;
+  transition: background-color .15s, color .15s;
+}
+.rs-chip small { font-size: 12px; font-weight: 600; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+.rs-chip:hover { background: var(--fill-3); }
+.rs-chip.is-on { background: var(--brand-fill); color: var(--on-brand); }
+.rs-chip.is-on small { color: inherit; opacity: .8; }
+.rs-chip.is-off span { text-decoration: line-through; text-decoration-thickness: 1px; opacity: .7; }
+.rs-chip:focus-visible { outline: 3px solid var(--brand-ring); outline-offset: 1px; }
+
+/* ── Ichki formalar ───────────────────────────────────────── */
+.rs-inline { display: flex; align-items: flex-end; gap: 8px; flex-wrap: wrap; min-width: 0; }
+.rs-inline > .input { flex: 1; min-width: 160px; min-height: 40px; padding: 8px 12px; }
+.rs-grow { flex: 1; }
+.rs-end { align-self: flex-end; }
+.rs-mini { display: grid; gap: 4px; min-width: 0; }
+.rs-mini > span { font-size: 12px; font-weight: 600; color: var(--ink-3); }
+.rs-mini .input { width: 96px; min-height: 40px; padding: 8px 10px; font-variant-numeric: tabular-nums; }
+.rs-mini--num .input { width: 80px; }
+.rs-mini--wide .input { width: 170px; }
+.rs-mini--grow { flex: 1; min-width: 160px; }
+.rs-mini--grow .input { width: 100%; }
+.rs-title-row { display: flex; align-items: baseline; gap: 6px 10px; flex-wrap: wrap; min-width: 0; }
+.rs-actions, .rs-row-actions { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+
+/* ── Zal va stollar ───────────────────────────────────────── */
+.rs-add-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr); gap: 12px; }
+.rs-addbox { display: grid; gap: 8px; align-content: start; padding: 14px; border-radius: 14px; background: var(--fill-2); min-width: 0; }
+
+.rs-qrbar {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px 14px; flex-wrap: wrap;
+  padding: 12px 14px; border-radius: 14px; background: var(--brand-soft);
+}
+.rs-qrbar > span { display: grid; gap: 2px; min-width: 0; flex: 1 1 240px; }
+.rs-qrbar b { font-size: 14px; font-weight: 600; color: var(--ink-1); }
+.rs-qrbar small { font-size: 13px; line-height: 1.4; color: var(--ink-2); }
+.rs-qrbar--pro { background: var(--gold-soft); }
+
+.rs-tables { display: grid; grid-template-columns: repeat(auto-fill, minmax(184px, 1fr)); gap: 10px; margin: 0; padding: 0; list-style: none; }
+.rs-table {
+  display: grid; gap: 4px; align-content: start; padding: 12px; border-radius: 16px;
+  background: var(--fill-2); box-shadow: inset 0 0 0 1px var(--sep); min-width: 0;
+}
+.rs-table.is-busy { box-shadow: inset 0 0 0 1.5px var(--accent); }
+.rs-table.is-off { opacity: .62; }
+.rs-table.is-editing { grid-column: 1 / -1; background: var(--surface); box-shadow: inset 0 0 0 1.5px var(--brand); opacity: 1; }
+.rs-table-top { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; min-height: 32px; }
+.rs-table-n { font-size: 24px; font-weight: 800; letter-spacing: -.03em; line-height: 1; font-variant-numeric: tabular-nums; margin-right: auto; }
+.rs-table-actions { display: flex; gap: 6px; margin-top: 6px; flex-wrap: wrap; }
+.rs-table-form { display: flex; align-items: flex-end; gap: 8px; flex-wrap: wrap; }
+.rs-table-form-actions { display: flex; gap: 6px; }
+
+/* QR */
+.rs-qr { display: inline-grid; place-items: center; flex: none; max-width: 100%; aspect-ratio: 1; border-radius: 12px; background: #fff; overflow: hidden; }
+.rs-qr img { display: block; width: 100%; height: 100%; }
+.rs-qr-skel { width: 100%; height: 100%; background: var(--fill); animation: rs-pulse 1.2s ease-in-out infinite; }
+@keyframes rs-pulse { 50% { opacity: .5; } }
+@media (prefers-reduced-motion: reduce) { .rs-qr-skel { animation: none; } }
+
+/* Oyna (native <dialog>) */
+.rs-dialog {
+  width: min(420px, calc(100vw - 24px)); max-height: calc(100dvh - 32px); padding: 0; border: 0; border-radius: var(--r-xl);
+  background: var(--surface); color: var(--ink-1); box-shadow: var(--shadow-lg); overflow: auto;
+}
+.rs-dialog::backdrop { background: var(--overlay); }
+.rs-dialog-in { display: grid; gap: 14px; padding: 20px; }
+.rs-dialog-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.rs-dialog-qr { display: grid; place-items: center; padding: 12px; border-radius: 16px; background: #fff; box-shadow: inset 0 0 0 1px var(--sep); }
+.rs-danger-zone { display: grid; gap: 8px; justify-items: start; padding-top: 14px; border-top: .5px solid var(--sep); }
+
+/* ── Stansiyalar ──────────────────────────────────────────── */
+.rs-seg { display: inline-flex; gap: 4px; margin: 0; padding: 4px; border: 0; border-radius: 12px; background: var(--fill); }
+.rs-seg label { padding: 6px 14px; border-radius: 9px; font-size: 14px; cursor: pointer; color: var(--ink-2); white-space: nowrap; }
+.rs-seg label.is-on { background: var(--surface); color: var(--ink-1); font-weight: 600; box-shadow: var(--shadow-sm); }
+.rs-seg input { position: absolute; opacity: 0; pointer-events: none; }
+.rs-seg label:has(input:focus-visible) { outline: 3px solid var(--brand-ring); }
+
+.rs-list { display: grid; margin: 0; padding: 0; list-style: none; }
+.rs-row { display: flex; align-items: center; gap: 12px; padding: 12px 0; border-top: .5px solid var(--sep); min-width: 0; }
+.rs-row:first-child { border-top: 0; }
+.rs-row.is-off .rs-row-main, .rs-row.is-off .rs-st-ic { opacity: .6; }
+.rs-row-main { display: grid; flex: 1; min-width: 0; }
+.rs-row-main b { font-size: 15px; font-weight: 600; overflow-wrap: anywhere; }
+.rs-row-main small { font-size: 13px; color: var(--ink-3); }
+.rs-st-ic { flex: none; display: grid; place-items: center; width: 38px; height: 38px; border-radius: 12px; background: var(--gold-soft); color: var(--warn); }
+.rs-st-ic--bar { background: var(--brand-soft); color: var(--brand); }
+.rs-st-edit { display: flex; align-items: flex-end; gap: 8px; flex-wrap: wrap; width: 100%; }
+.rs-st-edit .rs-mini:not(.rs-mini--grow) .input { width: 150px; }
+.rs-st-iph { flex-basis: 100%; }
+
+/* ── Menyu ────────────────────────────────────────────────── */
+.rs-menu-tools { gap: 12px; }
+.rs-menu-filters { display: flex; gap: 10px; flex-wrap: wrap; }
+.rs-menu-search { flex: 1 1 240px; min-height: 42px; padding: 9px 12px; }
+.rs-menu-cat { flex: 0 1 240px; min-height: 42px; padding: 9px 12px; }
+.rs-menu-group { gap: 4px; padding: 16px 20px; }
+.rs-menu-cat-h { margin: 0 0 4px; font-size: 13px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-3); }
+.rs-dishes { display: grid; margin: 0; padding: 0; list-style: none; }
+.rs-dish { border-top: .5px solid var(--sep); }
+.rs-dish:first-child { border-top: 0; }
+.rs-dish-row { display: flex; align-items: center; gap: 12px; padding: 10px 0; min-width: 0; }
+.rs-dish-img {
+  flex: none; display: grid; place-items: center; width: 44px; height: 44px; overflow: hidden; border-radius: 12px;
+  background: var(--fill); color: var(--ink-3);
+}
+.rs-dish-img img { width: 100%; height: 100%; object-fit: cover; }
+.rs-dish.is-stop .rs-dish-img, .rs-dish.is-stop .rs-dish-t { opacity: .55; }
+.rs-dish-t { display: grid; flex: 1; min-width: 0; }
+.rs-dish-t b { font-size: 15px; font-weight: 600; overflow-wrap: anywhere; }
+.rs-dish-t small { font-size: 13px; color: var(--ink-3); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.rs-dish-flags { display: flex; gap: 6px; flex: none; }
+.rs-dish-flags:empty { display: none; }
+.rs-dish-ctrl { display: flex; align-items: center; gap: 8px; flex: none; }
+.rs-dish-station { width: 170px; min-height: 36px; padding: 6px 10px; font-size: 14px; }
+
+/* Stop-list kaliti (tekis) */
+.rs-stop {
+  display: inline-flex; align-items: center; gap: 7px; min-height: 36px; padding: 6px 12px; border: 0; border-radius: 999px;
+  background: var(--fill); color: var(--ink-2); font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; white-space: nowrap;
+  transition: background-color .15s, color .15s;
+}
+.rs-stop-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--ink-3); opacity: .5; }
+.rs-stop:hover:not(:disabled) { background: var(--fill-3); }
+.rs-stop.is-on { background: var(--danger-soft); color: var(--danger); }
+.rs-stop.is-on .rs-stop-dot { background: var(--danger); opacity: 1; }
+.rs-stop:disabled { opacity: .45; cursor: not-allowed; }
+.rs-stop:focus-visible { outline: 3px solid var(--brand-ring); outline-offset: 1px; }
+
+/* Taom sozlamasi paneli */
+.rs-dish-panel { display: grid; gap: 14px; margin: 0 0 12px; padding: 16px; border-radius: 16px; background: var(--fill-2); box-shadow: inset 0 0 0 1px var(--sep); }
+.rs-dish-panel-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 14px; }
+.rs-dish-panel .auth-field input { background: var(--surface); }
+.rs-recipe { display: grid; gap: 6px; align-content: start; justify-items: start; }
+.rs-recipe .btn { max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
+.rs-mods-wrap { display: grid; gap: 6px; }
+.rs-mods { display: grid; gap: 10px; margin-top: 4px; }
+.rs-mods-add { justify-self: start; }
+.rs-mod { display: grid; gap: 10px; margin: 0; padding: 12px; border: 0; border-radius: 14px; background: var(--surface); box-shadow: var(--shadow-sm); min-width: 0; }
+.rs-mod.is-error { box-shadow: inset 0 0 0 1.5px var(--danger); }
+.rs-mod-head { display: flex; align-items: flex-end; gap: 8px; }
+.rs-mod-rules { display: flex; align-items: flex-end; gap: 10px 14px; flex-wrap: wrap; }
+.rs-mod-rules .rs-check { min-height: 40px; margin-right: auto; }
+.rs-opts { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.rs-opt { display: flex; align-items: center; gap: 8px; }
+.rs-opt > .input { flex: 1; min-width: 0; min-height: 38px; padding: 7px 10px; }
+.rs-opt-price { display: inline-flex; align-items: center; gap: 4px; flex: none; color: var(--ink-3); font-weight: 600; }
+.rs-opt-price .input { width: 110px; min-height: 38px; padding: 7px 10px; text-align: right; font-variant-numeric: tabular-nums; }
+
+/* ── QR chop etish varag'i ────────────────────────────────── */
+.rs-print { display: grid; gap: 16px; }
+.rs-print-bar { display: grid; gap: 12px; }
+.rs-print-bar .back-link { margin: 0; }
+.rs-sheet {
+  display: flex; flex-wrap: wrap; justify-content: center; gap: 6mm; width: 210mm; max-width: 100%; margin: 0 auto;
+  padding: 10mm; background: #fff; color: #000; border-radius: 6px; box-shadow: var(--shadow);
+}
+.rs-qcard {
+  box-sizing: border-box; width: 92mm; max-width: 100%; height: 86mm; display: flex; flex-direction: column; align-items: center; justify-content: space-between;
+  padding: 0 6mm 5mm; border: 1px dashed #b5b5b5; border-radius: 4mm; overflow: hidden; text-align: center;
+  break-inside: avoid; page-break-inside: avoid; -webkit-print-color-adjust: exact; print-color-adjust: exact;
+}
+.rs-qcard-head {
+  display: flex; align-items: center; justify-content: center; gap: 3mm; width: calc(100% + 12mm); margin: 0 -6mm; padding: 3mm 4mm;
+  background: var(--rs-accent); color: var(--rs-on-accent, #fff); font-size: 12pt; font-weight: 700; line-height: 1.15;
+}
+.rs-qcard-head b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rs-qcard-logo { width: 10mm; height: 10mm; object-fit: contain; border-radius: 2mm; background: #fff; }
+.rs-qcard-mark { display: grid; place-items: center; width: 9mm; height: 9mm; border-radius: 2mm; background: color-mix(in srgb, var(--rs-on-accent, #fff) 22%, transparent); }
+.rs-qcard-no { margin-top: 2mm; font-size: 18pt; font-weight: 800; letter-spacing: -.02em; color: #000; }
+.rs-qcard-qr { width: 46mm; height: 46mm; image-rendering: pixelated; }
+.rs-qcard-scan { margin: 0; font-size: 10pt; font-weight: 600; color: #222; }
+
+@media print {
+  .rs-print { display: block; }
+  .rs-sheet { width: auto; max-width: none; padding: 0; margin: 0; border-radius: 0; box-shadow: none; justify-content: flex-start; }
+}
+
+/* ── Moslashuvchanlik ─────────────────────────────────────── */
+@media (max-width: 1000px) {
+  .rs-split { grid-template-columns: minmax(0, 1fr); }
+  .rs-preview { position: static; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); justify-items: center; align-items: start; }
+  .rs-preview-l { grid-column: 1 / -1; }
+}
+@media (max-width: 760px) {
+  .rs-add-grid, .rs-dish-panel-grid { grid-template-columns: minmax(0, 1fr); }
+  .rs-dish-row { flex-wrap: wrap; }
+  .rs-dish-t { flex-basis: calc(100% - 56px); }
+  .rs-dish-flags { order: 3; flex-basis: 100%; padding-left: 56px; }
+  .rs-dish-ctrl { order: 4; flex: 1 1 100%; flex-wrap: wrap; padding-left: 56px; }
+  .rs-dish-station { flex: 1; width: auto; min-width: 140px; }
+}
+@media (max-width: 640px) {
+  .rs-card { padding: 16px; border-radius: 18px; }
+  .rs-menu-group { padding: 12px 16px; }
+  .rs-grid2 { grid-template-columns: minmax(0, 1fr); }
+  .rs-branch { display: flex; }
+  .rs-branch .input { flex: 1; min-width: 0; }
+  /* Telefon: stol — bitta qator (raqam, o'rin, amallar) */
+  .rs-tables { grid-template-columns: minmax(0, 1fr); gap: 8px; }
+  .rs-table { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 10px; padding: 10px 12px; }
+  .rs-table.is-editing { display: grid; }
+  .rs-table-top { min-height: 0; }
+  .rs-table-n { font-size: 20px; margin-right: 4px; }
+  .rs-table-actions { margin: 0 0 0 auto; flex-wrap: nowrap; }
+  .rs-row { flex-wrap: wrap; }
+  .rs-row-actions { flex-basis: 100%; justify-content: flex-end; }
+  .rs-row.is-editing .rs-row-actions { justify-content: flex-start; }
+  .rs-dish-ctrl { padding-left: 0; }
+  .rs-dish-station { flex-basis: 100%; }
+  .rs-opt-price .input { width: 92px; }
+  .rs-dish-panel { padding: 12px; margin-inline: -4px; }
+  .rs-mod { padding: 10px; }
+  .rs-mod-rules .rs-check { flex-basis: 100%; min-height: 32px; }
+  .rs-savebar .btn { flex: 1; }
+  .rs-st-add .rs-seg { flex: 1; }
+  .rs-st-add .rs-seg label { flex: 1; text-align: center; }
+}
+@media (pointer: coarse) {
+  .rs-chip, .rs-stop { min-height: 40px; }
+}

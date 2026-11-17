@@ -2,7 +2,9 @@ import { Schema, Types } from 'mongoose';
 
 /** Ombor hujjati turi: narxni qayta baholash yoki hisobdan chiqarish */
 export type StockAdjustmentType = 'revaluation' | 'writeoff';
-export type WriteOffReason = 'defective' | 'lost' | 'expired' | 'other';
+/** production_scrap — ishlab chiqarish brak (akt bilan avtomatik), offcut — bichim qoldig'i/chiqindi */
+export const WRITE_OFF_REASONS = ['defective', 'lost', 'expired', 'other', 'production_scrap', 'offcut'] as const;
+export type WriteOffReason = (typeof WRITE_OFF_REASONS)[number];
 
 export interface IStockAdjustmentItem {
   productId: Types.ObjectId;
@@ -55,7 +57,7 @@ export const stockAdjustmentSchema = new Schema<IStockAdjustment>(
   {
     docNo: { type: String, required: true, trim: true },
     type: { type: String, enum: ['revaluation', 'writeoff'], required: true },
-    reason: { type: String, enum: ['defective', 'lost', 'expired', 'other'] },
+    reason: { type: String, enum: WRITE_OFF_REASONS },
     note: { type: String, trim: true, maxlength: 300 },
     items: { type: [itemSchema], required: true },
     totalCost: { type: Number, default: 0, min: 0 },

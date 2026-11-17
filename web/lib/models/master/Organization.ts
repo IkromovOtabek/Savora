@@ -1,6 +1,6 @@
 import { Schema, Types } from 'mongoose';
 import { FEATURE_KEYS, FeatureKey, OrgFeatures } from '../../featureKeys';
-import { BUSINESS_TYPE_IDS, BusinessType } from '../../businessTypes';
+import { BUSINESS_TYPE_IDS, BusinessType, INDUSTRY_PROFILES, type IndustryProfile } from '../../businessTypes';
 import { BILLING_CYCLES, type BillingCycle } from '../../plans';
 
 export interface IOrganization {
@@ -11,6 +11,8 @@ export interface IOrganization {
   phone?: string;
   adminUsername?: string;
   businessType: BusinessType;
+  /** Ishlab chiqarish sexi kichik yo'nalishi — faqat businessType = 'manufacturing' da (lib/businessTypes.ts) */
+  industryProfile?: IndustryProfile;
   status: 'active' | 'suspended' | 'expired';
   expiresAt: Date;
   plan: {
@@ -84,6 +86,7 @@ export const organizationSchema = new Schema<IOrganization>(
       enum: [...BUSINESS_TYPE_IDS],
       default: 'general',
     },
+    industryProfile: { type: String, enum: [...INDUSTRY_PROFILES] },
     status: { type: String, enum: ['active', 'suspended', 'expired'], default: 'active' },
     expiresAt: { type: Date, required: true },
     plan: {

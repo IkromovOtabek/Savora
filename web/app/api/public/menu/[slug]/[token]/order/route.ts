@@ -9,7 +9,7 @@ type Params = { params: Promise<{ slug: string; token: string }> };
 
 /** Stoldagi ochiq buyurtma holati (mijoz «Buyurtmangiz») */
 export async function GET(req: Request, { params }: Params) {
-  const a = await publicTable(req, params, (ip) => [LIMITS.read(ip)]);
+  const a = await publicTable(req, params, (ip, token) => [LIMITS.readTable(ip, token), LIMITS.readIp(ip)]);
   if (a instanceof NextResponse) return a;
   return headersFor(NextResponse.json(await publicOrderStatus(a.c)));
 }

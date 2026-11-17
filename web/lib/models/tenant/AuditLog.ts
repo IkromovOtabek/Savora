@@ -17,7 +17,11 @@ export type AuditEntity =
   | 'auth'
   | 'task'
   | 'ai'
-  | 'order';
+  | 'order'
+  /** Ishlab chiqarish: texkarta, akt, ishbay */
+  | 'production'
+  /** Kirim akti va yetkazib beruvchiga buyurtma */
+  | 'purchase';
 
 export interface IAuditLog {
   /** Mashina o'qiydigan amal kodi: 'product.delete', 'sale.create', ... */
@@ -39,7 +43,7 @@ export const auditLogSchema = new Schema<IAuditLog>(
     action: { type: String, required: true, trim: true },
     entity: {
       type: String,
-      enum: ['product', 'sale', 'user', 'branch', 'customer', 'supplier', 'finance', 'transfer', 'creditBank', 'auth', 'task', 'ai', 'order'],
+      enum: ['product', 'sale', 'user', 'branch', 'customer', 'supplier', 'finance', 'transfer', 'creditBank', 'auth', 'task', 'ai', 'order', 'production', 'purchase'],
       required: true,
     },
     entityId: { type: String, trim: true },

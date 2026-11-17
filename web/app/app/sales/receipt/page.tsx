@@ -32,11 +32,15 @@ export default async function PosReceiptPage({ searchParams }: { searchParams: P
   // Kassadagi tartibda
   const order = new Map(ids.map((x, i) => [x, i]));
   const sales = found.sort((a, b) => (order.get(String(a._id)) ?? 0) - (order.get(String(b._id)) ?? 0));
+  // Restoran to'lovi cheki (Sale.orderId) — «Orqaga» buyurtmaga (bo'lib to'lashda qolgan qism shu yerda);
+  // oddiy kassa cheki — kassaga
+  const orderId = sales.find((s) => s.orderId)?.orderId;
+  const backHref = orderId ? `/app/tables/${String(orderId)}` : '/app/pos';
 
   return (
     <div className="sl-receipt-wrap">
       <div className="sl-receipt-bar no-print">
-        <BackLink href="/app/pos" className="btn btn-ghost btn-sm">{d.common.back}</BackLink>
+        <BackLink href={backHref} className="btn btn-ghost btn-sm">{d.common.back}</BackLink>
         <PrintReceiptButton defaultWidth={settings.receipt.paperWidth} autoPrint={sp.print === '1'} />
       </div>
       <ReceiptPaper sales={sales} org={org} receipt={settings.receipt} d={d} />

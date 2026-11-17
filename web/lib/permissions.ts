@@ -69,6 +69,15 @@ export const PERMISSION_KEYS = [
   'kitchen.bump',
   'menu.stopList',
   'tables.manage',
+  // Ishlab chiqarish va kirim (4-versiya): texkarta, ishlab chiqarish akti, tannarx, kirim akti, xarid, ishbay
+  'production.view',
+  'production.manage',
+  'recipe.manage',
+  'production.viewCost',
+  'receipt.create',
+  'po.manage',
+  'piecework.log',
+  'piecework.approve',
   // Faqat do'kon egasi
   'kirimChiqim.manage',
   'users.manage',
@@ -101,6 +110,9 @@ export const PERMISSION_PAGES = [
   'tables',
   'kitchen',
   'restaurant',
+  'production',
+  'receipts',
+  'piecework',
   'profile',
   'finance',
   'creditKassa',
@@ -141,6 +153,9 @@ export const PERMISSION_PAGE_DEFS: Record<PermissionPage, PermissionPageDef> = {
   tables: { id: 'tables', href: '/app/tables', feature: 'tables' },
   kitchen: { id: 'kitchen', href: '/app/kitchen', feature: 'kitchen' },
   restaurant: { id: 'restaurant', href: '/app/restaurant', feature: 'tables' },
+  production: { id: 'production', href: '/app/production', feature: 'production' },
+  receipts: { id: 'receipts', href: '/app/receipts', feature: 'purchasing' },
+  piecework: { id: 'piecework', href: '/app/piecework', feature: 'piecework' },
   profile: { id: 'profile', href: '/app/profile' },
   finance: { id: 'finance', href: '/app/finance', feature: 'kirimChiqim', ownerOnly: true },
   creditKassa: { id: 'creditKassa', href: '/app/kredit-kassa', feature: 'creditKassa', ownerOnly: true },
@@ -235,6 +250,18 @@ export const PERMISSIONS: Record<PermissionKey, PermissionDef> = {
   'menu.stopList': P('menu.stopList', 'kitchen', 'Stop-list', "Tugagan taomni menyudan vaqtincha olib qo'yish va qaytarish", { feature: 'tables', legacy: 'sale.create', since: 3 }),
   'tables.manage': P('tables.manage', 'restaurant', 'Zal va stollar sozlamasi', "Zallar, stollar, QR-kodlar, stansiyalar, xizmat haqi va brend", { feature: 'tables', since: 3 }),
 
+  // Ishlab chiqarish va kirim — 4-versiya (docs/SEX_API.md). Ko'rish ilgari omborni ko'ra olganga, tannarx — kelish
+  // narxini ko'ra olganga, kirim akti — mahsulot qo'sha olganga (ilgari kirim + yetkazib beruvchi qarzi mahsulot formasida
+  // edi), xarid — yetkazib beruvchilarni boshqara olganga, o'z ishbayini yozish — hammaga meros; boshqaruv — faqat aniq.
+  'production.view': P('production.view', 'production', "Ishlab chiqarishni ko'rish", "Ishlab chiqarish aktlari, texkartalar va xom ashyo ehtiyoji (tannarxsiz)", { feature: 'production', legacy: 'products.view', since: 4 }),
+  'production.manage': P('production.manage', 'production', 'Ishlab chiqarish akti', "Akt ochish, haqiqiy sarfni tuzatish, «bajarildi» (xom ashyo chiqadi, tayyor mahsulot kirim bo'ladi), bekor qilish", { feature: 'production', since: 4 }),
+  'recipe.manage': P('recipe.manage', 'production', 'Texkartalar', "Texkarta (sarf normasi, yo'qotish %, operatsiyalar, ustama) yaratish va o'zgartirish", { feature: 'production', since: 4 }),
+  'production.viewCost': P('production.viewCost', 'production', "Tannarxni ko'rish", "Ishlab chiqarish tannarxi, material/ish haqi/ustama bo'yicha xarajat", { feature: 'production', legacy: 'product.viewCost', since: 4 }),
+  'receipt.create': P('receipt.create', 'receipts', 'Kirim akti', "Yetkazib beruvchidan tovar qabul qilish (kirim akti, nakladnoy); narx — «Kelish narxini ko'rish» bilan", { feature: 'purchasing', legacy: 'product.create', since: 4 }),
+  'po.manage': P('po.manage', 'receipts', 'Yetkazib beruvchiga buyurtma', "Xarid buyurtmasi yaratish, yuborish va bekor qilish", { feature: 'purchasing', legacy: 'suppliers.manage', since: 4 }),
+  'piecework.log': P('piecework.log', 'piecework', 'Ishbay yozish', "Bajarilgan ishni yozish va o'z yozuvlarini ko'rish (ishchi)", { feature: 'piecework', legacy: 'open', since: 4 }),
+  'piecework.approve': P('piecework.approve', 'piecework', "Ishbayni tasdiqlash va to'lash", "Barcha ishchilar yozuvlari, tasdiqlash/rad etish, to'lov (kassa chiqimi)", { feature: 'piecework', since: 4 }),
+
   // Kirim-chiqim — barcha filiallar bo'yicha umumiy moliya, shuning uchun faqat egasi
   'kirimChiqim.manage': P('kirimChiqim.manage', 'finance', 'Kirim-chiqim', "Kirim/chiqim jurnalini ko'rish va yozish (barcha filiallar)", { feature: 'kirimChiqim', adminOnly: true }),
   'users.manage': P('users.manage', 'team', 'Filial va loginlar', 'Filial ochish, parol, rol va huquqlarni boshqarish', { feature: 'users', adminOnly: true }),
@@ -244,9 +271,10 @@ export const PERMISSIONS: Record<PermissionKey, PermissionDef> = {
 /**
  * Huquqlar katalogi versiyasi. Saqlangan ro'yxat eski versiyada bo'lsa — o'sha versiyadan keyin qo'shilgan
  * kalitlar `legacy` qoidasi bilan qo'shiladi.
- *   2 — sahifalar bo'yicha bo'lingan huquqlar; 3 — restoran (order.*, kitchen.*, menu.stopList, tables.manage).
+ *   2 — sahifalar bo'yicha bo'lingan huquqlar; 3 — restoran (order.*, kitchen.*, menu.stopList, tables.manage);
+ *   4 — ishlab chiqarish va kirim (production.*, recipe.manage, receipt.create, po.manage, piecework.*).
  */
-export const PERMISSIONS_VERSION = 3;
+export const PERMISSIONS_VERSION = 4;
 
 /** `since` ko'rsatilmagan legacy huquqlar 2-versiyada qo'shilgan */
 const DEFAULT_SINCE = 2;
@@ -293,6 +321,11 @@ export const ROLE_DEFAULT_PERMISSIONS: Record<TenantRole, readonly PermissionKey
     'kitchen.view',
     'kitchen.bump',
     'menu.stopList',
+    // Sex kundalik ishlari (modul yoqilmagan do'konda amalda kesiladi); tannarx — kelish narxi kabi
+    'production.view',
+    'production.viewCost',
+    'receipt.create',
+    'piecework.log',
   ],
 };
 

@@ -25,8 +25,13 @@ import { hallSchema, IHall } from './models/tenant/Hall';
 import { tableSchema, ITable } from './models/tenant/Table';
 import { kitchenStationSchema, IKitchenStation } from './models/tenant/KitchenStation';
 import { orderSchema, IOrder } from './models/tenant/Order';
+import { recipeSchema, IRecipe } from './models/tenant/Recipe';
+import { productionOrderSchema, IProductionOrder } from './models/tenant/ProductionOrder';
+import { goodsReceiptSchema, IGoodsReceipt } from './models/tenant/GoodsReceipt';
+import { purchaseOrderSchema, IPurchaseOrder } from './models/tenant/PurchaseOrder';
+import { pieceworkEntrySchema, IPieceworkEntry } from './models/tenant/PieceworkEntry';
 
-const TENANT_MODELS_VERSION = 19;
+const TENANT_MODELS_VERSION = 20;
 
 type TenantModelsMap = Map<string, ReturnType<typeof registerModels>>;
 const globalForTenant = global as unknown as { _savdoproTenantCache?: TenantModelsMap };
@@ -81,7 +86,17 @@ function registerModels(conn: import('mongoose').Connection) {
   const KitchenStation =
     (conn.models.KitchenStation as Model<IKitchenStation>) || conn.model<IKitchenStation>('KitchenStation', kitchenStationSchema);
   const Order = (conn.models.Order as Model<IOrder>) || conn.model<IOrder>('Order', orderSchema);
-  return { conn, User, Branch, Product, Customer, Sale, CreditBank, BankReceipt, CashFlow, Transfer, AuditLog, LedgerEntry, Task, AiReport, Supplier, SupplierEntry, CashShift, StockAdjustment, FinanceCategory, Role, ShopSettings, ProductCategory, Brand, Hall, Table, KitchenStation, Order };
+  // Ishlab chiqarish va kirim (lib/production, docs/SEX_API.md)
+  const Recipe = (conn.models.Recipe as Model<IRecipe>) || conn.model<IRecipe>('Recipe', recipeSchema);
+  const ProductionOrder =
+    (conn.models.ProductionOrder as Model<IProductionOrder>) || conn.model<IProductionOrder>('ProductionOrder', productionOrderSchema);
+  const GoodsReceipt =
+    (conn.models.GoodsReceipt as Model<IGoodsReceipt>) || conn.model<IGoodsReceipt>('GoodsReceipt', goodsReceiptSchema);
+  const PurchaseOrder =
+    (conn.models.PurchaseOrder as Model<IPurchaseOrder>) || conn.model<IPurchaseOrder>('PurchaseOrder', purchaseOrderSchema);
+  const PieceworkEntry =
+    (conn.models.PieceworkEntry as Model<IPieceworkEntry>) || conn.model<IPieceworkEntry>('PieceworkEntry', pieceworkEntrySchema);
+  return { conn, User, Branch, Product, Customer, Sale, CreditBank, BankReceipt, CashFlow, Transfer, AuditLog, LedgerEntry, Task, AiReport, Supplier, SupplierEntry, CashShift, StockAdjustment, FinanceCategory, Role, ShopSettings, ProductCategory, Brand, Hall, Table, KitchenStation, Order, Recipe, ProductionOrder, GoodsReceipt, PurchaseOrder, PieceworkEntry };
 }
 
 /**

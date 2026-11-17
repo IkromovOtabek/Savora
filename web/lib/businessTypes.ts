@@ -19,6 +19,8 @@ export const BUSINESS_TYPE_IDS = [
   'wholesale',
   'restaurant',
   'service',
+  // Ishlab chiqarish sexi (docs/SEX_API.md); kichik yo'nalish — Organization.industryProfile
+  'manufacturing',
 ] as const;
 
 export type BusinessType = (typeof BUSINESS_TYPE_IDS)[number];
@@ -34,9 +36,10 @@ export const BUSINESS_TYPES: Record<BusinessType, { label: string; description: 
   cosmetics: { label: 'Kosmetika / parfyumeriya', description: 'Kosmetika, atir va rasmli katalog', icon: 'sparkles' },
   pharmacy: { label: 'Dorixona', description: 'Dori-darmon savdosi', icon: 'pill' },
   auto_parts: { label: 'Avto ehtiyot qism', description: 'Avtomobil qismlari', icon: 'car' },
-  wholesale: { label: 'Optom savdo', description: 'Katta hajmli savdo', icon: 'box' },
+  wholesale: { label: 'Optom savdo / distribyutor', description: 'Katta hajmli savdo, kirim akti va xaridlar', icon: 'box' },
   restaurant: { label: 'Restoran / kafe', description: 'Ovqat va xizmat savdosi', icon: 'utensils' },
   service: { label: 'Xizmat markazi', description: 'Salon, ustaxona va xizmatlar', icon: 'wrench' },
+  manufacturing: { label: 'Ishlab chiqarish sexi', description: 'Texkarta, xom ashyo, tannarx va ishbay haq', icon: 'building' },
 };
 
 export function isBusinessType(v: unknown): v is BusinessType {
@@ -70,6 +73,7 @@ export const TERMS: Record<BusinessType, Terms> = {
   wholesale: { item: 'Mahsulot', items: 'Ombor', addItem: 'Mahsulot qo\'shish', codeLabel: 'Kod / shtrix', hasImei: false },
   restaurant: { item: 'Taom', items: 'Menyu', addItem: 'Taom qo\'shish', codeLabel: 'Kod', hasImei: false },
   service: { item: 'Xizmat', items: 'Xizmatlar', addItem: 'Xizmat qo\'shish', codeLabel: 'Kod', hasImei: false },
+  manufacturing: { item: 'Mahsulot', items: 'Ombor', addItem: 'Mahsulot qo\'shish', codeLabel: 'Artikul / kod', hasImei: false },
 };
 
 /**
@@ -90,8 +94,12 @@ export const PRODUCT_FIELD_KEYS = [
 ] as const;
 export type ProductFieldKey = (typeof PRODUCT_FIELD_KEYS)[number];
 
-/** O'lchov birligi (faqat saqlanadi va ko'rsatiladi; miqdor hozircha butun son) */
-export const PRODUCT_UNITS = ['dona', 'kg', 'g', 'm', 'm2', 'l', 'qop', 'quti', 'paket'] as const;
+/**
+ * O'lchov birligi. Kasrli birliklar (kg, m, list…) — lib/qty.ts → FRACTIONAL_UNITS.
+ * Yangilari faqat OXIRIGA qo'shiladi (bazada saqlangan). list — list (LDSP/DVP), rulon — rulon (mato, plyonka),
+ * m3 — kub metr, t — tonna, juft — juft (poyabzal, qo'lqop).
+ */
+export const PRODUCT_UNITS = ['dona', 'kg', 'g', 'm', 'm2', 'l', 'qop', 'quti', 'paket', 'list', 'rulon', 'm3', 't', 'juft'] as const;
 export type ProductUnit = (typeof PRODUCT_UNITS)[number];
 
 export interface ProductFieldSpec {
@@ -118,6 +126,7 @@ export const PRODUCT_FIELDS: Record<BusinessType, ProductFieldSpec[]> = {
   wholesale: [CATEGORY, UNIT],
   restaurant: [CATEGORY],
   service: [CATEGORY],
+  manufacturing: [CATEGORY, UNIT],
 };
 
 export function productFieldsFor(businessType?: string): ProductFieldSpec[] {
@@ -127,6 +136,36 @@ export function productFieldsFor(businessType?: string): ProductFieldSpec[] {
 export function termsFor(businessType?: string): Terms {
   return TERMS[parseBusinessType(businessType || 'general')];
 }
+
+/**
+ * Ishlab chiqarish sexining kichik yo'nalishi (Organization.industryProfile) — faqat `manufacturing` turida.
+ * Ro'yxatni og'irlashtirmaslik uchun biznes turi emas, alohida maydon. Nomlari: d.catalog.industryProfiles.
+ */
+export const INDUSTRY_PROFILES = ['furniture_shop', 'sewing', 'bakery', 'meat', 'plastics_building', 'other_production'] as const;
+export type IndustryProfile = (typeof INDUSTRY_PROFILES)[number];
+
+export function isIndustryProfile(v: unknown): v is IndustryProfile {
+  return typeof v === 'string' && (INDUSTRY_PROFILES as readonly string[]).includes(v);
+}
+
+/**
+ * Formadan kelgan profil: faqat `manufacturing` turida saqlanadi (boshqa turda — null, ya'ni tozalanadi).
+ * Bo'sh yoki noma'lum qiymat — null.
+ */
+export function parseIndustryProfile(v: unknown, businessType: string): IndustryProfile | null {
+  if (businessType !== 'manufacturing') return null;
+  return isIndustryProfile(v) ? v : null;
+}
+
+/** Profil bo'yicha tavsiya qilinadigan birliklar (mahsulot formasida birinchi ko'rsatiladi) */
+export const INDUSTRY_PROFILE_UNITS: Record<IndustryProfile, readonly ProductUnit[]> = {
+  furniture_shop: ['list', 'm2', 'm', 'dona'],
+  sewing: ['m', 'rulon', 'dona', 'kg'],
+  bakery: ['kg', 'l', 'dona'],
+  meat: ['kg', 'dona'],
+  plastics_building: ['kg', 't', 'm3', 'dona'],
+  other_production: ['dona', 'kg', 'm', 'l'],
+};
 
 /** IMEI rejimi (telefon do'kon) — TERMS.hasImei asosida */
 export function isPhoneShop(org: { businessType?: string }): boolean {

@@ -275,7 +275,10 @@ export async function updateMenuItemAction(input: { productId: string } & setup.
   if (!p.ok) return invalid(p.error);
   const { productId, ...rest } = p.data;
   const r = await setup.updateMenuItem(ctx, productId, rest);
-  if (r.ok) revalidatePath(`/app/products/${productId}`);
+  if (r.ok) {
+    revalidatePath(`/app/products/${productId}`);
+    revalidatePath('/app/restaurant/menu');
+  }
   return toAction(r, t.settings.menuItemSaved);
 }
 

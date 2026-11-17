@@ -104,4 +104,45 @@ export const RESTAURANT_ROLES: { name: string; permissions: PermissionKey[]; per
   },
 ];
 
+/**
+ * Ishlab chiqarish sexi rol shablonlari (TAKLIF §2.4, docs/SEX_API.md). `manufacturing` turida NOMI bo'yicha
+ * yo'q bo'lsa qo'shiladi (lib/roles.ts → ensureDefaultRoles), tahrirlangan rol o'zgarmaydi.
+ */
+export const MANUFACTURING_ROLES: { name: string; permissions: PermissionKey[]; permVersion: number }[] = [
+  {
+    // Kirim, transfer, inventarizatsiya, hisobdan chiqarish; narx va tannarxni KO'RMAYDI (product.viewCost yo'q)
+    name: 'Omborchi',
+    permissions: [
+      'products.view', 'product.create', 'transfer.create', 'inventory.view', 'transferred.view', 'stock.writeOff',
+      'receipt.create', 'production.view', 'tasks.view', 'profile.password',
+    ],
+    permVersion: PERMISSIONS_VERSION,
+  },
+  {
+    // Ishlab chiqarish akti, texkarta, ishbayni tasdiqlash; tannarx — faqat egasi bersa
+    name: "Sex boshlig'i",
+    permissions: [
+      'production.view', 'production.manage', 'recipe.manage', 'piecework.log', 'piecework.approve',
+      'products.view', 'inventory.view', 'transfer.create', 'stock.writeOff', 'tasks.view', 'tasks.manage', 'profile.password',
+    ],
+    permVersion: PERMISSIONS_VERSION,
+  },
+  {
+    // Faqat o'z ishbay yozuvlari (mobil), aktlar ro'yxati — qaysi ish uchun yozishni tanlash
+    name: 'Usta / ishchi',
+    permissions: ['piecework.log', 'production.view', 'tasks.view', 'profile.password'],
+    permVersion: PERMISSIONS_VERSION,
+  },
+  {
+    // Tannarx, yetkazib beruvchi qarzi va to'lovi, kirim narxlari, xaridlar, ishbay to'lovi; sotuv yo'q
+    name: 'Hisobchi',
+    permissions: [
+      'production.view', 'production.viewCost', 'products.view', 'product.viewCost', 'inventory.view',
+      'suppliers.view', 'suppliers.manage', 'receipt.create', 'po.manage', 'piecework.log', 'piecework.approve',
+      'reports.view', 'export.data', 'tasks.view', 'profile.password',
+    ],
+    permVersion: PERMISSIONS_VERSION,
+  },
+];
+
 export type RoleDoc = IRole & { _id: Types.ObjectId };

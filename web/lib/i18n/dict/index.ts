@@ -11,6 +11,7 @@ import * as superPanel from './superPanel';
 import * as ui from './ui';
 import * as importer from './importer';
 import * as restaurant from './restaurant';
+import * as production from './production';
 
 /**
  * Barcha bo'lim lug'atlari. Yangi bo'lim qo'shish: dict/<nom>.ts yarating (uz + ru: typeof uz),
@@ -30,6 +31,7 @@ export const dictionaries = {
     ui: ui.uz,
     importer: importer.uz,
     restaurant: restaurant.uz,
+    production: production.uz,
   },
   ru: {
     common: common.ru,
@@ -44,6 +46,7 @@ export const dictionaries = {
     ui: ui.ru,
     importer: importer.ru,
     restaurant: restaurant.ru,
+    production: production.ru,
   },
 } satisfies Record<Locale, unknown>;
 

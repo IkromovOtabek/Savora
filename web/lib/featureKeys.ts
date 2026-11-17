@@ -21,6 +21,11 @@ export const FEATURE_KEYS = [
   'tables',
   'kitchen',
   'qrMenu',
+  // Ishlab chiqarish va ombor kirimi (docs/SEX_API.md): texkarta + ishlab chiqarish akti + tannarx,
+  // kirim akti + yetkazib beruvchiga buyurtma, ishbay haq
+  'production',
+  'purchasing',
+  'piecework',
 ] as const;
 
 export type FeatureKey = (typeof FEATURE_KEYS)[number];

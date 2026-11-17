@@ -182,6 +182,8 @@ export default function Profile() {
   const f = me?.features ?? {};
   const can = useCan();
   const isAdmin = !!me?.user.isAdmin;
+  // Restoran: ofitsant ekrani — «Stollar» moduli yoqiq va buyurtma olish huquqi bo'lsa
+  const tablesOn = !!f.tables && can('order.create');
   const org = me?.org;
 
   function onLogout() {
@@ -245,8 +247,9 @@ export default function Profile() {
         {f.transferred && can('transfer.create') ? <Cell icon="swap-horizontal" iconColor={c.sq.g} title={d.profile.transfer} chevron onPress={() => router.push('/transfer')} /> : null}
       </Group>
 
-      {can('sales.view') || (f.kassa && can('kassa.view')) ? (
+      {can('sales.view') || (f.kassa && can('kassa.view')) || tablesOn ? (
       <Group header={d.profile.secSales} icon="cart-outline">
+        {tablesOn ? <Cell icon="restaurant" iconColor={c.sq.p} title={d.restaurant.title} chevron onPress={() => router.push('/tables')} /> : null}
         {can('sales.view') ? <Cell icon="receipt" iconColor={c.sq.b} title={d.profile.sales} chevron onPress={() => router.push('/(tabs)/sales')} /> : null}
         {f.kassa && can('kassa.view') ? <Cell icon="time" iconColor={c.sq.o} title={d.profile.shifts} chevron onPress={() => router.push('/shifts')} /> : null}
       </Group>

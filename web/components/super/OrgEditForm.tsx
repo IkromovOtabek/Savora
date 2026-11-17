@@ -3,7 +3,7 @@
 import { useActionState, useState } from 'react';
 import { updateOrganizationAction } from '@/app/actions/orgSettings';
 import { PLAN_PRESETS } from '@/lib/plans';
-import { BUSINESS_TYPE_IDS } from '@/lib/businessTypes';
+import { BUSINESS_TYPE_IDS, INDUSTRY_PROFILES } from '@/lib/businessTypes';
 import { useDict } from '@/lib/i18n/client';
 import PriceInput from '@/components/ui/PriceInput';
 import { Alert, Sq } from './ui';
@@ -18,6 +18,8 @@ interface Props {
     status: string;
     planTier: string;
     businessType: string;
+    /** Ishlab chiqarish sexi kichik yo'nalishi ('' — tanlanmagan) */
+    industryProfile?: string;
     expiresAt: string;
     slug: string;
     dbName: string;
@@ -34,6 +36,7 @@ interface Props {
 export default function OrgEditForm({ orgId, initial }: Props) {
   const [state, formAction, isPending] = useActionState(updateOrganizationAction, null);
   const [planTier, setPlanTier] = useState(initial.planTier);
+  const [bizType, setBizType] = useState(initial.businessType);
   const d = useDict();
   const s = d.superPanel.orgEdit;
 
@@ -80,12 +83,23 @@ export default function OrgEditForm({ orgId, initial }: Props) {
         </div>
         <div className="sa-field">
           <label htmlFor="businessType">{s.businessType}</label>
-          <select id="businessType" name="businessType" defaultValue={initial.businessType} disabled={isPending}>
+          <select id="businessType" name="businessType" defaultValue={initial.businessType} disabled={isPending} onChange={(e) => setBizType(e.target.value)}>
             {BUSINESS_TYPE_IDS.map((key) => (
               <option key={key} value={key}>{d.catalog.businessTypes[key].label}</option>
             ))}
           </select>
         </div>
+        {bizType === 'manufacturing' && (
+          <div className="sa-field">
+            <label htmlFor="industryProfile">{d.catalog.industryProfileLabel}</label>
+            <select id="industryProfile" name="industryProfile" defaultValue={initial.industryProfile ?? ''} disabled={isPending}>
+              <option value="">{d.catalog.industryProfileNone}</option>
+              {INDUSTRY_PROFILES.map((key) => (
+                <option key={key} value={key}>{d.catalog.industryProfiles[key].label}</option>
+              ))}
+            </select>
+          </div>
+        )}
         <div className="sa-grid-2">
           <div className="sa-field">
             <label htmlFor="ownerName">{s.owner}</label>

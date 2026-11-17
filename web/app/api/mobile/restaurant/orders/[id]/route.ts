@@ -1,14 +1,14 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { getOrder } from '@/lib/restaurant/queries';
-import { addItems, bumpItems, confirmPendingItems, precheckOrder, sendItems, updateOrderInfo, voidItem } from '@/lib/restaurant/ops';
+import { addItems, bumpItems, cancelOrder, confirmPendingItems, precheckOrder, sendItems, updateOrderInfo, voidItem } from '@/lib/restaurant/ops';
 import { toResponse } from '@/lib/restaurant/session';
 import { zId } from '@/lib/validation';
 import { badRequest, bodyOf, mobileCtx, noStore } from '../../_shared';
 
 type Params = { params: Promise<{ id: string }> };
 
-/** Bitta buyurtma (taomlar, hisob, `can`) */
+/** Bitta buyurtma (taomlar, hisob, `can`, `requireVoidReason`, `hallName`) + `serverTime` (telefon soati farqi) */
 export async function GET(req: Request, { params }: Params) {
   const a = await mobileCtx(req);
   if (a instanceof NextResponse) return a;
@@ -25,6 +25,7 @@ export async function GET(req: Request, { params }: Params) {
  *   confirm   { itemIds?, reject?, send? }     — mijoz QR taomlari
  *   precheck  {}                               — hisob (pre-chek)
  *   info      { guests?, note? }
+ *   cancel    { reason? }                      — buyurtmani bekor qilish (oshxonaga yuborilgan faol taom va to'lov bo'lmasa)
  * To'lov mobil ilovada yo'q (kassa — web).
  */
 export async function POST(req: Request, { params }: Params) {
@@ -41,6 +42,7 @@ export async function POST(req: Request, { params }: Params) {
     z.object({ op: z.literal('confirm'), itemIds: s.confirm.shape.itemIds, reject: s.confirm.shape.reject, send: s.confirm.shape.send }),
     z.object({ op: z.literal('precheck') }),
     z.object({ op: z.literal('info'), guests: s.info.shape.guests, note: s.info.shape.note }),
+    z.object({ op: z.literal('cancel'), reason: s.cancel.shape.reason }),
   ]);
   const b = await bodyOf(req, schema, a);
   if (!b.ok) return badRequest(b.error);
@@ -53,5 +55,6 @@ export async function POST(req: Request, { params }: Params) {
     case 'confirm': return toResponse(await confirmPendingItems(ctx, id, { itemIds: d.itemIds, reject: d.reject, send: d.send }));
     case 'precheck': return toResponse(await precheckOrder(ctx, id));
     case 'info': return toResponse(await updateOrderInfo(ctx, id, { guests: d.guests === undefined ? undefined : d.guests || null, note: d.note }));
+    case 'cancel': return toResponse(await cancelOrder(ctx, id, d.reason || undefined));
   }
 }

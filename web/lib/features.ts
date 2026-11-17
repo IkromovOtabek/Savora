@@ -204,6 +204,34 @@ export const TENANT_MODULES: Record<FeatureKey, FeatureModule> = {
     defaultByPlan: { free: false, starter: false, pro: false, business: false, custom: false },
     allowedByPlan: { free: false, starter: false, pro: true, business: true, custom: true },
   },
+  // Ishlab chiqarish sexi modullari — standart OFF; biznes preseti (manufacturing, wholesale) yoki Super Admin yoqadi
+  production: {
+    key: 'production',
+    label: 'Ishlab chiqarish',
+    description: 'Texkarta (sarf normasi), ishlab chiqarish akti, xom ashyo sarfi va tannarx',
+    route: '/app/production',
+    category: 'ombor',
+    defaultByPlan: { free: false, starter: false, pro: false, business: false, custom: false },
+    allowedByPlan: { free: false, starter: true, pro: true, business: true, custom: true },
+  },
+  purchasing: {
+    key: 'purchasing',
+    label: 'Kirim va xaridlar',
+    description: "Kirim akti (yetkazib beruvchi qarzi, o'rtacha tannarx), yetkazib beruvchiga buyurtma, minimal qoldiq",
+    route: '/app/receipts',
+    category: 'ombor',
+    defaultByPlan: { free: false, starter: false, pro: false, business: false, custom: false },
+    allowedByPlan: { free: false, starter: true, pro: true, business: true, custom: true },
+  },
+  piecework: {
+    key: 'piecework',
+    label: 'Ishbay haq',
+    description: "Ishchi bajargan ishni yozadi, boshliq tasdiqlaydi, to'lov kassa chiqimiga tushadi",
+    route: '/app/piecework',
+    category: 'boshqaruv',
+    defaultByPlan: { free: false, starter: false, pro: false, business: false, custom: false },
+    allowedByPlan: { free: false, starter: false, pro: true, business: true, custom: true },
+  },
 };
 
 const CATEGORY_LABELS: Record<FeatureModule['category'], string> = {

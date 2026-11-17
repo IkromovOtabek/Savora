@@ -55,7 +55,7 @@ export interface PublicMenu {
   /** Xizmat haqi (zalda ofitsant xizmatida). QR orqali o'zi buyurtmada olinmaydi */
   serviceChargePct: number;
   categories: string[];
-  items: Omit<MenuItemView, 'stopListed' | 'available' | 'stationId'>[];
+  items: Omit<MenuItemView, 'stopListed' | 'available' | 'stationId' | 'ikpu'>[];
 }
 
 export async function publicMenu(c: PublicTableCtx): Promise<PublicMenu> {
@@ -75,8 +75,8 @@ export async function publicMenu(c: PublicTableCtx): Promise<PublicMenu> {
     table: { number: c.table.number, hall: hall?.name ?? null },
     serviceChargePct: settings.serviceChargePct,
     categories: menu.categories,
-    // Ichki maydonlar (stansiya, qoldiq) chiqmaydi
-    items: menu.items.map(({ stopListed: _s, available: _a, stationId: _st, ...rest }) => rest),
+    // Ichki maydonlar (stansiya, qoldiq, MXIK) chiqmaydi
+    items: menu.items.map(({ stopListed: _s, available: _a, stationId: _st, ikpu: _i, ...rest }) => rest),
   };
 }
 

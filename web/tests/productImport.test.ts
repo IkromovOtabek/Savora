@@ -227,7 +227,8 @@ describe('qiymatlarni o\'qish', () => {
     expect(parseUnit('м²')).toBe('m2');
     expect(parseUnit('litr')).toBe('l');
     expect(parseUnit('')).toBeUndefined();
-    expect(parseUnit('tonna')).toBeNull();
+    expect(parseUnit('bochka')).toBeNull();
+    expect(parseUnit('tonna')).toBe('t'); // sex birliklari (list, rulon, m³, t, juft)
   });
 
   it('sana', () => {
@@ -268,7 +269,7 @@ describe('qatorni tekshirish', () => {
   });
 
   it('xatolar to\'planadi', () => {
-    const res = parseImportRow({ line: 7, values: { salePrice: 'bepul', quantity: 0, unit: 'tonna' }, extra: [] }, GROCERY);
+    const res = parseImportRow({ line: 7, values: { salePrice: 'bepul', quantity: 0, unit: 'bochka' }, extra: [] }, GROCERY);
     expect(res.ok).toBe(false);
     if (res.ok) return;
     expect(res.line).toBe(7);

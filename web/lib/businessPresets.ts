@@ -28,9 +28,14 @@ export const BUSINESS_FEATURE_PRESETS: Record<BusinessType, Partial<Record<Featu
   cosmetics: { ...SMART, nasiya: false, variant: false, creditKassa: false, inventory: true, mediaUpload: true },
   pharmacy: { ...SMART, nasiya: false, variant: false, creditKassa: false, inventory: true, transferred: true },
   auto_parts: { ...SMART, daftar: true, nasiya: false, variant: false, creditKassa: false, inventory: true },
-  wholesale: { ...SMART, daftar: true, nasiya: false, variant: false, creditKassa: false, inventory: true, transferred: true },
+  wholesale: { ...SMART, daftar: true, nasiya: false, variant: false, creditKassa: false, inventory: true, transferred: true, purchasing: true },
   restaurant: { ...SMART, nasiya: false, variant: false, creditKassa: false, transferred: false, inventory: true, mediaUpload: true, tables: true, kitchen: true, qrMenu: true },
   service: { ...SMART, nasiya: false, variant: false, creditKassa: false, inventory: false, transferred: false },
+  // Sex: texkarta/akt/tannarx, kirim va xaridlar, ishbay (Pro+), ikki ombor (xom ashyo → tayyor mahsulot), diler qarzi
+  manufacturing: {
+    ...SMART, production: true, purchasing: true, piecework: true, inventory: true, transferred: true, daftar: true,
+    variant: false, creditKassa: false,
+  },
 };
 
 export function presetFor(businessType?: string): Partial<Record<FeatureKey, boolean>> {

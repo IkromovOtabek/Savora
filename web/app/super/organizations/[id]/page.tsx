@@ -110,6 +110,7 @@ export default async function OrgDetailPage({
                       status: org.status,
                       planTier: org.plan.tier,
                       businessType: org.businessType ?? 'general',
+                      industryProfile: org.industryProfile ?? '',
                       expiresAt: expiresValue,
                       slug: org.slug,
                       dbName: org.dbName,

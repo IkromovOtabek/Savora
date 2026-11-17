@@ -36,6 +36,8 @@ function getSessionId(): string {
 function isPublicMarketingPath(path: string): boolean {
   if (path.startsWith('/app') || path.startsWith('/super') || path.startsWith('/t/')) return false;
   if (path === '/login' || path === '/register' || path === '/forgot') return false;
+  // Restoran mijozining QR-menyusi — Savora marketingi emas (ro'yxatdan o'tish oynasi va kuzatuv chiqmasin)
+  if (path.startsWith('/m/')) return false;
   return true;
 }
 

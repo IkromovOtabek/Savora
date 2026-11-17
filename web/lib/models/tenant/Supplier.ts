@@ -43,6 +43,8 @@ export interface ISupplierEntry {
   note?: string;
   /** Avtomatik yozuv bo'lsa — qaysi mahsulot qabulidan */
   productId?: Types.ObjectId;
+  /** Kirim akti (GoodsReceipt) yozuvi bo'lsa — qaysi aktdan (lib/production/receipts.ts) */
+  receiptId?: Types.ObjectId;
   at: Date;
   by: string;
   createdAt?: Date;
@@ -56,6 +58,7 @@ export const supplierEntrySchema = new Schema<ISupplierEntry>(
     amount: { type: Number, required: true, min: 1 },
     note: { type: String, trim: true, maxlength: 300 },
     productId: { type: Schema.Types.ObjectId, ref: 'Product' },
+    receiptId: { type: Schema.Types.ObjectId, ref: 'GoodsReceipt' },
     at: { type: Date, required: true, default: Date.now },
     by: { type: String, required: true, trim: true },
   },

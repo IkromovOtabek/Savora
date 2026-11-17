@@ -13,8 +13,14 @@ import { errorResponse } from '@/lib/restaurant/session';
 export type Limit = { key: string; max: number; windowMs: number };
 
 export const LIMITS = {
-  /** Menyu va buyurtma holatini o'qish — IP bo'yicha */
-  read: (ip: string): Limit => ({ key: `qr:read:${ip}`, max: 120, windowMs: 60_000 }),
+  /**
+   * Menyu va buyurtma holatini o'qish. Restoran Wi-Fi'da barcha mijozlar BITTA tashqi IP'da bo'ladi —
+   * shuning uchun asosiy cheklov IP + stol tokeni bo'yicha (bir stoldagi telefonlar: menyu + holat polling),
+   * IP bo'yicha esa faqat keng chegara (bitta IP'dan ko'p stol tokenini terib chiqishga qarshi).
+   * Yozish (buyurtma, chaqiruv) limitlari qattiq qoladi.
+   */
+  readTable: (ip: string, token: string): Limit => ({ key: `qr:read-t:${ip}:${token}`, max: 120, windowMs: 60_000 }),
+  readIp: (ip: string): Limit => ({ key: `qr:read:${ip}`, max: 1500, windowMs: 60_000 }),
   /** Buyurtma berish — IP va stol bo'yicha */
   orderIp: (ip: string): Limit => ({ key: `qr:order:${ip}`, max: 10, windowMs: 10 * 60_000 }),
   orderTable: (token: string): Limit => ({ key: `qr:order-t:${token}`, max: 20, windowMs: 10 * 60_000 }),

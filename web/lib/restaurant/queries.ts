@@ -13,15 +13,17 @@ import { canAccessOrder } from './rules';
 import { itemDisplayName } from './modifiers';
 import { kdsLevel, summarizeTimings, type TimedItem } from './timings';
 import { qrMenuPath } from './qr';
-import { KDS_STATUSES, type ItemStatus, type RestaurantSettings, type StationKind } from './types';
+import { KDS_STATUSES, type ItemStatus, type OrderSource, type RestaurantSettings, type StationKind } from './types';
 import { fail, needAnyPerm, needFeature, needPerm, ok, type OpResult, type RestaurantCtx, type RestaurantModels } from './context';
-import { loadOrder, resolveBranchId, restaurantSettings } from './ops';
-import { orderSummary, orderView, type OrderSummary, type OrderView } from './view';
+import { loadOrder, orderViewFor, resolveBranchId, restaurantSettings } from './ops';
+import { orderSummary, type OrderSummary, type OrderView } from './view';
 
 const iso = (d?: Date | string | null): string | null => (d ? new Date(d).toISOString() : null);
 /** Polling: keyingi `since` — so'rov boshidan 5 s oldin (parallel yozuvlar o'tkazib yuborilmasin; id bo'yicha almashtiring) */
 const nextSince = (start: number) => new Date(start - 5_000).toISOString();
 const DAY = 24 * 60 * 60 * 1000;
+/** KDS to'liq so'rovida (since'siz) bekor qilingan taomlar shuncha vaqt orqaga qaraladi */
+const KDS_VOID_LOOKBACK_MS = 2 * 60_000;
 
 /** Admin uchun filiallar (tanlash); filial xodimiga — bo'sh */
 async function branchesFor(ctx: RestaurantCtx): Promise<{ id: string; name: string; isMain: boolean }[]> {
@@ -137,14 +139,14 @@ export async function listOrders(ctx: RestaurantCtx, input: OrdersListInput = {}
   });
 }
 
-/** To'liq buyurtma (taomlar, to'lovlar, hisob, `can` — UI tugmalari) */
-export async function getOrder(ctx: RestaurantCtx, orderId: string): Promise<OpResult<{ order: OrderView }>> {
+/** To'liq buyurtma (taomlar, to'lovlar, hisob, `can` — UI tugmalari). `serverTime` — mobil/telefon soati farqi uchun */
+export async function getOrder(ctx: RestaurantCtx, orderId: string): Promise<OpResult<{ order: OrderView; serverTime: string }>> {
   const denied = needFeature(ctx, 'tables') ?? needAnyPerm(ctx, ORDER_READ_PERMS);
   if (denied) return denied;
   const r = await loadOrder(ctx, orderId);
   if (!r.ok) return r;
   if (!canAccessOrder(ctx.user, ctx.perms, r.data)) return fail(ctx.d, 'orderNotFound');
-  return ok({ order: orderView(r.data, { orgId: ctx.orgId, actor: ctx.user, perms: ctx.perms }) });
+  return ok({ order: await orderViewFor(ctx, r.data), serverTime: new Date().toISOString() });
 }
 
 /* ───────────────────────────── oshxona ekrani (KDS) ───────────────────────────── */
@@ -160,6 +162,8 @@ export interface KdsItem {
   status: ItemStatus;
   stationId: string | null;
   stationKind: StationKind | null;
+  /** Mijoz QR orqali buyurtma qilgan (ofitsant tasdiqlagan) taom */
+  fromQr: boolean;
   sentAt: string | null;
   cookStartedAt: string | null;
   readyAt: string | null;
@@ -169,17 +173,34 @@ export interface KdsItem {
   level: 'ok' | 'warn' | 'alert';
 }
 
+/** Oshxonaga yuborilgandan keyin bekor qilingan taom (KDS «tayyorlamang!» ogohlantirishi uchun) */
+export interface KdsVoided {
+  id: string;
+  reason: string | null;
+  voidedAt: string | null;
+}
+
 export interface KdsOrder {
   id: string;
   orderNo: string;
   type: OrderDoc['type'];
   status: OrderDoc['status'];
+  /** Kim ochgan: ofitsant / mijoz QR / kassa */
+  source: OrderSource;
   tableNumber: number | null;
   waiterName: string | null;
   guests: number | null;
+  /** Buyurtma izohi (ofitsant: «allergiya», «tezroq» va h.k.) */
+  note: string | null;
   updatedAt: string | null;
   /** Bo'sh bo'lsa (since rejimida) — buyurtmani ekrandan olib tashlang */
   items: KdsItem[];
+  /**
+   * Shu stansiyada yuborilgandan keyin bekor qilingan taomlar: `since` rejimida — `since` dan keyin
+   * bekor qilinganlar, to'liq rejimda — oxirgi 2 daqiqadagilar. Ekrandan yo'qolgan taom «berildi»mi yoki
+   * «bekor qilindi»mi — shundan aniqlanadi.
+   */
+  voided: KdsVoided[];
 }
 
 export interface KitchenBoard {
@@ -205,34 +226,45 @@ export async function kitchenBoard(
   const now = new Date(start);
   const stationId = input.stationId && /^[a-f0-9]{24}$/i.test(input.stationId) ? input.stationId : undefined;
 
+  // Bekor qilingan taomlar oynasi: since rejimida — since'dan, to'liq rejimda — oxirgi 2 daqiqa
+  const voidedFrom = input.since ?? new Date(start - KDS_VOID_LOOKBACK_MS);
   const filter: Record<string, unknown> = input.since
     ? { branchId, updatedAt: { $gte: input.since } }
     : {
         branchId,
-        status: { $in: ['open', 'precheck', 'paid'] },
-        items: { $elemMatch: { status: { $in: KDS_STATUSES }, ...(stationId ? { stationId } : {}) } },
+        status: { $in: ['open', 'precheck', 'paid', 'cancelled'] },
+        $or: [
+          { items: { $elemMatch: { status: { $in: KDS_STATUSES }, ...(stationId ? { stationId } : {}) } } },
+          { items: { $elemMatch: { status: 'voided', voidedAt: { $gte: voidedFrom }, voidStage: { $ne: 'unsent' }, ...(stationId ? { stationId } : {}) } } },
+        ],
         updatedAt: { $gte: new Date(start - DAY) },
       };
   const [settings, stations, orders, branches] = await Promise.all([
     restaurantSettings(ctx.m),
     ctx.m.KitchenStation.find({ branchId, active: true }).sort({ sort: 1, createdAt: 1 }).select('name kind').lean(),
     ctx.m.Order.find(filter).sort({ openedAt: 1 }).limit(300)
-      .select('orderNo type status tableNumber waiterName guests updatedAt items')
+      .select('orderNo type status source tableNumber waiterName guests note updatedAt items')
       .lean<OrderDoc[]>(),
     branchesFor(ctx),
   ]);
 
+  const inStation = (i: { stationId?: unknown }) => !stationId || String(i.stationId ?? '') === stationId;
   const out: KdsOrder[] = orders.map((o) => ({
     id: String(o._id),
     orderNo: o.orderNo,
     type: o.type,
     status: o.status,
+    source: o.source ?? 'waiter',
     tableNumber: o.tableNumber ?? null,
     waiterName: o.waiterName ?? null,
     guests: o.guests ?? null,
+    note: o.note ?? null,
     updatedAt: iso(o.updatedAt),
+    voided: o.items
+      .filter((i) => i.status === 'voided' && i.voidStage !== 'unsent' && !!i.voidedAt && i.voidedAt >= voidedFrom && inStation(i))
+      .map((i) => ({ id: String(i._id), reason: i.voidReason ?? null, voidedAt: iso(i.voidedAt) })),
     items: o.status === 'cancelled' ? [] : o.items
-      .filter((i) => KDS_STATUSES.includes(i.status) && (!stationId || String(i.stationId ?? '') === stationId))
+      .filter((i) => KDS_STATUSES.includes(i.status) && inStation(i))
       .map((i) => ({
         id: String(i._id),
         name: i.name,
@@ -244,6 +276,7 @@ export async function kitchenBoard(
         status: i.status,
         stationId: i.stationId ? String(i.stationId) : null,
         stationKind: i.stationKind ?? null,
+        fromQr: !!i.fromQr,
         sentAt: iso(i.sentAt),
         cookStartedAt: iso(i.cookStartedAt),
         readyAt: iso(i.readyAt),
@@ -251,8 +284,9 @@ export async function kitchenBoard(
         level: i.status === 'ready' ? 'ok' : kdsLevel(i.sentAt, now, settings),
       })),
   }));
-  // Oddiy rejimda — bo'sh kartochkalar kerak emas; since rejimida bo'sh = «olib tashlang»
-  const list = input.since ? out : out.filter((o) => o.items.length);
+  // Oddiy rejimda — bo'sh kartochkalar kerak emas (faqat yaqinda bekor qilingani bo'lsa — ogohlantirish uchun);
+  // since rejimida bo'sh = «olib tashlang»
+  const list = input.since ? out : out.filter((o) => o.items.length || o.voided.length);
   return ok({
     serverTime: now.toISOString(),
     next: nextSince(start),
@@ -279,22 +313,31 @@ export interface MenuItemView {
   stopListed: boolean;
   /** Sotsa bo'ladigan miqdor; null — cheklovsiz (xizmat) */
   available: number | null;
+  /** MXIK (IKPU) — fiskal chek uchun; null — kiritilmagan. Mijoz QR-menyusiga chiqmaydi */
+  ikpu: string | null;
   modifierGroups: { id: string; name: string; required: boolean; min: number; max: number; options: { id: string; name: string; price: number }[] }[];
 }
 
 type MenuProduct = IProduct & { _id: Types.ObjectId };
 
-/** Menyu: filialdagi sotuvdagi mahsulotlar (taom), kategoriya bo'yicha. `forPublic` — stop-list va tugaganlar yashirin */
+/**
+ * Menyu: filialdagi sotuvdagi mahsulotlar (taom), kategoriya bo'yicha. `forPublic` — stop-list va tugaganlar
+ * yashirin; `withSoldOut` — qoldig'i tugagan (status `sold`) sanaladigan tovar ham (faqat menyu muharriri:
+ * stansiya/modifikator/MXIK ni tovar kelishidan oldin sozlash uchun; ofitsant va mijoz menyusida emas).
+ */
 export async function buildMenu(
   m: Pick<RestaurantModels, 'Product'>,
   branchId: string | Types.ObjectId,
-  opts: { forPublic?: boolean } = {},
+  opts: { forPublic?: boolean; withSoldOut?: boolean } = {},
 ): Promise<{ categories: string[]; items: MenuItemView[] }> {
+  const status = opts.withSoldOut && !opts.forPublic
+    ? { $or: [{ status: 'in_stock' }, { status: 'sold', trackQuantity: true }] }
+    : { status: 'in_stock' };
   const products = await m.Product.find(
-    { branchId, status: 'in_stock', ...(opts.forPublic ? { stopListed: { $ne: true } } : {}) },
+    { branchId, ...status, ...(opts.forPublic ? { stopListed: { $ne: true } } : {}) },
     {
       name: 1, salePrice: 1, photoUrl: 1, category: 1, categoryId: 1, kind: 1, unit: 1, trackQuantity: 1, quantity: 1,
-      soldQuantity: 1, status: 1, bundleItems: 1, stationId: 1, modifierGroups: 1, stopListed: 1, systemKey: 1,
+      soldQuantity: 1, status: 1, bundleItems: 1, stationId: 1, modifierGroups: 1, stopListed: 1, systemKey: 1, ikpu: 1,
     },
   ).sort({ category: 1, name: 1 }).limit(1000).lean<MenuProduct[]>();
   const sell = await sellableInfo(m.Product, products);
@@ -316,6 +359,7 @@ export async function buildMenu(
       stationId: p.stationId ? String(p.stationId) : null,
       stopListed: !!p.stopListed,
       available,
+      ikpu: p.ikpu || null,
       modifierGroups: (p.modifierGroups ?? []).map((g) => ({
         id: String(g._id),
         name: g.name,

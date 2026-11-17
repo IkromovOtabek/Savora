@@ -14,7 +14,10 @@ export type ProductActionType =
   | 'edited'
   | 'restocked'
   | 'revalued'
-  | 'writtenOff';
+  | 'writtenOff'
+  /** Ishlab chiqarish: xom ashyo sarflandi / tayyor mahsulot kirim bo'ldi (lib/production) */
+  | 'consumed'
+  | 'produced';
 
 export interface IProductHistory {
   action: ProductActionType;
@@ -122,6 +125,18 @@ export interface IProduct {
   stopListed?: boolean;
   /** Tizim mahsuloti (masalan restoran xizmat haqi qatori) — soft-delete holatida, ro'yxatlarda ko'rinmaydi */
   systemKey?: string;
+  /**
+   * Filialdan MUSTAQIL barqaror kod (texkarta, kirim, ishlab chiqarish shu kod bilan bog'lanadi — docs/SEX_API.md).
+   * `productId` va `imei` butun do'kon bo'yicha noyob (har filialdagi nusxa — alohida hujjat), shuning uchun alohida
+   * maydon: bir xil tovarning turli filiallardagi hujjatlari bir xil `itemCode` ga ega. Yo'q bo'lsa — `productId`
+   * (lib/production/itemCode.ts → codeOf); birinchi marta texkarta/kirimda o'rnatiladi.
+   */
+  itemCode?: string;
+  /** Xarid birligi (masalan «qop») va 1 xarid birligi = `purchaseFactor` asosiy birlik (1 qop = 50 kg) */
+  purchaseUnit?: ProductUnit;
+  purchaseFactor?: number;
+  /** Minimal qoldiq (asosiy birlikda) — undan kam bo'lsa ogohlantirish (lib/production/lowStock.ts) */
+  minStock?: number;
   createdAt?: Date;
   updatedAt?: Date;
 }
@@ -130,7 +145,7 @@ const productHistorySchema = new Schema<IProductHistory>(
   {
     action: {
       type: String,
-      enum: ['created', 'sold', 'transferred', 'returned', 'edited', 'restocked', 'revalued', 'writtenOff'],
+      enum: ['created', 'sold', 'transferred', 'returned', 'edited', 'restocked', 'revalued', 'writtenOff', 'consumed', 'produced'],
       required: true,
     },
     detail: { type: String, trim: true },
@@ -219,6 +234,10 @@ export const productSchema = new Schema<IProduct>(
     },
     stopListed: { type: Boolean },
     systemKey: { type: String, trim: true },
+    itemCode: { type: String, trim: true, uppercase: true, maxlength: 40 },
+    purchaseUnit: { type: String, enum: PRODUCT_UNITS },
+    purchaseFactor: { type: Number, min: 0.001, max: 1_000_000 },
+    minStock: { type: Number, min: 0 },
   },
   { timestamps: true, collection: 'products' }
 );
@@ -238,6 +257,9 @@ productSchema.index({ 'extraFields.name': 1 }, { sparse: true });
 productSchema.index({ name: 'text', brand: 'text', deviceModel: 'text', imei: 'text' });
 // Restoran: oshxona stansiyasiga bog'langan taomlar (stansiya o'chirilganda tozalash)
 productSchema.index({ stationId: 1 }, { sparse: true });
+// Ishlab chiqarish/kirim: barqaror kod bo'yicha filialdagi nusxani topish; minimal qoldiq ro'yxati
+productSchema.index({ itemCode: 1, branchId: 1 }, { sparse: true });
+productSchema.index({ minStock: 1 }, { sparse: true });
 
 export const PRODUCT_STATUS_LABELS: Record<ProductStatus, string> = {
   in_stock: 'Omborda',
@@ -256,6 +278,8 @@ export const PRODUCT_ACTION_LABELS: Record<ProductActionType, string> = {
   restocked: 'Son to\'ldirildi',
   revalued: 'Narx qayta baholandi',
   writtenOff: 'Hisobdan chiqarildi',
+  consumed: 'Ishlab chiqarishga sarflandi',
+  produced: 'Ishlab chiqarildi',
 };
 
 export type ProductDoc = IProduct & { _id: Types.ObjectId };

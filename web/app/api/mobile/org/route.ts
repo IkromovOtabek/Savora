@@ -2,7 +2,8 @@ import { NextResponse } from 'next/server';
 import { authenticateMobile } from '@/lib/mobileAuth';
 import { getMasterModels } from '@/lib/masterDb';
 import { recordAudit } from '@/lib/audit';
-import { parseBusinessType, BUSINESS_TYPES, termsFor } from '@/lib/businessTypes';
+import { parseBusinessType, parseIndustryProfile, BUSINESS_TYPES, INDUSTRY_PROFILES, termsFor } from '@/lib/businessTypes';
+import { getDictionary } from '@/lib/i18n/dict';
 import { diffFeatureOverrides, resolveOrgFeatures } from '@/lib/features';
 
 /** GET — mavjud biznes turlari ro'yxati (tanlash uchun). */
@@ -18,10 +19,12 @@ export async function GET(req: Request) {
       label: BUSINESS_TYPES[key].label,
       description: BUSINESS_TYPES[key].description,
     })),
+    /** Ishlab chiqarish sexi kichik yo'nalishlari (faqat businessType = 'manufacturing' bilan PATCH'da yuboriladi) */
+    profiles: INDUSTRY_PROFILES.map((key) => ({ key, ...getDictionary('uz').catalog.industryProfiles[key] })),
   });
 }
 
-/** PATCH — biznes yo'nalishini o'zgartirish. Faqat biznes egasi (admin). */
+/** PATCH — biznes yo'nalishini o'zgartirish: { businessType, industryProfile? }. Faqat biznes egasi (admin). */
 export async function PATCH(req: Request) {
   const auth = await authenticateMobile(req);
   if (auth instanceof NextResponse) return auth;
@@ -33,10 +36,16 @@ export async function PATCH(req: Request) {
   if (user.role !== 'admin') {
     return NextResponse.json({ error: 'Bu amalni faqat biznes egasi bajara oladi.' }, { status: 403 });
   }
-  let body: { businessType?: string };
+  let body: { businessType?: string; industryProfile?: string };
   try { body = await req.json(); } catch { return NextResponse.json({ error: 'Noto\'g\'ri so\'rov.' }, { status: 400 }); }
 
   const bt = parseBusinessType(String(body.businessType || ''));
+  // Sex kichik yo'nalishi: faqat manufacturing turida saqlanadi, boshqa turda tozalanadi;
+  // so'rovda kalit bo'lmasa (eski ilova) va tur manufacturing bo'lsa — o'zgarmaydi
+  const profile = parseIndustryProfile(body.industryProfile, bt);
+  const touchProfile = 'industryProfile' in body || bt !== 'manufacturing';
+  const profileSet = touchProfile && profile ? { industryProfile: profile } : {};
+  const profileUnset = touchProfile && !profile ? { industryProfile: 1 } : {};
   const { Organization } = await getMasterModels();
   const org = await Organization.findById(user.organizationId).select('plan features businessType').lean();
   if (!org) return NextResponse.json({ error: 'Do\'kon topilmadi.' }, { status: 404 });
@@ -47,8 +56,8 @@ export async function PATCH(req: Request) {
   await Organization.updateOne(
     { _id: user.organizationId },
     Object.keys(keep).length
-      ? { $set: { businessType: bt, features: keep, updatedAt: new Date() } }
-      : { $set: { businessType: bt, updatedAt: new Date() }, $unset: { features: 1 } },
+      ? { $set: { businessType: bt, features: keep, updatedAt: new Date(), ...profileSet }, ...(Object.keys(profileUnset).length ? { $unset: profileUnset } : {}) }
+      : { $set: { businessType: bt, updatedAt: new Date(), ...profileSet }, $unset: { features: 1, ...profileUnset } },
   );
   // AuditEntity'da 'org' yo'q — do'kon sozlamasi egasi (user) nomidan yoziladi
   await recordAudit(user, {
@@ -62,6 +71,7 @@ export async function PATCH(req: Request) {
   return NextResponse.json({
     businessType: bt,
     businessTypeLabel: BUSINESS_TYPES[bt].label,
+    industryProfile: touchProfile ? profile : undefined,
     terms: termsFor(bt),
   });
 }

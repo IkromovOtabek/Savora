@@ -13,6 +13,7 @@ import { resolveOrgFeatures } from '../features';
 import { loadUserPermissions } from '../permissionGuard';
 import { getDict } from '../i18n/server';
 import { getDictionary } from '../i18n/dict';
+import { DEFAULT_LOCALE, isLocale, type Locale } from '../i18n/config';
 import type { OpErr, OpResult, RestaurantCtx } from './context';
 
 /** Server action uchun (sessiya yo'q bo'lsa — login sahifasiga redirect, mavjud action'lar kabi) */
@@ -32,7 +33,16 @@ export async function restaurantCtxFromApi(): Promise<RestaurantCtx | NextRespon
   return { user, orgId: org._id, orgSlug: org.slug, m: models, perms, features: resolveOrgFeatures(org), d };
 }
 
-/** Mobil API uchun (Bearer token; muddati tugagan do'konda yozish — 402). Xabarlar o'zbekcha (mobil API'lar kabi) */
+/**
+ * Mobil ilova tili: ilova `Accept-Language` sarlavhasida joriy tilini yuboradi (`uz` | `ru`, mobile/lib/api.ts);
+ * bo'lmasa yoki boshqa til — o'zbekcha (boshqa mobil API'lar kabi).
+ */
+export function mobileLocale(req: Request): Locale {
+  const first = (req.headers.get('accept-language') ?? '').split(',')[0]?.trim().slice(0, 2).toLowerCase();
+  return isLocale(first) ? first : DEFAULT_LOCALE;
+}
+
+/** Mobil API uchun (Bearer token; muddati tugagan do'konda yozish — 402). Xato matnlari — ilova tilida (mobileLocale) */
 export async function restaurantCtxFromMobile(req: Request): Promise<RestaurantCtx | NextResponse> {
   const auth = await authenticateMobile(req);
   if (auth instanceof NextResponse) return auth;
@@ -48,7 +58,7 @@ export async function restaurantCtxFromMobile(req: Request): Promise<RestaurantC
     m: models,
     perms,
     features: resolveOrgFeatures(org),
-    d: getDictionary('uz'),
+    d: getDictionary(mobileLocale(req)),
     via: ' (mobil)',
   };
 }

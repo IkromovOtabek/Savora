@@ -1,6 +1,6 @@
 import Constants from 'expo-constants';
 import * as SecureStore from 'expo-secure-store';
-import { getDict, tr } from './i18n';
+import { getDict, getLocale, tr } from './i18n';
 
 const TOKEN_KEY = 'savora_token';
 const TIMEOUT_MS = 15000;
@@ -24,9 +24,15 @@ export async function clearToken(): Promise<void> {
 /** Server/ tarmoq xatosi — status 0 = tarmoq yoki vaqt tugashi. */
 export class ApiError extends Error {
   status: number;
-  constructor(message: string, status: number) {
+  /** Server xato kodi (masalan restoran API: `sendFailed`, `conflict`) — bo'lmasligi mumkin */
+  code?: string;
+  /** Server qo'shimcha ma'lumoti (masalan `details.failed[]`) */
+  details?: Record<string, unknown>;
+  constructor(message: string, status: number, code?: string, details?: Record<string, unknown>) {
     super(message);
     this.status = status;
+    this.code = code;
+    this.details = details;
   }
 }
 
@@ -42,7 +48,8 @@ interface ApiOptions {
 }
 
 export async function api<T = unknown>(path: string, opts: ApiOptions = {}): Promise<T> {
-  const headers: Record<string, string> = { 'Content-Type': 'application/json', Accept: 'application/json' };
+  // Accept-Language — server xato matnlarini ilova tilida qaytaradi (restoran API: lib/restaurant/session.ts mobileLocale)
+  const headers: Record<string, string> = { 'Content-Type': 'application/json', Accept: 'application/json', 'Accept-Language': getLocale() };
   const useAuth = opts.auth !== false;
   if (useAuth) {
     const token = await getToken();
@@ -75,7 +82,13 @@ export async function api<T = unknown>(path: string, opts: ApiOptions = {}): Pro
       await clearToken();
       onUnauthorized?.();
     }
-    throw new ApiError((data as { error?: string }).error || tr(getDict().api.httpError, { status: res.status }), res.status);
+    const err = data as { error?: string; code?: unknown; details?: unknown };
+    throw new ApiError(
+      err.error || tr(getDict().api.httpError, { status: res.status }),
+      res.status,
+      typeof err.code === 'string' ? err.code : undefined,
+      err.details && typeof err.details === 'object' ? (err.details as Record<string, unknown>) : undefined,
+    );
   }
   return data as T;
 }

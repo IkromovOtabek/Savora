@@ -4,7 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { requireSuperAdmin } from '@/lib/auth';
 import { updateOrganization, type OrgStatus } from '@/lib/orgUpdate';
 import { parsePlanTier } from '@/lib/plans';
-import { parseBusinessType } from '@/lib/businessTypes';
+import { parseBusinessType, parseIndustryProfile } from '@/lib/businessTypes';
 import { getDict } from '@/lib/i18n/server';
 
 type State = { error?: string; success?: string } | null;
@@ -62,6 +62,8 @@ export async function updateOrganizationAction(_prev: State, formData: FormData)
       status,
       expiresAt,
       businessType,
+      // Forma maydonni yubormasa — o'zgarmaydi (boshqa turga o'tsa updateOrganization baribir tozalaydi)
+      ...(formData.has('industryProfile') ? { industryProfile: parseIndustryProfile(formData.get('industryProfile'), businessType) } : {}),
       planTier: plan.planTier,
       maxFilial: plan.maxFilial,
       maxUsers: plan.maxUsers,

@@ -12,7 +12,7 @@ import { tenantLoginUrl } from '@/lib/urls';
 import { recordSecurityEvent } from '@/lib/securityEvents';
 import { clientIpFrom } from '@/lib/security';
 import { parsePlanTier } from '@/lib/plans';
-import { parseBusinessType } from '@/lib/businessTypes';
+import { parseBusinessType, parseIndustryProfile } from '@/lib/businessTypes';
 import { getDict } from '@/lib/i18n/server';
 
 /** Yangi do'kon kirish ma'lumotlari — parol faqat shu javobda bir marta ko'rsatiladi */
@@ -64,6 +64,7 @@ export async function createOrganizationAction(_prev: State, formData: FormData)
       adminUsername,
       adminPassword,
       businessType,
+      industryProfile: parseIndustryProfile(formData.get('industryProfile'), businessType),
       trialDays,
       planTier: plan.planTier,
       maxFilial: plan.maxFilial,

@@ -7,3 +7,4 @@ export { Pill, Avatar, ProgressBar, Ring, Card, StatCard, TileGrid, toneColors, 
 export { Loading, EmptyState, ErrorState, InlineError } from './States';
 export { BrandMark, LogoSvg, Wordmark } from './BrandMark';
 export { FormCard, PickRow, AddRow, InlineAction } from './FormCard';
+export { Sheet } from './Sheet';

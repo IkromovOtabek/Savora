@@ -2,7 +2,7 @@ import { getMasterModels } from './masterDb';
 import { getTenantModels } from './tenantDb';
 import { ensureTenantDatabase } from './tenantSetup';
 import { IOrganization, isOrganizationActive } from './models/master/Organization';
-import { parseBusinessType, BusinessType } from './businessTypes';
+import { parseBusinessType, BusinessType, type IndustryProfile } from './businessTypes';
 import { getPlanPreset, parsePlanTier, parseBillingCycle, PlanTier, type BillingCycle } from './plans';
 import { tenantDbName, ensureUniqueSlug } from './slug';
 import { generateTempPassword } from './credentials';
@@ -49,6 +49,8 @@ export interface CreateOrganizationInput {
   adminPassword?: string;
   planTier: PlanTier;
   businessType?: BusinessType;
+  /** Sex kichik yo'nalishi — faqat `manufacturing` turida saqlanadi */
+  industryProfile?: IndustryProfile | null;
   trialDays?: number;
   expiresAt?: Date;
   maxFilial?: number;
@@ -144,6 +146,7 @@ export async function createOrganization(input: CreateOrganizationInput): Promis
     phone: input.phone?.trim() || undefined,
     adminUsername,
     businessType: input.businessType ?? 'general',
+    ...(input.businessType === 'manufacturing' && input.industryProfile ? { industryProfile: input.industryProfile } : {}),
     status: 'active',
     expiresAt,
     plan: {

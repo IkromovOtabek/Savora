@@ -7,11 +7,18 @@ export type PayType = 'cash' | 'debt' | 'installment' | 'bank_credit';
 export const payLabels = (locale?: Locale): Record<PayType, string> => getDict(locale).format.pay;
 export const payLabel = (t: string, locale?: Locale) => payLabels(locale)[t as PayType] ?? t;
 
-/** To'lov usuli — pul qanday kelgani (web lib/payMethods bilan bir xil) */
+/**
+ * To'lov usuli — pul qanday kelgani (mobil sotuvda tanlanadiganlari). Web lib/payMethods'dagi `uzqr`
+ * (restoran kassasi, web) bu ro'yxatda yo'q — faqat yorlig'i bor (sotuv tarixida «UzQR» bo'lib chiqadi).
+ */
 export const PAY_METHODS = ['cash', 'uzcard', 'humo', 'click', 'payme'] as const;
 export type PayMethod = (typeof PAY_METHODS)[number];
-export const payMethodLabel = (m: string | null | undefined, locale?: Locale) =>
-  getDict(locale).format.payMethod[(m as PayMethod) || 'cash'] ?? getDict(locale).format.payMethod.cash;
+/** Yorlig'i bor barcha usullar (web lib/payMethods bilan bir xil kalitlar) */
+type PayMethodKey = keyof ReturnType<typeof getDict>['format']['payMethod'];
+export const payMethodLabel = (m: string | null | undefined, locale?: Locale) => {
+  const labels = getDict(locale).format.payMethod;
+  return labels[(m || 'cash') as PayMethodKey] ?? labels.cash;
+};
 
 const group3 = (s: string) => s.replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
 

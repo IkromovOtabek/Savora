@@ -7,7 +7,7 @@ import { updateOrganization } from '@/lib/orgUpdate';
 import { parseFeaturesFromForm } from '@/lib/featuresForm';
 import { diffFeatureOverrides } from '@/lib/features';
 import { getMasterModels } from '@/lib/masterDb';
-import { parseBusinessType } from '@/lib/businessTypes';
+import { parseBusinessType, parseIndustryProfile } from '@/lib/businessTypes';
 import { getDict } from '@/lib/i18n/server';
 import { tr } from '@/lib/i18n/fmt';
 
@@ -50,7 +50,11 @@ export async function applyBusinessPresetAction(_prev: State, formData: FormData
   const businessType = parseBusinessType(String(formData.get('businessType') || 'general'));
 
   try {
-    await updateOrganization(orgId, { businessType, features: null });
+    await updateOrganization(orgId, {
+      businessType,
+      features: null,
+      ...(formData.has('industryProfile') ? { industryProfile: parseIndustryProfile(formData.get('industryProfile'), businessType) } : {}),
+    });
     revalidatePath('/super');
     revalidatePath(`/super/organizations/${orgId}`);
     return { success: tr(d.superPanel.actions.presetApplied, { label: d.catalog.businessTypes[businessType].label }) };

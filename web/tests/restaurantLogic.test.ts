@@ -302,7 +302,8 @@ describe('modul kalitlari, preset va huquqlar katalogi', () => {
   });
 
   it('3-versiya: v2 ro\'yxatda egasi olib qo\'ygan eski huquq qayta qo\'shilmaydi, restoran huquqlari meros', () => {
-    expect(PERMISSIONS_VERSION).toBe(3);
+    // 4-versiya (ishlab chiqarish) qo'shilgan — restoran qoidalari o'zgarmaydi
+    expect(PERMISSIONS_VERSION).toBeGreaterThanOrEqual(3);
     // v2'da «Sotuvlarni ko'rish» olib qo'yilgan, sotuv qila oladi
     const v2 = effectivePermissions({ role: 'user', permissions: ['sale.create', 'kassa.view'], permVersion: 2 });
     expect(v2.has('sales.view')).toBe(false);

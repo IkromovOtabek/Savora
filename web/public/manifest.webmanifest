@@ -24,6 +24,8 @@
   "shortcuts": [
     { "name": "Yangi sotuv", "short_name": "Sotuv", "url": "/app/sales/new", "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png" }] },
     { "name": "Nasiya", "short_name": "Nasiya", "url": "/app/nasiya", "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png" }] },
-    { "name": "Ombor", "short_name": "Ombor", "url": "/app/products", "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png" }] }
+    { "name": "Ombor", "short_name": "Ombor", "url": "/app/products", "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png" }] },
+    { "name": "Stollar", "short_name": "Stollar", "description": "Restoran: zal va stollar", "url": "/app/tables?source=pwa", "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png" }] },
+    { "name": "Oshxona ekrani", "short_name": "Oshxona", "description": "Restoran: oshxona ekrani (KDS)", "url": "/app/kitchen?source=pwa", "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png" }] }
   ]
 }

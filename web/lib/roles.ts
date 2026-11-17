@@ -1,15 +1,18 @@
 import type { Model } from 'mongoose';
-import { DEFAULT_ROLES, RESTAURANT_ROLES, type IRole } from './models/tenant/Role';
+import { DEFAULT_ROLES, MANUFACTURING_ROLES, RESTAURANT_ROLES, type IRole } from './models/tenant/Role';
 
 /** Biznes turiga xos qo'shimcha rol shablonlari (nomi bo'yicha idempotent qo'shiladi) */
 export function roleTemplatesFor(businessType?: string | null): typeof DEFAULT_ROLES {
-  return businessType === 'restaurant' ? RESTAURANT_ROLES : [];
+  if (businessType === 'restaurant') return RESTAURANT_ROLES;
+  if (businessType === 'manufacturing') return MANUFACTURING_ROLES;
+  return [];
 }
 
 /**
  * Do'konda rol bo'lmasa — Kassir / Sotuvchi / Menejer shablonlarini yaratadi (takror chaqirish xavfsiz).
  * Restoran turida qo'shimcha Ofitsant / Oshpaz / Barmen / Kassir (restoran) / Administrator — NOMI bo'yicha
  * yo'q bo'lsagina qo'shiladi (yangi va mavjud restoranlar uchun); egasi tahrirlagan rol o'zgarmaydi.
+ * Ishlab chiqarish sexida — Omborchi / Sex boshlig'i / Usta / ishchi / Hisobchi (xuddi shu qoida).
  */
 export async function ensureDefaultRoles(Role: Model<IRole>, businessType?: string | null): Promise<void> {
   if (!(await Role.estimatedDocumentCount())) {

@@ -73,9 +73,32 @@ export async function resolveBranchId(ctx: RestaurantCtx, requested?: string | n
   return ok(await ensureMainBranchId(ctx.m.Branch));
 }
 
-function view(ctx: RestaurantCtx, o: OrderDoc): OrderView {
-  return orderView(o, { orgId: ctx.orgId, actor: ctx.user, perms: ctx.perms });
+/**
+ * Ko'rinish qo'shimchalari (zal nomi — pre-chek uchun, `requireVoidReason` — bekor qilish oynasi uchun).
+ * Bitta so'rov (ctx) davomida keshlanadi: bir amalda bir necha marta ko'rinish qurilsa ham DB bir marta o'qiladi.
+ */
+const extrasCache = new WeakMap<RestaurantCtx, { settings?: Promise<RestaurantSettings>; halls: Map<string, Promise<string | null>> }>();
+
+async function viewExtras(ctx: RestaurantCtx, o: OrderDoc): Promise<{ hallName: string | null; requireVoidReason: boolean }> {
+  let c = extrasCache.get(ctx);
+  if (!c) { c = { halls: new Map() }; extrasCache.set(ctx, c); }
+  c.settings ??= restaurantSettings(ctx.m);
+  const hallKey = o.hallId ? String(o.hallId) : '';
+  let hall = hallKey ? c.halls.get(hallKey) : Promise.resolve(null);
+  if (!hall) {
+    hall = ctx.m.Hall.findById(hallKey).select('name').lean().then((h) => h?.name ?? null);
+    c.halls.set(hallKey, hall);
+  }
+  const [settings, hallName] = await Promise.all([c.settings, hall]);
+  return { hallName, requireVoidReason: settings.requireVoidReason };
 }
+
+/** To'liq ko'rinish (OrderView) joriy foydalanuvchi uchun: `can`, zal nomi, sozlama bilan */
+export async function orderViewFor(ctx: RestaurantCtx, o: OrderDoc): Promise<OrderView> {
+  return orderView(o, { orgId: ctx.orgId, actor: ctx.user, perms: ctx.perms, ...(await viewExtras(ctx, o)) });
+}
+
+const view = orderViewFor;
 
 function access(ctx: RestaurantCtx, o: OrderDoc): OpErr | null {
   return canAccessOrder(ctx.user, ctx.perms, o) ? null : fail(ctx.d, 'orderNotFound');
@@ -261,7 +284,7 @@ export async function openOrder(ctx: RestaurantCtx, input: OpenOrderInput): Prom
   const existingVisible = async (filter: Record<string, unknown>, busyNo?: number) => {
     const o = await Order.findOne({ ...filter, ...branchFilter(ctx.user) }).lean<OrderDoc>();
     if (!o) return null;
-    if (canAccessOrder(ctx.user, ctx.perms, o)) return ok({ order: view(ctx, o), existing: true });
+    if (canAccessOrder(ctx.user, ctx.perms, o)) return ok({ order: await view(ctx, o), existing: true });
     return fail(ctx.d, 'tableBusy', { n: busyNo ?? o.tableNumber ?? 0 });
   };
 
@@ -319,7 +342,7 @@ export async function openOrder(ctx: RestaurantCtx, input: OpenOrderInput): Prom
     });
     const o = created.toObject() as OrderDoc;
     await audit(ctx, 'order.open', o, `${input.type === 'takeaway' ? 'saboy' : 'stol ochildi'}${items.length ? `, ${items.length} ta taom` : ''}`, { type: input.type });
-    return ok({ order: view(ctx, o), existing: false });
+    return ok({ order: await view(ctx, o), existing: false });
   } catch (e) {
     if (!isDupKey(e)) throw e;
     // Parallel ochilgan: stol band yoki shu clientOrderId bilan allaqachon yaratilgan
@@ -360,7 +383,7 @@ export async function addItems(
     const added = prepared.data;
     return ok({
       set: added.length ? { items: [...o.items, ...added] } : {},
-      result: (saved: OrderDoc) => ({ order: view(ctx, saved), added: added.map((i) => String(i._id)), duplicates }),
+      result: async (saved: OrderDoc) => ({ order: await view(ctx, saved), added: added.map((i) => String(i._id)), duplicates }),
     });
   });
 }
@@ -459,7 +482,7 @@ export async function sendItems(
           sent: [...updated.keys()], failed,
         });
       },
-      result: (saved: OrderDoc) => ({ order: view(ctx, saved), sent: [...updated.keys()], failed }),
+      result: async (saved: OrderDoc) => ({ order: await view(ctx, saved), sent: [...updated.keys()], failed }),
     });
   });
 }
@@ -498,8 +521,8 @@ export async function confirmPendingItems(
       after: async (saved: OrderDoc) => {
         await audit(ctx, input.reject ? 'order.qrReject' : 'order.qrConfirm', saved, `${input.reject ? 'rad etildi' : 'tasdiqlandi'}: ${ids.length} ta QR taom`);
       },
-      result: (saved: OrderDoc) => ({
-        order: view(ctx, saved),
+      result: async (saved: OrderDoc) => ({
+        order: await view(ctx, saved),
         confirmed: input.reject ? [] : ids,
         rejected: input.reject ? ids : [],
       }),
@@ -571,7 +594,7 @@ export async function voidItem(
           { itemId: String(item._id), stage: rule.stage, qty: vqty, amount, reason, loss: rule.loss, stockReleased: releaseNow },
         );
       },
-      result: (saved: OrderDoc) => ({ order: view(ctx, saved), voidedItemId: String(voided._id), stockReleased: releaseNow, loss: rule.loss }),
+      result: async (saved: OrderDoc) => ({ order: await view(ctx, saved), voidedItemId: String(voided._id), stockReleased: releaseNow, loss: rule.loss }),
     });
   });
 }
@@ -617,7 +640,7 @@ export async function bumpItems(
     });
     for (const id of want) if (!found.has(id)) skipped.push({ itemId: id, reason: 'itemNotFound' });
     if (!updated.length) return fail(ctx.d, 'badTransition', undefined, { skipped });
-    return ok({ set: { items }, result: (saved: OrderDoc) => ({ order: view(ctx, saved), updated, skipped }) });
+    return ok({ set: { items }, result: async (saved: OrderDoc) => ({ order: await view(ctx, saved), updated, skipped }) });
   });
 }
 
@@ -659,7 +682,7 @@ export async function transferOrder(
       set,
       onDuplicate,
       after: async (saved: OrderDoc) => { if (notes.length) await audit(ctx, 'order.transfer', saved, notes.join(', ')); },
-      result: (saved: OrderDoc) => ({ order: view(ctx, saved) }),
+      result: async (saved: OrderDoc) => ({ order: await view(ctx, saved) }),
     });
   });
 }
@@ -687,14 +710,14 @@ export async function precheckOrder(ctx: RestaurantCtx, orderId: string): Promis
   if (!pre.ok) return pre;
   const err = access(ctx, pre.data);
   if (err) return err;
-  if (pre.data.status === 'precheck') return ok({ order: view(ctx, pre.data) });
+  if (pre.data.status === 'precheck') return ok({ order: await view(ctx, pre.data) });
   if (pre.data.items.some((i) => i.status === 'pending')) return fail(ctx.d, 'pendingItems');
   if (pre.data.items.some((i) => i.status === 'new')) {
     const sendErr = await sendAllNew(ctx, orderId);
     if (sendErr) return sendErr;
   }
   return mutateOrder(ctx, orderId, (o) => {
-    if (o.status === 'precheck') return ok({ set: {}, result: (s: OrderDoc) => ({ order: view(ctx, s) }) });
+    if (o.status === 'precheck') return ok({ set: {}, result: async (s: OrderDoc) => ({ order: await view(ctx, s) }) });
     const e = access(ctx, o) ?? statusGuard(ctx, o, 'precheck');
     if (e) return e;
     if (o.items.some((i) => i.status === 'pending')) return fail(ctx.d, 'pendingItems');
@@ -704,7 +727,7 @@ export async function precheckOrder(ctx: RestaurantCtx, orderId: string): Promis
     return ok({
       set: { status: 'precheck', precheckAt: now, precheckBy: ctx.user.username },
       after: async (saved: OrderDoc) => { await audit(ctx, 'order.precheck', saved, `pre-chek: ${fmtMoney(computeBill(saved).due)} so'm`); },
-      result: (saved: OrderDoc) => ({ order: view(ctx, saved) }),
+      result: async (saved: OrderDoc) => ({ order: await view(ctx, saved) }),
     });
   });
 }
@@ -720,7 +743,7 @@ export async function reopenOrder(ctx: RestaurantCtx, orderId: string): Promise<
       set: { status: 'open' },
       unset: ['precheckAt', 'precheckBy'],
       after: async (saved: OrderDoc) => { await audit(ctx, 'order.reopen', saved, `hisob qayta ochildi (pre-chek: ${o.precheckBy ?? '—'})`); },
-      result: (saved: OrderDoc) => ({ order: view(ctx, saved) }),
+      result: async (saved: OrderDoc) => ({ order: await view(ctx, saved) }),
     });
   });
 }
@@ -744,7 +767,7 @@ export async function cancelOrder(ctx: RestaurantCtx, orderId: string, reason?: 
       set: { items, status: 'cancelled', cancelledAt: now, cancelledBy: ctx.user.username, ...(reason ? { cancelReason: reason } : {}) },
       unset: ['activeTableKey'],
       after: async (saved: OrderDoc) => { await audit(ctx, 'order.cancel', saved, `buyurtma bekor qilindi${reason ? ` · sabab: ${reason}` : ''}`); },
-      result: (saved: OrderDoc) => ({ order: view(ctx, saved) }),
+      result: async (saved: OrderDoc) => ({ order: await view(ctx, saved) }),
     });
   });
 }
@@ -764,13 +787,16 @@ export async function updateOrderInfo(
     const unset: string[] = [];
     if (input.guests !== undefined) { if (input.guests) set.guests = input.guests; else unset.push('guests'); }
     if (input.note !== undefined) { if (input.note) set.note = input.note; else unset.push('note'); }
-    return ok({ set, unset, result: (saved: OrderDoc) => ({ order: view(ctx, saved) }) });
+    return ok({ set, unset, result: async (saved: OrderDoc) => ({ order: await view(ctx, saved) }) });
   });
 }
 
-/** Mijoz chaqiruvini (ofitsant / hisob) ko'rildi deb belgilash */
+/**
+ * Mijoz chaqiruvini (ofitsant / hisob) ko'rildi deb belgilash. Ofitsant (`order.create`) yoki faqat
+ * «Barcha buyurtmalar» ko'radigan kassir (`order.viewAll`) — hisob so'rovini kassir ham qabul qiladi.
+ */
 export async function ackTableCall(ctx: RestaurantCtx, tableId: string, kind?: TableCallKind): Promise<OpResult<{ tableId: string }>> {
-  const denied = needPerm(ctx, 'order.create');
+  const denied = needFeature(ctx, 'tables') ?? needAnyPerm(ctx, ['order.create', 'order.viewAll']);
   if (denied) return denied;
   if (!validId(tableId)) return fail(ctx.d, 'tableNotFound');
   const unset = kind === 'waiter' ? { callWaiterAt: '' } : kind === 'bill' ? { callBillAt: '' } : { callWaiterAt: '', callBillAt: '' };
@@ -845,10 +871,10 @@ interface PayLine {
   discount: number;
 }
 
-function payResultOf(ctx: RestaurantCtx, o: OrderDoc, p: IOrderPayment, saleNos?: string[]): PayResult {
+async function payResultOf(ctx: RestaurantCtx, o: OrderDoc, p: IOrderPayment, saleNos?: string[]): Promise<PayResult> {
   const nos = [...(saleNos ?? [])].sort();
   return {
-    order: view(ctx, o),
+    order: await view(ctx, o),
     checkoutId: p.checkoutId,
     saleIds: (p.saleIds ?? []).map(String),
     receiptNo: nos.length > 1 ? `${nos[0]} – ${nos[nos.length - 1]}` : nos[0] ?? o.orderNo,
@@ -877,7 +903,7 @@ export async function payOrder(ctx: RestaurantCtx, orderId: string, input: PayIn
   }
   if (input.payId) {
     const prev = pre.data.payments.find((p) => p.payId === input.payId);
-    if (prev) return ok(payResultOf(ctx, pre.data, prev));
+    if (prev) return ok(await payResultOf(ctx, pre.data, prev));
   }
   {
     const err = statusGuard(ctx, pre.data, 'pay');
@@ -1026,7 +1052,7 @@ export async function payOrder(ctx: RestaurantCtx, orderId: string, input: PayIn
     by: finalOrder.waiterName || ctx.user.username,
   });
   const paidEntry = finalOrder.payments.find((p) => p.checkoutId === checkoutId) ?? { ...payment, saleIds: saleIds.map((id) => new Types.ObjectId(id)) };
-  return ok(payResultOf(ctx, finalOrder, paidEntry, saleNos));
+  return ok(await payResultOf(ctx, finalOrder, paidEntry, saleNos));
 }
 
 /** To'lov qismini Sale qatorlariga yozish (hammasi yoki hech biri) */

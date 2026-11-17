@@ -53,11 +53,18 @@ export const NAV_ICONS: Record<string, IconName> = {
   '/app/tables': 'grid',
   '/app/kitchen': 'utensils',
   '/app/restaurant': 'qr',
+  '/app/restaurant/reports': 'utensils',
+  '/app/production': 'building',
+  '/app/production/recipes': 'clipboard',
+  '/app/receipts': 'download',
+  '/app/purchase-orders': 'send',
+  '/app/piecework': 'wrench',
 };
 
 /** Tor (ikonli) menyuda har bir bo'lim bitta ikonka bilan ko'rinadi */
 export const GROUP_ICONS: Record<string, IconName> = {
   Mahsulotlar: 'box',
+  'Ishlab chiqarish': 'building',
   Sotuvlar: 'cart',
   Mijozlar: 'user',
   Hisobotlar: 'chart',
@@ -82,6 +89,17 @@ export const NAV_GROUPS: NavGroup[] = [
       { href: '/app/transferred', label: 'Filialga berildi', feature: 'transferred', permission: 'transferred.view' },
       { href: '/app/suppliers', label: 'Yetkazib beruvchilar', feature: 'products', permission: 'suppliers.view' },
       { href: '/app/imei', label: 'IMEI qidirish', imeiOnly: true, adminOnly: true },
+    ],
+  },
+  {
+    // Ishlab chiqarish sexi va ombor kirimi — docs/SEX_API.md (modullar o'chiq do'konda bo'lim ko'rinmaydi)
+    title: 'Ishlab chiqarish',
+    links: [
+      { href: '/app/production', label: 'Ishlab chiqarish', feature: 'production', permission: 'production.view' },
+      { href: '/app/production/recipes', label: 'Texkartalar', feature: 'production', permission: 'production.view' },
+      { href: '/app/receipts', label: 'Kirim', feature: 'purchasing', permission: 'receipt.create' },
+      { href: '/app/purchase-orders', label: 'Xaridlar', feature: 'purchasing', permission: 'po.manage' },
+      { href: '/app/piecework', label: 'Ishbay', feature: 'piecework', permission: 'piecework.log' },
     ],
   },
   {
@@ -112,6 +130,8 @@ export const NAV_GROUPS: NavGroup[] = [
     links: [
       // Umumiy hisobot (monitoring) va Ombor qiymati — hisobotlar markazidagi kartalar orqali
       { href: '/app/reports', label: 'Hisobotlar', feature: 'monitoring', permission: 'reports.view', also: ['/app/monitoring', '/app/kirim-chiqim'] },
+      // Restoran: oshxona vaqtlari, ofitsant KPI, bekorlar, savdo (modul tables + reports.view)
+      { href: '/app/restaurant/reports', label: 'Restoran hisobotlari', feature: 'tables', permission: 'reports.view' },
       { href: '/app/ai', label: 'AI yordamchi', feature: 'ai', permission: 'ai.view' },
     ],
   },

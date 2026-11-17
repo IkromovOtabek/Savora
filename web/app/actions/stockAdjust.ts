@@ -115,7 +115,8 @@ export async function revaluationAction(input: RevaluationInput): Promise<State>
 
 export interface WriteOffInput {
   lines: { productId: string; qty: number }[];
-  reason: 'defective' | 'lost' | 'expired' | 'other';
+  /** offcut — bichim qoldig'i/chiqindi (sex); production_scrap — faqat ishlab chiqarish akti yozadi */
+  reason: 'defective' | 'lost' | 'expired' | 'other' | 'offcut';
   note?: string;
 }
 
@@ -130,7 +131,7 @@ export async function writeOffAction(input: WriteOffInput): Promise<State> {
   const parsed = parseInput(z.object({
     lines: z.array(z.object({ productId: zId(k.noLines), qty: zOptQty(k.badQty) }))
       .min(1, k.noLines).max(MAX_LINES, k.noLines),
-    reason: zOneOf(['defective', 'lost', 'expired', 'other'] as const, k.reason),
+    reason: zOneOf(['defective', 'lost', 'expired', 'other', 'offcut'] as const, k.reason),
     note: zText(300),
   }), input, k.noLines);
   if (!parsed.ok) return { error: parsed.error };

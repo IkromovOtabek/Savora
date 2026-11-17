@@ -311,6 +311,11 @@ const UNIT_SYNONYMS: Record<string, ProductUnit> = {
   qop: 'qop', қоп: 'qop', мешок: 'qop', bag: 'qop',
   quti: 'quti', қути: 'quti', коробка: 'quti', кор: 'quti', box: 'quti', ящик: 'quti',
   paket: 'paket', пакет: 'paket', упак: 'paket', упаковка: 'paket', пачка: 'paket', pack: 'paket',
+  list: 'list', лист: 'list', листов: 'list', sheet: 'list',
+  rulon: 'rulon', рулон: 'rulon', roll: 'rulon',
+  m3: 'm3', 'm³': 'm3', м3: 'm3', 'м³': 'm3', куб: 'm3', кубм: 'm3', cbm: 'm3',
+  t: 't', tonna: 't', тонна: 't', тн: 't', т: 't', ton: 't',
+  juft: 'juft', жуфт: 'juft', пара: 'juft', пар: 'juft', pair: 'juft',
 };
 
 export function parseUnit(v: string | number | undefined): ProductUnit | null | undefined {

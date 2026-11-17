@@ -88,6 +88,8 @@ export default function Home() {
 
   // Modullar — faqat shu do'konda yoqilgan va ruxsat berilgan bo'limlar
   const modules: TileItem[] = [
+    // Restoran — ofitsant uchun asosiy ish joyi, shuning uchun birinchi
+    ...(f.tables && can('order.create') ? [{ key: 'tables', label: d.restaurant.title, icon: 'restaurant' as const, color: c.sq.p, onPress: () => router.push('/tables') }] : []),
     ...(can('sale.create') ? [{ key: 'sale', label: d.tabs.newSale, icon: 'add-circle' as const, color: c.sq.b, onPress: () => router.push('/sale-new') }] : []),
     ...(canSales ? [
       { key: 'sales', label: d.home.allSales, icon: 'receipt' as const, color: c.sq.b, onPress: () => router.push('/(tabs)/sales') },

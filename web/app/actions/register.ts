@@ -6,7 +6,7 @@ import { getAppZone } from '@/lib/tenantContext';
 import { hitRateLimit } from '@/lib/rateLimit';
 import { clientIpFrom } from '@/lib/security';
 import { createOrganization, normalizeSlug } from '@/lib/organizations';
-import { parseBusinessType } from '@/lib/businessTypes';
+import { parseBusinessType, parseIndustryProfile } from '@/lib/businessTypes';
 import { parseBillingCycle } from '@/lib/plans';
 import { getSession } from '@/lib/session';
 import { getMasterModels } from '@/lib/masterDb';
@@ -77,6 +77,7 @@ export async function registerAction(_prev: State, formData: FormData): Promise<
       ownerName,
       phone,
       businessType,
+      industryProfile: parseIndustryProfile(formData.get('industryProfile'), businessType),
       adminPassword,
       // Tanlangan tarif — modullar `defaultFeaturesForPlan` orqali avtomatik yoqiladi.
       // Bepul: doimiy; pulli: 14 kun sinov, muddati tugagach to'lov kerak.

@@ -1,7 +1,7 @@
 import { getMasterModels } from './masterDb';
 import { IOrganization } from './models/master/Organization';
 import { OrgFeatures } from './featureKeys';
-import { BusinessType } from './businessTypes';
+import { BusinessType, type IndustryProfile } from './businessTypes';
 import { getPlanPreset, parsePlanTier, PlanTier } from './plans';
 
 export type OrgStatus = IOrganization['status'];
@@ -14,6 +14,8 @@ export interface UpdateOrganizationInput {
   expiresAt?: Date;
   planTier?: PlanTier;
   businessType?: BusinessType;
+  /** Sex kichik yo'nalishi; null — tozalash. Natijaviy tur `manufacturing` bo'lmasa har doim tozalanadi */
+  industryProfile?: IndustryProfile | null;
   /** Faqat Super Admin override'lari (bazadan farqlar). null — hammasini tozalash. */
   features?: Partial<OrgFeatures> | null;
   maxFilial?: number;
@@ -74,6 +76,12 @@ export async function updateOrganization(orgId: string, input: UpdateOrganizatio
   }
 
   if (input.businessType !== undefined) org.businessType = input.businessType;
+  if (input.industryProfile !== undefined) {
+    if (input.industryProfile) org.industryProfile = input.industryProfile;
+    else org.set('industryProfile', undefined);
+  }
+  // Profil faqat ishlab chiqarish sexida ma'noli — tur o'zgarsa tozalanadi
+  if (org.businessType !== 'manufacturing' && org.industryProfile) org.set('industryProfile', undefined);
   if (input.features !== undefined) {
     // null — barcha override'larni tozalash (biznes preseti + tarif standartiga qaytish)
     if (input.features === null) org.set('features', undefined);

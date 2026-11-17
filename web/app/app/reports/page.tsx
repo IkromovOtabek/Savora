@@ -25,6 +25,8 @@ export default async function ReportsHub() {
     { key: 'debts', href: '/app/debts', icon: 'bell', show: features.sales },
     { key: 'writeoff', href: '/app/write-off', icon: 'trash', show: features.products && perms.has('stock.adjust') },
     { key: 'ai', href: '/app/ai', icon: 'sparkles', show: features.ai && perms.has('ai.view') },
+    // Restoran moduli yoqiq bo'lsa (sahifa guard'i: tables + reports.view)
+    { key: 'restaurant', href: '/app/restaurant/reports', icon: 'utensils', show: features.tables && perms.has('reports.view') },
   ];
 
   return (

@@ -9,7 +9,7 @@ import { computeBill, itemTotal, type BillSummary } from './bill';
 import { itemDisplayName } from './modifiers';
 import { orderCapabilities, type OrderActor, type OrderCapabilities } from './rules';
 import { itemTimings, type ItemTimings } from './timings';
-import type { ItemStatus, OrderModifier, OrderSource, OrderStatus, OrderType, StationKind, VoidStage } from './types';
+import { DEFAULT_RESTAURANT_SETTINGS, type ItemStatus, type OrderModifier, type OrderSource, type OrderStatus, type OrderType, type StationKind, type VoidStage } from './types';
 
 const iso = (d?: Date | string | null): string | null => (d ? new Date(d).toISOString() : null);
 const sid = (v: unknown): string | null => (v === undefined || v === null ? null : String(v));
@@ -77,6 +77,8 @@ export interface OrderView {
   tableId: string | null;
   tableNumber: number | null;
   hallId: string | null;
+  /** Zal nomi (pre-chekda) — null: stolsiz yoki zal o'chirilgan */
+  hallName: string | null;
   guests: number | null;
   waiterId: string | null;
   waiterName: string | null;
@@ -93,6 +95,8 @@ export interface OrderView {
   updatedAt: string | null;
   /** Optimistik qulf versiyasi (ma'lumot uchun) */
   rev: number;
+  /** Do'kon sozlamasi: yuborilgan taomni bekor qilishda sabab majburiy (UI alohida sozlama o'qimasin) */
+  requireVoidReason: boolean;
   items: OrderItemView[];
   payments: OrderPaymentView[];
   bill: BillSummary;
@@ -138,7 +142,15 @@ export function itemView(i: IOrderItem): OrderItemView {
 
 export function orderView(
   o: OrderDoc,
-  opts: { orgId: string; actor?: OrderActor; perms?: ReadonlySet<PermissionKey> },
+  opts: {
+    orgId: string;
+    actor?: OrderActor;
+    perms?: ReadonlySet<PermissionKey>;
+    /** Zal nomi (ops.orderViewFor to'ldiradi) */
+    hallName?: string | null;
+    /** Sozlamadagi qiymat; berilmasa — standart (true) */
+    requireVoidReason?: boolean;
+  },
 ): OrderView {
   const view: OrderView = {
     id: String(o._id),
@@ -150,6 +162,7 @@ export function orderView(
     tableId: sid(o.tableId),
     tableNumber: o.tableNumber ?? null,
     hallId: sid(o.hallId),
+    hallName: opts.hallName ?? null,
     guests: o.guests ?? null,
     waiterId: o.waiterId ?? null,
     waiterName: o.waiterName ?? null,
@@ -165,6 +178,7 @@ export function orderView(
     cancelReason: o.cancelReason ?? null,
     updatedAt: iso(o.updatedAt),
     rev: o.rev ?? 0,
+    requireVoidReason: opts.requireVoidReason ?? DEFAULT_RESTAURANT_SETTINGS.requireVoidReason,
     items: (o.items ?? []).map(itemView),
     payments: (o.payments ?? []).map((p) => ({
       checkoutId: p.checkoutId,

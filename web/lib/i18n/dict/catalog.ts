@@ -6,7 +6,7 @@
  */
 import type { FeatureKey } from '../../featureKeys';
 import type { PermissionKey, PermissionPage } from '../../permissions';
-import type { BusinessType } from '../../businessTypes';
+import type { BusinessType, IndustryProfile } from '../../businessTypes';
 
 type Text = { label: string; description: string };
 type Terms = { item: string; items: string; addItem: string; codeLabel: string };
@@ -32,6 +32,9 @@ const featuresUz: Record<FeatureKey, Text> = {
   tables: { label: 'Stollar', description: "Zal va stollar, buyurtma, ofitsant va kassadagi «Stollar» bo'limi" },
   kitchen: { label: 'Oshxona ekrani', description: 'Oshxona va bar stansiyalari, oshxona ekrani (KDS) va tayyorlanish vaqti' },
   qrMenu: { label: 'QR-menyu', description: "Mijoz stoldagi QR orqali menyuni ko'radi, buyurtma beradi va ofitsantni chaqiradi" },
+  production: { label: 'Ishlab chiqarish', description: 'Texkarta (sarf normasi), ishlab chiqarish akti, xom ashyo sarfi va tannarx' },
+  purchasing: { label: 'Kirim va xaridlar', description: "Kirim akti (yetkazib beruvchi qarzi, o'rtacha tannarx), yetkazib beruvchiga buyurtma, minimal qoldiq" },
+  piecework: { label: 'Ishbay haq', description: "Ishchi bajargan ishni yozadi, boshliq tasdiqlaydi, to'lov kassa chiqimiga tushadi" },
 };
 
 const featuresRu: Record<FeatureKey, Text> = {
@@ -55,6 +58,9 @@ const featuresRu: Record<FeatureKey, Text> = {
   tables: { label: 'Столы', description: 'Залы и столы, заказы, официанты и раздел «Столы» на кассе' },
   kitchen: { label: 'Экран кухни', description: 'Станции кухни и бара, экран кухни (KDS) и время приготовления' },
   qrMenu: { label: 'QR-меню', description: 'Гость по QR на столе смотрит меню, делает заказ и зовёт официанта' },
+  production: { label: 'Производство', description: 'Техкарта (норма расхода), акт производства, расход сырья и себестоимость' },
+  purchasing: { label: 'Приход и закупки', description: 'Приходный акт (долг поставщику, средняя себестоимость), заказ поставщику, минимальный остаток' },
+  piecework: { label: 'Сдельная оплата', description: 'Работник записывает выполненную работу, начальник подтверждает, выплата идёт расходом кассы' },
 };
 
 const permissionsUz: Record<PermissionKey, Text> = {
@@ -103,6 +109,14 @@ const permissionsUz: Record<PermissionKey, Text> = {
   'kitchen.bump': { label: 'Taom holatini belgilash', description: '«Boshlandi», «Tayyor» (oshpaz, barmen)' },
   'menu.stopList': { label: 'Stop-list', description: "Tugagan taomni menyudan vaqtincha olib qo'yish va qaytarish" },
   'tables.manage': { label: 'Zal va stollar sozlamasi', description: 'Zallar, stollar, QR-kodlar, stansiyalar, xizmat haqi va brend' },
+  'production.view': { label: "Ishlab chiqarishni ko'rish", description: 'Ishlab chiqarish aktlari, texkartalar va xom ashyo ehtiyoji (tannarxsiz)' },
+  'production.manage': { label: 'Ishlab chiqarish akti', description: "Akt ochish, haqiqiy sarfni tuzatish, «bajarildi» (xom ashyo chiqadi, tayyor mahsulot kirim bo'ladi), bekor qilish" },
+  'recipe.manage': { label: 'Texkartalar', description: "Texkarta (sarf normasi, yo'qotish %, operatsiyalar, ustama) yaratish va o'zgartirish" },
+  'production.viewCost': { label: "Tannarxni ko'rish", description: "Ishlab chiqarish tannarxi, material/ish haqi/ustama bo'yicha xarajat" },
+  'receipt.create': { label: 'Kirim akti', description: "Yetkazib beruvchidan tovar qabul qilish (kirim akti, nakladnoy); narx — «Kelish narxini ko'rish» bilan" },
+  'po.manage': { label: 'Yetkazib beruvchiga buyurtma', description: 'Xarid buyurtmasi yaratish, yuborish va bekor qilish' },
+  'piecework.log': { label: 'Ishbay yozish', description: "Bajarilgan ishni yozish va o'z yozuvlarini ko'rish (ishchi)" },
+  'piecework.approve': { label: "Ishbayni tasdiqlash va to'lash", description: "Barcha ishchilar yozuvlari, tasdiqlash/rad etish, to'lov (kassa chiqimi)" },
   'kirimChiqim.manage': { label: 'Kirim-chiqim', description: "Kirim/chiqim jurnalini ko'rish va yozish (barcha filiallar)" },
   'users.manage': { label: 'Filial va loginlar', description: 'Filial ochish, parol, rol va huquqlarni boshqarish' },
   'audit.view': { label: 'Amallar tarixi', description: 'Xodimlar amallari jurnali' },
@@ -154,6 +168,14 @@ const permissionsRu: Record<PermissionKey, Text> = {
   'kitchen.bump': { label: 'Отмечать статус блюда', description: '«Начато», «Готово» (повар, бармен)' },
   'menu.stopList': { label: 'Стоп-лист', description: 'Временно убрать закончившееся блюдо из меню и вернуть' },
   'tables.manage': { label: 'Настройка залов и столов', description: 'Залы, столы, QR-коды, станции, обслуживание и бренд' },
+  'production.view': { label: 'Видеть производство', description: 'Акты производства, техкарты и потребность в сырье (без себестоимости)' },
+  'production.manage': { label: 'Акт производства', description: 'Открыть акт, исправить фактический расход, «выполнено» (сырьё списывается, готовая продукция приходуется), отмена' },
+  'recipe.manage': { label: 'Техкарты', description: 'Создание и изменение техкарт (норма расхода, потери %, операции, накладные)' },
+  'production.viewCost': { label: 'Видеть себестоимость', description: 'Себестоимость производства, затраты на материалы/зарплату/накладные' },
+  'receipt.create': { label: 'Приходный акт', description: 'Приём товара от поставщика (приходный акт, накладная); цена — с правом «Видеть закупочную цену»' },
+  'po.manage': { label: 'Заказ поставщику', description: 'Создание, отправка и отмена заказа на закупку' },
+  'piecework.log': { label: 'Записывать сдельную работу', description: 'Записать выполненную работу и видеть свои записи (работник)' },
+  'piecework.approve': { label: 'Подтверждать и выплачивать сдельную оплату', description: 'Записи всех работников, подтверждение/отклонение, выплата (расход кассы)' },
   'kirimChiqim.manage': { label: 'Приход-расход', description: 'Просмотр и записи в журнале приходов/расходов (все филиалы)' },
   'users.manage': { label: 'Филиалы и логины', description: 'Создание филиалов, пароли, роли и права' },
   'audit.view': { label: 'История действий', description: 'Журнал действий сотрудников' },
@@ -179,6 +201,9 @@ const permissionPagesUz: Record<PermissionPage, string> = {
   tables: 'Stollar va buyurtmalar',
   kitchen: 'Oshxona ekrani',
   restaurant: 'Restoran sozlamalari',
+  production: 'Ishlab chiqarish va texkartalar',
+  receipts: 'Kirim va xaridlar',
+  piecework: 'Ishbay haq',
   profile: 'Kabinet',
   finance: 'Moliya (kirim-chiqim)',
   creditKassa: 'Kredit kassa',
@@ -208,6 +233,9 @@ const permissionPagesRu: Record<PermissionPage, string> = {
   tables: 'Столы и заказы',
   kitchen: 'Экран кухни',
   restaurant: 'Настройки ресторана',
+  production: 'Производство и техкарты',
+  receipts: 'Приход и закупки',
+  piecework: 'Сдельная оплата',
   profile: 'Кабинет',
   finance: 'Финансы (приход-расход)',
   creditKassa: 'Кредитная касса',
@@ -228,9 +256,10 @@ const businessTypesUz: Record<BusinessType, Text> = {
   cosmetics: { label: 'Kosmetika / parfyumeriya', description: 'Kosmetika, atir va rasmli katalog' },
   pharmacy: { label: 'Dorixona', description: 'Dori-darmon savdosi' },
   auto_parts: { label: 'Avto ehtiyot qism', description: 'Avtomobil qismlari' },
-  wholesale: { label: 'Optom savdo', description: 'Katta hajmli savdo' },
+  wholesale: { label: 'Optom savdo / distribyutor', description: 'Katta hajmli savdo, kirim akti va xaridlar' },
   restaurant: { label: 'Restoran / kafe', description: 'Ovqat va xizmat savdosi' },
   service: { label: 'Xizmat markazi', description: 'Salon, ustaxona va xizmatlar' },
+  manufacturing: { label: 'Ishlab chiqarish sexi', description: 'Texkarta, xom ashyo, tannarx va ishbay haq' },
 };
 
 const businessTypesRu: Record<BusinessType, Text> = {
@@ -244,9 +273,10 @@ const businessTypesRu: Record<BusinessType, Text> = {
   cosmetics: { label: 'Косметика / парфюмерия', description: 'Косметика, парфюм и каталог с фото' },
   pharmacy: { label: 'Аптека', description: 'Продажа лекарств' },
   auto_parts: { label: 'Автозапчасти', description: 'Запчасти для автомобилей' },
-  wholesale: { label: 'Оптовая торговля', description: 'Торговля крупными партиями' },
+  wholesale: { label: 'Оптовая торговля / дистрибьютор', description: 'Крупные партии, приходный акт и закупки' },
   restaurant: { label: 'Ресторан / кафе', description: 'Еда и услуги' },
   service: { label: 'Сервисный центр', description: 'Салон, мастерская и услуги' },
+  manufacturing: { label: 'Производственный цех', description: 'Техкарта, сырьё, себестоимость и сдельная оплата' },
 };
 
 const termsUz: Record<BusinessType, Terms> = {
@@ -263,6 +293,17 @@ const termsUz: Record<BusinessType, Terms> = {
   wholesale: { item: 'Mahsulot', items: 'Ombor', addItem: "Mahsulot qo'shish", codeLabel: 'Kod / shtrix' },
   restaurant: { item: 'Taom', items: 'Menyu', addItem: "Taom qo'shish", codeLabel: 'Kod' },
   service: { item: 'Xizmat', items: 'Xizmatlar', addItem: "Xizmat qo'shish", codeLabel: 'Kod' },
+  manufacturing: { item: 'Mahsulot', items: 'Ombor', addItem: "Mahsulot qo'shish", codeLabel: 'Artikul / kod' },
+};
+
+/** Sex kichik yo'nalishlari (lib/businessTypes.ts → INDUSTRY_PROFILES) */
+const industryProfilesUz: Record<IndustryProfile, Text> = {
+  furniture_shop: { label: 'Mebel sexi', description: "List, m², kromka (m); buyurtma bo'yicha ishlab chiqarish" },
+  sewing: { label: 'Tikuv sexi', description: "Mato (m, rulon), furnitura; operatsiya bo'yicha ishbay" },
+  bakery: { label: 'Non / qandolat', description: 'Un, shakar (kg, l); kunlik reja' },
+  meat: { label: "Go'sht / kolbasa", description: "Kg bo'yicha xom ashyo, chiqindi %" },
+  plastics_building: { label: 'Plastik / qurilish materiallari', description: 'Kg, tonna, m³; dilerlarga sotuv' },
+  other_production: { label: 'Boshqa ishlab chiqarish', description: 'Umumiy sex' },
 };
 
 const termsRu: Record<BusinessType, Terms> = {
@@ -279,6 +320,16 @@ const termsRu: Record<BusinessType, Terms> = {
   wholesale: { item: 'Товар', items: 'Склад', addItem: 'Добавить товар', codeLabel: 'Код / штрих-код' },
   restaurant: { item: 'Блюдо', items: 'Меню', addItem: 'Добавить блюдо', codeLabel: 'Код' },
   service: { item: 'Услуга', items: 'Услуги', addItem: 'Добавить услугу', codeLabel: 'Код' },
+  manufacturing: { item: 'Товар', items: 'Склад', addItem: 'Добавить товар', codeLabel: 'Артикул / код' },
+};
+
+const industryProfilesRu: Record<IndustryProfile, Text> = {
+  furniture_shop: { label: 'Мебельный цех', description: 'Листы, м², кромка (м); производство под заказ' },
+  sewing: { label: 'Швейный цех', description: 'Ткань (м, рулон), фурнитура; сдельная оплата по операциям' },
+  bakery: { label: 'Хлеб / кондитерская', description: 'Мука, сахар (кг, л); дневной план' },
+  meat: { label: 'Мясо / колбаса', description: 'Сырьё в кг, процент отходов' },
+  plastics_building: { label: 'Пластик / стройматериалы', description: 'Кг, тонны, м³; продажи дилерам' },
+  other_production: { label: 'Другое производство', description: 'Общий цех' },
 };
 
 export const uz = {
@@ -298,6 +349,10 @@ export const uz = {
   featureDisabledNamed: '«{label}» moduli faol emas. Platforma egasiga murojaat qiling.',
   businessTypes: businessTypesUz,
   terms: termsUz,
+  industryProfiles: industryProfilesUz,
+  /** Super admin / ro'yxatdan o'tish: sex profili maydoni */
+  industryProfileLabel: "Sex yo'nalishi",
+  industryProfileNone: 'Tanlanmagan',
   roles: { admin: "Do'kon egasi", user: 'Xodim', super_admin: 'Super admin' } as Record<'admin' | 'user' | 'super_admin', string>,
   planTiers: { free: 'Bepul', starter: 'Start', pro: 'Pro', business: 'Biznes', custom: 'Maxsus' } as Record<'free' | 'starter' | 'pro' | 'business' | 'custom', string>,
   /**
@@ -335,6 +390,9 @@ export const ru: typeof uz = {
   featureDisabledNamed: 'Модуль «{label}» не подключён. Обратитесь к владельцу платформы.',
   businessTypes: businessTypesRu,
   terms: termsRu,
+  industryProfiles: industryProfilesRu,
+  industryProfileLabel: 'Направление цеха',
+  industryProfileNone: 'Не выбрано',
   roles: { admin: 'Владелец магазина', user: 'Сотрудник', super_admin: 'Суперадмин' },
   planTiers: { free: 'Бесплатный', starter: 'Старт', pro: 'Про', business: 'Бизнес', custom: 'Индивидуальный' },
   billing: {
