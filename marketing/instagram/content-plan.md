@@ -327,7 +327,7 @@ Manba: PQ-294, 14.08.2026 (lex.uz); gazeta.uz, 17.08.2026. Bu yuridik maslahat e
 **Ustun:** Mahsulot ichidan
 
 **Vizual g'oya:** «Tun» fon. Pastki qismda noutbuk ekrani — ombor ro'yxati («Ombor — 1 248 mahsulot», ustunlar: Mahsulot, Narx, Holat). Ekran ustida uchta suzuvchi holat kapsulasi: «Omborda» (yashil nuqta), «Sotilgan» (kulrang), «Filialga» (ko'k). Burchakda «Demo ma'lumot».
-Slaydlar: 2 — kirim, qoldiq, kam qolgan tovarlar hisoboti; 3 — IMEI va umumiy qora ro'yxat; 4 — filiallar aro tovar berish, har filial kassasi, umumiy hisobot; 5 — inventarizatsiya va CSV eksport; 6 — xodim huquqlari (kapsulalar: Sotish, Chegirma, Bekor qilish, Kelish narxi, Hisobot) va amallar jurnali; 7 — Excel'dan import (.xlsx / .csv, bir martada 5000 tagacha qator); 8 — chaqiriq.
+Slaydlar: 2 — kirim, qoldiq, kam qolgan tovarlar hisoboti; 3 — IMEI va umumiy qora ro'yxat; 4 — filiallar o'rtasida tovar berish, har filial kassasi, umumiy hisobot; 5 — inventarizatsiya va CSV eksport; 6 — xodim huquqlari (kapsulalar: Sotish, Chegirma, Bekor qilish, Kelish narxi, Hisobot) va amallar jurnali; 7 — Excel'dan import (.xlsx / .csv, bir martada 5000 tagacha qator); 8 — chaqiriq.
 
 **Caption:**
 ```
@@ -336,7 +336,7 @@ Omborda nechta tovar qolgani, qaysi telefon qaysi filialda ekani, kim narxni o'z
 Savora'da:
 • kirim, qoldiq va kam qolgan tovarlar hisoboti;
 • telefonlar IMEI bo'yicha, umumiy qora ro'yxat bilan;
-• filiallar aro tovar berish, har filial kassasi va umumiy hisobot;
+• filiallar o'rtasida tovar berish, har filial kassasi va umumiy hisobot;
 • inventarizatsiya va CSV eksport;
 • xodim huquqlari: kim narxni o'zgartiradi, kim sotuvni bekor qiladi, kim kelish narxini ko'radi — o'zingiz belgilaysiz;
 • Excel'dan import: .xlsx yoki .csv, bir martada 5000 tagacha qator, ustunlar nomidan o'zi taniladi.

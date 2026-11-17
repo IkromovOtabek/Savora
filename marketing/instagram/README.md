@@ -17,11 +17,14 @@ Fayllarni telefonga AirDrop bilan o'tkazing — profilning ko'p qismi faqat ilov
 Web orqali qilingan: ism, bio (150/150), kategoriya «Dasturiy ta'minot», telefon +998 99 829 60 02 (kontakt tugmasi yoqiq),
 profil rasmi, eski 9 reels profil to'ridan olingan («Убрать из сетки» — Reels bo'limida qoladi).
 
+**2026-11-18 joylandi** (Claude in Chrome orqali): 9 post — 5 karusel, 3 rasm (6-post rasm varianti), 1 reels (#01, AI belgisi bilan — ovoz TTS).
+Caption'lar content-plan.md §3 dan (6-post rasmga moslangan). Web'da «Mahkamlash» yo'q — 1, 2, 3 hozir eng yangi bo'lgani uchun baribir yuqori qatorda.
+
 Instagram web'da **qilib bo'lmaydi**, telefondagi ilovada:
 1. **Havolalar** — Profilni tahrirlash → Havolalar: `bufu.uz` va ikkinchisini o'chirib, savora.uz havolalarini qo'shing (pastdagi jadval).
 2. **Eski reels arxivi** — har birida ··· → Arxivlash (web'da faqat qaytarib bo'lmaydigan «O'chirish» bor).
 3. **Story + highlight** — `stories/01…06-*.jpg` ni story qilib qo'ying → har birini o'z highlight'iga qo'shing (nomi: Nasiya, Ombor, Kassa, Ilova, Tariflar, Aloqa). Kadr o'rtasidagi ikonka muqova bo'lib qoladi — muqovani alohida tanlash shart emas.
-4. **Postlar** — pastdagi «7. Birinchi postlar» jadvali bo'yicha (9 → 1), oxirida 3, 2, 1 ni mahkamlang. Caption va heshteglar: `content-plan.md` §3.
+4. **Mahkamlash** — yangi post qo'yishdan oldin 3 → 2 → 1 ni mahkamlang (post ··· → «Закрепить в профиле»), aks holda yangi post ularni pastga suradi.
 
 Kontent rejasi, 30 kunlik kalendar va Direct javoblari: [content-plan.md](content-plan.md).
 Qayta yasash: `node marketing/instagram/src/posts.mjs`, `node marketing/instagram/src/stories.mjs`.
