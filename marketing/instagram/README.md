@@ -21,7 +21,7 @@ Instagram web'da **qilib bo'lmaydi**, telefondagi ilovada:
 1. **Havolalar** — Profilni tahrirlash → Havolalar: `bufu.uz` va ikkinchisini o'chirib, savora.uz havolalarini qo'shing (pastdagi jadval).
 2. **Eski reels arxivi** — har birida ··· → Arxivlash (web'da faqat qaytarib bo'lmaydigan «O'chirish» bor).
 3. **Story + highlight** — `stories/01…06-*.jpg` ni story qilib qo'ying → har birini o'z highlight'iga qo'shing (nomi: Nasiya, Ombor, Kassa, Ilova, Tariflar, Aloqa). Kadr o'rtasidagi ikonka muqova bo'lib qoladi — muqovani alohida tanlash shart emas.
-4. **Postlar** — `posts/p09.png` dan boshlab teskari tartibda (p09 → p01), oxirida p01–p03 ni mahkamlang. Caption va heshteglar: `content-plan.md`.
+4. **Postlar** — pastdagi «7. Birinchi postlar» jadvali bo'yicha (9 → 1), oxirida 3, 2, 1 ni mahkamlang. Caption va heshteglar: `content-plan.md` §3.
 
 Kontent rejasi, 30 kunlik kalendar va Direct javoblari: [content-plan.md](content-plan.md).
 Qayta yasash: `node marketing/instagram/src/posts.mjs`, `node marketing/instagram/src/stories.mjs`.
@@ -116,10 +116,25 @@ Shu yerda *Saqlangan javoblar*ga ham shu matnlarni qo'shing.
 
 ## 7. Birinchi postlar
 
-- Profil to'ri endi **3:4** ko'rinadi: post/reels muqovasini 1080×1350 qiling yoki matnni markaziy 3:4 qismda saqlang.
-- Ochilishda kamida 6–9 ta post bo'lsin, 3 tasini **mahkamlang** (pin):
-  1. «Savora nima?» — qisqa reels (`marketing/video/` dagi reels)
-  2. «Nasiya qanday ishlaydi» — 4 qadam (landingdagi «Sotuvdan undirishgacha»)
-  3. «14 kun bepul boshlang» — havola biodaligini ayting
-- Har kungi reels rejasi — `marketing/video/` (savora-reel-NN).
-- Da'volar: faqat ishlab turgan funksiyani ayting. Mijozga avtomatik SMS eslatma yo'q — «eslatma» desangiz, egaga Telegram'da va mijozga bir tugmada yuborilishini aniq ayting.
+To'liq ko'rinish: [grid-preview.png](grid-preview.png). Har post papkasi — `posts/<n>-<nom>/`, slaydlar `01.png, 02.png…` tartibida.
+Caption va heshteglar — [content-plan.md](content-plan.md) §3 (shu raqam bilan). Joylash **9 dan 1 ga**: eng yangisi to'rda birinchi turadi.
+
+| Tartib | Post | Format | Fayllar |
+|---|---|---|---|
+| 1-chi joylanadi | 9 · Ombor va filiallar | Karusel, 8 slayd | `posts/9-ombor-filiallar/01–08.png` |
+| 2 | 8 · 2027 nasiya qoidalari | Karusel, 8 | `posts/8-nasiya-2027-qoidalar/` |
+| 3 | 7 · Komissiya emas, foyda | Karusel, 6 | `posts/7-komissiya-emas-foyda/` |
+| 4 | 6 · Nasiya 2 daqiqada | Reels **yoki** rasm | video yo'q — `rasm-varianti.png` ni rasm qilib qo'ying; ekran yozuvi tayyor bo'lsa — reels, muqova `muqova.png` |
+| 5 | 5 · Telegram eslatma | Rasm | `posts/5-telegram-eslatma/01.png` |
+| 6 | 4 · Daftar va Savora | Karusel, 6 | `posts/4-daftar-vs-savora/` |
+| 7 | 3 · 14 kun bepul | Rasm | `posts/3-14-kun-bepul/01.png` |
+| 8 | 2 · Nasiya 4 qadam | Karusel, 7 | `posts/2-nasiya-4-qadam/` |
+| 9-chi joylanadi | 1 · Bitta ilovada | Reels | video `marketing/video/savora-reel-01/renders/savora-reel-01.mp4`, muqova `posts/1-bitta-ilova/muqova.png` (video bo'lmasa — `rasm-varianti.png`) |
+
+So'ng 3 → 2 → 1 tartibida mahkamlang (Post ··· → «Profilga mahkamlash»).
+
+- **6-post «2 daqiqada»**: reels qilsangiz, ekran yozuvi tezlashtirilmagan bo'lsin; 2 daqiqadan oshsa sarlavhani «bir necha daqiqada» ga almashtiring (`src/posts.data.mjs`, keyin qayta render).
+- Narxli postlar (7, tariflar story'si): joylashdan oldin savora.uz «Tariflar» bilan solishtiring — narxlar super-admin'da o'zgarishi mumkin.
+- Demo ekranlardagi ism va summalar to'qima — har birida «Demo ma'lumot» yozuvi bor, olib tashlamang.
+- Da'volar: faqat ishlab turgan funksiya. Mijozga avtomatik SMS eslatma yo'q; nasiya va AI faqat Pro/Biznes'da.
+- Keyingi postlar: fon Tun ↔ Ko'k navbatlashsin (to'r shaxmat bo'lib qoladi); 30 kunlik kalendar — content-plan.md §5.
