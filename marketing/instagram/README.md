@@ -18,7 +18,7 @@ Fayllarni telefonga AirDrop bilan o'tkazing — profilning ko'p qismi faqat ilov
 
 - Shaxsiy emas, **brend pochtasi** bilan oching (masalan `support@savora.uz` yoki alohida `hello@savora.uz`). Keyin xodimga topshirish oson bo'ladi.
 - **Username** (bo'shligini Instagram o'zi ko'rsatadi), tartib bo'yicha:
-  1. `savora.uz` — sayt manzili bilan bir xil, eng yaxshisi
+  1. `savora__uz` — tanlangan (savora.uz va savora_uz band)
   2. `savora_uz`
   3. `savora.app`
   4. `savorauz`
@@ -40,13 +40,14 @@ Savora · Nasiya dasturi
 ```
 Muqobil: `Savora — nasiya, ombor, kassa`
 
-**Bio** (135/150 belgi — nusxa olib qo'ying):
+**Bio** (139/150 belgi — @savora__uz da o'rnatilgan):
 ```
 Nasiya, ombor va kassa — bitta ilovada
-✅ To'lov jadvali va qarz nazorati
-✅ Ko'p filial, AI yordamchi
+📅 To'lov jadvali va qarz nazorati
+🏪 Ko'p filial, AI yordamchi
 🎁 14 kun bepul, karta shart emas 👇
 ```
+Instagram biodagi ✅ (galochka) belgisini rad etadi — tasdiq belgisiga o'xshagani uchun.
 
 **Havolalar** (Profilni tahrirlash → Havolalar, 5 tagacha; birinchisi bio ostida ko'rinadi):
 
