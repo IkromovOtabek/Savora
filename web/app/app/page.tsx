@@ -13,7 +13,7 @@ import InstallmentAlert, { OverdueInstallment } from '@/components/tenant/Instal
 import { computeInstallmentPlan } from '@/lib/installment';
 import { dayBoundaries, toDayPoints, smoothPath } from '@/lib/weekBuckets';
 import WeekChart from '@/components/tenant/WeekChart';
-import { parsePeriod, periodLabel, periodRange } from '@/lib/period';
+import { isDayPeriod, parsePeriod, periodLabel, periodRange } from '@/lib/period';
 import PeriodSeg from '@/components/tenant/PeriodSeg';
 import DashFilter from '@/components/tenant/DashFilter';
 import Tilt from '@/components/ui/Tilt';
@@ -41,7 +41,7 @@ export default async function TenantDashboard({
   searchParams: Promise<{ module?: string; welcome?: string; p?: string; b?: string }>;
 }) {
   const sp = await searchParams;
-  const { user, org, features, Branch, Product, Sale, User, AiReport, Task, LedgerEntry, FinanceCategory } = await getTenantSession();
+  const { user, org, features, Branch, Product, Sale, User, AiReport, Task, LedgerEntry, FinanceCategory, Order } = await getTenantSession();
   const { locale, d } = await getI18n();
   const t = d.shell.dash;
 
@@ -79,7 +79,7 @@ export default async function TenantDashboard({
   // Haftalik grafik — oxirgi 7 kun, kunlik chegaralar server vaqti bo'yicha (todayStart bilan bir xil)
   const weekBounds = dayBoundaries(todayStart, 7);
 
-  const [inStock, salesCount, revenueAgg, debtAgg, recentSales, userCount, branchCount, productCount, weekAgg] = await Promise.all([
+  const [inStock, salesCount, revenueAgg, debtAgg, recentSales, userCount, branchCount, productCount, weekAgg, guestAgg] = await Promise.all([
     Product.countDocuments({ ...scope, status: 'in_stock' }),
     Sale.countDocuments({ ...scope, ...bMatch, ...inPeriod, status: { $ne: 'cancelled' } }),
     Sale.aggregate([
@@ -99,6 +99,14 @@ export default async function TenantDashboard({
           { $bucket: { groupBy: '$createdAt', boundaries: weekBounds, default: 'other', output: { total: { $sum: '$paidAmount' }, count: { $sum: 1 } } } },
         ])
       : Promise.resolve([] as { _id: Date; total: number; count: number }[]),
+    // Restoran/kafe: kelgan mijozlar — davrda ochilgan (bekor qilinmagan) buyurtmalar, hozir stolda o'tirganlar ham.
+    // Mehmon soni kiritilmagan buyurtma (saboy, QR yoki ofitsant kiritmagan) — 1 mijoz
+    features.tables
+      ? Order.aggregate<{ guests: number; orders: number }>([
+          { $match: { ...aggScope, ...bMatch, openedAt: { $gte: pStart, $lt: pEnd }, status: { $ne: 'cancelled' } } },
+          { $group: { _id: null, guests: { $sum: { $ifNull: ['$guests', 1] } }, orders: { $sum: 1 } } },
+        ]).catch(() => [])
+      : Promise.resolve([] as { guests: number; orders: number }[]),
   ]);
   const isAdmin = user.role === 'admin';
   const notCancelled = { status: { $ne: 'cancelled' } };
@@ -185,6 +193,18 @@ export default async function TenantDashboard({
   const revenueDelta = isToday && yesterday > 0 ? Math.round((revenue / yesterday - 1) * 100) : null;
   const scopeName = branchSel ? (branchName.get(branchSel) ?? d.common.branch) : t.allBranches;
   const debtTotal = debtAgg[0]?.total ?? 0;
+
+  // Restoran/kafe — kelgan mijozlar kartasi; bosilsa restoran hisoboti (shu davr va filial bilan) yoki stollar
+  const guests = features.tables ? (guestAgg[0] ?? { guests: 0, orders: 0 }) : null;
+  const guestsHref = (() => {
+    if (!perms.has('reports.view')) return '/app/tables';
+    const q = new URLSearchParams();
+    if (period === 'yesterday' || period === 'week' || period === 'month') q.set('p', period);
+    else if (isDayPeriod(period)) { q.set('from', period); q.set('to', period); }
+    if (branchSel) q.set('b', branchSel);
+    const qs = q.toString();
+    return `/app/restaurant/reports${qs ? `?${qs}` : ''}`;
+  })();
 
   // Daftar balansi — ochiq yozuvlar qoldig'i (berdim − oldim) va kechikkanlar
   const daftar = features.daftar && perms.has('daftar.manage')
@@ -319,7 +339,7 @@ export default async function TenantDashboard({
           {features.sales && weekHasData && <HeroSpark values={week.map((d) => d.total)} />}
         </Tilt>
 
-        <div className={`t-stats ux-strip${daftar ? ' t-stats--4' : ''}`}>
+        <div className={`t-stats ux-strip${(guests ? 1 : 0) + (daftar ? 1 : 0) === 1 ? ' t-stats--4' : ''}`}>
           {isAdmin ? (
             <StatCard
               href={features.sales ? '/app/sales' : undefined}
@@ -339,6 +359,17 @@ export default async function TenantDashboard({
               value={String(mine.count)}
               unit={d.common.pcs}
               sub={period === 'today' ? tr(t.todaySum, { sum: fmtMoney(mine.total) }) : tr(t.periodSum, { period: periodText, sum: fmtMoney(mine.total) })}
+            />
+          )}
+          {guests && (
+            <StatCard
+              href={guestsHref}
+              icon="users"
+              tone="green"
+              label={t.guests}
+              value={String(guests.guests)}
+              unit={t.guestsUnit}
+              sub={isToday ? tr(t.guestsToday, { n: guests.orders }) : tr(t.guestsPeriod, { period: periodText, n: guests.orders })}
             />
           )}
           <StatCard

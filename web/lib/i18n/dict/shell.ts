@@ -286,6 +286,13 @@ export const uz = {
     unnamed: 'Nomsiz',
     /** {n} — sotuvlar soni */
     nSales: '{n} ta sotuv',
+    /** Restoran/kafe: davrda kelgan mijozlar (mehmon soni kiritilmagan buyurtma — 1 kishi) */
+    guests: 'Kelgan mijozlar',
+    guestsUnit: 'kishi',
+    /** {n} — buyurtmalar (stol / saboy) soni */
+    guestsToday: 'bugun · {n} ta buyurtma',
+    /** {period} — davr nomi, {n} — buyurtmalar soni */
+    guestsPeriod: '{period} · {n} ta buyurtma',
   },
   panels: {
     branchTitle: 'Filiallar kesimida',
@@ -668,6 +675,10 @@ export const ru: typeof uz = {
     noSalesYet: 'Продаж пока нет.',
     unnamed: 'Без названия',
     nSales: '{n} продаж',
+    guests: 'Гости',
+    guestsUnit: 'чел.',
+    guestsToday: 'сегодня · заказов: {n}',
+    guestsPeriod: '{period} · заказов: {n}',
   },
   panels: {
     branchTitle: 'По филиалам',
