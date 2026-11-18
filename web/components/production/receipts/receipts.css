@@ -203,6 +203,8 @@
 
 /* Tasdiqlash oynasi */
 .rc-dialog {
+  /* margin: auto — globals.css dagi `* { margin: 0 }` native modal <dialog> markazlashuvini buzadi (chap-yuqoriga yopishadi) */
+  margin: auto;
   width: min(460px, calc(100vw - 32px)); padding: 20px; border: 0; border-radius: var(--r-xl);
   background: var(--surface); color: var(--ink-1); box-shadow: var(--shadow-lg);
 }

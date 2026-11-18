@@ -147,6 +147,22 @@
   .pr-lfoot > :first-child { grid-column: 1 / -1; }
 }
 
+/* Akt sahifasi: asosiy ustun yon ustun bilan tor (≈520px) — tannarx ustunli xom ashyo va ish haqi jadvallari ixcham
+   ko'rinishga o'tadi (aks holda nom ustuni 0 px gacha qisiladi). Ekran o'lchamiga emas, ustun kengligiga qarab. */
+.pr-split > .pr-stack { container-type: inline-size; }
+@container (max-width: 700px) {
+  .pr-lines--mat.has-cost .pr-lhead, .pr-lines--labor .pr-lhead { display: none; }
+  .pr-lines--mat.has-cost .pr-line { grid-template-columns: repeat(3, minmax(0, 1fr)); align-items: start; }
+  .pr-lines--labor .pr-line, .pr-lines--labor .pr-lfoot { grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; }
+  .pr-lines--mat.has-cost .pr-line > .pr-cell--main, .pr-lines--labor .pr-line > .pr-cell--main { grid-column: 1 / -1; }
+  .pr-lines--labor .pr-line > .pr-cell-act { justify-self: end; align-self: end; }
+  .pr-lines--labor .pr-lfoot > :first-child { grid-column: 1 / -1; }
+  .pr-lines--mat.has-cost .pr-cell-l, .pr-lines--labor .pr-cell-l {
+    position: static; width: auto; height: auto; margin: 0; overflow: visible; clip: auto; font-size: 12px; font-weight: 600; color: var(--ink-3);
+  }
+  .pr-lines--mat.has-cost .pr-num, .pr-lines--labor .pr-num { justify-self: start; text-align: left; }
+}
+
 /* Yon ustundagi ehtiyoj jadvali (texkarta sahifasi, ~340px) — har qanday ekranda ixcham ko'rinish: nom alohida qatorda,
    kerak / omborda / yetmaydi — ostida (aks holda nom ustuni 0 px gacha qisilib, harflab tushadi) */
 .pr-side .pr-lines--req .pr-lhead { display: none; }

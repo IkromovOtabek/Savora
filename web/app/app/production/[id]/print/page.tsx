@@ -77,6 +77,8 @@ export default async function ProductionOrderPrintPage({ params }: { params: Pro
           {!!o.scrapQty && <div><dt>{c.scrap}</dt><dd>{qtyText(o.scrapQty, unit, units)}{o.scrapDocNo ? ` · ${o.scrapDocNo}` : ''}</dd></div>}
           <div><dt>{c.fromBranch}</dt><dd>{o.fromBranchName ?? '—'}</dd></div>
           <div><dt>{c.toBranch}</dt><dd>{o.toBranchName ?? '—'}</dd></div>
+          {o.dueDate && <div><dt>{d.production.orders.due}</dt><dd>{o.dueDate.split('-').reverse().join('.')}</dd></div>}
+          {o.customerRef && <div><dt>{d.production.orders.customerOrder}</dt><dd>{o.customerRef}</dd></div>}
         </dl>
 
         <h2>{t.materials}</h2>

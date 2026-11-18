@@ -3,7 +3,10 @@
 Sana: 2026-11-18. Asos: `docs/business/TAKLIF_2026-11_SHABLONLAR.md` §2 (MVP + 2-faza backend qismi: texkarta, akt,
 tannarx, kirim akti, birlik konvertatsiyasi, minimal qoldiq, ishbay, yetkazib beruvchiga buyurtma).
 Bu hujjat va `lib/production/*` kodi — UI sahifalari (`/app/production`, `/app/production/recipes`, `/app/receipts`,
-`/app/purchase-orders`, `/app/piecework`, mobil ilova) uchun YAGONA manba. Sahifalarning o'zi hali yo'q.
+`/app/purchase-orders`, `/app/piecework`, mobil ilova) uchun YAGONA manba.
+**2-bosqich (2026-11-18, kechqurun):** akt muddati va mijoz buyurtmasi, qator id'larini saqlash, optimistik qulf, barcha
+omborlar ro'yxati, ishchilar (akt uchun), Toshkent kuni (§6.16), ishbay birligi va mobil tuzatish, yaroqlilik muddati
+ogohlantirishi, «Kam qolgan» → forma, demo seed (§14).
 Arxitektura restoran moduli bilan bir xil (`docs/RESTORAN_API.md`): context/session/inputs/ops/queries.
 
 ---
@@ -29,7 +32,8 @@ Arxitektura restoran moduli bilan bir xil (`docs/RESTORAN_API.md`): context/sess
 | Web JSON GET | `app/api/production/*` |
 | Mobil REST | `app/api/mobile/production/*` |
 | Lug'at | `lib/i18n/dict/production.ts` → `d.production.*` |
-| Testlar | `tests/productionLogic.test.ts`, `tests/productionFlow.test.ts` (MongoDB) |
+| Testlar | `tests/productionLogic.test.ts`, `tests/productionFlow.test.ts` (MongoDB), `tests/productionUi.test.ts` |
+| Demo sex (lokal dev) | `scripts/seed-demo-sex.mjs` → `npm run seed:sex` (§14) |
 
 ---
 
@@ -122,13 +126,16 @@ NOMI bo'yicha yo'qlarini qo'shadi — restoran kabi, `/app/users` va `/app/roles
 |---|---|
 | Omborchi | ombor, mahsulot qo'shish, transfer, inventar, hisobdan chiqarish, **kirim akti**, ishlab chiqarishni ko'rish; narx/tannarx **yo'q** |
 | Sex boshlig'i | akt, texkarta, ishbay yozish/tasdiqlash, ombor ko'rish, transfer, hisobdan chiqarish, topshiriqlar; tannarx — yo'q |
-| Usta / ishchi | ishbay yozish (faqat o'zi), aktlarni ko'rish (operatsiya tanlash uchun) |
+| Usta / ishchi | ishbay yozish (faqat o'zi), aktlarni ko'rish (operatsiya tanlash uchun); `production.view` sabab kirim aktlarini ham **ko'radi** (narxsiz, §9) |
 | Hisobchi | tannarx, kelish narxi, yetkazib beruvchilar (qarz, to'lov), kirim, xarid, ishbay to'lovi, hisobot, eksport; sotuv yo'q |
 
 **Kirish doirasi** (filial xodimi, `role: 'user'`):
 - Akt: ko'radi — xom ashyo yoki tayyor mahsulot ombori o'ziniki bo'lganlarni; o'zgartiradi — faqat xom ashyo ombori
   o'ziniki bo'lsa (o'z omboridan chiqaradi). Tayyor mahsulot omborini istalgan faol filialga qo'yishi mumkin
-  («filialga berish» kabi).
+  («filialga berish» kabi) — tanlov ro'yxati `ProductionMeta.toBranches` (barcha faol omborlar).
+- Texkarta: xom ashyo — o'z filialidagi hujjatlar; **tayyor mahsulot** — istalgan filialdagi hujjat (faqat kodi/nomi/birligi
+  olinadi; texkarta ko'rinishida `outputProductId` ham doiradan tashqaridan topiladi) — tayyor mahsulot ombori boshqa
+  filialda bo'lgan texkartani filial xodimi tahrirlay oladi.
 - Kirim, PO — faqat o'z filiali; mahsulot tanlash — o'z filialidagi hujjatlar.
 - Ishbay: `piecework.log` — faqat o'z yozuvlari; `piecework.approve` — o'z filiali ishchilari.
 
@@ -166,8 +173,10 @@ materials[{ _id, code, productId?, name, unit, plannedQty, actualQty, unitCost?,
 labor[{ _id, operation, workerId?, workerName?, qty, rate, amount }], laborManual?
 materialsCost, laborCost, overheadCost, costTotal, unitCost, scrapCost (bajarilganda)
 outputProductId?, scrapDocNo?, note, clientId? (noyob), createdBy, startedAt/By, completedAt/By, cancelledAt/By/Reason
+dueDate? (topshirish muddati — kalendar kuni, UTC yarim tunda), customerRef? (mijoz buyurtmasi, ≤160)
 postingAt? (qulf), rev (optimistik)
 ```
+Indeks: `{ status, dueDate }` (faqat muddatli aktlar).
 
 ### GoodsReceipt (`goods_receipts`) — kirim akti
 ```
@@ -189,17 +198,20 @@ total, createdBy, sentAt/By, receivedAt, cancelledAt/By, rev
 
 ### PieceworkEntry (`piecework_entries`) — ishbay
 ```
-workerId (User), workerName, branchId?, productionOrderId?, productionOrderNo?, operation, qty, rate, amount (= qty × rate)
+workerId (User), workerName, branchId?, productionOrderId?, productionOrderNo?, operation, qty, unit?, rate, amount (= qty × rate)
 status logged|approved|rejected|paid, workDate, note, clientId? (ishchi ichida noyob), loggedBy
 approvedBy/At, rejectedBy/At, rejectReason, paidBy/At, cashFlowId, payoutId
 ```
+`unit` — aktga bog'langan yozuvda texkarta tayyor mahsuloti birligi (operatsiya narxi 1 shu birlikka): **dona/juft — butun**
+(`2,5` → `badQty`), kg/m/list… — kasr; aktsiz yozuvda yo'q (kasr ruxsat).
 
 ### Boshqa o'zgarishlar
 - `StockAdjustment.reason` + `production_scrap` (akt brakı, avtomatik), `offcut` (bichim qoldig'i; qo'lda hisobdan
   chiqarishda ham qabul qilinadi — `writeOffAction`; forma tugmasi UI agentida). Lug'at `d.stock.adjust.reasons`.
 - `SupplierEntry.receiptId?` — kirim akti yozuvi (qarz hisobi `sumSupplierEntries` o'zgarmadi).
 - `AuditLog.entity` + `production` (texkarta, akt, ishbay), `purchase` (kirim, PO). Lug'at `d.crm.audit.entities`.
-- `Organization.industryProfile?` (§1). `TENANT_MODELS_VERSION = 20`.
+- `Organization.industryProfile?` (§1). `TENANT_MODELS_VERSION = 21` (akt muddati/mijoz, ishbay birligi).
+- `ShopSettings.stock.expiryWarnDays` (ro'yxatdan o'tish ustasi yozadi) — §6.14.
 
 ---
 
@@ -224,8 +236,11 @@ Ishbay:   logged ──tasdiq──► approved ──to'lov──► paid ;  lo
 1. **Ehtiyoj:** `requiredQty = itemQty × (plannedQty / outputQty) × (1 + lossPct/100)`; butun birlikda (dona) yuqoriga
    butunlanadi, kasrlida 0,001 gacha yuqoriga. Misol: 10 non uchun 4 kg un, 5% → 25 non: 10,5 kg.
 2. **Akt ochilganda** texkarta nusxasi saqlanadi; xom ashyo rejasi (haqiqiy = reja), ish haqi = operatsiya narxi × reja.
-   Reja o'zgarsa — texkarta qatorlari qayta hisoblanadi (qo'shimcha qatorlar qoladi), ish haqi — qo'lda
-   tahrirlanmagan bo'lsa (`laborManual`).
+   Reja o'zgarsa — texkarta qatorlari rejasi qayta hisoblanadi, lekin **qator `_id` lari saqlanadi** (shu so'rovdagi
+   `materials: [{ id, actualQty }]` ham to'g'ri qatorga tushadi); haqiqiy sarfi qo'lda tuzatilgan qator (haqiqiy ≠ eski reja)
+   o'sha qiymatda qoladi, tuzatilmagani — yangi rejaga teng; qo'shimcha qatorlar qoladi; ish haqi — qo'lda
+   tahrirlanmagan bo'lsa (`laborManual`). **Optimistik qulf:** `expectedRev` (UI — `OrderView.rev`) mos kelmasa `conflict`
+   (UI xabar berib qayta yuklaydi); «bajarildi»da ham `expectedRev` qabul qilinadi.
 3. **Haqiqiy sarf:** `materials: [{ id, actualQty }]` — mavjud qator; `[{ productId, actualQty }]` (id'siz) — qo'shimcha
    qator (almashtirish; shu ombordagi sanaladigan tovar). 0 — ishlatilmadi. Farq ko'rinishda `variance`.
 4. **«Bajarildi»** (hammasi yoki hech biri):
@@ -253,8 +268,11 @@ Ishbay:   logged ──tasdiq──► approved ──to'lov──► paid ;  lo
 9. **Bajarilgan akt va post qilingan kirimni qaytarish** — hozir yo'q (keyingi bosqich). Xato bo'lsa: hisobdan chiqarish
    (`offcut`/`defective`) + kirim/yetkazib beruvchi yozuvi bilan tuzatiladi.
 10. **PO:** qabul — `receiveFromPurchaseOrderAction` (qolgan miqdorlar bilan kirim qoralamasi, narx PO'dan) → miqdorni
-    tuzatish → `postReceiptAction`. `poLineId`'siz qator shu kodli birinchi qolgan PO qatoriga bog'lanadi. Qabul qilingan
-    miqdor PO qatori birligida (`baseQty / factor`). Xabar yuborilmaydi — «sent» faqat belgi.
+    tuzatish → `postReceiptAction`. Shu PO'ning **ochiq (qoralama) kirimi bo'lsa — yangisi yaratilmaydi**, o'sha qaytadi
+    (`existing: true`). `poLineId`'siz (yoki eskirgan `poLineId` li) qator shu kodli birinchi qolgan PO qatoriga bog'lanadi.
+    PO tahririda (`savePo`) qatorlar `_id` si **saqlanadi** (tovar + birlik bo'yicha) — ochiq kirim qoralamasi bog'lanishi
+    uzilmaydi, shuning uchun qoralama ochiq bo'lsa ham PO tahrirlanadi. Qabul qilingan miqdor PO qatori birligida
+    (`baseQty / factor`). Xabar yuborilmaydi — «sent» faqat belgi.
 11. **Ishbay:** narx — aktga bog'langan bo'lsa texkarta operatsiyasidan (nomi katta-kichik harfsiz mos), ishchi kiritgan
     narx e'tiborsiz; aks holda kiritilgani (bo'lmasa `rateRequired`). Ishchi faqat o'zi uchun (`workerId` boshqa — `noPermission`).
     Tasdiqlovchi narxni «yozildi» holatida tuzatadi. Akt `labor` (tannarx) va ishbay yozuvlari (ish haqi to'lovi) —
@@ -265,12 +283,24 @@ Ishbay:   logged ──tasdiq──► approved ──to'lov──► paid ;  lo
     alohida qiling (keyingi bosqich: smenaga bog'lash).
 13. **Idempotentlik:** akt — `clientId`; kirim — `clientId`; PO — `clientId`; ishbay yozuvi — `clientId` (ishchi ichida);
     ishbay to'lovi — `clientId` (`payoutId = c:<clientId>`). Takror — avvalgi natija (`existing: true`), ikkinchi yozuv yo'q.
-14. **Minimal qoldiq:** `Product.minStock` (filial hujjati). Ro'yxat — `GET /api/production/low-stock`. Kunlik xabar:
-    `/api/cron/daily-summary` (21:00, mavjud cron) ichida `sendLowStockAlerts()` — `purchasing` yoki `production` yoqilgan,
-    Telegram ulangan yoki push qurilmasi bor do'konlarga (10 tagacha qator, Telegram + admin push). Alohida sozlama yo'q.
+14. **Minimal qoldiq:** `Product.minStock` (filial hujjati; indeks `minStock_1` — so'rov IXSCAN). Ro'yxat —
+    `GET /api/production/low-stock`. «Kam qolgan» bloklaridan (akt sahifasi, ombor sahifasi) «Kirim qilish» / «Xarid
+    buyurtmasi» → `/app/receipts/new?items=<id,…>&b=<ombor>` / `/app/purchase-orders/new?items=…` — forma yetmagan
+    miqdor bilan (xarid birligida, yuqoriga yaxlitlangan) oldindan to'ldiriladi (`productOptions({ ids })`).
+    **Yaroqlilik muddati:** `ShopSettings.stock.expiryWarnDays` = N bo'lsa — ombor sahifasida «muddati N kun ichida
+    tugaydi yoki o'tgan» bloki va `?exp=1` filtri (`catalog.expiringFilter`: omborda qoldig'i bor, `expiryDate` ≤ bugun+N,
+    Toshkent kuni).
+    Kunlik xabar: `/api/cron/daily-summary` (21:00, mavjud cron) ichida `sendLowStockAlerts()` — bitta xabarda (a) minimal
+    qoldiqdan kam (`purchasing` yoki `production` yoqilgan do'kon), (b) muddati yaqin/o'tgan (`expiryWarnDays` o'rnatilgan
+    do'kon); Telegram ulangan yoki push qurilmasi bor do'konlarga (10 tagacha qator, Telegram + admin push).
 15. **Texkarta versiyasi:** tarkib (chiqish, xom ashyo, operatsiya, ustama, tayyor mahsulot) o'zgarsa `version + 1`,
     eskisi `prevVersions`; `expectedVersion` eskirgan bo'lsa — `conflict`. Arxivdagi texkartadan akt ochilmaydi
     (`recipeInactive`); ochiq aktlar o'z nusxasi bilan davom etadi.
+16. **Davr filtrlari — Toshkent vaqti (UTC+5):** ro'yxat `from`/`to` (`?from=YYYY-MM-DD`) — Toshkent kuni boshi
+    (`zOptDay`, `lib/period.ts → tashkentDayStart`); `to` aynan Toshkent yarim tuni bo'lsa — shu kun oxirigacha
+    (`dateRange`), boshqa lahza (to'liq ISO) — o'sha lahzagacha (ichida). Server qaysi vaqt zonasida ishlashidan qat'i nazar
+    00:00–05:00 dagi hujjat o'z kunida. UI ham kunni Toshkent bo'yicha hisoblaydi (`tashkentDayKey`, `tashkentPeriodRange`);
+    eski `23:59:59.999` hiylasi olib tashlandi. Ishbay jamlamasining standart davri — joriy Toshkent oyi.
 
 ---
 
@@ -281,7 +311,9 @@ Muvaffaqiyat: API — `data` o'zi; action — `{ ok: true, data, success? }`. Sa
 
 ```ts
 RecipeView = { id, name, mode, outputCode, outputName, outputQty, unit, version, active, note,
-  items: [{ code, name, qty, unit, lossPct }], operations: [{ name, rate, normMin }], overheadPerUnit, laborPerUnit,
+  items: [{ code, name, qty, unit, lossPct,
+            productId?, purchaseUnit?, purchaseFactor?, available? /* faqat getRecipe: ?branchId= ombordagi hujjat */ }],
+  outputProductId? /* faqat getRecipe */, operations: [{ name, rate, normMin }], overheadPerUnit, laborPerUnit,
   createdBy, updatedBy, createdAt, updatedAt,
   versions?: [{ version, changedAt, changedBy, outputQty, items, operations, overheadPerUnit }] /* faqat getRecipe */ }
 RecipeCostEstimate = { branchId, materials, labor, overhead, total, missing: code[] }   // 1 birlik, production.viewCost
@@ -294,11 +326,13 @@ OrderView = { id, docNo, status, recipe: { id, name, version, outputCode, output
   materials: [{ id, code, productId, name, unit, plannedQty, actualQty, extra, variance, unitCost|null, cost|null }],
   labor: [{ id, operation, workerId, workerName, qty, rate, amount }], laborManual,
   cost: { materials, labor, overhead, total, unitCost, scrap } | null,   // faqat done + production.viewCost
-  outputProductId, scrapDocNo, note, createdBy, createdAt, startedAt, startedBy, completedAt, completedBy,
-  cancelledAt, cancelledBy, cancelReason, updatedAt, rev,
+  outputProductId, scrapDocNo, dueDate /* YYYY-MM-DD|null */, overdue, customerRef, note, createdBy, createdAt, startedAt,
+  startedBy, completedAt, completedBy, cancelledAt, cancelledBy, cancelReason, updatedAt, rev,
   can: { edit, start, complete, cancel, viewCost } }
 OrderSummary = { id, docNo, status, recipeName, outputName, unit, plannedQty, producedQty, scrapQty, fromBranchName,
-  toBranchName, createdBy, createdAt, completedAt, costTotal|null, unitCost|null, operations: [{ name, rate }] }
+  toBranchName, createdBy, createdAt, completedAt, dueDate, overdue, customerRef, note,
+  costTotal|null, unitCost|null, operations: [{ name, rate }] }
+// overdue — ochiq (draft/in_progress) va muddat kuni bugungi Toshkent kunidan oldin
 
 ReceiptView = { id, docNo, status, supplierId, supplierName, branchId, branchName, purchaseOrderId, purchaseOrderNo,
   supplierInvoiceNo, invoiceDate,
@@ -313,7 +347,7 @@ PoView = { id, docNo, status, supplierId, supplierName, branchId, branchName,
   total|null, expectedAt, note, createdBy, createdAt, sentAt, receivedAt, cancelledAt, updatedAt, rev,
   can: { edit, send, receive, cancel, viewPrices } }
 
-PieceworkView = { id, workerId, workerName, branchId, productionOrderId, productionOrderNo, operation, qty, rate, amount,
+PieceworkView = { id, workerId, workerName, branchId, productionOrderId, productionOrderNo, operation, qty, unit|null, rate, amount,
   status, workDate, note, loggedBy, approvedBy, approvedAt, rejectedBy, rejectReason, paidBy, paidAt, cashFlowId, createdAt,
   can: { edit, approve, reject, pay } }
 Bucket = { count, qty, amount }
@@ -321,12 +355,14 @@ WorkerSummary = { workerId, workerName, logged: Bucket, approved: Bucket, paid: 
   byOperation: [{ operation, qty, amount }] }
 
 ProductOption = { id, code, name, unit, purchaseUnit, purchaseFactor, available, minStock, cost|null, salePrice, barcode }
-ProductionMeta = { features: { production, purchasing, piecework }, branches: [{ id, name, isMain }], defaultBranchId, units,
+ProductionMeta = { features: { production, purchasing, piecework }, branches: [{ id, name, isMain }] /* ish ombori(lar)i */,
+  toBranches: [{ id, name, isMain }] /* tayyor mahsulot ombori tanlovi — barcha faol omborlar */, defaultBranchId, units,
   can: { viewProduction, manageProduction, manageRecipes, viewCost, viewPrices, receive, managePo, logPiecework,
          approvePiecework, supplierPayment, editProducts } }
 ```
 Ro'yxatlar: `{ items, total, page, limit }` (sahifa 50, ko'pi bilan 200). Ishbay ro'yxatida qo'shimcha
-`sums: { logged, approved, paid, due }` (filtrga mos hamma yozuvlar bo'yicha).
+`sums: { logged, approved, paid, due }` (filtrga mos hamma yozuvlar bo'yicha). Aktlar ro'yxatida qo'shimcha
+`overdue` — doiradagi muddati o'tgan ochiq aktlar soni (filtrdan qat'i nazar; «Muddati o'tgan: N» chipi).
 
 ---
 
@@ -341,13 +377,13 @@ Hammasi object argument oladi (FormData emas), zod bilan tekshiradi, natija `Act
 | `saveRecipeAction(input)` | `{ id?, name, mode?, outputProductId, outputQty, items: [{ productId, qty, unit?, lossPct? }] (1–60), operations?: [{ name, rate?, normMin? }] (≤30), overheadPerUnit?, note?, expectedVersion? }` — `unit` asosiy yoki xarid birligi | recipe.manage | `{ recipe, created, versionBumped }` |
 | `setRecipeActiveAction({ id, active })` | | recipe.manage | `{ recipe }` |
 | `recipeRequirementsAction({ recipeId, qty, branchId? })` | | production.view\|recipe.manage\|production.manage | `Requirements` |
-| `createProductionOrderAction(input)` | `{ recipeId, plannedQty, fromBranchId?, toBranchId?, note?, clientId? }` | production.manage | `{ order, existing }` |
-| `updateProductionOrderAction(id, input)` | `{ plannedQty?, note?, materials?: [{ id?, productId?, actualQty }], labor?: [{ operation, workerId?, qty, rate }] }` | production.manage | `{ order }` |
+| `createProductionOrderAction(input)` | `{ recipeId, plannedQty, fromBranchId?, toBranchId?, dueDate?, customerRef?, note?, clientId? }` | production.manage | `{ order, existing }` |
+| `updateProductionOrderAction(id, input)` | `{ plannedQty?, note?, dueDate? (null — olib tashlash), customerRef?, materials?: [{ id?, productId?, actualQty }], labor?: [{ operation, workerId?, qty, rate }], expectedRev? }` — reja va sarf bitta so'rovda ham bo'ladi (id'lar saqlanadi) | production.manage | `{ order }` · eskirgan `expectedRev` → `conflict` |
 | `startProductionOrderAction(id)` | | production.manage | `{ order }` |
-| `completeProductionOrderAction(id, input)` | `{ producedQty, scrapQty?, materials?, labor? }` | production.manage | `{ order, outputProductId, createdOutput }` |
+| `completeProductionOrderAction(id, input)` | `{ producedQty, scrapQty?, materials?, labor?, expectedRev? }` | production.manage | `{ order, outputProductId, createdOutput }` |
 | `cancelProductionOrderAction(id, { reason? })` | | production.manage | `{ order }` |
 | `logPieceworkAction(input)` | `{ workerId?, productionOrderId?, operation, qty, rate?, workDate?, note?, clientId? }` | piecework.log (+approve boshqaga) | `{ entry, existing }` |
-| `editPieceworkAction({ id, qty?, rate?, operation? })` | rate — faqat approve | piecework.log\|approve | `{ entry }` |
+| `editPieceworkAction({ id, qty?, rate?, operation? })` | rate — faqat approve; aktli yozuvda operatsiya o'zgarsa narx texkartadan; qty — birlik qoidasi | piecework.log\|approve | `{ entry }` |
 | `approvePieceworkAction({ ids })` / `rejectPieceworkAction({ ids, reason? })` | ≤500 | piecework.approve | `{ updated, skipped }` |
 | `payPieceworkAction({ workerId, ids?, from?, to?, branchId?, clientId? })` | | piecework.approve | `{ payoutId, workerId, workerName, count, amount, cashFlowId, existing }` |
 
@@ -360,7 +396,7 @@ Hammasi object argument oladi (FormData emas), zod bilan tekshiradi, natija `Act
 | `cancelReceiptAction(id)` | faqat qoralama | receipt.create | `{ receipt }` |
 | `savePurchaseOrderAction(id \| null, input)` | `{ supplierId, branchId?, expectedAt?, note?, clientId?, lines: [{ productId, qty, unit?, price? }] }` | po.manage | `{ po, existing }` |
 | `sendPurchaseOrderAction(id)` / `cancelPurchaseOrderAction(id)` | | po.manage | `{ po }` |
-| `receiveFromPurchaseOrderAction(id, { clientId? })` | qolgan qatorlardan kirim qoralamasi | receipt.create | `{ receipt, existing }` |
+| `receiveFromPurchaseOrderAction(id, { clientId? })` | qolgan qatorlardan kirim qoralamasi; ochiq qoralama bo'lsa — o'sha (`existing: true`) | receipt.create | `{ receipt, existing }` |
 | `setStockSettingsAction({ productId, minStock?, purchaseUnit?, purchaseFactor? })` | `null` — olib tashlash | product.edit | `{ product: ProductOption, updatedCopies }` |
 
 Server komponentda o'qish: `const ctx = await productionCtxFromSession()` (`lib/production/session.ts`), so'ng
@@ -370,25 +406,26 @@ Server komponentda o'qish: `const ctx = await productionCtxFromSession()` (`lib/
 
 ## 9. Web JSON API (sessiya cookie, faqat GET, `Cache-Control: no-store`)
 
-Umumiy parametrlar: `branchId`, `status`, `from`, `to` (ISO yoki YYYY-MM-DD; `to` — kun oxirigacha), `q`, `page`, `limit`.
+Umumiy parametrlar: `branchId`, `status`, `from`, `to` (YYYY-MM-DD — Toshkent kuni, `to` — shu kun oxirigacha; yoki to'liq
+ISO lahza — §6.16), `q`, `page`, `limit`.
 
 | Yo'l | Huquq (+ modul) | Javob |
 |---|---|---|
 | `GET /api/production/meta` | istalgan (production\|purchasing\|piecework yoqiq) | `ProductionMeta` |
-| `GET /api/production/products?branchId=&q=&limit=` | products.view\|recipe.manage\|production.manage\|receipt.create\|po.manage | `{ branchId, items: ProductOption[] }` |
+| `GET /api/production/products?branchId=&q=&limit=` · `?ids=a,b,c` (≤50, doiradagi istalgan filial, `ids` tartibida) | products.view\|recipe.manage\|production.manage\|receipt.create\|po.manage | `{ branchId, items: ProductOption[] }` |
 | `GET /api/production/low-stock?branchId=` | products.view\|receipt.create\|po.manage | `{ items: (ProductOption & { branchId, shortage })[] }` |
 | `GET /api/production/recipes?active=1\|0\|all&q=` | production.view\|recipe.manage\|production.manage | `{ items: RecipeView[], total, page, limit }` |
 | `GET /api/production/recipes/:id?branchId=` | shu | `{ recipe: RecipeView (versions bilan), cost: RecipeCostEstimate\|null }` |
 | `GET /api/production/recipes/:id/requirements?qty=&branchId=` | shu | `Requirements` |
-| `GET /api/production/orders?status=active\|draft\|in_progress\|done\|cancelled&recipeId=` | production.view\|production.manage | `{ items: OrderSummary[], … }` |
+| `GET /api/production/orders?status=active\|draft\|in_progress\|done\|cancelled&recipeId=&sort=due&due=overdue` | production.view\|production.manage | `{ items: OrderSummary[], total, page, limit, overdue }` — `sort=due`: yaqin muddat birinchi, muddatsizlar oxirida |
 | `GET /api/production/orders/:id` | shu | `{ order: OrderView }` |
-| `GET /api/production/receipts?status=&supplierId=&purchaseOrderId=` | receipt.create\|po.manage\|suppliers.view | `{ items: ReceiptSummary[], … }` (`{ id, docNo, status, supplierName, branchName, purchaseOrderNo, supplierInvoiceNo, lines, total\|null, createdBy, createdAt, postedAt }`) |
+| `GET /api/production/receipts?status=&supplierId=&purchaseOrderId=` | receipt.create\|po.manage\|suppliers.view\|production.view (`RECEIPT_READ_PERMS`; web layout va mobil plitka ham shu) | `{ items: ReceiptSummary[], … }` (`{ id, docNo, status, supplierName, branchName, purchaseOrderNo, supplierInvoiceNo, lines, total\|null, createdBy, createdAt, postedAt }`) |
 | `GET /api/production/receipts/:id` · `?print=1` | shu | `{ receipt: ReceiptView }` · `ReceiptPrint` |
 | `GET /api/production/purchase-orders?status=open\|…&supplierId=` | po.manage\|receipt.create\|suppliers.view | `{ items: PoSummary[], … }` (`{ id, docNo, status, supplierName, branchName, lines, total\|null, expectedAt, createdAt, open }`) |
 | `GET /api/production/purchase-orders/:id` | shu | `{ po: PoView }` |
 | `GET /api/production/piecework?status=&workerId=&productionOrderId=&from=&to=&mine=1` | piecework.log\|approve | `{ items: PieceworkView[], total, page, limit, sums }` |
 | `GET /api/production/piecework/summary?from=&to=&workerId=` | shu | `{ from, to, workers: WorkerSummary[], totals }` (standart — joriy oy, ≤366 kun) |
-| `GET /api/production/workers` | piecework.approve | `{ workers: [{ id, username, name, branchId }] }` |
+| `GET /api/production/workers` | piecework.approve → `{ workers: [{ id, username, name, branchId }] }`; yoki production.manage → `{ workers: [{ id, name }] }` (akt ish haqi qatorida ishchi tanlash) | |
 
 ---
 
@@ -398,12 +435,14 @@ Umumiy parametrlar: `branchId`, `status`, `from`, `to` (ISO yoki YYYY-MM-DD; `to
 |---|---|---|---|
 | `/api/mobile/production/piecework` | GET | `?status=&from=&to=&page=&mine=1` | `{ items, total, page, limit, sums }` (ishchi — o'ziniki) |
 | `/api/mobile/production/piecework?summary=1` | GET | `&from=&to=` | `{ from, to, workers, totals }` |
-| `/api/mobile/production/piecework` | POST | `{ productionOrderId?, operation, qty, rate?, workDate?, note?, clientId }` | 201 `{ entry, existing: false }` · takror 200 `{ entry, existing: true }` |
+| `/api/mobile/production/piecework` | POST | `{ productionOrderId?, operation, qty, rate?, workDate?, note?, clientId }` | 201 `{ entry, existing: false }` · takror 200 `{ entry, existing: true }` · dona/juft aktda kasr — 400 `badQty` |
+| `/api/mobile/production/piecework` | PATCH | `{ id, qty?, operation? }` — **o'z** «yozildi» yozuvi | 200 `{ entry }` · narx yuborilsa 403 · boshqaning yozuvi 404 · tasdiqlangan 409 |
 | `/api/mobile/production/orders` | GET | `?status=active` (standart) `&q=` | `{ items: OrderSummary[] }` — `operations[{ name, rate }]` ishchi tanlovi uchun |
-| `/api/mobile/production/receipts` | GET | `?status=&supplierId=&from=&to=&q=` | `{ items: ReceiptSummary[], … }` |
+| `/api/mobile/production/receipts` | GET | `?status=&supplierId=&from=&to=&q=` | `{ items: ReceiptSummary[], … }` (`RECEIPT_READ_PERMS`, `production.view` ham) |
 | `/api/mobile/production/receipts/:id` | GET | | `{ receipt: ReceiptView }` |
 
-Oflayn: ishbay yozuviga qurilmada `clientId` (UUID) bering — takroriy yuborish xavfsiz. `GET /api/mobile/me` →
+Oflayn: ishbay yozuviga qurilmada `clientId` (UUID) bering — takroriy yuborish xavfsiz. Mobil «Ishbay» ekranida o'z
+«yozildi» yozuvini bosib miqdorni tuzatish mumkin (PATCH). `GET /api/mobile/me` →
 `features.production|purchasing|piecework` va `permissions` (yangi kalitlar bilan). Mobil kirim yaratish/post — hozir yo'q (web).
 
 ---
@@ -450,7 +489,10 @@ Boshqa lug'atlarga qo'shildi: `d.catalog.features.{production,purchasing,piecewo
 3. Narx/tannarx `null` — «yashirin» (`d.production.receipts.priceHidden`), 0 emas. Narxsiz qator — `priced: false`.
 4. Miqdor kiritish: `lib/qty.ts` (`qtyStep`, `parseQty`) — list/rulon/m³/t kasr, juft butun. Texkarta normasi (`items.qty`)
    istalgan birlikda kasr bo'lishi mumkin (partiya uchun).
-5. «Bajarildi» oynasi: `producedQty` (+ `scrapQty`), haqiqiy sarf jadvali (reja/haqiqiy/farq). `outOfStock` → `details.shortages`
+5. Akt sahifasi: reja + saqlanmagan sarf/ish haqi — bitta `updateProductionOrderAction` (`expectedRev` bilan), `conflict`
+   → xabar + `router.refresh()`. Ish haqi qatorida ishchi tanlovi (`listWorkers`, id/ism). Muddat va mijoz buyurtmasi —
+   alohida maydonlar (izohga yozilmaydi); ro'yxatda muddat, «muddati o'tgan» belgisi, `?sort=due`, `?due=overdue`.
+   «Bajarildi» oynasi: `producedQty` (+ `scrapQty`), haqiqiy sarf jadvali (reja/haqiqiy/farq). `outOfStock` → `details.shortages`
    ro'yxatini ko'rsating va «Kirim qilish» havolasini bering. Muvaffaqiyatda `createdOutput: true` — «tayyor mahsulot omborida yangi kartochka ochildi».
 6. Kirim akti formasi: yetkazib beruvchi (ixtiyoriy), ombor, nakladnoy raqami/sanasi, qatorlar, «Hozir to'landi» (faqat `can.setPayment`).
    Saqlash — qoralama; «Kirim qilish» alohida tugma (`postReceiptAction`). Chop etish — `GET …/receipts/:id?print=1`.
@@ -462,12 +504,12 @@ Boshqa lug'atlarga qo'shildi: `d.catalog.features.{production,purchasing,piecewo
 10. Hisobdan chiqarish formasiga `offcut` sababini qo'shish mumkin (server qabul qiladi; `production_scrap` — faqat avtomatik).
 11. Super admin formasi tayyor (sex profili select). Ro'yxatdan o'tish formasiga 5 savol (TAKLIF §2.3) — keyingi ish;
     backend `industryProfile` ni qabul qiladi.
-12. Mobil ilova (`mobile/`) o'zgartirilmadi: `mobile/lib/qty.ts` dagi `FRACTIONAL` ro'yxatida yangi kasr birliklar (list, rulon, m3, t)
-    yo'q — mobilda bu birlikdagi kasr miqdor rad etiladi (server qabul qiladi); birlik nomlari mobil lug'atida yo'q. OTA tuzatish kerak.
+12. Mobil ilova: ishbay (yozish, o'z yozuvini tuzatish — PATCH), kirim aktlari (ko'rish). `mobile/lib/qty.ts` dagi kasr
+    birliklar ro'yxatini server bilan solishtirib turing.
 
 ---
 
-## 14. Tekshiruv
+## 14. Tekshiruv va demo sex
 
 - `npx vitest run` — `tests/productionLogic.test.ts` (birlik konvertatsiyasi, ehtiyoj/yo'qotish, tannarx, o'rtacha narx, holatlar,
   ishbay jamlamasi, preset, huquq versiyasi va meros, rollar, menyu, zod, xabar matni).
@@ -475,7 +517,15 @@ Boshqa lug'atlarga qo'shildi: `d.catalog.features.{production,purchasing,piecewo
   barqaror kod, versiya), ehtiyoj, akt (idempotent), haqiqiy sarf, «bajarildi» (sarf, boshqa omborda yangi tayyor mahsulot,
   tannarx 4640, brak hujjati), ikkinchi partiya (o'rtacha tannarx), yetishmovchilik (hech narsa yozilmaydi), parallel «bajarildi»,
   filial doirasi, kirim (qop → kg, o'rtacha narx, qarz + to'lov), omborchi narxsiz kirim, boshqa omborga kirim (nusxa), PO qisman/to'liq,
-  ishbay (narx texkartadan, idempotent, tasdiq, to'lov → CashFlow «Ish haqi»), minimal qoldiq, xarid birligi nusxalarga, modul o'chiq.
+  ishbay (narx texkartadan, idempotent, tasdiq, to'lov → CashFlow «Ish haqi»), minimal qoldiq, xarid birligi nusxalarga, modul o'chiq;
+  2-bosqich: muddat/mijoz/overdue/saralash, reja o'zgarganda id va qo'lda sarf saqlanishi + `expectedRev`, PO tahriri id'lari va
+  ochiq qoralama takrorlanmasligi, ishbay birligi va `ownOnly` tuzatish, Toshkent kuni (00:30 hujjat), texkarta `productId`,
+  ishchilar (production.manage), `productOptions({ ids })`, `toBranches`, `expiringFilter`.
+- **Demo sex (faqat lokal dev):** `npm run seed:sex` (`scripts/seed-demo-sex.mjs`, `ts-hooks.mjs` bilan; production'da va localhost
+  bo'lmagan `MONGO_URI` da rad etadi; idempotent). Do'kon `demo-sex` (manufacturing, profil bakery, Pro), omborlar «Xom ashyo» /
+  «Tayyor mahsulot», loginlar `ds_admin`, `ds_boshliq`, `ds_usta`, `ds_omborchi`, `ds_hisobchi` (parol — skriptda yoki
+  `SEED_SEX_PASSWORD`), 1 yetkazib beruvchi, 8 xom ashyo (qop/quti xarid birligi, minimal qoldiq, sut/sariyog' — muddat bilan),
+  2 tayyor mahsulot, 2 texkarta, `expiryWarnDays = 7`. Kirish: `http://localhost:3000/t/demo-sex/login`.
 
 ---
 
