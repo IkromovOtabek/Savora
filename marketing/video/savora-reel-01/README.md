@@ -6,7 +6,7 @@
 
 ## Ssenariy
 
-| Vaqt | Sahna | Ekranda | Ovoz (uz-UZ-SardorNeural) |
+| Vaqt | Sahna | Ekranda | Ovoz (UzbekVoice «jasur») |
 | --- | --- | --- | --- |
 | 0.0–3.5 | HOOK: «Siz → Do'kon 12 km» yo'li, so'zlar zarbasi, zoom-through | Do'koningizdan uzoqdasiz. / Hozir u yerda nima bo'lyapti? | 0.30, 1.85 |
 | 3.5–7.0 | OG'RIQ: 3 savol (slam / snap / aylanib), qizil fon, bir nuqtaga yig'ilish | Kassada qancha pul? · Kim qarzga oldi? · Qaysi tovar tugadi? | 3.55, 4.65, 5.75 |
@@ -22,10 +22,12 @@
 
 ## Qayta yig'ish
 ```bash
-# ovoz: vo/ ichida edge-tts (uz-UZ-SardorNeural, +10%), sukut kesiladi, adelay bilan joylanadi
+# ovoz (2026-11-18 dan): UzbekVoice.ai «jasur» — kalit marketing/video/.env (UZBEKVOICE_API_KEY)
+# ../.venv/bin/python ../src/tts_uzbekvoice.py savora-reel-01/vo/lines.txt --voice jasur  (repo: marketing/video dan)
+# uzun jumlalar voice_slots.json dagi joyga atempo (≤1.16x) bilan sig'dirilgan; eski variant — edge-tts uz-UZ-SardorNeural
 ../.venv/bin/python ../src/music01.py assets/audio/music.wav
 # mix.wav = vo (sidechain ducking) + music, loudnorm −14 LUFS (buyruq: sessiya tarixida, ../src/build.sh uslubida)
 npx --yes hyperframes@0.8.185 check
 npx --yes hyperframes@0.8.185 render -o renders/savora-reel-01.mp4 --fps 30 --quality delivery
 ```
-Shriftlar: Onest, Unbounded — SIL OFL 1.1. Musiqa — original protsedural sintez. Ovoz — Microsoft Edge TTS (tijoriy foydalanish shartlarini tekshiring; ishonchli variant — Azure Speech yoki jonli diktor).
+Shriftlar: Onest, Unbounded — SIL OFL 1.1. Musiqa — original protsedural sintez. Ovoz — UzbekVoice.ai «jasur» (pullik API, 500 so'm/1000 belgi). Instagram'da AI belgisi bilan joylanadi.
