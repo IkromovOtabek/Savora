@@ -673,6 +673,44 @@ export const uz = {
       badSupplier: 'Yetkazib beruvchi topilmadi.',
     },
   },
+
+  /** Mahsulot formasidagi «Ombor sozlamalari» (xarid birligi, minimal qoldiq, barqaror kod) — docs/SEX_API.md */
+  stockSettings: {
+    title: 'Ombor sozlamalari',
+    hint: "Xarid birligi kirim va buyurtmada ishlatiladi; qoldiq minimaldan kam bo'lsa — ogohlantirish.",
+    itemCode: 'Barqaror kod',
+    itemCodeHint: "Barcha filiallarda bir xil: texkarta, kirim va buyurtmalar tovarni shu kod bilan topadi.",
+    purchaseUnit: 'Xarid birligi',
+    purchaseUnitNone: "Yo'q — asosiy birlikda",
+    /** {unit} — xarid birligi, {base} — asosiy birlik */
+    factorLabel: '1 {unit} = necha {base}',
+    factorPh: 'Masalan: 50',
+    factorRequired: "Koeffitsientni kiriting: 1 dan farqli musbat son (ko'pi bilan 3 xona).",
+    /** {unit} — asosiy birlik */
+    minStockUnit: 'Minimal qoldiq ({unit})',
+    minStockPh: "Yo'q",
+    minStockHint: "Qoldiq shundan kam bo'lsa — ombor sahifasida «Minimal qoldiqdan kam» ro'yxatida ko'rinadi.",
+    minStockHintDaily: "Qoldiq shundan kam bo'lsa — omborda ogohlantirish va har kuni kechqurun Telegram/push xabar.",
+    minStockInvalid: "Minimal qoldiq noto'g'ri.",
+    copiesHint: 'Xarid birligi shu kodli boshqa filial nusxalariga ham yoziladi.',
+    createHint: "Xarid birligi va minimal qoldiqni mahsulot saqlangach, uning kartochkasida sozlang.",
+  },
+
+  /** Ombor sahifasidagi «Minimal qoldiqdan kam» bloki */
+  minStockAlert: {
+    label: 'Minimal qoldiqdan kam tovarlar',
+    /** {n} — tovarlar soni */
+    title: '{n} ta tovar minimal qoldiqdan kam',
+    /** {qty} — qoldiq, {min} — minimal */
+    item: '{qty} / min {min}',
+    /** {n} — ko'rsatilmaganlar */
+    more: '+{n} ta',
+    show: "Hammasini ko'rsatish",
+    filterOn: "Faqat minimal qoldiqdan kam tovarlar ko'rsatilmoqda.",
+    all: 'Barcha tovarlar',
+    receipt: 'Kirim qilish',
+    order: 'Buyurtma berish',
+  },
 };
 
 export const ru: typeof uz = {
@@ -1278,5 +1316,36 @@ export const ru: typeof uz = {
       failed: 'Ошибка сохранения. Попробуйте ещё раз.',
       badSupplier: 'Поставщик не найден.',
     },
+  },
+
+  stockSettings: {
+    title: 'Настройки склада',
+    hint: 'Единица закупки используется в приходе и заказах; при остатке ниже минимума — предупреждение.',
+    itemCode: 'Постоянный код',
+    itemCodeHint: 'Одинаков во всех филиалах: техкарты, приходы и заказы находят товар по этому коду.',
+    purchaseUnit: 'Единица закупки',
+    purchaseUnitNone: 'Нет — в основной единице',
+    factorLabel: 'В 1 {unit} — сколько {base}',
+    factorPh: 'Например: 50',
+    factorRequired: 'Укажите коэффициент: положительное число, отличное от 1 (не более 3 знаков).',
+    minStockUnit: 'Минимальный остаток ({unit})',
+    minStockPh: 'Нет',
+    minStockHint: 'Если остаток ниже — товар появится в списке «Ниже минимального остатка» на странице склада.',
+    minStockHintDaily: 'Если остаток ниже — предупреждение на складе и ежедневное вечернее сообщение в Telegram/push.',
+    minStockInvalid: 'Неверный минимальный остаток.',
+    copiesHint: 'Единица закупки запишется и в копии этого товара в других филиалах.',
+    createHint: 'Единицу закупки и минимальный остаток настройте в карточке товара после сохранения.',
+  },
+
+  minStockAlert: {
+    label: 'Товары ниже минимального остатка',
+    title: 'Ниже минимального остатка: {n}',
+    item: '{qty} / мин. {min}',
+    more: '+{n}',
+    show: 'Показать все',
+    filterOn: 'Показаны только товары ниже минимального остатка.',
+    all: 'Все товары',
+    receipt: 'Оприходовать',
+    order: 'Заказать',
   },
 };

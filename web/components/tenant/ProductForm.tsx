@@ -22,10 +22,13 @@ import { fmtQty, isFractionalUnit, parseQty, priceTimesQty } from '@/lib/qty';
 import { PRODUCT_UNITS, type ProductFieldKey, type ProductFieldSpec, type ProductUnit } from '@/lib/businessTypes';
 import { flattenCategories, LEGACY_CATEGORY_VALUE, type CategoryItem } from '@/lib/productCatalog';
 import ExtraFieldsEditor from '@/components/tenant/ExtraFieldsEditor';
+import StockSettingsFields, { type StockSettingsHandle, type StockSettingsInitial } from '@/components/production/purchase/StockSettingsFields';
 
 interface BranchOption { id: string; name: string }
 
 export type LocationStatus = 'warehouse' | 'sold';
+
+type ProductFormState = Awaited<ReturnType<typeof updateProductAction>>;
 
 /** Forma bo'limlari — yuqoridagi "qadam" navigatsiyasi uchun (nomlar — d.stock.form.sections) */
 const FORM_SECTIONS = [
@@ -95,6 +98,11 @@ interface Props {
   };
   /** Do'kondagi mavjud qo'shimcha ustun nomlari — taklif uchun */
   extraNames?: string[];
+  /**
+   * «Ombor sozlamalari» (minimal qoldiq, xarid birligi, barqaror kod) — sanaladigan tovar uchun. Tahrirda maydonlar,
+   * yaratishda — izoh. `purchasing` — xarid birligi maydoni (production yoki purchasing moduli yoqiq).
+   */
+  stockSettings?: StockSettingsInitial & { purchasing: boolean };
 }
 
 export default function ProductForm({
@@ -116,12 +124,22 @@ export default function ProductForm({
   bundleCandidates = [],
   initial,
   extraNames = [],
+  stockSettings,
 }: Props) {
   const d = useDict();
   const t = d.stock.form;
   // Yangi mahsulotda kelish narxi kiritiladi (kirim hujjati), tahrirda esa huquqsiz yashiriladi
   const showCost = canViewCost || mode === 'create';
-  const action = mode === 'create' ? createProductAction : updateProductAction;
+  // Tahrirda: mahsulot saqlangach «Ombor sozlamalari» (o'zgargan bo'lsa) alohida action bilan saqlanadi
+  const stockRef = useRef<StockSettingsHandle>(null);
+  const action = mode === 'create'
+    ? createProductAction
+    : async (prev: ProductFormState, fd: FormData): Promise<ProductFormState> => {
+        const r = await updateProductAction(prev, fd);
+        if (r?.error || !stockRef.current) return r;
+        const st = await stockRef.current.save();
+        return st && !st.ok ? { error: st.error } : r;
+      };
   const [state, formAction, isPending] = useActionState(action, null);
   useToastOnState(state);
 
@@ -544,6 +562,22 @@ export default function ProductForm({
                       </span>
                     )}
                   </div>
+                )}
+
+                {/* Ombor sozlamalari: minimal qoldiq, xarid birligi («1 qop = 50 kg»), barqaror kod */}
+                {stockSettings && trackQuantity && (
+                  isCreate || !initial ? (
+                    stockSettings.purchasing && <p className="field-hint">{d.stock.stockSettings.createHint}</p>
+                  ) : (
+                    <StockSettingsFields
+                      ref={stockRef}
+                      productId={initial.id}
+                      baseUnit={unit}
+                      initial={stockSettings}
+                      purchasing={stockSettings.purchasing}
+                      disabled={isPending}
+                    />
+                  )
                 )}
 
                 {mode === 'edit' && (

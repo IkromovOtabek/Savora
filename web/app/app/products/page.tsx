@@ -21,6 +21,8 @@ import MoreMenu from '@/components/ui/MoreMenu';
 import { getDict } from '@/lib/i18n/server';
 import { tr } from '@/lib/i18n/fmt';
 import { loadExtraFieldNames } from '@/lib/productFields';
+import { lowStockFilter } from '@/lib/production/catalog';
+import LowStockBlock from '@/components/production/purchase/LowStockBlock';
 
 export async function generateMetadata() {
   const d = await getDict();
@@ -42,7 +44,7 @@ function fmtDate(d?: Date | string | null) {
 export default async function ProductsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; branch?: string; status?: string; cat?: string; brand?: string; page?: string; ps?: string; created?: string; deleted?: string; imei?: string }>;
+  searchParams: Promise<{ q?: string; branch?: string; status?: string; cat?: string; brand?: string; page?: string; ps?: string; created?: string; deleted?: string; imei?: string; low?: string }>;
 }) {
   const sp = await searchParams;
   await requirePermission('products.view');
@@ -99,6 +101,9 @@ export default async function ProductsPage({
   // «IMEI kiriting» — Excel'dan IMEI'siz qo'shilgan telefonlar
   const imeiFilter = showImei && sp.imei === 'pending';
   if (imeiFilter) filter.imeiPending = true;
+  // «Minimal qoldiqdan kam» (?low=1): minStock o'rnatilgan va qoldig'i undan kam — tugagan (sotilgan) tovarlar ham
+  const lowFilter = sp.low === '1';
+  if (lowFilter) Object.assign(filter, lowStockFilter());
   // Filial login — faqat o'z filiali mahsulotlari (admin tanlovini ham bekor qiladi)
   Object.assign(filter, branchFilter(user));
 
@@ -107,11 +112,14 @@ export default async function ProductsPage({
   const PAGE_SIZE: number = (PAGE_SIZES as readonly number[]).includes(psNum) ? psNum : DEFAULT_PAGE_SIZE;
   const skip = (page - 1) * PAGE_SIZE;
 
-  const [products, total, imeiPendingCount] = await Promise.all([
+  const lowBase = { ...lowStockFilter(), ...branchFilter(user) };
+  const [products, total, imeiPendingCount, lowCount, lowTop] = await Promise.all([
     Product.find(filter).sort({ createdAt: -1 }).skip(skip).limit(PAGE_SIZE).lean(),
     Product.countDocuments(filter),
     // Bildirishnoma: ombordagi IMEI'siz tovarlar (hammasiga IMEI kiritilgach yo'qoladi)
     showImei ? Product.countDocuments({ imeiPending: true, status: { $ne: 'sold' }, ...branchFilter(user) }) : 0,
+    Product.countDocuments(lowBase),
+    Product.find(lowBase).select('name unit quantity soldQuantity status minStock trackQuantity kind').sort({ name: 1 }).limit(6).lean(),
   ]);
 
   const totalPages = Math.ceil(total / PAGE_SIZE);
@@ -131,6 +139,7 @@ export default async function ProductsPage({
     if (activeCat) params.set('cat', activeCat);
     if (activeBrand) params.set('brand', activeBrand);
     if (imeiFilter) params.set('imei', 'pending');
+    if (lowFilter) params.set('low', '1');
     if (p > 1) params.set('page', String(p));
     if (ps !== DEFAULT_PAGE_SIZE) params.set('ps', String(ps));
     const s = params.toString();
@@ -145,6 +154,7 @@ export default async function ProductsPage({
     if (activeCat) params.set('cat', activeCat);
     if (activeBrand) params.set('brand', activeBrand);
     if (imeiFilter) params.set('imei', 'pending');
+    if (lowFilter) params.set('low', '1');
     if (status) params.set('status', status);
     if (PAGE_SIZE !== DEFAULT_PAGE_SIZE) params.set('ps', String(PAGE_SIZE));
     const s = params.toString();
@@ -166,7 +176,7 @@ export default async function ProductsPage({
   const scoped = isBranchScoped(user);
   const canCreate = perms.has('product.create');
   const canExport = !!features.export && perms.has('export.data');
-  const hasFilter = !!(q || activeStatus || sp.branch || activeCat || activeBrand || imeiFilter);
+  const hasFilter = !!(q || activeStatus || sp.branch || activeCat || activeBrand || imeiFilter || lowFilter);
   const canBulk = perms.has('stock.adjust') || perms.has('stock.writeOff');
   const toggleCols: { key: ToggleCol; label: string }[] = [
     ...(scoped ? [] : [{ key: 'branch' as const, label: d.common.branch }]),
@@ -212,6 +222,16 @@ export default async function ProductsPage({
 
       {sp?.created === '1' && <div className="auth-alert auth-alert--info st-alert" role="status">{t.created}</div>}
       {sp?.deleted === '1' && <div className="auth-alert auth-alert--info st-alert" role="status">{t.deleted}</div>}
+      <LowStockBlock
+        d={d}
+        count={lowCount}
+        items={lowTop.map((p) => ({ id: String(p._id), name: p.name, unit: p.unit ?? null, available: p.status === 'in_stock' ? getStockQty(p) : 0, minStock: p.minStock ?? 0 }))}
+        active={lowFilter}
+        showHref="/app/products?low=1"
+        allHref="/app/products"
+        canReceive={!!features.purchasing && perms.has('receipt.create')}
+        canOrder={!!features.purchasing && perms.has('po.manage')}
+      />
       {imeiPendingCount > 0 && (
         <div className="auth-alert auth-alert--warn st-alert st-imei-alert" role="status">
           <Icon name="alert" size={16} />
@@ -322,7 +342,7 @@ export default async function ProductsPage({
               const noImei = showImei && !!p.imeiPending;
               const secCode = noImei ? '' : showImei ? p.imei || '' : p.barcode && p.barcode !== code ? p.barcode : '';
               const qtyCls = p.trackQuantity
-                ? avail === 0 ? ' st-qty--zero' : avail <= LOW_STOCK ? ' st-qty--low' : ''
+                ? avail === 0 ? ' st-qty--zero' : (p.minStock ? avail < p.minStock : avail <= LOW_STOCK) ? ' st-qty--low' : ''
                 : '';
               // Xizmat/to'plam — qoldiq o'rniga turi ko'rsatiladi
               const qtyPill = p.kind === 'service' || p.kind === 'bundle' ? (

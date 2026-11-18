@@ -1,0 +1,38 @@
+/* ==========================================================================
+   Mahsulot formasidagi «Ombor sozlamalari» va ombordagi «Minimal qoldiqdan kam» bloki · Prefiks: ss-
+   ========================================================================== */
+
+.ss-box { display: grid; gap: 12px; padding: 14px; border-radius: 16px; background: var(--fill-2); }
+.ss-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 12px; }
+.ss-head > span:first-child { display: inline-flex; align-items: center; gap: 6px; font-size: 14px; font-weight: 700; color: var(--ink-1); }
+.ss-code { font-size: 12.5px; color: var(--ink-3); }
+.ss-code code { font-family: var(--font-mono); font-weight: 700; color: var(--ink-2); background: var(--fill); padding: 2px 6px; border-radius: 6px; }
+.ss-box .auth-field input, .ss-box .auth-field select { background: var(--surface); }
+.ss-pu { display: flex; gap: 8px; }
+.ss-pu select { flex: 1 1 auto; min-width: 0; }
+.ss-pu input { flex: 0 0 110px; text-align: right; font-variant-numeric: tabular-nums; }
+.ss-box input[aria-invalid="true"] { border-color: var(--danger); box-shadow: 0 0 0 3px var(--danger-soft); }
+
+/* Ombor sahifasi: minimal qoldiqdan kam tovarlar */
+.ss-alert {
+  display: grid; gap: 10px; margin-bottom: 12px; padding: 12px 14px; border-radius: 18px;
+  background: var(--warn-soft); color: var(--warn);
+}
+.ss-alert-top { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+.ss-alert-top > b { flex: 1 1 220px; display: inline-flex; align-items: center; gap: 8px; font-size: 15px; }
+.ss-alert-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.ss-alert-actions .btn { min-height: 36px; }
+.ss-alert-items { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; }
+.ss-alert-items a, .ss-alert-items span.ss-more {
+  display: inline-flex; align-items: center; gap: 6px; min-height: 32px; padding: 0 12px; border-radius: var(--r-pill);
+  background: var(--surface); color: var(--ink-1); font-size: 13.5px; text-decoration: none; box-shadow: var(--shadow-sm);
+}
+.ss-alert-items a:hover { background: var(--fill-2); }
+.ss-alert-items small { color: var(--danger); font-weight: 700; font-variant-numeric: tabular-nums; }
+.ss-alert-items span.ss-more { color: var(--ink-3); box-shadow: none; background: transparent; }
+
+@media (max-width: 700px) {
+  .ss-pu input { flex-basis: 90px; }
+  .ss-alert-actions { width: 100%; }
+  .ss-alert-actions .btn { flex: 1 1 auto; }
+}

@@ -321,6 +321,14 @@ export default async function ProductDetailPage({
             extraFields: (product.extraFields ?? []).map((e) => ({ name: e.name, value: e.value })),
           }}
           extraNames={extraNames}
+          // Ombor sozlamalari (setStockSettingsAction): minimal qoldiq — hamma uchun, xarid birligi — sex/xarid moduli bilan
+          stockSettings={kind === 'goods' ? {
+            itemCode: product.itemCode ?? null,
+            purchaseUnit: product.purchaseUnit ?? null,
+            purchaseFactor: product.purchaseFactor ?? null,
+            minStock: product.minStock ?? null,
+            purchasing: !!(features.production || features.purchasing),
+          } : undefined}
         />
         <aside className="st-detail-aside">
           <ProductHistory history={product.history ?? []} />

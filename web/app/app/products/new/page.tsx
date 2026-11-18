@@ -55,6 +55,8 @@ export default async function NewProductPage() {
       brands={brands.map((b) => ({ id: String(b._id), name: b.name }))}
       bundleCandidates={bundleCandidates}
       extraNames={extraNames}
+      // Xarid birligi / minimal qoldiq — saqlangach kartochkada (yaratishda izoh)
+      stockSettings={{ itemCode: null, purchaseUnit: null, purchaseFactor: null, minStock: null, purchasing: !!(features.production || features.purchasing) }}
     />
   );
 }
