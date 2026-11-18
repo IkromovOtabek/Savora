@@ -102,6 +102,10 @@ export default function ProductNew() {
   const [supplier, setSupplier] = useState<NamedItem | null>(null);
   const [category, setCategory] = useState<CategoryChoice | null>(null);
   const [notes, setNotes] = useState('');
+  // Soliq: MXIK (IKPU, 17 raqam) va markirovka belgisi (faqat tovar)
+  const [ikpu, setIkpu] = useState('');
+  const [marked, setMarked] = useState(false);
+  const [markedNote, setMarkedNote] = useState(false);
   // Yo'nalishga xos maydonlar (kafolat, muddat…) — turkum va birlik alohida tanlov ekranlarida
   const fields: ProductFieldSpec[] = (me?.productFields ?? []).filter((x) => x.key !== 'category' && x.key !== 'unit');
   const [extra, setExtra] = useState<Partial<Record<ProductFieldKey, string>>>({});
@@ -141,7 +145,7 @@ export default function ProductNew() {
   // Yopishda (tugma yoki pastga surish) — kiritilgan ma'lumot bo'lsa tasdiq so'raladi
   const navigation = useNavigation();
   const allowLeave = useRef(false);
-  const dirty = !!(name.trim() || buy || sell || qty || photoUrl || notes.trim() || brand || supplier || category || hasVariants || bundle.length || Object.values(extra).some(Boolean));
+  const dirty = !!(name.trim() || buy || sell || qty || photoUrl || notes.trim() || brand || supplier || category || hasVariants || bundle.length || ikpu || marked || Object.values(extra).some(Boolean));
   const dirtyRef = useRef(dirty);
   dirtyRef.current = dirty;
   useEffect(() => navigation.addListener('beforeRemove', (e) => {
@@ -167,7 +171,15 @@ export default function ProductNew() {
       if (target === 'main') setBarcode(bc);
       else setVariants((vs) => vs.map((v) => (v.key === target ? { ...v, barcode: bc } : v)));
     }
-  }, []));
+    // DataMatrix (markirovka kodi) skanerlangan — tovar markirovkali
+    if (takeChoice('markingScan') && kind === 'goods') setMarked(true);
+    // MXIK katalogidan tanlandi; katalogda markirovkali bo'lsa — belgisi ham yoqiladi
+    const mx = takeChoice('mxik');
+    if (mx) {
+      setIkpu(mx.code);
+      if (mx.marked && kind === 'goods') { setMarked(true); setMarkedNote(true); }
+    }
+  }, [kind]));
 
   const buyN = Number(digits(buy)) || 0;
   const sellN = Number(digits(sell)) || 0;
@@ -233,6 +245,10 @@ export default function ProductNew() {
     ? Math.min(...bundle.map((x) => Math.floor(x.available / (parseQty(x.qty, x.unit) as number))))
     : 0;
   const imeiOk = (v: string) => v.replace(/\s/g, '').length >= 10;
+  // MXIK: bo'sh yoki aynan 17 raqam (web lib/mxik.ts bilan bir xil)
+  const ikpuClean = ikpu.replace(/\s/g, '');
+  const ikpuBad = ikpuClean !== '' && !/^\d{17}$/.test(ikpuClean);
+  const ikpuErr = touched && ikpuBad ? f.mxikInvalid : null;
   const articleErr = touched && hasImei && !hasVariants && !imeiOk(article) ? d.productNew.imeiRequired : null;
 
   function variantError(v: Variant): string | null {
@@ -255,7 +271,7 @@ export default function ProductNew() {
     setTouched(true);
     const variantsOk = !hasVariants || (variants.length > 0 && variants.every((v) => !variantError(v)));
     const bundleOk = kind !== 'bundle' || (bundle.length > 0 && !bundle.some(bundleBad));
-    if (!name.trim() || (!hasVariants && !freePrice && !sellN) || (!hasVariants && qtyBad(qty)) || (hasImei && !hasVariants && !imeiOk(article)) || !variantsOk || !bundleOk || fields.some((x) => fieldError(x))) {
+    if (!name.trim() || (!hasVariants && !freePrice && !sellN) || (!hasVariants && qtyBad(qty)) || (hasImei && !hasVariants && !imeiOk(article)) || !variantsOk || !bundleOk || ikpuBad || fields.some((x) => fieldError(x))) {
       if (hasVariants && !variants.length) Alert.alert(d.common.error, f.variantsRequired);
       return;
     }
@@ -280,6 +296,8 @@ export default function ProductNew() {
           supplierId: canSupplier ? supplier?.id ?? '' : '',
           categoryId: category?.id ?? '',
           notes: notes.trim(),
+          ikpu: ikpuClean,
+          marked: kind === 'goods' && marked,
           ...Object.fromEntries(fields.map((x) => [x.key, (extra[x.key] ?? '').trim()])),
           ...(hasVariants ? {
             variants: variants.map((v) => ({
@@ -570,6 +588,29 @@ export default function ProductNew() {
           );
         })}
         <Field value={notes} onChangeText={setNotes} placeholder={f.description} multiline maxLength={500} style={{ minHeight: 80, textAlignVertical: 'top' }} />
+      </FormCard>
+
+      {/* Soliq: MXIK (katalogdan yoki qo'lda) va markirovka belgisi — fiskal chek emas (web docs/SOLIQ.md) */}
+      <FormCard title={f.tax}>
+        <Field
+          label={f.mxik}
+          value={ikpu}
+          onChangeText={(v) => setIkpu(v.replace(/[^\d\s]/g, '').slice(0, 24))}
+          placeholder={f.mxikPlaceholder}
+          keyboardType="numeric"
+          error={ikpuErr}
+          hint={f.mxikHint}
+        />
+        <InlineAction title={f.mxikSearch} onPress={() => router.push(`/mxik-pick?q=${encodeURIComponent(name.trim() || barcode.trim())}`)} />
+        {kind === 'goods' ? (
+          <View style={st.switchRow}>
+            <View style={{ flex: 1 }}>
+              <Text style={[st.switchT, { color: c.ink }]}>{f.marked}</Text>
+              <Text style={[st.hint, { color: markedNote ? c.tint : c.ink3 }]}>{markedNote ? f.markedFromCatalog : f.markedHint}</Text>
+            </View>
+            <Switch value={marked} onValueChange={(v) => { setMarked(v); setMarkedNote(false); }} />
+          </View>
+        ) : null}
       </FormCard>
     </Screen>
   );

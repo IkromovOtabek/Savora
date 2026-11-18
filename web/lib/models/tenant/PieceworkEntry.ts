@@ -1,4 +1,5 @@
 import { Schema, Types } from 'mongoose';
+import { PRODUCT_UNITS, type ProductUnit } from '../../businessTypes';
 
 /**
  * Ishbay yozuvi — docs/SEX_API.md. Ishchi (User) bajargan ishni yozadi → boshliq tasdiqlaydi (yoki rad etadi) →
@@ -18,6 +19,11 @@ export interface IPieceworkEntry {
   productionOrderNo?: string;
   operation: string;
   qty: number;
+  /**
+   * Miqdor birligi — aktga bog'langan yozuvda texkarta tayyor mahsuloti birligi (operatsiya narxi 1 shu birlikka):
+   * dona/juft — butun, kg/m/list… — kasr. Aktsiz (qo'lda) yozuvda yo'q — kasr ruxsat.
+   */
+  unit?: ProductUnit;
   /** 1 birlik narxi (so'm): aktdagi texkarta operatsiyasidan yoki qo'lda */
   rate: number;
   /** qty × rate (butun so'm) */
@@ -51,6 +57,7 @@ export const pieceworkEntrySchema = new Schema<IPieceworkEntry>(
     productionOrderNo: { type: String, trim: true },
     operation: { type: String, required: true, trim: true, maxlength: 80 },
     qty: { type: Number, required: true, min: 0.001 },
+    unit: { type: String, enum: PRODUCT_UNITS },
     rate: { type: Number, required: true, min: 0 },
     amount: { type: Number, required: true, min: 0 },
     status: { type: String, enum: PIECEWORK_STATUSES, default: 'logged' },

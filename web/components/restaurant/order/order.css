@@ -378,6 +378,11 @@
 .rt-item[data-status="served"] .rt-item-qty, .rt-item[data-status="served"] .rt-item-name b { color: var(--ink-2); }
 .rt-item-quick { flex: none; min-height: 44px; padding-inline: 14px; }
 .rt-item-quick2 { flex: none; display: inline-flex; align-items: center; gap: 6px; }
+/* QR taomi (tasdiqlanmagan): tor panelda (~1024px ekranda 340–420px) «rad / tasdiqlash» tugmalari nomni siqib
+   qo'ymasin — joy yetmasa ikkinchi qatorga, o'ngga o'tadi */
+.rt-item[data-status="pending"] .rt-item-row { flex-wrap: wrap; row-gap: 0; }
+.rt-item[data-status="pending"] .rt-item-main { flex: 1 1 260px; }
+.rt-item[data-status="pending"] .rt-item-quick2 { margin-left: auto; padding-bottom: 8px; }
 .rt-item-quick2 .u-icon-btn { width: 40px; height: 40px; }
 .rt-item-quick2 .btn-sm { min-height: 40px; }
 .rt-item-more { padding: 4px 4px 12px 44px; display: grid; gap: 10px; }

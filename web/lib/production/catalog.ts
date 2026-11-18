@@ -7,6 +7,7 @@ import type { ProductUnit } from '../businessTypes';
 import { PRODUCT_UNITS } from '../businessTypes';
 import { branchFilter } from '../branchScope';
 import { QTY_DECIMALS, roundQty } from '../qty';
+import { tashkentDayKey } from '../period';
 import { isBelowMin, isValidFactor } from './calc';
 import { codeOf, codeFilter, GOODS_ONLY, RECEIVABLE_STATUSES } from './stock';
 import { audit, branchesFor, oid, resolveOwnBranch, searchRegex } from './common';
@@ -45,13 +46,24 @@ const toOption = (p: ProductDoc, prices: boolean): ProductOption => ({
 /**
  * Tanlash ro'yxati (texkarta, akt, kirim, xarid qatorlari): shu ombordagi sanaladigan tovarlar (tugaganlari ham —
  * kirim uchun). Qidiruv: nom, kod, shtrix-kod. Ko'pi bilan 50.
+ * `ids` berilsa — aynan shu tovarlar (foydalanuvchi doirasida, istalgan filial; «Kam qolgan» blokidan kirim/xarid
+ * formasini oldindan to'ldirish uchun), `branchId`/`q` e'tiborsiz; tartib — `ids` tartibida.
  */
-export async function productOptions(ctx: ProductionCtx, q: { branchId?: string; q?: string; limit?: number } = {}): Promise<OpResult<{ branchId: string; items: ProductOption[] }>> {
+export async function productOptions(ctx: ProductionCtx, q: { branchId?: string; q?: string; limit?: number; ids?: string[] } = {}): Promise<OpResult<{ branchId: string; items: ProductOption[] }>> {
   const denied = needAnyPerm(ctx, ['products.view', 'recipe.manage', 'production.manage', 'receipt.create', 'po.manage']);
   if (denied) return denied;
   if (!ctx.features.production && !ctx.features.purchasing) return fail(ctx.d, 'moduleOff', { label: ctx.d.catalog.features.production.label });
-  const b = await resolveOwnBranch(ctx, q.branchId);
+  const b = await resolveOwnBranch(ctx, q.ids?.length ? undefined : q.branchId);
   if (!b.ok) return b;
+  if (q.ids?.length) {
+    const ids = q.ids.filter(validId).slice(0, 50);
+    const list = await ctx.m.Product.find({
+      _id: { $in: ids.map(oid) }, ...branchFilter(ctx.user), ...GOODS_ONLY, trackQuantity: true, systemKey: { $exists: false },
+    }).lean<ProductDoc[]>();
+    const byId = new Map(list.map((p) => [String(p._id), p]));
+    const prices = canViewPrices(ctx) || canViewProdCost(ctx);
+    return ok({ branchId: b.data, items: ids.map((id) => byId.get(id)).filter((p): p is ProductDoc => !!p).map((p) => toOption(p, prices)) });
+  }
   const filter: Record<string, unknown> = {
     branchId: oid(b.data), ...GOODS_ONLY, trackQuantity: true, status: { $in: RECEIVABLE_STATUSES }, systemKey: { $exists: false },
   };
@@ -77,6 +89,29 @@ export async function lowStockList(ctx: ProductionCtx, q: { branchId?: string } 
       return { ...o, branchId: String(p.branchId), shortage: Math.max(0, roundQty((p.minStock ?? 0) - o.available)) };
     }).filter((x) => isBelowMin(x.available, x.minStock)),
   });
+}
+
+/**
+ * Muddati yaqinlashgan (yoki o'tgan) tovarlar (DB filtri): omborda qoldig'i bor, `expiryDate` ≤ bugun + `days`
+ * (Toshkent kuni; muddat kalendar kuni sifatida UTC yarim tunda saqlanadi). `days` — ShopSettings.stock.expiryWarnDays.
+ */
+export function expiringFilter(days: number, now = new Date()): Record<string, unknown> {
+  const limit = new Date(`${tashkentDayKey(now)}T00:00:00.000Z`);
+  limit.setUTCDate(limit.getUTCDate() + Math.max(0, Math.round(days)));
+  return {
+    ...GOODS_ONLY,
+    trackQuantity: true,
+    status: 'in_stock',
+    expiryDate: { $type: 'date', $lte: limit },
+    $expr: { $gt: [{ $round: [{ $subtract: ['$quantity', { $ifNull: ['$soldQuantity', 0] }] }, QTY_DECIMALS] }, 0] },
+  };
+}
+
+/** Muddat kuni (UTC yarim tun) bugungi Toshkent kunidan necha kun keyin (manfiy — o'tgan) */
+export function daysUntil(expiry: Date | string, now = new Date()): number {
+  const today = Date.parse(`${tashkentDayKey(now)}T00:00:00.000Z`);
+  const day = Date.parse(`${new Date(expiry).toISOString().slice(0, 10)}T00:00:00.000Z`);
+  return Math.round((day - today) / 86_400_000);
 }
 
 /** Minimal qoldiqdan kam (DB filtri): sanaladigan tovar, minStock > 0, qoldiq < minStock */
@@ -154,7 +189,13 @@ export async function setStockSettings(ctx: ProductionCtx, input: StockSettingsI
 
 export interface ProductionMeta {
   features: { production: boolean; purchasing: boolean; piecework: boolean };
+  /** Foydalanuvchi ish ombori(lar)i: admin — hammasi, filial xodimi — faqat o'zi (xom ashyo, kirim, xarid) */
   branches: { id: string; name: string; isMain: boolean }[];
+  /**
+   * Tayyor mahsulot ombori tanlovi — BARCHA faol omborlar (filial xodimi ham tanlaydi: «filialga berish» kabi;
+   * backend `createOrder` → `resolveAnyBranch` bilan bir xil qoida)
+   */
+  toBranches: { id: string; name: string; isMain: boolean }[];
   /** Admin uchun standart (asosiy ombor), filial xodimi — o'z filiali */
   defaultBranchId: string;
   units: readonly ProductUnit[];
@@ -171,9 +212,14 @@ export async function productionMeta(ctx: ProductionCtx): Promise<OpResult<Produ
   const b = await resolveOwnBranch(ctx);
   if (!b.ok) return b;
   const has = (k: Parameters<ProductionCtx['perms']['has']>[0]) => ctx.perms.has(k);
+  const [branches, all] = await Promise.all([
+    branchesFor(ctx),
+    ctx.m.Branch.find({ active: true }).select('name isMain').sort({ isMain: -1, createdAt: 1 }).lean(),
+  ]);
   return ok({
     features: { production: f.production, purchasing: f.purchasing, piecework: f.piecework },
-    branches: await branchesFor(ctx),
+    branches,
+    toBranches: all.map((x) => ({ id: String(x._id), name: x.name, isMain: !!x.isMain })),
     defaultBranchId: b.data,
     units: PRODUCT_UNITS,
     can: {

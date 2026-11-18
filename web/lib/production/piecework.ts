@@ -13,7 +13,9 @@ import { randomUUID } from 'node:crypto';
 import type { Types } from 'mongoose';
 import type { PieceworkEntryDoc, PieceworkStatus } from '../models/tenant/PieceworkEntry';
 import type { ProductionOrderDoc } from '../models/tenant/ProductionOrder';
-import { roundQty } from '../qty';
+import type { ProductUnit } from '../businessTypes';
+import { isValidQty, roundQty } from '../qty';
+import { tashkentDayKey, tashkentDayStart } from '../period';
 import { isDupKey } from '../posSync';
 import { logError } from '../logger';
 import { tr } from '../i18n/fmt';
@@ -34,6 +36,8 @@ export interface PieceworkView {
   productionOrderNo: string | null;
   operation: string;
   qty: number;
+  /** Miqdor birligi (aktdagi tayyor mahsulot birligi); aktsiz yozuvda — null (kasr ruxsat) */
+  unit: ProductUnit | null;
   rate: number;
   amount: number;
   status: PieceworkStatus;
@@ -65,6 +69,7 @@ function entryView(ctx: ProductionCtx, e: PieceworkEntryDoc): PieceworkView {
     productionOrderNo: e.productionOrderNo ?? null,
     operation: e.operation,
     qty: e.qty,
+    unit: e.unit ?? null,
     rate: e.rate,
     amount: e.amount,
     status: e.status,
@@ -128,22 +133,25 @@ export async function logPiecework(ctx: ProductionCtx, input: LogInput): Promise
   let order: ProductionOrderDoc | null = null;
   let rate = input.rate;
   let operation = input.operation.trim();
+  let unit: ProductUnit | undefined;
   if (input.productionOrderId) {
     const b = scoped(ctx) ? oid(ctx.user.branchId!) : null;
     order = await ctx.m.ProductionOrder.findOne({
       _id: input.productionOrderId, status: { $ne: 'cancelled' },
       ...(b ? { $or: [{ fromBranchId: b }, { toBranchId: b }] } : {}),
     })
-      .select('docNo recipeSnapshot.operations labor fromBranchId').lean<ProductionOrderDoc>();
+      .select('docNo recipeSnapshot.operations recipeSnapshot.unit labor fromBranchId').lean<ProductionOrderDoc>();
     if (!order) return fail(ctx.d, 'orderNotFound');
-    const op = order.recipeSnapshot.operations.find((o) => o.name.toLowerCase() === operation.toLowerCase())
-      ?? order.labor?.find((l) => l.operation.toLowerCase() === operation.toLowerCase());
+    const op = findOperation(order, operation);
     if (op) {
       rate = op.rate;
-      operation = 'name' in op ? op.name : op.operation;
+      operation = op.name;
     }
+    unit = order.recipeSnapshot.unit ?? 'dona';
   }
   if (rate === undefined) return fail(ctx.d, 'rateRequired');
+  // Kasr qoidasi: aktdagi tayyor mahsulot birligi bo'yicha (dona — butun); aktsiz yozuvda — kasr ruxsat
+  if (unit && !isValidQty(input.qty, unit)) return fail(ctx.d, 'badQty', { name: operation });
 
   const doc = {
     workerId: oid(workerId),
@@ -152,6 +160,7 @@ export async function logPiecework(ctx: ProductionCtx, input: LogInput): Promise
     ...(order ? { productionOrderId: order._id, productionOrderNo: order.docNo } : {}),
     operation,
     qty: roundQty(input.qty),
+    ...(unit ? { unit } : {}),
     rate,
     amount: lineAmount(rate, input.qty),
     status: 'logged' as const,
@@ -174,21 +183,50 @@ export async function logPiecework(ctx: ProductionCtx, input: LogInput): Promise
   }
 }
 
-/** Yozuvni tuzatish (faqat «yozildi» holatida): ishchi — o'zinikini (narxsiz), tasdiqlovchi — narx ham */
-export async function editPiecework(ctx: ProductionCtx, input: { id: string; qty?: number; rate?: number; operation?: string }): Promise<OpResult<{ entry: PieceworkView }>> {
+/** Akt texkartasi (yoki qo'lda ish haqi) operatsiyasi — nomi katta-kichik harfsiz mos */
+function findOperation(order: Pick<ProductionOrderDoc, 'recipeSnapshot' | 'labor'>, name: string): { name: string; rate: number } | null {
+  const key = name.trim().toLowerCase();
+  const r = order.recipeSnapshot.operations.find((o) => o.name.toLowerCase() === key);
+  if (r) return { name: r.name, rate: r.rate };
+  const l = order.labor?.find((x) => x.operation.toLowerCase() === key);
+  return l ? { name: l.operation, rate: l.rate } : null;
+}
+
+/**
+ * Yozuvni tuzatish (faqat «yozildi» holatida): ishchi — o'zinikini (miqdor, operatsiya; narxsiz), tasdiqlovchi — narx
+ * ham. Aktga bog'langan yozuvda operatsiya o'zgarsa narx yana texkartadan olinadi (ishchi narxni chetlab o'tolmaydi).
+ * `ownOnly` — faqat o'z yozuvi (mobil ilova: tasdiqlovchi ham bu yo'l bilan boshqaning yozuvini o'zgartirmaydi).
+ */
+export async function editPiecework(ctx: ProductionCtx, input: { id: string; qty?: number; rate?: number; operation?: string }, opts: { ownOnly?: boolean } = {}): Promise<OpResult<{ entry: PieceworkView }>> {
   const denied = guard(ctx, 'piecework', ['piecework.log', 'piecework.approve']);
   if (denied) return denied;
   if (!validId(input.id)) return fail(ctx.d, 'entryNotFound');
-  const e = await ctx.m.PieceworkEntry.findOne({ _id: input.id, ...entryScope(ctx) }).lean<PieceworkEntryDoc>();
+  const e = await ctx.m.PieceworkEntry.findOne({ _id: input.id, ...entryScope(ctx), ...(opts.ownOnly ? { workerId: oid(ctx.user.id) } : {}) }).lean<PieceworkEntryDoc>();
   if (!e) return fail(ctx.d, 'entryNotFound');
   if (!pieceworkAllows(e.status, 'edit')) return fail(ctx.d, 'badTransition');
-  const appr = approver(ctx);
+  const appr = approver(ctx) && !opts.ownOnly;
   // Aktga bog'langan yozuv narxi — texkartadan; ishchi narxni o'zgartira olmaydi
   if (input.rate !== undefined && !appr) return fail(ctx.d, 'noPermission', { label: ctx.d.catalog.permissions['piecework.approve'].label });
   const qty = input.qty !== undefined ? roundQty(input.qty) : e.qty;
-  const rate = input.rate !== undefined ? input.rate : e.rate;
+  if (input.qty !== undefined && e.unit && !isValidQty(qty, e.unit)) return fail(ctx.d, 'badQty', { name: e.operation });
+  let rate = input.rate !== undefined ? input.rate : e.rate;
+  let operation: string | undefined;
+  const nextOp = input.operation?.trim();
+  if (nextOp && nextOp.toLowerCase() !== e.operation.toLowerCase()) {
+    operation = nextOp;
+    if (e.productionOrderId) {
+      const order = await ctx.m.ProductionOrder.findById(e.productionOrderId).select('recipeSnapshot.operations labor').lean<ProductionOrderDoc>();
+      const op = order ? findOperation(order, nextOp) : null;
+      if (op) {
+        operation = op.name;
+        if (input.rate === undefined || !appr) rate = op.rate;
+      } else if (!appr) {
+        return fail(ctx.d, 'rateRequired');
+      }
+    }
+  }
   const set: Record<string, unknown> = { qty, rate, amount: lineAmount(rate, qty) };
-  if (input.operation) set.operation = input.operation;
+  if (operation) set.operation = operation;
   const saved = await ctx.m.PieceworkEntry.findOneAndUpdate({ _id: e._id, status: 'logged' }, { $set: set }, { new: true }).lean<PieceworkEntryDoc>();
   if (!saved) return fail(ctx.d, 'conflict');
   await audit(ctx, 'production', 'piecework.edit', input.id, `Ishbay tuzatildi: ${e.workerName} — ${saved.operation} × ${qty} = ${fmtMoney(saved.amount)} so'm`, { before: { qty: e.qty, rate: e.rate } });
@@ -353,7 +391,8 @@ export async function pieceworkSummary(
   const denied = guard(ctx, 'piecework', ['piecework.log', 'piecework.approve']);
   if (denied) return denied;
   const now = new Date();
-  const from = q.from ?? new Date(now.getFullYear(), now.getMonth(), 1);
+  // Standart davr — joriy oy (Toshkent vaqti bo'yicha)
+  const from = q.from ?? tashkentDayStart(`${tashkentDayKey(now).slice(0, 7)}-01`);
   let to = q.to ?? now;
   if (to.getTime() - from.getTime() > L.maxPeriodDays * 86_400_000) to = new Date(from.getTime() + L.maxPeriodDays * 86_400_000);
   const filter: Record<string, unknown> = { ...entryScope(ctx), workDate: dateRange(from, to) };
@@ -363,12 +402,31 @@ export async function pieceworkSummary(
   return ok({ from: from.toISOString(), to: to.toISOString(), ...s });
 }
 
-/** Ishchilar ro'yxati (tanlash uchun): faol foydalanuvchilar; filial xodimiga — o'z filiali */
-export async function listWorkers(ctx: ProductionCtx): Promise<OpResult<{ workers: { id: string; username: string; name: string; branchId: string | null }[] }>> {
-  const denied = guard(ctx, 'piecework', 'piecework.approve');
-  if (denied) return denied;
+export interface WorkerOption {
+  id: string;
+  name: string;
+  /** Faqat `piecework.approve` bilan (ishbay sahifasi); akt ish haqi tanlovida (`production.manage`) — berilmaydi */
+  username?: string;
+  branchId?: string | null;
+}
+
+/**
+ * Ishchilar ro'yxati (tanlash uchun): faol foydalanuvchilar; filial xodimiga — o'z filiali.
+ * Huquq: `piecework.approve` (ishbay moduli) — to'liq; yoki `production.manage` (ishlab chiqarish moduli) — akt ish
+ * haqi qatorida ishchi tanlash uchun faqat id va ism.
+ */
+export async function listWorkers(ctx: ProductionCtx): Promise<OpResult<{ workers: WorkerOption[] }>> {
+  const full = ctx.features.piecework && ctx.perms.has('piecework.approve');
+  if (!full) {
+    const denied = guard(ctx, 'production', 'production.manage');
+    if (denied) return denied;
+  }
   const filter: Record<string, unknown> = { active: true };
   if (scoped(ctx)) filter.branchId = oid(ctx.user.branchId!);
   const users = await ctx.m.User.find(filter).select('username fullName branchId role').sort({ username: 1 }).limit(500).lean();
-  return ok({ workers: users.map((u) => ({ id: String(u._id), username: u.username, name: u.fullName || u.username, branchId: u.branchId ? String(u.branchId) : null })) });
+  return ok({
+    workers: users.map((u) => (full
+      ? { id: String(u._id), username: u.username, name: u.fullName || u.username, branchId: u.branchId ? String(u.branchId) : null }
+      : { id: String(u._id), name: u.fullName || u.username })),
+  });
 }

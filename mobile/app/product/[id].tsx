@@ -18,6 +18,9 @@ interface Detail {
   purchasePrice: number; salePrice: number; profit: number; status: string; costHidden?: boolean;
   trackQuantity: boolean; quantity: number; soldQuantity: number; available: number; unit?: string | null;
   kind?: string;
+  /** MXIK (IKPU) va markirovka belgisi (eski server javobida yo'q bo'lishi mumkin) */
+  ikpu?: string | null;
+  marked?: boolean;
   bundleItems?: { productId: string; name: string; qty: number; unit: string | null }[];
   branch: string | null; notes: string | null; createdAt: string;
   history: { action: string; detail: string | null; by: string | null; at: string }[];
@@ -88,6 +91,8 @@ export default function ProductDetail() {
       <Group header={d.common.info}>
         <Cell title={terms?.codeLabel ?? d.productDetail.code} value={p.imei} valueMono={MONO} />
         {p.barcode ? <Cell title={d.productDetail.barcode} value={p.barcode} valueMono={MONO} /> : null}
+        {p.ikpu ? <Cell title={d.productDetail.mxik} value={p.ikpu} valueMono={MONO} /> : null}
+        {p.marked ? <Cell title={d.productDetail.marked} value={d.productDetail.markedYes} /> : null}
         {p.branch ? <Cell title={d.common.branch} value={p.branch} /> : null}
         {p.trackQuantity && !stockless ? <Cell title={d.common.remaining} value={tr(d.productDetail.remainingVal, { a: fmtQty(p.available), b: qtyWithUnit(p.quantity, p.unit, d.productFields.units) })} valueColor={p.available > 0 ? undefined : c.bad} /> : null}
         <Cell title={d.productDetail.added} value={fmtDate(p.createdAt)} />

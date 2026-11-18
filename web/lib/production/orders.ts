@@ -21,7 +21,8 @@ import { runWithCompensation } from '../compensate';
 import { isDupKey } from '../posSync';
 import { logError } from '../logger';
 import { tr } from '../i18n/fmt';
-import { computeProductionCost, lineAmount, planLabor, planMaterials, productionAllows, type ProductionOp } from './calc';
+import { tashkentDayKey } from '../period';
+import { computeProductionCost, isOrderOverdue, lineAmount, planLabor, planMaterials, productionAllows, type ProductionOp } from './calc';
 import { consumeStock, ensureItemCode, findStockDoc, GOODS_ONLY, receiveStock, unconsumeStock, codeFilter } from './stock';
 import { acquireLock, audit, branchNames, dateRange, oid, pageArgs, releaseLock, resolveAnyBranch, resolveOwnBranch, searchRegex } from './common';
 import { canViewProdCost, fail, guard, iso, ok, scoped, validId, type OpErr, type OpResult, type ProductionCtx } from './context';
@@ -54,6 +55,12 @@ export interface OrderView {
   cost: { materials: number; labor: number; overhead: number; total: number; unitCost: number; scrap: number } | null;
   outputProductId: string | null;
   scrapDocNo: string | null;
+  /** Topshirish muddati (YYYY-MM-DD) */
+  dueDate: string | null;
+  /** Ochiq va muddati (Toshkent kuni bo'yicha) o'tgan */
+  overdue: boolean;
+  /** Mijoz buyurtmasi */
+  customerRef: string | null;
   note: string | null;
   createdBy: string;
   createdAt: string | null;
@@ -69,6 +76,9 @@ export interface OrderView {
   /** UI tugmalari */
   can: { edit: boolean; start: boolean; complete: boolean; cancel: boolean; viewCost: boolean };
 }
+
+/** Kalendar kuni (UTC yarim tunda saqlangan) → YYYY-MM-DD */
+const dayOf = (d?: Date | null): string | null => (d ? new Date(d).toISOString().slice(0, 10) : null);
 
 function canModify(ctx: ProductionCtx, o: Pick<ProductionOrderDoc, 'fromBranchId'>): boolean {
   return !scoped(ctx) || String(o.fromBranchId) === ctx.user.branchId;
@@ -106,6 +116,9 @@ export function orderView(ctx: ProductionCtx, o: ProductionOrderDoc, names: Map<
       : null,
     outputProductId: o.outputProductId ? String(o.outputProductId) : null,
     scrapDocNo: o.scrapDocNo ?? null,
+    dueDate: dayOf(o.dueDate),
+    overdue: isOrderOverdue(o.status, o.dueDate, tashkentDayKey(new Date())),
+    customerRef: o.customerRef || null,
     note: o.note || null,
     createdBy: o.createdBy,
     createdAt: iso(o.createdAt),
@@ -216,6 +229,9 @@ export interface CreateOrderInput {
   plannedQty: number;
   fromBranchId?: string;
   toBranchId?: string;
+  /** Topshirish muddati (kalendar kuni, UTC yarim tun) */
+  dueDate?: Date | null;
+  customerRef?: string;
   note?: string;
   clientId?: string;
 }
@@ -256,6 +272,8 @@ export async function createOrder(ctx: ProductionCtx, input: CreateOrderInput): 
       toBranchId: oid(to.data),
       materials,
       labor,
+      ...(input.dueDate ? { dueDate: input.dueDate } : {}),
+      ...(input.customerRef ? { customerRef: input.customerRef } : {}),
       note: input.note || undefined,
       ...(input.clientId ? { clientId: input.clientId } : {}),
       createdBy: ctx.user.username,
@@ -276,14 +294,41 @@ export async function createOrder(ctx: ProductionCtx, input: CreateOrderInput): 
 export interface UpdateOrderInput {
   plannedQty?: number;
   note?: string;
+  /** null — olib tashlash */
+  dueDate?: Date | null;
+  customerRef?: string;
   materials?: MaterialEdit[];
   labor?: LaborEdit[];
+  /** Optimistik qulf: tahrir boshlangandagi `rev` (mos kelmasa — conflict) */
+  expectedRev?: number;
 }
 
 /**
- * Tahrir (draft/in_progress): reja miqdori o'zgarsa — texkarta qatorlari rejasi qayta hisoblanadi (haqiqiy = reja,
- * qo'shimcha qatorlar saqlanadi), ish haqi (qo'lda tahrirlanmagan bo'lsa) qayta hisoblanadi; so'ng `materials`
- * (haqiqiy sarf) va `labor` (to'liq ro'yxat — qo'lda) qo'llanadi. Optimistik qulf (`rev`).
+ * Reja o'zgarganda xom ashyo qatorlari: texkarta bo'yicha yangi reja, lekin mavjud qatorlarning `_id` si saqlanadi
+ * (UI dagi haqiqiy sarf tahriri id bilan bog'langan); haqiqiy sarf qo'lda tuzatilgan qator (haqiqiy ≠ eski reja) —
+ * o'sha qiymat qoladi, tuzatilmagani — yangi rejaga teng. Qo'shimcha (almashtirish) qatorlari o'zgarmaydi.
+ */
+function replanMaterials(old: readonly IProductionMaterial[], fresh: readonly IProductionMaterial[]): IProductionMaterial[] {
+  const byCode = new Map(old.filter((m) => !m.extra).map((m) => [m.code, m]));
+  const planned = fresh.map((f) => {
+    const prev = byCode.get(f.code);
+    if (!prev) return f;
+    const edited = roundQty(prev.actualQty) !== roundQty(prev.plannedQty);
+    return {
+      ...f,
+      ...(prev._id ? { _id: prev._id } : {}),
+      ...(edited ? { actualQty: prev.actualQty } : {}),
+      ...(!f.productId && prev.productId ? { productId: prev.productId } : {}),
+    };
+  });
+  return [...planned, ...old.filter((m) => m.extra)];
+}
+
+/**
+ * Tahrir (draft/in_progress): reja miqdori o'zgarsa — texkarta qatorlari rejasi qayta hisoblanadi (`replanMaterials`:
+ * qator id'lari va qo'lda tuzatilgan haqiqiy sarf saqlanadi), ish haqi (qo'lda tahrirlanmagan bo'lsa) qayta
+ * hisoblanadi; so'ng `materials` (haqiqiy sarf, id bo'yicha) va `labor` (to'liq ro'yxat — qo'lda) qo'llanadi.
+ * Optimistik qulf: `expectedRev` (UI yuboradi) va saqlashda `rev` sharti — boshqa birov o'zgartirgan bo'lsa `conflict`.
  */
 export async function updateOrder(ctx: ProductionCtx, id: string, input: UpdateOrderInput): Promise<OpResult<{ order: OrderView }>> {
   const denied = guard(ctx, 'production', 'production.manage');
@@ -294,13 +339,15 @@ export async function updateOrder(ctx: ProductionCtx, id: string, input: UpdateO
   const bad = statusGuard(ctx, o, 'edit');
   if (bad) return bad;
   if (o.postingAt) return fail(ctx.d, 'locked');
+  if (input.expectedRev !== undefined && input.expectedRev !== (o.rev ?? 0)) return fail(ctx.d, 'conflict');
 
   const set: Record<string, unknown> = {};
+  const unset: Record<string, 1> = {};
   let materials = o.materials;
   if (input.plannedQty !== undefined && input.plannedQty !== o.plannedQty) {
     if (!isValidQty(input.plannedQty, o.recipeSnapshot.unit)) return fail(ctx.d, 'badQty', { name: o.recipeSnapshot.outputName });
     const fresh = await buildPlannedMaterials(ctx, o.recipeSnapshot, input.plannedQty, String(o.fromBranchId));
-    materials = [...fresh, ...(o.materials ?? []).filter((m) => m.extra)];
+    materials = replanMaterials(o.materials ?? [], fresh);
     set.plannedQty = input.plannedQty;
     if (!o.laborManual && !input.labor) set.labor = planLabor(o.recipeSnapshot.operations, input.plannedQty);
   }
@@ -316,16 +363,31 @@ export async function updateOrder(ctx: ProductionCtx, id: string, input: UpdateO
     set.labor = labor.data;
     set.laborManual = true;
   }
-  if (input.note !== undefined) set.note = input.note || undefined;
-  if (!Object.keys(set).length) return ok({ order: await viewOf(ctx, o) });
+  if (input.note !== undefined) {
+    if (input.note) set.note = input.note;
+    else if (o.note) unset.note = 1;
+  }
+  if (input.dueDate !== undefined) {
+    const cur = dayOf(o.dueDate);
+    const next = dayOf(input.dueDate);
+    if (next !== cur) {
+      if (input.dueDate) set.dueDate = input.dueDate;
+      else unset.dueDate = 1;
+    }
+  }
+  if (input.customerRef !== undefined && input.customerRef !== (o.customerRef ?? '')) {
+    if (input.customerRef) set.customerRef = input.customerRef;
+    else unset.customerRef = 1;
+  }
+  if (!Object.keys(set).length && !Object.keys(unset).length) return ok({ order: await viewOf(ctx, o) });
 
   const saved = await ctx.m.ProductionOrder.findOneAndUpdate(
     { _id: o._id, rev: o.rev ?? 0, status: o.status, postingAt: { $exists: false } },
-    { $set: set, $inc: { rev: 1 } },
+    { ...(Object.keys(set).length ? { $set: set } : {}), ...(Object.keys(unset).length ? { $unset: unset } : {}), $inc: { rev: 1 } },
     { new: true },
   ).lean<ProductionOrderDoc>();
   if (!saved) return fail(ctx.d, 'conflict');
-  await audit(ctx, 'production', 'production.update', id, `Akt ${o.docNo} tahrirlandi`, { fields: Object.keys(set) });
+  await audit(ctx, 'production', 'production.update', id, `Akt ${o.docNo} tahrirlandi`, { fields: [...Object.keys(set), ...Object.keys(unset)] });
   return ok({ order: await viewOf(ctx, saved) });
 }
 
@@ -374,6 +436,8 @@ export interface CompleteOrderInput {
   scrapQty?: number;
   materials?: MaterialEdit[];
   labor?: LaborEdit[];
+  /** Optimistik qulf (ko'rilgan `rev`); berilsa va mos kelmasa — conflict (haqiqiy sarf tahriri eskirgan aktga tushmasin) */
+  expectedRev?: number;
 }
 
 export interface Shortage { productId: string | null; code: string; name: string; unit: ProductUnit | null; need: number; available: number }
@@ -390,6 +454,7 @@ export async function completeOrder(ctx: ProductionCtx, id: string, input: Compl
   const o = loaded.data;
   const bad = statusGuard(ctx, o, 'complete');
   if (bad) return bad;
+  if (input.expectedRev !== undefined && input.expectedRev !== (o.rev ?? 0)) return fail(ctx.d, o.postingAt ? 'locked' : 'conflict');
   const snap = o.recipeSnapshot;
   const produced = roundQty(input.producedQty);
   const scrap = roundQty(input.scrapQty ?? 0);
@@ -583,6 +648,11 @@ export interface OrderSummary {
   createdBy: string;
   createdAt: string | null;
   completedAt: string | null;
+  /** Topshirish muddati (YYYY-MM-DD), mijoz buyurtmasi, izoh */
+  dueDate: string | null;
+  overdue: boolean;
+  customerRef: string | null;
+  note: string | null;
   /** `production.viewCost` bo'lmasa — null */
   costTotal: number | null;
   unitCost: number | null;
@@ -590,15 +660,31 @@ export interface OrderSummary {
   operations: { name: string; rate: number }[];
 }
 
+const SUMMARY_FIELDS = 'docNo status recipeSnapshot plannedQty producedQty scrapQty fromBranchId toBranchId createdBy createdAt completedAt costTotal unitCost dueDate customerRef note';
+const ACTIVE = ['draft', 'in_progress'] as const;
+/** Muddatsiz aktlar «muddat bo'yicha» saralashda oxirida */
+const NO_DUE = new Date('9999-12-31T00:00:00.000Z');
+
+/**
+ * Aktlar ro'yxati. `sort: 'due'` — muddat bo'yicha (yaqini birinchi, muddatsizlar oxirida); `due: 'overdue'` — ochiq
+ * va muddati o'tganlar. Javobda `overdue` — doiradagi muddati o'tgan ochiq aktlar soni (filtrdan qat'i nazar).
+ */
 export async function listOrders(
   ctx: ProductionCtx,
-  q: { status?: string; branchId?: string; recipeId?: string; from?: Date; to?: Date; q?: string; page?: number; limit?: number } = {},
-): Promise<OpResult<{ items: OrderSummary[]; total: number; page: number; limit: number }>> {
+  q: { status?: string; branchId?: string; recipeId?: string; from?: Date; to?: Date; q?: string; page?: number; limit?: number; sort?: 'due'; due?: 'overdue' } = {},
+): Promise<OpResult<{ items: OrderSummary[]; total: number; page: number; limit: number; overdue: number }>> {
   const denied = guard(ctx, 'production', READ_PERMS);
   if (denied) return denied;
   const filter: Record<string, unknown> = { ...orderScope(ctx) };
-  if (q.status === 'active') filter.status = { $in: ['draft', 'in_progress'] };
+  if (q.status === 'active') filter.status = { $in: [...ACTIVE] };
   else if (q.status && ['draft', 'in_progress', 'done', 'cancelled'].includes(q.status)) filter.status = q.status;
+  const todayKey = tashkentDayKey(new Date());
+  const overdueCond = { status: { $in: [...ACTIVE] }, dueDate: { $lt: new Date(`${todayKey}T00:00:00.000Z`) } };
+  if (q.due === 'overdue') {
+    const cur = filter.status;
+    filter.status = typeof cur === 'string' ? ((ACTIVE as readonly string[]).includes(cur) ? cur : { $in: [] }) : overdueCond.status;
+    filter.dueDate = overdueCond.dueDate;
+  }
   if (q.branchId && validId(q.branchId)) filter.$and = [{ $or: [{ fromBranchId: oid(q.branchId) }, { toBranchId: oid(q.branchId) }] }];
   if (q.recipeId && validId(q.recipeId)) filter.recipeId = oid(q.recipeId);
   const range = dateRange(q.from, q.to);
@@ -606,11 +692,20 @@ export async function listOrders(
   const rx = searchRegex(q.q);
   if (rx) filter.$and = [...((filter.$and as unknown[]) ?? []), { $or: [{ docNo: rx }, { 'recipeSnapshot.outputName': rx }, { 'recipeSnapshot.name': rx }] }];
   const { skip, limit, page } = pageArgs(q);
-  const [list, total] = await Promise.all([
-    ctx.m.ProductionOrder.find(filter).sort({ createdAt: -1 }).skip(skip).limit(limit)
-      .select('docNo status recipeSnapshot plannedQty producedQty scrapQty fromBranchId toBranchId createdBy createdAt completedAt costTotal unitCost')
-      .lean<ProductionOrderDoc[]>(),
+  const project = Object.fromEntries(SUMMARY_FIELDS.split(' ').map((k) => [k, 1]));
+  const [list, total, overdue] = await Promise.all([
+    q.sort === 'due'
+      ? ctx.m.ProductionOrder.aggregate<ProductionOrderDoc>([
+          { $match: filter },
+          { $addFields: { dueSort: { $ifNull: ['$dueDate', NO_DUE] } } },
+          { $sort: { dueSort: 1, createdAt: -1 } },
+          { $skip: skip },
+          { $limit: limit },
+          { $project: project },
+        ])
+      : ctx.m.ProductionOrder.find(filter).sort({ createdAt: -1 }).skip(skip).limit(limit).select(SUMMARY_FIELDS).lean<ProductionOrderDoc[]>(),
     ctx.m.ProductionOrder.countDocuments(filter),
+    ctx.m.ProductionOrder.countDocuments({ ...orderScope(ctx), ...overdueCond }),
   ]);
   const names = await branchNames(ctx, list.flatMap((o) => [o.fromBranchId, o.toBranchId]));
   const showCost = canViewProdCost(ctx);
@@ -620,10 +715,11 @@ export async function listOrders(
       unit: o.recipeSnapshot.unit ?? null, plannedQty: o.plannedQty, producedQty: o.producedQty ?? null, scrapQty: o.scrapQty ?? null,
       fromBranchName: names.get(String(o.fromBranchId)) ?? null, toBranchName: names.get(String(o.toBranchId)) ?? null,
       createdBy: o.createdBy, createdAt: iso(o.createdAt), completedAt: iso(o.completedAt),
+      dueDate: dayOf(o.dueDate), overdue: isOrderOverdue(o.status, o.dueDate, todayKey), customerRef: o.customerRef || null, note: o.note || null,
       costTotal: showCost ? o.costTotal ?? null : null, unitCost: showCost ? o.unitCost ?? null : null,
       operations: (o.recipeSnapshot.operations ?? []).map((op) => ({ name: op.name, rate: op.rate ?? 0 })),
     })),
-    total, page, limit,
+    total, page, limit, overdue,
   });
 }
 

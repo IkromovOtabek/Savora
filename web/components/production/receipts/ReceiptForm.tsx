@@ -18,8 +18,8 @@ import ConfirmDialog from './ConfirmDialog';
 import DocLines from './DocLines';
 import LinePicker from './LinePicker';
 import {
-  fromDateInput, lineFromProduct, lineQtyOf, newClientId, sumAmounts, toDateInput,
-  type DocLine, type LineProduct,
+  fromDateInput, lineForShortage, lineFromProduct, lineQtyOf, newClientId, sumAmounts, toDateInput,
+  type DocLine, type LineProduct, type PrefillItem,
 } from './lines';
 
 export interface ReceiptFormProps {
@@ -38,6 +38,8 @@ export interface ReceiptFormProps {
   /** «Hozir to'landi» (suppliers.manage + product.viewCost) */
   canSetPayment: boolean;
   canPost: boolean;
+  /** Yangi aktda: «Kam qolgan» blokidan tanlangan tovarlar (yetmagan miqdor bilan) */
+  prefill?: PrefillItem[];
 }
 
 /**
@@ -55,6 +57,7 @@ export default function ReceiptForm({
   canViewPrices,
   canSetPayment,
   canPost,
+  prefill,
 }: ReceiptFormProps) {
   const d = useDict();
   const t = d.production.receipts;
@@ -70,7 +73,7 @@ export default function ReceiptForm({
   const [invoiceDate, setInvoiceDate] = useState(toDateInput(receipt?.invoiceDate));
   const [note, setNote] = useState(receipt?.note ?? '');
   const [paid, setPaid] = useState(receipt?.paidNow ? String(receipt.paidNow) : '');
-  const [lines, setLines] = useState<DocLine[]>(() => (receipt?.lines ?? []).map((l) => {
+  const [lines, setLines] = useState<DocLine[]>(() => (!receipt && prefill?.length ? prefill.map((x) => lineForShortage(x.product, x.shortage, { withPrice: canViewPrices })) : (receipt?.lines ?? []).map((l) => {
     const base = l.baseUnit ?? 'dona';
     const known = lineProducts[l.productId];
     const product: LineProduct = known ?? {
@@ -82,8 +85,8 @@ export default function ReceiptForm({
       key: l.id, product, qty: fmtQty(l.qty), unit: l.unit ?? base, price: l.price !== null ? String(l.price) : '',
       priced: l.priced, expiry: toDateInput(l.expiryDate), poLineId: l.poLineId,
     };
-  }));
-  const [dirty, setDirty] = useState(false);
+  })));
+  const [dirty, setDirty] = useState(!receipt && !!prefill?.length);
   const [showErrors, setShowErrors] = useState(false);
   const [confirm, setConfirm] = useState<'post' | null>(null);
   const [focusKey, setFocusKey] = useState<{ key: string; n: number; focus: boolean } | null>(null);

@@ -121,11 +121,20 @@ export async function savePo(ctx: ProductionCtx, id: string | null, input: PoInp
     return old?.price ?? undefined;
   });
   if (!prepared.ok) return prepared;
-  const lines: IPoLine[] = prepared.data.map((l) => ({
-    productId: l.productId, code: l.code, name: l.name, qty: l.qty, unit: l.unit, factor: l.factor, baseUnit: l.baseUnit,
-    ...(l.price !== undefined ? { price: l.price, amount: l.amount } : {}),
-    receivedQty: 0,
-  }));
+  // Tahrirda mavjud qatorlarning `_id` si saqlanadi (tovar + birlik bo'yicha): ochiq kirim qoralamasidagi `poLineId`
+  // bog'lanishi uzilmasin. Yangi qator — yangi id.
+  const reuse = new Map((cur?.lines ?? []).map((l) => [`${String(l.productId)}|${l.unit ?? ''}`, l]));
+  const lines: IPoLine[] = prepared.data.map((l) => {
+    const key = `${String(l.productId)}|${l.unit ?? ''}`;
+    const old = reuse.get(key);
+    if (old) reuse.delete(key);
+    return {
+      ...(old?._id ? { _id: old._id } : {}),
+      productId: l.productId, code: l.code, name: l.name, qty: l.qty, unit: l.unit, factor: l.factor, baseUnit: l.baseUnit,
+      ...(l.price !== undefined ? { price: l.price, amount: l.amount } : {}),
+      receivedQty: 0,
+    };
+  });
   const total = lines.reduce((s, l) => s + (l.amount ?? 0), 0);
   const fields = {
     supplierId: supplier._id, supplierName: supplier.name, branchId: oid(branch.data), lines, total,

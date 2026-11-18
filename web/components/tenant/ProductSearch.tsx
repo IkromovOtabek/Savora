@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import CameraScanButton from '@/components/ui/CameraScanButton';
 import Icon from '@/components/icons/Icon';
 import { useDict } from '@/lib/i18n/client';
+import { scanToBarcode } from '@/lib/gs1';
 
 interface Props {
   /** Bo'sh bo'lsa (filial login yoki bitta filial) — filial tanlovi ko'rsatilmaydi */
@@ -41,7 +42,9 @@ export default function ProductSearch({ branches, categories = [], brands = [], 
     go(String(fd.get('q') || ''), initial.branch, String(fd.get('status') || ''));
   }
 
-  function onScan(code: string) {
+  function onScan(raw: string) {
+    // DataMatrix (markirovka) — GTIN'dan mahsulot shtrix-kodi bo'yicha qidiriladi
+    const code = scanToBarcode(raw);
     if (qRef.current) qRef.current.value = code;
     // Skanerlangach darhol qidiramiz (filial/holat saqlanadi)
     go(code, initial.branch, initial.status);

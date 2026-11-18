@@ -114,6 +114,9 @@ export default async function ProductDetailPage({
         }
       : null,
     product.oemCode ? { key: 'oemCode', label: tf.labels.oemCode, value: product.oemCode } : null,
+    // Soliq: MXIK (IKPU) va markirovka belgisi
+    product.ikpu ? { key: 'ikpu', label: d.stock.mxik.label, value: product.ikpu } : null,
+    product.marked ? { key: 'marked', label: d.stock.marking.label, value: d.common.yes } : null,
     // Qo'shimcha ustunlar (Excel importi yoki qo'lda)
     ...(product.extraFields ?? []).map((e, i) => ({ key: `x${i}`, label: e.name, value: e.value })),
   ].filter((x): x is NonNullable<typeof x> => !!x);
@@ -319,6 +322,8 @@ export default async function ProductDetailPage({
               oemCode: product.oemCode ?? '',
             },
             extraFields: (product.extraFields ?? []).map((e) => ({ name: e.name, value: e.value })),
+            ikpu: product.ikpu ?? '',
+            marked: !!product.marked,
           }}
           extraNames={extraNames}
           // Ombor sozlamalari (setStockSettingsAction): minimal qoldiq — hamma uchun, xarid birligi — sex/xarid moduli bilan

@@ -154,6 +154,37 @@ export default function Piecework() {
     }
   }
 
+  /* ───── yozuvni tuzatish (o'z «yozildi» yozuvi, faqat miqdor; narx serverda) ───── */
+  const [editing, setEditing] = useState<PieceworkEntry | null>(null);
+  const [editText, setEditText] = useState('');
+  const editUnit = editing?.unit ?? (editing?.productionOrderId ? 'dona' : 'kg');
+  const editFrac = isFractionalUnit(editUnit);
+  const editQty = parseQty(editText, editUnit);
+  const editErr = editText.trim() && editQty === null ? (editFrac ? p.qtyInvalid : p.qtyInvalidInt) : null;
+  const canEdit = (e: PieceworkEntry) => e.status === 'logged' && (e.can?.edit ?? true);
+
+  function openEdit(e: PieceworkEntry) {
+    setEditing(e);
+    setEditText(fmtQty(e.qty));
+  }
+
+  async function saveEdit() {
+    if (!editing || editQty === null || busyRef.current) return;
+    if (editQty === editing.qty) { setEditing(null); return; }
+    setBusy(true);
+    try {
+      const res = await productionApi.edit({ id: editing.id, qty: editQty });
+      setFlash(tr(p.edited, { op: res.entry.operation, qty: fmtQty(res.entry.qty) }));
+      setEditing(null);
+      loadTop();
+      history.reloadSilently();
+    } catch (e) {
+      Alert.alert(d.common.error, isNetworkError(e) ? p.netError : errMsg(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
   // Muvaffaqiyat xabari bir necha soniyadan keyin yo'qoladi
   useEffect(() => {
     if (!flash) return;
@@ -187,6 +218,9 @@ export default function Piecework() {
         e.status === 'rejected' && e.rejectReason ? tr(p.rejectedReason, { reason: e.rejectReason }) : null,
       ].filter(Boolean).join('\n')}
       subtitleLines={2}
+      onPress={canEdit(e) ? () => openEdit(e) : undefined}
+      chevron={canEdit(e)}
+      accessibilityLabel={canEdit(e) ? `${e.operation} × ${fmtQty(e.qty)}. ${p.editTap}` : undefined}
       right={<AmountColumn amount={fmtMoney(e.amount)} color={e.status === 'rejected' ? c.ink3 : undefined}><Pill label={st[e.status]} tone={PIECEWORK_TONE[e.status]} /></AmountColumn>}
     />
   );
@@ -356,6 +390,51 @@ export default function Piecework() {
             ) : null}
           </>
         )}
+      </Sheet>
+
+      {/* Yozuvni tuzatish (faqat miqdor) */}
+      <Sheet
+        visible={!!editing}
+        onClose={() => { if (!busyRef.current) setEditing(null); }}
+        title={p.editTitle}
+        subtitle={editing ? [editing.operation, editing.productionOrderNo].filter(Boolean).join(' · ') : undefined}
+        footer={editing ? (
+          <Button
+            title={p.save}
+            value={editQty !== null ? fmtMoney(priceTimesQty(editing.rate, editQty), { suffix: true }) : undefined}
+            size="lg"
+            full
+            loading={busy}
+            disabled={editQty === null}
+            onPress={saveEdit}
+          />
+        ) : undefined}
+      >
+        {editing ? (
+          <>
+            <Text style={[s.err, { color: c.ink3 }]}>{p.editHint}</Text>
+            <View style={[s.qtyBox, { backgroundColor: c.fill2, borderColor: editErr ? c.bad : c.tint }]}>
+              <TextInput
+                value={editText}
+                onChangeText={(v) => setEditText(v.replace(editFrac ? /[^\d.,]/g : /\D/g, ''))}
+                keyboardType={editFrac ? 'decimal-pad' : 'number-pad'}
+                placeholder="0"
+                placeholderTextColor={c.ink3}
+                autoFocus
+                maxLength={10}
+                style={[s.qtyInput, tabular, { color: c.ink }]}
+                accessibilityLabel={d.common.qty}
+                returnKeyType="done"
+                onSubmitEditing={saveEdit}
+              />
+              <Text style={[s.qtyUnit, { color: c.ink3 }]}>{units[editUnit] ?? editUnit}</Text>
+            </View>
+            {editErr ? <Text style={[s.err, { color: c.bad }]}>{editErr}</Text> : null}
+            <View style={[s.amountRow, { borderColor: c.sep }]}>
+              <Text style={[s.amountL, { color: c.ink3 }]}>{tr(p.rateLine, { unit: units[editUnit] ?? editUnit, sum: fmtMoney(editing.rate, { suffix: true }) })}</Text>
+            </View>
+          </>
+        ) : null}
       </Sheet>
     </Screen>
   );

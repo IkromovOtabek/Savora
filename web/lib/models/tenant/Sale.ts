@@ -50,6 +50,8 @@ export interface IProductSnapshot {
   saleQuantity?: number;
   /** Sotuv paytidagi o'lchov birligi — kasr qaytarish va chekda "1,5 kg" uchun */
   unit?: ProductUnit;
+  /** Sotuv paytidagi MXIK (IKPU) — chekda; yo'q bo'lsa chek mahsulotning joriy MXIK'ini ko'rsatadi */
+  ikpu?: string;
 }
 
 export interface ICustomerSnapshot {
@@ -109,6 +111,13 @@ export interface ISale {
   orderId?: Types.ObjectId;
   /** Restoran: stol raqami (chek va hisobot uchun nusxa) */
   tableNumber?: number;
+  /**
+   * Markirovka kodlari (GS1 DataMatrix, kanonik ko'rinish — GS = \x1d, lib/gs1.ts) — har dona uchun bittadan.
+   * Fiskal uzatish keyingi bosqichda (virtual kassa); hozir chekda belgisi va takror sotuvni bloklash uchun.
+   */
+  markingCodes?: string[];
+  /** Takror tekshiruvi kalitlari: 01<GTIN>21<seriya> (markingCodes bilan bir tartibda) */
+  markingKeys?: string[];
   createdAt?: Date;
   updatedAt?: Date;
 }
@@ -125,6 +134,7 @@ export const saleSchema = new Schema<ISale>(
       purchasePrice: { type: Number, min: 0 },
       saleQuantity: { type: Number, min: 0.001, default: 1 },
       unit: { type: String, enum: PRODUCT_UNITS },
+      ikpu: { type: String, trim: true, maxlength: 30 },
     },
     customerId: { type: Schema.Types.ObjectId, ref: 'Customer' },
     customerSnapshot: {
@@ -190,6 +200,8 @@ export const saleSchema = new Schema<ISale>(
     syncedAt: { type: Date },
     orderId: { type: Schema.Types.ObjectId, ref: 'Order' },
     tableNumber: { type: Number },
+    markingCodes: { type: [{ type: String, maxlength: 200 }], default: undefined },
+    markingKeys: { type: [{ type: String, maxlength: 60 }], default: undefined },
   },
   { timestamps: true, collection: 'sales' }
 );
@@ -205,6 +217,8 @@ saleSchema.index({ branchId: 1, 'returns.returnedAt': -1 }); // kunlik kassa (qa
 saleSchema.index({ clientSaleId: 1 }, { unique: true, partialFilterExpression: { clientSaleId: { $type: 'string' } } });
 // Restoran buyurtmasining sotuv qatorlari
 saleSchema.index({ orderId: 1 }, { partialFilterExpression: { orderId: { $type: 'objectId' } } });
+// Markirovka kodi do'kon bo'yicha bir marta sotiladi — kassada takror tekshiruvi (lib/marking.ts → soldMarkingConflict)
+saleSchema.index({ markingKeys: 1 }, { sparse: true });
 
 export const PAYMENT_TYPE_LABELS: Record<PaymentType, string> = {
   cash: 'Naqd',

@@ -1,7 +1,8 @@
 'use client';
 
 import { useActionState, useState, useTransition } from 'react';
-import { saveReceiptSettingsAction, saveCurrencySettingsAction, refreshCbuRateAction, saveNotifySettingsAction } from '@/app/actions/shopSettings';
+import { saveReceiptSettingsAction, saveCurrencySettingsAction, refreshCbuRateAction, saveNotifySettingsAction, saveMarkingSettingsAction } from '@/app/actions/shopSettings';
+import type { MarkingMode } from '@/lib/marking';
 import Link from 'next/link';
 import PriceInput from '@/components/ui/PriceInput';
 import { toast } from '@/lib/toast';
@@ -176,6 +177,34 @@ export function NotifySettingsForm({ initial, telegram }: { initial: ShopSetting
         </label>
       ))}
       <button type="submit" className="btn btn-primary" disabled={pending}>{k.save}</button>
+    </form>
+  );
+}
+
+/** Markirovka (DataMatrix): kassada kod skanerlash rejimi — ogohlantirish yoki majburiy. Fiskal chek emas */
+export function MarkingSettingsForm({ initial }: { initial: MarkingMode }) {
+  const t = useDict().sales.marking;
+  const [state, action, pending] = useActionState(saveMarkingSettingsAction, null);
+  useToastOnState(state);
+  const modes = [
+    { key: 'warn' as const, title: t.modeWarn, sub: t.modeWarnSub },
+    { key: 'require' as const, title: t.modeRequire, sub: t.modeRequireSub },
+  ];
+  return (
+    <form action={action} className="ss-card ss-form ss-notify">
+      <div>
+        <h2 className="ss-h">{t.title}</h2>
+        <p className="ss-hint">{t.hint}</p>
+        <p className="ss-hint">{t.law}</p>
+      </div>
+      {modes.map((m) => (
+        <label key={m.key} className="ss-toggle">
+          <span><b>{m.title}</b><small>{m.sub}</small></span>
+          <input type="radio" name="markingMode" value={m.key} defaultChecked={initial === m.key} />
+        </label>
+      ))}
+      <p className="ss-hint">{t.notFiscal}</p>
+      <button type="submit" className="btn btn-primary" disabled={pending}>{t.save}</button>
     </form>
   );
 }

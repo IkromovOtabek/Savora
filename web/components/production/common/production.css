@@ -116,6 +116,15 @@
 .pr-v--under { color: var(--brand); }
 .pr-tag { display: inline-block; padding: 1px 7px; border-radius: 999px; background: var(--fill); color: var(--ink-2); font-size: 11.5px; font-weight: 600; }
 .pr-tag--warn { background: var(--t-warn-soft, var(--warn-soft)); color: var(--t-warn, var(--warn)); }
+.pr-tag--bad { background: var(--t-danger-soft, var(--danger-soft)); color: var(--t-danger, var(--danger)); }
+/* Akt muddati: ro'yxatda va kartochkada; muddati o'tgan — qizil */
+.pr-due-alert { margin: 0 0 10px; }
+.pr-due-alert .pr-tag { font-size: 13px; padding: 4px 11px; text-decoration: none; }
+.pr-due-alert .pr-tag.is-on { outline: 2px solid currentColor; outline-offset: 1px; }
+.pr-row-main small.pr-due.is-over { color: var(--t-danger, var(--danger)); }
+.pr-row-main small.pr-row-note { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 52ch; }
+.pr-worker { display: grid; gap: 2px; margin-top: 4px; }
+.pr-worker select { min-height: 34px; font-size: 13px; padding: 4px 8px; }
 
 .pr-lines--items { --pr-cols: minmax(0, 1fr) 110px 150px 96px 40px; }
 .pr-lines--ops { --pr-cols: minmax(0, 1fr) 150px 110px 40px; }
@@ -137,6 +146,15 @@
   .pr-cell input.pr-num { text-align: left; }
   .pr-lfoot > :first-child { grid-column: 1 / -1; }
 }
+
+/* Yon ustundagi ehtiyoj jadvali (texkarta sahifasi, ~340px) — har qanday ekranda ixcham ko'rinish: nom alohida qatorda,
+   kerak / omborda / yetmaydi — ostida (aks holda nom ustuni 0 px gacha qisilib, harflab tushadi) */
+.pr-side .pr-lines--req .pr-lhead { display: none; }
+.pr-side .pr-lines--req .pr-line { grid-template-columns: repeat(3, minmax(0, 1fr)); align-items: start; }
+.pr-side .pr-lines--req.has-cost .pr-line { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.pr-side .pr-lines--req .pr-line > .pr-cell--main { grid-column: 1 / -1; }
+.pr-side .pr-lines--req .pr-cell-l { position: static; width: auto; height: auto; margin: 0; overflow: visible; clip: auto; font-size: 12px; font-weight: 600; color: var(--ink-3); }
+.pr-side .pr-lines--req .pr-num { justify-self: start; text-align: left; }
 
 /* ── Mahsulot qidiruvi (combobox) ─────────────────────────── */
 .pr-pick { position: relative; min-width: 0; }
@@ -182,6 +200,7 @@
 .pr-kv .is-total { font-size: 15px; }
 .pr-kv .is-total dt, .pr-kv .is-total dd { font-weight: 700; color: var(--ink-1); }
 .pr-kv .is-bad dd { color: var(--danger); }
+.pr-kv dd.pr-bad, .pr-stat.is-bad b { color: var(--t-danger, var(--danger)); }
 
 /* ── Akt sarlavhasi ───────────────────────────────────────── */
 .pr-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px 20px; flex-wrap: wrap; margin-bottom: 16px; }

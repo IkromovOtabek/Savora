@@ -42,6 +42,7 @@ import { bumpPermissions, canAccessOrder, canTransition, inBranchScope, orderAll
 import { RESERVED_STATUSES, RESTAURANT_LIMITS, type RestaurantSettings, type TableCallKind } from './types';
 import { fail, needAnyPerm, needFeature, needPerm, ok, orderRef, type OpErr, type OpResult, type RestaurantCtx, type RestaurantModels } from './context';
 import { orderView, type OrderView } from './view';
+import { loadStaffNames, type StaffNames } from '../staffNames';
 
 type Item = IOrderItem;
 
@@ -77,9 +78,18 @@ export async function resolveBranchId(ctx: RestaurantCtx, requested?: string | n
  * Ko'rinish qo'shimchalari (zal nomi — pre-chek uchun, `requireVoidReason` — bekor qilish oynasi uchun).
  * Bitta so'rov (ctx) davomida keshlanadi: bir amalda bir necha marta ko'rinish qurilsa ham DB bir marta o'qiladi.
  */
-const extrasCache = new WeakMap<RestaurantCtx, { settings?: Promise<RestaurantSettings>; halls: Map<string, Promise<string | null>> }>();
+const extrasCache = new WeakMap<RestaurantCtx, { settings?: Promise<RestaurantSettings>; names?: Promise<StaffNames>; halls: Map<string, Promise<string | null>> }>();
 
-async function viewExtras(ctx: RestaurantCtx, o: OrderDoc): Promise<{ hallName: string | null; requireVoidReason: boolean }> {
+/** Xodim ismlari (login → ism) — bitta so'rov (ctx) davomida bir marta o'qiladi (KDS, taxta, buyurtma, hisobot) */
+export function staffNamesFor(ctx: RestaurantCtx): Promise<StaffNames> {
+  let c = extrasCache.get(ctx);
+  if (!c) { c = { halls: new Map() }; extrasCache.set(ctx, c); }
+  c.names ??= loadStaffNames(ctx.m.User);
+  return c.names;
+}
+
+async function viewExtras(ctx: RestaurantCtx, o: OrderDoc): Promise<{ hallName: string | null; requireVoidReason: boolean; names: StaffNames }> {
+  const namesP = staffNamesFor(ctx);
   let c = extrasCache.get(ctx);
   if (!c) { c = { halls: new Map() }; extrasCache.set(ctx, c); }
   c.settings ??= restaurantSettings(ctx.m);
@@ -89,8 +99,8 @@ async function viewExtras(ctx: RestaurantCtx, o: OrderDoc): Promise<{ hallName: 
     hall = ctx.m.Hall.findById(hallKey).select('name').lean().then((h) => h?.name ?? null);
     c.halls.set(hallKey, hall);
   }
-  const [settings, hallName] = await Promise.all([c.settings, hall]);
-  return { hallName, requireVoidReason: settings.requireVoidReason };
+  const [settings, hallName, names] = await Promise.all([c.settings, hall, namesP]);
+  return { hallName, requireVoidReason: settings.requireVoidReason, names };
 }
 
 /** To'liq ko'rinish (OrderView) joriy foydalanuvchi uchun: `can`, zal nomi, sozlama bilan */

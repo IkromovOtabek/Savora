@@ -239,7 +239,7 @@ export const uz = {
     configure: 'Sozlash',
     ikpu: 'MXIK (IKPU)',
     ikpuHint: '5–30 raqam (tasnif.soliq.uz). Fiskal chek uchun kerak.',
-    ikpuBad: "MXIK 5–30 raqamdan iborat bo'lsin.",
+    ikpuBad: "MXIK 17 ta raqamdan iborat bo'lsin.",
     modifiers: 'Modifikatorlar',
     modifiersHint: "Masalan «Porsiya»: Yarim / To'liq; «Qo'shimcha»: Pishloq +5 000 so'm.",
     /** {n} — guruhlar soni */
@@ -463,6 +463,8 @@ export const uz = {
     remainingDue: "Qoldi: {sum} so'm",
     payRest: "Qolganini to'lash · {sum}",
     backToTables: 'Stollarga qaytish',
+    /** Server amali javob bermadi (tarmoq/server qotdi) — holat qayta o'qiladi */
+    actionTimeout: "Server javob bermadi. Buyurtma holati yangilandi — kerak bo'lsa qayta bosing (to'lov ikki marta yozilmaydi).",
   },
   /** Oshxona ekrani (/app/kitchen, KDS) */
   kitchen: {
@@ -971,7 +973,7 @@ export const ru: typeof uz = {
     configure: 'Настроить',
     ikpu: 'ИКПУ (MXIK)',
     ikpuHint: '5–30 цифр (tasnif.soliq.uz). Нужен для фискального чека.',
-    ikpuBad: 'ИКПУ должен состоять из 5–30 цифр.',
+    ikpuBad: 'ИКПУ должен состоять из 17 цифр.',
     modifiers: 'Модификаторы',
     modifiersHint: 'Например «Порция»: Половина / Полная; «Добавки»: Сыр +5 000 сум.',
     modsCount: 'Групп: {n}',
@@ -1181,6 +1183,7 @@ export const ru: typeof uz = {
     remainingDue: 'Осталось: {sum} сум',
     payRest: 'Оплатить остаток · {sum}',
     backToTables: 'К столам',
+    actionTimeout: 'Сервер не ответил. Состояние заказа обновлено — при необходимости нажмите ещё раз (оплата не запишется дважды).',
   },
   kitchen: {
     title: 'Экран кухни',

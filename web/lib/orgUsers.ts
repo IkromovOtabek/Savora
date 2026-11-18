@@ -52,3 +52,32 @@ export async function removeOrgUserByBranch(organizationId: string | undefined, 
     /* e'tiborsiz */
   }
 }
+
+/** Xodim (bir filialda bir nechta login) — nusxani login bo'yicha yangilash */
+export async function updateOrgUserByUsername(
+  organizationId: string | undefined,
+  username: string,
+  patch: { name?: string; branchId?: string }
+): Promise<void> {
+  try {
+    if (!organizationId || !username) return;
+    const set: Record<string, unknown> = {};
+    if (patch.name !== undefined) set['users.$.name'] = patch.name;
+    if (patch.branchId !== undefined) set['users.$.branchId'] = patch.branchId;
+    if (Object.keys(set).length === 0) return;
+    const { Organization } = await getMasterModels();
+    await Organization.updateOne({ _id: organizationId, 'users.username': username }, { $set: set });
+  } catch {
+    /* e'tiborsiz */
+  }
+}
+
+export async function removeOrgUserByUsername(organizationId: string | undefined, username: string): Promise<void> {
+  try {
+    if (!organizationId || !username) return;
+    const { Organization } = await getMasterModels();
+    await Organization.updateOne({ _id: organizationId }, { $pull: { users: { username } } });
+  } catch {
+    /* e'tiborsiz */
+  }
+}

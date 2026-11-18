@@ -9,6 +9,7 @@ import { computeBill, itemTotal, type BillSummary } from './bill';
 import { itemDisplayName } from './modifiers';
 import { orderCapabilities, type OrderActor, type OrderCapabilities } from './rules';
 import { itemTimings, type ItemTimings } from './timings';
+import { staffName, type StaffNames } from '../staffNames';
 import { DEFAULT_RESTAURANT_SETTINGS, type ItemStatus, type OrderModifier, type OrderSource, type OrderStatus, type OrderType, type StationKind, type VoidStage } from './types';
 
 const iso = (d?: Date | string | null): string | null => (d ? new Date(d).toISOString() : null);
@@ -104,7 +105,8 @@ export interface OrderView {
   can?: OrderCapabilities;
 }
 
-export function itemView(i: IOrderItem): OrderItemView {
+/** `names` — xodim ismlari (lib/staffNames): addedBy/voidedBy login o'rniga ism */
+export function itemView(i: IOrderItem, names?: StaffNames | null): OrderItemView {
   return {
     id: String(i._id),
     clientItemId: i.clientItemId ?? null,
@@ -123,14 +125,14 @@ export function itemView(i: IOrderItem): OrderItemView {
     status: i.status,
     stockReserved: !!i.stockReserved,
     fromQr: !!i.fromQr,
-    addedBy: i.addedBy,
+    addedBy: staffName(names, i.addedBy) ?? i.addedBy,
     addedAt: iso(i.addedAt),
     sentAt: iso(i.sentAt),
     cookStartedAt: iso(i.cookStartedAt),
     readyAt: iso(i.readyAt),
     servedAt: iso(i.servedAt),
     voidedAt: iso(i.voidedAt),
-    voidedBy: i.voidedBy ?? null,
+    voidedBy: staffName(names, i.voidedBy),
     voidReason: i.voidReason ?? null,
     voidStage: i.voidStage ?? null,
     paid: !!i.paidCheckoutId,
@@ -150,8 +152,11 @@ export function orderView(
     hallName?: string | null;
     /** Sozlamadagi qiymat; berilmasa — standart (true) */
     requireVoidReason?: boolean;
+    /** Xodim ismlari: waiterName/openedBy/addedBy/voidedBy/payments.by — login o'rniga ism (ops.orderViewFor) */
+    names?: StaffNames | null;
   },
 ): OrderView {
+  const names = opts.names;
   const view: OrderView = {
     id: String(o._id),
     orderNo: o.orderNo,
@@ -165,12 +170,12 @@ export function orderView(
     hallName: opts.hallName ?? null,
     guests: o.guests ?? null,
     waiterId: o.waiterId ?? null,
-    waiterName: o.waiterName ?? null,
+    waiterName: staffName(names, o.waiterName, o.waiterId),
     note: o.note ?? null,
     serviceChargePct: o.serviceChargePct ?? 0,
     packFee: o.packFee ?? 0,
     packFeePaid: !!o.packFeePaid,
-    openedBy: o.openedBy,
+    openedBy: staffName(names, o.openedBy) ?? o.openedBy,
     openedAt: iso(o.openedAt),
     precheckAt: iso(o.precheckAt),
     paidAt: iso(o.paidAt),
@@ -179,7 +184,7 @@ export function orderView(
     updatedAt: iso(o.updatedAt),
     rev: o.rev ?? 0,
     requireVoidReason: opts.requireVoidReason ?? DEFAULT_RESTAURANT_SETTINGS.requireVoidReason,
-    items: (o.items ?? []).map(itemView),
+    items: (o.items ?? []).map((i) => itemView(i, names)),
     payments: (o.payments ?? []).map((p) => ({
       checkoutId: p.checkoutId,
       itemIds: (p.itemIds ?? []).map(String),
@@ -192,7 +197,7 @@ export function orderView(
       parts: (p.parts ?? []).map((x) => ({ method: x.method, amount: x.amount })),
       change: p.change ?? 0,
       paidAt: iso(p.paidAt),
-      by: p.by,
+      by: staffName(names, p.by) ?? p.by,
       publicPath: receiptPath(opts.orgId, p.checkoutId),
     })),
     bill: computeBill(o),
@@ -223,7 +228,7 @@ export interface OrderSummary {
   counts: BillSummary['counts'] | null;
 }
 
-export function orderSummary(o: OrderDoc, actorId: string, access: boolean): OrderSummary {
+export function orderSummary(o: OrderDoc, actorId: string, access: boolean, names?: StaffNames | null): OrderSummary {
   const bill = access ? computeBill(o) : null;
   return {
     id: String(o._id),
@@ -235,7 +240,7 @@ export function orderSummary(o: OrderDoc, actorId: string, access: boolean): Ord
     tableNumber: o.tableNumber ?? null,
     guests: o.guests ?? null,
     waiterId: o.waiterId ?? null,
-    waiterName: o.waiterName ?? null,
+    waiterName: staffName(names, o.waiterName, o.waiterId),
     openedAt: iso(o.openedAt),
     updatedAt: iso(o.updatedAt),
     access,

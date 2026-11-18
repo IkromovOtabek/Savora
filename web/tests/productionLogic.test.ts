@@ -387,3 +387,32 @@ describe('minimal qoldiq xabari', () => {
     expect(m.push.body.split('\n')).toHaveLength(6);
   });
 });
+
+describe('yaroqlilik muddati bo\'limi va Toshkent kuni', () => {
+  it('muddat bo\'limi bitta xabarda; faqat muddat bo\'lsa — o\'z sarlavhasi', () => {
+    const low = [{ name: 'Un', available: 2, minStock: 10, unit: 'kg' }];
+    const exp = [{ name: 'Sut', available: 5, days: 3, unit: 'l' }, { name: 'Qatiq', available: 1, days: -1, unit: 'l' }];
+    const both = lowStockMessage('Sex', low, exp);
+    expect(both.text).toContain('Yaroqlilik muddati yaqin: 2 ta');
+    expect(both.text.indexOf('Qatiq')).toBeLessThan(both.text.indexOf('Sut')); // o'tgani birinchi
+    expect(both.text).toContain("muddati o'tgan (1 kun)");
+    const only = lowStockMessage('Sex', [], exp);
+    expect(only.push.title).toBe('Sex: 2 ta tovarning yaroqlilik muddati yaqin');
+    expect(only.text).toContain('3 kunda tugaydi');
+  });
+
+  it('Toshkent kun chegaralari server vaqt zonasidan mustaqil', async () => {
+    const { tashkentDayKey, tashkentDayStart, isTashkentMidnight, tashkentPeriodRange, tashkentMonthBounds } = await import('@/lib/period');
+    expect(tashkentDayKey(new Date('2026-11-17T19:30:00.000Z'))).toBe('2026-11-18');
+    expect(tashkentDayKey(new Date('2026-11-18T18:59:59.999Z'))).toBe('2026-11-18');
+    expect(tashkentDayStart('2026-11-18').toISOString()).toBe('2026-11-17T19:00:00.000Z');
+    expect(isTashkentMidnight(tashkentDayStart('2026-01-01'))).toBe(true);
+    expect(isTashkentMidnight(new Date('2026-11-18T00:00:00.000Z'))).toBe(false);
+    const r = tashkentPeriodRange('today', new Date('2026-11-17T20:00:00.000Z'));
+    expect([r.start.toISOString(), r.end.toISOString()]).toEqual(['2026-11-17T19:00:00.000Z', '2026-11-18T19:00:00.000Z']);
+    expect(tashkentMonthBounds('2026-02').lastDay).toBe('2026-02-28');
+    const { dateRange } = await import('@/lib/production/common');
+    expect(dateRange(null, tashkentDayStart('2026-11-18'))).toEqual({ $lt: new Date('2026-11-18T19:00:00.000Z') });
+    expect(dateRange(null, new Date('2026-11-18T10:00:00.000Z'))).toEqual({ $lte: new Date('2026-11-18T10:00:00.000Z') });
+  });
+});

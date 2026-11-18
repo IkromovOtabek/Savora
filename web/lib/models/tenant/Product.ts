@@ -115,8 +115,10 @@ export interface IProduct {
   soldAt?: Date;
   /** Bajarilgan amallar tarixi */
   history?: IProductHistory[];
-  /** MXIK (IKPU) — soliq tasniflagichi kodi, fiskal chek uchun (ixtiyoriy matn) */
+  /** MXIK (IKPU) — soliq tasniflagichi kodi, fiskal chek uchun (ixtiyoriy; yangi kiritish 17 raqam — lib/mxik.ts) */
   ikpu?: string;
+  /** Markirovkali tovar (GS1 DataMatrix «Asl belgisi») — kassada har donaga kod skanerlash so'raladi (lib/marking.ts) */
+  marked?: boolean;
   /** Restoran: qaysi stansiyaga (oshxona/bar) yo'naladi; yo'q — stansiyasiz (yuborilganda darhol «yetkazildi») */
   stationId?: Types.ObjectId;
   /** Restoran: modifikator guruhlari */
@@ -215,6 +217,7 @@ export const productSchema = new Schema<IProduct>(
     soldAt: { type: Date },
     history: { type: [productHistorySchema], default: [] },
     ikpu: { type: String, trim: true, maxlength: 30 },
+    marked: { type: Boolean },
     stationId: { type: Schema.Types.ObjectId, ref: 'KitchenStation' },
     modifierGroups: {
       type: [{

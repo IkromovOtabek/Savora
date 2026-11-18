@@ -58,6 +58,8 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
     soldQuantity: p.soldQuantity ?? 0,
     available: sell.available,
     unit: p.unit ?? null,
+    ikpu: p.ikpu ?? null,
+    marked: !!p.marked,
     branch: branch?.name ?? null,
     notes: p.notes ?? null,
     createdAt: p.createdAt,

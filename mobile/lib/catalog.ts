@@ -18,7 +18,14 @@ interface Choices {
   barcode: string;
   /** To'plam tarkibiga tanlangan tovar (bundle-pick ekranidan) */
   bundleItem: BundleChoice;
+  /** MXIK katalogidan tanlangan kod (mxik-pick ekranidan) */
+  mxik: MxikChoice;
+  /** Skanerda DataMatrix markirovka kodi o'qildi (barcode bilan birga) — forma «Markirovkali»ni yoqadi */
+  markingScan: boolean;
 }
+
+/** MXIK (IKPU) katalog yozuvi: kod (17 raqam), nomi, katalogda markirovka belgisi */
+export interface MxikChoice { code: string; name: string; marked: boolean }
 
 /** To'plamga qo'shiladigan tovar: shu omborning sanaladigan tovari */
 export interface BundleChoice { id: string; name: string; unit: string | null; available: number }

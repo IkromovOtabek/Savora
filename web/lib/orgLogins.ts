@@ -10,7 +10,7 @@ import { reserveUsername, releaseUsername, UsernameTakenError } from './userDire
  * Organization.users nusxasi shu yerda sinxron yangilanadi.
  */
 
-const LOGIN_RE = /^[a-z0-9][a-z0-9_.-]{2,39}$/;
+export const LOGIN_RE = /^[a-z0-9][a-z0-9_.-]{2,39}$/;
 
 export function normalizeLoginInput(v: string): string {
   return v.trim().toLowerCase().replace(/\s+/g, '');

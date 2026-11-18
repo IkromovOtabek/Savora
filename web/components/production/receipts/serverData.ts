@@ -6,15 +6,35 @@
 import type { ProductionCtx } from '@/lib/production/context';
 import type { ProductUnit } from '@/lib/businessTypes';
 import { roundQty } from '@/lib/qty';
-import type { LineProduct } from './lines';
+import { tashkentDayKey, tashkentDayStart } from '@/lib/period';
+import { productOptions } from '@/lib/production/catalog';
+import { toLineProduct, type LineProduct, type PrefillItem } from './lines';
 
 export const isId = (v: unknown): v is string => typeof v === 'string' && /^[a-f0-9]{24}$/i.test(v);
 
-/** YYYY-MM-DD → Date (UTC yarim tun) yoki undefined */
+/**
+ * Davr filtri kuni: YYYY-MM-DD → Toshkent kuni boshi (UTC+5) yoki undefined. `to` sifatida berilsa backend
+ * (dateRange) shu kun oxirigacha oladi.
+ */
 export function dayParam(v?: string): Date | undefined {
   if (!v || !/^\d{4}-\d{2}-\d{2}$/.test(v)) return undefined;
-  const dt = new Date(`${v}T00:00:00.000Z`);
-  return Number.isNaN(dt.getTime()) ? undefined : dt;
+  const dt = tashkentDayStart(v);
+  return Number.isNaN(dt.getTime()) || tashkentDayKey(dt) !== v ? undefined : dt;
+}
+
+/**
+ * «Kam qolgan» blokidan kelgan `?items=a,b,c` → formani oldindan to'ldirish (GET /api/production/products?ids= bilan bir
+ * xil backend): tovar va yetmagan miqdor (minStock − qoldiq, asosiy birlikda). Noto'g'ri/ko'rinmaydigan id — tashlanadi.
+ */
+export async function prefillFromIds(ctx: ProductionCtx, raw?: string): Promise<PrefillItem[]> {
+  const ids = [...new Set((raw ?? '').split(',').map((x) => x.trim()).filter(isId))].slice(0, 50);
+  if (!ids.length) return [];
+  const r = await productOptions(ctx, { ids });
+  if (!r.ok) return [];
+  return r.data.items.map((o) => ({
+    product: toLineProduct(o),
+    shortage: Math.max(0, roundQty((o.minStock ?? 0) - o.available)),
+  }));
 }
 
 export async function supplierOptions(ctx: ProductionCtx): Promise<{ id: string; name: string }[]> {

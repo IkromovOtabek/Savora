@@ -37,6 +37,8 @@ export function listArgs(q: ListQuery) {
     page: q.page ?? undefined,
     limit: q.limit ?? undefined,
     mine: q.mine,
+    sort: q.sort,
+    due: q.due,
   };
 }
 

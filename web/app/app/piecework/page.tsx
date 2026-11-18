@@ -8,12 +8,12 @@ import { PRODUCTION_LIMITS } from '@/lib/production/calc';
 import { scoped } from '@/lib/production/context';
 import { getI18n } from '@/lib/i18n/server';
 import { tr } from '@/lib/i18n/fmt';
-import { fmtDate, fmtMoney } from '@/lib/format';
-import { toDayKey } from '@/lib/period';
+import { fmtMoney } from '@/lib/format';
+import { tashkentDayKey } from '@/lib/period';
 import DashFilter from '@/components/tenant/DashFilter';
 import MonthNav, { monthLabel } from '@/components/ui/MonthNav';
 import Icon from '@/components/icons/Icon';
-import { parsePwRange, pwHref, rangeParams } from '@/components/production/piecework/range';
+import { dayLabel, parsePwRange, pwHref, rangeParams } from '@/components/production/piecework/range';
 import LogEntryButton from '@/components/production/piecework/LogEntryButton';
 import EntriesTable from '@/components/production/piecework/EntriesTable';
 import SummaryTable from '@/components/production/piecework/SummaryTable';
@@ -70,10 +70,10 @@ export default async function PieceworkPage({ searchParams }: { searchParams: Pr
   const href = (patch: Record<string, string | undefined> = {}) => pwHref(BASE, cur, { page: undefined, ...patch });
 
   const periodLabel = range.isRange
-    ? (range.fromDay === range.toDay ? fmtDate(range.from) : `${fmtDate(range.from)} – ${fmtDate(range.to)}`)
+    ? (range.fromDay === range.toDay ? dayLabel(range.fromDay) : `${dayLabel(range.fromDay)} – ${dayLabel(range.toDay)}`)
     : monthLabel(range.month, locale);
   const filterActive = range.isRange || range.month !== range.currentMonth || !!status || !!workerId;
-  const today = toDayKey(new Date());
+  const today = tashkentDayKey(new Date());
   const totals = summary.ok ? summary.data.totals : null;
   const sumCell = (n: number) => <>{fmtMoney(n)}<small>{d.common.sum}</small></>;
 
@@ -237,7 +237,7 @@ export default async function PieceworkPage({ searchParams }: { searchParams: Pr
                 branches: meta?.ok ? meta.data.branches.map((b) => ({ id: b.id, name: b.name })) : [],
                 defaultBranchId: meta?.ok ? meta.data.defaultBranchId : null,
                 scoped: scoped(ctx),
-                workerBranch: Object.fromEntries(workers.map((w) => [w.id, w.branchId])),
+                workerBranch: Object.fromEntries(workers.map((w) => [w.id, w.branchId ?? null])),
               }}
             />
           </section>

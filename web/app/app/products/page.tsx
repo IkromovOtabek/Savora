@@ -21,8 +21,9 @@ import MoreMenu from '@/components/ui/MoreMenu';
 import { getDict } from '@/lib/i18n/server';
 import { tr } from '@/lib/i18n/fmt';
 import { loadExtraFieldNames } from '@/lib/productFields';
-import { lowStockFilter } from '@/lib/production/catalog';
+import { daysUntil, expiringFilter, lowStockFilter } from '@/lib/production/catalog';
 import LowStockBlock from '@/components/production/purchase/LowStockBlock';
+import ExpiryBlock from '@/components/production/purchase/ExpiryBlock';
 
 export async function generateMetadata() {
   const d = await getDict();
@@ -44,13 +45,13 @@ function fmtDate(d?: Date | string | null) {
 export default async function ProductsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; branch?: string; status?: string; cat?: string; brand?: string; page?: string; ps?: string; created?: string; deleted?: string; imei?: string; low?: string }>;
+  searchParams: Promise<{ q?: string; branch?: string; status?: string; cat?: string; brand?: string; page?: string; ps?: string; created?: string; deleted?: string; imei?: string; low?: string; exp?: string; mxik?: string }>;
 }) {
   const sp = await searchParams;
   await requirePermission('products.view');
   const d = await getDict();
   const t = d.stock.list;
-  const { user, Product, Branch, org, features, ProductCategory, Brand } = await getTenantSession();
+  const { user, Product, Branch, org, features, ProductCategory, Brand, ShopSettings } = await getTenantSession();
   const showImei = isImeiEnabled(org);
   // Yo'nalish atamalari: «Mebel qo'shish», «Menyu» … (d.catalog.terms)
   const terms = d.catalog.terms[parseBusinessType(org.businessType || 'general')];
@@ -104,6 +105,14 @@ export default async function ProductsPage({
   // «Minimal qoldiqdan kam» (?low=1): minStock o'rnatilgan va qoldig'i undan kam — tugagan (sotilgan) tovarlar ham
   const lowFilter = sp.low === '1';
   if (lowFilter) Object.assign(filter, lowStockFilter());
+  // «Muddati yaqin» (?exp=1): ShopSettings.stock.expiryWarnDays kun ichida tugaydigan yoki o'tgan, qoldig'i bor tovarlar
+  const expDays = (await ShopSettings.findOne({ key: 'main' }).select('stock').lean())?.stock?.expiryWarnDays ?? 0;
+  const expFilter = expDays > 0 && sp.exp === '1';
+  if (expFilter) filter.$and = [...((filter.$and as unknown[]) ?? []), expiringFilter(expDays)];
+  // «MXIK yo'q» (?mxik=none): MXIK (IKPU) kiritilmagan — maydon yo'q yoki bo'sh
+  const NO_MXIK = { ikpu: { $in: [null, ''] } };
+  const mxikFilter = sp.mxik === 'none';
+  if (mxikFilter) Object.assign(filter, NO_MXIK);
   // Filial login — faqat o'z filiali mahsulotlari (admin tanlovini ham bekor qiladi)
   Object.assign(filter, branchFilter(user));
 
@@ -113,13 +122,20 @@ export default async function ProductsPage({
   const skip = (page - 1) * PAGE_SIZE;
 
   const lowBase = { ...lowStockFilter(), ...branchFilter(user) };
-  const [products, total, imeiPendingCount, lowCount, lowTop] = await Promise.all([
+  const expBase = expDays > 0 ? { ...expiringFilter(expDays), ...branchFilter(user) } : null;
+  const [products, total, imeiPendingCount, lowCount, lowTop, lowIds, expCount, expTop, noMxikCount] = await Promise.all([
     Product.find(filter).sort({ createdAt: -1 }).skip(skip).limit(PAGE_SIZE).lean(),
     Product.countDocuments(filter),
     // Bildirishnoma: ombordagi IMEI'siz tovarlar (hammasiga IMEI kiritilgach yo'qoladi)
     showImei ? Product.countDocuments({ imeiPending: true, status: { $ne: 'sold' }, ...branchFilter(user) }) : 0,
     Product.countDocuments(lowBase),
     Product.find(lowBase).select('name unit quantity soldQuantity status minStock trackQuantity kind').sort({ name: 1 }).limit(6).lean(),
+    // Kirim/xarid formasini oldindan to'ldirish (?items=) — ko'pi bilan 50 ta
+    Product.find(lowBase).select('_id').sort({ name: 1 }).limit(50).lean(),
+    expBase ? Product.countDocuments(expBase) : 0,
+    expBase ? Product.find(expBase).select('name unit quantity soldQuantity status expiryDate trackQuantity kind').sort({ expiryDate: 1 }).limit(6).lean() : [],
+    // «MXIK yo'q» chipi — ombordagi MXIK'siz mahsulotlar soni
+    Product.countDocuments({ ...NO_MXIK, status: { $ne: 'sold' }, ...branchFilter(user) }),
   ]);
 
   const totalPages = Math.ceil(total / PAGE_SIZE);
@@ -140,6 +156,8 @@ export default async function ProductsPage({
     if (activeBrand) params.set('brand', activeBrand);
     if (imeiFilter) params.set('imei', 'pending');
     if (lowFilter) params.set('low', '1');
+    if (expFilter) params.set('exp', '1');
+    if (mxikFilter) params.set('mxik', 'none');
     if (p > 1) params.set('page', String(p));
     if (ps !== DEFAULT_PAGE_SIZE) params.set('ps', String(ps));
     const s = params.toString();
@@ -147,7 +165,7 @@ export default async function ProductsPage({
   }
 
   // Holat chiplari — qidiruv va filial saqlanadi, sahifa 1 ga qaytadi
-  function statusUrl(status: string) {
+  function statusUrl(status: string, mxik = mxikFilter) {
     const params = new URLSearchParams();
     if (q) params.set('q', q);
     if (sp.branch) params.set('branch', sp.branch);
@@ -155,6 +173,8 @@ export default async function ProductsPage({
     if (activeBrand) params.set('brand', activeBrand);
     if (imeiFilter) params.set('imei', 'pending');
     if (lowFilter) params.set('low', '1');
+    if (expFilter) params.set('exp', '1');
+    if (mxik) params.set('mxik', 'none');
     if (status) params.set('status', status);
     if (PAGE_SIZE !== DEFAULT_PAGE_SIZE) params.set('ps', String(PAGE_SIZE));
     const s = params.toString();
@@ -176,7 +196,7 @@ export default async function ProductsPage({
   const scoped = isBranchScoped(user);
   const canCreate = perms.has('product.create');
   const canExport = !!features.export && perms.has('export.data');
-  const hasFilter = !!(q || activeStatus || sp.branch || activeCat || activeBrand || imeiFilter || lowFilter);
+  const hasFilter = !!(q || activeStatus || sp.branch || activeCat || activeBrand || imeiFilter || lowFilter || mxikFilter);
   const canBulk = perms.has('stock.adjust') || perms.has('stock.writeOff');
   const toggleCols: { key: ToggleCol; label: string }[] = [
     ...(scoped ? [] : [{ key: 'branch' as const, label: d.common.branch }]),
@@ -231,6 +251,19 @@ export default async function ProductsPage({
         allHref="/app/products"
         canReceive={!!features.purchasing && perms.has('receipt.create')}
         canOrder={!!features.purchasing && perms.has('po.manage')}
+        prefillIds={lowIds.map((p) => String(p._id))}
+      />
+      <ExpiryBlock
+        d={d}
+        days={expDays}
+        count={expCount}
+        items={expTop.filter((p) => p.expiryDate).map((p) => ({
+          id: String(p._id), name: p.name, unit: p.unit ?? null, available: getStockQty(p),
+          expiry: new Date(p.expiryDate!).toISOString().slice(0, 10), days: daysUntil(p.expiryDate!),
+        }))}
+        active={expFilter}
+        showHref="/app/products?exp=1"
+        allHref="/app/products"
       />
       {imeiPendingCount > 0 && (
         <div className="auth-alert auth-alert--warn st-alert st-imei-alert" role="status">
@@ -292,6 +325,20 @@ export default async function ProductsPage({
             {d.stock.status[s]}
           </Link>
         ))}
+        {/* Soliq: MXIK kiritilmagan mahsulotlar (fiskal chekda MXIK majburiy) */}
+        {(noMxikCount > 0 || mxikFilter) && (
+          <>
+            <span className="st-filterbar-sep" aria-hidden="true" />
+            <Link
+              href={statusUrl(activeStatus, !mxikFilter)}
+              className="st-chip"
+              aria-current={mxikFilter ? 'page' : undefined}
+              title={d.stock.mxik.filterTitle}
+            >
+              {d.stock.mxik.filter} · {noMxikCount}
+            </Link>
+          </>
+        )}
       </ProductSearch>
 
       {products.length === 0 ? (

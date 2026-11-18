@@ -77,7 +77,11 @@ export async function createProductionOrderAction(input: orders.CreateOrderInput
   return toAction(r, r.ok && !r.data.existing ? tr(t.msg.orderCreated, { no: r.data.order.docNo }) : undefined);
 }
 
-/** Tahrir: reja miqdori, izoh, haqiqiy sarf (`materials`), ish haqi (`labor` — to'liq ro'yxat) */
+/**
+ * Tahrir: reja miqdori, muddat, mijoz buyurtmasi, izoh, haqiqiy sarf (`materials`, qator id'si bilan — reja bilan birga
+ * yuborilsa ham id'lar saqlanadi), ish haqi (`labor` — to'liq ro'yxat). `expectedRev` — boshqa birov o'zgartirgan
+ * bo'lsa `{ ok: false, code: 'conflict' }` (UI qayta yuklaydi).
+ */
 export async function updateProductionOrderAction(id: string, input: orders.UpdateOrderInput): Promise<ActionResult<{ order: orders.OrderView }>> {
   const { ctx, s, t } = await prep();
   const idp = orderIdOf(s, id, t.errors.orderNotFound);
@@ -87,6 +91,9 @@ export async function updateProductionOrderAction(id: string, input: orders.Upda
   const r = await orders.updateOrder(ctx, idp.data.id, {
     plannedQty: p.data.plannedQty,
     note: p.data.note,
+    dueDate: p.data.dueDate,
+    customerRef: p.data.customerRef,
+    expectedRev: p.data.expectedRev,
     materials: p.data.materials?.map((m) => ({ id: m.id, productId: m.productId, actualQty: m.actualQty })),
     labor: p.data.labor?.map((l) => ({ operation: l.operation, workerId: l.workerId, qty: l.qty, rate: l.rate })),
   });
@@ -115,6 +122,7 @@ export async function completeProductionOrderAction(id: string, input: orders.Co
   const r = await orders.completeOrder(ctx, idp.data.id, {
     producedQty: p.data.producedQty,
     scrapQty: p.data.scrapQty,
+    expectedRev: p.data.expectedRev,
     materials: p.data.materials?.map((m) => ({ id: m.id, productId: m.productId, actualQty: m.actualQty })),
     labor: p.data.labor?.map((l) => ({ operation: l.operation, workerId: l.workerId, qty: l.qty, rate: l.rate })),
   });

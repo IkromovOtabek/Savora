@@ -7,8 +7,9 @@ import { qtyWithUnit, tr } from '@/lib/i18n/fmt';
 import { isFractionalUnit } from '@/lib/qty';
 import { PAY_METHODS, methodOf, type PayMethod } from '@/lib/payMethods';
 import { saleBankParts } from '@/lib/bankCredit';
+import { markingLabel } from '@/lib/gs1';
 
-type ReceiptSale = Pick<ISale, 'saleNo' | 'productSnapshot' | 'customerSnapshot' | 'paymentType' | 'bankName' | 'bankParts' | 'totalAmount' | 'paidAmount' | 'remainingAmount' | 'soldBy' | 'dueDate' | 'createdAt' | 'discount'> & Partial<Pick<ISale, 'tableNumber'>> & Parameters<typeof computeInstallmentPlan>[0];
+type ReceiptSale = Pick<ISale, 'saleNo' | 'productSnapshot' | 'customerSnapshot' | 'paymentType' | 'bankName' | 'bankParts' | 'totalAmount' | 'paidAmount' | 'remainingAmount' | 'soldBy' | 'dueDate' | 'createdAt' | 'discount'> & Partial<Pick<ISale, 'tableNumber' | 'markingCodes'>> & Parameters<typeof computeInstallmentPlan>[0];
 
 /**
  * Chek qog'ozi — bitta sotuv yoki kassadagi bir nechta qatorli sotuv (har qator — alohida Sale).
@@ -82,6 +83,9 @@ export default function ReceiptPaper({ sales, org, receipt, d, publicView = fals
               </div>
               <small>{qtyWithUnit(qty, s.productSnapshot.unit, d.stock.fields.units)} × {fmtMoney(unit)}{s.discount ? ` − ${fmtMoney(s.discount)}` : ''}</small>
               {s.productSnapshot.imei && <small>{tr(k.code, { code: s.productSnapshot.imei })}</small>}
+              {/* Soliq: MXIK va markirovka belgisi (seriya) — fiskal chek EMAS, pastdagi yozuv */}
+              {s.productSnapshot.ikpu && <small>{tr(k.mxik, { code: s.productSnapshot.ikpu })}</small>}
+              {s.markingCodes?.length ? <small>[M] {tr(k.marking, { list: s.markingCodes.map(markingLabel).join(', ') })}</small> : null}
             </div>
           );
         })}
@@ -134,6 +138,8 @@ export default function ReceiptPaper({ sales, org, receipt, d, publicView = fals
       <footer className="sl-rc-foot">
         <b>{receipt.footer || k.thanks}</b>
         <span className="sl-rc-code">{first.saleNo}</span>
+        {/* Halollik: Savora cheki fiskal chek o'rnini bosmaydi (onlayn-NKM / virtual kassa — docs/SOLIQ.md) */}
+        <span>{k.notFiscal}</span>
       </footer>
     </article>
   );

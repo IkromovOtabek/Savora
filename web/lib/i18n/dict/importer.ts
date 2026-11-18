@@ -82,6 +82,7 @@ export const uz = {
     expiryDate: 'Yaroqlilik muddati',
     oemCode: 'OEM kod',
     notes: 'Izoh',
+    ikpu: 'MXIK (IKPU)',
   } as Record<ImportField, string>,
   extraLabel: "Qo'shimcha",
 
@@ -124,6 +125,7 @@ export const uz = {
     warrantyInvalid: "Kafolat noto'g'ri (0–120 oy)",
     dateInvalid: "Sana noto'g'ri",
     required: '{field} majburiy',
+    ikpuInvalid: "MXIK noto'g'ri (17 raqam)",
   } as Record<ImportErrorCode, string>,
 
   start: "{n} ta mahsulotni qo'shish",
@@ -247,6 +249,7 @@ export const ru: typeof uz = {
     expiryDate: 'Срок годности',
     oemCode: 'OEM код',
     notes: 'Примечание',
+    ikpu: 'ИКПУ (MXIK)',
   },
   extraLabel: 'Доп.',
 
@@ -286,6 +289,7 @@ export const ru: typeof uz = {
     warrantyInvalid: 'Неверная гарантия (0–120 мес.)',
     dateInvalid: 'Неверная дата',
     required: '{field} — обязательно',
+    ikpuInvalid: 'Неверный ИКПУ (17 цифр)',
   },
 
   start: 'Добавить товары: {n}',

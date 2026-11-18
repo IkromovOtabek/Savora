@@ -2,11 +2,13 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import Icon from '@/components/icons/Icon';
 import PriceInput from '@/components/ui/PriceInput';
 import { useDict } from '@/lib/i18n/client';
 import { tr } from '@/lib/i18n/fmt';
 import { fmtDateTime, fmtMoney } from '@/lib/format';
+import { toast } from '@/lib/toast';
 import { fmtQty, isFractionalUnit, parseQty, priceTimesQty, roundQty } from '@/lib/qty';
 import type { ProductUnit } from '@/lib/businessTypes';
 import { PRODUCTION_LIMITS as L } from '@/lib/production/calc';
@@ -37,6 +39,8 @@ interface Props {
   order: OrderView;
   canReceive: boolean;
   canPurchase: boolean;
+  /** Ish haqi qatorida ishchi tanlovi (GET /api/production/workers → id, ism); bo'sh — tanlov yo'q */
+  workers?: { id: string; name: string }[];
 }
 
 let seq = 0;
@@ -45,16 +49,22 @@ const nextKey = () => `n${++seq}`;
 const laborRowsOf = (o: OrderView): LaborRow[] =>
   o.labor.map((l) => ({ key: l.id, operation: l.operation, workerId: l.workerId, workerName: l.workerName, qty: fmtQty(l.qty), rate: String(l.rate) }));
 
+/** Kun kaliti (YYYY-MM-DD) → «DD.MM.YYYY» */
+const dayLabel = (k: string) => k.split('-').reverse().join('.');
+
 /**
  * Ishlab chiqarish akti: sarlavha va holat tugmalari (`can` bo'yicha), reja, reja vs haqiqiy sarf (tuzatish,
- * qo'shimcha xom ashyo), ish haqi qatorlari, izoh, tannarx (`production.viewCost`), natija. Saqlash — bitta
- * `updateProductionOrderAction` (reja alohida: u xom ashyo qatorlarini qayta quradi).
+ * qo'shimcha xom ashyo), ish haqi qatorlari (ishchi tanlovi bilan), muddat va mijoz buyurtmasi, izoh, tannarx
+ * (`production.viewCost`), natija. Saqlash — bitta `updateProductionOrderAction` (`expectedRev` bilan); reja ham
+ * saqlanmagan sarf/ish haqi bilan birga yuboriladi — server qator id'larini saqlaydi, tahrir yo'qolmaydi.
+ * Boshqa birov aktni o'zgartirgan bo'lsa (`conflict`) — xabar va yangi holat qayta yuklanadi.
  */
-export default function OrderEditor({ order, canReceive, canPurchase }: Props) {
+export default function OrderEditor({ order, canReceive, canPurchase, workers = [] }: Props) {
   const d = useDict();
   const t = d.production.orders;
   const c = d.production.common;
   const units = d.stock.fields.units;
+  const router = useRouter();
   const { pending, run } = useProdRun();
   const can = order.can;
   const editable = can.edit;
@@ -67,6 +77,8 @@ export default function OrderEditor({ order, canReceive, canPurchase }: Props) {
   const [labor, setLabor] = useState<LaborRow[]>(() => laborRowsOf(order));
   const [laborDirty, setLaborDirty] = useState(false);
   const [note, setNote] = useState(order.note ?? '');
+  const [due, setDue] = useState(order.dueDate ?? '');
+  const [customer, setCustomer] = useState(order.customerRef ?? '');
   const [dialog, setDialog] = useState<'complete' | 'cancel' | null>(null);
   const [reason, setReason] = useState('');
   const [msg, setMsg] = useState<string | null>(null);
@@ -74,7 +86,9 @@ export default function OrderEditor({ order, canReceive, canPurchase }: Props) {
   /* ── o'zgarishlar ── */
   const matDirty = extras.length > 0 || order.materials.some((m) => actual[m.id] !== fmtQty(m.actualQty));
   const noteDirty = note.trim() !== (order.note ?? '').trim();
-  const dirty = matDirty || laborDirty || noteDirty;
+  const dueDirty = due !== (order.dueDate ?? '');
+  const customerDirty = customer.trim() !== (order.customerRef ?? '');
+  const dirty = matDirty || laborDirty || noteDirty || dueDirty || customerDirty;
 
   const edits = useMemo((): { materials: MaterialEdit[]; labor?: LaborEdit[]; error: string | null } => {
     const materials: MaterialEdit[] = [];
@@ -109,21 +123,37 @@ export default function OrderEditor({ order, canReceive, canPurchase }: Props) {
     return () => window.removeEventListener('beforeunload', h);
   }, [dirty]);
 
-  function saveAll() {
+  /** Boshqa birov o'zgartirgan (`conflict`) — xabar va yangi holatni yuklash (tahrir holati serverdan qayta quriladi) */
+  const onSaveError = (e: { code: string; error: string }) => {
+    if (e.code === 'conflict') {
+      toast(t.conflictReload, 'error');
+      router.refresh();
+      return true;
+    }
+    setMsg(e.error);
+    return false;
+  };
+
+  /** Saqlanmagan barcha o'zgarishlar (+ ixtiyoriy yangi reja) — bitta so'rov */
+  function save(plannedQty?: number) {
     if (edits.error) return setMsg(edits.error);
     setMsg(null);
     run(() => updateProductionOrderAction(order.id, {
+      ...(plannedQty !== undefined ? { plannedQty } : {}),
       ...(edits.materials.length ? { materials: edits.materials } : {}),
       ...(edits.labor ? { labor: edits.labor } : {}),
       ...(noteDirty ? { note: note.trim() } : {}),
-    }), { onError: (e) => { setMsg(e.error); } });
+      ...(dueDirty ? { dueDate: due ? new Date(`${due}T00:00:00.000Z`) : null } : {}),
+      ...(customerDirty ? { customerRef: customer.trim() } : {}),
+      expectedRev: order.rev,
+    }), { onError: onSaveError });
   }
+  const saveAll = () => save();
 
   const planned = parseQty(plan, unit);
   function savePlan() {
     if (planned === null || planned === order.plannedQty) return;
-    if ((matDirty || laborDirty) && !window.confirm(t.planResetConfirm)) return;
-    run(() => updateProductionOrderAction(order.id, { plannedQty: planned }));
+    save(planned);
   }
 
   /* ── qo'shimcha xom ashyo ── */
@@ -157,6 +187,7 @@ export default function OrderEditor({ order, canReceive, canPurchase }: Props) {
     order.completedAt ? tr(t.completedLine, { date: fmtDateTime(order.completedAt), by: order.completedBy ?? '—' }) : '',
     order.cancelledAt ? tr(t.cancelledLine, { date: fmtDateTime(order.cancelledAt), by: order.cancelledBy ?? '—' }) : '',
     order.cancelReason ? tr(t.reasonLine, { reason: order.cancelReason }) : '',
+    order.customerRef ? tr(t.customerLine, { text: order.customerRef }) : '',
   ].filter(Boolean);
 
   return (
@@ -167,6 +198,7 @@ export default function OrderEditor({ order, canReceive, canPurchase }: Props) {
           <div className="pr-head-title">
             <h1>{order.recipe.outputName}</h1>
             <StatusPill status={order.status} d={d} />
+            {order.overdue && <span className="pr-tag pr-tag--bad">{t.overdue}</span>}
           </div>
           <ul className="pr-head-meta">
             {metaLines.map((line) => <li key={line}>{line}</li>)}
@@ -202,6 +234,7 @@ export default function OrderEditor({ order, canReceive, canPurchase }: Props) {
         {!!order.scrapQty && <div className="pr-stat"><small>{c.scrap}</small><b>{qtyText(order.scrapQty, unit, units)}</b></div>}
         <div className="pr-stat"><small>{c.fromBranch}</small><b>{order.fromBranchName ?? '—'}</b></div>
         <div className="pr-stat"><small>{c.toBranch}</small><b>{order.toBranchName ?? '—'}</b></div>
+        {order.dueDate && <div className={`pr-stat${order.overdue ? ' is-bad' : ''}`}><small>{t.due}</small><b>{dayLabel(order.dueDate)}</b></div>}
       </div>
 
       <div className="pr-split">
@@ -382,7 +415,27 @@ export default function OrderEditor({ order, canReceive, canPurchase }: Props) {
                         ) : (
                           <span className="pr-cell-main"><b>{l.operation}</b></span>
                         )}
-                        {l.workerName && <small className="pr-muted">{c.worker}: {l.workerName}</small>}
+                        {editable && workers.length > 0 ? (
+                          <label className="pr-worker">
+                            <span className="pr-cell-l">{t.workerPick}</span>
+                            <select
+                              className="input"
+                              value={l.workerId ?? ''}
+                              onChange={(e) => {
+                                const w = workers.find((x) => x.id === e.target.value);
+                                patchLabor(l.key, { workerId: w?.id ?? null, workerName: w?.name ?? null });
+                              }}
+                              aria-label={`${t.workerPick}: ${l.operation || idx + 1}`}
+                              disabled={pending}
+                            >
+                              <option value="">{t.workerNone}</option>
+                              {l.workerId && !workers.some((w) => w.id === l.workerId) && <option value={l.workerId}>{l.workerName ?? '—'}</option>}
+                              {workers.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}
+                            </select>
+                          </label>
+                        ) : l.workerName ? (
+                          <small className="pr-muted">{c.worker}: {l.workerName}</small>
+                        ) : null}
                       </span>
                       <label className="pr-cell">
                         <span className="pr-cell-l">{d.production.recipes.colQty}</span>
@@ -480,6 +533,30 @@ export default function OrderEditor({ order, canReceive, canPurchase }: Props) {
             </section>
           )}
 
+          {/* ── Buyurtma: muddat va mijoz ── */}
+          {(editable || order.dueDate || order.customerRef) && (
+            <section className="pr-card" aria-labelledby="pr-oe-ord">
+              <h2 className="pr-h" id="pr-oe-ord">{t.orderInfo}</h2>
+              {editable ? (
+                <>
+                  <label className="pr-field">
+                    <span>{t.due}</span>
+                    <input className="input" type="date" value={due} onChange={(e) => setDue(e.target.value)} disabled={pending} />
+                  </label>
+                  <label className="pr-field">
+                    <span>{t.customerOrder}</span>
+                    <input className="input" value={customer} onChange={(e) => setCustomer(e.target.value)} placeholder={t.customerOrderPh} maxLength={L.customerRefMax} disabled={pending} />
+                  </label>
+                </>
+              ) : (
+                <dl className="pr-kv">
+                  <div><dt>{t.due}</dt><dd className={order.overdue ? 'pr-bad' : undefined}>{order.dueDate ? dayLabel(order.dueDate) : t.dueNone}{order.overdue ? ` · ${t.overdue}` : ''}</dd></div>
+                  {order.customerRef && <div><dt>{t.customerOrder}</dt><dd>{order.customerRef}</dd></div>}
+                </dl>
+              )}
+            </section>
+          )}
+
           {/* ── Izoh ── */}
           <section className="pr-card" aria-labelledby="pr-oe-note">
             <h2 className="pr-h" id="pr-oe-note">{c.note}</h2>
@@ -510,6 +587,8 @@ export default function OrderEditor({ order, canReceive, canPurchase }: Props) {
                 setLabor(laborRowsOf(order));
                 setLaborDirty(false);
                 setNote(order.note ?? '');
+                setDue(order.dueDate ?? '');
+                setCustomer(order.customerRef ?? '');
                 setMsg(null);
               }}
             >

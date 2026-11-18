@@ -29,6 +29,10 @@ export default function LowStockCard({ items, branches, d, canReceive, canPurcha
   const ratio = (p: LowItem) => (p.minStock ? p.available / p.minStock : 1);
   const sorted = [...items].sort((a, b) => ratio(a) - ratio(b));
   const rows = sorted.slice(0, MAX_ROWS);
+  // Kirim/xarid formasini shu tovarlar bilan oldindan to'ldirish (?items=…, bitta ombor bo'lsa — ?b=)
+  const prefillIds = sorted.slice(0, 50).map((p) => p.id);
+  const one = new Set(sorted.slice(0, 50).map((p) => p.branchId));
+  const prefillQs = new URLSearchParams({ items: prefillIds.join(','), ...(one.size === 1 ? { b: [...one][0] } : {}) }).toString();
 
   return (
     <section className="pr-card" aria-labelledby="pr-low-h">
@@ -57,8 +61,8 @@ export default function LowStockCard({ items, branches, d, canReceive, canPurcha
       {items.length > MAX_ROWS && <p className="pr-hint">{tr(d.production.lowStock.more, { n: items.length - MAX_ROWS })}</p>}
       {(canReceive || canPurchase) && (
         <div className="pr-actions">
-          {canReceive && <Link href="/app/receipts" className="btn btn-sm btn-primary">{t.toReceipt}</Link>}
-          {canPurchase && <Link href="/app/purchase-orders" className="btn btn-sm btn-ghost">{t.toPurchase}</Link>}
+          {canReceive && <Link href={`/app/receipts/new?${prefillQs}`} className="btn btn-sm btn-primary">{t.toReceipt}</Link>}
+          {canPurchase && <Link href={`/app/purchase-orders/new?${prefillQs}`} className="btn btn-sm btn-ghost">{t.toPurchase}</Link>}
         </div>
       )}
     </section>

@@ -126,6 +126,7 @@ export async function importProductsBatchAction(input: {
     if (row.purchasePrice > 0) set.purchasePrice = row.purchasePrice;
     if (row.salePrice > 0) set.salePrice = row.salePrice;
     if (row.wholesalePrice) set.wholesalePrice = row.wholesalePrice;
+    if (row.ikpu) set.ikpu = row.ikpu;
     const qty = row.quantity ?? 0;
     const history: IProductHistory = { action: 'restocked', detail: `Excel: +${qty}`, by: user.username, at: now };
     // Pipeline + $round — kasrli miqdorda float qoldig'i to'planmaydi (lib/stock.ts bilan bir xil)
@@ -191,6 +192,7 @@ export async function importProductsBatchAction(input: {
         expiryDate: row.expiryDate ? new Date(`${row.expiryDate}T00:00:00Z`) : undefined,
         oemCode: row.oemCode,
         notes: row.notes,
+        ikpu: row.ikpu,
         extraFields: row.extra.length ? row.extra : undefined,
         createdBy: user.username,
         history: [{ action: 'created' as const, detail: `${branch.name} · Excel`, by: user.username, at: now }],

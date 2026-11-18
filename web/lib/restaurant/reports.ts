@@ -22,6 +22,8 @@ import { csvCell } from '../security';
 import { fmtDateTime } from '../format';
 import { durationStats, type DurationStats } from './timings';
 import { fail, needFeature, needPerm, ok, type OpResult, type RestaurantCtx } from './context';
+import { staffNamesFor } from './ops';
+import { staffName, type StaffNames } from '../staffNames';
 import { ORDER_STATUSES, ORDER_TYPES, type OrderType, type StationKind } from './types';
 
 const DAY = 24 * 60 * 60 * 1000;
@@ -466,7 +468,7 @@ async function voidRows(ctx: RestaurantCtx, match: Record<string, unknown>, from
   }));
 }
 
-async function salesData(ctx: RestaurantCtx, match: Record<string, unknown>, from: Date, to: Date): Promise<SalesReport> {
+async function salesData(ctx: RestaurantCtx, match: Record<string, unknown>, from: Date, to: Date, names?: StaffNames): Promise<SalesReport> {
   // Yopilgan buyurtmalar. `$type: 'date'` — qisman indeks {branchId, paidAt} (partialFilter paidAt $type date)
   // shu shartsiz tanlanmaydi (explain bilan tekshirilgan: aks holda filialning barcha buyurtmalari ko'rib chiqiladi)
   const docs = await ctx.m.Order.find({ ...match, status: 'paid', paidAt: { $type: 'date', $gte: from, $lt: to } })
@@ -479,7 +481,8 @@ async function salesData(ctx: RestaurantCtx, match: Record<string, unknown>, fro
     id: String(o._id),
     type: o.type,
     waiterKey: o.waiterId || o.waiterName || '',
-    waiterName: o.waiterName ?? '',
+    // Ko'rsatish uchun ism (bazada login) — lib/staffNames
+    waiterName: staffName(names, o.waiterName, o.waiterId) ?? '',
     guests: o.guests ?? null,
     openedAt: o.openedAt,
     paidAt: o.paidAt ?? null,
@@ -535,14 +538,21 @@ export async function restaurantReport(ctx: RestaurantCtx, input: { from: Date; 
   const scope = await reportScope(ctx, input.branchId);
   if (!scope.ok) return scope;
   const { match } = scope.data;
-  const [groups, voids, sales, stations] = await Promise.all([
+  const names = await staffNamesFor(ctx);
+  const [rawGroups, voids, sales, stations] = await Promise.all([
     kitchenGroups(ctx, match, from, to),
     voidRows(ctx, match, from, to),
-    salesData(ctx, match, from, to),
+    salesData(ctx, match, from, to, names),
     ctx.m.KitchenStation.find(match).select('name kind').lean(),
   ]);
   const stationInfo = new Map(stations.map((s) => [String(s._id), { name: s.name, kind: (s.kind ?? null) as StationKind | null }]));
-  const voidList = voids.slice(0, MAX_VOIDS);
+  // Ofitsant/xodim — login o'rniga ism (bazada login saqlanadi); guruhlash kaliti (waiterKey) o'zgarmaydi
+  const groups = rawGroups.map((g) => ({ ...g, waiterName: staffName(names, g.waiterName, OBJECT_ID.test(g.waiterKey) ? g.waiterKey : undefined) ?? '' }));
+  const voidList = voids.slice(0, MAX_VOIDS).map((v) => ({
+    ...v,
+    waiterName: staffName(names, v.waiterName) ?? '',
+    voidedBy: staffName(names, v.voidedBy) ?? v.voidedBy,
+  }));
   return ok({
     from: from.toISOString(),
     to: to.toISOString(),

@@ -21,6 +21,7 @@ export default function LowStockBlock({
   allHref,
   canReceive,
   canOrder,
+  prefillIds = [],
 }: {
   d: Dict;
   count: number;
@@ -31,10 +32,13 @@ export default function LowStockBlock({
   allHref: string;
   canReceive: boolean;
   canOrder: boolean;
+  /** Kirim/xarid formasini oldindan to'ldirish uchun minimal qoldiqdan kam tovarlar id'lari (≤ 50) */
+  prefillIds?: string[];
 }) {
   const t = d.stock.minStockAlert;
   const units = d.stock.fields.units;
   if (count === 0 && !active) return null;
+  const qs = prefillIds.length ? `?items=${prefillIds.join(',')}` : '';
   return (
     <section className="ss-alert" aria-label={t.label} role="status">
       <div className="ss-alert-top">
@@ -43,8 +47,8 @@ export default function LowStockBlock({
           {active
             ? <Link href={allHref} className="btn btn-white btn-sm">{t.all}</Link>
             : <Link href={showHref} className="btn btn-white btn-sm">{t.show}</Link>}
-          {canReceive && <Link href="/app/receipts/new" className="btn btn-white btn-sm">{t.receipt}</Link>}
-          {canOrder && <Link href="/app/purchase-orders/new" className="btn btn-white btn-sm">{t.order}</Link>}
+          {canReceive && <Link href={`/app/receipts/new${qs}`} className="btn btn-white btn-sm">{t.receipt}</Link>}
+          {canOrder && <Link href={`/app/purchase-orders/new${qs}`} className="btn btn-white btn-sm">{t.order}</Link>}
         </div>
       </div>
       {active ? (

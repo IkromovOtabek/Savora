@@ -7,6 +7,7 @@ import { PRODUCT_UNITS, productFieldsFor, type ProductFieldKey, type ProductUnit
 import { parseQty } from './qty';
 import { PRODUCT_FIELD_MAX_LEN, WARRANTY_MAX_MONTHS, parseExpiryDate } from './productFields';
 import { normalizeCatalogName } from './productCatalog';
+import { parseMxikInput } from './mxik';
 import type { Cell } from './xlsxRead';
 
 export const IMPORT_FIELDS = [
@@ -27,6 +28,7 @@ export const IMPORT_FIELDS = [
   'expiryDate',
   'oemCode',
   'notes',
+  'ikpu',
 ] as const;
 export type ImportField = (typeof IMPORT_FIELDS)[number];
 
@@ -78,6 +80,8 @@ export function templateFieldsFor(ctx: ImportContext): ImportField[] {
     const f = s.key as ImportField;
     if (allowed.has(f) && !out.includes(f)) out.push(f);
   }
+  // MXIK — hamma yo'nalishda (fiskal chek uchun), oxirgi ustun
+  out.push('ikpu');
   return out.filter((f) => allowed.has(f));
 }
 
@@ -142,6 +146,7 @@ const SYNONYMS: Record<ImportField, string[]> = {
   ],
   oemCode: ['oem', 'oemkod', 'oemcode', 'oemnomer', 'оем', 'оемкод'],
   notes: ['izoh', 'izohlar', 'tavsif', 'изоҳ', 'примечание', 'комментарий', 'описание', 'note', 'notes', 'comment', 'description'],
+  ikpu: ['mxik', 'mxikkod', 'mxikkodi', 'ikpu', 'ikpukod', 'ikpukodi', 'мхик', 'мхиккоди', 'икпу', 'икпукод', 'кодикпу'],
 };
 
 /** Sarlavha qaysi maydonga mos: 3 — aynan, 2 — boshlanishi, 1 — ichida (≥5 harfli sinonim) */
@@ -389,7 +394,8 @@ export type ImportErrorCode =
   | 'unitInvalid'
   | 'warrantyInvalid'
   | 'dateInvalid'
-  | 'required';
+  | 'required'
+  | 'ikpuInvalid';
 
 export interface ImportIssue {
   field?: ImportField | 'extra';
@@ -417,6 +423,8 @@ export interface ParsedImportRow {
   expiryDate?: string;
   oemCode?: string;
   notes?: string;
+  /** MXIK (IKPU) — 17 raqam */
+  ikpu?: string;
   extra: { name: string; value: string }[];
 }
 
@@ -487,6 +495,15 @@ export function parseImportRow(raw: RawImportRow, ctx: ImportContext): ParseRowR
   const notes = typeof v('notes') === 'number' ? String(v('notes')) : (v('notes') as string | undefined)?.trim();
   if (notes && notes.length > NOTES_MAX) bad('notes', 'tooLong');
   else if (notes) row.notes = notes;
+
+  // MXIK: Excel soni bo'lsa ham raqamlar (boshidagi 0 yo'qolgan bo'lsa — 17 xonaga to'ldiriladi)
+  const ikpuRaw = v('ikpu');
+  if (ikpuRaw !== undefined) {
+    let ikpu = parseMxikInput(parseCode(ikpuRaw));
+    if (ikpu === null && typeof ikpuRaw === 'number' && Number.isInteger(ikpuRaw)) ikpu = parseMxikInput(BigInt(ikpuRaw).toString().padStart(17, '0'));
+    if (ikpu === null) bad('ikpu', 'ikpuInvalid');
+    else if (ikpu) row.ikpu = ikpu;
+  }
 
   for (const key of requiredFields(ctx)) {
     if (allowed.has(key as ImportField) && row[key as keyof ParsedImportRow] === undefined && !issues.some((i) => i.field === key)) {

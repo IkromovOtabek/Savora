@@ -5,7 +5,7 @@ import Icon from '@/components/icons/Icon';
 import { useDict } from '@/lib/i18n/client';
 import { tr } from '@/lib/i18n/fmt';
 import { fmtDate, fmtMoney } from '@/lib/format';
-import { fmtQty, parseQty, priceTimesQty } from '@/lib/qty';
+import { fmtQty, isFractionalUnit, parseQty, priceTimesQty } from '@/lib/qty';
 import { approvePieceworkAction, editPieceworkAction, rejectPieceworkAction } from '@/app/actions/production';
 import type { PieceworkView } from '@/lib/production/piecework';
 import { PwModal, StatusBadge, useRunAction } from './ui';
@@ -184,8 +184,10 @@ function EditDialog({ entry, canApprove, onClose }: { entry: PieceworkView; canA
   const { pending, run } = useRunAction();
   const [qtyText, setQtyText] = useState(fmtQty(entry.qty));
   const [rateText, setRateText] = useState(String(entry.rate));
-  // Birlik ma'lum emas (yozuvda saqlanmaydi) — kasr ruxsat, server qayta tekshiradi
-  const qty = parseQty(qtyText, 'kg');
+  // Birlik — yozuvdagi (aktdagi tayyor mahsulot birligi: dona — butun); aktsiz yozuvda — kasr ruxsat
+  const unit = entry.unit ?? 'kg';
+  const frac = isFractionalUnit(unit);
+  const qty = parseQty(qtyText, unit);
   const rateClean = rateText.replace(/\s/g, '');
   const rate = /^\d{1,10}$/.test(rateClean) ? Number(rateClean) : null;
   const ready = qty !== null && (!canApprove || rate !== null);
@@ -215,7 +217,7 @@ function EditDialog({ entry, canApprove, onClose }: { entry: PieceworkView; canA
       <div className="form-row">
         <div className="auth-field">
           <label htmlFor="pw-eqty">{t.formQty}</label>
-          <input id="pw-eqty" className="pw-qty-input" inputMode="decimal" value={qtyText} onChange={(e) => setQtyText(e.target.value.replace(/[^\d.,]/g, ''))} data-autofocus />
+          <input id="pw-eqty" className="pw-qty-input" inputMode={frac ? 'decimal' : 'numeric'} value={qtyText} onChange={(e) => setQtyText(e.target.value.replace(frac ? /[^\d.,]/g : /\D/g, ''))} aria-invalid={(qtyText !== '' && qty === null) || undefined} data-autofocus />
         </div>
         <div className="auth-field">
           <label htmlFor="pw-erate">{t.formRate}</label>

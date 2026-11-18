@@ -6,6 +6,7 @@ import { useToastOnState } from '@/lib/useToastOnState';
 import { createBrandAction, createCategoryAction, createProductAction, lookupBarcodeAction, updateProductAction } from '@/app/actions/products';
 import { createSupplierQuickAction } from '@/app/actions/suppliers';
 import type { BarcodeLookupResult } from '@/lib/barcodeLookup';
+import type { Gs1Code } from '@/lib/gs1';
 import { ProductStatus, SoldPaymentType, type ProductKind } from '@/lib/models/tenant/Product';
 import BackLink from '@/components/ui/BackLink';
 import BarcodeInputField from '@/components/ui/BarcodeInputField';
@@ -22,6 +23,7 @@ import { fmtQty, isFractionalUnit, parseQty, priceTimesQty } from '@/lib/qty';
 import { PRODUCT_UNITS, type ProductFieldKey, type ProductFieldSpec, type ProductUnit } from '@/lib/businessTypes';
 import { flattenCategories, LEGACY_CATEGORY_VALUE, type CategoryItem } from '@/lib/productCatalog';
 import ExtraFieldsEditor from '@/components/tenant/ExtraFieldsEditor';
+import MxikField from '@/components/tenant/MxikField';
 import StockSettingsFields, { type StockSettingsHandle, type StockSettingsInitial } from '@/components/production/purchase/StockSettingsFields';
 
 interface BranchOption { id: string; name: string }
@@ -95,6 +97,10 @@ interface Props {
     extra?: Partial<Record<ProductFieldKey, string>>;
     /** Qo'shimcha ustunlar (Excel importi yoki qo'lda) */
     extraFields?: { name: string; value: string }[];
+    /** MXIK (IKPU) — 17 raqam */
+    ikpu?: string;
+    /** Markirovkali tovar (DataMatrix) */
+    marked?: boolean;
   };
   /** Do'kondagi mavjud qo'shimcha ustun nomlari — taklif uchun */
   extraNames?: string[];
@@ -158,6 +164,9 @@ export default function ProductForm({
   const [unit, setUnit] = useState(initial?.extra?.unit || 'dona');
   const fractional = isFractionalUnit(unit);
   const [supplierId, setSupplierId] = useState(initial?.supplierId ?? '');
+  const [marked, setMarked] = useState(!!initial?.marked);
+  // Yangi mahsulot: xarid birligi tanlovi (koeffitsient maydoni shu tanlovga qarab chiqadi)
+  const [purchaseUnit, setPurchaseUnit] = useState('');
   const activeCreditBanks = creditBanks.filter(Boolean);
 
   // Narxlar — faqat jonli foyda ko'rinishi uchun (forma baribir shu inputlardan yuboriladi)
@@ -201,6 +210,17 @@ export default function ProductForm({
       if (fill && nameEl && r.suggestion) nameEl.value = r.suggestion.name;
       setBcInfo(r.existing || r.suggestion ? { ...r, filled: fill } : null);
     }, 450);
+  }
+  // DataMatrix (markirovka) skanerlandi: shtrix-kod maydoniga EAN yozilgan; tovar — markirovkali,
+  // yo'nalish maydonlari bo'sh bo'lsa — koddagi yaroqlilik (17) va partiya (10)
+  function onGs1Scan(c: Gs1Code) {
+    if (kind === 'goods') setMarked(true);
+    const fill = (id: string, v: string | undefined) => {
+      const el = document.getElementById(id) as HTMLInputElement | null;
+      if (el && v && !el.value) el.value = v;
+    };
+    fill('pf-expiryDate', c.expiry);
+    fill('pf-batchNumber', c.batch?.toUpperCase());
   }
   // Rang yo'nalish maydoni bo'lsa (kiyim) — umumiy "Rang / xususiyat" o'rniga o'sha chiziladi
   const colorInFields = productFields.some((f) => f.key === 'color');
@@ -324,6 +344,7 @@ export default function ProductForm({
                         defaultValue={initial?.barcode}
                         disabled={isPending}
                         onValueChange={onBarcodeChange}
+                        onGs1={onGs1Scan}
                       />
                       {bcInfo?.existing ? (
                         <span className="st-bc-hint st-bc-hint--warn" role="status">
@@ -377,6 +398,31 @@ export default function ProductForm({
                     disabled={isPending}
                     onUnitChange={setUnit}
                   />
+                )}
+                {/* Soliq: MXIK (hamma turga) va markirovka belgisi (faqat tovar) — fiskal chek emas, docs/SOLIQ.md */}
+                <MxikField
+                  initial={initial?.ikpu}
+                  disabled={isPending}
+                  queryHint={() => nameRef.current?.value || (document.getElementById('barcode') as HTMLInputElement | null)?.value || ''}
+                  onMarkedHint={isGoods ? () => setMarked(true) : undefined}
+                />
+                {isGoods && (
+                  <label className="st-switch-row">
+                    <input type="hidden" name="markedField" value="1" />
+                    <span className="st-switch-row-t">
+                      <b>{d.stock.marking.label}</b>
+                      <small>{d.stock.marking.hint}</small>
+                    </span>
+                    <input
+                      type="checkbox"
+                      role="switch"
+                      className="st-switch"
+                      name="marked"
+                      checked={marked}
+                      onChange={(e) => setMarked(e.target.checked)}
+                      disabled={isPending}
+                    />
+                  </label>
                 )}
               </div>
             </div>
@@ -567,7 +613,13 @@ export default function ProductForm({
                 {/* Ombor sozlamalari: minimal qoldiq, xarid birligi («1 qop = 50 kg»), barqaror kod */}
                 {stockSettings && trackQuantity && (
                   isCreate || !initial ? (
-                    stockSettings.purchasing && <p className="field-hint">{d.stock.stockSettings.createHint}</p>
+                    <CreateStockSettings
+                      baseUnit={unit}
+                      purchasing={stockSettings.purchasing}
+                      purchaseUnit={purchaseUnit}
+                      onPurchaseUnit={setPurchaseUnit}
+                      disabled={isPending}
+                    />
                   ) : (
                     <StockSettingsFields
                       ref={stockRef}
@@ -714,6 +766,58 @@ export default function ProductForm({
           </div>
         </form>
         </>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Yangi mahsulotda «Ombor sozlamalari»: minimal qoldiq va (sex/xarid moduli bilan) xarid birligi + koeffitsient.
+ * Forma bilan birga yuboriladi (createProductAction → readCreateStockSettings); tahrirda — StockSettingsFields.
+ */
+function CreateStockSettings({ baseUnit, purchasing, purchaseUnit, onPurchaseUnit, disabled }: {
+  baseUnit: string;
+  purchasing: boolean;
+  purchaseUnit: string;
+  onPurchaseUnit: (u: string) => void;
+  disabled: boolean;
+}) {
+  const d = useDict();
+  const t = d.stock.stockSettings;
+  const units = d.stock.fields.units;
+  const base = (baseUnit || 'dona') as ProductUnit;
+  const fractional = isFractionalUnit(base);
+  const puName = purchaseUnit ? units[purchaseUnit as ProductUnit] ?? purchaseUnit : '';
+  return (
+    <div className={purchasing ? 'form-row' : undefined}>
+      <div className="auth-field">
+        <label htmlFor="minStock">{tr(t.minStockUnit, { unit: units[base] ?? base })}</label>
+        <input id="minStock" name="minStock" type="text" inputMode={fractional ? 'decimal' : 'numeric'} autoComplete="off" placeholder={t.minStockPh} disabled={disabled} />
+        <span className="field-hint">{purchasing ? t.minStockHintDaily : t.minStockHint} {t.createHint}</span>
+      </div>
+      {purchasing && (
+        <div className="auth-field">
+          <label htmlFor="purchaseUnit">{t.purchaseUnit}</label>
+          <div className="form-row">
+            <select id="purchaseUnit" name="purchaseUnit" value={purchaseUnit} onChange={(e) => onPurchaseUnit(e.target.value)} disabled={disabled}>
+              <option value="">{t.purchaseUnitNone}</option>
+              {PRODUCT_UNITS.filter((u) => u !== base).map((u) => <option key={u} value={u}>{units[u]}</option>)}
+            </select>
+            {purchaseUnit && (
+              <input
+                name="purchaseFactor"
+                type="text"
+                inputMode="decimal"
+                autoComplete="off"
+                required
+                placeholder={t.factorPh}
+                aria-label={tr(t.factorLabel, { unit: puName, base: units[base] ?? base })}
+                disabled={disabled}
+              />
+            )}
+          </div>
+          <span className="field-hint">{purchaseUnit ? tr(t.factorLabel, { unit: puName, base: units[base] ?? base }) : t.hint}</span>
+        </div>
       )}
     </div>
   );

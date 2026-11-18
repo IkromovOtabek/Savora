@@ -6,7 +6,7 @@ import { Types } from 'mongoose';
 import { getTenantSession } from '@/lib/tenantSession';
 import { branchFilter } from '@/lib/branchScope';
 import { reserveStock, releaseStock } from '@/lib/stock';
-import { isPhoneShop } from '@/lib/businessTypes';
+import { PRODUCT_UNITS, isPhoneShop, type ProductUnit } from '@/lib/businessTypes';
 import { ProductStatus } from '@/lib/models/tenant/Product';
 import { generateProductCode, generateSku } from '@/lib/productId';
 import { checkSaleQty, clampQtyToStock, isStockless, parseQtyField } from '@/lib/productQuantity';
@@ -31,6 +31,8 @@ import { BRAND_NAME_MAX } from '@/lib/models/tenant/Brand';
 import { LEGACY_CATEGORY_VALUE, normalizeCatalogName } from '@/lib/productCatalog';
 import { parseExtraFieldsJson } from '@/lib/productImport';
 import { notifyNewSale, salePayLabel } from '@/lib/shopNotify';
+import { parseMxikInput } from '@/lib/mxik';
+import { isValidFactor } from '@/lib/production/calc';
 
 type State = { error?: string; success?: string } | null;
 // Mahsulot holati formada: omborda (o'z filialida) yoki sotilgan.
@@ -92,6 +94,55 @@ function readBrand(formData: FormData): string | undefined | 'keep' | 'tooLong' 
 function readExtraFields(formData: FormData): { name: string; value: string }[] | null | 'keep' {
   if (!formData.has('extraFields')) return 'keep';
   return parseExtraFieldsJson(formData.get('extraFields'));
+}
+
+/** MXIK (IKPU): maydon yo'q → 'keep', '' → olib tashlash, noto'g'ri (17 raqam emas) → null */
+function readMxik(formData: FormData): string | null | 'keep' {
+  if (!formData.has('ikpu')) return 'keep';
+  return parseMxikInput(formData.get('ikpu'));
+}
+
+/** «Markirovkali tovar» tugmasi: forma uni ko'rsatmasa (xizmat/to'plam) `markedField` yo'q → 'keep' */
+function readMarked(formData: FormData): boolean | 'keep' {
+  if (!formData.has('markedField')) return 'keep';
+  return formData.get('marked') === 'on';
+}
+
+const parseDecimal = (raw: FormDataEntryValue | null): number | null => {
+  const s = String(raw ?? '').replace(/\s/g, '').replace(',', '.');
+  if (!s) return null;
+  const n = Number(s);
+  return Number.isFinite(n) ? n : NaN;
+};
+
+/**
+ * Yangi mahsulotda ombor sozlamalari — setStockSettings (lib/production/catalog.ts) bilan bir xil qoidalar:
+ * minimal qoldiq (≥ 0, butun birlikda butun), xarid birligi (asosiy birlikdan farqli) + koeffitsient (musbat, ≠ 1).
+ * Faqat sanaladigan tovarda; xarid birligi — production/purchasing moduli yoqiq bo'lsa (aks holda e'tiborsiz).
+ */
+function readCreateStockSettings(
+  formData: FormData,
+  unit: string | undefined,
+  purchasing: boolean,
+  t: Dict['stock']['stockSettings'],
+): { ok: true; values: { minStock?: number; purchaseUnit?: ProductUnit; purchaseFactor?: number } } | { ok: false; error: string } {
+  const values: { minStock?: number; purchaseUnit?: ProductUnit; purchaseFactor?: number } = {};
+  const base = unit || 'dona';
+  const min = parseDecimal(formData.get('minStock'));
+  if (min !== null) {
+    if (Number.isNaN(min) || min < 0 || min > 1_000_000 || (!isFractionalUnit(base) && !Number.isInteger(min))) return { ok: false, error: t.minStockInvalid };
+    if (min > 0) values.minStock = roundQty(min);
+  }
+  const pu = String(formData.get('purchaseUnit') || '');
+  if (purchasing && pu) {
+    const factor = parseDecimal(formData.get('purchaseFactor'));
+    if (!(PRODUCT_UNITS as readonly string[]).includes(pu) || pu === base || !isValidFactor(factor) || factor === 1) {
+      return { ok: false, error: t.factorRequired };
+    }
+    values.purchaseUnit = pu as ProductUnit;
+    values.purchaseFactor = factor;
+  }
+  return { ok: true, values };
 }
 
 /** To'plam tarkibi xato matnlari (lib/productKinds.ts → parseBundleItems) */
@@ -245,6 +296,14 @@ export async function createProductAction(_prev: State, formData: FormData): Pro
   if (categoryChoice === 'invalid') return { error: m.categoryNotFound };
   // Kasrli birlikda (kg, m…) miqdor ≤3 xona kasr, aks holda butun
   const quantity = trackQuantity ? parseQtyField(quantityRaw, 1, extra.values.unit) : 1;
+  const ikpu = readMxik(formData);
+  if (ikpu === null) return { error: (await getDict()).stock.mxik.invalid };
+  const marked = kind === 'goods' && readMarked(formData) === true;
+  // Minimal qoldiq / xarid birligi — sanaladigan tovarda shu formadan (sex: docs/SEX_API.md)
+  const stockSettings = trackQuantity
+    ? readCreateStockSettings(formData, extra.values.unit, !!(features.production || features.purchasing), (await getDict()).stock.stockSettings)
+    : { ok: true as const, values: {} };
+  if (!stockSettings.ok) return { error: stockSettings.error };
   { const photoErr = await photoUrlError(photoUrl, features.mediaUpload, m); if (photoErr) return photoErr; }
   const supplierChoice = await readSupplierChoice(formData, user, Supplier);
   if (supplierChoice === 'invalid') return { error: (await getDict()).stock.suppliers.msg.badSupplier };
@@ -296,6 +355,9 @@ export async function createProductAction(_prev: State, formData: FormData): Pro
       ...extra.values,
       ...(Array.isArray(extraFields) && extraFields.length ? { extraFields } : {}),
       ...(categoryChoice && typeof categoryChoice === 'object' ? categoryChoice : {}),
+      ...(ikpu && ikpu !== 'keep' ? { ikpu } : {}),
+      ...(marked ? { marked: true } : {}),
+      ...stockSettings.values,
       createdBy: user.username,
       supplierId,
       history: [{ action: 'created', detail: branch.name, by: user.username, at: new Date() }],
@@ -376,6 +438,9 @@ export async function updateProductAction(_prev: State, formData: FormData): Pro
   if (!extra.ok) return { error: extra.error };
   const categoryChoice = await readCategoryChoice(formData, ProductCategory);
   if (categoryChoice === 'invalid') return { error: m.categoryNotFound };
+  const ikpu = readMxik(formData);
+  if (ikpu === null) return { error: (await getDict()).stock.mxik.invalid };
+  const marked = readMarked(formData);
   { const photoErr = await photoUrlError(photoUrl, features.mediaUpload, m); if (photoErr) return photoErr; }
 
   if (!Types.ObjectId.isValid(productId)) return { error: m.notFound };
@@ -432,6 +497,9 @@ export async function updateProductAction(_prev: State, formData: FormData): Pro
   product.oldPrice = oldPrice || undefined;
   if (brand !== 'keep') product.brand = brand;
   if (extraFields !== 'keep') product.extraFields = extraFields.length ? extraFields : undefined;
+  if (ikpu !== 'keep') product.ikpu = ikpu || undefined;
+  // Markirovka — faqat tovarda (xizmat/to'plam formasi bu tugmani ko'rsatmaydi)
+  if (marked !== 'keep') product.marked = marked && (product.kind ?? 'goods') === 'goods' ? true : undefined;
   // Faqat joriy yo'nalish maydonlari yangilanadi; boshqa yo'nalishdan qolgan qiymatlarga tegilmaydi.
   // Turkum tanlovi bo'lsa — kategoriya matni categoryId bo'yicha (pastda), yo'nalish maydonidan emas
   for (const key of extra.keys) {

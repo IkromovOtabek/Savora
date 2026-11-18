@@ -138,11 +138,17 @@ kdsWarnMinutes (10), kdsAlertMinutes (20, > warn), brand { logoUrl?, color? (#RR
 ```
 Logo/muqova — faqat shu do'konga yuklangan rasm (`/api/upload`, `isTenantUploadUrl`).
 
-**Bir filialda bir nechta login.** Backend (`resolveBranchId`, `waitersList`, ruxsatlar) bir filialga bog'langan
-bir nechta xodimni (ofitsant, oshpaz, kassir) qo'llaydi, LEKIN hozirgi UI (`/app/users` → «Filial qo'shish»)
-har login uchun ALOHIDA filial yaratadi. Restoran xodimlarini bitta filialga biriktirish UI'si hali yo'q —
-demo restoranda seed skripti yaratadi (§14). Bitta joyli restoran uchun tavsiya: zal/stol/taom — egasining
-asosiy omborida (`isMain`), xodimlar — shu filialga.
+**Bir filialda bir nechta login (xodimlar).** «Filial» — alohida savdo nuqtasi va uning o'z logini («Filial qo'shish»);
+«Xodim» — mavjud filialga (yoki egasining asosiy omboriga, `isMain`) biriktirilgan qo'shimcha login: ism (`User.fullName`),
+login, parol, rol shabloni. `User.staff = true` (asosiy omborga bog'langan login ham xodim hisoblanadi). Mantiq —
+`lib/staff.ts` (createStaff/updateStaff/deleteStaff): login formati `LOGIN_RE`, parol ≥ 6, tarif `maxUsers` (faol loginlar,
+egasi bilan — `checkPlanLimits`; to'lganda qo'shish va qayta faollashtirish rad etiladi, 403), global login registri,
+audit `user.create|update|reset_password|delete`. Filial, holat yoki parol o'zgarsa — `tokenVersion` oshadi (sessiya yopiladi).
+Buyurtma/sotuv tarixi bor xodim o'chirilmaydi (nofaol qilinadi); xodimi bor filial o'chirilmaydi (`errHasStaff`).
+UI: web `/app/users` → «Xodim qo'shish» (filial tanlash, ism, rol, login, parol; tahrirlash — ism, filial, yangi parol,
+bloklash; rol — «Huquqlar»); `app/actions/staff.ts`. Mobil: `mobile/app/branches.tsx` → «Xodimlar» tabi,
+API `GET|POST|PATCH /api/mobile/staff` (egasi + `users.manage`). Bitta joyli restoran uchun tavsiya: zal/stol/taom —
+asosiy omborda, xodimlar — shu filialga.
 
 **Menu slug qarori:** alohida `menuSlug` SAQLANMAYDI. QR manzili `/m/<Organization.slug>/<Table.qrToken>` — do'kon slug'i
 master bazada noyob va tenantni topish uchun yetarli (yangi master indeks/migratsiya shart emas). Sozlama
@@ -242,6 +248,10 @@ OrderItemView = { id, clientItemId, productId, name, displayName, basePrice, pri
   timings: { waitMs, prepMs /* ready−sent */, deliveryMs /* served−ready */, totalMs } }
 ```
 Barcha sanalar — ISO satr yoki `null`. Pre-chek chekida `d.restaurant.common.precheckNote` («fiskal chek emas») majburiy.
+**Xodim ismi:** `waiterName`, `openedBy`, `items[].addedBy/voidedBy`, `payments[].by` (shuningdek OrderSummary,
+KDS `waiterName`, hisobotlar) — ko'rsatish uchun ISM (`User.fullName`, bo'lmasa login; `lib/staffNames.ts`,
+`ops.staffNamesFor(ctx)` — so'rov davomida bir marta o'qiladi). Bazada login saqlanadi (`Order.waiterName`,
+`Sale.soldBy` — o'zgarmaydi); chekda sotuvchi — `withSellerNames` (chek sahifalari).
 `hallName` va `requireVoidReason` — `ops.orderViewFor(ctx, order)` to'ldiradi (bitta so'rov ichida ctx bo'yicha keshlanadi):
 UI alohida `getShopSettings` o'qimaydi, amal javobidagi `data.order` ham shu maydonlar bilan keladi.
 
@@ -299,7 +309,7 @@ birinchi filial, bo'lmasa asosiy ombor), `since` (ISO), `stationId`, `status`, `
 | `GET /api/restaurant/orders?status=active\|closed\|all&type=&since=` | tables + (order.create\|order.viewAll) | `{ serverTime, next, orders: OrderSummary[] }` (`since` bo'lsa — holatidan qat'i nazar o'zgarganlar; `closed` — oxirgi 24 soat) |
 | `GET /api/restaurant/orders/:id` | shu | `{ order: OrderView, serverTime }` |
 | `GET /api/restaurant/kitchen?stationId=&since=` | kitchen + kitchen.view | `KitchenBoard`: `{ serverTime, next, branchId, branches, settings:{kdsWarnMinutes,kdsAlertMinutes}, stations[{id,name,kind}], orders: KdsOrder[] }`; `KdsOrder = { id, orderNo, type, status, source, tableNumber, waiterName, guests, note, updatedAt, items: KdsItem[], voided: [{ id, reason, voidedAt }] }`; `KdsItem = { id, name, displayName, qty, unit, modifiers[{group,name}], note, status, stationId, stationKind, fromQr, sentAt, cookStartedAt, readyAt, elapsedMs, level: 'ok'\|'warn'\|'alert' }`. `voided` — shu stansiyada oshxonaga yuborilgandan keyin bekor qilingan taomlar (since rejimida — `since` dan, to'liq rejimda — oxirgi 2 daqiqa; to'liq rejimda faqat yaqinda bekor qilingani bor buyurtma ham `items: []` bilan keladi) |
-| `GET /api/restaurant/menu` | (tables\|kitchen) + (order.create\|order.viewAll\|menu.stopList\|kitchen.view) | `{ branchId, categories: string[], items: MenuItemView[] }`; `MenuItemView = { id, name, price, photoUrl, category, categoryId, kind, unit, stationId, stopListed, available (null — cheksiz), ikpu (MXIK yoki null), modifierGroups[{ id, name, required, min, max, options[{ id, name, price }] }] }`. Qoldig'i tugagan tovar (status `sold`) — faqat menyu muharririda (`menuEditorView`, `buildMenu(..., { withSoldOut: true })`), ofitsant va mijoz menyusida yo'q |
+| `GET /api/restaurant/menu` | (tables\|kitchen) + (order.create\|order.viewAll\|menu.stopList\|kitchen.view) | `{ branchId, categories: string[], items: MenuItemView[] }`; `MenuItemView = { id, name, price, photoUrl, category, categoryId, kind, unit, stationId, stopListed, available (null — cheksiz), ikpu (MXIK yoki null), modifierGroups[{ id, name, required, min, max, options[{ id, name, price }] }] }`. Qoldig'i tugagan tovar (status `sold`) — menyu muharririda va xodim menyusida (`available: 0` → UI «Tugagan», o'chiq); mijoz QR-menyusida yo'q |
 | `GET /api/restaurant/setup` | tables + tables.manage | `{ branchId, branches, settings, menuSlug, qrBaseUrl, halls[], tables[{…, qrToken, qrPath, qrUrl, busy}], stations[] }` |
 | `GET /api/restaurant/waiters` | tables + order.transfer | `{ waiters: [{ id, username, name, role }] }` |
 | `GET /api/restaurant/reports/timings?from=&to=` | tables + reports.view | `{ from, to, overall, byStation[], byWaiter[], byDish[], voids:{count,amount,lossCount,lossAmount} }` (stats: `{ prep, delivery, wait, total }` har biri `{ count, avgMs, medianMs, p90Ms, maxMs }`; davr ≤93 kun, standart 7 kun) |
@@ -411,7 +421,8 @@ Boshqa lug'atlarga qo'shildi: `d.catalog.features.{tables,kitchen,qrMenu}`, `d.c
 ## 13. Keyingi bosqich (backendda hali yo'q)
 
 Fiskal chek (virtual kassa hamkor), stansiya printeri (TCP 9100 / Print Agent), SSE/Redis real vaqt, kurslar, bron,
-choychaqa, agregatorlar, PIN-kirish (`User.pinHash`), ofitsant KPI sahifasi, mobil oflayn navbat (`clientItemId` tayyor).
+choychaqa, agregatorlar, PIN-kirish (`User.pinHash` — planshet rejimi: qurilmani ishonchli qilish va bekor qilish
+mexanizmi, sessiya almashish/avto-qulf kerak; hozircha qilinmadi), ofitsant KPI sahifasi, mobil oflayn navbat (`clientItemId` tayyor).
 
 ## 14. Demo restoran va uchdan-uchgacha sinov (faqat lokal dev)
 
@@ -420,7 +431,10 @@ choychaqa, agregatorlar, PIN-kirish (`User.pinHash`), ofitsant KPI sahifasi, mob
 `dr_kassir` (rol shablonlari; parol — skriptda yoki `SEED_RESTAURANT_PASSWORD`), «Asosiy zal» (1–4) va «Terrasa» (5–6),
 stansiyalar «Issiq sex»/«Bar», 11 taom + xomashyo (Osh va Kofe — modifikator, Shashlik — texkarta, Manti — stop-list,
 ichimliklar — Bar, non/suv — stansiyasiz, Coca-Cola — 3 dona qoldiq: `outOfStock` sinovi uchun), xizmat haqi 10%, qadoq 3 000.
-`NODE_ENV=production` yoki localhost bo'lmagan `MONGO_URI` da rad etadi. Biznes mantiqi qayta yozilmagan:
+`NODE_ENV=production` yoki localhost bo'lmagan `MONGO_URI` da rad etadi. Xodimlar `staff: true` bilan, asosiy omborga.
+**Tozalash:** `npm run seed:restaurant -- --reset-demo` — sinovdan qolgan holat (ochiq stol/pre-chek, smena, KDS, sotuvlar,
+qo'shilgan xodimlar) bilan birga FAQAT `demo-restoran` do'konini o'chirib (`lib/orgDelete`), qayta yaratadi; oldin slug,
+nom, telefon, admin login, biznes turi va baza nomi demo'ga mosligini tekshiradi (biri mos kelmasa — rad). Biznes mantiqi qayta yozilmagan:
 `scripts/ts-hooks.mjs` orqali `lib/organizations.ts` (createOrganization), `lib/roles.ts`, `lib/restaurant/setup.ts` chaqiriladi.
 Kirish: `http://localhost:3000/t/demo-restoran/login`.
 

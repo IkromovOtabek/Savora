@@ -10,7 +10,8 @@ import Icon from '@/components/icons/Icon';
 import DocLines from '@/components/production/receipts/DocLines';
 import LinePicker from '@/components/production/receipts/LinePicker';
 import {
-  fromDateInput, lineFromProduct, lineQtyOf, newClientId, sumAmounts, toDateInput, type DocLine, type LineProduct,
+  fromDateInput, lineForShortage, lineFromProduct, lineQtyOf, newClientId, sumAmounts, toDateInput, type DocLine, type LineProduct,
+  type PrefillItem,
 } from '@/components/production/receipts/lines';
 import { useDict } from '@/lib/i18n/client';
 import { tr } from '@/lib/i18n/fmt';
@@ -31,6 +32,8 @@ export interface PoFormProps {
   canViewPrices: boolean;
   /** Shu buyurtmaning ochiq qabul qoralamasi */
   draftReceipt: { id: string; docNo: string } | null;
+  /** Yangi buyurtmada: «Kam qolgan» blokidan tanlangan tovarlar (yetmagan miqdor bilan) */
+  prefill?: PrefillItem[];
 }
 
 /**
@@ -47,6 +50,7 @@ export default function PoForm({
   canAddSupplier,
   canViewPrices,
   draftReceipt,
+  prefill,
 }: PoFormProps) {
   const d = useDict();
   const t = d.production.purchase;
@@ -60,7 +64,7 @@ export default function PoForm({
   const [branchId, setBranchId] = useState(po?.branchId ?? defaultBranchId);
   const [expectedAt, setExpectedAt] = useState(toDateInput(po?.expectedAt));
   const [note, setNote] = useState(po?.note ?? '');
-  const [lines, setLines] = useState<DocLine[]>(() => (po?.lines ?? []).map((l) => {
+  const [lines, setLines] = useState<DocLine[]>(() => (!po && prefill?.length ? prefill.map((x) => lineForShortage(x.product, x.shortage, { withPrice: canViewPrices })) : (po?.lines ?? []).map((l) => {
     const base = l.baseUnit ?? 'dona';
     const product: LineProduct = lineProducts[l.productId] ?? {
       id: l.productId, code: l.code, name: l.name, unit: l.baseUnit,
@@ -71,9 +75,9 @@ export default function PoForm({
       key: l.id, product, qty: fmtQty(l.qty), unit: l.unit ?? base, price: l.price !== null ? String(l.price) : '',
       priced: l.price !== null, expiry: '', poLineId: null,
     };
-  }));
-  const [dirty, setDirty] = useState(false);
-  const dirtyRef = useRef(false);
+  })));
+  const [dirty, setDirty] = useState(!po && !!prefill?.length);
+  const dirtyRef = useRef(!po && !!prefill?.length);
   const [showErrors, setShowErrors] = useState(false);
   const [focusKey, setFocusKey] = useState<{ key: string; n: number; focus: boolean } | null>(null);
   const [clientId] = useState(newClientId);

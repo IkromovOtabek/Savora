@@ -8,6 +8,7 @@ import { getUsdRate } from '@/lib/currency';
 import { recordAudit } from '@/lib/audit';
 import { formToObject, parseInput, zText } from '@/lib/validation';
 import { getDict } from '@/lib/i18n/server';
+import { markingModeOf } from '@/lib/marking';
 
 type State = { error?: string; success?: string } | null;
 
@@ -94,4 +95,23 @@ export async function saveNotifySettingsAction(_prev: State, formData: FormData)
   });
   revalidatePath('/app/settings');
   return { success: k.saved };
+}
+
+/** Markirovka: kassada kod skanerlash — ogohlantirish (warn) yoki majburiy (require). Faqat do'kon egasi */
+export async function saveMarkingSettingsAction(_prev: State, formData: FormData): Promise<State> {
+  const { user, ShopSettings } = await getTenantAdminSession();
+  const t = (await getDict()).sales.marking;
+  const markingMode = markingModeOf(formData.get('markingMode'));
+  try {
+    await saveShopSettingsPart(ShopSettings, 'stock', { markingMode }, user.username);
+  } catch {
+    return { error: t.failed };
+  }
+  await recordAudit(user, {
+    action: 'settings.marking', entity: 'branch',
+    summary: `Markirovka: ${markingMode === 'require' ? 'majburiy' : 'ogohlantirish'}`,
+  });
+  revalidatePath('/app/settings');
+  revalidatePath('/app/pos');
+  return { success: t.saved };
 }

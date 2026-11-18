@@ -94,3 +94,13 @@ export async function isUsernameAvailable(username: string): Promise<boolean> {
   const existing = await UserDirectory.exists({ username: u });
   return !existing;
 }
+
+/** Xodim boshqa filialga o'tkazilganda registrdagi branchId ham yangilanadi (login oqimi tenant DB'dan o'qiydi) */
+export async function updateDirectoryBranch(username: string, branchId: string | undefined): Promise<void> {
+  if (!username) return;
+  const { UserDirectory } = await getMasterModels();
+  await UserDirectory.updateOne(
+    { username: normalize(username) },
+    branchId ? { $set: { branchId } } : { $unset: { branchId: '' } }
+  );
+}

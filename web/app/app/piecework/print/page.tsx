@@ -8,7 +8,7 @@ import { fmtDate, fmtMoney } from '@/lib/format';
 import { fmtQty } from '@/lib/qty';
 import { monthLabel } from '@/components/ui/MonthNav';
 import PrintButton from '@/components/ui/PrintButton';
-import { parsePwRange, pwHref, rangeParams } from '@/components/production/piecework/range';
+import { dayLabel, parsePwRange, pwHref, rangeParams } from '@/components/production/piecework/range';
 
 export async function generateMetadata() {
   const { d } = await getI18n();
@@ -30,7 +30,7 @@ export default async function PieceworkPrintPage({ searchParams }: { searchParam
   const range = parsePwRange(sp);
   const workerId = canApprove && sp.w && /^[a-f0-9]{24}$/i.test(sp.w) ? sp.w : undefined;
   const r = await pieceworkSummary(ctx, { from: range.from, to: range.to, workerId });
-  const periodLabel = range.isRange ? `${fmtDate(range.from)} – ${fmtDate(range.to)}` : monthLabel(range.month, locale);
+  const periodLabel = range.isRange ? `${dayLabel(range.fromDay)} – ${dayLabel(range.toDay)}` : monthLabel(range.month, locale);
   const back = pwHref('/app/piecework', { ...rangeParams(range), w: workerId, view: 'summary' });
   const workers = r.ok ? r.data.workers : [];
 

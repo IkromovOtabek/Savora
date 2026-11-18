@@ -20,6 +20,8 @@ export interface PieceworkEntry {
   productionOrderNo: string | null;
   operation: string;
   qty: number;
+  /** Miqdor birligi (aktdagi tayyor mahsulot birligi; dona — butun); aktsiz yozuvda — null */
+  unit: string | null;
   rate: number;
   amount: number;
   status: PieceworkStatus;
@@ -27,6 +29,8 @@ export interface PieceworkEntry {
   note: string | null;
   rejectReason: string | null;
   createdAt: string | null;
+  /** Server: «yozildi» holatida va o'ziniki bo'lsa tuzatish mumkin */
+  can?: { edit: boolean };
 }
 
 export interface Bucket { count: number; qty: number; amount: number }
@@ -125,6 +129,9 @@ export const productionApi = {
     api<PieceworkSummary>(`/api/mobile/production/piecework${qs({ summary: 1, mine: 1, ...o })}`),
   log: (body: { productionOrderId: string; operation: string; qty: number; clientId: string; workDate?: string; note?: string }) =>
     api<{ entry: PieceworkEntry; existing: boolean }>('/api/mobile/production/piecework', { method: 'POST', body }),
+  /** O'z «yozildi» holatidagi yozuvini tuzatish (miqdor; narx serverda texkartadan) */
+  edit: (body: { id: string; qty: number }) =>
+    api<{ entry: PieceworkEntry }>('/api/mobile/production/piecework', { method: 'PATCH', body }),
   /** Ochiq aktlar (qoralama va jarayonda) */
   activeOrders: () => api<ListPage<ProdOrder>>(`/api/mobile/production/orders${qs({ status: 'active', limit: 100 })}`),
   receipts: (o: { status?: string; q?: string; page?: number; limit?: number } = {}) =>
@@ -141,7 +148,10 @@ export const newPieceworkKey = newClientSaleId;
 export function monthStartIso(now = new Date()): string {
   return new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0).toISOString();
 }
-/** Bugun oxiri (mahalliy 23:59:59.999) — ISO. Server UTC yarim tunni «kun oxirigacha» suradi; bu qiymat surilmaydi */
+/**
+ * Bugun oxiri (mahalliy 23:59:59.999) — ISO lahza. Server (dateRange) Toshkent yarim tunini «shu kun oxirigacha»
+ * suradi, boshqa lahzani aynan o'zi (ichida) oladi — bu qiymat surilmaydi.
+ */
 export function todayEndIso(now = new Date()): string {
   return new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999).toISOString();
 }

@@ -32,7 +32,18 @@ export const PRODUCTION_LIMITS = {
   /** «Bajarildi»/«post» qulfi shu muddatdan eski bo'lsa — qulflangan jarayon uzilgan deb hisoblanadi */
   staleLockMs: 10 * 60 * 1000,
   noteMax: 500,
+  /** Akt: mijoz buyurtmasi matni */
+  customerRefMax: 160,
 } as const;
+
+/**
+ * Akt muddati o'tganmi: ochiq (qoralama/jarayonda) va muddat kuni (UTC yarim tunda saqlangan kalendar kuni)
+ * bugungi Toshkent kunidan oldin. `todayKey` — `tashkentDayKey(new Date())`.
+ */
+export function isOrderOverdue(status: string, dueDate: Date | string | null | undefined, todayKey: string): boolean {
+  if (!dueDate || (status !== 'draft' && status !== 'in_progress')) return false;
+  return new Date(dueDate).toISOString().slice(0, 10) < todayKey;
+}
 
 /* ───────────────────────────── birlik konvertatsiyasi ───────────────────────────── */
 

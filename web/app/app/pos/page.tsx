@@ -6,6 +6,8 @@ import { sellableInfo } from '@/lib/productKinds';
 import PosScreen, { type PosProduct } from '@/components/tenant/PosScreen';
 import type { CategoryItem } from '@/lib/productCatalog';
 import { getDict } from '@/lib/i18n/server';
+import { getShopSettings } from '@/lib/shopSettings';
+import { markingModeOf } from '@/lib/marking';
 
 export async function generateMetadata() {
   const d = await getDict();
@@ -18,11 +20,11 @@ const POS_PRODUCT_LIMIT = 3000;
 export default async function PosPage() {
   await requireFeature('sales');
   await requirePermission('sale.create');
-  const { user, org, features, Product, CashShift, ProductCategory } = await getTenantSession();
+  const { user, org, features, Product, CashShift, ProductCategory, ShopSettings } = await getTenantSession();
 
-  const [products, canDiscount, canEditPrice, openShift, cats] = await Promise.all([
+  const [products, canDiscount, canEditPrice, openShift, cats, settings] = await Promise.all([
     Product.find({ ...branchFilter(user), status: 'in_stock' })
-      .select('name imei barcode productId salePrice wholesalePrice trackQuantity quantity soldQuantity status unit categoryId kind bundleItems')
+      .select('name imei barcode productId salePrice wholesalePrice trackQuantity quantity soldQuantity status unit categoryId kind bundleItems marked')
       .sort({ name: 1 })
       .limit(POS_PRODUCT_LIMIT)
       .lean(),
@@ -33,6 +35,7 @@ export default async function PosPage() {
       ? CashShift.exists(isBranchScoped(user) ? { status: 'open', branchId: user.branchId } : { status: 'open' })
       : Promise.resolve(true),
     ProductCategory.find({}, { name: 1, parentId: 1 }).sort({ name: 1 }).limit(2000).lean(),
+    getShopSettings(ShopSettings),
   ]);
   const sellOf = await sellableInfo(Product, products);
   const categories: CategoryItem[] = cats.map((c) => ({ id: String(c._id), name: c.name, parentId: c.parentId ? String(c.parentId) : null }));
@@ -48,6 +51,7 @@ export default async function PosPage() {
     unit: p.unit ?? null,
     categoryId: p.categoryId ? String(p.categoryId) : undefined,
     service: p.kind === 'service' || undefined,
+    marked: (p.kind ?? 'goods') === 'goods' && !!p.marked ? true : undefined,
   }));
 
   return (
@@ -60,6 +64,7 @@ export default async function PosPage() {
       storageKey={`savora_pos_parked:${org._id}:${user.username}`}
       shopName={org.name}
       canInstallment={!!(features.variant || features.nasiya)}
+      markingMode={markingModeOf(settings.stock?.markingMode)}
     />
   );
 }

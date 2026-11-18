@@ -14,6 +14,11 @@ export interface IUser {
   fullName?: string;
   /** Filial-login bo'lsa — tegishli filial _id */
   branchId?: Types.ObjectId;
+  /**
+   * Xodim logini (lib/staff.ts): mavjud filialga biriktirilgan shaxs — ofitsant, oshpaz, kassir, ishchi.
+   * Yo'q/false — filialning o'z logini («Filial qo'shish»). Bir filialda bir nechta xodim bo'lishi mumkin.
+   */
+  staff?: boolean;
   mustChangePassword?: boolean;
   /** Huquqlar (lib/permissions.ts). undefined → rol standarti; admin doim hammasiga ega */
   permissions?: string[];
@@ -41,6 +46,7 @@ export const userSchema = new Schema<IUser>(
     role: { type: String, enum: ['admin', 'user'], default: 'user' },
     fullName: { type: String, trim: true },
     branchId: { type: Schema.Types.ObjectId, ref: 'Branch' },
+    staff: { type: Boolean },
     mustChangePassword: { type: Boolean, default: false },
     // default: undefined — massiv bo'lmasa rol standarti amal qiladi (Mongoose [] qilib qo'ymasin)
     permissions: { type: [String], default: undefined },

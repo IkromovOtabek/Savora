@@ -1,6 +1,6 @@
 'use client';
 
-/** Kamera orqali shtrix/QR o'qish — BarcodeDetector yoki ZXing fallback */
+/** Kamera orqali shtrix/QR/DataMatrix o'qish — BarcodeDetector yoki ZXing fallback */
 
 export type ScanStop = () => void;
 
@@ -15,8 +15,25 @@ declare global {
   interface Window {
     BarcodeDetector?: {
       new (opts?: { formats?: string[] }): BarcodeDetectorLike;
+      getSupportedFormats?: () => Promise<string[]>;
     };
   }
+}
+
+const BASE_FORMATS = ['ean_13', 'ean_8', 'code_128', 'code_39', 'upc_a', 'upc_e', 'qr_code', 'itf', 'codabar'];
+
+/**
+ * BarcodeDetector formatlari: asosiylari + DataMatrix (markirovka kodi «Asl belgisi»), agar brauzer qo'llasa.
+ * `dataMatrix: false` bo'lsa jonli kamera ZXing'da ishlaydi (u DataMatrix'ni ham o'qiydi) — startCameraBarcodeScan.
+ */
+async function nativeFormats(): Promise<{ formats: string[]; dataMatrix: boolean }> {
+  try {
+    const supported = await window.BarcodeDetector?.getSupportedFormats?.();
+    if (supported?.includes('data_matrix')) return { formats: [...BASE_FORMATS, 'data_matrix'], dataMatrix: true };
+  } catch {
+    /* getSupportedFormats yo'q — asosiylari */
+  }
+  return { formats: BASE_FORMATS, dataMatrix: false };
 }
 
 const VIDEO_CONSTRAINTS: MediaStreamConstraints = {
@@ -33,9 +50,7 @@ async function startNativeScan(video: HTMLVideoElement, onCode: (code: string) =
   video.srcObject = stream;
   await video.play().catch(() => {});
 
-  const detector = new window.BarcodeDetector!({
-    formats: ['ean_13', 'ean_8', 'code_128', 'code_39', 'upc_a', 'upc_e', 'qr_code', 'itf', 'codabar'],
-  });
+  const detector = new window.BarcodeDetector!({ formats: (await nativeFormats()).formats });
 
   let raf = 0;
   let stopped = false;
@@ -113,9 +128,7 @@ export async function scanBarcodeFromImageFile(file: File): Promise<string | nul
     if (typeof window !== 'undefined' && 'BarcodeDetector' in window) {
       try {
         const bitmap = await createImageBitmap(file);
-        const detector = new window.BarcodeDetector!({
-          formats: ['ean_13', 'ean_8', 'code_128', 'code_39', 'upc_a', 'upc_e', 'qr_code', 'itf', 'codabar'],
-        });
+        const detector = new window.BarcodeDetector!({ formats: (await nativeFormats()).formats });
         const codes = await detector.detect(bitmap as unknown as CanvasImageSource);
         const v = codes[0]?.rawValue?.trim();
         if (v) return v;
@@ -143,7 +156,8 @@ export async function startCameraBarcodeScan(
   video: HTMLVideoElement,
   onCode: (code: string) => void,
 ): Promise<ScanStop> {
-  if (typeof window !== 'undefined' && 'BarcodeDetector' in window) {
+  // Native — faqat DataMatrix'ni ham o'qisa (markirovka kodi); aks holda ZXing (u DataMatrix'ni o'qiydi)
+  if (typeof window !== 'undefined' && 'BarcodeDetector' in window && (await nativeFormats()).dataMatrix) {
     try {
       return await startNativeScan(video, onCode);
     } catch {

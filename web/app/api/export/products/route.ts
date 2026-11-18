@@ -41,7 +41,9 @@ export async function GET() {
       controller.enqueue(encoder.encode('﻿' + header));
       try {
         for await (const p of cursor) {
-          const row = [p.imei, p.name, p.color ?? '', p.status, canViewCost ? p.purchasePrice : '', p.salePrice, p.notes ?? '']
+          // MXIK va markirovka belgisi (1). Excel MXIK'ni songa aylantirib boshidagi nollarni tashlasa ham,
+          // importda 17 xonaga qayta to'ldiriladi (lib/productImport.ts)
+          const row = [p.imei, p.name, p.color ?? '', p.status, canViewCost ? p.purchasePrice : '', p.salePrice, p.notes ?? '', p.ikpu ?? '', p.marked ? '1' : '']
             .map(csvCell).join(',');
           controller.enqueue(encoder.encode('\n' + row));
         }

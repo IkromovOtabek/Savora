@@ -233,6 +233,7 @@ describe.skipIf(!URI)('restaurantReport (MongoDB)', () => {
       Product: (await import('@/lib/models/tenant/Product')).productSchema,
       Sale: (await import('@/lib/models/tenant/Sale')).saleSchema,
       Branch: (await import('@/lib/models/tenant/Branch')).branchSchema,
+      User: (await import('@/lib/models/tenant/User')).userSchema,
     };
     m = Object.fromEntries(Object.entries(s).map(([k, schema]) => [k, conn.model(k, schema as mongoose.Schema)]));
     await Promise.all(Object.values(m).map((M) => (M as mongoose.Model<unknown>).init()));
@@ -243,6 +244,8 @@ describe.skipIf(!URI)('restaurantReport (MongoDB)', () => {
     await m.Branch.collection.insertMany([{ _id: br1, name: 'Chilonzor', active: true, createdAt: at(1) }, { _id: br2, name: 'Yunusobod', active: true, createdAt: at(2) }]);
     await m.KitchenStation.collection.insertMany([{ _id: kitchen, branchId: br1, name: 'Issiq sex', kind: 'kitchen', sort: 0, active: true }, { _id: bar, branchId: br1, name: 'Bar', kind: 'bar', sort: 1, active: true }]);
     await m.Product.collection.insertMany([{ _id: osh, name: 'Osh', imei: 'P1', branchId: br1 }, { _id: cola, name: 'Cola', imei: 'P2', branchId: br1 }]);
+    // Xodim ismi: hisobotda login («vali») o'rniga ism ko'rsatiladi (lib/staffNames)
+    await m.User.collection.insertMany([{ username: 'vali', fullName: 'Vali Karimov', password: 'x', role: 'user', branchId: br1, staff: true, active: true }]);
 
     const o1 = order({
       guests: 2, openedAt: at(12), paidAt: at(12, 50),
@@ -328,7 +331,7 @@ describe.skipIf(!URI)('restaurantReport (MongoDB)', () => {
 
     // Bekor qilinganlar: yuborilmagani kirmaydi; pishgandan keyingisi — yo'qotish
     expect(v.totals).toEqual({ count: 2, amount: 90_000 + 45_000, lossCount: 1, lossAmount: 90_000 });
-    expect(v.rows[0]).toMatchObject({ voidedBy: 'vali', stage: 'beforeCook', loss: false, reason: 'Mijoz rad etdi', waiterName: 'Vali' });
+    expect(v.rows[0]).toMatchObject({ voidedBy: 'Vali Karimov', stage: 'beforeCook', loss: false, reason: 'Mijoz rad etdi', waiterName: 'Vali' });
     expect(v.rows[1]).toMatchObject({ voidedBy: 'admin', stage: 'afterCook', loss: true, amount: 90_000, tableNumber: 5, qty: 2 });
     expect(v.byStaff[0]).toMatchObject({ name: 'admin', lossAmount: 90_000 });
 

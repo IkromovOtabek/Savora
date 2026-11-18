@@ -15,7 +15,8 @@ import { kdsLevel, summarizeTimings, type TimedItem } from './timings';
 import { qrMenuPath } from './qr';
 import { KDS_STATUSES, type ItemStatus, type OrderSource, type RestaurantSettings, type StationKind } from './types';
 import { fail, needAnyPerm, needFeature, needPerm, ok, type OpResult, type RestaurantCtx, type RestaurantModels } from './context';
-import { loadOrder, orderViewFor, resolveBranchId, restaurantSettings } from './ops';
+import { loadOrder, orderViewFor, resolveBranchId, restaurantSettings, staffNamesFor } from './ops';
+import { staffName } from '../staffNames';
 import { orderSummary, type OrderSummary, type OrderView } from './view';
 
 const iso = (d?: Date | string | null): string | null => (d ? new Date(d).toISOString() : null);
@@ -66,15 +67,16 @@ export async function tablesBoard(ctx: RestaurantCtx, input: { branchId?: string
   if (!br.ok) return br;
   const branchId = br.data;
   const start = Date.now();
-  const [halls, tables, orders, branches] = await Promise.all([
+  const [halls, tables, orders, branches, names] = await Promise.all([
     ctx.m.Hall.find({ branchId, active: true }).sort({ sort: 1, createdAt: 1 }).select('name sort').lean(),
     ctx.m.Table.find({ branchId, active: true }).sort({ number: 1 }).select('hallId number seats x y callWaiterAt callBillAt').lean(),
     ctx.m.Order.find({ branchId, status: { $in: ['open', 'precheck'] } })
       .select('orderNo type status source tableId tableNumber guests waiterId waiterName openedAt updatedAt serviceChargePct packFee packFeePaid items.price items.qty items.status items.paidCheckoutId payments.total branchId')
       .lean<OrderDoc[]>(),
     branchesFor(ctx),
+    staffNamesFor(ctx),
   ]);
-  const summarize = (o: OrderDoc) => orderSummary(o, ctx.user.id, canAccessOrder(ctx.user, ctx.perms, o));
+  const summarize = (o: OrderDoc) => orderSummary(o, ctx.user.id, canAccessOrder(ctx.user, ctx.perms, o), names);
   const byTable = new Map<string, OrderDoc>();
   const takeaway: OrderSummary[] = [];
   for (const o of orders) {
@@ -127,15 +129,15 @@ export async function listOrders(ctx: RestaurantCtx, input: OrdersListInput = {}
   else if (input.status === 'closed') Object.assign(filter, { status: { $in: ['paid', 'cancelled'] }, updatedAt: { $gte: new Date(start - DAY) } });
   if (input.type) filter.type = input.type;
   if (!ctx.perms.has('order.viewAll')) filter.$or = [{ waiterId: ctx.user.id }, { waiterId: null }];
-  const orders = await ctx.m.Order.find(filter)
+  const [orders, names] = await Promise.all([ctx.m.Order.find(filter)
     .sort({ updatedAt: -1 })
     .limit(Math.min(Math.max(input.limit ?? 100, 1), 200))
     .select('orderNo type status source tableId tableNumber guests waiterId waiterName openedAt updatedAt serviceChargePct packFee packFeePaid items.price items.qty items.status items.paidCheckoutId payments.total branchId')
-    .lean<OrderDoc[]>();
+    .lean<OrderDoc[]>(), staffNamesFor(ctx)]);
   return ok({
     serverTime: new Date(start).toISOString(),
     next: nextSince(start),
-    orders: orders.filter((o) => canAccessOrder(ctx.user, ctx.perms, o)).map((o) => orderSummary(o, ctx.user.id, true)),
+    orders: orders.filter((o) => canAccessOrder(ctx.user, ctx.perms, o)).map((o) => orderSummary(o, ctx.user.id, true, names)),
   });
 }
 
@@ -239,13 +241,14 @@ export async function kitchenBoard(
         ],
         updatedAt: { $gte: new Date(start - DAY) },
       };
-  const [settings, stations, orders, branches] = await Promise.all([
+  const [settings, stations, orders, branches, names] = await Promise.all([
     restaurantSettings(ctx.m),
     ctx.m.KitchenStation.find({ branchId, active: true }).sort({ sort: 1, createdAt: 1 }).select('name kind').lean(),
     ctx.m.Order.find(filter).sort({ openedAt: 1 }).limit(300)
-      .select('orderNo type status source tableNumber waiterName guests note updatedAt items')
+      .select('orderNo type status source tableNumber waiterId waiterName guests note updatedAt items')
       .lean<OrderDoc[]>(),
     branchesFor(ctx),
+    staffNamesFor(ctx),
   ]);
 
   const inStation = (i: { stationId?: unknown }) => !stationId || String(i.stationId ?? '') === stationId;
@@ -256,7 +259,7 @@ export async function kitchenBoard(
     status: o.status,
     source: o.source ?? 'waiter',
     tableNumber: o.tableNumber ?? null,
-    waiterName: o.waiterName ?? null,
+    waiterName: staffName(names, o.waiterName, o.waiterId),
     guests: o.guests ?? null,
     note: o.note ?? null,
     updatedAt: iso(o.updatedAt),
@@ -322,8 +325,8 @@ type MenuProduct = IProduct & { _id: Types.ObjectId };
 
 /**
  * Menyu: filialdagi sotuvdagi mahsulotlar (taom), kategoriya bo'yicha. `forPublic` — stop-list va tugaganlar
- * yashirin; `withSoldOut` — qoldig'i tugagan (status `sold`) sanaladigan tovar ham (faqat menyu muharriri:
- * stansiya/modifikator/MXIK ni tovar kelishidan oldin sozlash uchun; ofitsant va mijoz menyusida emas).
+ * yashirin; `withSoldOut` — qoldig'i tugagan (status `sold`) sanaladigan tovar ham: menyu muharriri (stansiya/
+ * modifikator/MXIK ni tovar kelishidan oldin sozlash) va xodim menyusi («Tugagan» — o'chiq). Mijoz menyusida emas.
  */
 export async function buildMenu(
   m: Pick<RestaurantModels, 'Product'>,
@@ -374,14 +377,18 @@ export async function buildMenu(
   return { categories, items };
 }
 
-/** Xodim menyusi (ofitsant, kassa, oshxona stop-list): stop-listdagilar ham (belgi bilan) */
+/**
+ * Xodim menyusi (ofitsant, kassa, oshxona stop-list): stop-listdagilar va qoldig'i tugagan tovar ham —
+ * «Tugagan» belgisi bilan o'chiq ko'rsatiladi (`available: 0`; UI — MenuPanel.dishOff, mobil order-menu soldOut).
+ * Mijoz QR-menyusida (forPublic) ular yashirin qoladi.
+ */
 export async function staffMenu(ctx: RestaurantCtx, input: { branchId?: string } = {}): Promise<OpResult<{ branchId: string; categories: string[]; items: MenuItemView[] }>> {
   const denied = (needFeature(ctx, 'tables') && needFeature(ctx, 'kitchen'))
     ?? needAnyPerm(ctx, ['order.create', 'order.viewAll', 'menu.stopList', 'kitchen.view']);
   if (denied) return denied;
   const br = await resolveBranchId(ctx, input.branchId);
   if (!br.ok) return br;
-  return ok({ branchId: br.data, ...(await buildMenu(ctx.m, br.data)) });
+  return ok({ branchId: br.data, ...(await buildMenu(ctx.m, br.data, { withSoldOut: true })) });
 }
 
 /* ───────────────────────────── sozlamalar ko'rinishi ───────────────────────────── */
@@ -464,10 +471,11 @@ export async function timingsReport(ctx: RestaurantCtx, input: { from: Date; to:
   if (!br.ok) return br;
   const { from, to } = input;
   if (!(from < to) || to.getTime() - from.getTime() > 93 * DAY) return fail(ctx.d, 'badInput');
-  const [orders, stations] = await Promise.all([
+  const [orders, stations, names] = await Promise.all([
     ctx.m.Order.find({ branchId: br.data, openedAt: { $gte: new Date(from.getTime() - DAY), $lt: to } })
-      .select('waiterName items').limit(5000).lean<OrderDoc[]>(),
+      .select('waiterId waiterName items').limit(5000).lean<OrderDoc[]>(),
     ctx.m.KitchenStation.find({ branchId: br.data }).select('name').lean(),
+    staffNamesFor(ctx),
   ]);
   const stationName = new Map(stations.map((s) => [String(s._id), s.name]));
   const inRange = (d?: Date | null) => !!d && d >= from && d < to;
@@ -490,7 +498,7 @@ export async function timingsReport(ctx: RestaurantCtx, input: { from: Date; to:
       all.push(i);
       const sk = String(i.stationId);
       byStation.set(sk, [...(byStation.get(sk) ?? []), i]);
-      const wk = o.waiterName ?? '—';
+      const wk = staffName(names, o.waiterName, o.waiterId) ?? '—';
       byWaiter.set(wk, [...(byWaiter.get(wk) ?? []), i]);
       const dk = String(i.productId);
       const cur = byDish.get(dk) ?? { name: i.name, items: [] };

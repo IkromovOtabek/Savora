@@ -29,6 +29,22 @@ import { isFractionalUnit, priceTimesQty, qtyLabel } from '@/lib/qty';
 import { getI18n } from '@/lib/i18n/server';
 import { tr } from '@/lib/i18n/fmt';
 import { notifyNewSale, salePayLabel } from '@/lib/shopNotify';
+import { getShopSettings } from '@/lib/shopSettings';
+import { MARKING_MAX_PER_LINE, checkMarkingLines, markingModeOf, serialOfKey, soldMarkingConflict, type MarkingLineError } from '@/lib/marking';
+import { localDateKey } from '@/lib/gs1';
+import type { Dict } from '@/lib/i18n/server';
+
+/** Markirovka xatosi → matn (d.sales.marking) */
+function markingErrorText(e: MarkingLineError, t: Dict['sales']['marking']): string {
+  switch (e.code) {
+    case 'invalid': return tr(t.invalid, { name: e.name, code: e.value });
+    case 'mismatch': return tr(t.mismatch, { name: e.name, code: e.value });
+    case 'duplicate': return tr(t.duplicate, { name: e.name, code: e.value });
+    case 'tooMany': return tr(t.tooMany, { name: e.name });
+    case 'missing': return tr(t.missing, { name: e.name, n: e.n });
+    case 'expired': return tr(t.expired, { name: e.name, date: e.date.split('-').reverse().join('.') });
+  }
+}
 
 /** Muvaffaqiyatli kassa sotuvi natijasi — muvaffaqiyat oynasi va chek uchun */
 export interface PosDone {
@@ -49,7 +65,8 @@ type State = { error?: string; success?: string; done?: PosDone; saleIds?: strin
 const POS_MAX_LINES = 100;
 
 export interface PosSaleInput {
-  lines: { productId: string; qty: number; price?: number }[];
+  /** markingCodes — skanerlangan DataMatrix kodlari (har dona uchun bittadan, lib/marking.ts) */
+  lines: { productId: string; qty: number; price?: number; markingCodes?: string[] }[];
   wholesale: boolean;
   discount: { kind: 'percent' | 'amount'; value: number };
   customerName?: string;
@@ -69,7 +86,7 @@ export interface PosSaleInput {
  * Chegirma katalog narxini O'ZGARTIRMAYDI — faqat sotuv summasi kamayadi.
  */
 export async function posSaleAction(input: PosSaleInput): Promise<State> {
-  const { user, org, Product, Sale, Customer, features } = await getTenantSession();
+  const { user, org, Product, Sale, Customer, features, ShopSettings } = await getTenantSession();
   const { d, locale } = await getI18n();
   const m = d.sales.actions;
   const k = d.sales.pos;
@@ -81,6 +98,7 @@ export async function posSaleAction(input: PosSaleInput): Promise<State> {
       productId: zId(m.badProductId),
       qty: zOptQty(m.badQty),
       price: zMoney(m.priceWhole, { optional: true }),
+      markingCodes: z.array(z.string().min(8).max(200)).max(MARKING_MAX_PER_LINE).optional(),
     })).min(1, m.noProductsSelected).max(POS_MAX_LINES, m.noProductsSelected),
     wholesale: z.boolean(),
     discount: z.object({
@@ -142,6 +160,26 @@ export async function posSaleAction(input: PosSaleInput): Promise<State> {
     }
     if (!unit || unit <= 0) return { error: tr(m.enterPriceFor, { name: found.name }) };
     prepared.push({ found, qty, unit });
+  }
+
+  // Markirovka (DataMatrix): kod formati, tovarga mosligi (GTIN ↔ shtrix-kod), savatchada va bazada takror yo'qligi;
+  // majburiy rejimda — har donaga kod va muddati o'tmagan. Fiskal tekshiruv EMAS (docs/SOLIQ.md).
+  const markingMode = markingModeOf((await getShopSettings(ShopSettings)).stock?.markingMode);
+  const marking = checkMarkingLines(prepared.map(({ found, qty }, i) => ({
+    name: found.name,
+    qty,
+    unit: found.unit,
+    marked: (found.kind ?? 'goods') === 'goods' && !!found.marked,
+    productCodes: [found.barcode, found.imei],
+    codes: lines[i].markingCodes ?? [],
+  })), markingMode, localDateKey());
+  if (!marking.ok) return { error: markingErrorText(marking.error, d.sales.marking) };
+  const markingKeys = marking.lines.flatMap((l) => l.keys);
+  if (markingKeys.length) {
+    const sold = await Sale.find({ markingKeys: { $in: markingKeys }, status: { $ne: 'cancelled' } })
+      .select('markingKeys returns status').lean();
+    const conflict = soldMarkingConflict(markingKeys, sold);
+    if (conflict) return { error: tr(d.sales.marking.alreadySold, { code: serialOfKey(conflict) }) };
   }
 
   // Kasr miqdorda qator jami butun so'mga yaxlitlanadi (client PosScreen bilan bir xil formula)
@@ -207,7 +245,9 @@ export async function posSaleAction(input: PosSaleInput): Promise<State> {
           purchasePrice: product.purchasePrice,
           saleQuantity: qty,
           unit: product.unit,
+          ...(found.ikpu ? { ikpu: found.ikpu } : {}),
         },
+        ...(marking.lines[i].codes.length ? { markingCodes: marking.lines[i].codes, markingKeys: marking.lines[i].keys } : {}),
         ...(customer ? { ...(customer._id ? { customerId: customer._id } : {}), customerSnapshot: { fullName: customer.fullName, phone: customer.phone } } : {}),
         branchId: product.branchId,
         paymentType: isInstall ? 'installment' : isDebt ? 'debt' : 'cash',
@@ -231,7 +271,7 @@ export async function posSaleAction(input: PosSaleInput): Promise<State> {
       throw err;
     }
     return {
-      result: { productId: String(product._id), saleId: String(saleId), name: product.name, qty, measure: found.unit, unit, discount: lineDisc[i], total },
+      result: { productId: String(product._id), saleId: String(saleId), name: product.name, qty, measure: found.unit, unit, discount: lineDisc[i], total, marks: marking.lines[i].codes.length },
       undo: async () => { await Sale.deleteOne({ _id: saleId }); await restock(); },
     };
   });
@@ -251,8 +291,8 @@ export async function posSaleAction(input: PosSaleInput): Promise<State> {
       action: 'sale.pos',
       entity: 'sale',
       entityId: r.productId,
-      summary: `Kassa: ${r.name} · ${qtyLabel(r.qty, r.measure)} × ${r.unit.toLocaleString('uz-UZ')}${r.discount ? ` − ${r.discount.toLocaleString('uz-UZ')} chegirma` : ''} = ${r.total.toLocaleString('uz-UZ')} so'm${wholesale ? ' (ulgurji)' : ''} · ${payLabel}`,
-      meta: { qty: r.qty, unit: r.unit, discount: r.discount, total: r.total, wholesale, payment: payment.mode, parts: settled.parts, checkoutId },
+      summary: `Kassa: ${r.name} · ${qtyLabel(r.qty, r.measure)} × ${r.unit.toLocaleString('uz-UZ')}${r.discount ? ` − ${r.discount.toLocaleString('uz-UZ')} chegirma` : ''} = ${r.total.toLocaleString('uz-UZ')} so'm${wholesale ? ' (ulgurji)' : ''} · ${payLabel}${r.marks ? ` · markirovka ${r.marks} ta` : ''}`,
+      meta: { qty: r.qty, unit: r.unit, discount: r.discount, total: r.total, wholesale, payment: payment.mode, parts: settled.parts, checkoutId, ...(r.marks ? { markingCodes: r.marks } : {}) },
     });
   }
   // Birliklar aralash bo'lsa (kg + dona) miqdorlarni qo'shib bo'lmaydi — unda qatorlar soni

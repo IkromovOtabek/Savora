@@ -1,4 +1,5 @@
 import { getTenantSession } from '@/lib/tenantSession';
+import { loadStaffNames, staffName } from '@/lib/staffNames';
 import { branchAggMatch } from '@/lib/branchScope';
 import { userCan } from '@/lib/permissionGuard';
 import { parsePeriod, periodRange } from '@/lib/period';
@@ -16,7 +17,7 @@ type Row = { _id: string; count: number; revenue: number; paid: number; cost: nu
 
 export default async function SellersReport({ searchParams }: { searchParams: Promise<{ p?: string }> }) {
   const sp = await searchParams;
-  const { user, Sale } = await getTenantSession();
+  const { user, Sale, User } = await getTenantSession();
   const d = await getDict();
   const r = d.shell.reports;
   const period = parsePeriod(sp?.p);
@@ -34,6 +35,8 @@ export default async function SellersReport({ searchParams }: { searchParams: Pr
     } },
     { $sort: { revenue: -1 } },
   ]);
+  // Sotuvchi — login o'rniga ism (lib/staffNames); bazada login
+  const names = await loadStaffNames(User);
   const total = rows.reduce((a, x) => ({ count: a.count + x.count, revenue: a.revenue + x.revenue, paid: a.paid + x.paid, cost: a.cost + x.cost }), { count: 0, revenue: 0, paid: 0, cost: 0 });
 
   return (
@@ -62,7 +65,7 @@ export default async function SellersReport({ searchParams }: { searchParams: Pr
             <tbody>
               {rows.map((x) => (
                 <tr key={x._id}>
-                  <td className="cell-main">{x._id}</td>
+                  <td className="cell-main">{staffName(names, x._id) ?? x._id}</td>
                   <td className="num">{x.count}</td>
                   <td className="num">{fmtMoney(x.revenue)}</td>
                   <td className="num">{fmtMoney(x.paid)}</td>

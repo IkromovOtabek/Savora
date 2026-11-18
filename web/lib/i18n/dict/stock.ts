@@ -571,7 +571,7 @@ export const uz = {
 
   /** app/api/export/* — CSV ustun sarlavhalari va API xatolari */
   export: {
-    productsHeader: ['IMEI', 'Nom', 'Rang', 'Holat', 'Kelish', 'Sotuv', 'Izoh'],
+    productsHeader: ['IMEI', 'Nom', 'Rang', 'Holat', 'Kelish', 'Sotuv', 'Izoh', 'MXIK', 'Markirovka'],
     salesHeader: ['SotuvNo', 'Sana', 'Mijoz', 'Telefon', 'IMEI', 'Mahsulot', "To'lov", 'Bank', 'Jami', "To'langan", 'Qoldiq', 'Holat'],
     paymentTypes: {
       cash: 'Naqd',
@@ -693,7 +693,7 @@ export const uz = {
     minStockHintDaily: "Qoldiq shundan kam bo'lsa — omborda ogohlantirish va har kuni kechqurun Telegram/push xabar.",
     minStockInvalid: "Minimal qoldiq noto'g'ri.",
     copiesHint: 'Xarid birligi shu kodli boshqa filial nusxalariga ham yoziladi.',
-    createHint: "Xarid birligi va minimal qoldiqni mahsulot saqlangach, uning kartochkasida sozlang.",
+    createHint: "Ixtiyoriy — hozir yoki keyinroq mahsulot kartochkasida kiritish mumkin.",
   },
 
   /** Ombor sahifasidagi «Minimal qoldiqdan kam» bloki */
@@ -710,6 +710,38 @@ export const uz = {
     all: 'Barcha tovarlar',
     receipt: 'Kirim qilish',
     order: 'Buyurtma berish',
+  },
+
+  /** MXIK (IKPU): mahsulot formasidagi maydon, katalog qidiruvi (components/tenant/MxikField.tsx), ro'yxat filtri, API xatolari */
+  mxik: {
+    label: 'MXIK (IKPU)',
+    hint: "17 raqam — tasnif.soliq.uz katalogidagi kod. Fiskal chekda MXIK'siz tovar bo'lmaydi.",
+    invalid: "MXIK 17 ta raqamdan iborat bo'lishi kerak.",
+    search: 'Katalogdan qidirish',
+    searchPh: 'Nomi, MXIK yoki shtrix-kod',
+    searchBtn: 'Qidirish',
+    searching: 'Qidirilmoqda…',
+    none: "Hech narsa topilmadi — boshqa so'z bilan qidiring yoki rasmiy saytda tekshiring.",
+    site: 'tasnif.soliq.uz',
+    siteTitle: 'Rasmiy MXIK katalogi (yangi oynada)',
+    pick: 'Tanlash',
+    close: 'Yopish',
+    markedTag: 'Markirovka',
+    markedApplied: "Katalogda bu kod markirovkali — «Markirovkali tovar» yoqildi.",
+    source: "Manba: tasnif.soliq.uz (Soliq qo'mitasi katalogi). Tanlashdan oldin nomi va qadog'ini tekshiring.",
+    badQuery: 'Qidiruv uchun 2–80 belgi kiriting.',
+    rateLimited: "Juda ko'p qidiruv — bir daqiqadan keyin urinib ko'ring.",
+    unavailable: "MXIK katalogi hozir javob bermayapti. Kodni tasnif.soliq.uz saytidan topib, qo'lda kiriting.",
+    /** Ombor ro'yxati filtri */
+    filter: "MXIK yo'q",
+    filterTitle: "MXIK (IKPU) kiritilmagan mahsulotlar",
+  },
+
+  /** Markirovka (GS1 DataMatrix) belgisi — mahsulot formasi va kartochkasi */
+  marking: {
+    label: 'Markirovkali tovar',
+    hint: "DataMatrix kodi bor tovar (suv, ichimlik, pivo, tamaki, dori, maishiy texnika). Kassada har donaga kod skanerlash so'raladi.",
+    pill: 'Markirovkali',
   },
 };
 
@@ -1216,7 +1248,7 @@ export const ru: typeof uz = {
   },
 
   export: {
-    productsHeader: ['IMEI', 'Название', 'Цвет', 'Статус', 'Закупка', 'Продажа', 'Примечание'],
+    productsHeader: ['IMEI', 'Название', 'Цвет', 'Статус', 'Закупка', 'Продажа', 'Примечание', 'ИКПУ', 'Маркировка'],
     salesHeader: ['НомерПродажи', 'Дата', 'Клиент', 'Телефон', 'IMEI', 'Товар', 'Оплата', 'Банк', 'Итого', 'Оплачено', 'Остаток', 'Статус'],
     paymentTypes: {
       cash: 'Наличные',
@@ -1334,7 +1366,7 @@ export const ru: typeof uz = {
     minStockHintDaily: 'Если остаток ниже — предупреждение на складе и ежедневное вечернее сообщение в Telegram/push.',
     minStockInvalid: 'Неверный минимальный остаток.',
     copiesHint: 'Единица закупки запишется и в копии этого товара в других филиалах.',
-    createHint: 'Единицу закупки и минимальный остаток настройте в карточке товара после сохранения.',
+    createHint: 'Необязательно — можно указать сейчас или позже в карточке товара.',
   },
 
   minStockAlert: {
@@ -1347,5 +1379,34 @@ export const ru: typeof uz = {
     all: 'Все товары',
     receipt: 'Оприходовать',
     order: 'Заказать',
+  },
+
+  mxik: {
+    label: 'ИКПУ (MXIK)',
+    hint: '17 цифр — код из каталога tasnif.soliq.uz. В фискальном чеке товар без ИКПУ недопустим.',
+    invalid: 'ИКПУ должен состоять из 17 цифр.',
+    search: 'Найти в каталоге',
+    searchPh: 'Название, ИКПУ или штрихкод',
+    searchBtn: 'Найти',
+    searching: 'Поиск…',
+    none: 'Ничего не найдено — попробуйте другое слово или проверьте на официальном сайте.',
+    site: 'tasnif.soliq.uz',
+    siteTitle: 'Официальный каталог ИКПУ (в новом окне)',
+    pick: 'Выбрать',
+    close: 'Закрыть',
+    markedTag: 'Маркировка',
+    markedApplied: 'В каталоге этот код маркируемый — «Маркируемый товар» включён.',
+    source: 'Источник: tasnif.soliq.uz (каталог Налоговой). Перед выбором проверьте название и упаковку.',
+    badQuery: 'Для поиска введите от 2 до 80 символов.',
+    rateLimited: 'Слишком много запросов — попробуйте через минуту.',
+    unavailable: 'Каталог ИКПУ сейчас не отвечает. Найдите код на сайте tasnif.soliq.uz и введите вручную.',
+    filter: 'Без ИКПУ',
+    filterTitle: 'Товары без ИКПУ (MXIK)',
+  },
+
+  marking: {
+    label: 'Маркируемый товар',
+    hint: 'Товар с кодом DataMatrix (вода, напитки, пиво, табак, лекарства, бытовая техника). На кассе код сканируется для каждой единицы.',
+    pill: 'Маркировка',
   },
 };

@@ -7,6 +7,7 @@ import { z } from 'zod';
 import type { Dict } from '../i18n/dict';
 import { PRODUCT_UNITS } from '../businessTypes';
 import { zField, zId, zOneOf, zOptDate, zOptId, zQty, zText } from '../validation';
+import { tashkentDayKey, tashkentDayStart } from '../period';
 import { PRODUCTION_LIMITS as L } from './calc';
 
 type Errors = Dict['production']['errors'];
@@ -83,6 +84,57 @@ export const zOptText = (max: number, message: string) =>
       return z.NEVER;
     }
     return s;
+  });
+
+/**
+ * Davr chegarasi (ro'yxat filtri): «YYYY-MM-DD» — Toshkent kuni boshi (UTC+5; `dateRange` `to` ni shu kun oxirigacha
+ * suradi), to'liq ISO — aynan o'sha lahza. Bo'sh — undefined.
+ */
+export const zOptDay = (message: string) =>
+  zField((v, ctx) => {
+    if (v instanceof Date) {
+      if (!Number.isNaN(v.getTime())) return v;
+      ctx.addIssue({ code: 'custom', message });
+      return z.NEVER;
+    }
+    const s = str(v).trim();
+    if (!s) return undefined;
+    if (/^\d{4}-\d{2}-\d{2}$/.test(s)) {
+      const d = tashkentDayStart(s);
+      if (!Number.isNaN(d.getTime()) && tashkentDayKey(d) === s) return d;
+    } else {
+      const d = new Date(s);
+      if (!Number.isNaN(d.getTime())) return d;
+    }
+    ctx.addIssue({ code: 'custom', message });
+    return z.NEVER;
+  });
+
+/** Kalendar kuni (muddat): «YYYY-MM-DD» yoki ISO → UTC yarim tun (sana maydonlari kabi); null/'' — null (tozalash) */
+export const zOptDueDate = (message: string) =>
+  zField((v, ctx): Date | null | undefined => {
+    if (v === undefined) return undefined;
+    const s = str(v).trim();
+    if (v === null || !s) return null;
+    const d = new Date(/^\d{4}-\d{2}-\d{2}$/.test(s) ? `${s}T00:00:00.000Z` : s);
+    if (Number.isNaN(d.getTime()) || d.getUTCFullYear() < 2000 || d.getUTCFullYear() > 2100) {
+      ctx.addIssue({ code: 'custom', message });
+      return z.NEVER;
+    }
+    return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
+  });
+
+/** Vergul bilan ajratilgan ObjectId'lar (≤ max); bo'sh — undefined, noto'g'ri — xato */
+export const zOptIdList = (message: string, max: number) =>
+  zField((v, ctx) => {
+    const s = str(v).trim();
+    if (!s) return undefined;
+    const ids = [...new Set(s.split(',').map((x) => x.trim()).filter(Boolean))];
+    if (ids.length > max || ids.some((x) => !/^[a-f0-9]{24}$/i.test(x))) {
+      ctx.addIssue({ code: 'custom', message });
+      return z.NEVER;
+    }
+    return ids;
   });
 
 export const zOptBool = () =>
@@ -189,20 +241,30 @@ export function productionSchemas(e: Errors) {
       plannedQty: qty(),
       fromBranchId: zOptId(e.badBranch),
       toBranchId: zOptId(e.badBranch),
+      /** Topshirish muddati (kalendar kuni) */
+      dueDate: zOptDueDate(bad),
+      /** Mijoz buyurtmasi (kim uchun, raqami) */
+      customerRef: zOptText(L.customerRefMax, bad),
       note: zText(L.noteMax, bad),
       clientId: zOptClientId(bad),
     }),
     orderUpdate: z.object({
       plannedQty: zOptNum(bad, 0.001, 1_000_000),
       note: zOptText(L.noteMax, bad),
+      /** null — muddatni olib tashlash */
+      dueDate: zOptDueDate(bad),
+      customerRef: zOptText(L.customerRefMax, bad),
       materials: z.array(materialEdit).max(L.maxLines, tooMany).optional(),
       labor: z.array(laborEdit).max(L.maxLines, tooMany).optional(),
+      /** Optimistik qulf: tahrirlanayotgan akt versiyasi (`OrderView.rev`); boshqa birov o'zgartirgan bo'lsa — conflict */
+      expectedRev: zOptNum(bad, 0, 1_000_000_000, { int: true }),
     }),
     orderComplete: z.object({
       producedQty: zNonNegQty(e.producedRequired),
       scrapQty: zOptNum(bad, 0, 1_000_000),
       materials: z.array(materialEdit).max(L.maxLines, tooMany).optional(),
       labor: z.array(laborEdit).max(L.maxLines, tooMany).optional(),
+      expectedRev: zOptNum(bad, 0, 1_000_000_000, { int: true }),
     }),
     orderCancel: z.object({ reason: zText(300, bad) }),
 
@@ -257,8 +319,8 @@ export function productionSchemas(e: Errors) {
       workerId: zId(e.workerNotFound),
       /** Berilmasa — ishchining barcha tasdiqlangan (davr ichidagi) yozuvlari */
       ids: z.array(zId(e.entryNotFound)).max(L.maxBatchIds, tooMany).optional(),
-      from: zOptDate(bad),
-      to: zOptDate(bad),
+      from: zOptDay(bad),
+      to: zOptDay(bad),
       /** Kassa chiqimi qaysi filialga yoziladi (ixtiyoriy) */
       branchId: zOptId(e.badBranch),
       clientId: zOptClientId(bad),
@@ -281,9 +343,15 @@ export function productionSchemas(e: Errors) {
       workerId: zOptId(e.workerNotFound),
       productionOrderId: zOptId(e.orderNotFound),
       purchaseOrderId: zOptId(e.poNotFound),
-      from: zOptDate(bad),
-      to: zOptDate(bad),
+      from: zOptDay(bad),
+      to: zOptDay(bad),
       q: zText(80, bad),
+      /** Aktlar: `due` — muddat bo'yicha (yaqini birinchi, muddatsizlar oxirida) */
+      sort: zField((v) => (v === 'due' ? 'due' as const : undefined)),
+      /** Aktlar: `overdue` — muddati o'tgan ochiq aktlar */
+      due: zField((v) => (v === 'overdue' ? 'overdue' as const : undefined)),
+      /** Mahsulotlar: `?ids=a,b,c` (≤ 50) — tanlangan tovarlar (kirim/xarid formasini oldindan to'ldirish) */
+      ids: zOptIdList(bad, 50),
       active: zField((v) => (v === 'all' ? 'all' : v === '0' || v === 'false' ? false : v === '1' || v === 'true' ? true : undefined)),
       page: zOptNum(bad, 1, 10_000, { int: true }),
       limit: zOptNum(bad, 1, L.maxPageSize, { int: true }),

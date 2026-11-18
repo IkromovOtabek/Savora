@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import CameraScanButton from '@/components/ui/CameraScanButton';
 import { useDict } from '@/lib/i18n/client';
+import { GS, gtinToBarcode, isMarkingCode, parseGs1, type Gs1Code } from '@/lib/gs1';
 
 const SCAN_GAP_MS = 80;
 
@@ -10,7 +11,9 @@ function decodeHidReport(data: DataView): string {
   let out = '';
   for (let i = 0; i < data.byteLength; i++) {
     const code = data.getUint8(i);
-    if (code >= 32 && code <= 126) out += String.fromCharCode(code);
+    // 29 — GS1 ajratgichi (FNC1/GS), markirovka kodida kerak
+    if (code === 29) out += GS;
+    else if (code >= 32 && code <= 126) out += String.fromCharCode(code);
   }
   return out.trim();
 }
@@ -30,6 +33,11 @@ interface Props {
   defaultScanActive?: boolean;
   /** Qiymat o'zgarganda (yozish yoki skaner) — masalan shtrix-kod bo'yicha nom qidirish */
   onValueChange?: (value: string) => void;
+  /**
+   * Markirovka kodi (GS1 DataMatrix) skanerlanganda: maydonga GTIN'dan shtrix-kod (EAN-13) yoziladi,
+   * to'liq kod shu callback'ga beriladi (masalan yaroqlilik/partiyani formaga qo'yish uchun)
+   */
+  onGs1?: (code: Gs1Code) => void;
 }
 
 export default function BarcodeInputField({
@@ -43,6 +51,7 @@ export default function BarcodeInputField({
   clearOnScan = false,
   defaultScanActive = false,
   onValueChange,
+  onGs1,
 }: Props) {
   const d = useDict();
   const inputRef = useRef<HTMLInputElement>(null);
@@ -55,8 +64,14 @@ export default function BarcodeInputField({
   const [hidSupported] = useState(() => typeof navigator !== 'undefined' && 'hid' in navigator);
 
   const applyScan = useCallback((code: string) => {
-    const cleaned = code.trim();
+    let cleaned = code.trim();
     if (!cleaned) return;
+    // DataMatrix markirovka kodi → mahsulot shtrix-kodi (GTIN → EAN-13); to'liq kod — onGs1
+    const gs1 = parseGs1(cleaned);
+    if (isMarkingCode(gs1)) {
+      cleaned = gtinToBarcode(gs1.gtin);
+      onGs1?.(gs1);
+    }
     if (clearOnScan) {
       setValue('');
       if (inputRef.current) inputRef.current.value = '';
@@ -66,7 +81,7 @@ export default function BarcodeInputField({
       onValueChange?.(cleaned);
     }
     onScan?.(cleaned);
-  }, [clearOnScan, onScan, onValueChange]);
+  }, [clearOnScan, onScan, onValueChange, onGs1]);
 
   const onHidReport = useCallback(
     (e: HIDInputReportEvent) => {

@@ -5,6 +5,8 @@ import { getTenantSession } from '@/lib/tenantSession';
 import { requireSaleViewScope } from '@/lib/permissionGuard';
 import { branchFilter } from '@/lib/branchScope';
 import { getShopSettings } from '@/lib/shopSettings';
+import { withSellerNames } from '@/lib/staffNames';
+import { withSaleIkpu } from '@/lib/receiptIkpu';
 import PrintReceiptButton from '@/components/tenant/PrintReceiptButton';
 import ReceiptPaper from '@/components/tenant/ReceiptPaper';
 import { getDict } from '@/lib/i18n/server';
@@ -16,7 +18,7 @@ export async function generateMetadata() {
 
 export default async function SaleReceiptPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const { user, org, Sale, ShopSettings } = await getTenantSession();
+  const { user, org, Sale, ShopSettings, User, Product } = await getTenantSession();
   const d = await getDict();
   if (!Types.ObjectId.isValid(id)) notFound();
   const scope = await requireSaleViewScope(user);
@@ -32,7 +34,7 @@ export default async function SaleReceiptPage({ params }: { params: Promise<{ id
         <BackLink href={`/app/sales/${id}`} className="btn btn-ghost btn-sm">{d.common.back}</BackLink>
         <PrintReceiptButton defaultWidth={settings.receipt.paperWidth} />
       </div>
-      <ReceiptPaper sales={[sale]} org={org} receipt={settings.receipt} d={d} />
+      <ReceiptPaper sales={await withSellerNames(User, await withSaleIkpu(Product, [sale]))} org={org} receipt={settings.receipt} d={d} />
     </div>
   );
 }

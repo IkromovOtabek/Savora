@@ -4,6 +4,8 @@ import { getTenantSession } from '@/lib/tenantSession';
 import { requireSaleViewScope } from '@/lib/permissionGuard';
 import { branchFilter } from '@/lib/branchScope';
 import { getShopSettings } from '@/lib/shopSettings';
+import { withSellerNames } from '@/lib/staffNames';
+import { withSaleIkpu } from '@/lib/receiptIkpu';
 import PrintReceiptButton from '@/components/tenant/PrintReceiptButton';
 import ReceiptPaper from '@/components/tenant/ReceiptPaper';
 import { getDict } from '@/lib/i18n/server';
@@ -21,7 +23,7 @@ export default async function PosReceiptPage({ searchParams }: { searchParams: P
   const ids = [...new Set((sp.ids ?? '').split(','))].filter((x) => /^[a-f0-9]{24}$/i.test(x)).slice(0, MAX_LINES);
   if (!ids.length) notFound();
 
-  const { user, org, Sale, ShopSettings } = await getTenantSession();
+  const { user, org, Sale, ShopSettings, User, Product } = await getTenantSession();
   const d = await getDict();
   const scope = await requireSaleViewScope(user);
   const [found, settings] = await Promise.all([
@@ -43,7 +45,7 @@ export default async function PosReceiptPage({ searchParams }: { searchParams: P
         <BackLink href={backHref} className="btn btn-ghost btn-sm">{d.common.back}</BackLink>
         <PrintReceiptButton defaultWidth={settings.receipt.paperWidth} autoPrint={sp.print === '1'} />
       </div>
-      <ReceiptPaper sales={sales} org={org} receipt={settings.receipt} d={d} />
+      <ReceiptPaper sales={await withSellerNames(User, await withSaleIkpu(Product, sales))} org={org} receipt={settings.receipt} d={d} />
     </div>
   );
 }

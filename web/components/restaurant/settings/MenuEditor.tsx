@@ -11,6 +11,7 @@ import type { ModifierGroupInput } from '@/lib/restaurant/types';
 import { setStopListAction, updateMenuItemAction } from '@/app/actions/restaurant';
 import ModifierGroupsEditor, { toDraft, validateGroups, type DraftGroup } from './ModifierGroupsEditor';
 import { useRun } from './useRun';
+import { parseMxikInput } from '@/lib/mxik';
 
 type Filter = 'all' | 'stop' | 'noStation' | 'mods';
 type Station = MenuEditorView['stations'][number];
@@ -265,8 +266,7 @@ function DishPanel({ id, item, pending, onCancel, onSave }: { id: string; item: 
   const [ikpu, setIkpu] = useState(item.ikpu ?? '');
   const [groups, setGroups] = useState<DraftGroup[]>(() => toDraft(item.modifierGroups));
   const [err, setErr] = useState<{ msg: string; key?: string } | null>(null);
-  const ikpuClean = ikpu.replace(/\s/g, '');
-  const ikpuOk = ikpuClean === '' || /^\d{5,30}$/.test(ikpuClean);
+  const ikpuOk = parseMxikInput(ikpu) !== null;
 
   function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -280,7 +280,7 @@ function DishPanel({ id, item, pending, onCancel, onSave }: { id: string; item: 
       return;
     }
     setErr(null);
-    onSave(ikpuClean, v.groups);
+    onSave(parseMxikInput(ikpu) ?? '', v.groups);
   }
 
   return (

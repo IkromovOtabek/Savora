@@ -139,6 +139,33 @@ export const uz = {
     /** {n} — ro'yxatda ko'rsatilmaganlar */
     more: "…va yana {n} ta",
     empty: "Hamma mahsulot minimal qoldiqdan yuqori.",
+    /** {shop}, {n} — yaroqlilik muddati yaqin tovarlar */
+    expTitle: "{shop}: {n} ta tovarning yaroqlilik muddati yaqin",
+    /** {n} — ikkinchi bo'lim sarlavhasi (bitta xabarda) */
+    expSection: 'Yaroqlilik muddati yaqin: {n} ta',
+    /** {name}, {qty}, {when} */
+    expLine: '{name}: {qty} — {when}',
+    /** {n} — kun */
+    expDays: '{n} kunda tugaydi',
+    expToday: 'bugun tugaydi',
+    /** {n} — necha kun oldin */
+    expPast: "muddati o'tgan ({n} kun)",
+  },
+
+  /** Ombor sahifasi: yaroqlilik muddati yaqinlashgan tovarlar bloki (?exp=1) */
+  expiry: {
+    label: 'Yaroqlilik muddati',
+    /** {n} — tovarlar, {days} — ShopSettings.stock.expiryWarnDays */
+    title: '{n} ta tovarning muddati {days} kun ichida tugaydi yoki o\'tgan',
+    empty: "Muddati yaqin tovar yo'q.",
+    show: "Ko'rsatish",
+    all: 'Hammasi',
+    filterOn: 'Filtr: muddati yaqin tovarlar',
+    /** {date}, {when} */
+    item: '{date} · {when}',
+    /** {n} */
+    more: 'yana {n} ta',
+    writeOff: 'Hisobdan chiqarish',
   },
 
   recipes: {
@@ -298,7 +325,22 @@ export const uz = {
     due: 'Muddat',
     customerOrder: 'Mijoz buyurtmasi',
     customerOrderPh: 'Masalan: Aliyev A., 2 ta shkaf, buyurtma №15',
-    noteHint: 'Muddat va mijoz buyurtmasi akt izohiga yoziladi.',
+    noteHint: "Ixtiyoriy: ish bo'yicha qo'shimcha ko'rsatma.",
+    overdue: "Muddati o'tgan",
+    /** {date} */
+    dueLine: 'Muddat: {date}',
+    /** {text} */
+    customerLine: 'Mijoz: {text}',
+    filterSort: 'Tartib',
+    sortNew: 'Yangilari',
+    sortDue: "Muddat bo'yicha",
+    /** {n} */
+    overdueChip: "Muddati o'tgan: {n}",
+    orderInfo: 'Buyurtma',
+    dueNone: "Muddat yo'q",
+    workerPick: 'Ishchi',
+    workerNone: "— tanlanmagan —",
+    conflictReload: "Akt boshqa foydalanuvchi tomonidan o'zgartirildi — yangi holati yuklandi, o'zgarishlarni qayta kiriting.",
     /** {date} */
     noteDue: 'Muddat: {date}',
     /** {text} */
@@ -330,7 +372,7 @@ export const uz = {
     reasonLine: 'Sabab: {reason}',
     print: 'Chop etish',
     readOnly: "Faqat ko'rish: aktni o'zgartirish huquqi yo'q yoki xom ashyo ombori sizniki emas.",
-    planHint: "Reja o'zgarsa xom ashyo va ish haqi texkarta bo'yicha qayta hisoblanadi (qo'shimcha qatorlar qoladi).",
+    planHint: "Reja o'zgarsa xom ashyo rejasi va ish haqi texkarta bo'yicha qayta hisoblanadi; qo'lda tuzatilgan haqiqiy sarf va qo'shimcha qatorlar saqlanadi.",
     savePlan: 'Rejani saqlash',
     planResetConfirm: "Reja saqlansa, saqlanmagan sarf va ish haqi o'zgarishlari bekor bo'ladi. Davom etasizmi?",
     colMaterial: 'Xom ashyo',
@@ -397,6 +439,8 @@ export const uz = {
     sub: 'Yetkazib beruvchidan kelgan tovarni omborga qabul qilish',
     newTitle: 'Yangi kirim akti',
     newSub: "Tovarlarni kiriting va saqlang (qoralama). «Kirim qilish» bosilganda tovar omborga tushadi.",
+    /** {n} — «Kam qolgan» blokidan qo'shilgan tovarlar */
+    prefilled: "Minimal qoldiqdan kam {n} ta tovar qo'shildi (yetmagan miqdor bilan) — tekshirib saqlang.",
     emptyHint: 'Yetkazib beruvchidan tovar kelganda shu yerda kirim aktini oching.',
     emptyFilter: "Filtr bo'yicha kirim akti topilmadi.",
     clearFilter: 'Filtrni tozalash',
@@ -817,6 +861,24 @@ export const ru: typeof uz = {
     notifyLine: '{name}: {qty} (мин. {min})',
     more: '…и ещё {n}',
     empty: 'Все товары выше минимального остатка.',
+    expTitle: '{shop}: у {n} товаров скоро истекает срок годности',
+    expSection: 'Срок годности истекает: {n}',
+    expLine: '{name}: {qty} — {when}',
+    expDays: 'через {n} дн.',
+    expToday: 'истекает сегодня',
+    expPast: 'просрочен ({n} дн.)',
+  },
+
+  expiry: {
+    label: 'Срок годности',
+    title: 'У {n} товаров срок годности истекает в течение {days} дн. или истёк',
+    empty: 'Нет товаров с истекающим сроком.',
+    show: 'Показать',
+    all: 'Все',
+    filterOn: 'Фильтр: истекающий срок годности',
+    item: '{date} · {when}',
+    more: 'ещё {n}',
+    writeOff: 'Списать',
   },
 
   recipes: {
@@ -959,7 +1021,19 @@ export const ru: typeof uz = {
     due: 'Срок',
     customerOrder: 'Заказ клиента',
     customerOrderPh: 'Например: Алиев А., 2 шкафа, заказ №15',
-    noteHint: 'Срок и заказ клиента записываются в комментарий акта.',
+    noteHint: 'Необязательно: дополнительные указания по работе.',
+    overdue: 'Просрочен',
+    dueLine: 'Срок: {date}',
+    customerLine: 'Клиент: {text}',
+    filterSort: 'Порядок',
+    sortNew: 'Новые',
+    sortDue: 'По сроку',
+    overdueChip: 'Просрочено: {n}',
+    orderInfo: 'Заказ',
+    dueNone: 'Без срока',
+    workerPick: 'Работник',
+    workerNone: '— не выбран —',
+    conflictReload: 'Акт изменён другим пользователем — загружено актуальное состояние, внесите изменения заново.',
     noteDue: 'Срок: {date}',
     noteCustomer: 'Заказ клиента: {text}',
     noteTooLong: 'Комментарий слишком длинный (не более {n} символов).',
@@ -983,7 +1057,7 @@ export const ru: typeof uz = {
     reasonLine: 'Причина: {reason}',
     print: 'Печать',
     readOnly: 'Только просмотр: нет права на изменение акта или склад сырья не ваш.',
-    planHint: 'При изменении плана сырьё и оплата труда пересчитываются по техкарте (дополнительные строки сохраняются).',
+    planHint: 'При изменении плана план сырья и оплата труда пересчитываются по техкарте; исправленный вручную фактический расход и дополнительные строки сохраняются.',
     savePlan: 'Сохранить план',
     planResetConfirm: 'При сохранении плана несохранённые изменения расхода и оплаты труда будут сброшены. Продолжить?',
     colMaterial: 'Сырьё',
@@ -1048,6 +1122,7 @@ export const ru: typeof uz = {
     sub: 'Приёмка товара от поставщика на склад',
     newTitle: 'Новый приходный акт',
     newSub: 'Добавьте товары и сохраните (черновик). Товар попадёт на склад после «Оприходовать».',
+    prefilled: 'Добавлено {n} товаров ниже минимального остатка (на недостающее количество) — проверьте и сохраните.',
     emptyHint: 'Когда поставщик привезёт товар, откройте здесь приходный акт.',
     emptyFilter: 'По фильтру приходных актов не найдено.',
     clearFilter: 'Сбросить фильтр',

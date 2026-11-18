@@ -84,6 +84,10 @@ export interface IProductionOrder {
   outputProductId?: Types.ObjectId;
   /** Brak hujjati raqami (HC-…) */
   scrapDocNo?: string;
+  /** Topshirish muddati — kalendar kuni (UTC yarim tunda saqlanadi; «muddati o'tgan» — Toshkent kuni bo'yicha) */
+  dueDate?: Date;
+  /** Mijoz buyurtmasi (kim uchun, buyurtma raqami) — ixtiyoriy */
+  customerRef?: string;
   note?: string;
   /** Idempotentlik kaliti (takroriy «yaratish» bosilsa — o'sha akt qaytadi) */
   clientId?: string;
@@ -172,6 +176,8 @@ export const productionOrderSchema = new Schema<IProductionOrder>(
     scrapCost: { type: Number, min: 0 },
     outputProductId: { type: Schema.Types.ObjectId, ref: 'Product' },
     scrapDocNo: { type: String, trim: true },
+    dueDate: { type: Date },
+    customerRef: { type: String, trim: true, maxlength: 160 },
     note: { type: String, trim: true, maxlength: 500 },
     clientId: { type: String, trim: true },
     createdBy: { type: String, required: true, trim: true },
@@ -193,6 +199,7 @@ productionOrderSchema.index({ status: 1, createdAt: -1 });
 productionOrderSchema.index({ fromBranchId: 1, createdAt: -1 });
 productionOrderSchema.index({ toBranchId: 1, createdAt: -1 });
 productionOrderSchema.index({ recipeId: 1, createdAt: -1 });
+productionOrderSchema.index({ status: 1, dueDate: 1 }, { partialFilterExpression: { dueDate: { $type: 'date' } } });
 productionOrderSchema.index({ clientId: 1 }, { unique: true, partialFilterExpression: { clientId: { $type: 'string' } } });
 
 export type ProductionOrderDoc = IProductionOrder & { _id: Types.ObjectId };

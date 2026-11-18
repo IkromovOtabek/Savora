@@ -41,6 +41,8 @@ export interface IShopSettings {
   /** Ombor: «N kunda muddati tugaydi» ogohlantirishi (ro'yxatdan o'tish ustasi: oziq-ovqat 7, kosmetika 30, dori 90) */
   stock?: {
     expiryWarnDays?: number;
+    /** Markirovkali tovar kassada: warn — kodsiz ham sotiladi (ogohlantirish), require — har donaga kod shart (lib/marking.ts) */
+    markingMode?: 'warn' | 'require';
   };
   updatedBy?: string;
   createdAt?: Date;
@@ -84,6 +86,7 @@ export const shopSettingsSchema = new Schema<IShopSettings>(
     },
     stock: {
       expiryWarnDays: { type: Number, min: 1, max: 365 },
+      markingMode: { type: String, enum: ['warn', 'require'] },
     },
     updatedBy: { type: String },
   },

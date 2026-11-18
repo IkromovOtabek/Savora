@@ -6,6 +6,7 @@ import { Types, type Model } from 'mongoose';
 import { recordAudit } from '../audit';
 import { ensureMainBranchId } from '../mainBranch';
 import { escapeRegExp } from '../security';
+import { isTashkentMidnight } from '../period';
 import type { AuditEntity } from '../models/tenant/AuditLog';
 import { PRODUCTION_LIMITS as L } from './calc';
 import { fail, ok, scoped, validId, type OpResult, type ProductionCtx } from './context';
@@ -64,15 +65,19 @@ export function pageArgs(q: { page?: number | null; limit?: number | null }): { 
   return { skip: (page - 1) * limit, limit, page };
 }
 
-/** Davr filtri (createdAt yoki boshqa sana maydoni); `to` — kun oxirigacha */
+/**
+ * Davr filtri (createdAt yoki boshqa sana maydoni), kunlar — Toshkent vaqti (UTC+5, lib/period.ts):
+ *  - `from` — shu lahzadan (kun kalitidan kelsa — Toshkent kuni boshi, `zOptDay`);
+ *  - `to` aynan Toshkent yarim tuni bo'lsa (kun kaliti «YYYY-MM-DD») — SHU KUN OXIRIGACHA (keyingi kun boshidan oldin);
+ *    boshqa lahza — shu lahzagacha (ichida).
+ */
 export function dateRange(from?: Date | null, to?: Date | null): Record<string, Date> | null {
   if (!from && !to) return null;
   const r: Record<string, Date> = {};
   if (from) r.$gte = from;
   if (to) {
-    const end = new Date(to);
-    if (end.getUTCHours() === 0 && end.getUTCMinutes() === 0 && end.getUTCSeconds() === 0) end.setUTCDate(end.getUTCDate() + 1);
-    r.$lt = end;
+    if (isTashkentMidnight(to)) r.$lt = new Date(to.getTime() + 86_400_000);
+    else r.$lte = to;
   }
   return r;
 }

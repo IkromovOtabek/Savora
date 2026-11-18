@@ -2,6 +2,8 @@
  * Savora — DEMO RESTORAN (faqat lokal dev bazasi). Restoran modulini uchdan-uchgacha sinash uchun.
  *
  *   npm run seed:restaurant          (yoki: node --env-file-if-exists=.env scripts/seed-demo-restaurant.mjs)
+ *   npm run seed:restaurant -- --reset-demo   — sinovdan qolgan holatni (ochiq stollar/pre-chek, smena, KDS,
+ *                                              sotuvlar, qo'shilgan xodimlar) tozalab, demo'ni QAYTADAN yaratadi
  *
  * Yaratadi (idempotent — qayta ishga tushsa takrorlamaydi, mavjudini to'ldiradi):
  *   - do'kon «Demo Restoran» (slug `demo-restoran`, turi restaurant, tarif Pro → tables/kitchen/qrMenu);
@@ -13,6 +15,9 @@
  * Kirish: http://localhost:3000/t/demo-restoran/login · QR havolalar — Restoran sozlamalari → Zal va stollar.
  *
  * XAVFSIZLIK: production'da va localhost bo'lmagan MONGO_URI'da ishlamaydi (aniq rad etadi).
+ * `--reset-demo` FAQAT `demo-restoran` do'konini o'chiradi (lib/orgDelete — tenant bazasi, uning loginlari va
+ * master yozuvi; boshqa do'konlar tegilmaydi) va undan oldin bu aynan shu skript yaratgan demo ekanini
+ * tekshiradi (slug, nom, telefon, admin login, biznes turi, baza nomi) — biror belgi mos kelmasa rad etadi.
  * Biznes mantiqi qayta yozilmagan — lib/organizations (createOrganization), lib/roles, lib/restaurant/setup
  * chaqiriladi (scripts/ts-hooks.mjs orqali TypeScript to'g'ridan-to'g'ri yuklanadi).
  */
@@ -44,6 +49,7 @@ process.env.MONGO_URI = URI;
 
 /** Faqat lokal dev uchun parol (chatga/hujjatga yozilmaydi) */
 const DEV_PASSWORD = process.env.SEED_RESTAURANT_PASSWORD || 'DemoRest!2026';
+const RESET = process.argv.includes('--reset-demo');
 const ORG = { name: 'Demo Restoran', slug: 'demo-restoran', ownerName: 'Demo Restoran egasi', phone: '+998900000000' };
 const ADMIN = 'dr_admin';
 const STAFF = [
@@ -102,12 +108,12 @@ const [
   { createOrganization }, { getMasterModels }, { getTenantModels }, { getBaseConnection },
   { resolveOrgFeatures }, { loadUserPermissions }, { getDictionary }, { ensureDefaultRoles },
   { reserveUsername, isUsernameAvailable }, { addOrgUser }, { ensureMainBranchId },
-  { generateProductCode, generateSku }, setup,
+  { generateProductCode, generateSku }, setup, { deleteOrganizationPermanently, isDeletableTenantDb },
 ] = await Promise.all([
   lib('organizations'), lib('masterDb'), lib('tenantDb'), lib('db'),
   lib('features'), lib('permissionGuard'), lib('i18n/dict/index'), lib('roles'),
   lib('userDirectory'), lib('orgUsers'), lib('mainBranch'),
-  lib('productId'), lib('restaurant/setup'),
+  lib('productId'), lib('restaurant/setup'), lib('orgDelete'),
 ]);
 
 function must(r, what) {
@@ -115,8 +121,35 @@ function must(r, what) {
   return r.data;
 }
 
+/**
+ * --reset-demo: demo do'konni butunlay o'chiradi (keyin main() qayta yaratadi). Faqat aynan shu skript
+ * yaratgan demo do'kon — bir nechta belgi bilan tekshiriladi; biri mos kelmasa — rad etiladi.
+ */
+async function resetDemo() {
+  const { Organization } = await getMasterModels();
+  const org = await Organization.findOne({ slug: ORG.slug }).lean();
+  if (!org) {
+    console.log("• Tozalash: demo do'kon yo'q — yangidan yaratiladi");
+    return;
+  }
+  const checks = [
+    [org.slug === ORG.slug, 'slug'],
+    [org.name === ORG.name, 'nomi'],
+    [org.phone === ORG.phone, 'telefon'],
+    [org.adminUsername === ADMIN, 'admin login'],
+    [org.businessType === 'restaurant', 'biznes turi'],
+    [org.dbName === `biznes_${ORG.slug}`, 'baza nomi'],
+    [isDeletableTenantDb(org.dbName), 'baza nomi formati'],
+  ];
+  const bad = checks.filter(([ok]) => !ok).map(([, what]) => what);
+  if (bad.length) throw new Error(`«${ORG.slug}» do'koni demo'ga o'xshamaydi (${bad.join(', ')}) — tozalash rad etildi.`);
+  const info = await deleteOrganizationPermanently(String(org._id));
+  console.log(`✓ Tozalandi: ${info.name} (${info.dbName}) — buyurtmalar, smenalar, sotuvlar, xodimlar; qayta yaratilmoqda…`);
+}
+
 async function main() {
   const { Organization } = await getMasterModels();
+  if (RESET) await resetDemo();
 
   /* 1) Do'kon (mavjud bo'lsa — o'sha) */
   let org = await Organization.findOne({ slug: ORG.slug }).lean();
@@ -166,14 +199,14 @@ async function main() {
     if (!role) throw new Error(`Rol «${s.role}» topilmadi.`);
     const exists = await m.User.findOne({ username: s.username }).lean();
     if (exists) {
-      await m.User.updateOne({ _id: exists._id }, { $set: { roleId: role._id, branchId, active: true } });
+      await m.User.updateOne({ _id: exists._id }, { $set: { roleId: role._id, branchId, active: true, staff: true } });
       console.log(`• Login bor: ${s.username} (${s.role})`);
       continue;
     }
     if (!(await isUsernameAvailable(s.username))) throw new Error(`«${s.username}» login boshqa do'konda band.`);
     const u = new m.User({
       username: s.username, password: DEV_PASSWORD, role: 'user', fullName: s.fullName,
-      branchId, roleId: role._id, active: true, mustChangePassword: false,
+      branchId, staff: true, roleId: role._id, active: true, mustChangePassword: false,
     });
     await u.save();
     try {
@@ -257,6 +290,9 @@ async function main() {
     if (p.stop) must(await setup.setStopList(ctx, String(doc._id), true), `Stop-list ${p.name}`);
   }
   console.log(createdN ? `✓ Mahsulotlar: ${createdN} ta qo'shildi` : '• Mahsulotlar bor');
+
+  // Indekslar (noyob stol buyurtmasi, idempotentlik kalitlari) yaratilib bo'lishini kutamiz — tozalangan bazada muhim
+  await Promise.all(Object.values(m).filter((x) => x && typeof x.init === 'function').map((x) => x.init().catch(() => {})));
 
   const tables = await m.Table.find({ branchId }).sort({ number: 1 }).select('number qrToken').lean();
   console.log(`\nKirish: http://localhost:3000/t/${org.slug}/login — ${ADMIN}, ${STAFF.map((s) => s.username).join(', ')} (parol — skriptda/SEED_RESTAURANT_PASSWORD)`);

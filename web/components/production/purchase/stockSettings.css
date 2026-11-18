@@ -36,3 +36,6 @@
   .ss-alert-actions { width: 100%; }
   .ss-alert-actions .btn { flex: 1 1 auto; }
 }
+/* Yaroqlilik muddati bloki (ExpiryBlock): ogohlantirish rangi, o'tganlari qizil */
+.ss-alert--exp .ss-alert-items small { color: var(--t-warn, var(--warn)); }
+.ss-alert--exp .ss-alert-items li.is-past small { color: var(--danger); }

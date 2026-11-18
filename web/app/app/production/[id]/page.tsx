@@ -1,6 +1,7 @@
 import { productionCtxFromSession } from '@/lib/production/session';
 import { productionMeta } from '@/lib/production/catalog';
 import { getOrder } from '@/lib/production/orders';
+import { listWorkers } from '@/lib/production/piecework';
 import { getDict } from '@/lib/i18n/server';
 import BackLink from '@/components/ui/BackLink';
 import OrderEditor from '@/components/production/orders/OrderEditor';
@@ -15,6 +16,8 @@ export default async function ProductionOrderPage({ params }: { params: Promise<
   const ctx = await productionCtxFromSession();
   const t = ctx.d.production.orders;
   const [res, meta] = await Promise.all([getOrder(ctx, id), productionMeta(ctx)]);
+  // Ish haqi qatorida ishchi tanlovi — faqat tahrirlanadigan aktda (production.manage; faqat id va ism)
+  const workers = res.ok && res.data.order.can.edit ? await listWorkers(ctx) : null;
 
   return (
     <>
@@ -28,6 +31,7 @@ export default async function ProductionOrderPage({ params }: { params: Promise<
           order={res.data.order}
           canReceive={meta.ok && meta.data.features.purchasing && meta.data.can.receive}
           canPurchase={meta.ok && meta.data.features.purchasing && meta.data.can.managePo}
+          workers={workers?.ok ? workers.data.workers.map((w) => ({ id: w.id, name: w.name })) : []}
         />
       )}
     </>

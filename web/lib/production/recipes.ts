@@ -11,7 +11,7 @@ import type { ProductUnit } from '../businessTypes';
 import { branchFilter } from '../branchScope';
 import { roundQty } from '../qty';
 import { estimateUnitCost, planMaterials, PRODUCTION_LIMITS as L, unitFactor } from './calc';
-import { ensureItemCode, findStockDoc, GOODS_ONLY } from './stock';
+import { codeOf, ensureItemCode, findStockDoc, GOODS_ONLY } from './stock';
 import { audit, pageArgs, resolveOwnBranch, searchRegex } from './common';
 import { canViewProdCost, fail, guard, iso, ok, validId, type OpResult, type ProductionCtx } from './context';
 
@@ -29,7 +29,17 @@ export interface RecipeView {
   version: number;
   active: boolean;
   note: string | null;
-  items: { code: string; name: string; qty: number; unit: ProductUnit | null; lossPct: number }[];
+  /**
+   * `productId`/`purchaseUnit`/`purchaseFactor`/`available` — faqat batafsil ko'rinishda (`getRecipe`): shu kodning
+   * tanlangan ombordagi hujjati (bo'lmasa — foydalanuvchi doirasidagi boshqa filial nusxasi, `available: null`;
+   * umuman topilmasa — `productId: null`). Texkarta tahririda `saveRecipeAction` shu id'larni oladi.
+   */
+  items: {
+    code: string; name: string; qty: number; unit: ProductUnit | null; lossPct: number;
+    productId?: string | null; purchaseUnit?: ProductUnit | null; purchaseFactor?: number | null; available?: number | null;
+  }[];
+  /** Faqat `getRecipe`: tayyor mahsulotning shu ombordagi (yoki doiradagi) hujjati */
+  outputProductId?: string | null;
   /** `rate` — 1 birlik tayyor mahsulot uchun */
   operations: { name: string; rate: number; normMin: number | null }[];
   overheadPerUnit: number;
@@ -43,7 +53,11 @@ export interface RecipeView {
   versions?: { version: number; changedAt: string | null; changedBy: string; outputQty: number; items: number; operations: number; overheadPerUnit: number }[];
 }
 
-export function recipeView(r: RecipeDoc, opts: { withVersions?: boolean } = {}): RecipeView {
+/** Kod → ombordagi hujjat (getRecipe uchun): tanlangan ombordagi «omborda» → shu ombordagi istalgan → doiradagi eng eski */
+export interface CodeProduct { productId: string; purchaseUnit: ProductUnit | null; purchaseFactor: number | null; available: number | null }
+
+export function recipeView(r: RecipeDoc, opts: { withVersions?: boolean; products?: ReadonlyMap<string, CodeProduct> } = {}): RecipeView {
+  const pm = opts.products;
   return {
     id: String(r._id),
     name: r.name,
@@ -55,7 +69,13 @@ export function recipeView(r: RecipeDoc, opts: { withVersions?: boolean } = {}):
     version: r.version ?? 1,
     active: r.active !== false,
     note: r.note || null,
-    items: (r.items ?? []).map((i) => ({ code: i.code, name: i.name, qty: i.qty, unit: i.unit ?? null, lossPct: i.lossPct ?? 0 })),
+    items: (r.items ?? []).map((i) => {
+      const base = { code: i.code, name: i.name, qty: i.qty, unit: i.unit ?? null, lossPct: i.lossPct ?? 0 };
+      if (!pm) return base;
+      const p = pm.get(i.code);
+      return { ...base, productId: p?.productId ?? null, purchaseUnit: p?.purchaseUnit ?? null, purchaseFactor: p?.purchaseFactor ?? null, available: p?.available ?? null };
+    }),
+    ...(pm ? { outputProductId: pm.get(r.outputCode)?.productId ?? null } : {}),
     operations: (r.operations ?? []).map((o) => ({ name: o.name, rate: o.rate ?? 0, normMin: o.normMin ?? null })),
     overheadPerUnit: r.overheadPerUnit ?? 0,
     laborPerUnit: (r.operations ?? []).reduce((s, o) => s + (o.rate ?? 0), 0),
@@ -107,8 +127,9 @@ export async function saveRecipe(ctx: ProductionCtx, input: RecipeInput): Promis
   if (denied) return denied;
   const scope = branchFilter(ctx.user);
 
-  // Tayyor mahsulot
-  const output = await ctx.m.Product.findOne({ _id: input.outputProductId, ...scope, ...GOODS_ONLY }).lean<ProductDoc>();
+  // Tayyor mahsulot — istalgan filialdagi hujjat (faqat kodi/nomi/birligi olinadi): u akt bilan istalgan faol omborga
+  // chiqariladi (`resolveAnyBranch`), filial xodimi ham tayyor mahsulot ombori boshqa bo'lgan texkartani tahrirlay oladi
+  const output = await ctx.m.Product.findOne({ _id: input.outputProductId, ...GOODS_ONLY }).lean<ProductDoc>();
   if (!output) return fail(ctx.d, 'outputNotFound');
   if (!countable(output)) return fail(ctx.d, 'notCountable', { name: output.name });
 
@@ -230,14 +251,58 @@ export async function getRecipe(ctx: ProductionCtx, id: string, opts: { branchId
   if (!validId(id)) return fail(ctx.d, 'recipeNotFound');
   const r = await ctx.m.Recipe.findById(id).lean<RecipeDoc>();
   if (!r) return fail(ctx.d, 'recipeNotFound');
+  const b = await resolveOwnBranch(ctx, opts.branchId);
+  if (!b.ok) return b;
   let cost: RecipeCostEstimate | null = null;
   if (canViewProdCost(ctx)) {
-    const b = await resolveOwnBranch(ctx, opts.branchId);
-    if (!b.ok) return b;
     const costs = await costByCode(ctx, r.items.map((i) => i.code), b.data);
     cost = { branchId: b.data, ...estimateUnitCost(r.items, r.outputQty, costs, r.operations, r.overheadPerUnit ?? 0) };
   }
-  return ok({ recipe: recipeView(r, { withVersions: true }), cost });
+  const [products, outputDoc] = await Promise.all([
+    productsByCode(ctx, r.items.map((i) => i.code), b.data),
+    productsByCode(ctx, [r.outputCode], b.data, { anyBranch: true }),
+  ]);
+  for (const [k, v] of outputDoc) products.set(k, v);
+  return ok({ recipe: recipeView(r, { withVersions: true, products }), cost });
+}
+
+/**
+ * Kodlar → mahsulot hujjati (texkarta tahriri uchun `productId`). Tartib: shu ombordagi «omborda» → shu ombordagi
+ * istalgan holat → foydalanuvchi doirasidagi boshqa filial nusxasi (eng eskisi). `available` — faqat shu ombordagi
+ * hujjat uchun (boshqa filial nusxasida — null). Topilmagan kod — xaritada yo'q.
+ */
+async function productsByCode(ctx: ProductionCtx, codes: readonly string[], branchId: string, opts: { anyBranch?: boolean } = {}): Promise<Map<string, CodeProduct>> {
+  const uniq = [...new Set(codes.filter(Boolean).map((c) => c.toUpperCase()))];
+  const out = new Map<string, CodeProduct>();
+  if (!uniq.length) return out;
+  const docs = await ctx.m.Product.find({
+    ...(opts.anyBranch ? {} : branchFilter(ctx.user)),
+    ...GOODS_ONLY,
+    trackQuantity: true,
+    $or: [{ itemCode: { $in: uniq } }, { itemCode: { $exists: false }, productId: { $in: uniq } }],
+  })
+    .select('itemCode productId unit purchaseUnit purchaseFactor quantity soldQuantity status branchId createdAt')
+    .sort({ createdAt: 1 })
+    .limit(uniq.length * 20)
+    .lean<ProductDoc[]>();
+  const rank = (p: ProductDoc) => (String(p.branchId) === branchId ? (p.status === 'in_stock' ? 0 : 1) : 2);
+  const best = new Map<string, ProductDoc>();
+  for (const p of docs) {
+    const code = codeOf(p);
+    if (!code) continue;
+    const cur = best.get(code);
+    if (!cur || rank(p) < rank(cur)) best.set(code, p);
+  }
+  for (const [code, p] of best) {
+    const here = String(p.branchId) === branchId;
+    out.set(code, {
+      productId: String(p._id),
+      purchaseUnit: p.purchaseUnit ?? null,
+      purchaseFactor: p.purchaseFactor ?? null,
+      available: here ? (p.status === 'in_stock' ? Math.max(0, roundQty((p.quantity ?? 0) - (p.soldQuantity ?? 0))) : 0) : null,
+    });
+  }
+  return out;
 }
 
 /** Kodlar bo'yicha omborda o'rtacha kelish narxi */

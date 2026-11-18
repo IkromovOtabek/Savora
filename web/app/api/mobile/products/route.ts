@@ -17,6 +17,7 @@ import { getDictionary } from '@/lib/i18n/dict';
 import { parseQty } from '@/lib/qty';
 import { ensureMainBranchId } from '@/lib/mainBranch';
 import { rememberBarcodeNames } from '@/lib/barcodeLookup';
+import { parseMxikInput } from '@/lib/mxik';
 
 /** Matn maydonlari uzunlik chegarasi — oshsa 400 (xotira/DB to'ldirish himoyasi) */
 const MAX_LEN = { name: 120, code: 64, barcode: 64, brand: 60, notes: 500 } as const;
@@ -114,6 +115,10 @@ export async function POST(req: Request) {
     kind?: string;
     /** To'plam tarkibi: [{ productId, qty }] — shu ombordagi sanaladigan tovarlar */
     bundleItems?: unknown;
+    /** MXIK (IKPU) — 17 raqam; bo'sh — yo'q */
+    ikpu?: unknown;
+    /** Markirovkali tovar (DataMatrix) — faqat tovar turida */
+    marked?: unknown;
   } & Record<string, unknown>;
   try { body = await req.json(); } catch { return NextResponse.json({ error: 'Noto\'g\'ri so\'rov.' }, { status: 400 }); }
 
@@ -147,6 +152,9 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Rasm manzili noto\'g\'ri.' }, { status: 400 });
   }
   if (body.unit && !isProductUnit(body.unit)) return NextResponse.json({ error: 'O\'lchov birligi noto\'g\'ri.' }, { status: 400 });
+  const ikpu = parseMxikInput(typeof body.ikpu === 'string' ? body.ikpu : '');
+  if (ikpu === null) return NextResponse.json({ error: getDictionary('uz').stock.mxik.invalid }, { status: 400 });
+  const marked = body.marked === true && !stockless;
 
   // Turlar (variantlar) — har biri: nom, kod, shtrix, narx (berilmasa asosiy narx)
   const variants: VariantInput[] = [];
@@ -252,6 +260,8 @@ export async function POST(req: Request) {
     ...extra.values,
     ...(body.unit ? { unit: body.unit as ProductUnit } : {}),
     ...(category ?? {}),
+    ...(ikpu ? { ikpu } : {}),
+    ...(marked ? { marked: true } : {}),
     supplierId: stockless ? undefined : supplierId,
     variantGroupId,
     createdBy: user.username,

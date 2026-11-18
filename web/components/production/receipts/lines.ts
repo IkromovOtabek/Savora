@@ -4,8 +4,8 @@
  * lib/production/calc.ts → lineQty/unitFactor bilan serverdagi tekshiruv bir xil.
  */
 import type { ProductUnit } from '@/lib/businessTypes';
-import { lineQty, unitFactor } from '@/lib/production/calc';
-import { parseQty, priceTimesQty } from '@/lib/qty';
+import { ceilQty, lineQty, unitFactor } from '@/lib/production/calc';
+import { fmtQty, parseQty, priceTimesQty } from '@/lib/qty';
 
 /** Qatordagi tovar (GET /api/production/products → ProductOption'ning kerakli qismi) */
 export interface LineProduct {
@@ -92,6 +92,20 @@ export function lineFromProduct(p: LineProduct, opts: { qty?: string; withPrice?
   const price = opts.withPrice && p.cost && p.cost > 0 ? String(Math.round(p.cost * factor)) : '';
   return { key: newKey(), product: p, qty: opts.qty ?? '1', unit, price, priced: false, expiry: '', poLineId: null };
 }
+
+/**
+ * «Kam qolgan» blokidan: yetmagan miqdor (asosiy birlikda) → qator. Xarid birligi bo'lsa — shu birlikda, YUQORIGA
+ * yaxlitlangan (12 kg yetmaydi, 1 qop = 50 kg → 1 qop); yetmagani 0 bo'lsa — 1 birlik.
+ */
+export function lineForShortage(p: LineProduct, shortage: number, opts: { withPrice?: boolean } = {}): DocLine {
+  const line = lineFromProduct(p, { withPrice: opts.withPrice });
+  const factor = unitFactor(p, line.unit) ?? 1;
+  const q = ceilQty(Math.max(0, shortage) / factor, line.unit) || 1;
+  return { ...line, qty: fmtQty(q) };
+}
+
+/** Server sahifasi → forma: oldindan to'ldiriladigan tovar va yetmagan miqdori (asosiy birlikda) */
+export interface PrefillItem { product: LineProduct; shortage: number }
 
 /** API javobi (ProductOption) → qator tovari */
 export function toLineProduct(o: {

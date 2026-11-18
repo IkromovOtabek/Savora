@@ -4,7 +4,8 @@ import { revalidatePath } from 'next/cache';
 import { getTenantAdminSession } from '@/lib/tenantSession';
 import { markOnboardingStep } from '@/lib/onboarding';
 import { recordAudit } from '@/lib/audit';
-import { addOrgUser, updateOrgUserByBranch, removeOrgUserByBranch } from '@/lib/orgUsers';
+import { addOrgUser, updateOrgUserByUsername, removeOrgUserByBranch } from '@/lib/orgUsers';
+import { staffCountInBranch } from '@/lib/staff';
 import { reserveUsername, releaseUsername, isUsernameAvailable, UsernameTakenError } from '@/lib/userDirectory';
 import { getDict } from '@/lib/i18n/server';
 import { tr } from '@/lib/i18n/fmt';
@@ -110,8 +111,9 @@ export async function updateFilialAction(_prev: State, formData: FormData): Prom
   branch.active = active;
   await branch.save();
 
-  // Bog'langan login
-  const u = await User.findOne({ branchId });
+  // Filialning o'z logini (eng birinchisi). Shu filialdagi xodimlar (staff) bu yerda o'zgarmaydi — ularning
+  // ismi, holati va paroli «Xodimni tahrirlash» orqali (lib/staff.ts)
+  const u = branch.isMain ? null : await User.findOne({ branchId, role: 'user', staff: { $ne: true } }).sort({ createdAt: 1 });
   if (u) {
     u.fullName = name;
     u.active = active;
@@ -125,7 +127,8 @@ export async function updateFilialAction(_prev: State, formData: FormData): Prom
     await u.save();
   }
 
-  await updateOrgUserByBranch(user.organizationId, branchId, { name, username: u?.username });
+  // Nusxa login bo'yicha (filialda xodimlar ham bo'lishi mumkin — branchId bo'yicha birinchisi xodim chiqishi mumkin)
+  if (u) await updateOrgUserByUsername(user.organizationId, u.username, { name });
 
   await recordAudit(user, {
     action: newPassword && newPassword.length >= 6 ? 'branch.reset_password' : 'branch.update',
@@ -159,11 +162,16 @@ export async function deleteFilialAction(_prev: State, formData: FormData): Prom
   if (productCount > 0 || saleCount > 0) {
     return { error: tr(T.errHasData, { products: productCount, sales: saleCount }) };
   }
+  const target = await Branch.findById(branchId).select('isMain').lean();
+  if (!target || target.isMain) return { error: T.errNotFound };
+  // Filialning o'z logini; qolganlari — xodimlar. Xodim bor filial o'chirilmaydi (loginlar egasiz qolmasin)
+  const delUser = await User.findOne({ branchId, role: 'user', staff: { $ne: true } }).sort({ createdAt: 1 }).lean();
+  const staffN = await staffCountInBranch({ User }, branchId, delUser ? String(delUser._id) : undefined);
+  if (staffN > 0) return { error: tr(T.staff.errHasStaff, { n: staffN }) };
 
   const branch = await Branch.findByIdAndDelete(branchId).lean();
   // Loginni global registrdan ham olib tashlaymiz (o'chirishdan oldin username'ni olamiz).
-  const delUser = await User.findOne({ branchId, role: 'user' }).lean();
-  await User.deleteOne({ branchId, role: 'user' });
+  if (delUser) await User.deleteOne({ _id: delUser._id });
   if (delUser?.username) await releaseUsername(delUser.username);
   await removeOrgUserByBranch(user.organizationId, branchId);
   await recordAudit(user, {

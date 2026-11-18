@@ -10,6 +10,7 @@ import { recordAudit } from '../audit';
 import { saveShopSettingsPart } from '../shopSettings';
 import { isTenantUploadUrl } from '../fileUrl';
 import { siteUrl } from '../siteUrl';
+import { parseMxikInput } from '../mxik';
 import { isDupKey } from '../posSync';
 import { normalizeModifierGroups } from './modifiers';
 import { isBrandColor, qrMenuPath } from './qr';
@@ -350,9 +351,10 @@ export async function updateMenuItem(ctx: RestaurantCtx, productId: string, inpu
     else unset.modifierGroups = '';
   }
   if (input.ikpu !== undefined) {
-    const v = (input.ikpu ?? '').replace(/\s/g, '');
+    // MXIK — 17 raqam (lib/mxik.ts, mahsulot formasi bilan bir xil qoida)
+    const v = parseMxikInput(input.ikpu);
+    if (v === null) return fail(ctx.d, 'badInput');
     if (!v) unset.ikpu = '';
-    else if (!/^\d{5,30}$/.test(v)) return fail(ctx.d, 'badInput');
     else set.ikpu = v;
   }
   if (!Object.keys(set).length && !Object.keys(unset).length) return ok({ id: productId });

@@ -311,6 +311,11 @@ export const uz = {
     nextPayValue: "{date} — {sum} so'm",
     fullyPaid: "Nasiya to'liq yopildi. Rahmat!",
     debtClosed: "Qarz to'liq yopildi. Rahmat!",
+    /** {code} — MXIK (IKPU) */
+    mxik: 'MXIK: {code}',
+    /** {list} — markirovka kodlari seriyalari */
+    marking: 'Markirovka: {list}',
+    notFiscal: "Fiskal chek emas — do'konning ichki hujjati",
   },
 
   nasiya: {
@@ -491,6 +496,40 @@ export const uz = {
     keysTitle: 'Klaviatura',
     keyNav: 'Savatchada harakatlanish',
     keyQty: 'Miqdorni o\'zgartirish',
+    /** Markirovka (DataMatrix) — kassada skanerlash */
+    markNoProduct: "GTIN {gtin} bo'yicha tovar topilmadi — mahsulot shtrix-kodini tekshiring.",
+    markDup: 'Bu markirovka kodi savatchada bor.',
+    markNoStock: "«{name}» qoldig'i tugagan — yana kod qo'shib bo'lmaydi.",
+    markExpired: "Muddati o'tgan ({date}) — markirovkali tovar sotilmaydi.",
+    markExpiredConfirm: "Tovar muddati o'tgan ({date}). Baribir savatchaga qo'shilsinmi?",
+    /** {n} — skanerlangan, {need} — kerak */
+    markBadge: 'Kod {n}/{need}',
+    markScan: 'Markirovka kodini skanerlang',
+    markMissingRequire: "Markirovkali tovarga {n} ta kod yetishmaydi — har donasining DataMatrix kodini skanerlang.",
+    markMissingWarn: "{n} ta markirovka kodi skanerlanmagan. Onlayn-kassa bunday tovarga chek chiqarmaydi.",
+  },
+
+  /** Markirovka: server xatolari (posSaleAction) va do'kon sozlamasi (Sozlamalar → Markirovka) */
+  marking: {
+    invalid: "«{name}»: markirovka kodi noto'g'ri ({code}).",
+    mismatch: "«{name}»: {code} kodi bu tovarga tegishli emas (GTIN mos emas).",
+    duplicate: "«{name}»: {code} kodi savatchada ikki marta.",
+    tooMany: "«{name}»: kodlar soni tovar sonidan ko'p.",
+    missing: "«{name}»: {n} ta markirovka kodi yetishmaydi.",
+    expired: "«{name}»: muddati o'tgan ({date}) — sotilmaydi.",
+    alreadySold: '{code} kodli tovar avval sotilgan — bir kod ikki marta sotilmaydi.',
+    tab: 'Markirovka',
+    title: 'Markirovka (DataMatrix)',
+    hint: "Markirovkali tovar kassada sotilganda DataMatrix kodi skanerlanadi: kod sotuv yozuviga saqlanadi va bir kod ikki marta sotilmaydi. Tovarni mahsulot kartochkasida «Markirovkali tovar» deb belgilang.",
+    law: "2026-03-01 dan onlayn-kassa markirovka kodi skanerlanmagan, takror yoki muddati o'tgan tovarga chek chiqarmaydi.",
+    notFiscal: "Savora cheki fiskal chek emas: rasmiy chekni onlayn-NKM yoki virtual kassa beradi. Virtual kassa bilan ulanish — keyingi bosqich.",
+    modeWarn: 'Ogohlantirish',
+    modeWarnSub: "Kod skanerlanmasa ham sotiladi — kassada ogohlantirish chiqadi.",
+    modeRequire: 'Majburiy',
+    modeRequireSub: "Har donaga kod skanerlanmaguncha to'lov o'tmaydi; muddati o'tgan tovar sotilmaydi.",
+    save: 'Saqlash',
+    saved: 'Saqlandi',
+    failed: "Saqlab bo'lmadi. Qayta urinib ko'ring.",
   },
 
   fin: {
@@ -1250,6 +1289,9 @@ export const ru: typeof uz = {
     nextPayValue: '{date} — {sum} сум',
     fullyPaid: 'Рассрочка полностью погашена. Спасибо!',
     debtClosed: 'Долг полностью погашен. Спасибо!',
+    mxik: 'ИКПУ: {code}',
+    marking: 'Маркировка: {list}',
+    notFiscal: 'Не фискальный чек — внутренний документ магазина',
   },
 
   nasiya: {
@@ -1430,6 +1472,37 @@ export const ru: typeof uz = {
     keysTitle: 'Клавиатура',
     keyNav: 'Навигация по корзине',
     keyQty: 'Изменить количество',
+    markNoProduct: 'Товар с GTIN {gtin} не найден — проверьте штрихкод товара.',
+    markDup: 'Этот код маркировки уже в корзине.',
+    markNoStock: '«{name}» закончился — больше кодов добавить нельзя.',
+    markExpired: 'Срок годности истёк ({date}) — маркируемый товар не продаётся.',
+    markExpiredConfirm: 'Срок годности истёк ({date}). Всё равно добавить в корзину?',
+    markBadge: 'Код {n}/{need}',
+    markScan: 'Отсканируйте код маркировки',
+    markMissingRequire: 'Маркируемому товару не хватает кодов: {n} — отсканируйте DataMatrix каждой единицы.',
+    markMissingWarn: 'Не отсканировано кодов маркировки: {n}. Онлайн-касса не выдаст чек на такой товар.',
+  },
+
+  marking: {
+    invalid: '«{name}»: неверный код маркировки ({code}).',
+    mismatch: '«{name}»: код {code} не относится к этому товару (GTIN не совпадает).',
+    duplicate: '«{name}»: код {code} в корзине дважды.',
+    tooMany: '«{name}»: кодов больше, чем количество товара.',
+    missing: '«{name}»: не хватает кодов маркировки: {n}.',
+    expired: '«{name}»: срок годности истёк ({date}) — продажа запрещена.',
+    alreadySold: 'Товар с кодом {code} уже продан — один код нельзя продать дважды.',
+    tab: 'Маркировка',
+    title: 'Маркировка (DataMatrix)',
+    hint: 'При продаже маркируемого товара на кассе сканируется код DataMatrix: код сохраняется в продаже, один код нельзя продать дважды. Отметьте товар как «Маркируемый товар» в карточке.',
+    law: 'С 01.03.2026 онлайн-касса не выдаёт чек, если код маркировки не отсканирован, повторяется или срок годности истёк.',
+    notFiscal: 'Чек Savora — не фискальный: официальный чек выдаёт онлайн-ККМ или виртуальная касса. Интеграция с виртуальной кассой — следующий этап.',
+    modeWarn: 'Предупреждение',
+    modeWarnSub: 'Продажа без кода разрешена — на кассе появится предупреждение.',
+    modeRequire: 'Обязательно',
+    modeRequireSub: 'Оплата не пройдёт, пока не отсканирован код каждой единицы; просроченный товар не продаётся.',
+    save: 'Сохранить',
+    saved: 'Сохранено',
+    failed: 'Не удалось сохранить. Попробуйте ещё раз.',
   },
 
   fin: {

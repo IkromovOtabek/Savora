@@ -473,4 +473,136 @@ describe.skipIf(!URI)('ishlab chiqarish oqimi (MongoDB)', () => {
     expect(await pw.listPiecework(off, {})).toMatchObject({ ok: false, code: 'moduleOff', status: 403 });
     expect(await orders.listOrders(off, {})).toMatchObject({ ok: false, code: 'moduleOff' });
   });
+
+  /* ───────────── 2-bosqich tuzatishlari (muddat, id'lar, Toshkent kuni, ishbay birligi) ───────────── */
+
+  it('akt: muddat va mijoz buyurtmasi, muddati o\'tgan filtri, muddat bo\'yicha saralash', async () => {
+    const { tashkentDayKey } = await import('@/lib/period');
+    const today = tashkentDayKey(new Date());
+    const day = (n: number) => { const x = new Date(`${today}T00:00:00.000Z`); x.setUTCDate(x.getUTCDate() + n); return x; };
+    const late = await orders.createOrder(boshliq, { recipeId, plannedQty: 10, dueDate: day(-2), customerRef: 'Aliyev, №15' });
+    const soon = await orders.createOrder(boshliq, { recipeId, plannedQty: 10, dueDate: day(3) });
+    const none = await orders.createOrder(boshliq, { recipeId, plannedQty: 10 });
+    if (!late.ok || !soon.ok || !none.ok) throw new Error('create');
+    expect(late.data.order).toMatchObject({ dueDate: day(-2).toISOString().slice(0, 10), overdue: true, customerRef: 'Aliyev, №15' });
+    expect(soon.data.order.overdue).toBe(false);
+    const over = await orders.listOrders(boshliq, { due: 'overdue' });
+    expect(over.ok && over.data.items.map((o) => o.id)).toEqual([late.data.order.id]);
+    expect(over.ok && over.data.overdue).toBe(1);
+    const byDue = await orders.listOrders(boshliq, { sort: 'due', status: 'active' });
+    if (!byDue.ok) throw new Error('list');
+    expect(byDue.data.items.slice(0, 2).map((o) => o.id)).toEqual([late.data.order.id, soon.data.order.id]);
+    const ids3 = byDue.data.items.map((o) => o.id);
+    expect(ids3.indexOf(none.data.order.id)).toBeGreaterThan(ids3.indexOf(soon.data.order.id)); // muddatsizlar oxirida
+    await orders.cancelOrder(boshliq, none.data.order.id);
+    await orders.cancelOrder(boshliq, soon.data.order.id);
+    // Muddatni olib tashlash va mijozni tozalash
+    const cleared = await orders.updateOrder(boshliq, late.data.order.id, { dueDate: null, customerRef: '' });
+    expect(cleared.ok && cleared.data.order).toMatchObject({ dueDate: null, customerRef: null, overdue: false });
+  });
+
+  it('akt: reja o\'zgarsa qator id\'lari va qo\'lda tuzatilgan sarf saqlanadi; eskirgan expectedRev — conflict', async () => {
+    const a = await orders.createOrder(boshliq, { recipeId, plannedQty: 10 });
+    if (!a.ok) throw new Error('create');
+    const o = a.data.order;
+    const un = o.materials.find((x) => x.name === 'Un')!;
+    const sh = o.materials.find((x) => x.name === 'Shakar')!;
+    // Bitta so'rovda: yangi reja + Un haqiqiy sarfi (id bilan)
+    const u = await orders.updateOrder(boshliq, o.id, { plannedQty: 20, materials: [{ id: un.id, actualQty: 9 }], expectedRev: o.rev });
+    if (!u.ok) throw new Error(u.error);
+    const un2 = u.data.order.materials.find((x) => x.name === 'Un')!;
+    const sh2 = u.data.order.materials.find((x) => x.name === 'Shakar')!;
+    expect(un2.id).toBe(un.id);
+    expect(sh2.id).toBe(sh.id);
+    expect(un2.actualQty).toBe(9);
+    expect(un2.plannedQty).toBeGreaterThan(un.plannedQty);
+    expect(sh2.plannedQty).toBeGreaterThan(sh.plannedQty);
+    expect(sh2.actualQty).toBe(sh2.plannedQty); // tuzatilmagan — yangi rejaga teng
+    // Qo'lda tuzatilgan sarf keyingi reja o'zgarishida ham saqlanadi
+    const u2 = await orders.updateOrder(boshliq, o.id, { plannedQty: 30 });
+    expect(u2.ok && u2.data.order.materials.find((x) => x.name === 'Un')).toMatchObject({ id: un.id, actualQty: 9 });
+    // Eskirgan rev
+    expect(await orders.updateOrder(boshliq, o.id, { note: 'x', expectedRev: o.rev })).toMatchObject({ ok: false, code: 'conflict' });
+    expect(await orders.completeOrder(boshliq, o.id, { producedQty: 1, expectedRev: o.rev })).toMatchObject({ ok: false, code: 'conflict' });
+    await orders.cancelOrder(boshliq, o.id);
+  });
+
+  it('PO tahriri qator id\'larini saqlaydi; ochiq qabul qoralamasi takror yaratilmaydi', async () => {
+    const c = await pos.savePo(admin, null, { supplierId, lines: [{ productId: P.shakar, qty: 5, price: 11000 }, { productId: P.un, qty: 2, unit: 'qop', price: 300000 }] });
+    if (!c.ok) throw new Error(c.error);
+    const draft = await receipts.receiptDraftFromPo(ombor, c.data.po.id);
+    if (!draft.ok) throw new Error(draft.error);
+    const again = await receipts.receiptDraftFromPo(ombor, c.data.po.id);
+    expect(again).toMatchObject({ ok: true, data: { existing: true, receipt: { id: draft.data.receipt.id } } });
+    const [l1, l2] = c.data.po.lines;
+    // Tahrir: miqdor o'zgaradi, qatorlar id'si o'zgarmaydi
+    const e = await pos.savePo(admin, c.data.po.id, { supplierId, lines: [{ productId: P.shakar, qty: 7, price: 11000 }, { productId: P.un, qty: 2, unit: 'qop', price: 300000 }] });
+    if (!e.ok) throw new Error(e.error);
+    expect(e.data.po.lines.map((l) => l.id)).toEqual([l1.id, l2.id]);
+    expect(draft.data.receipt.lines.map((l) => l.poLineId).sort()).toEqual([l1.id, l2.id].sort());
+    // Kirim qoralamasini qayta saqlash — bog'lanish buzilmaydi
+    const re = await receipts.saveReceipt(ombor, draft.data.receipt.id, { lines: draft.data.receipt.lines.map((l) => ({ productId: l.productId, qty: l.qty, unit: l.unit, poLineId: l.poLineId ?? undefined })) });
+    expect(re.ok && re.data.receipt.lines.map((l) => l.poLineId).sort()).toEqual([l1.id, l2.id].sort());
+    await receipts.cancelReceipt(ombor, draft.data.receipt.id);
+    await pos.cancelPo(admin, c.data.po.id);
+  });
+
+  it('ishbay: birlik — dona butun; o\'z yozuvini tuzatish (ownOnly), operatsiya o\'zgarsa narx texkartadan', async () => {
+    const a = await orders.createOrder(boshliq, { recipeId, plannedQty: 10 });
+    if (!a.ok) throw new Error('create');
+    expect(await pw.logPiecework(usta, { productionOrderId: a.data.order.id, operation: 'Xamir', qty: 2.5 })).toMatchObject({ ok: false, code: 'badQty' });
+    const e = await pw.logPiecework(usta, { productionOrderId: a.data.order.id, operation: 'Xamir', qty: 3 });
+    if (!e.ok) throw new Error(e.error);
+    expect(e.data.entry).toMatchObject({ unit: 'dona', rate: 500, amount: 1500 });
+    expect(await pw.editPiecework(usta, { id: e.data.entry.id, qty: 1.5 }, { ownOnly: true })).toMatchObject({ ok: false, code: 'badQty' });
+    const fixed = await pw.editPiecework(usta, { id: e.data.entry.id, qty: 4, operation: 'pishirish' }, { ownOnly: true });
+    expect(fixed.ok && fixed.data.entry).toMatchObject({ qty: 4, operation: 'Pishirish', rate: 300, amount: 1200 });
+    // Boshliq mobil (ownOnly) yo'li bilan ishchining yozuvini o'zgartira olmaydi
+    expect(await pw.editPiecework(boshliq, { id: e.data.entry.id, qty: 5 }, { ownOnly: true })).toMatchObject({ ok: false, code: 'entryNotFound' });
+    // Aktsiz yozuv — kasr ruxsat
+    const manual = await pw.logPiecework(boshliq, { workerId: ids.usta2, operation: 'Tozalash', qty: 1.5, rate: 1000 });
+    expect(manual.ok && manual.data.entry).toMatchObject({ unit: null, amount: 1500 });
+  });
+
+  it('davr filtri — Toshkent kuni: 00:30 dagi hujjat o\'z kunida', async () => {
+    const { tashkentDayStart } = await import('@/lib/period');
+    const a = await orders.createOrder(boshliq, { recipeId, plannedQty: 10, note: 'tunda' });
+    if (!a.ok) throw new Error('create');
+    // 2026-11-18 00:30 Toshkent = 2026-11-17 19:30 UTC
+    await m.ProductionOrder.collection.updateOne({ _id: new Types.ObjectId(a.data.order.id) }, { $set: { createdAt: new Date('2026-11-17T19:30:00.000Z') } });
+    const day18 = await orders.listOrders(boshliq, { from: tashkentDayStart('2026-11-18'), to: tashkentDayStart('2026-11-18'), q: 'P' });
+    expect(day18.ok && day18.data.items.map((o) => o.id)).toContain(a.data.order.id);
+    const day17 = await orders.listOrders(boshliq, { from: tashkentDayStart('2026-11-17'), to: tashkentDayStart('2026-11-17') });
+    expect(day17.ok && day17.data.items.map((o) => o.id)).not.toContain(a.data.order.id);
+  });
+
+  it('texkarta ko\'rinishi: qatorlarda joriy ombor hujjati (productId); ishchilar — production.manage uchun id/ism', async () => {
+    const r = await recipes.getRecipe(boshliq, recipeId);
+    if (!r.ok) throw new Error(r.error);
+    expect(r.data.recipe.items.find((i) => i.name === 'Un')).toMatchObject({ productId: P.un, purchaseUnit: 'qop' });
+    expect(r.data.recipe.outputProductId).toBe(P.non);
+    const manager = { ...boshliq, perms: new Set(['production.view', 'production.manage']) };
+    const w = await pw.listWorkers(manager);
+    expect(w.ok && w.data.workers[0]).toEqual({ id: expect.any(String), name: expect.any(String) });
+    expect(await pw.listWorkers({ ...boshliq, perms: new Set(['production.view']) })).toMatchObject({ ok: false, code: 'noPermission' });
+    // Tovarlarni id bo'yicha olish (kam qolgan → forma)
+    const opt = await catalog.productOptions(ombor, { ids: [P.shakar, P.un] });
+    expect(opt.ok && opt.data.items.map((x) => x.id)).toEqual([P.shakar, P.un]);
+    // Meta: tayyor mahsulot ombori — barcha faol omborlar (filial xodimiga ham)
+    const meta = await catalog.productionMeta(boshliq);
+    expect(meta.ok && meta.data.branches.length).toBe(1);
+    expect(meta.ok && meta.data.toBranches.length).toBe(2);
+  });
+
+  it('yaroqlilik muddati yaqin tovarlar filtri', async () => {
+    const { tashkentDayKey } = await import('@/lib/period');
+    const today = new Date(`${tashkentDayKey(new Date())}T00:00:00.000Z`);
+    const plus = (n: number) => new Date(today.getTime() + n * 86_400_000);
+    await m.Product.updateOne({ _id: P.shakar }, { $set: { expiryDate: plus(5) } });
+    await m.Product.updateOne({ _id: P.un }, { $set: { expiryDate: plus(40) } });
+    const list = await m.Product.find(catalog.expiringFilter(7)).lean();
+    expect(list.map((p: { _id: unknown }) => String(p._id))).toContain(P.shakar);
+    expect(list.map((p: { _id: unknown }) => String(p._id))).not.toContain(P.un);
+    expect(catalog.daysUntil(plus(5))).toBe(5);
+  });
 });

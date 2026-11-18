@@ -60,6 +60,8 @@ const POLL_MS = 3000;
 const MENU_POLL_MS = 30_000;
 /** Shuncha vaqt `since` bo'yicha o'zgarish ko'rinmasa ham buyurtma to'liq qayta o'qiladi */
 const FULL_REFRESH_MS = 30_000;
+/** Server action shuncha vaqtda javob bermasa — tugma «Yuklanmoqda»da qotib qolmaydi (run → holat tiklanadi) */
+const ACTION_TIMEOUT_MS = 25_000;
 const CART_KEY = 'savora_order_cart';
 
 /** Ziddiyat yoki holat o'zgargan bo'lishi mumkin — buyurtma darhol qayta o'qiladi */
@@ -192,13 +194,32 @@ export default function OrderScreen({ initialOrder, initialMenu, serverNow, shop
     if (editable && !menu) void refreshMenu();
   }, [editable, menu, refreshMenu]);
 
-  /** Amal: band holat, xabar, `data.order` → holat; ziddiyat/holat xatosida buyurtma qayta o'qiladi */
+  /**
+   * Amal: band holat, xabar, `data.order` → holat; ziddiyat/holat xatosida buyurtma qayta o'qiladi.
+   * Server action javob bermasa (dev'da qayta kompilyatsiya, tarmoq uzilishi) — ACTION_TIMEOUT_MS dan keyin
+   * band holat tiklanadi va buyurtma qayta o'qiladi; kech kelgan javobdagi buyurtma (rev bo'yicha) qabul qilinadi.
+   * Takroriy bosish xavfsiz: to'lov `payId`, taom `clientItemId` bilan idempotent.
+   */
   const run: Runner = useCallback(async <T,>(tag: string, fn: () => Promise<ActionResult<T>>) => {
     if (busyRef.current) return null;
     busyRef.current = true;
     setBusy(tag);
+    let timer: ReturnType<typeof setTimeout> | undefined;
     try {
-      const r = await fn();
+      const call = fn();
+      const r = await Promise.race([
+        call,
+        new Promise<'timeout'>((resolve) => { timer = setTimeout(() => resolve('timeout'), ACTION_TIMEOUT_MS); }),
+      ]);
+      if (r === 'timeout') {
+        toast(k.actionTimeout, 'error');
+        void fetchOrder();
+        call.then((late) => {
+          const data = late?.ok ? (late.data as unknown as { order?: OrderView }) : null;
+          if (data && typeof data === 'object' && data.order) setOrder(data.order);
+        }).catch(() => { /* kech kelgan xato — holat allaqachon qayta o'qilgan */ });
+        return null;
+      }
       if (r.ok) {
         const data = r.data as unknown as { order?: OrderView };
         if (data && typeof data === 'object' && data.order) setOrder(data.order);
@@ -213,10 +234,11 @@ export default function OrderScreen({ initialOrder, initialMenu, serverNow, shop
       void fetchOrder();
       return null;
     } finally {
+      if (timer) clearTimeout(timer);
       busyRef.current = false;
       setBusy(null);
     }
-  }, [setOrder, fetchOrder, d.restaurant.errors.failed]);
+  }, [setOrder, fetchOrder, d.restaurant.errors.failed, k.actionTimeout]);
 
   const menuById = useMemo(() => new Map((menu?.items ?? []).map((i) => [i.id, i])), [menu]);
   const cartQty = useMemo(() => {

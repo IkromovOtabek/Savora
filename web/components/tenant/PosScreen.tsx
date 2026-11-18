@@ -15,6 +15,8 @@ import { qtyWithUnit, tr } from '@/lib/i18n/fmt';
 import { addQty, fmtQty, isFractionalUnit, parseQty, priceTimesQty, qtyStep } from '@/lib/qty';
 import type { ProductUnit } from '@/lib/businessTypes';
 import { topCategoryChips, type CategoryItem } from '@/lib/productCatalog';
+import { isExpiredOn, isMarkingCode, localDateKey, parseGs1, type Gs1Code } from '@/lib/gs1';
+import { markingNeed, markingShortfall, productMatchesGtin, type MarkingMode } from '@/lib/marking';
 import './styles/pos.css';
 
 export interface PosProduct {
@@ -32,10 +34,15 @@ export interface PosProduct {
   categoryId?: string;
   /** Xizmatda qoldiq ko'rsatilmaydi (cheklovsiz) */
   service?: boolean;
+  /** Markirovkali tovar — har donaga DataMatrix kodi skanerlanadi (lib/marking.ts) */
+  marked?: boolean;
 }
 
+/** Savatcha qatoriga skanerlangan markirovka kodi: kanonik kod, takror kaliti, seriya (ko'rsatish uchun) */
+interface CartMark { code: string; key: string; serial: string }
+
 /** qtyText — kasrli birlikda kiritilayotgan matn ("1,5"); yaroqsiz bo'lsa qty o'zgarmaydi, to'lov o'chadi */
-interface CartLine { id: string; qty: number; price: string; qtyText?: string }
+interface CartLine { id: string; qty: number; price: string; qtyText?: string; marks?: CartMark[] }
 interface ParkedSale {
   id: string;
   at: number;
@@ -74,8 +81,10 @@ function isTyping(el: EventTarget | null): boolean {
   return !!t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable);
 }
 
-export default function PosScreen({ products, categories = [], canDiscount, canEditPrice, noShift, storageKey, shopName, canInstallment = false }: {
+export default function PosScreen({ products, categories = [], canDiscount, canEditPrice, noShift, storageKey, shopName, canInstallment = false, markingMode = 'warn' }: {
   products: PosProduct[];
+  /** Do'kon sozlamasi: warn — kodsiz ham sotiladi (ogohlantirish), require — kod skanerlanmaguncha to'lov yo'q */
+  markingMode?: MarkingMode;
   /** «Nasiya» moduli — naqd yetmaganda qoldiqni nasiyaga o'tkazish (bitta tovarda) */
   canInstallment?: boolean;
   categories?: CategoryItem[];
@@ -147,13 +156,20 @@ export default function PosScreen({ products, categories = [], canDiscount, canE
     const unit = needsPrice || (canEditPrice && custom > 0) ? custom : base;
     const fractional = p.tracked && isFractionalUnit(p.unit);
     const badQty = fractional && line.qtyText !== undefined && parseQty(line.qtyText, p.unit) === null;
-    return [{ line, p, unit, needsPrice, fractional, badQty, isWholesale: wholesale && !!p.wholesalePrice, total: priceTimesQty(unit, line.qty) }];
+    // Markirovka: har donaga bitta kod (kasrli birlikda — qatorga bitta)
+    const marks = line.marks ?? [];
+    const need = p.marked ? markingNeed(line.qty, p.unit) : marks.length;
+    const missing = p.marked ? markingShortfall(line.qty, p.unit, marks.length) : 0;
+    return [{ line, p, unit, needsPrice, fractional, badQty, marks, need, missing, isWholesale: wholesale && !!p.wholesalePrice, total: priceTimesQty(unit, line.qty) }];
   }), [cart, byId, wholesale, canEditPrice]);
 
   const subtotal = rows.reduce((s, r) => s + r.total, 0);
   const discount = canDiscount ? discountAmount(subtotal, { kind: discountKind, value: Number(discountValue) || 0 }) : 0;
   const total = subtotal - discount;
   const missingPrice = rows.some((r) => r.unit <= 0 || r.badQty);
+  // Yetishmagan markirovka kodlari: majburiy rejimda to'lov yopiq, aks holda ogohlantirish
+  const markMissing = rows.reduce((s, r) => s + r.missing, 0);
+  const markBlocked = markingMode === 'require' && markMissing > 0;
 
   const add = useCallback((p: PosProduct) => {
     setCart((prev) => {
@@ -173,15 +189,66 @@ export default function PosScreen({ products, categories = [], canDiscount, canE
     setHit(0);
   }, []);
 
+  /**
+   * Markirovka kodi (GS1 DataMatrix): GTIN bo'yicha tovar topiladi, kod qatorga bog'lanadi — avval kodsiz donalarga,
+   * keyin miqdor +1. Bir kod savatchada ikki marta bo'lmaydi; muddati o'tgan — majburiy rejimda qo'shilmaydi.
+   */
+  const addMarked = useCallback((c: Gs1Code & { serial: string; key: string }) => {
+    setQuery('');
+    setHit(0);
+    const p = products.find((x) => productMatchesGtin(x.codes, c.gtin));
+    if (!p) { toast(tr(k.markNoProduct, { gtin: c.gtin }), 'error'); return; }
+    if (cart.some((l) => l.marks?.some((m) => m.key === c.key))) { toast(k.markDup, 'error'); return; }
+    if (c.expiry && isExpiredOn(c.expiry, localDateKey())) {
+      const date = c.expiry.split('-').reverse().join('.');
+      if (markingMode === 'require') { toast(tr(k.markExpired, { date }), 'error'); return; }
+      if (!window.confirm(tr(k.markExpiredConfirm, { date }))) return;
+    }
+    const mark: CartMark = { code: c.normalized, key: c.key, serial: c.serial };
+    const i = cart.findIndex((l) => l.id === p.id);
+    if (i < 0) {
+      setCart([...cart, { id: p.id, qty: p.tracked ? Math.min(1, p.available) : 1, price: '', marks: [mark] }]);
+      setSel(cart.length);
+      return;
+    }
+    const l = cart[i];
+    const marks = l.marks ?? [];
+    const next = [...cart];
+    if (marks.length < markingNeed(l.qty, p.unit)) {
+      next[i] = { ...l, marks: [...marks, mark] };
+    } else {
+      const max = p.tracked ? p.available : 1;
+      if (l.qty >= max || isFractionalUnit(p.unit)) { toast(tr(k.markNoStock, { name: p.name }), 'error'); return; }
+      next[i] = { ...l, qty: Math.min(max, addQty(l.qty, 1)), qtyText: undefined, marks: [...marks, mark] };
+    }
+    setCart(next);
+    setSel(i);
+  }, [products, cart, markingMode, k.markNoProduct, k.markDup, k.markExpired, k.markExpiredConfirm, k.markNoStock]);
+
+  /**
+   * GS1 kod: markirovka kodi (seriyali) — addMarked; seriyasiz GS1 (qutidagi GS1-128) — GTIN bo'yicha oddiy qo'shish.
+   * true — kod GS1 sifatida ishlandi.
+   */
+  const handleGs1 = useCallback((raw: string): boolean => {
+    const g = parseGs1(raw);
+    if (!g) return false;
+    if (isMarkingCode(g)) { addMarked(g); return true; }
+    const p = products.find((x) => productMatchesGtin(x.codes, g.gtin));
+    if (!p) return false;
+    add(p);
+    return true;
+  }, [products, add, addMarked]);
+
   /** Skanerlangan kod: aniq mos tovar savatchaga, topilmasa — xabar */
   const addByCode = useCallback((code: string) => {
     const q = code.trim().toLowerCase();
     if (!q) return;
+    if (handleGs1(code)) { searchRef.current?.focus(); return; }
     const p = products.find((x) => x.codes.some((c) => c.toLowerCase() === q));
     if (p) add(p);
     else { toast(tr(k.scanNotFound, { code: code.trim() }), 'error'); setQuery(''); }
     searchRef.current?.focus();
-  }, [products, add, k.scanNotFound]);
+  }, [products, add, handleGs1, k.scanNotFound]);
 
   const setGunMode = useCallback((on: boolean) => {
     setGun(on);
@@ -195,7 +262,11 @@ export default function PosScreen({ products, categories = [], canDiscount, canE
       const p = byId.get(l.id);
       const max = p?.tracked ? p.available : 1;
       const qty = Math.min(max, addQty(l.qty, delta));
-      return qty <= 0 ? [] : [{ ...l, qty, qtyText: undefined }];
+      if (qty <= 0) return [];
+      // Miqdor kamaysa — oxirgi skanerlangan kodlar ham olib tashlanadi (kod soni donadan oshmaydi)
+      const need = markingNeed(qty, p?.unit);
+      const marks = l.marks && l.marks.length > need ? l.marks.slice(0, need) : l.marks;
+      return [{ ...l, qty, qtyText: undefined, marks }];
     }));
   }, [byId]);
 
@@ -219,14 +290,19 @@ export default function PosScreen({ products, categories = [], canDiscount, canE
     setCustomerName(''); setCustomerPhone(''); setNote(''); setWholesale(false);
   }, []);
 
-  const canPay = cart.length > 0 && !pending && !missingPrice && total > 0;
+  const canPay = cart.length > 0 && !pending && !missingPrice && total > 0 && !markBlocked;
   const openPay = useCallback(() => { if (canPay) setPayOpen(true); }, [canPay]);
 
   const pay = useCallback((payment: PosPayment) => {
-    if (!cart.length || pending || missingPrice) return;
+    if (!cart.length || pending || missingPrice || markBlocked) return;
     startTransition(async () => {
       const res = await posSaleAction({
-        lines: rows.map((r) => ({ productId: r.p.id, qty: r.line.qty, price: r.needsPrice || (canEditPrice && Number(r.line.price) > 0) ? r.unit : undefined })),
+        lines: rows.map((r) => ({
+          productId: r.p.id,
+          qty: r.line.qty,
+          price: r.needsPrice || (canEditPrice && Number(r.line.price) > 0) ? r.unit : undefined,
+          ...(r.marks.length ? { markingCodes: r.marks.map((m) => m.code) } : {}),
+        })),
         wholesale,
         discount: { kind: discountKind, value: canDiscount ? Number(discountValue) || 0 : 0 },
         customerName: customerName.trim() || undefined,
@@ -245,7 +321,7 @@ export default function PosScreen({ products, categories = [], canDiscount, canE
         toast(res.error, 'error');
       }
     });
-  }, [cart.length, pending, missingPrice, rows, wholesale, discountKind, discountValue, canDiscount, canEditPrice, customerName, customerPhone, note, resetSale, router]);
+  }, [cart.length, pending, missingPrice, markBlocked, rows, wholesale, discountKind, discountValue, canDiscount, canEditPrice, customerName, customerPhone, note, resetSale, router]);
 
   /** «Nasiya / bank krediti»: savatcha va mijoz sotuv formasiga o'tadi — IMEI qayta kiritilmaydi */
   const handOff = useCallback(() => {
@@ -326,6 +402,8 @@ export default function PosScreen({ products, categories = [], canDiscount, canE
     else if (e.key === 'ArrowUp') { e.preventDefault(); setHit((h) => Math.max(0, h - 1)); }
     else if (e.key === 'Enter') {
       e.preventDefault();
+      // Pistolet skaner DataMatrix'ni shu katakka yozadi — GS1 kod (katta-kichik harf muhim, asl matn bilan)
+      if (handleGs1(query)) return;
       const q = query.trim().toLowerCase();
       // Skaner: kod aniq mos kelsa — darhol savatchaga
       const exact = products.find((p) => p.codes.some((c) => c.toLowerCase() === q));
@@ -445,6 +523,14 @@ export default function PosScreen({ products, categories = [], canDiscount, canE
                   <small>
                     {r.p.codes[0]}
                     {r.isWholesale && <span className="pos-tag">{k.wholesaleTag}</span>}
+                    {(r.p.marked || r.marks.length > 0) && (
+                      <span
+                        className={`pos-tag pos-mark${r.missing ? ' is-missing' : ''}`}
+                        title={r.marks.length ? r.marks.map((m) => m.serial).join(', ') : k.markScan}
+                      >
+                        {tr(k.markBadge, { n: r.marks.length, need: r.need })}
+                      </span>
+                    )}
                   </small>
                 </div>
                 <div className={`pos-qty${r.badQty ? ' is-bad' : ''}`}>
@@ -553,6 +639,12 @@ export default function PosScreen({ products, categories = [], canDiscount, canE
           )}
           <div className="pos-sum"><span>{k.subtotal}</span><b>{fmtMoney(subtotal)} {d.common.sum}</b></div>
           {discount > 0 && <div className="pos-sum pos-sum--disc"><span>{k.discount}</span><b>− {fmtMoney(discount)} {d.common.sum}</b></div>}
+          {markMissing > 0 && (
+            <p className={`pos-mark-warn${markBlocked ? ' is-block' : ''}`} role="status">
+              <Icon name="alert" size={15} />
+              <span>{tr(markBlocked ? k.markMissingRequire : k.markMissingWarn, { n: markMissing })}</span>
+            </p>
+          )}
           <button type="button" className="pos-pay-btn" onClick={openPay} disabled={!canPay}>
             <span>{k.pay} {kbd('L')}</span>
             <b>{fmtMoney(total)} {d.common.sum}</b>

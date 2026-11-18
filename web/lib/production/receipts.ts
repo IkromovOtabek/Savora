@@ -267,8 +267,8 @@ export async function saveReceipt(ctx: ProductionCtx, id: string | null, input: 
   if (!prepared.ok) return prepared;
   const lines: IReceiptLine[] = [];
   for (const l of prepared.data) {
-    const pl = linkPo(l.code, l.poLineId);
-    if (l.poLineId && !pl) return fail(ctx.d, 'poMismatch');
+    // Buyurtma tahrirlanib qator olib tashlangan bo'lsa (eski poLineId) — shu kodli qolgan qatorga qayta bog'lanadi
+    const pl = (l.poLineId ? linkPo(l.code, l.poLineId) : undefined) ?? linkPo(l.code);
     if (pl) usedPoLines.add(String(pl._id));
     const { poLineId: _drop, ...rest } = l;
     void _drop;
@@ -487,7 +487,12 @@ async function applyToPo(ctx: ProductionCtx, poId: Types.ObjectId, lines: readon
 
 /* ───────────────────────────── o'qish ───────────────────────────── */
 
-const READ_PERMS = ['receipt.create', 'po.manage', 'suppliers.view'] as const;
+/**
+ * Kirim aktlarini ko'rish: kirim/xarid/yetkazib beruvchi huquqlari va `production.view` (sex xodimi xom ashyo kelganini
+ * ko'radi; narxlar — faqat `product.viewCost` bilan). Web layout va mobil plitka shu ro'yxatdan foydalanadi.
+ */
+export const RECEIPT_READ_PERMS = ['receipt.create', 'po.manage', 'suppliers.view', 'production.view'] as const;
+const READ_PERMS = RECEIPT_READ_PERMS;
 
 export interface ReceiptSummary {
   id: string;
@@ -586,13 +591,18 @@ export async function receiptPrintData(ctx: ProductionCtx, id: string): Promise<
 
 /* ───────────────────────────── PO → kirim qoralamasi ───────────────────────────── */
 
-/** Xarid buyurtmasining qabul qilinmagan qatorlaridan kirim qoralamasi (narx — PO'dan) */
+/**
+ * Xarid buyurtmasining qabul qilinmagan qatorlaridan kirim qoralamasi (narx — PO'dan). Shu buyurtmaning ochiq
+ * (qoralama) kirimi bo'lsa — yangisi yaratilmaydi, o'sha qaytadi (`existing: true`) — ikki marta qabul bo'lmasin.
+ */
 export async function receiptDraftFromPo(ctx: ProductionCtx, poId: string, clientId?: string): Promise<OpResult<{ receipt: ReceiptView; existing: boolean }>> {
   const denied = guard(ctx, 'purchasing', 'receipt.create');
   if (denied) return denied;
   const po = await loadPo(ctx, poId);
   if (!po) return fail(ctx.d, 'poNotFound');
   if (!poAllows(po.status, 'receive')) return fail(ctx.d, 'poClosed');
+  const open = await ctx.m.GoodsReceipt.findOne({ purchaseOrderId: po._id, status: 'draft', ...receiptScope(ctx) }).sort({ createdAt: -1 }).lean<GoodsReceiptDoc>();
+  if (open) return ok({ receipt: await viewOf(ctx, open), existing: true });
   const lines = po.lines.filter((l) => poRemaining(l) > 0).map((l) => ({
     productId: String(l.productId), qty: poRemaining(l), unit: l.unit ?? null, poLineId: String(l._id),
     ...(canViewPrices(ctx) ? { price: l.price ?? null } : {}),

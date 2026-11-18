@@ -8,8 +8,8 @@ import BackLink from '@/components/ui/BackLink';
 import RecipeEditor from '@/components/production/recipes/RecipeEditor';
 import RequirementsCalc from '@/components/production/recipes/RequirementsCalc';
 import NewOrderButton from '@/components/production/orders/NewOrderButton';
-import { qtyText } from '@/components/production/common/ui';
-import { pickBranch, productsByCode } from '../../_lib/data';
+import { qtyText, type PickedProduct } from '@/components/production/common/ui';
+import { pickBranch } from '../../_lib/data';
 
 export async function generateMetadata() {
   return { title: (await getDict()).production.common.recipe };
@@ -40,8 +40,22 @@ export default async function RecipePage({ params, searchParams }: { params: Pro
     );
   }
   const { recipe, cost } = res.data;
-  const found = await productsByCode(ctx, [recipe.outputCode, ...recipe.items.map((i) => i.code)], branchId);
-  const products = Object.fromEntries(found);
+  // Kod → shu ombordagi hujjat (getRecipe qatorlarda beradi) — muharrir `productId` bilan saqlaydi
+  const products: Record<string, PickedProduct> = {};
+  for (const i of recipe.items) {
+    if (i.productId) {
+      products[i.code] = {
+        id: i.productId, code: i.code, name: i.name, unit: i.unit,
+        purchaseUnit: i.purchaseUnit ?? null, purchaseFactor: i.purchaseFactor ?? null, available: i.available ?? null,
+      };
+    }
+  }
+  if (recipe.outputProductId) {
+    products[recipe.outputCode] = {
+      id: recipe.outputProductId, code: recipe.outputCode, name: recipe.outputName, unit: recipe.unit,
+      purchaseUnit: null, purchaseFactor: null, available: null,
+    };
+  }
   const branchName = m.branches.find((b) => b.id === branchId)?.name ?? '';
 
   return (
@@ -60,6 +74,7 @@ export default async function RecipePage({ params, searchParams }: { params: Pro
             <NewOrderButton
               recipes={[{ id: recipe.id, name: recipe.name, outputName: recipe.outputName, outputQty: recipe.outputQty, unit: recipe.unit }]}
               branches={m.branches}
+              toBranches={m.toBranches}
               defaultBranchId={m.defaultBranchId}
               scoped={ctx.user.role !== 'admin'}
               initialRecipeId={recipe.id}

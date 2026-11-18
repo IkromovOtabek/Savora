@@ -6,9 +6,8 @@ import { useRouter } from 'next/navigation';
 import Icon from '@/components/icons/Icon';
 import { useDict } from '@/lib/i18n/client';
 import { tr } from '@/lib/i18n/fmt';
-import { fmtDate } from '@/lib/format';
 import { isFractionalUnit, parseQty } from '@/lib/qty';
-import { toDayKey } from '@/lib/period';
+import { tashkentDayKey } from '@/lib/period';
 import type { ProductUnit } from '@/lib/businessTypes';
 import { PRODUCTION_LIMITS as L } from '@/lib/production/calc';
 import type { Requirements } from '@/lib/production/recipes';
@@ -28,7 +27,10 @@ export interface RecipeChoice {
 
 interface Props {
   recipes: RecipeChoice[];
+  /** Xom ashyo ombori tanlovi (admin — hammasi, filial xodimi — o'zi) */
   branches: BranchOption[];
+  /** Tayyor mahsulot ombori tanlovi — barcha faol omborlar (meta.toBranches) */
+  toBranches: BranchOption[];
   defaultBranchId: string;
   /** Filial xodimi — xom ashyo ombori faqat o'ziniki */
   scoped: boolean;
@@ -40,11 +42,11 @@ interface Props {
 const PREVIEW_DEBOUNCE_MS = 400;
 
 /**
- * «Yangi akt» tugmasi + oyna: texkarta, reja miqdori, xom ashyo va tayyor mahsulot omborlari, muddat, mijoz buyurtmasi,
- * izoh. Muddat va mijoz buyurtmasi backendda alohida maydon emas — izohning boshiga yoziladi. Oynada ehtiyoj
- * oldindan ko'rinadi (GET …/requirements). Takroriy bosishdan — `clientId`.
+ * «Yangi akt» tugmasi + oyna: texkarta, reja miqdori, xom ashyo va tayyor mahsulot omborlari, muddat (`dueDate`),
+ * mijoz buyurtmasi (`customerRef`), izoh. Oynada ehtiyoj oldindan ko'rinadi (GET …/requirements). Takroriy bosishdan —
+ * `clientId`. Filial xodimi xom ashyoni faqat o'z omboridan oladi, tayyor mahsulotni istalgan faol omborga yo'naltiradi.
  */
-export default function NewOrderButton({ recipes, branches, defaultBranchId, scoped, initialRecipeId, label, tinted }: Props) {
+export default function NewOrderButton({ recipes, branches, toBranches, defaultBranchId, scoped, initialRecipeId, label, tinted }: Props) {
   const d = useDict();
   const t = d.production.orders;
   const units = d.stock.fields.units;
@@ -97,17 +99,11 @@ export default function NewOrderButton({ recipes, branches, defaultBranchId, sco
     };
   }, [open, recipe, planned, from]);
 
-  const composedNote = [
-    due ? tr(t.noteDue, { date: fmtDate(new Date(`${due}T00:00:00`)) }) : '',
-    customer.trim() ? tr(t.noteCustomer, { text: customer.trim() }) : '',
-    note.trim(),
-  ].filter(Boolean).join('\n');
-
   function submit(e: React.FormEvent) {
     e.preventDefault();
     if (!recipe) return setError(t.errRecipe);
     if (planned === null) return setError(t.errQty);
-    if (composedNote.length > L.noteMax) return setError(tr(t.noteTooLong, { n: L.noteMax }));
+    if (note.trim().length > L.noteMax) return setError(tr(t.noteTooLong, { n: L.noteMax }));
     setError(null);
     run(
       () => createProductionOrderAction({
@@ -115,7 +111,9 @@ export default function NewOrderButton({ recipes, branches, defaultBranchId, sco
         plannedQty: planned,
         ...(scoped ? {} : { fromBranchId: from }),
         toBranchId: to,
-        note: composedNote,
+        ...(due ? { dueDate: new Date(`${due}T00:00:00.000Z`) } : {}),
+        ...(customer.trim() ? { customerRef: customer.trim() } : {}),
+        note: note.trim(),
         clientId,
       }),
       {
@@ -186,18 +184,18 @@ export default function NewOrderButton({ recipes, branches, defaultBranchId, sco
               {recipe && <small id="pr-no-qty-h">{tr(t.batchHint, { qty: qtyText(recipe.outputQty, recipe.unit, units) })}</small>}
             </label>
 
-            {branches.length > 1 && (
+            {(branches.length > 1 || toBranches.length > 1) && (
               <div className="pr-grid2">
                 <label className="pr-field">
                   <span>{d.production.common.fromBranch}</span>
-                  <select className="input" value={from} onChange={(e) => setFrom(e.target.value)} disabled={pending || scoped}>
+                  <select className="input" value={from} onChange={(e) => setFrom(e.target.value)} disabled={pending || scoped || branches.length < 2}>
                     {branches.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
                   </select>
                 </label>
                 <label className="pr-field">
                   <span>{d.production.common.toBranch}</span>
-                  <select className="input" value={to} onChange={(e) => setTo(e.target.value)} disabled={pending} aria-describedby="pr-no-to-h">
-                    {branches.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
+                  <select className="input" value={to} onChange={(e) => setTo(e.target.value)} disabled={pending || toBranches.length < 2} aria-describedby="pr-no-to-h">
+                    {(toBranches.length ? toBranches : branches).map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
                   </select>
                   <small id="pr-no-to-h">{t.toBranchHint}</small>
                 </label>
@@ -207,11 +205,11 @@ export default function NewOrderButton({ recipes, branches, defaultBranchId, sco
             <div className="pr-grid2">
               <label className="pr-field">
                 <span>{t.due}</span>
-                <input className="input" type="date" value={due} min={toDayKey(new Date())} onChange={(e) => setDue(e.target.value)} disabled={pending} />
+                <input className="input" type="date" value={due} min={tashkentDayKey(new Date())} onChange={(e) => setDue(e.target.value)} disabled={pending} />
               </label>
               <label className="pr-field">
                 <span>{t.customerOrder}</span>
-                <input className="input" value={customer} onChange={(e) => setCustomer(e.target.value)} placeholder={t.customerOrderPh} maxLength={160} disabled={pending} />
+                <input className="input" value={customer} onChange={(e) => setCustomer(e.target.value)} placeholder={t.customerOrderPh} maxLength={L.customerRefMax} disabled={pending} />
               </label>
             </div>
 

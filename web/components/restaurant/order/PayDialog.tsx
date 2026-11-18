@@ -101,7 +101,19 @@ export default function PayDialog({ order, busy, run, onClose, onFailed, shopNam
     const items = mode === 'items'
       ? lines.map((l) => (l.qty < l.item.qty ? { itemId: l.item.id, qty: l.qty } : { itemId: l.item.id }))
       : undefined;
-    const r = await run('pay', () => payOrderAction(order.id, { items, parts: mergeParts(parts), discount, payId }));
+    const input = { items, parts: mergeParts(parts), discount, payId };
+    const r = await run('pay', async () => {
+      let res = await payOrderAction(order.id, input);
+      // Shu payId bilan avvalgi so'rov hali yozilayotgan bo'lsa (qotib qolgandan keyin qayta bosish) server
+      // `conflict` qaytaradi — biroz kutib aynan shu payId bilan qayta so'raymiz: yozilgan bo'lsa server
+      // avvalgi natijani qaytaradi (ikkinchi to'lov yozilmaydi)
+      for (let n = 0; n < 2 && !res.ok && res.code === 'conflict'; n++) {
+        await new Promise((ok) => setTimeout(ok, 1500));
+        res = await payOrderAction(order.id, input);
+      }
+      return res;
+    });
+    // Javob kelmadi (run timeout) yoki tarmoq xatosi — payId saqlanadi, qayta bosish xavfsiz
     if (!r) return;
     if (r.ok) {
       setDone(r.data);

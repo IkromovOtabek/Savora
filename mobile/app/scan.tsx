@@ -14,6 +14,7 @@ import { fmtMoney } from '@/lib/format';
 import { putChoice } from '@/lib/catalog';
 import { Screen, NavBar, EmptyState, Button, Loading } from '@/components/ui';
 import { useDict, tr } from '@/lib/i18n';
+import { gtinToBarcode, isMarkingCode, parseGs1 } from '@/lib/gs1';
 
 interface Item extends PickedProduct { imei: string; barcode: string | null }
 
@@ -41,9 +42,14 @@ export default function Scan() {
   const onScan = useCallback(async ({ data }: { data: string }) => {
     if (lock.current) return;
     lock.current = true; setBusy(true);
-    const code = String(data || '').trim();
+    // DataMatrix markirovka kodi (GS1) → mahsulot shtrix-kodi (GTIN → EAN-13); qidiruv va forma shu bilan ishlaydi
+    const raw = String(data || '').trim();
+    const gs1 = parseGs1(raw);
+    const marking = isMarkingCode(gs1);
+    const code = gs1 ? gtinToBarcode(gs1.gtin) : raw;
     if (captureMode) {
       putChoice('barcode', code);
+      if (marking) putChoice('markingScan', true);
       router.back();
       return;
     }
@@ -118,7 +124,7 @@ export default function Scan() {
       <CameraView
         style={StyleSheet.absoluteFill}
         enableTorch={torch}
-        barcodeScannerSettings={{ barcodeTypes: ['ean13', 'ean8', 'upc_a', 'upc_e', 'code128', 'code39', 'qr'] }}
+        barcodeScannerSettings={{ barcodeTypes: ['ean13', 'ean8', 'upc_a', 'upc_e', 'code128', 'code39', 'qr', 'datamatrix'] }}
         onBarcodeScanned={busy ? undefined : onScan}
       />
       <View style={[s.top, { paddingTop: insets.top + 8 }]}>

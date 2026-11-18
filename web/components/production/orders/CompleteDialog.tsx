@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { useDict } from '@/lib/i18n/client';
 import { tr } from '@/lib/i18n/fmt';
 import { fmtQty, isFractionalUnit } from '@/lib/qty';
@@ -32,6 +33,7 @@ export default function CompleteDialog({ order, open, onClose, pending: edits, c
   const c = d.production.common;
   const units = d.stock.fields.units;
   const unit = order.recipe.unit;
+  const router = useRouter();
   const { pending, run } = useProdRun();
   const [produced, setProduced] = useState(fmtQty(order.plannedQty));
   const [scrap, setScrap] = useState('');
@@ -54,6 +56,7 @@ export default function CompleteDialog({ order, open, onClose, pending: edits, c
         ...(s > 0 ? { scrapQty: s } : {}),
         ...(edits.materials?.length ? { materials: edits.materials } : {}),
         ...(edits.labor ? { labor: edits.labor } : {}),
+        expectedRev: order.rev,
       }),
       {
         after: (data) => {
@@ -64,6 +67,13 @@ export default function CompleteDialog({ order, open, onClose, pending: edits, c
           const list = (er.details as { shortages?: Shortage[] } | undefined)?.shortages;
           if (er.code === 'outOfStock' && Array.isArray(list) && list.length) {
             setShortages(list);
+            return true;
+          }
+          if (er.code === 'conflict') {
+            // Akt boshqa joyda o'zgargan — yangi holat yuklanadi, oyna yopiladi
+            toast(t.conflictReload, 'error');
+            onClose();
+            router.refresh();
             return true;
           }
           setError(er.error);

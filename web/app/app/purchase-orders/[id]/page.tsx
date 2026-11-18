@@ -45,10 +45,10 @@ export default async function PurchaseOrderPage({ params }: { params: Promise<{ 
     po.receivedAt && po.status === 'received' ? tr(t.receivedInfo, { date: fmtDateTime(po.receivedAt) }) : null,
   ].filter(Boolean).join(' · ');
 
-  // Qabul qoralamasi ochiq bo'lsa buyurtma tahrirlanmaydi: saqlashda qatorlar qayta yoziladi va qoralamadagi
-  // bog'lanish (poLineId) uzilardi
+  // Tahrir qabul qoralamasi ochiq bo'lsa ham mumkin: server (savePo) qator id'larini saqlaydi — qoralamadagi
+  // `poLineId` bog'lanishi uzilmaydi; olib tashlangan qatorga bog'langan kirim qatori kod bo'yicha qayta bog'lanadi
   let form: React.ReactNode = null;
-  if (po.can.edit && !draftReceipt) {
+  if (po.can.edit) {
     const [meta, suppliers, lineProducts] = await Promise.all([productionMeta(ctx), supplierOptions(ctx), lineProductsFor(ctx, po.lines)]);
     if (meta.ok) {
       form = (

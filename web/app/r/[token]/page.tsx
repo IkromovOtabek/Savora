@@ -4,6 +4,9 @@ import { getMasterModels } from '@/lib/masterDb';
 import { getTenantModels } from '@/lib/tenantDb';
 import { getShopSettings } from '@/lib/shopSettings';
 import { parseReceiptToken } from '@/lib/receiptLink';
+import { withSellerNames } from '@/lib/staffNames';
+import { saleIkpuList } from '@/lib/receiptIkpu';
+import { markingLabel } from '@/lib/gs1';
 import PrintReceiptButton from '@/components/tenant/PrintReceiptButton';
 import ReceiptPaper from '@/components/tenant/ReceiptPaper';
 import { getDict } from '@/lib/i18n/server';
@@ -28,18 +31,19 @@ export default async function PublicReceiptPage({ params }: { params: Promise<{ 
   const org = await Organization.findById(ref.orgId).select('name phone dbName').lean();
   if (!org) notFound();
 
-  const { Sale, ShopSettings } = await getTenantModels(org.dbName);
+  const { Sale, ShopSettings, User, Product } = await getTenantModels(org.dbName);
   const [sales, settings] = await Promise.all([
-    // Proyeksiya: tannarx, mijoz telefoni va ichki maydonlar umuman o'qilmaydi
+    // Proyeksiya: tannarx, mijoz telefoni va ichki maydonlar umuman o'qilmaydi (productId — faqat serverda MXIK uchun)
     Sale.find({ checkoutId: ref.checkoutId, status: { $ne: 'cancelled' } })
-      .select('-_id saleNo createdAt soldBy tableNumber paymentType bankName bankParts totalAmount paidAmount remainingAmount installmentMonths downPayment payDay installmentAmounts dueDate discount productSnapshot.name productSnapshot.imei productSnapshot.saleQuantity productSnapshot.unit customerSnapshot.fullName payments.amount payments.paidAt payments.note payments.method')
+      .select('-_id saleNo createdAt soldBy tableNumber paymentType bankName bankParts totalAmount paidAmount remainingAmount installmentMonths downPayment payDay installmentAmounts dueDate discount productId productSnapshot.name productSnapshot.imei productSnapshot.saleQuantity productSnapshot.unit productSnapshot.ikpu markingCodes customerSnapshot.fullName payments.amount payments.paidAt payments.note payments.method')
       .sort({ saleNo: 1 }).limit(100).lean(),
     getShopSettings(ShopSettings),
   ]);
   if (!sales.length) notFound();
   const d = await getDict();
+  const ikpus = await saleIkpuList(Product, sales);
   // Faqat chekka kerakli maydonlar — tannarx, mijoz telefoni, ichki id'lar sahifaga (RSC) tushmasin
-  const safe = sales.map((s) => ({
+  const safe = sales.map((s, i) => ({
     saleNo: s.saleNo,
     createdAt: s.createdAt,
     soldBy: s.soldBy,
@@ -56,7 +60,9 @@ export default async function PublicReceiptPage({ params }: { params: Promise<{ 
     dueDate: s.dueDate,
     discount: s.discount,
     tableNumber: s.tableNumber,
-    productSnapshot: { name: s.productSnapshot.name, imei: s.productSnapshot.imei, saleQuantity: s.productSnapshot.saleQuantity, unit: s.productSnapshot.unit },
+    productSnapshot: { name: s.productSnapshot.name, imei: s.productSnapshot.imei, saleQuantity: s.productSnapshot.saleQuantity, unit: s.productSnapshot.unit, ikpu: ikpus[i] },
+    // Markirovka — ochiq chekka faqat seriyasi (kriptografik dumi sahifaga tushmaydi)
+    markingCodes: s.markingCodes?.map(markingLabel),
     customerSnapshot: s.customerSnapshot?.fullName ? { fullName: s.customerSnapshot.fullName, phone: '' } : undefined,
     payments: (s.payments ?? []).map((x) => ({ amount: x.amount, paidAt: x.paidAt, note: x.note, method: x.method })),
   }));
@@ -66,7 +72,7 @@ export default async function PublicReceiptPage({ params }: { params: Promise<{ 
       <div className="sl-receipt-bar no-print" style={{ justifyContent: 'flex-end' }}>
         <PrintReceiptButton defaultWidth={settings.receipt.paperWidth} />
       </div>
-      <ReceiptPaper sales={safe} org={{ name: org.name, phone: org.phone }} receipt={settings.receipt} d={d} publicView />
+      <ReceiptPaper sales={await withSellerNames(User, safe)} org={{ name: org.name, phone: org.phone }} receipt={settings.receipt} d={d} publicView />
     </main>
   );
 }
