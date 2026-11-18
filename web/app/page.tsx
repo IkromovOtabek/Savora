@@ -139,6 +139,11 @@ export default async function LandingPage() {
           <div className="lp-nav-cta">
             <ThemeToggle />
             <LangSwitch compact />
+            {/* Savora Market (ochiq e-commerce bozori) — app/market */}
+            <Link href="/market" className="lp-btn lp-btn--g lp-btn--sm lp-btn--market" aria-label={d.ecom.landingButton}>
+              <Svg size={16}>{P.cart}</Svg>
+              <span className="lp-market-lbl">{d.ecom.landingButton}</span>
+            </Link>
             <Link href="/login" className="lp-btn lp-btn--t lp-btn--sm">{d.common.login}</Link>
             <Link href={LOCALHOST_LINKS.register} className="lp-btn lp-btn--f lp-btn--sm">{L.nav.start}</Link>
           </div>

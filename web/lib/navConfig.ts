@@ -59,6 +59,8 @@ export const NAV_ICONS: Record<string, IconName> = {
   '/app/receipts': 'download',
   '/app/purchase-orders': 'send',
   '/app/piecework': 'wrench',
+  '/app/ecom': 'globe',
+  '/app/ecom/orders': 'basket',
 };
 
 /** Tor (ikonli) menyuda har bir bo'lim bitta ikonka bilan ko'rinadi */
@@ -69,6 +71,7 @@ export const GROUP_ICONS: Record<string, IconName> = {
   Mijozlar: 'user',
   Hisobotlar: 'chart',
   Moliya: 'wallet',
+  'E-commerce': 'globe',
   Boshqaruv: 'users',
   Sozlamalar: 'settings',
 };
@@ -141,6 +144,14 @@ export const NAV_GROUPS: NavGroup[] = [
       // Hisoblar holati va Toifalar — /app/finance sahifasidagi tablar (FinanceTabs)
       { href: '/app/finance', label: 'Tranzaksiyalar', feature: 'kirimChiqim', permission: 'kirimChiqim.manage', adminOnly: true },
       { href: '/app/kredit-kassa', label: 'Kredit kassa', feature: 'creditKassa', adminOnly: true },
+    ],
+  },
+  {
+    // E-commerce (Savora Market) — lib/ecom; faqat do'kon egasi
+    title: 'E-commerce',
+    links: [
+      { href: '/app/ecom', label: "Onlayn do'kon", adminOnly: true },
+      { href: '/app/ecom/orders', label: 'Onlayn buyurtmalar', adminOnly: true },
     ],
   },
   {

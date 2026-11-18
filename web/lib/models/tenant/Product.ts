@@ -1,6 +1,7 @@
 import { Schema, Types } from 'mongoose';
 import { softDeletePlugin } from '../../softDelete';
 import { PRODUCT_UNITS, type ProductUnit } from '../../businessTypes';
+import { markEcomDirty } from '../../ecom/dirty';
 
 export type ProductStatus = 'in_stock' | 'sold' | 'reserved' | 'defective' | 'transferred';
 export type SoldPaymentType = 'cash' | 'credit';
@@ -139,6 +140,15 @@ export interface IProduct {
   purchaseFactor?: number;
   /** Minimal qoldiq (asosiy birlikda) — undan kam bo'lsa ogohlantirish (lib/production/lowStock.ts) */
   minStock?: number;
+  /**
+   * E-commerce (lib/ecom): yo'q — do'kon sozlamasiga ergashadi («avtomatik chiqarish»); true/false — egasi qo'lda
+   * tanlagan. Baribir faqat sotish narxi > 0 va qoldig'i bor tovar chiqadi (lib/ecom/group.ts → isEcomCandidate).
+   */
+  ecomListed?: boolean;
+  /** E-commerce tavsifi (xaridorga ko'rinadi) */
+  ecomDescription?: string;
+  /** E-commerce rasmlari (o'z storage'imiz URL'lari, ≤ ECOM_MAX_IMAGES); bo'sh bo'lsa — photoUrl */
+  ecomImages?: string[];
   createdAt?: Date;
   updatedAt?: Date;
 }
@@ -241,9 +251,21 @@ export const productSchema = new Schema<IProduct>(
     purchaseUnit: { type: String, enum: PRODUCT_UNITS },
     purchaseFactor: { type: Number, min: 0.001, max: 1_000_000 },
     minStock: { type: Number, min: 0 },
+    ecomListed: { type: Boolean },
+    ecomDescription: { type: String, trim: true, maxlength: 2000 },
+    ecomImages: { type: [{ type: String, trim: true, maxlength: 500 }], default: undefined },
   },
   { timestamps: true, collection: 'products' }
 );
+
+// E-commerce katalogi (master MarketListing) — har qanday mahsulot yozuvidan keyin do'kon katalogi qayta yig'iladi
+// (debounce bilan). Sotuv, ko'chirish, import, mobil — hammasi shu ilgak orqali qamraladi (lib/ecom/dirty.ts).
+productSchema.post('save', function () { markEcomDirty(this.db?.name); });
+productSchema.post(['updateOne', 'updateMany', 'findOneAndUpdate', 'deleteOne', 'deleteMany', 'findOneAndDelete'], function () {
+  markEcomDirty(this.model?.db?.name);
+});
+productSchema.post('insertMany', function () { markEcomDirty(this.db?.name); });
+productSchema.post('bulkWrite', function () { markEcomDirty(this.db?.name); });
 
 // O'chirish — soft-delete (deletedAt); o'chirilganlar so'rovlardan avtomatik yashiriladi
 productSchema.plugin(softDeletePlugin);

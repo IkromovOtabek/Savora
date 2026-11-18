@@ -11,6 +11,8 @@ export function siteUrl(): string {
 export const PUBLIC_PAGES: { path: string; priority: number; changeFrequency: 'weekly' | 'monthly' | 'yearly' }[] = [
   { path: '/', priority: 1, changeFrequency: 'weekly' },
   { path: '/register', priority: 0.9, changeFrequency: 'monthly' },
+  // Savora Market — ochiq e-commerce katalogi
+  { path: '/market', priority: 0.8, changeFrequency: 'weekly' },
   { path: '/login', priority: 0.6, changeFrequency: 'yearly' },
   { path: '/help', priority: 0.7, changeFrequency: 'monthly' },
   { path: '/contact', priority: 0.5, changeFrequency: 'yearly' },

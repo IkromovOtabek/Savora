@@ -97,6 +97,14 @@
 .lp-nav-cta { margin-left: auto; display: flex; align-items: center; gap: 8px; }
 @media (max-width: 900px) { .lp-links { display: none; } }
 @media (max-width: 480px) { .lp-nav-cta .lp-btn--t { display: none; } }
+/* E-commerce (Savora Market) tugmasi — tor ekranda faqat ikonka */
+.lp-btn--market { gap: 6px; }
+@media (max-width: 480px) {
+  .lp-btn--market { padding: 8px 10px; }
+  .lp-market-lbl { display: none; }
+  /* Tor ekranda logo yetarli — «Savora» yozuvi o'rniga sarlavhada E-commerce tugmasi sig'adi */
+  .lp-nav .lp-brand > :last-child:not(:first-child) { display: none !important; }
+}
 
 /* ---------- HERO ---------- */
 .lp-hero { position: relative; padding-block: 56px 40px; isolation: isolate; }

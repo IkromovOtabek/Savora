@@ -13,6 +13,7 @@ import * as importer from './importer';
 import * as restaurant from './restaurant';
 import * as production from './production';
 import * as onboarding from './onboarding';
+import * as ecom from './ecom';
 
 /**
  * Barcha bo'lim lug'atlari. Yangi bo'lim qo'shish: dict/<nom>.ts yarating (uz + ru: typeof uz),
@@ -34,6 +35,7 @@ export const dictionaries = {
     restaurant: restaurant.uz,
     production: production.uz,
     onboarding: onboarding.uz,
+    ecom: ecom.uz,
   },
   ru: {
     common: common.ru,
@@ -50,6 +52,7 @@ export const dictionaries = {
     restaurant: restaurant.ru,
     production: production.ru,
     onboarding: onboarding.ru,
+    ecom: ecom.ru,
   },
 } satisfies Record<Locale, unknown>;
 

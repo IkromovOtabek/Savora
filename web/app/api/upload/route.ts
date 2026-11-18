@@ -25,7 +25,11 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Ruxsat yo\'q.' }, { status: 403 });
     }
     const dbName = ctx.user.dbName!;
-    if (purpose !== 'receipt' && !resolveOrgFeatures(ctx.org).mediaUpload) {
+    // E-commerce rasmlari (purpose=ecom) — barcha tariflarda: Savora Market vitrinasi uchun (faqat do'kon egasi)
+    if (purpose === 'ecom' && ctx.user.role !== 'admin') {
+      return NextResponse.json({ error: 'Ruxsat yo\'q.' }, { status: 403 });
+    }
+    if (purpose !== 'receipt' && purpose !== 'ecom' && !resolveOrgFeatures(ctx.org).mediaUpload) {
       return NextResponse.json({ error: 'Rasm yuklash moduli o\'chirilgan.' }, { status: 403 });
     }
     folder = purpose === 'receipt'

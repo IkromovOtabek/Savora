@@ -9,6 +9,8 @@ export const DEFAULT_SHOP_SETTINGS: ShopSettings = {
   currency: { rateMode: 'cbu' },
   notify: { dailySummary: false, shiftDiff: true, newSale: false },
   restaurant: DEFAULT_RESTAURANT_SETTINGS,
+  // Sukut: yoqiq — sotish narxi bor tovarlar e-commerce'ga o'zi chiqadi (2026-11 qarori, mavjud do'konlar ham)
+  ecom: { autoPublish: true },
 };
 
 /** Saqlangan qiymatlarni standartlar ustiga qo'yadi (hujjat yo'q yoki eski bo'lsa ham to'liq obyekt) */
@@ -24,6 +26,7 @@ export function mergeShopSettings(doc?: Partial<ShopSettings> | null): ShopSetti
       brand: { ...stripUndef(doc?.restaurant?.brand) },
     },
     stock: { ...stripUndef(doc?.stock) },
+    ecom: { ...d.ecom, ...stripUndef(doc?.ecom) },
     updatedBy: doc?.updatedBy,
   };
 }
@@ -40,7 +43,7 @@ export async function getShopSettings(M: Model<IShopSettings>): Promise<ShopSett
 }
 
 /** Bitta bo'limni yangilash (upsert) */
-export async function saveShopSettingsPart<K extends 'receipt' | 'currency' | 'notify' | 'restaurant' | 'stock'>(
+export async function saveShopSettingsPart<K extends 'receipt' | 'currency' | 'notify' | 'restaurant' | 'stock' | 'ecom'>(
   M: Model<IShopSettings>, part: K, value: Partial<NonNullable<ShopSettings[K]>>, by: string,
 ): Promise<void> {
   // by bo'sh — avtomatik yangilanish (CBU kursi), oxirgi tahrirlovchi o'zgarmaydi

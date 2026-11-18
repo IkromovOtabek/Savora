@@ -44,6 +44,14 @@ export interface IShopSettings {
     /** Markirovkali tovar kassada: warn — kodsiz ham sotiladi (ogohlantirish), require — har donaga kod shart (lib/marking.ts) */
     markingMode?: 'warn' | 'require';
   };
+  /**
+   * E-commerce (lib/ecom): autoPublish — sotish narxi bor tovarlar o'zi chiqadi (sukut: yoqiq); o'chiq bo'lsa —
+   * faqat egasi belgilaganlari. note — xaridorga ko'rinadigan yetkazish/olib ketish shartlari.
+   */
+  ecom?: {
+    autoPublish?: boolean;
+    note?: string;
+  };
   updatedBy?: string;
   createdAt?: Date;
   updatedAt?: Date;
@@ -87,6 +95,10 @@ export const shopSettingsSchema = new Schema<IShopSettings>(
     stock: {
       expiryWarnDays: { type: Number, min: 1, max: 365 },
       markingMode: { type: String, enum: ['warn', 'require'] },
+    },
+    ecom: {
+      autoPublish: { type: Boolean },
+      note: { type: String, trim: true, maxlength: 300 },
     },
     updatedBy: { type: String },
   },

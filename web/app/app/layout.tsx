@@ -19,6 +19,7 @@ import { cookies } from 'next/headers';
 import LangSwitch from '@/components/LangSwitch';
 import { getDict } from '@/lib/i18n/server';
 import { tr } from '@/lib/i18n/fmt';
+import { countNewShopOrders } from '@/lib/ecom/orders';
 import './tenant.css';
 import '@/components/ui/ux.css';
 
@@ -46,7 +47,9 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     // Shaxsiy menyu tartibi (Menyuni sozlash)
     User.findById(user.id).select('navLayout').lean().catch(() => null),
   ]);
-  const navBadges: Record<string, number> = { '/app/debts': debtCount, '/app/nasiya': nasiyaCount, '/app/tasks': openTaskCount };
+  // E-commerce: yangi (hali qabul qilinmagan) onlayn buyurtmalar — faqat do'kon egasi menyusida
+  const ecomNew = user.role === 'admin' ? await countNewShopOrders(String(org._id)).catch(() => 0) : 0;
+  const navBadges: Record<string, number> = { '/app/debts': debtCount, '/app/nasiya': nasiyaCount, '/app/tasks': openTaskCount, '/app/ecom/orders': ecomNew };
 
   // Muddati tugagan — sidebarsiz, faqat to'lov devori (children = /app/expired)
   if (!isOrganizationActive(org)) {

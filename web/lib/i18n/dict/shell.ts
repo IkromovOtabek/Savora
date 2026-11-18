@@ -7,7 +7,7 @@ type NavText = { groups: Record<string, string>; links: Record<string, string>; 
 type OnbTips = Partial<Record<BusinessType, { product?: string; sale?: string }>>;
 
 const navUz: NavText = {
-  groups: { Mahsulotlar: 'Mahsulotlar', 'Ishlab chiqarish': 'Ishlab chiqarish', Sotuvlar: 'Sotuvlar', Mijozlar: 'Mijozlar', Hisobotlar: 'Hisobotlar', Moliya: 'Moliya', Boshqaruv: 'Boshqaruv', Sozlamalar: 'Sozlamalar' },
+  groups: { Mahsulotlar: 'Mahsulotlar', 'Ishlab chiqarish': 'Ishlab chiqarish', Sotuvlar: 'Sotuvlar', Mijozlar: 'Mijozlar', Hisobotlar: 'Hisobotlar', Moliya: 'Moliya', 'E-commerce': 'E-commerce', Boshqaruv: 'Boshqaruv', Sozlamalar: 'Sozlamalar' },
   links: {
     '/app': 'Bosh sahifa',
     '/app/sales': 'Sotuvlar',
@@ -44,6 +44,8 @@ const navUz: NavText = {
     '/app/receipts': 'Kirim',
     '/app/purchase-orders': 'Xaridlar',
     '/app/piecework': 'Ishbay',
+    '/app/ecom': "Onlayn do'kon",
+    '/app/ecom/orders': 'Onlayn buyurtmalar',
   },
   tabs: {
     '/app': 'Asosiy', '/app/sales': 'Sotuvlar', '/app/products': 'Ombor', '/app/debts': 'Qarzlar',
@@ -52,7 +54,7 @@ const navUz: NavText = {
 };
 
 const navRu: NavText = {
-  groups: { Mahsulotlar: 'Товары', 'Ishlab chiqarish': 'Производство', Sotuvlar: 'Продажи', Mijozlar: 'Клиенты', Hisobotlar: 'Отчёты', Moliya: 'Финансы', Boshqaruv: 'Управление', Sozlamalar: 'Настройки' },
+  groups: { Mahsulotlar: 'Товары', 'Ishlab chiqarish': 'Производство', Sotuvlar: 'Продажи', Mijozlar: 'Клиенты', Hisobotlar: 'Отчёты', Moliya: 'Финансы', 'E-commerce': 'E-commerce', Boshqaruv: 'Управление', Sozlamalar: 'Настройки' },
   links: {
     '/app': 'Главная',
     '/app/sales': 'Продажи',
@@ -89,6 +91,8 @@ const navRu: NavText = {
     '/app/receipts': 'Приход',
     '/app/purchase-orders': 'Закупки',
     '/app/piecework': 'Сдельная оплата',
+    '/app/ecom': 'Онлайн-магазин',
+    '/app/ecom/orders': 'Онлайн-заказы',
   },
   tabs: {
     '/app': 'Главная', '/app/sales': 'Продажи', '/app/products': 'Склад', '/app/debts': 'Долги',

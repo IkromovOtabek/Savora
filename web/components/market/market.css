@@ -1,0 +1,199 @@
+/* ==========================================================================
+   SAVORA MARKET (/market) — ochiq bozor: katalog, mahsulot, savat, xaridor.
+   Prefiks: mk-  · Faqat globals.css tokenlari (kun/tun mavzulari avtomatik).
+   ========================================================================== */
+
+.mk { min-height: 100dvh; display: flex; flex-direction: column; background: var(--page); color: var(--ink-1); }
+.mk-wrap { width: 100%; max-width: var(--maxw); margin: 0 auto; padding: 0 16px; }
+.mk-main { flex: 1; padding: 20px 0 48px; }
+.mk-muted { color: var(--ink-3); }
+
+/* Sarlavha */
+.mk-head { position: sticky; top: 0; z-index: 20; background: var(--bar); backdrop-filter: saturate(1.6) blur(18px); -webkit-backdrop-filter: saturate(1.6) blur(18px); border-bottom: 1px solid var(--sep); }
+.mk-head-in { display: flex; align-items: center; gap: 14px; height: 64px; }
+.mk-brand { display: inline-flex; align-items: center; gap: 8px; text-decoration: none; color: var(--ink-1); flex: none; }
+.mk-brand b { font-size: 17px; letter-spacing: -.01em; }
+.mk-brand em { font-style: normal; color: var(--brand); }
+.mk-search { flex: 1; display: flex; min-width: 0; max-width: 560px; }
+.mk-search input {
+  flex: 1; min-width: 0; height: 40px; padding: 0 14px; border: 1px solid var(--border); border-right: 0;
+  border-radius: var(--r) 0 0 var(--r); background: var(--surface); color: var(--ink-1); font: inherit; font-size: 15px;
+}
+.mk-search input:focus { outline: none; border-color: var(--brand); box-shadow: 0 0 0 3px var(--brand-ring); }
+.mk-search button { height: 40px; padding: 0 14px; border: 0; border-radius: 0 var(--r) var(--r) 0; background: var(--brand-fill); color: var(--on-brand); cursor: pointer; display: grid; place-items: center; }
+.mk-nav { display: flex; align-items: center; gap: 4px; margin-left: auto; flex: none; }
+.mk-nav-a {
+  position: relative; display: inline-flex; align-items: center; gap: 6px; height: 40px; padding: 0 12px;
+  border-radius: var(--r); color: var(--ink-1); text-decoration: none; font-size: 14px; font-weight: 600; background: none; border: 0; cursor: pointer; font-family: inherit;
+}
+.mk-nav-a:hover { background: var(--fill-2); }
+.mk-nav-a--biz { color: var(--ink-3); font-weight: 500; }
+.mk-badge {
+  min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px; background: var(--danger-fill); color: #fff;
+  font-size: 11px; font-weight: 700; display: inline-grid; place-items: center; font-variant-numeric: tabular-nums;
+}
+
+/* Sarlavha bloki */
+.mk-hero { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
+.mk-hero h1 { margin: 0; font-size: clamp(22px, 3vw, 30px); letter-spacing: -.02em; }
+.mk-hero p { margin: 4px 0 0; color: var(--ink-3); }
+
+/* Turkum chiplari va saralash */
+.mk-filters { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 16px; }
+.mk-chips { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 2px; flex: 1 1 320px; min-width: 0; scrollbar-width: none; }
+.mk-chips::-webkit-scrollbar { display: none; }
+.mk-chip {
+  flex: none; padding: 7px 13px; border-radius: var(--r-pill); background: var(--surface); color: var(--ink-2);
+  font-size: 13px; font-weight: 600; text-decoration: none; box-shadow: var(--shadow-sm); white-space: nowrap;
+}
+.mk-chip[aria-current='page'] { background: var(--ink-1); color: var(--surface); }
+.mk-sort { display: inline-flex; gap: 2px; padding: 3px; border-radius: var(--r-pill); background: var(--fill); }
+.mk-sort a { padding: 5px 11px; border-radius: var(--r-pill); font-size: 13px; font-weight: 600; color: var(--ink-2); text-decoration: none; white-space: nowrap; }
+.mk-sort a[aria-current='page'] { background: var(--surface); color: var(--ink-1); box-shadow: var(--shadow-sm); }
+
+/* Kartochkalar to'ri */
+.mk-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 14px; list-style: none; margin: 0; padding: 0; }
+.mk-card {
+  position: relative; display: flex; flex-direction: column; height: 100%;
+  background: var(--surface); border-radius: var(--r-lg); box-shadow: var(--shadow-sm); overflow: hidden;
+  transition: box-shadow .2s ease, transform .2s ease;
+}
+.mk-card:hover { box-shadow: var(--shadow); transform: translateY(-2px); }
+.mk-card-link { display: flex; flex-direction: column; flex: 1; color: inherit; text-decoration: none; }
+.mk-card-img { aspect-ratio: 1; background: var(--fill-2); display: grid; place-items: center; color: var(--ink-3); overflow: hidden; }
+.mk-card-img img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.mk-card-body { padding: 10px 12px 12px; display: grid; gap: 4px; flex: 1; align-content: start; }
+.mk-price { display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap; }
+.mk-price b { font-size: 17px; font-weight: 800; letter-spacing: -.01em; font-variant-numeric: tabular-nums; }
+.mk-price s { font-size: 13px; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+.mk-sale { position: absolute; left: 8px; top: 8px; padding: 2px 8px; border-radius: var(--r-pill); background: var(--danger-fill); color: #fff; font-size: 12px; font-weight: 700; }
+.mk-card-name { font-size: 14px; line-height: 1.35; color: var(--ink-1); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; min-height: 2.7em; }
+.mk-card-shop { font-size: 12px; color: var(--ink-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mk-card-add { margin: 0 12px 12px; }
+
+.mk-btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 40px; padding: 0 16px;
+  border-radius: var(--r); border: 0; font: inherit; font-size: 14px; font-weight: 700; cursor: pointer; text-decoration: none;
+  background: var(--brand-fill); color: var(--on-brand); transition: background .15s, opacity .15s;
+}
+.mk-btn:hover:not(:disabled) { background: var(--brand-fill-hover); }
+.mk-btn:active { opacity: .7; }
+.mk-btn:disabled { opacity: .5; cursor: not-allowed; }
+.mk-btn--soft { background: var(--brand-soft); color: var(--brand); }
+.mk-btn--soft:hover:not(:disabled) { background: var(--brand-ring); }
+.mk-btn--ghost { background: var(--fill); color: var(--ink-1); }
+.mk-btn--ghost:hover:not(:disabled) { background: var(--fill-3); }
+.mk-btn--lg { height: 50px; font-size: 16px; border-radius: 14px; }
+.mk-btn--block { width: 100%; }
+
+.mk-empty { padding: 48px 16px; text-align: center; color: var(--ink-3); background: var(--surface); border-radius: var(--r-xl); }
+.mk-more { display: flex; justify-content: center; margin-top: 20px; }
+
+/* Mahsulot sahifasi */
+.mk-back { display: inline-flex; align-items: center; gap: 6px; color: var(--ink-2); text-decoration: none; font-size: 14px; font-weight: 600; margin-bottom: 12px; }
+.mk-pdp { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 28px; align-items: start; }
+.mk-gallery { display: grid; gap: 10px; }
+.mk-gallery-main { aspect-ratio: 1; border-radius: var(--r-xl); overflow: hidden; background: var(--surface); box-shadow: var(--shadow-sm); display: grid; place-items: center; color: var(--ink-3); }
+.mk-gallery-main img { width: 100%; height: 100%; object-fit: contain; background: var(--surface); }
+.mk-thumbs { display: flex; gap: 8px; overflow-x: auto; }
+.mk-thumbs button { flex: none; width: 68px; height: 68px; padding: 0; border-radius: 12px; overflow: hidden; border: 2px solid transparent; background: var(--surface); cursor: pointer; }
+.mk-thumbs button[aria-current='true'] { border-color: var(--brand); }
+.mk-thumbs img { width: 100%; height: 100%; object-fit: cover; }
+.mk-info { display: grid; gap: 14px; position: sticky; top: 84px; }
+.mk-info h1 { margin: 0; font-size: clamp(20px, 2.6vw, 28px); letter-spacing: -.02em; line-height: 1.2; }
+.mk-info .mk-price b { font-size: 28px; }
+.mk-info .mk-price s { font-size: 16px; }
+.mk-panel { background: var(--surface); border-radius: var(--r-xl); box-shadow: var(--shadow-sm); padding: 16px; display: grid; gap: 12px; }
+.mk-shopline { display: flex; align-items: center; gap: 10px; text-decoration: none; color: inherit; }
+.mk-shopline-av { width: 40px; height: 40px; border-radius: 12px; background: var(--brand-soft); color: var(--brand); display: grid; place-items: center; font-weight: 800; flex: none; }
+.mk-shopline span { display: grid; min-width: 0; }
+.mk-shopline small { color: var(--ink-3); font-size: 12px; }
+.mk-desc { white-space: pre-line; line-height: 1.6; margin: 0; color: var(--ink-2); }
+.mk-note { font-size: 13px; color: var(--ink-3); display: flex; gap: 8px; align-items: flex-start; }
+.mk-stock { font-size: 13px; color: var(--accent); font-weight: 600; }
+
+/* Miqdor tanlagich */
+.mk-qty { display: inline-flex; align-items: center; border-radius: var(--r); background: var(--fill); height: 40px; }
+.mk-qty button { width: 38px; height: 40px; border: 0; background: none; color: var(--ink-1); font-size: 20px; cursor: pointer; border-radius: var(--r); }
+.mk-qty button:disabled { opacity: .35; cursor: not-allowed; }
+.mk-qty input { width: 54px; height: 40px; border: 0; background: none; text-align: center; font: inherit; font-weight: 700; color: var(--ink-1); }
+.mk-buy { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.mk-buy .mk-btn { flex: 1 1 180px; }
+
+/* Savat */
+.mk-cart { display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 20px; align-items: start; }
+.mk-shopgroup { background: var(--surface); border-radius: var(--r-xl); box-shadow: var(--shadow-sm); overflow: hidden; }
+.mk-shopgroup + .mk-shopgroup { margin-top: 14px; }
+.mk-shopgroup h2 { margin: 0; padding: 14px 16px; font-size: 15px; border-bottom: 1px solid var(--sep); display: flex; justify-content: space-between; gap: 8px; }
+.mk-line { display: grid; grid-template-columns: 72px minmax(0, 1fr) auto; gap: 12px; padding: 12px 16px; align-items: center; }
+.mk-line + .mk-line { border-top: 1px solid var(--sep); }
+.mk-line-img { width: 72px; height: 72px; border-radius: 12px; overflow: hidden; background: var(--fill-2); display: grid; place-items: center; color: var(--ink-3); }
+.mk-line-img img { width: 100%; height: 100%; object-fit: cover; }
+.mk-line-main { display: grid; gap: 6px; min-width: 0; }
+.mk-line-main a { color: var(--ink-1); text-decoration: none; font-weight: 600; font-size: 14px; }
+.mk-line-ctl { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.mk-line-total { font-weight: 800; font-variant-numeric: tabular-nums; text-align: right; }
+.mk-link-btn { border: 0; background: none; color: var(--danger); font: inherit; font-size: 13px; cursor: pointer; padding: 0; }
+.mk-line--off { opacity: .55; }
+.mk-sum { position: sticky; top: 84px; }
+.mk-sum-row { display: flex; justify-content: space-between; gap: 10px; font-size: 15px; }
+.mk-sum-row b { font-size: 22px; font-variant-numeric: tabular-nums; }
+.mk-opts { display: grid; gap: 8px; }
+.mk-opt { display: flex; gap: 10px; align-items: center; padding: 12px 14px; border-radius: var(--r); background: var(--fill-2); cursor: pointer; font-weight: 600; font-size: 14px; border: 2px solid transparent; }
+.mk-opt.is-on { border-color: var(--brand); background: var(--brand-soft); }
+.mk-opt input { accent-color: var(--brand); width: 18px; height: 18px; }
+.mk-field { display: grid; gap: 6px; }
+.mk-field label { font-size: 13px; font-weight: 600; color: var(--ink-2); }
+.mk-field input, .mk-field textarea {
+  width: 100%; padding: 11px 13px; border-radius: var(--r); border: 1px solid var(--border); background: var(--surface);
+  color: var(--ink-1); font: inherit; font-size: 15px;
+}
+.mk-field input:focus, .mk-field textarea:focus { outline: none; border-color: var(--brand); box-shadow: 0 0 0 3px var(--brand-ring); }
+.mk-field small { color: var(--ink-3); font-size: 12px; }
+.mk-alert { padding: 10px 12px; border-radius: var(--r); background: var(--danger-soft); color: var(--danger); font-size: 14px; }
+.mk-alert--info { background: var(--brand-soft); color: var(--brand); }
+.mk-alert--ok { background: var(--accent-soft); color: var(--accent); }
+
+/* Kirish / ro'yxat */
+.mk-auth { max-width: 420px; margin: 24px auto 0; background: var(--surface); border-radius: var(--r-xl); box-shadow: var(--shadow); padding: 24px; display: grid; gap: 14px; }
+.mk-auth h1 { margin: 0; font-size: 22px; }
+.mk-auth p { margin: 0; }
+.mk-auth-links { display: grid; gap: 8px; font-size: 14px; text-align: center; }
+.mk-auth-links a { color: var(--brand); font-weight: 600; text-decoration: none; }
+
+/* Buyurtmalarim */
+.mk-orders { display: grid; gap: 12px; max-width: 820px; }
+.mk-order { background: var(--surface); border-radius: var(--r-xl); box-shadow: var(--shadow-sm); padding: 16px; display: grid; gap: 10px; }
+.mk-order-head { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.mk-order-head time { margin-left: auto; font-size: 13px; color: var(--ink-3); }
+.mk-st { padding: 2px 10px; border-radius: var(--r-pill); font-size: 12px; font-weight: 700; background: var(--fill); color: var(--ink-2); }
+.mk-st--new { background: var(--brand-soft); color: var(--brand); }
+.mk-st--accepted { background: var(--warn-soft); color: var(--warn); }
+.mk-st--completed { background: var(--accent-soft); color: var(--accent); }
+.mk-order ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; font-size: 14px; }
+.mk-order li { display: flex; justify-content: space-between; gap: 10px; }
+
+.mk-foot { border-top: 1px solid var(--sep); padding: 20px 0; font-size: 13px; color: var(--ink-3); }
+.mk-foot .mk-wrap { display: flex; gap: 12px; justify-content: space-between; flex-wrap: wrap; }
+.mk-foot a { color: var(--ink-2); }
+
+@media (max-width: 900px) {
+  .mk-pdp, .mk-cart { grid-template-columns: 1fr; }
+  .mk-info, .mk-sum { position: static; }
+}
+@media (max-width: 640px) {
+  .mk-head-in { flex-wrap: wrap; height: auto; padding-block: 10px; gap: 10px; }
+  .mk-search { order: 3; flex-basis: 100%; max-width: none; }
+  .mk-nav-a span.mk-lbl, .mk-nav-a--biz, .mk-head .mk-nav .theme-toggle { display: none; }
+  .mk-nav-a { padding: 0 8px; }
+  .mk-brand b { font-size: 16px; }
+  .mk-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  .mk-card-body { padding: 8px 10px 10px; }
+  .mk-price b { font-size: 15px; }
+  .mk-card-add { margin: 0 10px 10px; }
+  .mk-card-add .mk-btn { height: 36px; font-size: 13px; padding: 0 8px; gap: 5px; white-space: nowrap; }
+  .mk-line { grid-template-columns: 56px minmax(0, 1fr); }
+  .mk-line-img { width: 56px; height: 56px; }
+  .mk-line-total { grid-column: 2; text-align: left; }
+}
+.mk-shopline > svg:last-child { margin-left: auto; transform: rotate(-90deg); color: var(--ink-3); }

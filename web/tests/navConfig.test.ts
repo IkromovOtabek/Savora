@@ -84,7 +84,7 @@ describe('applyNavLayout', () => {
     // Saqlangan tartibda yo'q havolalar — o'z guruhi oxirida, standart tartibda (restoran: Stollar, Oshxona)
     expect(o[1]).toBe('Sotuvlar:/app/reports,/app,/app/pos,/app/tables,/app/kitchen,/app/sales,/app/shifts');
     // Qolgan guruhlar standart tartibda oxirida, barcha havolalar saqlanadi
-    expect(res.map((g) => g.title)).toEqual(['Moliya', 'Sotuvlar', 'Mahsulotlar', 'Ishlab chiqarish', 'Mijozlar', 'Hisobotlar', 'Boshqaruv', 'Sozlamalar']);
+    expect(res.map((g) => g.title)).toEqual(['Moliya', 'Sotuvlar', 'Mahsulotlar', 'Ishlab chiqarish', 'Mijozlar', 'Hisobotlar', 'E-commerce', 'Boshqaruv', 'Sozlamalar']);
     const all = res.flatMap((g) => g.links.map((l) => l.href)).sort();
     expect(all).toEqual(NAV_GROUPS.flatMap((g) => g.links.map((l) => l.href)).sort());
   });

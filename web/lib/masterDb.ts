@@ -14,6 +14,9 @@ import { securityEventSchema, ISecurityEvent } from './models/master/SecurityEve
 import { systemLogSchema, ISystemLog } from './models/master/SystemLog';
 import { cronRunSchema, ICronRun } from './models/master/CronRun';
 import { pushDeviceSchema, IPushDevice } from './models/master/PushDevice';
+import { marketListingSchema, IMarketListing } from './models/master/MarketListing';
+import { buyerSchema, IBuyer } from './models/master/Buyer';
+import { marketOrderSchema, IMarketOrder } from './models/master/MarketOrder';
 
 /** Master DB modellari (Organization, SuperAdmin, Review) */
 export async function getMasterModels() {
@@ -62,8 +65,18 @@ export async function getMasterModels() {
   const PushDevice =
     (conn.models.PushDevice as Model<IPushDevice>) ||
     conn.model<IPushDevice>('PushDevice', pushDeviceSchema);
+  // E-commerce (lib/ecom): ochiq katalog, xaridorlar, buyurtmalar
+  const MarketListing =
+    (conn.models.MarketListing as Model<IMarketListing>) ||
+    conn.model<IMarketListing>('MarketListing', marketListingSchema);
+  const Buyer =
+    (conn.models.Buyer as Model<IBuyer>) ||
+    conn.model<IBuyer>('Buyer', buyerSchema);
+  const MarketOrder =
+    (conn.models.MarketOrder as Model<IMarketOrder>) ||
+    conn.model<IMarketOrder>('MarketOrder', marketOrderSchema);
   return {
     conn, Organization, SuperAdmin, PlatformSettings, Review, PaymentRequest, SiteVisit, ImeiBlacklist, BarcodeCatalog,
-    TelegramAccount, UserDirectory, SecurityEvent, SystemLog, CronRun, PushDevice,
+    TelegramAccount, UserDirectory, SecurityEvent, SystemLog, CronRun, PushDevice, MarketListing, Buyer, MarketOrder,
   };
 }
