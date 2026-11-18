@@ -17,7 +17,7 @@ Fayllarni telefonga AirDrop bilan o'tkazing — profilning ko'p qismi faqat ilov
 Web orqali qilingan: ism, bio (150/150), kategoriya «Dasturiy ta'minot», telefon +998 99 829 60 02 (kontakt tugmasi yoqiq),
 profil rasmi, eski 9 reels profil to'ridan olingan («Убрать из сетки» — Reels bo'limida qoladi).
 
-**2026-11-18 joylandi** (Claude in Chrome orqali): 9 post — 5 karusel, 3 rasm (6-post rasm varianti), 1 reels (#01, AI belgisi bilan — ovoz TTS).
+**2026-11-18 joylandi** (Claude in Chrome orqali): 9 post — 5 karusel, 3 rasm (6-post rasm varianti), 1 reels (#01, AI belgisi bilan). 2026-11-18 reels ovozi UzbekVoice «jasur» ga almashtirildi: yangisi joylandi, eski (Edge TTS) o'chirildi.
 Caption'lar content-plan.md §3 dan (6-post rasmga moslangan). Web'da «Mahkamlash» yo'q — 1, 2, 3 hozir eng yangi bo'lgani uchun baribir yuqori qatorda.
 
 Instagram web'da **qilib bo'lmaydi**, telefondagi ilovada:
