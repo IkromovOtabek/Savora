@@ -41,7 +41,7 @@ export const DEFAULT_PLAN_PRESETS: Record<Exclude<PlanTier, 'custom'>, PlanPrese
     maxFilial: 5,
     maxUsers: 15,
     maxProducts: 5000,
-    monthlyPrice: 649_000,
+    monthlyPrice: 499_000,
     marketingFeatures: ['5 filial', '15 xodim', '5000 mahsulot', 'Barcha modullar', 'Hisobot', 'CSV export'],
   },
   business: {

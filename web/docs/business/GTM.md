@@ -111,7 +111,7 @@ Har postda: bitta g'oya, bitta raqam, bitta CTA ("Bepul boshlash" yoki "Demo so'
 
 ## 8. Narx tavsiyasi (faqat tavsiya — kodda narx o'zgartirilmadi)
 
-Hozir kodda (`lib/plans.ts`): Bepul 0 · Boshlang'ich 249 000 · Pro 649 000 · Biznes 1 290 000 so'm/oy.
+Hozir kodda (`lib/plans.ts`): Bepul 0 · Boshlang'ich 249 000 · Pro 499 000 · Biznes 1 290 000 so'm/oy.
 
 | Tarif | Tavsiya, so'm/oy | Nima kiradi | Nega |
 |---|---|---|---|
