@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import Icon from '@/components/icons/Icon';
 import { useDict } from '@/lib/i18n/client';
 import { tr } from '@/lib/i18n/fmt';
@@ -11,6 +11,7 @@ import Stepper from './Stepper';
 /**
  * Taom oynasi: rasm, narx, modifikator guruhlari (majburiy / min–max, narx qo'shimchasi), miqdor, izoh.
  * Majburiy guruh to'ldirilmaguncha «Savatga qo'shish» o'chiq va qaysi guruh qolganini aytadi.
+ * `onAdd` berilmasa — faqat ko'rish (umumiy mijoz sahifasi): variantlar narxi bilan ro'yxat, pastda `viewNote`.
  */
 export default function ItemSheet({
   item,
@@ -18,12 +19,15 @@ export default function ItemSheet({
   priceSuffix,
   onAdd,
   onClose,
+  viewNote,
 }: {
   item: MenuItem;
   money: (n: number) => string;
   priceSuffix: string;
-  onAdd: (line: { productId: string; qty: number; optionIds: string[]; note: string }) => void;
+  onAdd?: (line: { productId: string; qty: number; optionIds: string[]; note: string }) => void;
   onClose: () => void;
+  /** Ko'rish rejimida pastki qator (masalan «Buyurtma — stoldagi QR orqali») */
+  viewNote?: ReactNode;
 }) {
   const d = useDict();
   const q = d.restaurant.qrMenu;
@@ -79,7 +83,26 @@ export default function ItemSheet({
         </div>
         <p className="qm-dish-price">{money(item.price)}{priceSuffix}</p>
 
-        {item.modifierGroups.map((g) => {
+        {!onAdd ? item.modifierGroups.map((g) => {
+          const { min } = groupBounds(g);
+          return (
+            <section className="qm-group" key={g.id} aria-labelledby={`${titleId}-g-${g.id}`}>
+              <h3 className="qm-group-title" id={`${titleId}-g-${g.id}`}>
+                <span>{g.name}</span>
+                <span className={min > 0 ? 'qm-badge qm-badge--req' : 'qm-badge'}>{min > 0 ? q.required : q.optional}</span>
+              </h3>
+              <p className="qm-group-hint">{hint(g)}</p>
+              <ul className="qm-opt-list">
+                {g.options.map((o) => (
+                  <li className="qm-opt qm-opt--view" key={o.id}>
+                    <span className="qm-opt-name">{o.name}</span>
+                    {o.price > 0 ? <span className="qm-opt-price">+{money(o.price)}</span> : null}
+                  </li>
+                ))}
+              </ul>
+            </section>
+          );
+        }) : item.modifierGroups.map((g) => {
           const { min, max } = groupBounds(g);
           const picked = selected[g.id] ?? [];
           const radio = max === 1 && min === 1;
@@ -111,39 +134,49 @@ export default function ItemSheet({
           );
         })}
 
-        <div className="qm-qty-row">
-          <span className="qm-label" id={`${titleId}-qty`}>{q.qty}</span>
-          <Stepper value={qty} min={1} max={MAX_QTY} onChange={setQty} labelledBy={`${titleId}-qty`} />
-        </div>
-        {qty >= MAX_QTY ? <p className="qm-hint qm-pad">{tr(q.maxQty, { n: MAX_QTY })}</p> : null}
+        {onAdd ? (
+          <>
+            <div className="qm-qty-row">
+              <span className="qm-label" id={`${titleId}-qty`}>{q.qty}</span>
+              <Stepper value={qty} min={1} max={MAX_QTY} onChange={setQty} labelledBy={`${titleId}-qty`} />
+            </div>
+            {qty >= MAX_QTY ? <p className="qm-hint qm-pad">{tr(q.maxQty, { n: MAX_QTY })}</p> : null}
 
-        <div className="qm-field">
-          <label className="qm-label" htmlFor={`${titleId}-note`}>{q.note}</label>
-          <textarea
-            id={`${titleId}-note`}
-            className="qm-textarea"
-            value={note}
-            maxLength={NOTE_MAX}
-            rows={2}
-            placeholder={q.notePlaceholder}
-            onChange={(e) => setNote(e.target.value)}
-          />
-        </div>
+            <div className="qm-field">
+              <label className="qm-label" htmlFor={`${titleId}-note`}>{q.note}</label>
+              <textarea
+                id={`${titleId}-note`}
+                className="qm-textarea"
+                value={note}
+                maxLength={NOTE_MAX}
+                rows={2}
+                placeholder={q.notePlaceholder}
+                onChange={(e) => setNote(e.target.value)}
+              />
+            </div>
+          </>
+        ) : null}
       </div>
       <div className="qm-sheet-foot">
-        <button
-          type="button"
-          className="qm-btn qm-btn--brand"
-          disabled={!!invalid}
-          onClick={() => onAdd({ productId: item.id, qty, optionIds, note: note.trim() })}
-        >
-          {invalid ? tr(q.pickGroup, { group: invalid }) : (
-            <>
-              <span>{q.addToCart}</span>
-              <span className="qm-btn-sum">{money(total)}</span>
-            </>
-          )}
-        </button>
+        {onAdd ? (
+          <button
+            type="button"
+            className="qm-btn qm-btn--brand"
+            disabled={!!invalid}
+            onClick={() => onAdd({ productId: item.id, qty, optionIds, note: note.trim() })}
+          >
+            {invalid ? tr(q.pickGroup, { group: invalid }) : (
+              <>
+                <span>{q.addToCart}</span>
+                <span className="qm-btn-sum">{money(total)}</span>
+              </>
+            )}
+          </button>
+        ) : viewNote ? (
+          <div className="qm-view-note">{viewNote}</div>
+        ) : (
+          <button type="button" className="qm-btn qm-btn--ghost" onClick={onClose}>{d.common.close}</button>
+        )}
       </div>
     </>
   );

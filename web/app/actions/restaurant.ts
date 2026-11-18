@@ -16,6 +16,7 @@ import { restaurantSchemas } from '@/lib/restaurant/inputs';
 import type { RestaurantCtx } from '@/lib/restaurant/context';
 import * as ops from '@/lib/restaurant/ops';
 import * as setup from '@/lib/restaurant/setup';
+import { forgetPublicStore } from '@/lib/restaurant/public';
 import type { OrderView } from '@/lib/restaurant/view';
 import type { BumpTarget } from '@/lib/restaurant/rules';
 import type { RestaurantSettings, StationKind, TableCallKind } from '@/lib/restaurant/types';
@@ -190,7 +191,11 @@ export async function saveRestaurantSettingsAction(input: setup.RestaurantSettin
   const p = parseInput(s.settings, input, t.errors.badSettings);
   if (!p.ok) return invalid(p.error);
   const r = await setup.saveRestaurantSettings(ctx, p.data);
-  if (r.ok) revalidatePath('/app/restaurant');
+  if (r.ok) {
+    revalidatePath('/app/restaurant');
+    // Mijoz sahifasi (/m/<slug>) keshi — «Ochib ko'rish» darhol yangi ma'lumotni ko'rsatsin
+    forgetPublicStore(ctx.orgSlug);
+  }
   return toAction(r, t.settings.saved);
 }
 
@@ -277,7 +282,7 @@ export async function updateMenuItemAction(input: { productId: string } & setup.
   const r = await setup.updateMenuItem(ctx, productId, rest);
   if (r.ok) {
     revalidatePath(`/app/products/${productId}`);
-    revalidatePath('/app/restaurant/menu');
+    revalidatePath('/app/menu');
   }
   return toAction(r, t.settings.menuItemSaved);
 }

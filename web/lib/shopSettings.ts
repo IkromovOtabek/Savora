@@ -24,6 +24,7 @@ export function mergeShopSettings(doc?: Partial<ShopSettings> | null): ShopSetti
       ...d.restaurant,
       ...stripUndef(doc?.restaurant),
       brand: { ...stripUndef(doc?.restaurant?.brand) },
+      info: { ...stripUndef(doc?.restaurant?.info) },
     },
     stock: { ...stripUndef(doc?.stock) },
     ecom: { ...d.ecom, ...stripUndef(doc?.ecom) },

@@ -18,6 +18,8 @@ import { parseQty } from '@/lib/qty';
 import { ensureMainBranchId } from '@/lib/mainBranch';
 import { rememberBarcodeNames } from '@/lib/barcodeLookup';
 import { parseMxikInput } from '@/lib/mxik';
+import { resolveOrgFeatures } from '@/lib/features';
+import { ensureMenuFlags, isOnMenu, stockOnlyFilter } from '@/lib/restaurant/menuFlags';
 
 /** Matn maydonlari uzunlik chegarasi — oshsa 400 (xotira/DB to'ldirish himoyasi) */
 const MAX_LEN = { name: 120, code: 64, barcode: 64, brand: 60, notes: 500 } as const;
@@ -32,12 +34,21 @@ export async function GET(req: Request) {
   }
   // Ombor ro'yxati; sotuv/filialga berish/to'plam tuzishda mahsulot tanlash uchun ham kerak
   { const denied = await mobilePermissionDeniedAny(user, ['products.view', 'sale.create', 'transfer.create', 'product.create']); if (denied) return denied; }
-  const { Product, Branch } = await getTenantModels(user.dbName);
+  const { Product, Branch, ShopSettings, Order } = await getTenantModels(user.dbName);
   const canViewCost = await userCan(user, 'product.viewCost');
 
   const url = new URL(req.url);
   // ?bundle=1 — to'plam tarkibi uchun: yangi mahsulot tushadigan omborning sotuvdagi sanaladigan tovarlari
   const forBundle = url.searchParams.get('bundle') === '1';
+  // ?stock=1 — «Mahsulotlar» (ombor) tabi: restoran do'konida (stollar moduli) faqat xom ashyo va tayyor tovar,
+  // taom/xizmat — «Menyu» bo'limida (web /app/menu). Sotuv/ko'chirish tanlovlarida (stock'siz) o'zgarmaydi.
+  let restaurant = false;
+  if (!forBundle && url.searchParams.get('stock') === '1' && user.organizationId) {
+    const { Organization } = await getMasterModels();
+    const org = await Organization.findById(user.organizationId).select('plan features businessType').lean();
+    restaurant = !!org && !!resolveOrgFeatures(org).tables;
+    if (restaurant) await ensureMenuFlags({ Product, ShopSettings, Order });
+  }
   // Regex injection/ReDoS himoyasi: ekranlangan, 50 belgigacha
   const q = searchPattern(url.searchParams.get('q'));
   // Sahifa 1..1000 — cheksiz skip() bilan DB'ni qiynamaslik uchun
@@ -50,7 +61,10 @@ export async function GET(req: Request) {
       branchId: user.role === 'user' && user.branchId ? user.branchId : await ensureMainBranchId(Branch),
       status: 'in_stock', trackQuantity: true, kind: { $nin: ['service', 'bundle'] },
     }
-    : { ...branchFilter(user), status: { $ne: 'sold' } };
+    : restaurant
+      // Restoran ombori: xom ashyo va tayyor tovar, tugaganlari ham (0 — to'ldirish kerak)
+      ? { ...branchFilter(user), ...stockOnlyFilter(), $and: [{ $or: [{ status: { $ne: 'sold' } }, { trackQuantity: true }] }] }
+      : { ...branchFilter(user), status: { $ne: 'sold' } };
   if (q) {
     const qn = q.replace(/\s/g, '');
     filter.$or = [
@@ -83,6 +97,8 @@ export async function GET(req: Request) {
       trackQuantity: sellOf(p).tracked,
       available: sellOf(p).available,
       unit: p.unit ?? null,
+      // Restoran omborida: tovar menyuga ham qo'shilganmi («Menyuda» belgisi)
+      ...(restaurant ? { menuItem: isOnMenu(p) } : {}),
     })),
   });
 }

@@ -158,6 +158,7 @@ export default function TenantNav({
     if (l.adminOnly && !isAdmin) return false;
     if (l.feature && !features[l.feature]) return false;
     if (l.permission && permissions && !permissions.includes(l.permission)) return false;
+    if (l.anyPermission && permissions && !l.anyPermission.some((k) => permissions.includes(k))) return false;
     if (l.imeiOnly && (!showImei || !features.products)) return false;
     return true;
   };

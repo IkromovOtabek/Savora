@@ -1,0 +1,19 @@
+/* Restoran omboridagi «Xom ashyo va tovarlar» ro'yxati (/app/products, stollar moduli yoqiq do'kon):
+   «Menyuda» belgisi va «Ishlatiladi: N taomda» ro'yxati — prefiks mn-. Ranglar faqat tokenlar. */
+.mn-inmenu { background: var(--brand-soft); color: var(--brand); }
+.mn-used { position: relative; display: inline-block; }
+.mn-used > summary { list-style: none; cursor: pointer; }
+.mn-used > summary::-webkit-details-marker { display: none; }
+.mn-used-pill { background: var(--fill); color: var(--ink-2); }
+.mn-used[open] > .mn-used-pill { background: var(--fill-3); color: var(--ink-1); }
+.mn-used > summary:focus-visible { outline: 3px solid var(--brand-ring); outline-offset: 1px; border-radius: 999px; }
+.mn-used ul {
+  position: absolute; z-index: 6; top: calc(100% + 4px); left: 0; min-width: 200px; max-width: min(280px, 80vw); max-height: 260px; overflow: auto;
+  margin: 0; padding: 6px; list-style: none; border-radius: 12px; background: var(--surface); box-shadow: var(--shadow-lg), inset 0 0 0 1px var(--sep);
+}
+.mn-used li a { display: block; padding: 7px 8px; border-radius: 8px; font-size: 13.5px; color: var(--ink-1); text-decoration: none; }
+.mn-used li a:hover, .mn-used li a:focus-visible { background: var(--fill); outline: none; }
+.mn-used-h { display: block; padding: 4px 8px 6px; font-size: 12px; font-weight: 600; color: var(--ink-3); }
+@media (max-width: 640px) {
+  .mn-used ul { left: auto; right: 0; }
+}

@@ -3,10 +3,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { useRouter } from 'next/navigation';
 import Icon from '@/components/icons/Icon';
-import LangSwitch from '@/components/LangSwitch';
 import { useI18n } from '@/lib/i18n/client';
 import { tr } from '@/lib/i18n/fmt';
-import { fmtMoney } from '@/lib/format';
 import { toast } from '@/lib/toast';
 import { serviceChargeAmount } from '@/lib/restaurant/bill';
 import type { PublicMenu, PublicOrderStatus } from '@/lib/restaurant/public';
@@ -18,6 +16,8 @@ import {
 } from './cart';
 import CartSheet, { type CartSummary, type ServiceMode } from './CartSheet';
 import ItemSheet from './ItemSheet';
+import { MenuHead, MenuHero, ServiceNote } from './MenuHeader';
+import MenuSections, { reducedMotion, useMenuFormat } from './MenuSections';
 import OrderStatus from './OrderStatus';
 import QrState from './QrState';
 import Sheet from './Sheet';
@@ -59,15 +59,9 @@ function writeStore(key: string, v: Stored) {
   try { localStorage.setItem(key, JSON.stringify(v)); } catch { /* xususiy rejim / to'lgan xotira */ }
 }
 
-function reducedMotion(): boolean {
-  return typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
-}
-
 function hasActiveItems(s: PublicOrderStatus): boolean {
   return s.items.some((i) => i.status !== 'served' && i.status !== 'voided');
 }
-
-interface Section { id: string; name: string; items: MenuItem[] }
 
 export default function QrMenuApp({
   slug,
@@ -87,19 +81,6 @@ export default function QrMenuApp({
   const storageKey = `savora:qr:${slug}:${token}`;
 
   const itemsById = useMemo(() => new Map(menu.items.map((i) => [i.id, i])), [menu.items]);
-  const sections = useMemo<Section[]>(() => {
-    const by = new Map<string, MenuItem[]>();
-    for (const it of menu.items) {
-      const k = it.category ?? '';
-      const list = by.get(k);
-      if (list) list.push(it);
-      else by.set(k, [it]);
-    }
-    const out: Section[] = menu.categories.filter((c) => by.has(c)).map((c, i) => ({ id: `qm-cat-${i}`, name: c, items: by.get(c)! }));
-    const rest = by.get('');
-    if (rest) out.push({ id: 'qm-cat-other', name: out.length ? q.otherCategory : q.title, items: rest });
-    return out;
-  }, [menu.items, menu.categories, q.otherCategory, q.title]);
 
   const [lines, setLines] = useState<CartLine[]>([]);
   const [pending, setPending] = useState<Pending | null>(null);
@@ -116,8 +97,6 @@ export default function QrMenuApp({
   const [cartError, setCartError] = useState('');
   const [busyCall, setBusyCall] = useState<TableCallKind | null>(null);
   const [now, setNow] = useState(0);
-  const [active, setActive] = useState('');
-  const navRef = useRef<HTMLElement>(null);
   const linesRef = useRef(lines);
   const loadedRef = useRef(false);
   const pollRef = useRef<((ms: number) => void) | null>(null);
@@ -127,12 +106,7 @@ export default function QrMenuApp({
 
   useEffect(() => { linesRef.current = lines; }, [lines]);
 
-  const money = useCallback((n: number) => `${fmtMoney(n)} ${d.common.sum}`, [d.common.sum]);
-  const unitSuffix = useCallback((u: string | null) => {
-    if (!u || u === 'dona') return '';
-    const label = (d.stock.fields.units as Record<string, string>)[u] ?? u;
-    return ` ${tr(q.perUnit, { unit: label })}`;
-  }, [d.stock.fields.units, q.perUnit]);
+  const { money, unitSuffix } = useMenuFormat();
 
   /* ── Savat: qurilmada saqlanadi; menyu o'zgarsa (stop-list, til) — moslashtiriladi ── */
   useEffect(() => {
@@ -323,44 +297,6 @@ export default function QrMenuApp({
     });
   }
 
-  /* ── Kategoriya tablari: bosilsa — bo'limga, aylantirilsa — faol tab ── */
-  useEffect(() => {
-    if (sections.length < 2) return;
-    let raf = 0;
-    const onScroll = () => {
-      cancelAnimationFrame(raf);
-      raf = requestAnimationFrame(() => {
-        const edge = (navRef.current?.getBoundingClientRect().bottom ?? 0) + 16;
-        let cur = sections[0].id;
-        for (const s of sections) {
-          const el = document.getElementById(s.id);
-          if (el && el.getBoundingClientRect().top <= edge) cur = s.id;
-        }
-        setActive(cur);
-      });
-    };
-    window.addEventListener('scroll', onScroll, { passive: true });
-    onScroll();
-    return () => {
-      window.removeEventListener('scroll', onScroll);
-      cancelAnimationFrame(raf);
-    };
-  }, [sections]);
-
-  useEffect(() => {
-    const nav = navRef.current?.querySelector<HTMLElement>('.qm-tabs-scroll');
-    const tab = nav?.querySelector<HTMLElement>(`[data-sec="${active}"]`);
-    if (nav && tab) nav.scrollTo({ left: tab.offsetLeft - nav.clientWidth / 2 + tab.offsetWidth / 2, behavior: reducedMotion() ? 'auto' : 'smooth' });
-  }, [active]);
-
-  function jumpTo(id: string) {
-    const el = document.getElementById(id);
-    if (!el) return;
-    const navH = navRef.current?.offsetHeight ?? 0;
-    window.scrollTo({ top: el.getBoundingClientRect().top + window.scrollY - navH - 4, behavior: reducedMotion() ? 'auto' : 'smooth' });
-    setActive(id);
-  }
-
   /* ── Hisob-kitob ── */
   const qtyByProduct = useMemo(() => {
     const m = new Map<string, number>();
@@ -399,32 +335,17 @@ export default function QrMenuApp({
 
   return (
     <div className="qm-root" style={brandStyle}>
-      <header className={`qm-hero${menu.brand.coverUrl ? '' : ' qm-hero--plain'}`}>
-        {menu.brand.coverUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element -- tashqi (R2/CDN) rasm
-          <img className="qm-hero-img" src={menu.brand.coverUrl} alt="" fetchPriority="high" decoding="async" />
-        ) : null}
-        <div className="qm-lang"><LangSwitch compact /></div>
-      </header>
+      <MenuHero coverUrl={menu.brand.coverUrl} />
 
       <div className="qm-wrap">
-        <section className="qm-head" aria-labelledby="qm-org-name">
-          <Logo url={menu.brand.logoUrl} name={menu.org.name} />
-          <div className="qm-head-text">
-            <h1 id="qm-org-name">{menu.org.name}</h1>
-            <p className="qm-table">
-              <strong>{tr(q.tableNo, { n: menu.table.number })}</strong>
-              {menu.table.hall ? <span>{menu.table.hall}</span> : null}
-            </p>
-          </div>
-        </section>
-
-        {pct > 0 ? (
-          <p className="qm-service" role="note">
-            <span className="qm-service-badge">{tr(q.serviceBadge, { pct })}</span>
-            <span>{tr(q.serviceNote, { pct })}</span>
+        <MenuHead name={menu.org.name} brand={menu.brand}>
+          <p className="qm-table">
+            <strong>{tr(q.tableNo, { n: menu.table.number })}</strong>
+            {menu.table.hall ? <span>{menu.table.hall}</span> : null}
           </p>
-        ) : null}
+        </MenuHead>
+
+        {pct > 0 ? <ServiceNote badge={tr(q.serviceBadge, { pct })} text={tr(q.serviceNote, { pct })} /> : null}
 
         <div className="qm-actions">
           {(['waiter', 'bill'] as const).map((kind) => {
@@ -459,50 +380,7 @@ export default function QrMenuApp({
         ) : null}
       </div>
 
-      {sections.length > 1 ? (
-        <nav ref={navRef} className="qm-tabs" aria-label={q.categoriesAria}>
-          <div className="qm-tabs-scroll">
-            {sections.map((s) => (
-              <button
-                key={s.id}
-                type="button"
-                className="qm-tab"
-                data-sec={s.id}
-                aria-current={active === s.id ? 'true' : undefined}
-                onClick={() => jumpTo(s.id)}
-              >
-                {s.name}
-              </button>
-            ))}
-          </div>
-        </nav>
-      ) : null}
-
-      <main className="qm-wrap qm-menu">
-        {!sections.length ? (
-          <div className="qm-empty">
-            <Icon name="utensils" size={28} />
-            <p className="qm-empty-title">{q.empty}</p>
-          </div>
-        ) : sections.map((s) => (
-          <section key={s.id} id={s.id} className="qm-section" aria-labelledby={`${s.id}-h`}>
-            <h2 id={`${s.id}-h`}>{s.name}</h2>
-            <div className="qm-items">
-              {s.items.map((item) => (
-                <ItemCard
-                  key={item.id}
-                  item={item}
-                  qty={qtyByProduct.get(item.id) ?? 0}
-                  price={`${money(item.price)}${unitSuffix(item.unit)}`}
-                  optionsLabel={q.hasOptions}
-                  inCartLabel={q.inCart}
-                  onOpen={() => setOpenItem(item)}
-                />
-              ))}
-            </div>
-          </section>
-        ))}
-      </main>
+      <MenuSections items={menu.items} categories={menu.categories} qtyByProduct={qtyByProduct} onOpen={setOpenItem} />
 
       {count > 0 ? (
         <div className="qm-bar">
@@ -549,53 +427,5 @@ export default function QrMenuApp({
         />
       </Sheet>
     </div>
-  );
-}
-
-function Logo({ url, name }: { url: string | null; name: string }) {
-  const [ok, setOk] = useState(!!url);
-  if (url && ok) {
-    // eslint-disable-next-line @next/next/no-img-element -- tashqi (R2/CDN) rasm
-    return <img className="qm-logo" src={url} alt="" width={64} height={64} decoding="async" onError={() => setOk(false)} />;
-  }
-  return <span className="qm-logo qm-logo--letter" aria-hidden>{name.trim().charAt(0).toUpperCase() || '•'}</span>;
-}
-
-function ItemCard({
-  item,
-  qty,
-  price,
-  optionsLabel,
-  inCartLabel,
-  onOpen,
-}: {
-  item: MenuItem;
-  qty: number;
-  price: string;
-  optionsLabel: string;
-  inCartLabel: string;
-  onOpen: () => void;
-}) {
-  const [photoOk, setPhotoOk] = useState(!!item.photoUrl);
-  const photo = photoOk && item.photoUrl;
-  return (
-    <button type="button" className={`qm-item${photo ? '' : ' qm-item--nophoto'}`} onClick={onOpen} aria-haspopup="dialog">
-      <span className="qm-item-body">
-        <span className="qm-item-name">{item.name}</span>
-        {item.modifierGroups.length ? <span className="qm-item-meta">{optionsLabel}</span> : null}
-        <span className="qm-item-price tnum">{price}</span>
-      </span>
-      {photo ? (
-        // eslint-disable-next-line @next/next/no-img-element -- tashqi (R2/CDN) rasm, lazy
-        <img className="qm-item-photo" src={item.photoUrl!} alt="" width={96} height={96} loading="lazy" decoding="async" onError={() => setPhotoOk(false)} />
-      ) : null}
-      {qty > 0 ? (
-        <span className="qm-item-qty">
-          <span aria-hidden>{qty}</span>
-          <span className="sr-only">{tr(inCartLabel, { n: qty })}</span>
-        </span>
-      ) : null}
-      <span className="qm-item-add" aria-hidden><Icon name="plus" size={18} strokeWidth={2.5} /></span>
-    </button>
   );
 }

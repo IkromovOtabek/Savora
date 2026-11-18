@@ -2,7 +2,7 @@
 
 Sana: 2026-11-18 (yangilandi: E2E sinovdan keyin). Asos: `docs/business/TAKLIF_2026-11_SHABLONLAR.md` §1 (MVP + 2-faza).
 Bu hujjat va `lib/restaurant/*` kodi — UI sahifalari (`/app/tables`, `/app/kitchen`, `/app/restaurant`,
-mijoz QR sahifasi `/m/<slug>/<token>`, mobil ilova) uchun YAGONA manba. Sahifalar va mobil ekranlar yozilgan
+mijoz QR sahifasi `/m/<slug>/<token>`, umumiy mijoz sahifasi `/m/<slug>` (§9a), mobil ilova) uchun YAGONA manba. Sahifalar va mobil ekranlar yozilgan
 va demo restoranda uchdan-uchgacha sinalgan (§14).
 
 ---
@@ -17,6 +17,9 @@ va demo restoranda uchdan-uchgacha sinalgan (§14).
 | Modifikatorlar, vaqt o'lchovlari, QR yo'l (client'da ham) | `lib/restaurant/modifiers.ts`, `timings.ts`, `qr.ts` |
 | Buyurtma amallari (server) | `lib/restaurant/ops.ts` |
 | Sozlamalar: zal/stol/stansiya/menyu bandi/stop-list (server) | `lib/restaurant/setup.ts` |
+| Menyu va ombor ajratilishi: `menuItem` belgisi, migratsiya (server) | `lib/restaurant/menuFlags.ts` (§2a) |
+| «Menyu» bo'limi: ro'yxat, taom formasi, retsept, tez xom ashyo (server) | `lib/restaurant/menuAdmin.ts`, action'lar — `app/actions/menu.ts` |
+| Retsept birliklari, tannarx, foyda, porsiya (client'da ham) | `lib/restaurant/recipeUnits.ts` |
 | O'qish: stollar, buyurtmalar, KDS, menyu, sozlama, hisobot (server) | `lib/restaurant/queries.ts` |
 | Mijoz QR (server) | `lib/restaurant/public.ts` |
 | JSON ko'rinish (OrderView) | `lib/restaurant/view.ts` |
@@ -25,16 +28,18 @@ va demo restoranda uchdan-uchgacha sinalgan (§14).
 | Server action'lar (web yozish) | `app/actions/restaurant.ts` |
 | Web JSON GET (polling) | `app/api/restaurant/*` |
 | Mobil REST | `app/api/mobile/restaurant/*` |
-| Ochiq QR API | `app/api/public/menu/[slug]/[token]/*` |
-| Lug'at | `lib/i18n/dict/restaurant.ts` → `d.restaurant.*` |
-| Testlar | `tests/restaurantLogic.test.ts`, `tests/restaurantFlow.test.ts` (MongoDB) |
+| Ochiq QR API | `app/api/public/menu/[slug]/[token]/*`, umumiy sahifa — `app/api/public/menu/[slug]/route.ts` (§9a) |
+| Mijoz sahifasi aloqa ma'lumoti (client'da ham) | `lib/restaurant/info.ts` |
+| Lug'at | `lib/i18n/dict/restaurant.ts` → `d.restaurant.*`; «Menyu» bo'limi — `lib/i18n/dict/menu.ts` → `d.menu.*` |
+| Testlar | `tests/restaurantLogic.test.ts`, `tests/restaurantFlow.test.ts`, `tests/restaurantMenu.test.ts` (MongoDB) |
 
 **Modullar** (`lib/featureKeys.ts`, `lib/features.ts`): `tables` (zal, stollar, buyurtma, ofitsant, kassa «Stollar»),
 `kitchen` (stansiyalar, oshxona ekrani KDS), `qrMenu` (mijoz QR-menyusi). Standart — hamma tarifda o'chiq;
 `BUSINESS_FEATURE_PRESETS.restaurant` yoqadi: `tables`/`kitchen` — Starter, Pro, Business, Custom; `qrMenu` — Pro+.
 Super Admin istalgan do'konda qo'lda yoqishi mumkin.
 
-**Menyu bandlari** (`lib/navConfig.ts`): «Sotuvlar» guruhida `/app/tables` (Stollar; `tables` + `order.create`),
+**Menyu bandlari** (`lib/navConfig.ts`): «Sotuvlar» guruhida `/app/menu` (Menyu; `tables` + `product.create` |
+`product.edit` | `menu.stopList` — `NavLink.anyPermission`), `/app/tables` (Stollar; `tables` + `order.create`),
 `/app/kitchen` (Oshxona; `kitchen` + `kitchen.view`); «Hisobotlar» guruhida `/app/restaurant/reports`
 (Restoran hisobotlari; `tables` + `reports.view`); «Sozlamalar» guruhida `/app/restaurant`
 (Restoran sozlamalari; `tables` + `tables.manage`). Nomlar — `d.shell.nav.links`. Hisobotlar markazida (`/app/reports`)
@@ -125,8 +130,58 @@ paidCheckoutId? (to'langan qism), saleId?
 
 ### Product (+ maydonlar)
 `ikpu?` (MXIK, 5–30 raqam), `stationId?`, `modifierGroups?[{ _id, name, required, min, max, options[{ _id, name, price }] }]`,
-`stopListed?` (mahsulot filialga tegishli — stop-list ham filial bo'yicha), `systemKey?` (tizim mahsuloti).
-Texkarta — mavjud `kind: 'bundle'` + `bundleItems` (yuborishda tarkib ombordan ayriladi).
+`stopListed?` (mahsulot filialga tegishli — stop-list ham filial bo'yicha), `systemKey?` (tizim mahsuloti),
+`menuItem?` (menyudami — §2a). Texkarta (retsept) — mavjud `kind: 'bundle'` + `bundleItems` (yuborishda tarkib ombordan
+ayriladi). `ShopSettings.menuVersion` — menyu belgilari migratsiyasi versiyasi (1).
+
+### 2a. Menyu va ombor (`lib/restaurant/menuFlags.ts`)
+
+Egasining talabi: **Menyu** — alohida bo'lim (taom qo'shiladi, har taomga retsept), **Ombor** — faqat menyu uchun kerakli
+mahsulotlar (xom ashyo va tayyor tovar). Menyu turlari (`MenuItemType`):
+
+| Tur | Product | Ombor | Yuborishda |
+|---|---|---|---|
+| Taom (`dish`) | `kind: 'bundle'`, `bundleItems` = retsept (1 porsiyaga xom ashyo ASOSIY birlikda: 0,15 = 150 g), `menuItem: true`, `purchasePrice` = retsept tannarxi | o'zi saqlanmaydi | retsept xom ashyosi ombordan chiqadi (`reserveStock`, hammasi yoki hech biri) |
+| Tayyor tovar (`goods`) | oddiy sanaladigan tovar + `menuItem: true` | omborda («Menyuda» belgisi) | o'zi ombordan chiqadi |
+| Xizmat (`service`) | `kind: 'service'` (retseptsiz taom, choy), `menuItem: true` | yo'q | ombor o'zgarmaydi |
+| Xom ashyo | oddiy tovar, `menuItem: false` (yoki belgisiz) | omborda | menyuda yo'q, buyurtmaga qo'shilmaydi |
+
+**Qoida** (`isOnMenu` = `onMenuFilter()`): `menuItem === true` → menyuda; `false` → yo'q; belgi yo'q → turi bo'yicha
+(texkarta/xizmat — menyuda, oddiy tovar — yo'q). Shu tufayli umumiy mahsulot formasi/mobil/import orqali qo'shilgan
+texkarta menyudan yo'qolmaydi, yangi xom ashyo esa menyuga o'zi chiqmaydi.
+
+**Qayerda qo'llanadi:** `buildMenu` (xodim menyusi `/api/restaurant/menu`, mobil `/api/mobile/restaurant/menu`, mijoz
+`publicMenu`) — faqat menyudagilar; `prepareItems` (taom qo'shish, mijoz QR) — menyuda bo'lmagan mahsulot `productNotFound`;
+Ombor `/app/products` va mobil `GET /api/mobile/products?stock=1` — restoran do'konida (`tables` moduli) faqat
+`kind ∉ {bundle, service}` (`stockOnlyFilter`), tugagan xom ashyo ham («Tugagan», 0 kg), «Menyuda» belgisi va
+«Ishlatiladi: N taomda» (`ingredientUsage`). Restoran bo'lmagan do'kon — o'zgarishsiz.
+
+**Migratsiya (bir martalik, idempotent):** `ensureMenuFlags(m)` — menyu birinchi ochilganda (yuqoridagi har qanday yo'l,
+Menyu/Ombor sahifasi): `ShopSettings.menuVersion < 1` bo'lsa, belgisi YO'Q mahsulotlarga: texkarta/xizmat → `true`;
+stansiyasi, modifikatori, stop-listi bor yoki restoran buyurtmasida (`Order.items.productId`) sotilgan tovar → `true`;
+qolgan tovar (xom ashyo) → `false`; so'ng `menuVersion = 1` (`$max`). Belgisi bor mahsulotga tegilmaydi — takroriy yoki
+parallel ishga tushish egasining tanlovini buzmaydi. Jarayon ichida keshlanadi (DB nomi bo'yicha). Migratsiya xato bersa —
+log va eski xatti-harakat (filialning barcha sotuvdagi mahsulotlari menyuda). Yangi do'kon: ro'yxatdan o'tish ustasi
+namunasi va demo seed belgilarni o'zi qo'yadi.
+
+**«Menyu» bo'limi** (`/app/menu`, `lib/restaurant/menuAdmin.ts`):
+- `menuAdminView(ctx, { branchId? })` — kategoriyalar bo'yicha taomlar: narx, stansiya, stop-list, **porsiya** (taom —
+  `min(xom ashyo qoldig'i / porsiyadagi miqdor)`, 0 — «Tugagan»; tovar — qoldiq; xizmat — `null`), **tannarx** (taom —
+  retseptdan JORIY kelish narxlarida) va **foyda %** = (narx − tannarx) / narx — faqat `product.viewCost`; `hidden` —
+  menyudan olingan taom/xizmatlar. Huquq: `product.create | product.edit | menu.stopList`.
+- `dishFormData(ctx, { id? | branchId? })` — forma: taom, ombor tovarlari (menyuda bo'lmagan + retseptdagilar), turkumlar,
+  stansiyalar, `can`.
+- `saveMenuDish(ctx, DishInput)` — yangi taom/xizmat (`product.create`), tahrir va ombordagi tovarni menyuga qo'shish
+  (`product.edit`). Retsept: shu filialdagi sanaladigan oddiy tovarlar, takrorsiz, ≤ 30, miqdor asosiy birlikda (kasrli
+  birlikda ≤ 3 xona — 1 g aniqlik, dona — butun). Tovar turini almashtirib bo'lmaydi (taom ↔ xizmat — mumkin). Audit:
+  `product.create` | `product.menu` | `product.menuOn`, retsept o'zgarsa — `product.recipe` (izoh: «Guruch 0,15 kg → 0,2 kg;
+  + Zira 0,005 kg; − Sabzi», `meta.before/after`).
+- `setMenuMembership(ctx, id, inMenu)` — menyuga qaytarish / menyudan olish (`product.edit`; mahsulot o'chmaydi). Audit
+  `product.menuOn|menuOff`.
+- `quickCreateIngredient(ctx, { name, unit, cost, qty, branchId? })` — retsept muharriridan tez xom ashyo (omborga,
+  `menuItem: false`, `product.create`; qoldiq > 0 — sxema `quantity ≥ 0.001`).
+- Retsept muharriri birliklari (`recipeUnits.ts`): kg → g/kg, l → ml/l, t → kg/t, dona — dona; `toBaseQty` asosiy birlikka
+  aylantiradi (3 xonadan nozik — rad), `preferredRecipeUnit` saqlangan miqdorni qulay birlikda ko'rsatadi (0,15 kg → 150 g).
 
 ### Sale (+ maydonlar)
 `orderId?`, `tableNumber?` (indeks `{orderId}`).
@@ -134,9 +189,14 @@ Texkarta — mavjud `kind: 'bundle'` + `bundleItems` (yuborishda tarkib ombordan
 ### ShopSettings.restaurant
 ```
 serviceChargePct 0–30 (standart 0), takeawayPackFee (so'm, 0), requireVoidReason (true),
-kdsWarnMinutes (10), kdsAlertMinutes (20, > warn), brand { logoUrl?, color? (#RRGGBB), coverUrl? }
+kdsWarnMinutes (10), kdsAlertMinutes (20, > warn), brand { logoUrl?, color? (#RRGGBB), coverUrl? },
+info { about? (≤300), address? (≤160), phone?, workHours? (≤80), instagram?, telegram?, takeawayByPhone? }
 ```
 Logo/muqova — faqat shu do'konga yuklangan rasm (`/api/upload`, `isTenantUploadUrl`).
+`info` — umumiy mijoz sahifasi (§9a) uchun ochiq aloqa ma'lumoti, hammasi ixtiyoriy. Saqlashda `lib/restaurant/info.ts →
+normalizeRestaurantInfo` keltiradi: telefon — O'zbekiston raqami «+998 90 123 45 67», xorijiy «+…» (8–15 raqam) yoki qisqa
+raqam (3–5); Instagram/Telegram — login, «@login» yoki havola → login (@ siz); noto'g'ri maydon — `badSettings` + `details.field`.
+Kirish: `saveRestaurantSettingsAction({ info: { … } })` — maydon berilmasa o'zgarmaydi, `''`/`null` — o'chiriladi.
 
 **Bir filialda bir nechta login (xodimlar).** «Filial» — alohida savdo nuqtasi va uning o'z logini («Filial qo'shish»);
 «Xodim» — mavjud filialga (yoki egasining asosiy omboriga, `isMain`) biriktirilgan qo'shimcha login: ism (`User.fullName`),
@@ -156,7 +216,7 @@ ko'rinishida `menuSlug` (= org slug) va `qrBaseUrl` qaytadi.
 
 ### AuditLog
 Yangi `entity: 'order'` (`d.crm.audit.entities.order`). Amallar: `order.open|send|voidItem|voidItem.loss|precheck|reopen|pay|cancel|transfer|qrConfirm|qrReject|qr`,
-`product.menu|stopListOn|stopListOff`, `settings.restaurant`, `hall.*`, `table.*`, `station.*`.
+`product.menu|menuOn|menuOff|recipe|stopListOn|stopListOff`, `settings.restaurant`, `hall.*`, `table.*`, `station.*`.
 
 ---
 
@@ -290,8 +350,19 @@ sahifani revalidate QILMAYDI — `data.order` dan holatni yangilang (yoki `route
 | `regenerateTableQrAction(id)` | | tables.manage | `{ id, qrToken, qrPath, qrUrl }` |
 | `saveStationAction({ id?, name, kind, branchId?, printerIp?, sort?, active? })` | | tables.manage | `{ id }` |
 | `deleteStationAction(id)` | taomlar stansiyasiz qoladi | tables.manage | `{ id, detached }` |
-| `updateMenuItemAction({ productId, stationId?, modifierGroups?, ikpu? })` | stationId null — olib tashlash; modifierGroups `[{ name, required, min?, max?, options: [{ name, price }] }]`; `/app/products/<id>` va `/app/restaurant/menu` revalidate | product.edit | `{ id }` |
+| `updateMenuItemAction({ productId, stationId?, modifierGroups?, ikpu? })` | stationId null — olib tashlash; modifierGroups `[{ name, required, min?, max?, options: [{ name, price }] }]`; `/app/products/<id>` va `/app/menu` revalidate | product.edit | `{ id }` |
 | `setStopListAction({ productId, stopped })` | | menu.stopList | `{ id, name, stopListed }` |
+
+**«Menyu» bo'limi action'lari — `app/actions/menu.ts`** (§2a; `/app/menu`, `/app/products` revalidate):
+
+| Action | Kirish | Huquq | `data` |
+|---|---|---|---|
+| `saveMenuDishAction(input)` | `DishInput`: `{ id?, type: 'dish'\|'goods'\|'service', productId? (yangi tovar), branchId?, name, price, categoryId?, photoUrl?, stationId?, ikpu?, modifierGroups?, recipe?: [{ productId, qty (asosiy birlikda) }], cost? (xizmat) }` — `parseDishInput` (id'lar 24 hex, narx butun ≥ 0) | product.create (yangi taom/xizmat) / product.edit | `{ id, created }` |
+| `setMenuMembershipAction({ productId, inMenu })` | menyudan olish/qaytarish | product.edit | `{ id, name, inMenu }` |
+| `quickCreateIngredientAction({ branchId?, name, unit, cost, qty })` | tez xom ashyo (omborga) | product.create | `StockOption` |
+
+Sahifalar: `/app/menu` (ro'yxat), `/app/menu/new` (`?type=goods&product=<id>` — ombordagi tovarni qo'shish, admin `?branch=`),
+`/app/menu/<id>` (tahrir). Eski `/app/restaurant/menu` → `/app/menu` ga yo'naltiradi; restoran sozlamalarida «Menyu» tabi yo'q.
 
 Server komponentda o'qish: `const ctx = await restaurantCtxFromSession()` (`lib/restaurant/session.ts`), so'ng
 `queries.tablesBoard(ctx)`, `queries.restaurantSetupView(ctx)` va h.k. — natija `OpResult`.
@@ -309,7 +380,7 @@ birinchi filial, bo'lmasa asosiy ombor), `since` (ISO), `stationId`, `status`, `
 | `GET /api/restaurant/orders?status=active\|closed\|all&type=&since=` | tables + (order.create\|order.viewAll) | `{ serverTime, next, orders: OrderSummary[] }` (`since` bo'lsa — holatidan qat'i nazar o'zgarganlar; `closed` — oxirgi 24 soat) |
 | `GET /api/restaurant/orders/:id` | shu | `{ order: OrderView, serverTime }` |
 | `GET /api/restaurant/kitchen?stationId=&since=` | kitchen + kitchen.view | `KitchenBoard`: `{ serverTime, next, branchId, branches, settings:{kdsWarnMinutes,kdsAlertMinutes}, stations[{id,name,kind}], orders: KdsOrder[] }`; `KdsOrder = { id, orderNo, type, status, source, tableNumber, waiterName, guests, note, updatedAt, items: KdsItem[], voided: [{ id, reason, voidedAt }] }`; `KdsItem = { id, name, displayName, qty, unit, modifiers[{group,name}], note, status, stationId, stationKind, fromQr, sentAt, cookStartedAt, readyAt, elapsedMs, level: 'ok'\|'warn'\|'alert' }`. `voided` — shu stansiyada oshxonaga yuborilgandan keyin bekor qilingan taomlar (since rejimida — `since` dan, to'liq rejimda — oxirgi 2 daqiqa; to'liq rejimda faqat yaqinda bekor qilingani bor buyurtma ham `items: []` bilan keladi) |
-| `GET /api/restaurant/menu` | (tables\|kitchen) + (order.create\|order.viewAll\|menu.stopList\|kitchen.view) | `{ branchId, categories: string[], items: MenuItemView[] }`; `MenuItemView = { id, name, price, photoUrl, category, categoryId, kind, unit, stationId, stopListed, available (null — cheksiz), ikpu (MXIK yoki null), modifierGroups[{ id, name, required, min, max, options[{ id, name, price }] }] }`. Qoldig'i tugagan tovar (status `sold`) — menyu muharririda va xodim menyusida (`available: 0` → UI «Tugagan», o'chiq); mijoz QR-menyusida yo'q |
+| `GET /api/restaurant/menu` | (tables\|kitchen) + (order.create\|order.viewAll\|menu.stopList\|kitchen.view) | `{ branchId, categories: string[], items: MenuItemView[] }`; `MenuItemView = { id, name, price, photoUrl, category, categoryId, kind, unit, stationId, stopListed, available (null — cheksiz), ikpu (MXIK yoki null), modifierGroups[{ id, name, required, min, max, options[{ id, name, price }] }] }`. Qoldig'i tugagan tovar (status `sold`) — menyu muharririda va xodim menyusida (`available: 0` → UI «Tugagan», o'chiq); mijoz QR-menyusida yo'q. Faqat MENYUDAGI mahsulotlar (§2a) — xom ashyo chiqmaydi; taom `available` = retsept xom ashyosidan porsiya |
 | `GET /api/restaurant/setup` | tables + tables.manage | `{ branchId, branches, settings, menuSlug, qrBaseUrl, halls[], tables[{…, qrToken, qrPath, qrUrl, busy}], stations[] }` |
 | `GET /api/restaurant/waiters` | tables + order.transfer | `{ waiters: [{ id, username, name, role }] }` |
 | `GET /api/restaurant/reports/timings?from=&to=` | tables + reports.view | `{ from, to, overall, byStation[], byWaiter[], byDish[], voids:{count,amount,lossCount,lossAmount} }` (stats: `{ prep, delivery, wait, total }` har biri `{ count, avgMs, medianMs, p90Ms, maxMs }`; davr ≤93 kun, standart 7 kun) |
@@ -344,6 +415,10 @@ Xato kodi (`code`) tildan qat'i nazar bir xil — ilova mantiqni kodga qarab qur
 | `/api/mobile/restaurant/orders/:id` | GET | | `{ order, serverTime }` (`serverTime` — telefon soati farqi uchun; `order.requireVoidReason` — sabab maydoni majburiymi) |
 | `/api/mobile/restaurant/orders/:id` | POST | `{ op: 'addItems', items }` · `{ op: 'send', itemIds? }` · `{ op: 'served', itemIds }` · `{ op: 'void', itemId, qty?, reason? }` · `{ op: 'confirm', itemIds?, reject?, send? }` · `{ op: 'precheck' }` · `{ op: 'info', guests?, note? }` · `{ op: 'cancel', reason? }` (yuborilgan faol taom va to'lov bo'lmasa) | tegishli action `data` shakli |
 
+**Ombor (mobil «Mahsulotlar» tabi):** `GET /api/mobile/products?stock=1` — restoran do'konida (`tables`) faqat xom ashyo va
+tayyor tovar (tugaganlari ham), har qatorda `menuItem` («Menyuda»); `stock`siz so'rov (sotuv/ko'chirish tanlovi) o'zgarmagan.
+Ilova: `mobile/app/(tabs)/products.tsx` (sarlavha «Xom ashyo va tovarlar», tab — «Ombor»).
+
 To'lov mobil API'da yo'q (kassa — web). Oflayn kelajak uchun: har taomga qurilmada `clientItemId` (UUID) bering —
 takroriy yuborish xavfsiz. `GET /api/mobile/me` → `features.tables|kitchen|qrMenu` va `permissions` (yangi kalitlar bilan).
 Mobil buyurtma ekrani (`mobile/app/order/[id].tsx`): bekor qilishda sabab faqat `order.requireVoidReason` yoqiq va taom
@@ -372,6 +447,36 @@ Mijoz taomlari `pending` — ofitsant tasdiqlamaguncha oshxonaga ketmaydi, ombor
 bo'lsa unga qo'shiladi (pre-chek chiqqan bo'lsa — `orderLocked`), bo'lmasa `qr_self` buyurtma (ofitsantsiz, xizmat haqi 0%)
 ochiladi; tasdiqlagan ofitsant egasi bo'ladi. Bir buyurtmada tasdiqlanmagan taom ≤50 (`qrTooManyPending`).
 Mijoz sahifasi: `/m/<slug>/<token>` (`qrMenuPath`); QR rasmiga `qrUrl` (`/api/restaurant/setup`) yoziladi.
+Taom javobi oq ro'yxat bilan (`toPublicItem` → `PublicMenuItem`): `MenuItemView` ga keyin qo'shilgan ichki maydon chiqmaydi.
+
+### 9a. Umumiy mijoz sahifasi (stolsiz, faqat o'qish)
+
+Sahifa: **`/m/<slug>`** (`restaurantPagePath`, `app/m/[slug]/page.tsx`) — kirish eshigi plakati, Instagram/Telegram
+havolasi uchun. Brend (logo, nom, muqova, rang), tavsif, aloqa (manzil, telefon, ish vaqti, Instagram, Telegram),
+xizmat haqi e'loni va menyu (kategoriya tablari, rasm, narx, modifikatorlar narxi bilan; stop-list va tugaganlar yashirin),
+uz/ru. **Buyurtma bermaydi**: «Buyurtma berish uchun stolingizdagi QR kodni skanerlang»; `info.takeawayByPhone` va
+telefon bo'lsa — «Olib ketish uchun buyurtma: <raqam>» (tel: havola). Stol sahifasi bilan bir xil komponentlar
+(`components/restaurant/qr/MenuHeader.tsx`, `MenuSections.tsx` — `mode: 'view'`, `ItemSheet` — `onAdd`siz, `StoreMenu.tsx`).
+SEO: indekslanadi (stol sahifasi `noindex` qoladi): title `{name} — menyu`, description (tavsif yoki `qrMenu.storeMetaDesc`),
+canonical `/m/<slug>`, OG/Twitter rasm — muqova yoki logo, JSON-LD `Restaurant`. Sitemap'ga qo'shilmagan.
+
+Shart: do'kon faol, `qrMenu` va `tables` yoqiq (stol sharti yo'q); aks holda 404 `qrUnavailable` (sabab ochilmaydi,
+`app/m/[slug]/not-found.tsx`). Menyu filiali — birinchi faol zal filiali (admin standarti bilan bir xil), zal bo'lmasa asosiy
+filial (`resolvePublicStore` hech narsa yozmaydi).
+
+| Yo'l | Metod | Rate-limit | Javob |
+|---|---|---|---|
+| `/api/public/menu/:slug` | GET | 240/daq IP (`LIMITS.readStore`, sahifa bilan bitta kalit) | `{ org:{name,slug}, brand:{logoUrl,color,coverUrl}, info:{about,address,phone,workHours,instagram,telegram,takeawayByPhone}, serviceChargePct, categories, items[PublicMenuItem] }` |
+
+Muvaffaqiyatli javob — `Cache-Control: public, max-age=30, stale-while-revalidate=30` (til va mijozga bog'liq emas),
+xato — `no-store`. Server keshi: `loadPublicStorePage` (jarayon ichida, slug bo'yicha 30 s, «topilmadi» ham; bir vaqtdagi
+so'rovlar bitta DB o'qishiga birlashadi); sozlama saqlanganda shu jarayonda `forgetPublicStore(slug)` (boshqa pm2
+instance'da ko'pi bilan 30 s eski). Narx/stop-list o'zgarishi ham 30 s gacha kechikishi mumkin — sahifa buyurtma olmaydi.
+
+Admin: «Restoran sozlamalari → Umumiy» → **«Mijoz sahifasi»** bloki (`components/restaurant/settings/CustomerPageSection.tsx`,
+`#rs-customer`): havola (nusxalash, «Ochib ko'rish»), QR (PNG 1024 px / SVG yuklab olish), plakat
+**`/app/restaurant/poster?size=a5|a4`** (logo, nom, «Menyu», QR, qisqa manzil, ish vaqti/telefon/Instagram), aloqa maydonlari
+(bitta «Saqlash» bilan). «Zal va stollar» QR panelida — «Mijoz sahifasi» havolasi.
 
 ---
 
@@ -417,6 +522,15 @@ Boshqa lug'atlarga qo'shildi: `d.catalog.features.{tables,kitchen,qrMenu}`, `d.c
   bo'lib to'lash, `payId` takrori, Sale qatorlari, kassa smenasi (naqd + UzQR), saboy qadoq, mijoz QR, o'tkazish, parallel stol ochish, rollar.
 
 - `npx vitest run tests/kitchenKds.test.ts` — KDS mantiqi (birlashtirish, bekor/kamaygan taom, «Tayyor» ustuni).
+- `MONGO_TEST_URI=mongodb://127.0.0.1:27019 npx vitest run tests/restaurantMenu.test.ts` — menyu va ombor (§2a): `isOnMenu`,
+  retsept birliklari (g ↔ kg, 3 xona), tannarx/foyda/porsiya, `parseDishInput` (NoSQL injection); migratsiya (texkarta,
+  xizmat, stansiyali, sotilgan → menyu; xom ashyo → ombor; takror — egasining tanlovi saqlanadi), mijoz menyusida xom ashyo
+  yo'q, xom ashyo buyurtmaga qo'shilmaydi, taom retsept bilan (tannarx, porsiya), yuborishda xom ashyo chiqadi, tugasa —
+  «Tugagan» va `outOfStock`, ombordagi tovarni menyuga qo'shish/olish, tez xom ashyo, «qaysi taomlarda ishlatiladi».
+- `npx vitest run tests/restaurantSettingsUi.test.ts` — Menyu ro'yxati va taom formasi (render: porsiya, tannarx, g ↔ kg).
+- `npx vitest run tests/restaurantCustomerPage.test.ts` — umumiy mijoz sahifasi: aloqa ma'lumoti (telefon, Instagram,
+  Telegram, normalize), oq ro'yxat (`toPublicItem`), `GET /api/public/menu/<slug>` (modul o'chiq/faol emas — 404, ichki
+  maydonlar yo'q, kesh, rate-limit 429) — bazasiz.
 
 ## 13. Keyingi bosqich (backendda hali yo'q)
 
@@ -429,13 +543,17 @@ mexanizmi, sessiya almashish/avto-qulf kerak; hozircha qilinmadi), ofitsant KPI 
 `npm run seed:restaurant` (`scripts/seed-demo-restaurant.mjs`) — `demo-restoran` do'konini yaratadi yoki to'ldiradi
 (idempotent): Pro tarif, `restaurant` turi (tables/kitchen/qrMenu), loginlar `dr_admin`, `dr_ofitsant`, `dr_oshpaz`,
 `dr_kassir` (rol shablonlari; parol — skriptda yoki `SEED_RESTAURANT_PASSWORD`), «Asosiy zal» (1–4) va «Terrasa» (5–6),
-stansiyalar «Issiq sex»/«Bar», 11 taom + xomashyo (Osh va Kofe — modifikator, Shashlik — texkarta, Manti — stop-list,
-ichimliklar — Bar, non/suv — stansiyasiz, Coca-Cola — 3 dona qoldiq: `outOfStock` sinovi uchun), xizmat haqi 10%, qadoq 3 000.
+stansiyalar «Issiq sex»/«Bar»; menyu va ombor ajratilgan (§2a): OMBORDA 13 xom ashyo (guruch, mol go'shti, sabzi, piyoz, yog',
+un, shakar, pomidor, bodring, tovuq filesi, salat, kofe doni, quruq choy); MENYUDA 8 taom retsept bilan (Osh va Kofe —
+modifikator, Manti — stop-list, Sezar — tovuq 0,45 kg ≈ 3 porsiya: «Tugagan» sinovi), choy — retseptsiz xizmat, tayyor tovar:
+Non va mineral suv (stansiyasiz), Coca-Cola (Bar, 3 dona — `outOfStock` sinovi). Taomlar `menuAdmin.saveMenuDish` orqali
+yoziladi; xizmat haqi 10%, qadoq 3 000.
 `NODE_ENV=production` yoki localhost bo'lmagan `MONGO_URI` da rad etadi. Xodimlar `staff: true` bilan, asosiy omborga.
 **Tozalash:** `npm run seed:restaurant -- --reset-demo` — sinovdan qolgan holat (ochiq stol/pre-chek, smena, KDS, sotuvlar,
 qo'shilgan xodimlar) bilan birga FAQAT `demo-restoran` do'konini o'chirib (`lib/orgDelete`), qayta yaratadi; oldin slug,
 nom, telefon, admin login, biznes turi va baza nomi demo'ga mosligini tekshiradi (biri mos kelmasa — rad). Biznes mantiqi qayta yozilmagan:
-`scripts/ts-hooks.mjs` orqali `lib/organizations.ts` (createOrganization), `lib/roles.ts`, `lib/restaurant/setup.ts` chaqiriladi.
+`scripts/ts-hooks.mjs` orqali `lib/organizations.ts` (createOrganization), `lib/roles.ts`, `lib/restaurant/setup.ts`,
+`lib/restaurant/menuAdmin.ts` chaqiriladi.
 Kirish: `http://localhost:3000/t/demo-restoran/login`.
 
 Sinalgan oqim (2026-11-18): sozlamalar (umumiy, zal/stol, zal tartibi, QR oynasi va chop etish, stansiya, menyu: modifikator,
@@ -445,4 +563,14 @@ QR belgisi, bekor qilingan/kamaygan taom ogohlantirishi → yetkazildi → pre-c
 bo'yicha bo'lish + aralash (UzQR + naqd), teng bo'lish → chek («Orqaga» — buyurtmaga, stol raqami) → kassa smenasi (naqd/karta
 alohida) → sotuvlar → saboy (qadoq, xizmat haqi 0) → hisobotlar; ruxsatlar (oshpaz → `/app/tables`, ofitsant → `/app/restaurant`
 — `/app/locked`); mobil API (tables, menu, open, addItems, send, served, precheck, cancel, `Accept-Language: ru`).
+
+Menyu va ombor (2026-11-18, `--reset-demo` dan keyin): `/app/menu` — kategoriyalar, porsiya, tannarx/foyda, filtrlar
+(stop-list, retseptsiz, tugagan, menyudan olingan); «Taom qo'shish» — retsept g da kiritildi (120 g un → 0,12 kg; g ↔ kg
+almashtirish sonni o'giradi), tannarx/foyda/porsiya jonli, «Yangi xom ashyo» (omborga), saqlash → `bundleItems` asosiy
+birlikda, `purchasePrice` = tannarx; tahrirda retsept o'zgarishi → audit `product.recipe`; ombordagi tovarni menyudan olish
+va qayta qo'shish (turkumi saqlanadi); Ombor — faqat xom ashyo va tovar, «Menyuda», «Ishlatiladi: N taomda» ro'yxati,
+tugagan xom ashyo «Tugagan» bilan; mobil ofitsant: menyuda xom ashyo yo'q, Sezar ×3 yuborildi → tovuq 0,45 kg, salat 0,24 kg,
+pomidor 0,15 kg chiqdi; 4-Sezar — `outOfStock`, menyuda `available: 0`; xom ashyo id bilan qo'shish — `productNotFound`;
+Manti — `stopListed`; mijoz QR menyusi — 11 ta (stop-list va tugagan yashirin, xom ashyo yo'q); mobil `?stock=1` — 17 ta
+(faqat tovar, «menyu» belgisi). Kun/Tun/Qora, 375px — gorizontal siljish yo'q.
 

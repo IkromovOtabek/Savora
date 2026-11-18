@@ -14,6 +14,8 @@ export type NavLink = {
   feature?: FeatureKey;
   /** xodimda huquq bo'lmasa yashiriladi */
   permission?: PermissionKey;
+  /** Ro'yxatdagi huquqlardan birortasi bo'lsa yetarli (`permission` bilan birga ishlatilmaydi) */
+  anyPermission?: PermissionKey[];
   adminOnly?: boolean;
   imeiOnly?: boolean;
   exact?: boolean;
@@ -50,6 +52,7 @@ export const NAV_ICONS: Record<string, IconName> = {
   '/app/nasiya': 'clock',
   '/app/ai': 'sparkles',
   '/app/tasks': 'check',
+  '/app/menu': 'clipboard',
   '/app/tables': 'grid',
   '/app/kitchen': 'utensils',
   '/app/restaurant': 'qr',
@@ -112,6 +115,8 @@ export const NAV_GROUPS: NavGroup[] = [
       { href: '/app', label: 'Bosh sahifa', exact: true },
       { href: '/app/pos', label: 'Yangi sotuv', feature: 'sales', permission: 'sale.create' },
       // Restoran: stollar (ofitsant + kassadagi «Stollar») va oshxona ekrani — docs/RESTORAN_API.md
+      // Restoran menyusi: taomlar, retsept (xom ashyo — Omborda); ofitsant/oshpaz — faqat stop-list
+      { href: '/app/menu', label: 'Menyu', feature: 'tables', anyPermission: ['product.create', 'product.edit', 'menu.stopList'] },
       { href: '/app/tables', label: 'Stollar', feature: 'tables', permission: 'order.create' },
       { href: '/app/kitchen', label: 'Oshxona', feature: 'kitchen', permission: 'kitchen.view' },
       { href: '/app/sales', label: 'Sotuvlar', feature: 'sales', permission: 'sales.view' },

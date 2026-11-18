@@ -42,6 +42,7 @@ import { bumpPermissions, canAccessOrder, canTransition, inBranchScope, orderAll
 import { RESERVED_STATUSES, RESTAURANT_LIMITS, type RestaurantSettings, type TableCallKind } from './types';
 import { fail, needAnyPerm, needFeature, needPerm, ok, orderRef, type OpErr, type OpResult, type RestaurantCtx, type RestaurantModels } from './context';
 import { orderView, type OrderView } from './view';
+import { ensureMenuFlags, isOnMenu } from './menuFlags';
 import { loadStaffNames, type StaffNames } from '../staffNames';
 
 type Item = IOrderItem;
@@ -209,11 +210,11 @@ export interface AddItemInput {
 type ProductLean = IProduct & { _id: Types.ObjectId };
 
 /**
- * Kiritilgan taomlarni buyurtma qatoriga aylantiradi: mahsulot shu filialda va sotuvda, stop-listda emas,
+ * Kiritilgan taomlarni buyurtma qatoriga aylantiradi: mahsulot shu filialda, sotuvda va MENYUDA, stop-listda emas,
  * miqdor birlikka mos, modifikatorlar to'g'ri. Narx serverda hisoblanadi (client faqat tanlov yuboradi).
  */
 export async function prepareItems(
-  m: Pick<RestaurantModels, 'Product' | 'KitchenStation'>,
+  m: Pick<RestaurantModels, 'Product' | 'KitchenStation' | 'ShopSettings' | 'Order'>,
   d: RestaurantCtx['d'],
   branchId: Types.ObjectId | string,
   inputs: readonly AddItemInput[],
@@ -221,11 +222,15 @@ export async function prepareItems(
 ): Promise<OpResult<Item[]>> {
   const ids = [...new Set(inputs.map((x) => x.productId))];
   if (!ids.every(validId)) return fail(d, 'productNotFound');
-  const products = await m.Product.find(
-    { _id: { $in: ids }, branchId, status: 'in_stock' },
-    { name: 1, salePrice: 1, kind: 1, trackQuantity: 1, unit: 1, stationId: 1, modifierGroups: 1, stopListed: 1, systemKey: 1 },
-  ).lean<ProductLean[]>();
-  const byId = new Map(products.filter((p) => !p.systemKey).map((p) => [String(p._id), p]));
+  const [products, flags] = await Promise.all([
+    m.Product.find(
+      { _id: { $in: ids }, branchId, status: 'in_stock' },
+      { name: 1, salePrice: 1, kind: 1, trackQuantity: 1, unit: 1, stationId: 1, modifierGroups: 1, stopListed: 1, systemKey: 1, menuItem: 1 },
+    ).lean<ProductLean[]>(),
+    ensureMenuFlags(m),
+  ]);
+  // Menyuda bo'lmagan mahsulot (xom ashyo) buyurtmaga qo'shilmaydi — mijoz QR ham id bilan qo'sha olmaydi
+  const byId = new Map(products.filter((p) => !p.systemKey && (!flags || isOnMenu(p))).map((p) => [String(p._id), p]));
   const stationIds = [...new Set(products.map((p) => p.stationId).filter(Boolean).map(String))];
   const stations = stationIds.length
     ? await m.KitchenStation.find({ _id: { $in: stationIds }, branchId, active: true }, { kind: 1 }).lean()

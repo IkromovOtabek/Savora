@@ -13,6 +13,7 @@ import { siteUrl } from '../siteUrl';
 import { parseMxikInput } from '../mxik';
 import { isDupKey } from '../posSync';
 import { normalizeModifierGroups } from './modifiers';
+import { normalizeRestaurantInfo, type RestaurantInfoInput } from './info';
 import { isBrandColor, qrMenuPath } from './qr';
 import { RESTAURANT_LIMITS, type RestaurantSettings, type StationKind } from './types';
 import { fail, needFeature, needPerm, ok, type OpErr, type OpResult, type RestaurantCtx } from './context';
@@ -43,6 +44,8 @@ export interface RestaurantSettingsInput {
   kdsAlertMinutes?: number;
   /** null yoki '' — o'chirish */
   brand?: { logoUrl?: string | null; color?: string | null; coverUrl?: string | null };
+  /** Mijoz sahifasi aloqa ma'lumoti (lib/restaurant/info.ts): null yoki '' — o'chirish */
+  info?: RestaurantInfoInput;
 }
 
 /** Restoran sozlamalarini qisman yangilash (berilmagan maydon o'zgarmaydi) */
@@ -50,7 +53,7 @@ export async function saveRestaurantSettings(ctx: RestaurantCtx, input: Restaura
   const denied = guard(ctx);
   if (denied) return denied;
   const cur = await restaurantSettings(ctx.m);
-  const next: RestaurantSettings = { ...cur, brand: { ...cur.brand } };
+  const next: RestaurantSettings = { ...cur, brand: { ...cur.brand }, info: { ...cur.info } };
 
   if (input.serviceChargePct !== undefined) {
     const v = Math.round(input.serviceChargePct * 100) / 100;
@@ -84,6 +87,11 @@ export async function saveRestaurantSettings(ctx: RestaurantCtx, input: Restaura
       else next.brand.color = c.toUpperCase();
     }
   }
+  if (input.info) {
+    const r = normalizeRestaurantInfo(next.info, input.info);
+    if (!r.ok) return fail(ctx.d, 'badSettings', undefined, { field: r.field });
+    next.info = r.info;
+  }
 
   await saveShopSettingsPart(ctx.m.ShopSettings, 'restaurant', {
     serviceChargePct: next.serviceChargePct,
@@ -92,6 +100,7 @@ export async function saveRestaurantSettings(ctx: RestaurantCtx, input: Restaura
     kdsWarnMinutes: next.kdsWarnMinutes,
     kdsAlertMinutes: next.kdsAlertMinutes,
     brand: next.brand,
+    info: next.info,
   }, ctx.user.username);
   await settingsAudit(ctx, 'settings.restaurant', `Restoran sozlamalari: xizmat haqi ${next.serviceChargePct}%, qadoq ${next.takeawayPackFee} so'm`, {
     serviceChargePct: next.serviceChargePct, takeawayPackFee: next.takeawayPackFee, requireVoidReason: next.requireVoidReason,

@@ -1,0 +1,61 @@
+/* «Mijoz sahifasi» bloki va kirish eshigi plakati (/app/restaurant, /app/restaurant/poster) — prefiks rs-cp-, rs-poster-.
+   Ranglar — tokenlar (Kun/Tun/Qora); plakat — oq qog'oz (#fff/#000). Tugmalar tekis (globals .btn). */
+
+#rs-customer { scroll-margin-top: 80px; }
+.rs-cp { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 16px 20px; align-items: start; }
+.rs-cp-qr { display: grid; place-items: center; padding: 10px; border-radius: 16px; background: #fff; box-shadow: inset 0 0 0 1px var(--sep); }
+.rs-cp-main { display: grid; gap: 10px; min-width: 0; }
+.rs-cp-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.rs-cp-l { font-size: 13px; font-weight: 600; color: var(--ink-3); margin-right: 2px; }
+.rs-toggle small.rs-error { color: var(--danger); }
+
+@media (max-width: 640px) {
+  .rs-cp { grid-template-columns: minmax(0, 1fr); }
+  .rs-cp-qr { justify-self: center; }
+}
+
+/* ── Plakat (A5 / A4) ─────────────────────────────────────── */
+.rs-poster-wrap { display: grid; gap: 16px; }
+.rs-poster-bar { display: grid; gap: 12px; }
+.rs-poster-bar .back-link { margin: 0; }
+.rs-poster-stage { display: flex; justify-content: center; overflow-x: auto; padding: 4px 0 12px; }
+.rs-poster {
+  box-sizing: border-box; display: flex; flex-direction: column; align-items: center; justify-content: space-between; flex: none;
+  background: #fff; color: #000; text-align: center; border-radius: 6px; box-shadow: var(--shadow); overflow: hidden;
+  -webkit-print-color-adjust: exact; print-color-adjust: exact;
+}
+.rs-poster--a4 { width: 210mm; height: 297mm; padding: 0 0 16mm; }
+.rs-poster--a5 { width: 148mm; height: 210mm; padding: 0 0 11mm; }
+.rs-poster-band { width: 100%; height: 14mm; background: var(--rs-accent); }
+.rs-poster--a5 .rs-poster-band { height: 10mm; }
+.rs-poster-id { display: grid; justify-items: center; gap: 4mm; margin-top: 12mm; padding: 0 14mm; }
+.rs-poster--a5 .rs-poster-id { gap: 3mm; margin-top: 8mm; padding: 0 10mm; }
+.rs-poster-logo { width: 26mm; height: 26mm; object-fit: contain; border-radius: 5mm; }
+.rs-poster--a5 .rs-poster-logo { width: 18mm; height: 18mm; border-radius: 4mm; }
+.rs-poster-mark {
+  display: grid; place-items: center; width: 22mm; height: 22mm; border-radius: 5mm;
+  background: var(--rs-accent); color: var(--rs-on-accent, #fff); font-size: 30pt; font-weight: 800;
+}
+.rs-poster--a5 .rs-poster-mark { width: 16mm; height: 16mm; font-size: 22pt; border-radius: 4mm; }
+.rs-poster-name { margin: 0; font-size: 22pt; font-weight: 700; line-height: 1.15; letter-spacing: -.01em; color: #111; overflow-wrap: anywhere; }
+.rs-poster--a5 .rs-poster-name { font-size: 16pt; }
+.rs-poster-title { margin: 0; font-size: 64pt; font-weight: 800; line-height: 1; letter-spacing: -.03em; color: #000; }
+.rs-poster--a5 .rs-poster-title { font-size: 44pt; }
+.rs-poster-qr { width: 120mm; height: 120mm; image-rendering: pixelated; }
+.rs-poster--a5 .rs-poster-qr { width: 84mm; height: 84mm; }
+.rs-poster-scan { margin: 0; font-size: 16pt; font-weight: 600; color: #222; }
+.rs-poster--a5 .rs-poster-scan { font-size: 12pt; }
+.rs-poster-url { margin: 1mm 0 0; font-family: var(--font-mono); font-size: 11pt; color: #444; }
+.rs-poster--a5 .rs-poster-url { font-size: 9pt; }
+.rs-poster-foot { display: flex; flex-wrap: wrap; justify-content: center; gap: 2mm 7mm; padding: 0 12mm; font-size: 12pt; color: #333; }
+.rs-poster--a5 .rs-poster-foot { font-size: 9.5pt; padding: 0 8mm; }
+.rs-poster-foot span { white-space: nowrap; }
+
+@media print {
+  .rs-poster-wrap { display: block; }
+  .rs-poster-stage { display: block; padding: 0; overflow: visible; }
+  /* @page chekkasi 8 mm (printer chetini kesmasin) — varaq ichiga sig'adigan o'lcham, bitta bet */
+  .rs-poster { border-radius: 0; box-shadow: none; margin: 0 auto; break-inside: avoid; page-break-inside: avoid; }
+  .rs-poster--a4 { width: 194mm; height: 280mm; }
+  .rs-poster--a5 { width: 132mm; height: 193mm; }
+}

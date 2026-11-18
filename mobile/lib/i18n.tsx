@@ -105,6 +105,8 @@ const uz = {
     nasiya: 'Nasiya',
     sales: 'Sotuvlar',
     profile: 'Kabinet',
+    /** Restoran do'konida «Mahsulotlar» tabi (xom ashyo va tovarlar) */
+    stock: 'Ombor',
   },
   login: {
     subtitle: 'Hisobingizga kiring',
@@ -220,6 +222,10 @@ const uz = {
     tracked: 'Miqdorli',
     inSale: 'Sotuvda',
     soldOut: 'Tugagan',
+    /** Restoran do'koni (stollar moduli): ombor — xom ashyo va tayyor tovar; taomlar — web «Menyu» bo'limida */
+    stockTitle: 'Xom ashyo va tovarlar',
+    stockAdd: "Mahsulot qo'shish",
+    inMenu: 'Menyuda',
   },
   sales: {
     title: 'Sotuvlar',
@@ -1174,6 +1180,7 @@ const ru: Dict = {
     nasiya: 'Рассрочка',
     sales: 'Продажи',
     profile: 'Кабинет',
+    stock: 'Склад',
   },
   login: {
     subtitle: 'Войдите в свой аккаунт',
@@ -1287,6 +1294,9 @@ const ru: Dict = {
     tracked: 'Количественный',
     inSale: 'В продаже',
     soldOut: 'Закончился',
+    stockTitle: 'Сырьё и товары',
+    stockAdd: 'Добавить товар',
+    inMenu: 'В меню',
   },
   sales: {
     title: 'Продажи',

@@ -9,6 +9,7 @@ import { isBrandColor } from '@/lib/restaurant/qr';
 import { RESTAURANT_LIMITS, type RestaurantSettings } from '@/lib/restaurant/types';
 import { saveRestaurantSettingsAction } from '@/app/actions/restaurant';
 import BrandImageField from './BrandImageField';
+import CustomerPageSection, { infoDraft, infoErrors, type InfoDraft } from './CustomerPageSection';
 import { DEFAULT_BRAND_COLOR as DEFAULT_COLOR, textOnColor } from './color';
 import { useRun } from './useRun';
 
@@ -19,15 +20,23 @@ interface Props {
   kitchen: boolean;
   /** «QR-menyu» moduli — menyu manzili */
   qrMenu: boolean;
-  /** https://…/m/<slug>/ */
+  /** https://…/m/<slug>/ (mijoz sahifasi — shu manzil oxirgi «/» siz) */
   qrBaseUrl: string;
 }
 
-/** Umumiy: xizmat haqi, saboy qadoq, bekor qilish nazorati, KDS vaqtlari, brend (+ oldindan ko'rish) */
+/** Umumiy: xizmat haqi, saboy qadoq, bekor qilish nazorati, KDS vaqtlari, brend, mijoz sahifasi (+ oldindan ko'rish) */
 export default function GeneralSettingsForm({ initial, shopName, kitchen, qrMenu, qrBaseUrl }: Props) {
   const d = useDict();
   const t = d.restaurant.settings;
   const { pending, run } = useRun();
+
+  // Mijoz sahifasi: https://…/m/<slug> (QR, nusxalash) va joriy domendagi yo'l («Ochib ko'rish»)
+  const pageUrl = qrBaseUrl.replace(/\/+$/, '');
+  const pageSlug = decodeURIComponent(pageUrl.slice(pageUrl.lastIndexOf('/') + 1));
+  const pagePath = pageUrl.replace(/^https?:\/\/[^/]+/i, '') || '/';
+  const [info, setInfo] = useState<InfoDraft>(() => infoDraft(initial.info));
+  const infoErr = infoErrors(info, t);
+  const infoOk = Object.keys(infoErr).length === 0;
 
   const [pct, setPct] = useState(String(initial.serviceChargePct ?? 0));
   const [pack, setPack] = useState(initial.takeawayPackFee ? String(initial.takeawayPackFee) : '');
@@ -49,7 +58,7 @@ export default function GeneralSettingsForm({ initial, shopName, kitchen, qrMenu
 
   function submit(e: React.FormEvent) {
     e.preventDefault();
-    if (!pctOk || !kdsOk || !colorOk) return;
+    if (!pctOk || !kdsOk || !colorOk || !infoOk) return;
     run(
       () => saveRestaurantSettingsAction({
         serviceChargePct: shownPct,
@@ -57,8 +66,18 @@ export default function GeneralSettingsForm({ initial, shopName, kitchen, qrMenu
         requireVoidReason: requireVoid,
         ...(kitchen ? { kdsWarnMinutes: warnNum, kdsAlertMinutes: alertNum } : {}),
         brand: { logoUrl: logo || null, color: color ? color.toUpperCase() : null, coverUrl: cover || null },
+        info: {
+          about: info.about,
+          address: info.address,
+          phone: info.phone,
+          workHours: info.workHours,
+          instagram: info.instagram,
+          telegram: info.telegram,
+          takeawayByPhone: info.takeawayByPhone,
+        },
       }),
-      { refresh: false },
+      // Server keltirgan ko'rinish (telefon «+998 …», login @ siz) formaga qaytadi
+      { refresh: false, after: (s) => setInfo(infoDraft(s.info)) },
     );
   }
 
@@ -170,8 +189,20 @@ export default function GeneralSettingsForm({ initial, shopName, kitchen, qrMenu
           )}
         </section>
 
+        <CustomerPageSection
+          shopName={shopName}
+          slug={pageSlug}
+          pageUrl={pageUrl}
+          pagePath={pagePath}
+          qrMenu={qrMenu}
+          value={info}
+          onChange={(patch) => setInfo((v) => ({ ...v, ...patch }))}
+          errors={infoErr}
+          disabled={pending}
+        />
+
         <div className="rs-savebar">
-          <button type="submit" className="btn btn-primary" disabled={pending || !pctOk || !kdsOk || !colorOk}>
+          <button type="submit" className="btn btn-primary" disabled={pending || !pctOk || !kdsOk || !colorOk || !infoOk}>
             {pending ? d.common.saving : d.common.save}
           </button>
         </div>

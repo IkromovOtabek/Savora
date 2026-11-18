@@ -79,13 +79,14 @@ describe.skipIf(!URI)('ro\'yxatdan o\'tish ustasi — tenant sozlash (MongoDB)',
     return { ctx, m, answers: full };
   }
 
-  it('restoran: xizmat haqi, qadoq, oshxona + bar, zal + 4 stol + 6 taom; takror — o\'zgarmaydi', async () => {
+  it('restoran: xizmat haqi, qadoq, oshxona + bar, zal + 4 stol; xom ashyo omborda, taomlar retsept bilan menyuda; takror — o\'zgarmaydi', async () => {
     const { ctx, m, answers } = await shop('restaurant', 'pro', { service: 'waiter', bar: true, takeaway: true, packFee: 2000, serviceCharge: 10 });
     const r1 = await runTenantSetup(ctx, { answers, sampleData: true });
     expect(r1.errors).toEqual([]);
     expect(r1.restaurant).toBe(true);
     expect(r1.stations).toBe(2);
-    expect(r1.samples).toEqual({ products: 6, tables: 4, recipes: 0 });
+    // 8 xom ashyo + 4 taom (retsept) + 2 tayyor tovar + 1 xizmat
+    expect(r1.samples).toEqual({ products: 15, tables: 4, recipes: 0 });
     const s = await m.ShopSettings.findOne({ key: 'main' }).lean();
     expect(s.restaurant).toMatchObject({ serviceChargePct: 10, takeawayPackFee: 2000 });
     expect((await m.KitchenStation.find().lean()).map((x: { kind: string }) => x.kind).sort()).toEqual(['bar', 'kitchen']);
@@ -94,16 +95,27 @@ describe.skipIf(!URI)('ro\'yxatdan o\'tish ustasi — tenant sozlash (MongoDB)',
     const tea = await m.Product.findOne({ itemCode: 'NAMUNA-RES-CHOY' }).lean();
     expect(String(tea.stationId)).toBe(String(bar._id));
     expect(await m.Role.exists({ name: 'Ofitsant' })).toBeTruthy();
+    // Menyu va ombor ajratilgan: xom ashyo — menyuda emas, taom — retsept bilan, non — stansiyasiz tayyor tovar
+    const rice = await m.Product.findOne({ itemCode: 'NAMUNA-RES-GURUCH' }).lean();
+    expect(rice).toMatchObject({ kind: 'goods', menuItem: false, unit: 'kg', trackQuantity: true });
+    const osh = await m.Product.findOne({ itemCode: 'NAMUNA-RES-OSH' }).lean();
+    expect(osh).toMatchObject({ kind: 'bundle', menuItem: true, trackQuantity: false });
+    expect(osh.bundleItems).toHaveLength(5);
+    expect(osh.bundleItems.find((i: { productId: unknown }) => String(i.productId) === String(rice._id)).qty).toBe(0.15);
+    const non = await m.Product.findOne({ itemCode: 'NAMUNA-RES-NON' }).lean();
+    expect(non).toMatchObject({ kind: 'goods', menuItem: true });
+    expect(non.stationId).toBeUndefined();
+    expect((await m.ShopSettings.findOne({ key: 'main' }).lean()).menuVersion).toBe(1);
 
     const r2 = await runTenantSetup(ctx, { answers, sampleData: true });
     expect(r2.errors).toEqual([]);
     expect(r2.stations).toBe(0);
     expect(r2.samples).toEqual({ products: 0, tables: 0, recipes: 0 });
-    expect(await m.Product.countDocuments()).toBe(6);
+    expect(await m.Product.countDocuments()).toBe(15);
     expect(await m.Table.countDocuments()).toBe(4);
     expect(await m.Hall.countDocuments()).toBe(1);
     expect(await m.KitchenStation.countDocuments()).toBe(2);
-  });
+  }, 20_000); // 15 ta namuna + retsept + stansiyalar — to'liq to'plam parallel yuklamasida 5 s dan oshishi mumkin
 
   it('restoran, o\'zi xizmat: xizmat haqi 0; bar yo\'q — faqat oshxona', async () => {
     const { ctx, m, answers } = await shop('restaurant', 'starter', { service: 'self', serviceCharge: 15, bar: false, takeaway: false });

@@ -5,13 +5,12 @@ import Link from 'next/link';
 import { usePathname, useSearchParams } from 'next/navigation';
 import { useDict } from '@/lib/i18n/client';
 
-type TabKey = 'general' | 'tables' | 'stations' | 'menu' | 'reports';
+type TabKey = 'general' | 'tables' | 'stations' | 'reports';
 
 const TABS: { key: TabKey; href: string; need: 'manage' | 'reports'; branch: boolean }[] = [
   { key: 'general', href: '/app/restaurant', need: 'manage', branch: false },
   { key: 'tables', href: '/app/restaurant/tables', need: 'manage', branch: true },
   { key: 'stations', href: '/app/restaurant/stations', need: 'manage', branch: true },
-  { key: 'menu', href: '/app/restaurant/menu', need: 'manage', branch: true },
   { key: 'reports', href: '/app/restaurant/reports', need: 'reports', branch: false },
 ];
 
@@ -32,7 +31,6 @@ function TabsView({ canManage, canReports, branch }: Props & { branch: string | 
     general: t.tabGeneral,
     tables: t.tabTables,
     stations: t.tabStations,
-    menu: t.tabMenu,
     reports: t.tabReports,
   };
   const tabs = TABS.filter((x) => (x.need === 'manage' ? canManage : canReports));
@@ -58,7 +56,7 @@ function TabsWithBranch(props: Props) {
   return <TabsView {...props} branch={branch && /^[a-f0-9]{24}$/i.test(branch) ? branch : null} />;
 }
 
-/** Restoran sozlamalari sarlavhasi + tablar: Umumiy · Zal va stollar · Stansiyalar · Menyu · Hisobotlar */
+/** Restoran sozlamalari sarlavhasi + tablar: Umumiy · Zal va stollar · Stansiyalar · Hisobotlar (Menyu — alohida bo'lim /app/menu) */
 export default function RestaurantTabs({ title, sub, ...props }: Props & { title: string; sub: string }) {
   const pathname = usePathname();
   const ownHeader = pathname === OWN_HEADER || pathname.startsWith(`${OWN_HEADER}/`);

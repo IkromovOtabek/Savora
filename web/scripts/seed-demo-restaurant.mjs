@@ -10,8 +10,12 @@
  *   - loginlar: dr_admin (egasi), dr_ofitsant, dr_oshpaz, dr_kassir (rol shablonlari: Ofitsant, Oshpaz,
  *     Kassir (restoran)) — parol: SEED_RESTAURANT_PASSWORD yoki pastdagi DEV_PASSWORD;
  *   - zallar «Asosiy zal» (1–4-stol) va «Terrasa» (5–6), stansiyalar «Issiq sex» va «Bar»;
- *   - menyu: 11 taom (2 tasida modifikator, Shashlik — texkarta, Manti — stop-listda, ichimliklar — Bar,
- *     non va suv — stansiyasiz), xomashyo (go'sht, piyoz); xizmat haqi 10%, saboy qadoq 3 000 so'm.
+ *   - menyu va ombor ajratilgan (lib/restaurant/menuFlags.ts): OMBORDA — xom ashyo (guruch, go'sht, sabzi, piyoz,
+ *     yog', un, shakar, pomidor, bodring, tovuq filesi, salat, kofe doni, quruq choy); MENYUDA — 8 taom retsept bilan
+ *     (Osh, Lag'mon, Shashlik, Manti — stop-list, Somsa, Sezar — tovuq 3 porsiyaga yetadi («Tugagan» sinovi),
+ *     Achchiq-chuchuk, Kofe), choy — retseptsiz xizmat, tayyor tovar: Non va suv (stansiyasiz), Coca-Cola (3 dona —
+ *     outOfStock sinovi). Osh va Kofe — modifikator, ichimliklar — Bar; xizmat haqi 10%, saboy qadoq 3 000 so'm.
+ *     Taomlar «Menyu» bo'limi mantig'i bilan yoziladi (lib/restaurant/menuAdmin.ts → saveMenuDish).
  * Kirish: http://localhost:3000/t/demo-restoran/login · QR havolalar — Restoran sozlamalari → Zal va stollar.
  *
  * XAVFSIZLIK: production'da va localhost bo'lmagan MONGO_URI'da ishlamaydi (aniq rad etadi).
@@ -65,38 +69,57 @@ const STATIONS = [
   { key: 'hot', name: 'Issiq sex', kind: 'kitchen' },
   { key: 'bar', name: 'Bar', kind: 'bar' },
 ];
-const CATS = { hot: 'Issiq taomlar', salad: 'Salatlar', drinks: 'Ichimliklar', bread: 'Non va pishiriqlar', raw: 'Xomashyo' };
+const CATS = { hot: 'Issiq taomlar', salad: 'Salatlar', drinks: 'Ichimliklar', bread: 'Non va pishiriqlar', raw: 'Xom ashyo' };
 
 /**
- * Taomlar. `code` — seed kaliti (Product.itemCode, takrorlanmaslik uchun). kind: service — cheksiz (oshxona
- * ishlab chiqaradi); goods — ombordagi qoldiq bilan; bundle — texkarta (yuborishda tarkib ombordan ayriladi).
+ * `code` — seed kaliti (Product.itemCode, takrorlanmaslik uchun). Retsept — 1 porsiyaga xom ashyo ASOSIY birlikda
+ * (kg, l): 0.15 = 150 g. Yuborishda retsept xom ashyosi ombordan chiqadi (texkarta = `kind: 'bundle'`).
  */
 const RAW = [
-  { code: 'DR-GOSHT', name: "Mol go'shti", cat: 'raw', kind: 'goods', unit: 'kg', qty: 5, cost: 95000, price: 120000 },
-  { code: 'DR-PIYOZ', name: 'Piyoz', cat: 'raw', kind: 'goods', unit: 'kg', qty: 10, cost: 4000, price: 6000 },
+  { code: 'DR-GURUCH', name: 'Guruch (lazer)', unit: 'kg', qty: 25, cost: 16000 },
+  { code: 'DR-GOSHT', name: "Mol go'shti", unit: 'kg', qty: 12, cost: 95000 },
+  { code: 'DR-SABZI', name: 'Sabzi', unit: 'kg', qty: 15, cost: 5000 },
+  { code: 'DR-PIYOZ', name: 'Piyoz', unit: 'kg', qty: 10, cost: 4000 },
+  { code: 'DR-YOG', name: "O'simlik yog'i", unit: 'l', qty: 10, cost: 22000 },
+  { code: 'DR-UN', name: 'Un (oliy nav)', unit: 'kg', qty: 25, cost: 7000 },
+  { code: 'DR-SHAKAR', name: 'Shakar', unit: 'kg', qty: 5, cost: 13000 },
+  { code: 'DR-POMIDOR', name: 'Pomidor', unit: 'kg', qty: 6, cost: 12000 },
+  { code: 'DR-BODRING', name: 'Bodring', unit: 'kg', qty: 5, cost: 10000 },
+  // 0,45 kg — Sezar salat (0,15 kg) 3 porsiyaga yetadi: 4-si «Tugagan» bo'ladi
+  { code: 'DR-TOVUQ', name: 'Tovuq filesi', unit: 'kg', qty: 0.45, cost: 48000 },
+  { code: 'DR-SALAT', name: 'Aysberg salat', unit: 'kg', qty: 2, cost: 30000 },
+  { code: 'DR-KOFEDON', name: 'Kofe doni', unit: 'kg', qty: 1, cost: 220000 },
+  { code: 'DR-CHOYQ', name: "Ko'k choy (quruq)", unit: 'kg', qty: 1, cost: 60000 },
 ];
 const DISHES = [
   {
-    code: 'DR-OSH', name: 'Osh', cat: 'hot', kind: 'service', price: 45000, cost: 22000, station: 'hot', ikpu: '10202001001000000',
+    code: 'DR-OSH', name: 'Osh', cat: 'hot', price: 45000, station: 'hot', ikpu: '10202001001000000',
+    recipe: [['DR-GURUCH', 0.15], ['DR-GOSHT', 0.1], ['DR-SABZI', 0.1], ['DR-YOG', 0.03], ['DR-PIYOZ', 0.03]],
     mods: [
       { name: 'Porsiya', required: true, min: 1, max: 1, options: [{ name: 'Oddiy', price: 0 }, { name: 'Katta', price: 15000 }] },
       { name: "Qo'shimcha", required: false, min: 0, max: 2, options: [{ name: 'Qazi', price: 12000 }, { name: 'Tuxum', price: 3000 }] },
     ],
   },
-  { code: 'DR-LAGMON', name: "Lag'mon", cat: 'hot', kind: 'service', price: 38000, cost: 16000, station: 'hot' },
-  { code: 'DR-SHASHLIK', name: 'Shashlik (mol)', cat: 'hot', kind: 'bundle', price: 24000, cost: 0, station: 'hot', bundle: [['DR-GOSHT', 0.15], ['DR-PIYOZ', 0.05]] },
-  { code: 'DR-MANTI', name: 'Manti', cat: 'hot', kind: 'service', price: 30000, cost: 12000, station: 'hot', stop: true },
-  { code: 'DR-SOMSA', name: 'Somsa', cat: 'bread', kind: 'service', price: 12000, cost: 5000, station: 'hot' },
-  { code: 'DR-SEZAR', name: 'Sezar salat', cat: 'salad', kind: 'service', price: 32000, cost: 14000, station: 'hot' },
-  { code: 'DR-ACHCHIQ', name: 'Achchiq-chuchuk', cat: 'salad', kind: 'service', price: 15000, cost: 5000, station: 'hot' },
-  { code: 'DR-NON', name: 'Non', cat: 'bread', kind: 'goods', unit: 'dona', qty: 60, price: 5000, cost: 3000 },
-  { code: 'DR-CHOY', name: "Ko'k choy (choynak)", cat: 'drinks', kind: 'service', price: 8000, cost: 1500, station: 'bar' },
+  { code: 'DR-LAGMON', name: "Lag'mon", cat: 'hot', price: 38000, station: 'hot', recipe: [['DR-UN', 0.12], ['DR-GOSHT', 0.08], ['DR-PIYOZ', 0.03], ['DR-POMIDOR', 0.05], ['DR-YOG', 0.02]] },
+  { code: 'DR-SHASHLIK', name: 'Shashlik (mol)', cat: 'hot', price: 24000, station: 'hot', recipe: [['DR-GOSHT', 0.15], ['DR-PIYOZ', 0.05]] },
+  { code: 'DR-MANTI', name: 'Manti', cat: 'hot', price: 30000, station: 'hot', stop: true, recipe: [['DR-UN', 0.1], ['DR-GOSHT', 0.1], ['DR-PIYOZ', 0.05]] },
+  { code: 'DR-SOMSA', name: 'Somsa', cat: 'bread', price: 12000, station: 'hot', recipe: [['DR-UN', 0.08], ['DR-GOSHT', 0.05], ['DR-PIYOZ', 0.03], ['DR-YOG', 0.01]] },
+  { code: 'DR-SEZAR', name: 'Sezar salat', cat: 'salad', price: 32000, station: 'hot', recipe: [['DR-TOVUQ', 0.15], ['DR-SALAT', 0.08], ['DR-POMIDOR', 0.05]] },
+  { code: 'DR-ACHCHIQ', name: 'Achchiq-chuchuk', cat: 'salad', price: 15000, station: 'hot', recipe: [['DR-POMIDOR', 0.15], ['DR-BODRING', 0.1], ['DR-PIYOZ', 0.03]] },
   {
-    code: 'DR-KOFE', name: 'Kofe Amerikano', cat: 'drinks', kind: 'service', price: 18000, cost: 5000, station: 'bar',
+    code: 'DR-KOFE', name: 'Kofe Amerikano', cat: 'drinks', price: 18000, station: 'bar', recipe: [['DR-KOFEDON', 0.012]],
     mods: [{ name: 'Hajmi', required: true, min: 1, max: 1, options: [{ name: 'Kichik', price: 0 }, { name: 'Katta', price: 6000 }] }],
   },
-  { code: 'DR-COLA', name: 'Coca-Cola 0,5 l', cat: 'drinks', kind: 'goods', unit: 'dona', qty: 3, price: 10000, cost: 6500, station: 'bar' },
-  { code: 'DR-SUV', name: 'Mineral suv 0,5 l', cat: 'drinks', kind: 'goods', unit: 'dona', qty: 40, price: 6000, cost: 3000 },
+];
+/** Retseptsiz (xizmat) — ombor o'zgarmaydi */
+const SERVICES = [
+  { code: 'DR-CHOY', name: "Ko'k choy (choynak)", cat: 'drinks', price: 8000, cost: 1500, station: 'bar' },
+];
+/** Tayyor tovar: omborda sanaladi va menyuga qo'shilgan (o'zi ombordan chiqadi) */
+const GOODS = [
+  { code: 'DR-NON', name: 'Non', cat: 'bread', unit: 'dona', qty: 60, price: 5000, cost: 3000 },
+  { code: 'DR-COLA', name: 'Coca-Cola 0,5 l', cat: 'drinks', unit: 'dona', qty: 3, price: 10000, cost: 6500, station: 'bar' },
+  { code: 'DR-SUV', name: 'Mineral suv 0,5 l', cat: 'drinks', unit: 'dona', qty: 40, price: 6000, cost: 3000 },
 ];
 
 /* ───────────────────────────── ishga tushirish ───────────────────────────── */
@@ -109,11 +132,13 @@ const [
   { resolveOrgFeatures }, { loadUserPermissions }, { getDictionary }, { ensureDefaultRoles },
   { reserveUsername, isUsernameAvailable }, { addOrgUser }, { ensureMainBranchId },
   { generateProductCode, generateSku }, setup, { deleteOrganizationPermanently, isDeletableTenantDb },
+  menu, { ensureMenuFlags },
 ] = await Promise.all([
   lib('organizations'), lib('masterDb'), lib('tenantDb'), lib('db'),
   lib('features'), lib('permissionGuard'), lib('i18n/dict/index'), lib('roles'),
   lib('userDirectory'), lib('orgUsers'), lib('mainBranch'),
   lib('productId'), lib('restaurant/setup'), lib('orgDelete'),
+  lib('restaurant/menuAdmin'), lib('restaurant/menuFlags'),
 ]);
 
 function must(r, what) {
@@ -251,45 +276,55 @@ async function main() {
       ?? await m.ProductCategory.create({ name, parentId: null, createdBy: ADMIN });
     catIds[key] = c._id;
   }
+  // Menyu belgilari rejimi (yangi baza — migratsiya bo'sh, versiya qo'yiladi; eski demo — belgisizlarga belgi)
+  await ensureMenuFlags(m);
   const productIds = {};
-  let createdN = 0;
-  for (const p of [...RAW, ...DISHES]) {
-    const found = await m.Product.findOne({ itemCode: p.code, branchId }).select('_id').lean();
-    if (found) { productIds[p.code] = found._id; continue; }
-    const goods = p.kind === 'goods';
-    const doc = await m.Product.create({
-      productId: generateProductCode(),
-      itemCode: p.code,
-      imei: generateSku(),
-      kind: p.kind,
-      name: p.name,
-      purchasePrice: p.cost,
-      salePrice: p.price,
-      trackQuantity: goods,
-      quantity: goods ? p.qty : 1,
-      soldQuantity: 0,
-      status: 'in_stock',
-      branchId,
-      unit: p.unit ?? 'dona',
-      category: CATS[p.cat],
-      categoryId: catIds[p.cat],
-      ...(p.bundle ? { bundleItems: p.bundle.map(([code, qty]) => ({ productId: productIds[code], qty })) } : {}),
-      ...(p.ikpu ? { ikpu: p.ikpu } : {}),
-      createdBy: ADMIN,
-      history: [{ action: 'created', detail: 'Demo restoran (seed)', by: ADMIN, at: new Date() }],
-    });
-    productIds[p.code] = doc._id;
-    createdN++;
-    // Restoran maydonlari (stansiya, modifikator) va stop-list — menyu muharriri bilan bir xil yo'l
-    if (p.station || p.mods) {
-      must(await setup.updateMenuItem(ctx, String(doc._id), {
-        ...(p.station ? { stationId: stationIds[p.station] } : {}),
-        ...(p.mods ? { modifierGroups: p.mods } : {}),
-      }), `Menyu ${p.name}`);
-    }
-    if (p.stop) must(await setup.setStopList(ctx, String(doc._id), true), `Stop-list ${p.name}`);
+  const created = { raw: 0, menu: 0 };
+  const byCode = async (code) => (await m.Product.findOne({ itemCode: code, branchId }).select('_id').lean())?._id ?? null;
+  const tagCode = (id, code) => m.Product.updateOne({ _id: id }, { $set: { itemCode: code } });
+  const newGoods = (p, cat) => m.Product.create({
+    productId: generateProductCode(), itemCode: p.code, imei: generateSku(), kind: 'goods', name: p.name,
+    purchasePrice: p.cost, salePrice: 0, trackQuantity: true, quantity: p.qty, soldQuantity: 0, status: 'in_stock',
+    branchId, unit: p.unit, category: CATS[cat], categoryId: catIds[cat], menuItem: false, createdBy: ADMIN,
+    history: [{ action: 'created', detail: 'Demo restoran (seed)', by: ADMIN, at: new Date() }],
+  });
+
+  // 5a) Xom ashyo — omborda (menyuda emas)
+  for (const p of RAW) {
+    const found = await byCode(p.code);
+    if (found) { productIds[p.code] = found; continue; }
+    productIds[p.code] = (await newGoods(p, 'raw'))._id;
+    created.raw++;
   }
-  console.log(createdN ? `✓ Mahsulotlar: ${createdN} ta qo'shildi` : '• Mahsulotlar bor');
+  // 5b) Tayyor tovar: omborga, keyin «Ombordagi tovarni menyuga qo'shish» (saveMenuDish, type goods)
+  for (const p of GOODS) {
+    const found = await byCode(p.code);
+    if (found) { productIds[p.code] = found; continue; }
+    const doc = await newGoods(p, p.cat);
+    must(await menu.saveMenuDish(ctx, {
+      type: 'goods', productId: String(doc._id), name: p.name, price: p.price, categoryId: String(catIds[p.cat]),
+      stationId: p.station ? stationIds[p.station] : null,
+    }), `Menyu ${p.name}`);
+    productIds[p.code] = doc._id;
+    created.menu++;
+  }
+  // 5c) Taomlar (retsept bilan) va xizmat — «Menyu» bo'limi mantig'i (saveMenuDish), stop-list — setup.setStopList
+  for (const p of [...DISHES, ...SERVICES]) {
+    const found = await byCode(p.code);
+    if (found) { productIds[p.code] = found; continue; }
+    const r = must(await menu.saveMenuDish(ctx, {
+      type: p.recipe ? 'dish' : 'service', branchId, name: p.name, price: p.price, categoryId: String(catIds[p.cat]),
+      stationId: p.station ? stationIds[p.station] : null,
+      ...(p.recipe ? { recipe: p.recipe.map(([code, qty]) => ({ productId: String(productIds[code]), qty })) } : { cost: p.cost }),
+      ...(p.mods ? { modifierGroups: p.mods } : {}),
+      ...(p.ikpu ? { ikpu: p.ikpu } : {}),
+    }), `Menyu ${p.name}`);
+    await tagCode(r.id, p.code);
+    productIds[p.code] = r.id;
+    created.menu++;
+    if (p.stop) must(await setup.setStopList(ctx, r.id, true), `Stop-list ${p.name}`);
+  }
+  console.log(created.raw || created.menu ? `✓ Ombor: ${created.raw} xom ashyo · Menyu: ${created.menu} ta qo'shildi` : '• Mahsulotlar bor');
 
   // Indekslar (noyob stol buyurtmasi, idempotentlik kalitlari) yaratilib bo'lishini kutamiz — tozalangan bazada muhim
   await Promise.all(Object.values(m).filter((x) => x && typeof x.init === 'function').map((x) => x.init().catch(() => {})));

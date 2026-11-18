@@ -317,6 +317,10 @@ export default function HallsTablesManager({ data, qrMenu }: { data: RestaurantS
               ) : (
                 <span className="btn btn-sm btn-tinted" aria-disabled="true">{t.printQr}</span>
               )}
+              {/* Stolsiz umumiy menyu (/m/<slug>): havola, QR va plakat — «Umumiy» tabida */}
+              <Link href="/app/restaurant#rs-customer" className="btn btn-sm btn-ghost btn-with-icon" title={t.customerPageTablesHint}>
+                <Icon name="globe" size={15} /> {t.customerPage}
+              </Link>
             </div>
           ) : (
             <div className="rs-qrbar rs-qrbar--pro">

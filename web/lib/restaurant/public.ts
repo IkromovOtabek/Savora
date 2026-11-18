@@ -1,6 +1,7 @@
 /**
  * Mijoz QR-menyusi (ochiq, login yo'q) — server, DB. Faqat `qrMenu` (va `tables`) moduli yoqilgan, faol
  * do'konda ishlaydi. Tenant do'kon slug'i orqali, stol — tasodifiy `qrToken` orqali topiladi.
+ * Umumiy mijoz sahifasi (/m/<slug>, stolsiz, faqat o'qish) — resolvePublicStore / publicStoreMenu (pastda).
  * Javobda faqat mijozga kerakli maydonlar (tannarx, qoldiq, ichki id'lar, xodim loginlari — yo'q).
  * Rate-limit — route'da (app/api/public/menu/...).
  *
@@ -22,7 +23,8 @@ import { recordAudit } from '../audit';
 import { computeBill } from './bill';
 import { itemDisplayName } from './modifiers';
 import { isMenuSlug, isQrToken } from './qr';
-import { RESTAURANT_LIMITS, type ItemStatus, type TableCallKind } from './types';
+import { toPublicInfo, type PublicRestaurantInfo } from './info';
+import { RESTAURANT_LIMITS, type ItemStatus, type RestaurantSettings, type TableCallKind } from './types';
 import { fail, ok, type OpResult, type RestaurantModels } from './context';
 import { prepareItems, restaurantSettings, type AddItemInput } from './ops';
 import { buildMenu, type MenuItemView } from './queries';
@@ -48,14 +50,49 @@ export async function resolvePublicTable(slug: string, token: string, d: Dict = 
   return ok({ org: { id: String(org._id), name: org.name, slug: org.slug, dbName: org.dbName }, m, table, d });
 }
 
+/** Mijozga ko'rinadigan taom — faqat shu maydonlar (ro'yxat oq: MenuItemView'ga keyin qo'shilgan ichki maydon chiqmaydi) */
+export type PublicMenuItem = Pick<MenuItemView, 'id' | 'name' | 'price' | 'photoUrl' | 'category' | 'categoryId' | 'kind' | 'unit' | 'modifierGroups'>;
+
+/** Ichki maydonlar (stansiya, qoldiq, stop-list, MXIK, tannarx, retsept) chiqmaydi */
+export function toPublicItem(i: MenuItemView): PublicMenuItem {
+  return {
+    id: i.id,
+    name: i.name,
+    price: i.price,
+    photoUrl: i.photoUrl,
+    category: i.category,
+    categoryId: i.categoryId,
+    kind: i.kind,
+    unit: i.unit,
+    modifierGroups: i.modifierGroups.map((g) => ({
+      id: g.id,
+      name: g.name,
+      required: g.required,
+      min: g.min,
+      max: g.max,
+      options: g.options.map((o) => ({ id: o.id, name: o.name, price: o.price })),
+    })),
+  };
+}
+
+export type PublicBrand = { logoUrl: string | null; color: string | null; coverUrl: string | null };
+
+function publicBrand(b: RestaurantSettings['brand']): PublicBrand {
+  return {
+    logoUrl: b.logoUrl ? resolvePublicFileUrl(b.logoUrl) : null,
+    color: b.color ?? null,
+    coverUrl: b.coverUrl ? resolvePublicFileUrl(b.coverUrl) : null,
+  };
+}
+
 export interface PublicMenu {
   org: { name: string };
-  brand: { logoUrl: string | null; color: string | null; coverUrl: string | null };
+  brand: PublicBrand;
   table: { number: number; hall: string | null };
   /** Xizmat haqi (zalda ofitsant xizmatida). QR orqali o'zi buyurtmada olinmaydi */
   serviceChargePct: number;
   categories: string[];
-  items: Omit<MenuItemView, 'stopListed' | 'available' | 'stationId' | 'ikpu'>[];
+  items: PublicMenuItem[];
 }
 
 export async function publicMenu(c: PublicTableCtx): Promise<PublicMenu> {
@@ -64,20 +101,109 @@ export async function publicMenu(c: PublicTableCtx): Promise<PublicMenu> {
     c.m.Hall.findById(c.table.hallId).select('name').lean(),
     buildMenu(c.m, c.table.branchId, { forPublic: true }),
   ]);
-  const b = settings.brand;
   return {
     org: { name: c.org.name },
-    brand: {
-      logoUrl: b.logoUrl ? resolvePublicFileUrl(b.logoUrl) : null,
-      color: b.color ?? null,
-      coverUrl: b.coverUrl ? resolvePublicFileUrl(b.coverUrl) : null,
-    },
+    brand: publicBrand(settings.brand),
     table: { number: c.table.number, hall: hall?.name ?? null },
     serviceChargePct: settings.serviceChargePct,
     categories: menu.categories,
-    // Ichki maydonlar (stansiya, qoldiq, MXIK) chiqmaydi
-    items: menu.items.map(({ stopListed: _s, available: _a, stationId: _st, ikpu: _i, ...rest }) => rest),
+    items: menu.items.map(toPublicItem),
   };
+}
+
+/* ───────────────────────── umumiy mijoz sahifasi (/m/<slug>, stolsiz) ───────────────────────── */
+
+export interface PublicStoreCtx {
+  org: { id: string; name: string; slug: string };
+  m: RestaurantModels;
+  /** Menyu qaysi filialdan: birinchi faol zal filiali (admin standarti bilan bir xil), bo'lmasa asosiy filial */
+  branchId: Types.ObjectId | null;
+}
+
+/**
+ * Slug → do'kon (stol tokenisiz). Shartlar stol sahifasi bilan bir xil: faol do'kon, `qrMenu` va `tables`
+ * modullari yoqiq. Aks holda — `qrUnavailable` (sabab ochilmaydi). Hech narsa yozmaydi (asosiy filial yaratilmaydi).
+ */
+export async function resolvePublicStore(slug: string, d: Dict = getDictionary('uz')): Promise<OpResult<PublicStoreCtx>> {
+  if (!isMenuSlug(slug)) return fail(d, 'qrUnavailable');
+  const { Organization } = await getMasterModels();
+  const org = await Organization.findOne({ slug }).select('name slug dbName status expiresAt plan features businessType').lean();
+  if (!org || !isOrganizationActive(org)) return fail(d, 'qrUnavailable');
+  const features = resolveOrgFeatures(org);
+  if (!features.qrMenu || !features.tables) return fail(d, 'qrUnavailable');
+  const m = await getTenantModels(org.dbName);
+  const hall = await m.Hall.findOne({ active: true }).sort({ createdAt: 1 }).select('branchId').lean();
+  let branchId: Types.ObjectId | null = hall?.branchId ?? null;
+  if (!branchId) {
+    const b = (await m.Branch.findOne({ isMain: true }).select('_id').lean())
+      ?? (await m.Branch.findOne({ active: true }).sort({ createdAt: 1 }).select('_id').lean());
+    branchId = b?._id ?? null;
+  }
+  return ok({ org: { id: String(org._id), name: org.name, slug: org.slug }, m, branchId });
+}
+
+export interface PublicStorePage {
+  org: { name: string; slug: string };
+  brand: PublicBrand;
+  /** Manzil, telefon, ish vaqti, ijtimoiy tarmoqlar (bo'sh — null) */
+  info: PublicRestaurantInfo;
+  /** Xizmat haqi (zalda ofitsant xizmatida) — oldindan e'lon */
+  serviceChargePct: number;
+  categories: string[];
+  items: PublicMenuItem[];
+}
+
+/** Mijoz sahifasi ma'lumoti (faqat o'qish): brend, aloqa, menyu (stop-list va tugaganlar yashirin) */
+export async function publicStoreMenu(c: PublicStoreCtx): Promise<PublicStorePage> {
+  const [settings, menu] = await Promise.all([
+    restaurantSettings(c.m),
+    c.branchId ? buildMenu(c.m, c.branchId, { forPublic: true }) : Promise.resolve({ categories: [] as string[], items: [] as MenuItemView[] }),
+  ]);
+  return {
+    org: { name: c.org.name, slug: c.org.slug },
+    brand: publicBrand(settings.brand),
+    info: toPublicInfo(settings.info),
+    serviceChargePct: settings.serviceChargePct,
+    categories: menu.categories,
+    items: menu.items.map(toPublicItem),
+  };
+}
+
+/**
+ * Kesh (jarayon ichida, slug bo'yicha, 30 s): sahifa va ochiq API bir manbadan o'qiydi; indekslanadigan sahifa
+ * (qidiruv botlari) har ochilishda bazaga tushmasin. «Topilmadi» ham keshlanadi (ko'r-ko'rona slug terishga qarshi).
+ * Sozlama saqlanganda shu jarayonda tozalanadi (forgetPublicStore); boshqa instance'da — ko'pi bilan 30 s eski.
+ */
+export const PUBLIC_STORE_TTL_MS = 30_000;
+const STORE_CACHE_MAX = 500;
+const storeCache = new Map<string, { at: number; page: PublicStorePage | null }>();
+const storeInflight = new Map<string, Promise<PublicStorePage | null>>();
+
+export async function loadPublicStorePage(slug: string): Promise<PublicStorePage | null> {
+  if (!isMenuSlug(slug)) return null;
+  const hit = storeCache.get(slug);
+  if (hit && Date.now() - hit.at < PUBLIC_STORE_TTL_MS) return hit.page;
+  const running = storeInflight.get(slug);
+  if (running) return running;
+  const p = (async () => {
+    const r = await resolvePublicStore(slug);
+    const page = r.ok ? await publicStoreMenu(r.data) : null;
+    storeCache.delete(slug);
+    storeCache.set(slug, { at: Date.now(), page });
+    if (storeCache.size > STORE_CACHE_MAX) {
+      const oldest = storeCache.keys().next().value;
+      if (oldest !== undefined) storeCache.delete(oldest);
+    }
+    return page;
+  })().finally(() => storeInflight.delete(slug));
+  storeInflight.set(slug, p);
+  return p;
+}
+
+/** Sozlama o'zgarganda (shu jarayon) — keyingi ochilishda yangisi */
+export function forgetPublicStore(slug?: string): void {
+  if (slug) storeCache.delete(slug);
+  else storeCache.clear();
 }
 
 export interface PublicOrderStatus {

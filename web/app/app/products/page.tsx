@@ -24,6 +24,9 @@ import { loadExtraFieldNames } from '@/lib/productFields';
 import { daysUntil, expiringFilter, lowStockFilter } from '@/lib/production/catalog';
 import LowStockBlock from '@/components/production/purchase/LowStockBlock';
 import ExpiryBlock from '@/components/production/purchase/ExpiryBlock';
+import { ensureMenuFlags, isOnMenu, stockOnlyFilter } from '@/lib/restaurant/menuFlags';
+import { ingredientUsage } from '@/lib/restaurant/menuAdmin';
+import '@/components/restaurant/menu/menu-stock.css';
 
 export async function generateMetadata() {
   const d = await getDict();
@@ -51,7 +54,7 @@ export default async function ProductsPage({
   await requirePermission('products.view');
   const d = await getDict();
   const t = d.stock.list;
-  const { user, Product, Branch, org, features, ProductCategory, Brand, ShopSettings } = await getTenantSession();
+  const { user, Product, Branch, org, features, ProductCategory, Brand, ShopSettings, Order } = await getTenantSession();
   const showImei = isImeiEnabled(org);
   // Yo'nalish atamalari: «Mebel qo'shish», «Menyu» … (d.catalog.terms)
   const terms = d.catalog.terms[parseBusinessType(org.businessType || 'general')];
@@ -59,6 +62,10 @@ export default async function ProductsPage({
   const canViewCost = perms.has('product.viewCost');
   const canInstallment = !!(features.variant || features.nasiya);
   const canCredit = !!features.creditKassa;
+  // Restoran (stollar moduli): ombor — faqat xom ashyo va tayyor tovar; taom/xizmat — «Menyu» bo'limida (/app/menu)
+  const restaurant = !!features.tables;
+  if (restaurant) await ensureMenuFlags({ Product, ShopSettings, Order });
+  const kindFilter = restaurant ? stockOnlyFilter() : {};
 
   const [branches, catDocs, brandDocs, extraCols] = await Promise.all([
     Branch.find({ active: true }).sort({ name: 1 }).lean(),
@@ -96,6 +103,9 @@ export default async function ProductsPage({
   // Ombor faqat QOLDIQ mahsulotlarni ko'rsatadi — sotilganlar bu yerda emas, "Sotildi" sahifasida.
   if (sp.status && sp.status !== 'sold' && sp.status in PRODUCT_STATUS_LABELS) {
     filter.status = sp.status;
+  } else if (restaurant) {
+    // Restoran omborida tugagan xom ashyo/tovar ham ko'rinadi (0 kg — to'ldirish kerakligi ko'rinsin)
+    filter.$and = [...((filter.$and as unknown[]) ?? []), { $or: [{ status: { $ne: 'sold' } }, { trackQuantity: true }] }];
   } else {
     filter.status = { $ne: 'sold' };
   }
@@ -114,7 +124,7 @@ export default async function ProductsPage({
   const mxikFilter = sp.mxik === 'none';
   if (mxikFilter) Object.assign(filter, NO_MXIK);
   // Filial login — faqat o'z filiali mahsulotlari (admin tanlovini ham bekor qiladi)
-  Object.assign(filter, branchFilter(user));
+  Object.assign(filter, branchFilter(user), kindFilter);
 
   const page = Math.max(1, parseInt(sp.page ?? '1', 10) || 1);
   const psNum = Number(sp.ps);
@@ -135,12 +145,15 @@ export default async function ProductsPage({
     expBase ? Product.countDocuments(expBase) : 0,
     expBase ? Product.find(expBase).select('name unit quantity soldQuantity status expiryDate trackQuantity kind').sort({ expiryDate: 1 }).limit(6).lean() : [],
     // «MXIK yo'q» chipi — ombordagi MXIK'siz mahsulotlar soni
-    Product.countDocuments({ ...NO_MXIK, status: { $ne: 'sold' }, ...branchFilter(user) }),
+    Product.countDocuments({ ...NO_MXIK, status: { $ne: 'sold' }, ...branchFilter(user), ...kindFilter }),
   ]);
 
   const totalPages = Math.ceil(total / PAGE_SIZE);
   // Xizmat/to'plam: sotuvda mavjud son (to'plam — tarkibdan), ko'chirib bo'lmaydi
   const sellOf = await sellableInfo(Product, products);
+  // Restoran: xom ashyo qaysi taomlar retseptida ishlatiladi
+  const usage = restaurant ? await ingredientUsage({ Product }, products.map((p) => String(p._id))) : new Map<string, { id: string; name: string }[]>();
+  const addLabel = restaurant ? d.menu.stock.add : terms.addItem;
 
   // Yumshoq mahsulot chegarasi — faqat admin uchun (org bo'yicha umumiy son)
   const isAdmin = user.role === 'admin';
@@ -213,16 +226,21 @@ export default async function ProductsPage({
       {isAdmin && <LimitBanner label={d.common.products} current={orgProductCount} max={maxProducts} />}
       <div className="t-page-head st-head">
         <div>
-          <h1 className="t-page-title">{terms.items}</h1>
+          <h1 className="t-page-title">{restaurant ? d.menu.stock.title : terms.items}</h1>
           <p className="t-page-sub">
-            {t.subtitle}
+            {restaurant ? d.menu.stock.sub : t.subtitle}
             {totalPages > 1 ? tr(t.pageOf, { page, total: totalPages }) : ''}
           </p>
         </div>
         <div className="t-page-actions">
+          {restaurant && (
+            <Link href="/app/menu" className="btn btn-tinted btn-with-icon ux-hide-mobile">
+              <Icon name="clipboard" size={18} /> {d.menu.stock.toMenu}
+            </Link>
+          )}
           {canCreate && (
             <Link href="/app/products/new" className="btn btn-primary btn-with-icon ux-hide-mobile">
-              <Icon name="plus" size={18} /> {terms.addItem}
+              <Icon name="plus" size={18} /> {addLabel}
             </Link>
           )}
           <MoreMenu label={t.menuLabel}>
@@ -357,7 +375,7 @@ export default async function ProductsPage({
               <Link href="/app/products" className="btn btn-tinted">{t.clearFilter}</Link>
             ) : canCreate && (
               <Link href="/app/products/new" className="btn btn-primary btn-with-icon">
-                <Icon name="plus" size={18} /> {terms.addItem}
+                <Icon name="plus" size={18} /> {addLabel}
               </Link>
             )}
           </div>
@@ -439,8 +457,23 @@ export default async function ProductsPage({
                     {qtyPill}
                     {p.status !== 'in_stock' && (
                       <span className={`st-pill st-pill--${p.status}`}>
-                        {d.stock.status[p.status as ProductStatus]}
+                        {/* Restoran omborida tugagan xom ashyo — «Tugagan» («Sotilgan» emas) */}
+                        {restaurant && p.status === 'sold' && p.trackQuantity ? d.menu.soldOut : d.stock.status[p.status as ProductStatus]}
                       </span>
+                    )}
+                    {restaurant && isOnMenu(p) && <span className="st-pill mn-inmenu">{d.menu.stock.inMenu}</span>}
+                    {restaurant && (usage.get(String(p._id))?.length ?? 0) > 0 && (
+                      <details className="mn-used">
+                        <summary className="st-pill mn-used-pill" title={d.menu.stock.usedInTitle}>
+                          {tr(d.menu.stock.usedIn, { n: usage.get(String(p._id))!.length })}
+                        </summary>
+                        <ul aria-label={d.menu.stock.usedInTitle}>
+                          <li className="mn-used-h" aria-hidden="true">{d.menu.stock.usedInTitle}</li>
+                          {usage.get(String(p._id))!.map((x) => (
+                            <li key={x.id}><Link href={`/app/menu/${x.id}`}>{x.name}</Link></li>
+                          ))}
+                        </ul>
+                      </details>
                     )}
                   </div>
                   {extraCols.length > 0 && (
@@ -503,7 +536,7 @@ export default async function ProductsPage({
       )}
 
       {canCreate && (
-        <Link href="/app/products/new" className="ux-fab" aria-label={terms.addItem}>
+        <Link href="/app/products/new" className="ux-fab" aria-label={addLabel}>
           <Icon name="plus" size={20} /> {t.fab}
         </Link>
       )}

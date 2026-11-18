@@ -58,7 +58,7 @@ export default function TabsLayout() {
       }}
     >
       <Tabs.Screen name="index" options={{ title: d.tabs.home, tabBarIcon: ({ color, focused }) => <TabIcon name={focused ? 'home' : 'home-outline'} active={focused} color={color} bg={c.tintSoft} /> }} />
-      <Tabs.Screen name="products" options={{ title: me.terms?.items ?? d.terms.items, href: canProducts ? undefined : null, tabBarIcon: ({ color, focused }) => <TabIcon name={focused ? 'cube' : 'cube-outline'} active={focused} color={color} bg={c.tintSoft} /> }} />
+      <Tabs.Screen name="products" options={{ title: me.features?.tables ? d.tabs.stock : me.terms?.items ?? d.terms.items, href: canProducts ? undefined : null, tabBarIcon: ({ color, focused }) => <TabIcon name={focused ? 'cube' : 'cube-outline'} active={focused} color={color} bg={c.tintSoft} /> }} />
       <Tabs.Screen
         name="sell"
         options={{

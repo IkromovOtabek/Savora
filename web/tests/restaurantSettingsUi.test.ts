@@ -16,11 +16,17 @@ vi.mock('@/app/actions/restaurant', () => {
     deleteTableAction: f, regenerateTableQrAction: f, saveStationAction: f, deleteStationAction: f, updateMenuItemAction: f, setStopListAction: f,
   };
 });
+vi.mock('@/app/actions/menu', () => {
+  const f = async () => ({ ok: true, data: {} });
+  return { saveMenuDishAction: f, setMenuMembershipAction: f, quickCreateIngredientAction: f };
+});
+vi.mock('@/app/actions/products', () => ({ createCategoryAction: async () => ({ ok: true, item: { id: 'x', name: 'x', parentId: null } }) }));
 
 import GeneralSettingsForm from '@/components/restaurant/settings/GeneralSettingsForm';
 import HallsTablesManager from '@/components/restaurant/settings/HallsTablesManager';
 import StationsManager from '@/components/restaurant/settings/StationsManager';
-import MenuEditor from '@/components/restaurant/settings/MenuEditor';
+import MenuBoard from '@/components/restaurant/menu/MenuBoard';
+import DishForm from '@/components/restaurant/menu/DishForm';
 import RestaurantTabs from '@/components/restaurant/settings/RestaurantTabs';
 import BranchPicker from '@/components/restaurant/settings/BranchPicker';
 import { validateGroups, toDraft } from '@/components/restaurant/settings/ModifierGroupsEditor';
@@ -78,21 +84,60 @@ describe('restoran sozlamalari UI (smoke)', () => {
     expect(html).toContain('Issiq sex');
     expect(html).toContain('192.168.1.5');
   });
-  it('menyu', () => {
+  it('menyu (/app/menu): porsiya, tannarx/foyda, tugagan, stop-list, bo\'sh holat', () => {
+    const can = { create: true, edit: true, stop: true, viewCost: true };
+    const row = (over: Record<string, unknown>) => ({
+      id: id(40), name: 'Osh', type: 'dish' as const, price: 45000, photoUrl: null, category: 'Milliy', stationId: id(30), stopListed: false,
+      portions: 12, recipeCount: 4, modifierCount: 1, ikpu: null, cost: 18400, margin: 59.1, ...over,
+    });
     const view = {
-      branchId: id(1), branches: [], categories: ['Ichimliklar', 'Milliy'], stations: [{ id: id(30), name: 'Issiq sex', kind: 'kitchen' as const, active: true }],
+      branchId: id(1), branches: [], stations: [{ id: id(30), name: 'Issiq sex', kind: 'kitchen' as const, active: true }],
+      categories: ['Milliy'], can, flags: true, hidden: [row({ id: id(44), name: 'Manti', portions: 3 })],
       items: [
-        { id: id(40), name: 'Osh', price: 45000, photoUrl: null, category: 'Milliy', categoryId: null, kind: 'bundle' as const, unit: null, stationId: id(30), stopListed: false, available: null, ikpu: '10202001001000000',
-          modifierGroups: [{ id: id(50), name: 'Porsiya', required: true, min: 1, max: 1, options: [{ id: id(51), name: 'Yarim', price: 0 }, { id: id(52), name: "To'liq", price: 15000 }] }] },
-        { id: id(41), name: 'Choy', price: 5000, photoUrl: null, category: null, categoryId: null, kind: 'service' as const, unit: null, stationId: null, stopListed: true, available: null, ikpu: null, modifierGroups: [] },
+        row({}),
+        row({ id: id(41), name: 'Somsa', portions: 0, cost: 9000, margin: 25 }),
+        row({ id: id(42), name: 'Choy', type: 'service' as const, category: null, portions: null, recipeCount: 0, stopListed: true, cost: 1500, margin: 81.3 }),
+        row({ id: id(43), name: 'Cola', type: 'goods' as const, category: 'Ichimliklar', portions: 24, recipeCount: 0, cost: 6500, margin: 35 }),
       ],
     };
-    const html = renderToStaticMarkup(createElement(MenuEditor, { view, canEdit: true, canStop: true }));
-    expect(html).toContain('Osh');
+    const html = renderToStaticMarkup(createElement(MenuBoard, { view }));
+    expect(html).toContain('≈ 12 porsiya');
+    expect(html).toContain('Tugagan');
+    expect(html).toMatch(/Tannarx 18\s400/);
+    expect(html).toContain('foyda 59,1%');
+    expect(html).toContain('24 qoldi');
     expect(html).toContain('Kategoriyasiz');
-    expect(html).toContain('aria-pressed="true"');
-    const empty = renderToStaticMarkup(createElement(MenuEditor, { view: { ...view, items: [] }, canEdit: false, canStop: false }));
-    expect(empty).toContain("sotuvdagi taom yo");
+    expect(html).toContain('aria-pressed="true"'); // Choy — stop-listda
+    expect(html).toContain('Menyudan olingan');
+    expect(html).toContain('/app/menu/' + id(40));
+    const noCost = renderToStaticMarkup(createElement(MenuBoard, { view: { ...view, can: { ...can, viewCost: false, edit: false }, items: view.items.map((i) => ({ ...i, cost: null, margin: null })) } }));
+    expect(noCost).not.toContain('Tannarx');
+    expect(noCost).not.toContain('/app/menu/' + id(40));
+    const empty = renderToStaticMarkup(createElement(MenuBoard, { view: { ...view, items: [], hidden: [] } }));
+    expect(empty).toContain("Menyuda hali taom yo");
+  });
+  it('taom formasi: retsept (g ↔ kg), tannarx, porsiya', () => {
+    const data = {
+      branchId: id(1), branches: [], categories: [{ id: id(60), name: 'Milliy', parentId: null }],
+      stations: [{ id: id(30), name: 'Issiq sex', kind: 'kitchen' as const, active: true }],
+      can: { create: true, edit: true, stop: true, viewCost: true },
+      stock: [
+        { id: id(70), name: 'Guruch', unit: 'kg', available: 10, cost: 15000, price: 0, tracked: true },
+        { id: id(71), name: "Mol go'shti", unit: 'kg', available: 0.5, cost: 95000, price: 0, tracked: true },
+      ],
+      dish: {
+        id: id(40), type: 'dish' as const, name: 'Osh', price: 45000, photoUrl: null, categoryId: id(60), categoryName: 'Milliy', stationId: id(30),
+        ikpu: null, modifierGroups: [], recipe: [{ productId: id(70), qty: 0.15 }, { productId: id(71), qty: 0.1 }], cost: null, unit: 'dona', available: null, stopListed: false,
+      },
+    };
+    const html = renderToStaticMarkup(createElement(DishForm, { data, mediaEnabled: false }));
+    expect(html).toContain('Retsept — 1 porsiya');
+    expect(html).toContain('value="150"'); // 0,15 kg → 150 g
+    expect(html).toContain('Guruch');
+    expect(html).toMatch(/11\s750/); // 0,15×15 000 + 0,1×95 000 = 2 250 + 9 500
+    expect(html).toContain('≈ 5 porsiya'); // go'sht 0,5 kg / 0,1
+    const fresh = renderToStaticMarkup(createElement(DishForm, { data: { ...data, dish: null }, initialType: 'goods' as const, mediaEnabled: true }));
+    expect(fresh).toContain('Ombordagi tovar');
   });
   it('validateGroups server qoidasi bilan mos', () => {
     const cases: unknown[] = [

@@ -31,7 +31,7 @@ import { goodsReceiptSchema, IGoodsReceipt } from './models/tenant/GoodsReceipt'
 import { purchaseOrderSchema, IPurchaseOrder } from './models/tenant/PurchaseOrder';
 import { pieceworkEntrySchema, IPieceworkEntry } from './models/tenant/PieceworkEntry';
 
-const TENANT_MODELS_VERSION = 21;
+const TENANT_MODELS_VERSION = 22;
 
 type TenantModelsMap = Map<string, ReturnType<typeof registerModels>>;
 const globalForTenant = global as unknown as { _savdoproTenantCache?: TenantModelsMap };

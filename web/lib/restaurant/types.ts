@@ -105,6 +105,25 @@ export interface RestaurantSettings {
     color?: string;
     coverUrl?: string;
   };
+  /** Mijoz sahifasi (/m/<slug>) uchun ochiq aloqa ma'lumoti — hammasi ixtiyoriy (lib/restaurant/info.ts) */
+  info: RestaurantInfo;
+}
+
+/** Restoranning ochiq ma'lumoti (mijoz sahifasida, QR plakatda). Bo'sh maydon ko'rsatilmaydi */
+export interface RestaurantInfo {
+  /** Qisqa tavsif */
+  about?: string;
+  address?: string;
+  /** «+998 90 123 45 67» (lib/phone → canonicalPhone) */
+  phone?: string;
+  /** Erkin matn: «Har kuni 10:00 – 23:00» */
+  workHours?: string;
+  /** Instagram login (@ siz) */
+  instagram?: string;
+  /** Telegram login (@ siz) */
+  telegram?: string;
+  /** Telefon orqali saboy (olib ketish) buyurtma qabul qilinadi — sahifada raqam shu belgi bilan chiqadi */
+  takeawayByPhone?: boolean;
 }
 
 export const DEFAULT_RESTAURANT_SETTINGS: RestaurantSettings = {
@@ -114,4 +133,5 @@ export const DEFAULT_RESTAURANT_SETTINGS: RestaurantSettings = {
   kdsWarnMinutes: 10,
   kdsAlertMinutes: 20,
   brand: {},
+  info: {},
 };

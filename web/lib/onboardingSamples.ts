@@ -1,6 +1,8 @@
 /**
  * Ro'yxatdan o'tish ustasi — «Namuna ma'lumot qo'shilsin» (ixtiyoriy, standart o'chiq).
- * Har tur uchun 5–7 ta namunaviy mahsulot; restoran: zal + 4 stol + 6 taom; sex: xom ashyo + tayyor mahsulot + 1 texkarta.
+ * Har tur uchun 5–7 ta namunaviy mahsulot; restoran: zal + 4 stol, omborda xom ashyo, menyuda retseptli taomlar, tayyor tovar
+ * (non, ichimlik) va xizmat (choy) — menyu va ombor ajratilgan (lib/restaurant/menuFlags.ts); sex: xom ashyo + tayyor
+ * mahsulot + 1 texkarta.
  *
  * IDEMPOTENT: har namuna `Product.itemCode = NAMUNA-<kod>` bilan yoziladi va (o'chirilgan bo'lsa ham) qayta
  * yaratilmaydi; zal nomi, stansiya nomi, texkarta nomi bo'yicha tekshiriladi; stollar band raqamni o'tkazib yuboradi.
@@ -127,15 +129,6 @@ export const SAMPLE_PRODUCTS: Record<string, SampleItem[]> = {
     { code: 'OPT-CHOY', name: n('Choy (quti)', 'Чай (коробка)'), cost: 180000, price: 210000, qty: 15, unit: 'quti' },
     { code: 'OPT-MAKARON', name: n('Makaron (quti 10 kg)', 'Макароны (коробка 10 кг)'), cost: 95000, price: 110000, qty: 25, unit: 'quti' },
   ],
-  // Restoran: 6 taom (cheksiz — oshxona tayyorlaydi); ichimlik — bar stansiyasiga
-  restaurant: [
-    { ...svc('RES-OSH', n('Osh', 'Плов'), 45000), cost: 22000 },
-    { ...svc('RES-LAGMON', n("Lag'mon", 'Лагман'), 38000), cost: 16000 },
-    { ...svc('RES-SHASHLIK', n('Shashlik', 'Шашлык'), 24000), cost: 15000 },
-    { ...svc('RES-ACHCHIQ', n('Achchiq-chuchuk', 'Ачичук'), 15000), cost: 5000 },
-    { ...svc('RES-NON', n('Non', 'Лепёшка'), 5000), cost: 3000 },
-    { ...svc('RES-CHOY', n("Ko'k choy (choynak)", 'Зелёный чай (чайник)'), 8000), cost: 1500, drink: true },
-  ],
   'service.salon': [
     svc('SRV-SOCH', n('Soch olish', 'Стрижка'), 60000),
     svc('SRV-SOQOL', n('Soqol olish', 'Бритьё'), 40000),
@@ -239,6 +232,41 @@ export const SAMPLE_RECIPES: Record<IndustryProfile, SampleRecipe> = {
   },
 };
 
+/**
+ * Restoran namunasi: xom ashyo — omborda (menyuda emas); taomlar — retsept bilan (`bundle`, 1 porsiyaga xom ashyo
+ * asosiy birlikda: kg, l); non va ichimlik — tayyor tovar (omborda va menyuda); choy — retseptsiz xizmat.
+ * `drink` — bar stansiyasiga (bo'lmasa — oshxona); `noStation` — stansiyasiz (yuborilganda darhol beriladi).
+ */
+export interface SampleDish { code: string; name: Name; price: number; recipe: [string, number][] }
+export const SAMPLE_RESTAURANT: {
+  raw: SampleItem[];
+  dishes: SampleDish[];
+  goods: (SampleItem & { noStation?: boolean })[];
+  services: SampleItem[];
+} = {
+  raw: [
+    { code: 'RES-GURUCH', name: n('Guruch', 'Рис'), cost: 16000, price: 0, qty: 25, unit: 'kg' },
+    { code: 'RES-GOSHT', name: n("Mol go'shti", 'Говядина'), cost: 95000, price: 0, qty: 10, unit: 'kg' },
+    { code: 'RES-SABZI', name: n('Sabzi', 'Морковь'), cost: 5000, price: 0, qty: 15, unit: 'kg' },
+    { code: 'RES-PIYOZ', name: n('Piyoz', 'Лук'), cost: 4000, price: 0, qty: 10, unit: 'kg' },
+    { code: 'RES-YOG', name: n("O'simlik yog'i", 'Подсолнечное масло'), cost: 22000, price: 0, qty: 10, unit: 'l' },
+    { code: 'RES-UN', name: n('Un', 'Мука'), cost: 7000, price: 0, qty: 25, unit: 'kg' },
+    { code: 'RES-POMIDOR', name: n('Pomidor', 'Помидоры'), cost: 12000, price: 0, qty: 5, unit: 'kg' },
+    { code: 'RES-BODRING', name: n('Bodring', 'Огурцы'), cost: 10000, price: 0, qty: 5, unit: 'kg' },
+  ],
+  dishes: [
+    { code: 'RES-OSH', name: n('Osh', 'Плов'), price: 45000, recipe: [['RES-GURUCH', 0.15], ['RES-GOSHT', 0.1], ['RES-SABZI', 0.1], ['RES-YOG', 0.03], ['RES-PIYOZ', 0.03]] },
+    { code: 'RES-LAGMON', name: n("Lag'mon", 'Лагман'), price: 38000, recipe: [['RES-UN', 0.12], ['RES-GOSHT', 0.08], ['RES-PIYOZ', 0.03], ['RES-POMIDOR', 0.05], ['RES-YOG', 0.02]] },
+    { code: 'RES-SOMSA', name: n('Somsa', 'Самса'), price: 12000, recipe: [['RES-UN', 0.08], ['RES-GOSHT', 0.05], ['RES-PIYOZ', 0.03], ['RES-YOG', 0.01]] },
+    { code: 'RES-ACHCHIQ', name: n('Achchiq-chuchuk', 'Ачичук'), price: 15000, recipe: [['RES-POMIDOR', 0.15], ['RES-BODRING', 0.1], ['RES-PIYOZ', 0.03]] },
+  ],
+  goods: [
+    { code: 'RES-NON', name: n('Non', 'Лепёшка'), cost: 3000, price: 5000, qty: 40, noStation: true },
+    { code: 'RES-COLA', name: n('Coca-Cola 0,5 l', 'Coca-Cola 0,5 л'), cost: 6500, price: 10000, qty: 24, drink: true },
+  ],
+  services: [{ ...svc('RES-CHOY', n("Ko'k choy (choynak)", 'Зелёный чай (чайник)'), 8000), cost: 1500, drink: true }],
+};
+
 export const SAMPLE_PREFIX = 'NAMUNA-';
 
 /* ───────────────────────────── yozish ───────────────────────────── */
@@ -278,18 +306,26 @@ async function ensureSampleProduct(
   ctx: SetupCtx,
   item: SampleItem,
   branchId: string,
-  extra: { categoryId?: Types.ObjectId; category?: string; expiryDate?: Date } = {},
+  extra: {
+    categoryId?: Types.ObjectId; category?: string; expiryDate?: Date;
+    /** Restoran: menyuda yoki yo'q (Product.menuItem) */
+    menuItem?: boolean;
+    /** Restoran: retseptli taom (bundle) */
+    bundleItems?: { productId: string; qty: number }[];
+  } = {},
 ): Promise<{ id: string; created: boolean }> {
   const { Product } = ctx.m;
   const itemCode = `${SAMPLE_PREFIX}${item.code}`;
   const existing = await Product.findOne({ itemCode }).setOptions({ withDeleted: true }).select('_id').lean();
   if (existing) return { id: String(existing._id), created: false };
-  const goods = (item.kind ?? 'goods') === 'goods';
+  const goods = (item.kind ?? 'goods') === 'goods' && !extra.bundleItems;
   const doc = await Product.create({
     productId: generateProductCode(),
     itemCode,
     imei: generateSku(),
-    kind: item.kind ?? 'goods',
+    kind: extra.bundleItems ? 'bundle' : item.kind ?? 'goods',
+    ...(extra.bundleItems ? { bundleItems: extra.bundleItems } : {}),
+    ...(extra.menuItem !== undefined ? { menuItem: extra.menuItem } : {}),
     name: item.name[ctx.locale],
     purchasePrice: item.cost,
     salePrice: item.price,
@@ -349,20 +385,47 @@ export async function seedSampleData(
 
 async function seedRestaurant(ctx: SetupCtx, res: SampleResult): Promise<SampleResult> {
   const setup = await import('./restaurant/setup');
+  const { ensureMenuFlags } = await import('./restaurant/menuFlags');
   const rctx = { user: ctx.user, orgId: ctx.orgId, orgSlug: ctx.orgSlug, m: ctx.m, perms: ctx.perms, features: ctx.features, d: ctx.d, via: ' (namuna)' };
   const stations = await ctx.m.KitchenStation.find({ active: true }).select('_id kind').lean();
   const kitchenId = stations.find((s) => s.kind === 'kitchen')?._id;
   const barId = stations.find((s) => s.kind === 'bar')?._id ?? kitchenId;
+  const mainId = await ensureMainBranchId(ctx.m.Branch);
+  const S = SAMPLE_RESTAURANT;
+  // Menyu belgilari rejimi (yangi do'kon — migratsiya bo'sh, faqat versiya qo'yiladi)
+  await ensureMenuFlags(ctx.m);
 
-  for (const item of SAMPLE_PRODUCTS.restaurant) {
-    const r = await ensureSampleProduct(ctx, item, await ensureMainBranchId(ctx.m.Branch));
-    if (!r.created) continue;
-    res.products++;
-    const st = item.drink ? barId : kitchenId;
+  // Taom/tovar/xizmat menyuga: stansiya (ichimlik — bar, non — stansiyasiz, qolgan — oshxona)
+  const toMenu = async (id: string, drink?: boolean, noStation?: boolean) => {
+    const st = noStation ? undefined : drink ? barId : kitchenId;
     if (st && ctx.features.tables) {
-      const u = await setup.updateMenuItem(rctx, r.id, { stationId: String(st) });
+      const u = await setup.updateMenuItem(rctx, id, { stationId: String(st) });
       if (!u.ok) throw new Error(`menu item: ${u.code}`);
     }
+  };
+
+  // 1) Xom ashyo — omborda, menyuda emas
+  const rawIds = new Map<string, string>();
+  for (const item of S.raw) {
+    const r = await ensureSampleProduct(ctx, item, mainId, { menuItem: false });
+    rawIds.set(item.code, r.id);
+    if (r.created) res.products++;
+  }
+  // 2) Taomlar — retsept bilan (o'z qoldig'i yo'q; tannarx — retseptdan)
+  for (const dish of S.dishes) {
+    const bundleItems = dish.recipe.map(([code, qty]) => ({ productId: rawIds.get(code)!, qty }));
+    const cost = dish.recipe.reduce((sum, [code, qty]) => sum + Math.round((S.raw.find((x) => x.code === code)?.cost ?? 0) * qty), 0);
+    const r = await ensureSampleProduct(ctx, { code: dish.code, name: dish.name, cost, price: dish.price, kind: 'goods' }, mainId, { menuItem: true, bundleItems });
+    if (!r.created) continue;
+    res.products++;
+    await toMenu(r.id);
+  }
+  // 3) Tayyor tovar (omborda va menyuda) va xizmat (choy)
+  for (const item of [...S.goods, ...S.services]) {
+    const r = await ensureSampleProduct(ctx, item, mainId, { menuItem: true });
+    if (!r.created) continue;
+    res.products++;
+    await toMenu(r.id, item.drink, 'noStation' in item ? !!item.noStation : false);
   }
 
   // Zal + 4 stol (stollar moduli yoqiq bo'lsa)

@@ -18,6 +18,8 @@ interface Product {
   unit?: string | null;
   /** goods | service | bundle */
   kind?: string;
+  /** Restoran omborida (?stock=1): tovar menyuga ham qo'shilgan */
+  menuItem?: boolean;
 }
 
 export default function Products() {
@@ -28,10 +30,13 @@ export default function Products() {
   const L = useLayout();
   const d = useDict();
   const t = me?.terms;
+  // Restoran (stollar moduli): ombor — faqat xom ashyo va tayyor tovar; taom/xizmat — web «Menyu» bo'limida
+  const restaurant = !!me?.features?.tables;
+  const addLabel = restaurant ? d.products.stockAdd : t?.addItem ?? d.terms.addItem;
   const [q, setQ] = useState('');
   const dq = useDebounced(q.trim(), 300);
 
-  const list = usePaged<Product>(`/api/mobile/products?q=${encodeURIComponent(dq)}`);
+  const list = usePaged<Product>(`/api/mobile/products?stock=1&q=${encodeURIComponent(dq)}`);
   const first = useRef(true);
   useFocusEffect(useCallback(() => { if (first.current) { first.current = false; return; } list.reloadSilently(); }, [list.reloadSilently]));
 
@@ -40,12 +45,12 @@ export default function Products() {
 
   const bar = (
     <TopBar
-      title={t?.items ?? d.terms.items}
+      title={restaurant ? d.products.stockTitle : t?.items ?? d.terms.items}
       subtitle={list.loading && list.items.length === 0 ? ' ' : tr(d.common.count, { n: fmtMoney(list.total) })}
       actions={
         <>
           <IconButton icon="barcode-outline" label={d.common.scanner} onPress={() => router.push('/scan')} />
-          {can('product.create') ? <IconButton icon="add" label={t?.addItem ?? d.terms.addItem} onPress={() => router.push('/product-kind')} /> : null}
+          {can('product.create') ? <IconButton icon="add" label={addLabel} onPress={() => router.push('/product-kind')} /> : null}
         </>
       }
     >
@@ -82,7 +87,7 @@ export default function Products() {
           list.loading ? <Loading />
             : list.error ? <ErrorState message={list.error} onRetry={list.retry} />
             : dq ? <EmptyState icon="search" title={d.common.notFound} message={tr(d.products.notFoundMsg, { q: dq })} />
-            : <EmptyState icon="cube-outline" title={tr(d.products.emptyTitle, { item: t?.item ?? d.terms.item })} message={d.products.emptyMsg} actionTitle={can('product.create') ? t?.addItem ?? d.terms.addItem : undefined} onAction={can('product.create') ? () => router.push('/product-kind') : undefined} />
+            : <EmptyState icon="cube-outline" title={restaurant ? d.products.stockTitle : tr(d.products.emptyTitle, { item: t?.item ?? d.terms.item })} message={d.products.emptyMsg} actionTitle={can('product.create') ? addLabel : undefined} onAction={can('product.create') ? () => router.push('/product-kind') : undefined} />
         }
         ListFooterComponent={list.loadingMore ? <ActivityIndicator color={c.tint} style={{ marginVertical: 16 }} /> : null}
         renderItem={({ item, index }) => {
@@ -106,6 +111,7 @@ export default function Products() {
                     : item.available > 0
                       ? <Pill label={item.kind === 'bundle' ? `${d.productKind.bundle} · ${fmtMoney(item.available)}` : item.trackQuantity ? tr(d.common.pcs, { n: fmtMoney(item.available) }) : d.products.inSale} tone="ok" />
                       : <Pill label={d.products.soldOut} tone="bad" />}
+                  {item.menuItem ? <Pill label={d.products.inMenu} tone="br" /> : null}
                 </AmountColumn>
               }
               chevron={!!open}

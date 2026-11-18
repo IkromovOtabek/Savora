@@ -13,6 +13,7 @@ import { canAccessOrder } from './rules';
 import { itemDisplayName } from './modifiers';
 import { kdsLevel, summarizeTimings, type TimedItem } from './timings';
 import { qrMenuPath } from './qr';
+import { ensureMenuFlags, onMenuFilter } from './menuFlags';
 import { KDS_STATUSES, type ItemStatus, type OrderSource, type RestaurantSettings, type StationKind } from './types';
 import { fail, needAnyPerm, needFeature, needPerm, ok, type OpResult, type RestaurantCtx, type RestaurantModels } from './context';
 import { loadOrder, orderViewFor, resolveBranchId, restaurantSettings, staffNamesFor } from './ops';
@@ -324,20 +325,23 @@ export interface MenuItemView {
 type MenuProduct = IProduct & { _id: Types.ObjectId };
 
 /**
- * Menyu: filialdagi sotuvdagi mahsulotlar (taom), kategoriya bo'yicha. `forPublic` — stop-list va tugaganlar
+ * Menyu: filialdagi sotuvdagi MENYU mahsulotlari (taom, xizmat, menyuga qo'shilgan tayyor tovar — menuFlags.ts),
+ * kategoriya bo'yicha. Xom ashyo chiqmaydi. `forPublic` — stop-list va tugaganlar
  * yashirin; `withSoldOut` — qoldig'i tugagan (status `sold`) sanaladigan tovar ham: menyu muharriri (stansiya/
  * modifikator/MXIK ni tovar kelishidan oldin sozlash) va xodim menyusi («Tugagan» — o'chiq). Mijoz menyusida emas.
  */
 export async function buildMenu(
-  m: Pick<RestaurantModels, 'Product'>,
+  m: Pick<RestaurantModels, 'Product' | 'ShopSettings' | 'Order'>,
   branchId: string | Types.ObjectId,
   opts: { forPublic?: boolean; withSoldOut?: boolean } = {},
 ): Promise<{ categories: string[]; items: MenuItemView[] }> {
   const status = opts.withSoldOut && !opts.forPublic
     ? { $or: [{ status: 'in_stock' }, { status: 'sold', trackQuantity: true }] }
     : { status: 'in_stock' };
+  // Faqat menyudagilar (Product.menuItem; xom ashyo — yo'q). Belgi rejimi bo'lmasa (migratsiya xatosi) — eski: hammasi
+  const flags = await ensureMenuFlags(m);
   const products = await m.Product.find(
-    { branchId, ...status, ...(opts.forPublic ? { stopListed: { $ne: true } } : {}) },
+    { branchId, ...(flags ? { $and: [status, onMenuFilter()] } : status), ...(opts.forPublic ? { stopListed: { $ne: true } } : {}) },
     {
       name: 1, salePrice: 1, photoUrl: 1, category: 1, categoryId: 1, kind: 1, unit: 1, trackQuantity: 1, quantity: 1,
       soldQuantity: 1, status: 1, bundleItems: 1, stationId: 1, modifierGroups: 1, stopListed: 1, systemKey: 1, ikpu: 1,

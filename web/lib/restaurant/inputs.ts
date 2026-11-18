@@ -128,6 +128,16 @@ export function restaurantSchemas(e: Errors) {
         color: zOptText(7, e.badColor),
         coverUrl: zOptText(500, e.badUrl),
       }).optional(),
+      // Mijoz sahifasi: xom kiritish (havola, bo'sh joylar) — yakuniy tekshiruv lib/restaurant/info.ts da
+      info: z.object({
+        about: zOptText(400, e.badSettings),
+        address: zOptText(200, e.badSettings),
+        phone: zOptText(40, e.badSettings),
+        workHours: zOptText(120, e.badSettings),
+        instagram: zOptText(120, e.badSettings),
+        telegram: zOptText(120, e.badSettings),
+        takeawayByPhone: zOptBool(),
+      }).optional(),
     }),
     hall: z.object({
       id: zOptId(e.hallNotFound),

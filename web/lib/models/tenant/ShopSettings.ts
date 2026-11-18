@@ -52,6 +52,11 @@ export interface IShopSettings {
     autoPublish?: boolean;
     note?: string;
   };
+  /**
+   * Restoran menyusi ma'lumot versiyasi: 1 — mahsulotlarda `menuItem` belgisi qo'yilgan (menyu va ombor ajratilgan).
+   * Yo'q — hali migratsiya qilinmagan (lib/restaurant/menuFlags.ts → ensureMenuFlags birinchi ochilganda qo'yadi).
+   */
+  menuVersion?: number;
   updatedBy?: string;
   createdAt?: Date;
   updatedAt?: Date;
@@ -91,6 +96,16 @@ export const shopSettingsSchema = new Schema<IShopSettings>(
         color: { type: String, trim: true, maxlength: 7 },
         coverUrl: { type: String, trim: true, maxlength: 500 },
       },
+      // Mijoz sahifasi (/m/<slug>) — chegaralar lib/restaurant/info.ts → INFO_LIMITS bilan bir xil
+      info: {
+        about: { type: String, trim: true, maxlength: 300 },
+        address: { type: String, trim: true, maxlength: 160 },
+        phone: { type: String, trim: true, maxlength: 24 },
+        workHours: { type: String, trim: true, maxlength: 80 },
+        instagram: { type: String, trim: true, maxlength: 30 },
+        telegram: { type: String, trim: true, maxlength: 32 },
+        takeawayByPhone: { type: Boolean },
+      },
     },
     stock: {
       expiryWarnDays: { type: Number, min: 1, max: 365 },
@@ -100,6 +115,7 @@ export const shopSettingsSchema = new Schema<IShopSettings>(
       autoPublish: { type: Boolean },
       note: { type: String, trim: true, maxlength: 300 },
     },
+    menuVersion: { type: Number, min: 0 },
     updatedBy: { type: String },
   },
   { timestamps: true, collection: 'shop_settings' }

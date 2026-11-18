@@ -26,6 +26,19 @@ export function publicMenuApiPath(slug: string, token: string): string {
   return `/api/public/menu/${encodeURIComponent(slug)}/${encodeURIComponent(token)}`;
 }
 
+/**
+ * Restoranning umumiy mijoz sahifasi (stolsiz): /m/<slug> — menyu, aloqa, ish vaqti. Buyurtma bermaydi
+ * (buyurtma — faqat stol QR orqali). Kirish eshigi plakati, Instagram/Telegram havolasi uchun.
+ */
+export function restaurantPagePath(slug: string): string {
+  return `/m/${encodeURIComponent(slug)}`;
+}
+
+/** Mijoz sahifasining ochiq API'si (faqat o'qish) */
+export function publicStoreApiPath(slug: string): string {
+  return `/api/public/menu/${encodeURIComponent(slug)}`;
+}
+
 /** Brend rangi: #RRGGBB */
 export function isBrandColor(v: unknown): v is string {
   return typeof v === 'string' && /^#[0-9a-fA-F]{6}$/.test(v);

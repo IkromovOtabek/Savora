@@ -126,6 +126,11 @@ export interface IProduct {
   modifierGroups?: IModifierGroup[];
   /** Restoran: stop-list — tugagan, menyuda va QR-menyuda ko'rinmaydi, oshxonaga yuborilmaydi (mahsulot filialga tegishli) */
   stopListed?: boolean;
+  /**
+   * Restoran: menyuda (taom, menyuga qo'shilgan tayyor tovar) yoki yo'q (xom ashyo). Yo'q bo'lsa — turi bo'yicha:
+   * texkarta/xizmat — menyuda, oddiy tovar — yo'q (lib/restaurant/menuFlags.ts → isOnMenu, bir martalik migratsiya).
+   */
+  menuItem?: boolean;
   /** Tizim mahsuloti (masalan restoran xizmat haqi qatori) — soft-delete holatida, ro'yxatlarda ko'rinmaydi */
   systemKey?: string;
   /**
@@ -246,6 +251,7 @@ export const productSchema = new Schema<IProduct>(
       default: undefined,
     },
     stopListed: { type: Boolean },
+    menuItem: { type: Boolean },
     systemKey: { type: String, trim: true },
     itemCode: { type: String, trim: true, uppercase: true, maxlength: 40 },
     purchaseUnit: { type: String, enum: PRODUCT_UNITS },
