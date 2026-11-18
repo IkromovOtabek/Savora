@@ -12,7 +12,10 @@ import { getSession } from '@/lib/session';
 import { getMasterModels } from '@/lib/masterDb';
 import { getTenantModels } from '@/lib/tenantDb';
 import { setRouteCookies } from '@/lib/routeCookies';
-import { getDict } from '@/lib/i18n/server';
+import { getI18n } from '@/lib/i18n/server';
+import { tr } from '@/lib/i18n/fmt';
+import { parseOnboardingInput } from '@/lib/onboardingQuestions';
+import { applyOnboardingSetup } from '@/lib/onboardingSetup';
 
 type State = { error?: string } | null;
 
@@ -21,7 +24,7 @@ const TRIAL_DAYS = Number(process.env.TRIAL_DAYS || 14);
 
 export async function registerAction(_prev: State, formData: FormData): Promise<State> {
   const zone = await getAppZone();
-  const d = await getDict();
+  const { d, locale } = await getI18n();
   const { errors: e } = d.auth;
   if (zone !== 'root') {
     return { error: e.registerRootOnly };
@@ -46,6 +49,13 @@ export async function registerAction(_prev: State, formData: FormData): Promise<
   const isFree = planTier === 'free';
   // Tarif ustidagi tugmada tanlangan to'lov davri (oylik / 6 oy / 1 yil); bepul tarifda — oylik
   const billingCycle = isFree ? 'monthly' : parseBillingCycle(formData.get('billingCycle'));
+
+  // Ro'yxatdan o'tish ustasi: javoblar (yashirin maydon, JSON) — tur bo'yicha zod validatsiya; bo'sh — standart javoblar
+  const onboarding = parseOnboardingInput(businessType, formData.get('onboarding') ?? '');
+  if (!onboarding.ok) {
+    const q = onboarding.key ? (d.onboarding.questions[businessType] as Record<string, { label: string }>)[onboarding.key] : undefined;
+    return { error: q ? tr(d.onboarding.errors.invalid, { label: q.label }) : d.onboarding.errors.invalidGeneric };
+  }
 
   // Oferta va maxfiylik siyosatiga rozilik (aksept) — majburiy
   if (formData.get('acceptTerms') !== '1') {
@@ -88,7 +98,11 @@ export async function registerAction(_prev: State, formData: FormData): Promise<
       mustChangePassword: false,
       referredBy,
       termsAcceptedAt: new Date(),
+      onboarding: { answers: onboarding.answers, sampleData: onboarding.sampleData },
     });
+
+    // Tenant sozlash (rollar, kategoriyalar, chek, omborlar, restoran, namuna) — xatosi log qilinadi, ro'yxatdan o'tish buzilmaydi
+    await applyOnboardingSetup(orgId, { locale });
 
     const { Organization } = await getMasterModels();
     const org = await Organization.findById(orgId).lean();

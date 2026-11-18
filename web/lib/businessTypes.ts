@@ -129,8 +129,29 @@ export const PRODUCT_FIELDS: Record<BusinessType, ProductFieldSpec[]> = {
   manufacturing: [CATEGORY, UNIT],
 };
 
-export function productFieldsFor(businessType?: string): ProductFieldSpec[] {
-  return PRODUCT_FIELDS[parseBusinessType(businessType || 'general')];
+export function productFieldsFor(businessType?: string, extra?: readonly string[] | null): ProductFieldSpec[] {
+  const base = PRODUCT_FIELDS[parseBusinessType(businessType || 'general')];
+  if (!extra?.length) return base;
+  const have = new Set<string>(base.map((s) => s.key));
+  const add = PRODUCT_FIELD_KEYS.filter((k) => extra.includes(k) && !have.has(k)).map((key) => ({ key }));
+  return add.length ? [...base, ...add] : base;
+}
+
+/**
+ * Do'konga xos mahsulot maydonlari: yo'nalish (PRODUCT_FIELDS) + ro'yxatdan o'tish ustasi qo'shganlari
+ * (Organization.productFieldsExtra — hammasi ixtiyoriy). §4.3 maydonlari (general: unit; furniture: size, color;
+ * cosmetics: batchNumber; auto_parts: warrantyMonths, unit; xizmat: oemCode / warrantyMonths) PRODUCT_FIELDS ga
+ * qo'shilmaydi — mavjud do'konlar formasi o'zgarmasin; ular javob bo'yicha (lib/onboardingQuestions.ts → planOnboarding)
+ * faqat yangi do'konga yoziladi. Mavjud do'konlarda extra yo'q → natija PRODUCT_FIELDS bilan bir xil.
+ */
+export function orgProductFields(org: { businessType?: string; productFieldsExtra?: readonly string[] | null }): ProductFieldSpec[] {
+  return productFieldsFor(org.businessType, org.productFieldsExtra);
+}
+
+/** Do'kon tavsiya birliklari (Organization.preferredUnits) birinchi, qolganlari odatdagi tartibda */
+export function orderedUnits(preferred?: readonly string[] | null): ProductUnit[] {
+  const first = PRODUCT_UNITS.filter((u) => preferred?.includes(u));
+  return [...first, ...PRODUCT_UNITS.filter((u) => !first.includes(u))];
 }
 
 export function termsFor(businessType?: string): Terms {

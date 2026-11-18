@@ -1,6 +1,15 @@
 import { Schema, Types } from 'mongoose';
 import { FEATURE_KEYS, FeatureKey, OrgFeatures } from '../../featureKeys';
-import { BUSINESS_TYPE_IDS, BusinessType, INDUSTRY_PROFILES, type IndustryProfile } from '../../businessTypes';
+import {
+  BUSINESS_TYPE_IDS,
+  BusinessType,
+  INDUSTRY_PROFILES,
+  PRODUCT_FIELD_KEYS,
+  PRODUCT_UNITS,
+  type IndustryProfile,
+  type ProductFieldKey,
+  type ProductUnit,
+} from '../../businessTypes';
 import { BILLING_CYCLES, type BillingCycle } from '../../plans';
 
 export interface IOrganization {
@@ -13,6 +22,21 @@ export interface IOrganization {
   businessType: BusinessType;
   /** Ishlab chiqarish sexi kichik yo'nalishi — faqat businessType = 'manufacturing' da (lib/businessTypes.ts) */
   industryProfile?: IndustryProfile;
+  /**
+   * Ro'yxatdan o'tish ustasining javoblari (lib/onboardingQuestions.ts). Mavjud (eski) do'konlarda yo'q.
+   * Tarif o'zgarganda modullar shu javoblar bo'yicha qayta hisoblanadi (lib/orgUpdate.ts).
+   */
+  onboardingAnswers?: {
+    v: number;
+    businessType: BusinessType;
+    answers: Record<string, string | number | boolean>;
+    sampleData: boolean;
+    at: Date;
+  };
+  /** Ustaning javobi bo'yicha qo'shilgan mahsulot maydonlari (ixtiyoriy) — lib/businessTypes.ts → orgProductFields */
+  productFieldsExtra?: ProductFieldKey[];
+  /** Tavsiya o'lchov birliklari (formada birinchi) — lib/businessTypes.ts → orderedUnits */
+  preferredUnits?: ProductUnit[];
   status: 'active' | 'suspended' | 'expired';
   expiresAt: Date;
   plan: {
@@ -87,6 +111,21 @@ export const organizationSchema = new Schema<IOrganization>(
       default: 'general',
     },
     industryProfile: { type: String, enum: [...INDUSTRY_PROFILES] },
+    onboardingAnswers: {
+      type: new Schema(
+        {
+          v: { type: Number, required: true },
+          businessType: { type: String, enum: [...BUSINESS_TYPE_IDS], required: true },
+          answers: { type: Schema.Types.Mixed, default: {} },
+          sampleData: { type: Boolean, default: false },
+          at: { type: Date, required: true },
+        },
+        { _id: false },
+      ),
+      default: undefined,
+    },
+    productFieldsExtra: { type: [{ type: String, enum: [...PRODUCT_FIELD_KEYS] }], default: undefined },
+    preferredUnits: { type: [{ type: String, enum: [...PRODUCT_UNITS] }], default: undefined },
     status: { type: String, enum: ['active', 'suspended', 'expired'], default: 'active' },
     expiresAt: { type: Date, required: true },
     plan: {

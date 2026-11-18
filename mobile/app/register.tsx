@@ -5,17 +5,31 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import * as Linking from 'expo-linking';
 import { API_URL, errMsg } from '@/lib/api';
-import { useAuth } from '@/lib/auth';
+import { useAuth, type OnboardingAnswers } from '@/lib/auth';
 import { useResource } from '@/lib/hooks';
 import { useTheme, useStyles, type Palette } from '@/lib/theme';
 import { useI18n, tr } from '@/lib/i18n';
 import { uzPhone9, uzPhoneE164 } from '@/lib/phone';
-import { Screen, Group, Field, PhoneField, Button, Switch, IconSquare, BrandMark, type IconName } from '@/components/ui';
+import { Screen, Group, Field, PhoneField, Button, Switch, IconSquare, BrandMark, SegmentedControl, Chips, type IconName } from '@/components/ui';
 
 interface BType { key: string; label: string; description: string }
+type Answer = string | number | boolean;
+/** Ro'yxatdan o'tish ustasi savoli — server matnlari joriy tilda (web lib/onboardingQuestions.ts → questionViews) */
+interface QView {
+  key: string;
+  kind: 'yesno' | 'choice' | 'number';
+  label: string;
+  hint: string | null;
+  default: Answer;
+  options: { value: string; label: string }[] | null;
+  min: number | null;
+  max: number | null;
+  suffix: string | null;
+  showIf: { q: string; is: Answer[] } | null;
+}
 
 const LOGIN_RE = /^[a-z0-9_]{3,40}$/;
-const STEPS = 3;
+const STEPS = 4;
 
 /** Yo'nalish ikonkasi va rangi (palitra kalitlari) — noma'lum tur umumiy savdo ko'rinishida. */
 const BIZ_ICON: Record<string, { icon: IconName; sq: keyof Palette['sq'] }> = {
@@ -32,10 +46,12 @@ const BIZ_ICON: Record<string, { icon: IconName; sq: keyof Palette['sq'] }> = {
   wholesale: { icon: 'layers', sq: 'b' },
   restaurant: { icon: 'restaurant', sq: 'a' },
   service: { icon: 'construct', sq: 'g' },
+  manufacturing: { icon: 'business', sq: 'o' },
 };
 
 /**
- * Ilova ichida do'kon ochish — BILLZ kabi qadamma-qadam: 1) do'kon va telefon, 2) yo'nalish, 3) login.
+ * Ilova ichida do'kon ochish — BILLZ kabi qadamma-qadam: 1) do'kon va telefon, 2) yo'nalish,
+ * 3) bir nechta savol (ro'yxatdan o'tish ustasi — javobga qarab do'kon sozlanadi), 4) login.
  * Faqat bepul tarif (App Store qoidasi). Muvaffaqiyatda darhol kiradi.
  */
 export default function Register() {
@@ -45,18 +61,42 @@ export default function Register() {
   const st = useStyles(styles);
   const { d, locale } = useI18n();
   const k = d.signup;
-  const types = useResource<{ types: BType[] }>(`/api/mobile/auth/register?lang=${locale}`);
+  const types = useResource<{ types: BType[]; questions?: Record<string, QView[]> }>(`/api/mobile/auth/register?lang=${locale}`);
 
   const [step, setStep] = useState(1);
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [biz, setBiz] = useState('general');
+  // Ustaning javoblari (tur almashsa — tozalanadi, standart javoblar qo'llanadi); son maydonlari matn holida
+  const [answers, setAnswers] = useState<OnboardingAnswers>({});
+  const [numText, setNumText] = useState<Record<string, string>>({});
+  const [sample, setSample] = useState(false);
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
   const [agree, setAgree] = useState(false);
   const [tried, setTried] = useState<Record<number, boolean>>({});
   const [busy, setBusy] = useState(false);
+
+  const questions = types.data?.questions?.[biz] ?? [];
+  const current: OnboardingAnswers = Object.fromEntries(questions.map((q) => [q.key, answers[q.key] ?? q.default]));
+  const visible = questions.filter((q) => !q.showIf || q.showIf.is.includes(current[q.showIf.q]));
+  const numErr = (q: QView): string | null => {
+    if (q.kind !== 'number') return null;
+    const raw = numText[q.key];
+    if (raw === undefined) return null;
+    const v = Number(raw.replace(/\s/g, '').replace(',', '.'));
+    const min = q.min ?? 0;
+    const max = q.max ?? Number.MAX_SAFE_INTEGER;
+    return raw.trim() && Number.isFinite(v) && v >= min && v <= max ? null : tr(k.errNumber, { min, max });
+  };
+  const setAnswer = (key: string, v: Answer) => setAnswers((a) => ({ ...a, [key]: v }));
+  function chooseBiz(key: string) {
+    if (key === biz) return;
+    setBiz(key);
+    setAnswers({});
+    setNumText({});
+  }
 
   const errs = {
     name: name.trim().length < 2 ? k.errName : null,
@@ -68,8 +108,9 @@ export default function Register() {
   const show = (n: number, e: string | null) => (tried[n] ? e : null);
   const stepOk = (n: number) =>
     n === 1 ? !errs.name && !errs.phone
-      : n === 3 ? !errs.username && !errs.password && !errs.confirm
-        : true;
+      : n === 3 ? visible.every((q) => !numErr(q))
+        : n === 4 ? !errs.username && !errs.password && !errs.confirm
+          : true;
 
   async function next() {
     setTried((t) => ({ ...t, [step]: true }));
@@ -78,7 +119,11 @@ export default function Register() {
     if (!agree) { Alert.alert(k.failTitle, k.errAgree); return; }
     setBusy(true);
     try {
-      await register({ name: name.trim(), phone: uzPhoneE164(phone), businessType: biz, username, password, acceptTerms: true });
+      await register({
+        name: name.trim(), phone: uzPhoneE164(phone), businessType: biz, username, password, acceptTerms: true,
+        // Faqat ko'rinadigan savollar javobi; qolganini server standart javob bilan to'ldiradi
+        onboarding: { answers: Object.fromEntries(visible.map((q) => [q.key, current[q.key]])), sampleData: sample },
+      });
       router.replace('/(tabs)');
     } catch (e) {
       Alert.alert(k.failTitle, errMsg(e));
@@ -96,6 +141,7 @@ export default function Register() {
   const titles = [
     { t: k.step1Title, s: k.step1Sub },
     { t: k.step2Title, s: k.bizFooter },
+    { t: k.qTitle, s: k.qSub },
     { t: k.credsSection, s: k.step3Sub },
   ][step - 1];
 
@@ -161,7 +207,7 @@ export default function Register() {
               return (
                 <Pressable
                   key={t.key}
-                  onPress={() => setBiz(t.key)}
+                  onPress={() => chooseBiz(t.key)}
                   accessibilityRole="radio"
                   accessibilityState={{ selected: on }}
                   accessibilityLabel={`${t.label}. ${t.description}`}
@@ -182,6 +228,53 @@ export default function Register() {
 
       {step === 3 ? (
         <>
+          {visible.map((q) => (
+            <Group key={q.key} footer={q.hint ?? undefined}>
+              <View style={{ padding: 16, gap: 12 }}>
+                <Text style={st.qLabel}>{q.label}</Text>
+                {q.kind === 'yesno' ? (
+                  <SegmentedControl
+                    options={[{ key: 'yes', label: k.yes }, { key: 'no', label: k.no }]}
+                    value={current[q.key] === true ? 'yes' : 'no'}
+                    onChange={(v) => setAnswer(q.key, v === 'yes')}
+                  />
+                ) : q.kind === 'choice' && q.options ? (
+                  q.options.length > 3 ? (
+                    <Chips options={q.options.map((o) => ({ key: o.value, label: o.label }))} value={String(current[q.key])} onChange={(v) => setAnswer(q.key, v)} />
+                  ) : (
+                    <SegmentedControl options={q.options.map((o) => ({ key: o.value, label: o.label }))} value={String(current[q.key])} onChange={(v) => setAnswer(q.key, v)} />
+                  )
+                ) : (
+                  <Field
+                    value={numText[q.key] ?? String(current[q.key])}
+                    onChangeText={(v) => {
+                      setNumText((m) => ({ ...m, [q.key]: v }));
+                      const n = Number(v.replace(/\s/g, '').replace(',', '.'));
+                      if (v.trim() && Number.isFinite(n)) setAnswer(q.key, n);
+                    }}
+                    keyboardType="numeric"
+                    suffix={q.suffix ?? undefined}
+                    maxLength={9}
+                    accessibilityLabel={q.label}
+                    error={show(3, numErr(q))}
+                  />
+                )}
+              </View>
+            </Group>
+          ))}
+          <View style={st.agree}>
+            <Switch value={sample} onValueChange={setSample} />
+            <View style={{ flex: 1, gap: 2 }}>
+              <Text style={{ fontSize: 15, fontWeight: '600', color: c.ink }}>{k.sample}</Text>
+              <Text style={{ fontSize: 13.5, color: c.ink3, lineHeight: 18 }}>{k.sampleHint}</Text>
+            </View>
+          </View>
+          <Text style={st.note}>{k.planNote}</Text>
+        </>
+      ) : null}
+
+      {step === 4 ? (
+        <>
           <Group>
             <View style={{ padding: 16, gap: 14 }}>
               <Field
@@ -195,10 +288,10 @@ export default function Register() {
                 autoComplete="username-new"
                 textContentType="username"
                 maxLength={40}
-                error={show(3, errs.username)}
+                error={show(4, errs.username)}
               />
-              <Field label={k.password} value={password} onChangeText={setPassword} placeholder={k.passwordPh} secureTextEntry textContentType="newPassword" autoComplete="password-new" error={show(3, errs.password)} />
-              <Field label={k.confirm} value={confirm} onChangeText={setConfirm} secureTextEntry textContentType="newPassword" error={show(3, errs.confirm)} />
+              <Field label={k.password} value={password} onChangeText={setPassword} placeholder={k.passwordPh} secureTextEntry textContentType="newPassword" autoComplete="password-new" error={show(4, errs.password)} />
+              <Field label={k.confirm} value={confirm} onChangeText={setConfirm} secureTextEntry textContentType="newPassword" error={show(4, errs.confirm)} />
             </View>
           </Group>
 
@@ -238,4 +331,6 @@ const styles = (c: Palette) => StyleSheet.create({
   tileT: { fontSize: 17, fontWeight: '800', letterSpacing: -0.3, color: c.ink },
   tileD: { fontSize: 13.5, fontWeight: '500', lineHeight: 18, color: c.ink3 },
   agree: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 4 },
+  qLabel: { fontSize: 16, fontWeight: '700', lineHeight: 21, color: c.ink },
+  note: { fontSize: 13, lineHeight: 18, color: c.ink3, paddingHorizontal: 4 },
 });

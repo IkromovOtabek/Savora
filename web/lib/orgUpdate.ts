@@ -3,8 +3,34 @@ import { IOrganization } from './models/master/Organization';
 import { OrgFeatures } from './featureKeys';
 import { BusinessType, type IndustryProfile } from './businessTypes';
 import { getPlanPreset, parsePlanTier, PlanTier } from './plans';
+import { onboardingFeatureOverrides, planOnboarding, storedAnswersFor } from './onboardingQuestions';
 
 export type OrgStatus = IOrganization['status'];
+
+/**
+ * Biznes turi preseti (§4.3 qo'shimchalari bilan) + saqlangan javoblar (faqat shu turga tegishli bo'lsa) → org.features farqlari.
+ * Ishlatiladi: tarif o'zgarishi (yuqorida) va Super Admin «presetni qo'llash» (applyBusinessPresetAction).
+ */
+export function onboardingOverridesFor(
+  org: Pick<IOrganization, 'onboardingAnswers'>,
+  tier: string,
+  businessType: string,
+): Partial<OrgFeatures> {
+  const answers = storedAnswersFor(org.onboardingAnswers, businessType);
+  return onboardingFeatureOverrides({ tier, businessType, plan: planOnboarding(businessType, answers) });
+}
+
+/** Biznes turi o'zgarganda: shu turning mahsulot maydonlari / birliklari (javoblar shu turga tegishli bo'lsa — javob bo'yicha) */
+export function typeProductSetup(
+  org: Pick<IOrganization, 'onboardingAnswers'>,
+  businessType: string,
+): { productFieldsExtra: IOrganization['productFieldsExtra']; preferredUnits: IOrganization['preferredUnits'] } {
+  const plan = planOnboarding(businessType, storedAnswersFor(org.onboardingAnswers, businessType));
+  return {
+    productFieldsExtra: plan.productFields.length ? plan.productFields : undefined,
+    preferredUnits: plan.units.length ? plan.units : undefined,
+  };
+}
 
 export interface UpdateOrganizationInput {
   name?: string;
@@ -59,7 +85,10 @@ export async function updateOrganization(orgId: string, input: UpdateOrganizatio
     // standarti + biznes preseti bo'yicha hisoblanadi (alohida features berilmagan bo'lsa).
     // Aks holda do'kon eski modullar bilan qolib ketardi ("tarif o'zgarmadi" muammosi).
     if (tierChanged && input.features === undefined) {
-      org.set('features', undefined);
+      // Ustadan o'tgan (yangi) do'kon: javoblar bo'yicha farqlar yangi tarif doirasida qayta hisoblanadi.
+      // Eski do'konlarda onboardingAnswers yo'q — avvalgidek tozalanadi.
+      const f = org.onboardingAnswers ? onboardingOverridesFor(org, tier, input.businessType ?? org.businessType) : {};
+      org.set('features', Object.keys(f).length ? f : undefined);
       org.markModified('features');
     }
   }
@@ -75,6 +104,12 @@ export async function updateOrganization(orgId: string, input: UpdateOrganizatio
     throw new Error('Kelishuv tarifida kelishuv matni kiritilishi shart.');
   }
 
+  if (input.businessType !== undefined && input.businessType !== org.businessType) {
+    // Tur o'zgarsa — mahsulot maydonlari va birliklar yangi tur preseti bo'yicha (eski turning qo'shimchalari qolmasin)
+    const f = typeProductSetup(org, input.businessType);
+    org.set('productFieldsExtra', f.productFieldsExtra);
+    org.set('preferredUnits', f.preferredUnits);
+  }
   if (input.businessType !== undefined) org.businessType = input.businessType;
   if (input.industryProfile !== undefined) {
     if (input.industryProfile) org.industryProfile = input.industryProfile;

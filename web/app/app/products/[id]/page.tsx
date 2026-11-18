@@ -18,7 +18,7 @@ import Tilt from '@/components/ui/Tilt';
 import MoreMenu from '@/components/ui/MoreMenu';
 import { getDict } from '@/lib/i18n/server';
 import { tr, qtyWithUnit } from '@/lib/i18n/fmt';
-import { productFieldsFor } from '@/lib/businessTypes';
+import { orgProductFields } from '@/lib/businessTypes';
 import { loadExtraFieldNames, toDateInputValue } from '@/lib/productFields';
 
 function fmtMoney(n: number) {
@@ -89,7 +89,7 @@ export default async function ProductDetailPage({
   const canDelete = perms.has('product.delete');
   const status = product.status as ProductStatus;
   const initialLetter = (product.name ?? '').trim().charAt(0).toUpperCase() || '?';
-  const productFields = productFieldsFor(org.businessType);
+  const productFields = orgProductFields(org);
   const [categories, brands, extraNames] = await Promise.all([
     ProductCategory.find({}, { name: 1, parentId: 1 }).sort({ name: 1 }).limit(2000).lean(),
     Brand.find({}, { name: 1 }).sort({ name: 1 }).limit(1000).lean(),

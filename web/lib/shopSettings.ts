@@ -23,6 +23,7 @@ export function mergeShopSettings(doc?: Partial<ShopSettings> | null): ShopSetti
       ...stripUndef(doc?.restaurant),
       brand: { ...stripUndef(doc?.restaurant?.brand) },
     },
+    stock: { ...stripUndef(doc?.stock) },
     updatedBy: doc?.updatedBy,
   };
 }
@@ -39,8 +40,8 @@ export async function getShopSettings(M: Model<IShopSettings>): Promise<ShopSett
 }
 
 /** Bitta bo'limni yangilash (upsert) */
-export async function saveShopSettingsPart<K extends 'receipt' | 'currency' | 'notify' | 'restaurant'>(
-  M: Model<IShopSettings>, part: K, value: Partial<ShopSettings[K]>, by: string,
+export async function saveShopSettingsPart<K extends 'receipt' | 'currency' | 'notify' | 'restaurant' | 'stock'>(
+  M: Model<IShopSettings>, part: K, value: Partial<NonNullable<ShopSettings[K]>>, by: string,
 ): Promise<void> {
   // by bo'sh — avtomatik yangilanish (CBU kursi), oxirgi tahrirlovchi o'zgarmaydi
   const set: Record<string, unknown> = by ? { updatedBy: by } : {};

@@ -3,7 +3,7 @@
 import { isValidObjectId } from 'mongoose';
 import { revalidatePath } from 'next/cache';
 import { requireSuperAdmin } from '@/lib/auth';
-import { updateOrganization } from '@/lib/orgUpdate';
+import { onboardingOverridesFor, updateOrganization } from '@/lib/orgUpdate';
 import { parseFeaturesFromForm } from '@/lib/featuresForm';
 import { diffFeatureOverrides } from '@/lib/features';
 import { getMasterModels } from '@/lib/masterDb';
@@ -50,9 +50,15 @@ export async function applyBusinessPresetAction(_prev: State, formData: FormData
   const businessType = parseBusinessType(String(formData.get('businessType') || 'general'));
 
   try {
+    // Preset = runtime preset + §4.3 qo'shimchalari (+ ustaning javoblari, agar shu tur uchun berilgan bo'lsa);
+    // Super Admin override'lari tozalanadi
+    const { Organization } = await getMasterModels();
+    const org = await Organization.findById(orgId).select('plan onboardingAnswers').lean();
+    if (!org) return { error: d.superPanel.actions.orgNotFound };
+    const presetFeatures = onboardingOverridesFor(org, org.plan.tier, businessType);
     await updateOrganization(orgId, {
       businessType,
-      features: null,
+      features: Object.keys(presetFeatures).length ? presetFeatures : null,
       ...(formData.has('industryProfile') ? { industryProfile: parseIndustryProfile(formData.get('industryProfile'), businessType) } : {}),
     });
     revalidatePath('/super');

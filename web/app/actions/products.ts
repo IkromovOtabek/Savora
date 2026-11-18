@@ -125,8 +125,10 @@ function parseOptionalPrice(v: string): number | null {
 async function readProductFields(
   formData: FormData,
   businessType: string | undefined,
+  /** Do'konga xos qo'shimcha maydonlar (ro'yxatdan o'tish ustasi — Organization.productFieldsExtra) */
+  extraFields?: readonly string[] | null,
 ): Promise<Extract<ProductFieldsResult, { ok: true }> | { ok: false; error: string }> {
-  const res = parseProductFields(businessType, (key) => formData.get(key));
+  const res = parseProductFields(businessType, (key) => formData.get(key), extraFields);
   if (res.ok) return res;
   const d = (await getDict()).stock;
   return { ok: false, error: productFieldErrorText(res, d.fields.labels, d.msg) };
@@ -237,7 +239,7 @@ export async function createProductAction(_prev: State, formData: FormData): Pro
   if (brand === 'tooLong') return { error: m.brandNameTooLong };
   const extraFields = readExtraFields(formData);
   if (extraFields === null) return { error: (await getDict()).importer.extra.invalid };
-  const extra = await readProductFields(formData, org.businessType);
+  const extra = await readProductFields(formData, org.businessType, org.productFieldsExtra);
   if (!extra.ok) return { error: extra.error };
   const categoryChoice = await readCategoryChoice(formData, ProductCategory);
   if (categoryChoice === 'invalid') return { error: m.categoryNotFound };
@@ -370,7 +372,7 @@ export async function updateProductAction(_prev: State, formData: FormData): Pro
   if (brand === 'tooLong') return { error: m.brandNameTooLong };
   const extraFields = readExtraFields(formData);
   if (extraFields === null) return { error: (await getDict()).importer.extra.invalid };
-  const extra = await readProductFields(formData, org.businessType);
+  const extra = await readProductFields(formData, org.businessType, org.productFieldsExtra);
   if (!extra.ok) return { error: extra.error };
   const categoryChoice = await readCategoryChoice(formData, ProductCategory);
   if (categoryChoice === 'invalid') return { error: m.categoryNotFound };

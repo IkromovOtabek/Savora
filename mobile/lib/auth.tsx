@@ -47,7 +47,12 @@ export interface MeResponse {
 /** Standart atamalar — me hali yuklanmagan bo'lsa. */
 export const DEFAULT_TERMS: Terms = { item: 'Mahsulot', items: 'Ombor', addItem: 'Mahsulot qo\'shish', codeLabel: 'Kod / shtrix', hasImei: false };
 
-export interface RegisterInput { name: string; phone?: string; businessType: string; username: string; password: string; acceptTerms: true }
+/** Ro'yxatdan o'tish ustasining javoblari (savollar — GET /api/mobile/auth/register → questions) */
+export type OnboardingAnswers = Record<string, string | number | boolean>;
+export interface RegisterInput {
+  name: string; phone?: string; businessType: string; username: string; password: string; acceptTerms: true;
+  onboarding?: { answers: OnboardingAnswers; sampleData: boolean };
+}
 
 interface AuthState {
   loading: boolean;

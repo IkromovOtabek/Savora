@@ -44,3 +44,35 @@ export function presetFor(businessType?: string): Partial<Record<FeatureKey, boo
   }
   return BUSINESS_FEATURE_PRESETS.general;
 }
+
+/**
+ * YANGI do'konlar uchun preset qo'shimchalari (TAKLIF_2026-11 §4.3, «Ro'yxatdan o'tishda qo'shimcha»).
+ *
+ * BUSINESS_FEATURE_PRESETS runtime'da (har so'rovda) hisoblanadi — uni o'zgartirsak MAVJUD do'konlarning
+ * modullari ham o'zgarardi. Shuning uchun §4.3 farqlari shu yerda: ular faqat
+ *   - ro'yxatdan o'tishda (web/mobil, super admin «yangi do'kon») va
+ *   - Super Admin biznes turi presetini qo'llaganda (applyBusinessPresetAction)
+ * org.features ga yoziladi (lib/onboardingQuestions.ts → onboardingFeatureOverrides; `true` — tarif ruxsat bersa).
+ * Ustaning javoblari bularni bekor qilishi mumkin (masalan, «Qarzga bermayman» → daftar o'chiq).
+ * Yo'nalishga xos mahsulot maydonlari — lib/businessTypes.ts → SIGNUP_PRODUCT_FIELDS.
+ */
+export const SIGNUP_PRESET_EXTRAS: Record<BusinessType, Partial<Record<FeatureKey, boolean>>> = {
+  // Mahalla nasiyasi → daftar; tovar tugashi → inventarizatsiya
+  general: { daftar: true, inventory: true },
+  // IMEI, narx o'zgarishi nazorati — inventarizatsiya va amallar tarixi
+  phone_shop: { inventory: true, audit: true },
+  electronics: {},
+  // Ko'rgazma zali ↔ ombor
+  furniture: { transferred: true },
+  clothing: {},
+  grocery: {},
+  building: {},
+  cosmetics: {},
+  pharmacy: {},
+  auto_parts: {},
+  wholesale: {},
+  restaurant: {},
+  // Kichik tur (salon / avtoservis / ustaxona) ustaning savoli bilan aniqlanadi
+  service: {},
+  manufacturing: {},
+};

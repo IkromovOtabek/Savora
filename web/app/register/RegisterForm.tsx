@@ -17,6 +17,7 @@ import { useDict } from '@/lib/i18n/client';
 import { tr } from '@/lib/i18n/fmt';
 import '@/components/auth/auth.css';
 import './register.css';
+import OnboardingQuestions from './OnboardingQuestions';
 
 const ROOT = process.env.NEXT_PUBLIC_ROOT_DOMAIN || 'savora.uz';
 const APP_HOST = (process.env.NEXT_PUBLIC_APP_URL || 'https://savora.uz').replace(/^https?:\/\//, '').replace(/\/$/, '');
@@ -35,6 +36,8 @@ export default function RegisterForm({ plans, fromApp = false }: { plans: PlanPr
   // To'lov davri (tarif ro'yxati ustidagi tugma) — kartalardagi narx shunga qarab; formaga yashirin maydon bilan ketadi
   const [cycle, setCycle] = useState<BillingCycle>('monthly');
   const [bizType, setBizType] = useState<BusinessType>('general');
+  // Ro'yxatdan o'tish ustasi: «Namuna ma'lumot qo'shilsin» (standart o'chiq) — biznes turi almashsa ham saqlanadi
+  const [sampleData, setSampleData] = useState(false);
   const [visitorId, setVisitorId] = useState('');
   const [visitSessionId, setVisitSessionId] = useState('');
   // Jonli ko'rinish uchun: nom, manzil (nomdan avtomatik, qo'lda o'zgartirilsa — o'shasi), egasi
@@ -193,6 +196,9 @@ export default function RegisterForm({ plans, fromApp = false }: { plans: PlanPr
                 </div>
                 <p className="rg-hint">{t.bizHint}</p>
               </fieldset>
+
+              {/* Ustaning savollari — tanlangan tur bo'yicha; tur almashsa javoblar standartga qaytadi (key) */}
+              <OnboardingQuestions key={bizType} bizType={bizType} sampleData={sampleData} onSampleData={setSampleData} disabled={isPending} />
 
               <fieldset className="rg-set">
                 <legend>{t.credsLegend}</legend>

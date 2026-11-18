@@ -4,7 +4,7 @@ import { loadUserPermissions } from '@/lib/permissionGuard';
 import { getMasterModels } from '@/lib/masterDb';
 import { resolveOrgFeatures } from '@/lib/features';
 import { isOrganizationActive, daysUntilExpiry } from '@/lib/models/master/Organization';
-import { termsFor, productFieldsFor, BUSINESS_TYPES, PRODUCT_UNITS } from '@/lib/businessTypes';
+import { termsFor, orgProductFields, orderedUnits, BUSINESS_TYPES } from '@/lib/businessTypes';
 import { getTenantModels } from '@/lib/tenantDb';
 import { ensureMainBranchId } from '@/lib/mainBranch';
 
@@ -41,9 +41,10 @@ export async function GET(req: Request) {
     },
     // Biznes turiga qarab atamalar (mahsulot/menyu/dori ...)
     terms: termsFor(org.businessType),
-    // Mahsulot formasining yo'nalishga xos maydonlari (yorliqlar ilova lug'atida)
-    productFields: productFieldsFor(org.businessType),
-    productUnits: PRODUCT_UNITS,
+    // Mahsulot formasining yo'nalishga xos maydonlari (+ ro'yxatdan o'tish ustasi qo'shganlari; yorliqlar ilova lug'atida)
+    productFields: orgProductFields(org),
+    // Birliklar: do'kon tavsiya qilganlari (ustadan) birinchi, qolganlari odatdagi tartibda
+    productUnits: orderedUnits(org.preferredUnits),
     stockBranch,
     features: resolveOrgFeatures(org),
     // Xodim huquqlari (lib/permissions.ts) — ilova tugmalarni yashirishi uchun

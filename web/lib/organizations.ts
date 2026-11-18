@@ -7,6 +7,14 @@ import { getPlanPreset, parsePlanTier, parseBillingCycle, PlanTier, type Billing
 import { tenantDbName, ensureUniqueSlug } from './slug';
 import { generateTempPassword } from './credentials';
 import { reserveUsername, isUsernameAvailable, UsernameTakenError } from './userDirectory';
+import {
+  ONBOARDING_VERSION,
+  completeAnswers,
+  onboardingFeatureOverrides,
+  planOnboarding,
+  type OnboardingAnswers,
+} from './onboardingQuestions';
+import { logError } from './logger';
 
 function generateReferralCode(slug: string): string {
   const base = slug.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 4).padEnd(4, 'X');
@@ -65,6 +73,36 @@ export interface CreateOrganizationInput {
   billingCycle?: BillingCycle;
   /** Sinov rejimi — muddati tugagach to'lov talab qilinadi */
   isTrial?: boolean;
+  /**
+   * Ro'yxatdan o'tish ustasi javoblari (lib/onboardingQuestions.ts). Berilmasa — standart javoblar.
+   * Har yangi do'konga §4.3 preset qo'shimchalari + javoblar bo'yicha modullar (tarif doirasida), mahsulot maydonlari
+   * va birliklar yoziladi; tenant tomonidagi sozlash — lib/onboardingSetup.ts → applyOnboardingSetup.
+   */
+  onboarding?: { answers?: OnboardingAnswers | null; sampleData?: boolean } | null;
+}
+
+/**
+ * Yangi do'kon master yozuviga qo'shiladigan ustaning sozlamalari. Xato bo'lsa — log va bo'sh (do'kon baribir ochiladi).
+ */
+function onboardingMasterFields(input: CreateOrganizationInput, tier: string, businessType: BusinessType): Record<string, unknown> {
+  try {
+    const given: OnboardingAnswers = { ...(input.onboarding?.answers ?? {}) };
+    // Eski mobil ilova / super admin profilni alohida maydonda yuboradi — javob bo'lmasa shu olinadi
+    if (businessType === 'manufacturing' && input.industryProfile && given.profile === undefined) given.profile = input.industryProfile;
+    const answers = completeAnswers(businessType, given);
+    const plan = planOnboarding(businessType, answers);
+    const features = onboardingFeatureOverrides({ tier, businessType, plan });
+    return {
+      ...(Object.keys(features).length ? { features } : {}),
+      ...(plan.productFields.length ? { productFieldsExtra: plan.productFields } : {}),
+      ...(plan.units.length ? { preferredUnits: plan.units } : {}),
+      ...(plan.industryProfile && !input.industryProfile ? { industryProfile: plan.industryProfile } : {}),
+      onboardingAnswers: { v: ONBOARDING_VERSION, businessType, answers, sampleData: !!input.onboarding?.sampleData, at: new Date() },
+    };
+  } catch (err) {
+    logError('onboarding: master sozlamalar hisoblanmadi', err, { businessType });
+    return {};
+  }
 }
 
 export async function createOrganization(input: CreateOrganizationInput): Promise<{
@@ -147,6 +185,8 @@ export async function createOrganization(input: CreateOrganizationInput): Promis
     adminUsername,
     businessType: input.businessType ?? 'general',
     ...(input.businessType === 'manufacturing' && input.industryProfile ? { industryProfile: input.industryProfile } : {}),
+    // Ustaning sozlamalari: §4.3 preset qo'shimchalari + javoblar → features (tarif doirasida), maydonlar, birliklar
+    ...onboardingMasterFields(input, preset.tier, input.businessType ?? 'general'),
     status: 'active',
     expiresAt,
     plan: {
@@ -160,8 +200,9 @@ export async function createOrganization(input: CreateOrganizationInput): Promis
       isTrial: input.isTrial ?? false,
     },
     // Modullar SAQLANMAYDI (materialize qilinmaydi): tarif standarti + biznes preseti
-    // har safar resolveOrgFeatures orqali hisoblanadi. org.features faqat Super Admin
-    // override'lari uchun — shunda tarif/biznes turi o'zgarsa modullar ham to'g'ri o'zgaradi.
+    // har safar resolveOrgFeatures orqali hisoblanadi. org.features — faqat bazadan farqlar:
+    // ustaning javoblari / §4.3 qo'shimchalari (yuqorida) va Super Admin override'lari.
+    // Tarif o'zgarsa ustaning farqlari javoblardan qayta hisoblanadi (lib/orgUpdate.ts).
     referralCode,
     referredBy: input.referredBy?.toUpperCase() || undefined,
     termsAcceptedAt: input.termsAcceptedAt,

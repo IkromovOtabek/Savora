@@ -11,15 +11,30 @@ import { hitRateLimit } from '@/lib/rateLimit';
 import { clientIpFrom } from '@/lib/security';
 import { readJsonInput } from '@/lib/validation';
 import { getDictionary } from '@/lib/i18n/dict';
-import { isLocale } from '@/lib/i18n/config';
+import { isLocale, type Locale } from '@/lib/i18n/config';
+import { tr } from '@/lib/i18n/fmt';
+import { parseOnboardingInput, questionViews } from '@/lib/onboardingQuestions';
+import { applyOnboardingSetup } from '@/lib/onboardingSetup';
 
-/** Ro'yxatdan o'tish formasi uchun biznes yo'nalishlari (login'siz) — ?lang=uz|ru */
+/**
+ * Ro'yxatdan o'tish formasi uchun (login'siz) — ?lang=uz|ru:
+ *   types — biznes yo'nalishlari;
+ *   questions — ro'yxatdan o'tish ustasi savollari har tur uchun (lib/onboardingQuestions.ts → questionViews; matnlar lug'atdan).
+ */
 export async function GET(req: Request) {
   const lang = new URL(req.url).searchParams.get('lang');
-  const types = getDictionary(isLocale(lang) ? lang : 'uz').catalog.businessTypes;
+  const d = getDictionary(isLocale(lang) ? lang : 'uz');
+  const types = d.catalog.businessTypes;
   return NextResponse.json({
     types: BUSINESS_TYPE_IDS.map((key) => ({ key, label: types[key].label, description: types[key].description })),
+    questions: Object.fromEntries(BUSINESS_TYPE_IDS.map((key) => [key, questionViews(key, d)])),
   });
+}
+
+/** Ilova tili (`Accept-Language`: uz | ru) — sozlash matnlari (kategoriya, chek) va xato xabari shu tilda */
+function requestLocale(req: Request): Locale {
+  const first = (req.headers.get('accept-language') ?? '').split(',')[0]?.trim().slice(0, 2).toLowerCase();
+  return isLocale(first) ? first : 'uz';
 }
 
 /**
@@ -36,12 +51,21 @@ export async function POST(req: Request) {
     password: z.string().min(6, "Parol kamida 6 ta belgidan iborat bo'lsin.").max(128),
     phone: z.string().trim().max(30).optional(),
     acceptTerms: z.literal(true, { message: "Oferta va maxfiylik siyosatiga rozilik bering." }),
+    /** Ro'yxatdan o'tish ustasi: { answers?: {...}, sampleData?: boolean } — tur bo'yicha alohida tekshiriladi */
+    onboarding: z.unknown().optional(),
   }), { badJson: "Noto'g'ri so'rov.", fallback: "Ma'lumotlarni tekshiring." });
   if (!input.ok) return NextResponse.json({ error: input.error }, { status: 400 });
   const { name, username, password, phone } = input.data;
   const businessType = parseBusinessType(
     input.data.businessType && (BUSINESS_TYPE_IDS as readonly string[]).includes(input.data.businessType) ? input.data.businessType : 'general',
   );
+  const locale = requestLocale(req);
+  const onboarding = parseOnboardingInput(businessType, input.data.onboarding);
+  if (!onboarding.ok) {
+    const d = getDictionary(locale);
+    const q = onboarding.key ? (d.onboarding.questions[businessType] as Record<string, { label: string }>)[onboarding.key] : undefined;
+    return NextResponse.json({ error: q ? tr(d.onboarding.errors.invalid, { label: q.label }) : d.onboarding.errors.invalidGeneric }, { status: 400 });
+  }
 
   // Spam himoyasi — web ro'yxatdan o'tish bilan bir xil chegara (bitta IP'dan sutkasiga 3 ta do'kon)
   const rl = await hitRateLimit(`register-ip:${clientIpFrom(req.headers)}`, 3, 24 * 60 * 60 * 1000);
@@ -61,7 +85,10 @@ export async function POST(req: Request) {
       isTrial: false,
       mustChangePassword: false,
       termsAcceptedAt: new Date(),
+      onboarding: { answers: onboarding.answers, sampleData: onboarding.sampleData },
     });
+    // Tenant sozlash (rollar, kategoriyalar, omborlar, restoran, namuna) — xatosi log qilinadi, javob buzilmaydi
+    await applyOnboardingSetup(orgId, { locale });
 
     const { Organization } = await getMasterModels();
     const org = await Organization.findById(orgId).lean();

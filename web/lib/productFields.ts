@@ -79,8 +79,10 @@ function str(v: unknown): string {
 export function parseProductFields(
   businessType: string | undefined,
   read: (key: ProductFieldKey) => unknown,
+  /** Do'konga xos qo'shimcha maydonlar (Organization.productFieldsExtra — ro'yxatdan o'tish ustasi) */
+  extra?: readonly string[] | null,
 ): ProductFieldsResult {
-  const specs = productFieldsFor(businessType);
+  const specs = productFieldsFor(businessType, extra);
   const values: ProductFieldValues = {};
 
   for (const { key, required } of specs) {

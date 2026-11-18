@@ -171,7 +171,7 @@ export async function POST(req: Request) {
 
   // Yo'nalish: telefon do'konda IMEI majburiy, qolgan maydonlar PRODUCT_FIELDS bo'yicha
   const { Organization } = await getMasterModels();
-  const org = await Organization.findById(user.organizationId, { businessType: 1 }).lean();
+  const org = await Organization.findById(user.organizationId, { businessType: 1, productFieldsExtra: 1 }).lean();
   const businessType = org?.businessType;
   // Xato matnlari mobil API'dagi boshqalar kabi o'zbekcha
   const stockDict = getDictionary('uz').stock;
@@ -189,7 +189,7 @@ export async function POST(req: Request) {
   if (mainQty === null || variants.some((v) => qtyOf(v.quantity) === null)) {
     return NextResponse.json({ error: 'Miqdor noto\'g\'ri.' }, { status: 400 });
   }
-  const extra = parseProductFields(businessType, (key) => body[key]);
+  const extra = parseProductFields(businessType, (key) => body[key], org?.productFieldsExtra);
   if (!extra.ok) {
     return NextResponse.json({ error: productFieldErrorText(extra, stockDict.fields.labels, stockDict.msg) }, { status: 400 });
   }

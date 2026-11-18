@@ -5,6 +5,7 @@ import { recordAudit } from '@/lib/audit';
 import { parseBusinessType, parseIndustryProfile, BUSINESS_TYPES, INDUSTRY_PROFILES, termsFor } from '@/lib/businessTypes';
 import { getDictionary } from '@/lib/i18n/dict';
 import { diffFeatureOverrides, resolveOrgFeatures } from '@/lib/features';
+import { typeProductSetup } from '@/lib/orgUpdate';
 
 /** GET — mavjud biznes turlari ro'yxati (tanlash uchun). */
 export async function GET(req: Request) {
@@ -47,17 +48,27 @@ export async function PATCH(req: Request) {
   const profileSet = touchProfile && profile ? { industryProfile: profile } : {};
   const profileUnset = touchProfile && !profile ? { industryProfile: 1 } : {};
   const { Organization } = await getMasterModels();
-  const org = await Organization.findById(user.organizationId).select('plan features businessType').lean();
+  const org = await Organization.findById(user.organizationId).select('plan features businessType onboardingAnswers').lean();
   if (!org) return NextResponse.json({ error: 'Do\'kon topilmadi.' }, { status: 404 });
   // Modullar — Super Admin ixtiyorida: yo'nalish o'zgarsa ham amaldagi modullar o'zgarmaydi
   // (aks holda yangi preset Super Admin o'chirib qo'ygan modulni qayta yoqib yuborardi).
   // Faqat atamalar va mahsulot maydonlari almashadi — override'lar yangi bazaga nisbatan qayta hisoblanadi.
   const keep = diffFeatureOverrides({ plan: org.plan, businessType: bt }, resolveOrgFeatures(org));
+  // Tur o'zgarsa — mahsulot maydonlari va birliklar yangi tur bo'yicha (ro'yxatdan o'tish ustasi qo'shimchalari; lib/orgUpdate.ts)
+  const fields: Record<string, unknown> = {};
+  const fieldsUnset: Record<string, 1> = {};
+  if (bt !== org.businessType) {
+    for (const [k, v] of Object.entries(typeProductSetup(org, bt))) {
+      if (v) fields[k] = v;
+      else fieldsUnset[k] = 1;
+    }
+  }
+  const unset = { ...profileUnset, ...fieldsUnset };
   await Organization.updateOne(
     { _id: user.organizationId },
     Object.keys(keep).length
-      ? { $set: { businessType: bt, features: keep, updatedAt: new Date(), ...profileSet }, ...(Object.keys(profileUnset).length ? { $unset: profileUnset } : {}) }
-      : { $set: { businessType: bt, updatedAt: new Date(), ...profileSet }, $unset: { features: 1, ...profileUnset } },
+      ? { $set: { businessType: bt, features: keep, updatedAt: new Date(), ...profileSet, ...fields }, ...(Object.keys(unset).length ? { $unset: unset } : {}) }
+      : { $set: { businessType: bt, updatedAt: new Date(), ...profileSet, ...fields }, $unset: { features: 1, ...unset } },
   );
   // AuditEntity'da 'org' yo'q — do'kon sozlamasi egasi (user) nomidan yoziladi
   await recordAudit(user, {

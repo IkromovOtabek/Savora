@@ -38,6 +38,10 @@ export interface IShopSettings {
    * (master bazada noyob): /m/<slug>/<stol qrToken>.
    */
   restaurant: RestaurantSettings;
+  /** Ombor: «N kunda muddati tugaydi» ogohlantirishi (ro'yxatdan o'tish ustasi: oziq-ovqat 7, kosmetika 30, dori 90) */
+  stock?: {
+    expiryWarnDays?: number;
+  };
   updatedBy?: string;
   createdAt?: Date;
   updatedAt?: Date;
@@ -77,6 +81,9 @@ export const shopSettingsSchema = new Schema<IShopSettings>(
         color: { type: String, trim: true, maxlength: 7 },
         coverUrl: { type: String, trim: true, maxlength: 500 },
       },
+    },
+    stock: {
+      expiryWarnDays: { type: Number, min: 1, max: 365 },
     },
     updatedBy: { type: String },
   },

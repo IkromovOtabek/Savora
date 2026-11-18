@@ -178,3 +178,38 @@
   .rg-actions { grid-template-columns: minmax(0, 1fr); }
   .rg-actions .rg-btn--ghost { order: 2; }
 }
+
+/* ── Ro'yxatdan o'tish ustasi: biznes turiga qarab savollar (OnboardingQuestions) ── */
+.rg-q-lead { margin-top: -6px; }
+.rg-q-list { display: grid; gap: 8px; }
+.rg-q-item {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 8px 18px;
+  padding: 12px 14px 12px 16px; border-radius: 16px; background: var(--surface); box-shadow: inset 0 0 0 1px var(--sep);
+}
+.rg-q-text { display: grid; gap: 3px; min-width: 0; }
+.rg-q-label { font-size: 14.5px; font-weight: 600; color: var(--ink-1); line-height: 1.35; }
+.rg-q-hint { font-size: 12.5px; color: var(--ink-3); line-height: 1.4; }
+.rg-q-ctl { display: flex; justify-content: flex-end; min-width: 0; }
+.rg-q-select {
+  height: 40px; max-width: 260px; padding: 0 12px; border: 0; border-radius: 12px; background: var(--fill);
+  font: inherit; font-size: 14px; font-weight: 600; color: var(--ink-1); cursor: pointer;
+}
+.rg-q-select:focus-visible { outline: 3px solid var(--brand-ring); outline-offset: 2px; }
+.rg-q-num { display: inline-flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 600; color: var(--ink-2); }
+.rg-q-num input {
+  width: 120px; height: 40px; padding: 0 12px; border: 0; border-radius: 12px; background: var(--fill);
+  font: inherit; font-size: 15px; font-weight: 600; color: var(--ink-1); text-align: right; font-variant-numeric: tabular-nums;
+}
+.rg-q-num input:focus { outline: 0; box-shadow: inset 0 0 0 2px var(--brand), 0 0 0 4px var(--brand-ring); }
+.rg-q-item--stack { grid-template-columns: minmax(0, 1fr); }
+.rg-q-item--stack .rg-q-ctl { justify-content: flex-start; }
+.rg-q-item--stack .seg-sw { width: 100%; }
+/* Uzun variant matni tor ekranda ustma-ust tushmasin — qatorga o'raladi */
+.rg-q-ctl .seg-sw > button { white-space: normal; text-align: center; padding-top: 6px; padding-bottom: 6px; }
+.rg-q-sample { margin-top: 2px; }
+.rg-q-sample b { color: var(--ink-1); font-weight: 600; }
+@media (max-width: 560px) {
+  .rg-q-item { grid-template-columns: minmax(0, 1fr); }
+  .rg-q-ctl { justify-content: flex-start; }
+  .rg-q-select { max-width: 100%; width: 100%; }
+}

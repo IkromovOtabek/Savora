@@ -4,7 +4,7 @@ import ProductForm from '@/components/tenant/ProductForm';
 import { getUsdRate } from '@/lib/currency';
 import { requirePermission, userCan } from '@/lib/permissionGuard';
 import { getDict } from '@/lib/i18n/server';
-import { parseBusinessType, productFieldsFor } from '@/lib/businessTypes';
+import { orgProductFields, parseBusinessType } from '@/lib/businessTypes';
 import { ensureMainBranchId } from '@/lib/mainBranch';
 import { loadBundleCandidates } from '@/lib/productKinds';
 import { loadExtraFieldNames } from '@/lib/productFields';
@@ -28,7 +28,7 @@ export default async function NewProductPage() {
     ? await Supplier.find({}, { name: 1 }).sort({ name: 1 }).limit(500).lean()
     : undefined;
 
-  const productFields = productFieldsFor(org.businessType);
+  const productFields = orgProductFields(org);
   // Katalog: turkumlar (daraxt formada quriladi) va brendlar — mobil /api/mobile/catalog/* bilan bir xil
   // To'plam tarkibi — mahsulot tushadigan ombor tovarlaridan (createProductAction bilan bir xil ombor)
   const targetBranchId = user.role === 'user' && user.branchId ? user.branchId : await ensureMainBranchId(Branch);
