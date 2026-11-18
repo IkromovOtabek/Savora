@@ -69,9 +69,9 @@ export function newClientSaleId(): string {
   return `${Date.now().toString(16)}-${rnd()}-${rnd()}-${rnd()}`;
 }
 
-/** Tarmoq xatosi (server javob bermadi) — oflayn rejimga o'tish belgisi */
+/** Tarmoq xatosi (server javob bermadi: internet yo'q yoki timeout) — oflayn rejimga o'tish belgisi */
 export function isNetworkError(e: unknown): boolean {
-  return e instanceof ApiError && e.status === 0;
+  return e instanceof ApiError && e.kind !== 'http';
 }
 
 async function readJson<T>(key: string, fallback: T): Promise<T> {

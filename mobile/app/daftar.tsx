@@ -9,7 +9,7 @@ import { fmtMoney, fmtCompact, fmtDate, fmtPhoneLocal, startOfToday } from '@/li
 import { useDict, tr } from '@/lib/i18n';
 import {
   Screen, NavBar, LargeTitle, Group, Cell, StatCard, SegmentedControl, Chips, Pill, Button, IconButton,
-  Loading, ErrorState, InlineError, EmptyState, type Tone,
+  Loading, ErrorState, InlineError, CacheStamp, EmptyState, type Tone,
 } from '@/components/ui';
 
 type Kind = 'given' | 'taken';
@@ -115,6 +115,7 @@ export default function Daftar() {
       <LargeTitle title={k.title} subtitle={`${k.subtitle}${data && data.overdue > 0 ? tr(k.overdueCount, { n: data.overdue }) : ''}`} />
       {res.loading && !data ? <Loading /> : !data ? <ErrorState message={res.error} onRetry={res.retry} /> : (
         <>
+          <CacheStamp of={res} />
           {res.error ? <InlineError message={res.error} onRetry={res.refresh} /> : null}
           <View style={{ flexDirection: 'row', gap: 10 }}>
             <StatCard label={k.given} value={fmtCompact(data.givenSum)} color={c.ok} />

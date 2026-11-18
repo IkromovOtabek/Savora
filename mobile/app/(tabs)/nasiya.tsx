@@ -8,7 +8,7 @@ import { fmtMoney, fmtCompact, isOverdue, isToday, digits } from '@/lib/format';
 import { useDict, tr, type Dict } from '@/lib/i18n';
 import {
   Screen, useLayout, TopBar, SearchField, SegmentedControl, Cell, Avatar, AmountColumn, Pill, ProgressBar, Button,
-  listCellStyle, Loading, EmptyState, ErrorState, InlineError, IconButton, type Tone,
+  listCellStyle, Loading, EmptyState, ErrorState, InlineError, CacheStamp, IconButton, type Tone,
 } from '@/components/ui';
 
 interface Sale {
@@ -69,8 +69,12 @@ export default function Nasiya() {
     </TopBar>
   );
 
-  const header = list.error && list.items.length > 0 ? (
-    <View style={{ paddingBottom: 14 }}><InlineError message={list.error} onRetry={list.refresh} /></View>
+  // Kesh vaqti (oflayn/sekin) va yangilash xatosi — ro'yxat tepasida
+  const header = (list.error && list.items.length > 0) || list.fromCache ? (
+    <View style={{ paddingBottom: 14, gap: 8 }}>
+      <CacheStamp of={list} />
+      {list.error && list.items.length > 0 ? <InlineError message={list.error} onRetry={list.refresh} /> : null}
+    </View>
   ) : null;
 
   return (

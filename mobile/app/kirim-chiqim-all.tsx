@@ -7,7 +7,7 @@ import { qtyWithUnit } from '@/lib/qty';
 import { useDict, tr } from '@/lib/i18n';
 import { FlowTotalCard, type FlowTotals } from '@/components/FlowTotalCard';
 import {
-  Screen, useLayout, NavBar, LargeTitle, SegmentedControl, SearchField, Cell, listCellStyle, Loading, ErrorState, InlineError, EmptyState,
+  Screen, useLayout, NavBar, LargeTitle, SegmentedControl, SearchField, Cell, listCellStyle, Loading, ErrorState, InlineError, CacheStamp, EmptyState,
 } from '@/components/ui';
 
 interface FlowLine {
@@ -47,6 +47,7 @@ export default function KirimChiqimAll() {
   const header = (
     <View style={{ gap: 14, paddingBottom: 14 }}>
       <LargeTitle title={k.allDetail} subtitle={k.allDetailSub} />
+      <CacheStamp of={res} />
       {res.error ? <InlineError message={res.error} onRetry={res.refresh} /> : null}
       <FlowTotalCard totals={data.totals} title={k.totalAll} />
       <SegmentedControl

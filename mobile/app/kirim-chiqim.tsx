@@ -9,7 +9,7 @@ import { useTheme } from '@/lib/theme';
 import { fmtMoney, fmtCompact, fmtDate, digits, grouped } from '@/lib/format';
 import { useDict } from '@/lib/i18n';
 import {
-  Screen, NavBar, LargeTitle, Group, Cell, StatCard, SegmentedControl, Field, Button, Loading, ErrorState, InlineError, EmptyState,
+  Screen, NavBar, LargeTitle, Group, Cell, StatCard, SegmentedControl, Field, Button, Loading, ErrorState, InlineError, CacheStamp, EmptyState,
 } from '@/components/ui';
 
 interface Entry { id: string; type: 'income' | 'expense'; amount: number; description: string; recordedBy?: string; createdAt: string }
@@ -56,6 +56,7 @@ export default function KirimChiqim() {
       ) : flow.error ? <InlineError message={flow.error} onRetry={flow.retry} /> : null}
       {res.loading && !data ? <Loading /> : !data ? <ErrorState message={res.error} onRetry={res.retry} /> : (
         <>
+          <CacheStamp of={res} />
           {res.error ? <InlineError message={res.error} onRetry={res.refresh} /> : null}
           <Text style={{ fontSize: 20, fontWeight: '700', color: c.ink, marginTop: 4 }}>{d.kirimChiqim.cashTitle}</Text>
           <View style={{ flexDirection: 'row', gap: 10 }}>

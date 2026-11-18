@@ -1,15 +1,18 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import * as Notifications from 'expo-notifications';
 import { StatusBar } from 'expo-status-bar';
 import * as SplashScreen from 'expo-splash-screen';
-import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { SafeAreaProvider, SafeAreaInsetsContext, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ThemeProvider as NavThemeProvider, DefaultTheme, DarkTheme, type Theme as NavTheme } from '@react-navigation/native';
+import { QueryClientProvider, IsRestoringProvider } from '@tanstack/react-query';
 import { AuthProvider, useAuth } from '@/lib/auth';
 import { ThemeProvider, useTheme } from '@/lib/theme';
 import { I18nProvider } from '@/lib/i18n';
 import { AnimatedSplash } from '@/components/AnimatedSplash';
+import { OfflineBanner, useNetBar, NET_BAR_H } from '@/components/OfflineBanner';
 import { OfflinePosProvider } from '@/lib/offlinePos';
+import { queryClient, startCachePersist, stopCachePersist } from '@/lib/queryClient';
 import { registerForPush, pushUrlOf } from '@/lib/push';
 import {
   useFonts, Onest_400Regular, Onest_500Medium, Onest_600SemiBold, Onest_700Bold, Onest_800ExtraBold,
@@ -59,6 +62,30 @@ function PushGate() {
   return null;
 }
 
+/**
+ * O'qish keshi (TanStack Query) + telefonda saqlash. PersistQueryClientProvider o'rniga o'zimizniki:
+ * u buster'ni faqat birinchi mount'da o'qiydi, bizda esa buster = foydalanuvchi + versiya — kirish/chiqishda
+ * qayta tiklash kerak (butun daraxtni qayta mount qilmasdan). Tiklanayotganda so'rovlar kutadi (IsRestoringProvider).
+ */
+function QueryProvider({ children }: { children: ReactNode }) {
+  const { loading, me } = useAuth();
+  // undefined — sessiya hali aniqlanmagan; null — kirmagan
+  const userId = loading ? undefined : me?.user.id ?? null;
+  const [restoring, setRestoring] = useState(true);
+  useEffect(() => {
+    if (userId === undefined) return;
+    let alive = true;
+    setRestoring(true);
+    void startCachePersist(userId).finally(() => { if (alive) setRestoring(false); });
+    return () => { alive = false; stopCachePersist(); };
+  }, [userId]);
+  return (
+    <QueryClientProvider client={queryClient}>
+      <IsRestoringProvider value={restoring}>{children}</IsRestoringProvider>
+    </QueryClientProvider>
+  );
+}
+
 /** Ochilish animatsiyasi: sessiya tekshiruvi tugamaguncha va animatsiya oxirigacha ustida turadi. */
 function SplashGate() {
   const { loading } = useAuth();
@@ -84,20 +111,29 @@ function Navigation() {
     };
   }, [c, dark]);
 
+  // Tarmoq chizig'i ko'rinsa — ekranlar uchun yuqori safe area chiziq balandligiga ko'payadi (kontent ostida qolmasin)
+  const netBar = useNetBar();
+  const insets = useSafeAreaInsets();
+  const barOn = !!netBar;
+  const screenInsets = useMemo(() => (barOn ? { ...insets, top: insets.top + NET_BAR_H } : insets), [barOn, insets]);
+
   return (
     <NavThemeProvider value={navTheme}>
       <StatusBar style={dark ? 'light' : 'dark'} />
       <AuthGate />
       <PushGate />
-      <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: c.bg } }}>
-        <Stack.Screen name="index" />
-        <Stack.Screen name="login" options={{ animation: 'fade' }} />
-        <Stack.Screen name="(tabs)" options={{ animation: 'fade' }} />
-        <Stack.Screen name="offline-sales" />
-        <Stack.Screen name="scan" options={{ presentation: 'fullScreenModal', contentStyle: { backgroundColor: '#000' } }} />
-        {/* Tur tanlash — shaffof fon ustidagi pastki varaq */}
-        <Stack.Screen name="product-kind" options={{ presentation: 'transparentModal', animation: 'fade', contentStyle: { backgroundColor: 'transparent' } }} />
-      </Stack>
+      <SafeAreaInsetsContext.Provider value={screenInsets}>
+        <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: c.bg } }}>
+          <Stack.Screen name="index" />
+          <Stack.Screen name="login" options={{ animation: 'fade' }} />
+          <Stack.Screen name="(tabs)" options={{ animation: 'fade' }} />
+          <Stack.Screen name="offline-sales" />
+          <Stack.Screen name="scan" options={{ presentation: 'fullScreenModal', contentStyle: { backgroundColor: '#000' } }} />
+          {/* Tur tanlash — shaffof fon ustidagi pastki varaq */}
+          <Stack.Screen name="product-kind" options={{ presentation: 'transparentModal', animation: 'fade', contentStyle: { backgroundColor: 'transparent' } }} />
+        </Stack>
+      </SafeAreaInsetsContext.Provider>
+      {netBar ? <OfflineBanner info={netBar} top={insets.top} /> : null}
       <SplashGate />
     </NavThemeProvider>
   );
@@ -116,9 +152,11 @@ export default function RootLayout() {
       <I18nProvider>
         <ThemeProvider>
           <AuthProvider>
-            <OfflinePosProvider>
-              <Navigation />
-            </OfflinePosProvider>
+            <QueryProvider>
+              <OfflinePosProvider>
+                <Navigation />
+              </OfflinePosProvider>
+            </QueryProvider>
           </AuthProvider>
         </ThemeProvider>
       </I18nProvider>

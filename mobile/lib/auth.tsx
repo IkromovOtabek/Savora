@@ -2,6 +2,7 @@ import React, { createContext, useContext, useEffect, useState, useCallback } fr
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { api, setToken, clearToken, getToken, setUnauthorizedHandler, ApiError, errMsg } from './api';
 import { unregisterPush } from './push';
+import { clearQueryCache } from './queryClient';
 
 /** Oxirgi muvaffaqiyatli profil — internetsiz ochilganda ilova (oflayn sotuv) ishlashi uchun */
 const ME_CACHE_KEY = 'savora_me_cache';
@@ -80,15 +81,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const token = await getToken();
     if (!token) { setMe(null); setError(null); setFromCache(false); return; }
     try {
-      const data = await api<MeResponse>('/api/mobile/me');
+      // force: oflayn holatda ham tekshiramiz (kirishdan keyin, internet qaytganda) — profil muhim
+      const data = await api<MeResponse>('/api/mobile/me', { force: true });
       setMe(data); setError(null); setFromCache(false);
       void cacheMe(data);
     } catch (e) {
       if (e instanceof ApiError && (e.status === 401 || e.status === 404)) {
         await clearToken();
         void cacheMe(null);
+        void clearQueryCache();
         setMe(null); setError(null); setFromCache(false);
-      } else if (e instanceof ApiError && e.status === 0) {
+      } else if (e instanceof ApiError && e.kind !== 'http') {
         // Internet yo'q — oxirgi profil bilan ishlaymiz (oflayn sotuv mumkin bo'lsin)
         const cached = await cachedMe();
         if (cached) { setMe((cur) => cur ?? cached); setFromCache(true); setError(null); }
@@ -101,7 +104,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
-    setUnauthorizedHandler(() => { setMe(null); setError(null); void cacheMe(null); });
+    setUnauthorizedHandler(() => { setMe(null); setError(null); void cacheMe(null); void clearQueryCache(); });
     (async () => { await refresh(); setLoading(false); })();
     return () => setUnauthorizedHandler(null);
   }, [refresh]);
@@ -126,6 +129,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await unregisterPush();
     await clearToken();
     void cacheMe(null);
+    // O'qish keshi (sotuvlar, qarzdorlar…) telefonda qolmasin; oflayn POS navbati foydalanuvchi kalitida alohida
+    await clearQueryCache();
     setMe(null); setError(null); setFromCache(false);
   }, []);
 

@@ -3,7 +3,8 @@ import { View, ActivityIndicator, StyleSheet } from 'react-native';
 import { Text } from './Text';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@/lib/theme';
-import { useDict } from '@/lib/i18n';
+import { useDict, tr } from '@/lib/i18n';
+import { fmtDateTime, isToday } from '@/lib/format';
 import { Button, type IconName } from './Button';
 
 export function Loading({ full }: { full?: boolean }) {
@@ -55,7 +56,30 @@ export function InlineError({ message, onRetry }: { message: string; onRetry?: (
   );
 }
 
+/**
+ * Kesh vaqti: «Yangilangan: 14:32» (bugun bo'lmasa — sana bilan). Faqat ma'lumot eskirgan bo'lishi mumkin bo'lganda
+ * ko'rinadi (oflayn/sekin yoki yangilash o'tmadi) — `of` = usePaged/useResource natijasi.
+ */
+export function CacheStamp({ of }: { of: { updatedAt: number | null; fromCache: boolean; fetching?: boolean } }) {
+  const { c } = useTheme();
+  const d = useDict();
+  if (!of.fromCache || of.updatedAt === null) return null;
+  const at = new Date(of.updatedAt);
+  const time = isToday(at) ? `${String(at.getHours()).padStart(2, '0')}:${String(at.getMinutes()).padStart(2, '0')}` : fmtDateTime(at);
+  return (
+    <View style={s.stamp} accessibilityRole="text">
+      {of.fetching ? <ActivityIndicator size="small" color={c.ink3} style={s.stampSpin} /> : <Ionicons name="time-outline" size={14} color={c.ink3} />}
+      <Text style={[s.stampT, { color: c.ink3 }]} numberOfLines={1}>
+        {tr(d.net.updated, { time })}{of.fetching ? ` · ${d.net.updating}` : ''}
+      </Text>
+    </View>
+  );
+}
+
 const s = StyleSheet.create({
+  stamp: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 4, minHeight: 18 },
+  stampSpin: { transform: [{ scale: 0.7 }], width: 14, height: 14 },
+  stampT: { fontSize: 13, fontWeight: '500' },
   loading: { paddingVertical: 40, alignItems: 'center', justifyContent: 'center' },
   wrap: { alignItems: 'center', paddingVertical: 36, paddingHorizontal: 24, gap: 6 },
   iconCircle: { width: 80, height: 80, borderRadius: 40, alignItems: 'center', justifyContent: 'center', marginBottom: 8 },

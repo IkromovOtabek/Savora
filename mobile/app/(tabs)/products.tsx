@@ -9,7 +9,7 @@ import { isSellable, saleHref } from '@/lib/pick';
 import { useDict, tr } from '@/lib/i18n';
 import {
   Screen, useLayout, TopBar, SearchField, Cell, AmountColumn, Pill, IconButton, listCellStyle,
-  Loading, EmptyState, ErrorState, InlineError,
+  Loading, EmptyState, ErrorState, InlineError, CacheStamp,
 } from '@/components/ui';
 
 interface Product {
@@ -58,8 +58,12 @@ export default function Products() {
     </TopBar>
   );
 
-  const header = list.error && list.items.length > 0 ? (
-    <View style={{ paddingBottom: 14 }}><InlineError message={list.error} onRetry={list.refresh} /></View>
+  // Kesh vaqti (oflayn/sekin) va yangilash xatosi — ro'yxat tepasida
+  const header = (list.error && list.items.length > 0) || list.fromCache ? (
+    <View style={{ paddingBottom: 14, gap: 8 }}>
+      <CacheStamp of={list} />
+      {list.error && list.items.length > 0 ? <InlineError message={list.error} onRetry={list.refresh} /> : null}
+    </View>
   ) : null;
 
   return (

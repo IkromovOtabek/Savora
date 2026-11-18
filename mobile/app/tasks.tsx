@@ -6,7 +6,7 @@ import { useTheme } from '@/lib/theme';
 import { fmtDate } from '@/lib/format';
 import { useDict, tr } from '@/lib/i18n';
 import {
-  Screen, NavBar, LargeTitle, Group, Cell, SegmentedControl, Chips, Pill, Button, Loading, ErrorState, InlineError, EmptyState,
+  Screen, NavBar, LargeTitle, Group, Cell, SegmentedControl, Chips, Pill, Button, Loading, ErrorState, InlineError, CacheStamp, EmptyState,
   type Tone,
 } from '@/components/ui';
 
@@ -85,6 +85,7 @@ export default function Tasks() {
 
       {res.loading && !data ? <Loading /> : !data ? <ErrorState message={res.error} onRetry={res.retry} /> : (
         <>
+          <CacheStamp of={res} />
           {res.error ? <InlineError message={res.error} onRetry={res.refresh} /> : null}
           {list.length === 0 ? (
             <EmptyState icon="checkmark-done-outline" title={d.tasks.empty} message={status === 'done' ? d.tasks.emptyDone : d.tasks.emptyOther} />

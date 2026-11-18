@@ -1,19 +1,18 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { View, StyleSheet } from 'react-native';
 import Svg, { Defs, LinearGradient, Stop, Rect } from 'react-native-svg';
 import { Text } from '@/components/ui/Text';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useAuth, useCan } from '@/lib/auth';
-import { api, errMsg } from '@/lib/api';
+import { useResource } from '@/lib/hooks';
 import { useTheme, tabular } from '@/lib/theme';
 import { fmtMoney, fmtCompact, fmtDayMonth, greeting, isOverdue, isToday, payLabel } from '@/lib/format';
 import { useDict, tr } from '@/lib/i18n';
 import {
   Screen, TopBar, IconButton, Group, GroupLink, Cell, Avatar, AmountColumn, Pill, StatCard, TileGrid, BrandMark, EmptyState, ErrorState, InlineError, Loading,
-  SegmentedControl,
+  SegmentedControl, CacheStamp,
   type TileItem,
 } from '@/components/ui';
-import { OfflineBanner } from '@/components/OfflineBanner';
 
 interface Summary {
   inStock: number; todaySales: number; todayRevenue: number; debtTotal: number;
@@ -40,37 +39,32 @@ export default function Home() {
   // Sotuvlar ro'yxati (GET /sales) — faqat sales.view; aks holda 403, shuning uchun so'ralmaydi ham
   const canSales = can('sales.view');
 
-  const [sum, setSum] = useState<Summary | null>(null);
-  const [debts, setDebts] = useState<Sale[]>([]);
-  const [recent, setRecent] = useState<Sale[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [heroSize, setHeroSize] = useState({ w: 0, h: 0 });
   const [period, setPeriod] = useState<Period>('today');
-  const gen = useRef(0);
 
-  const load = useCallback(async () => {
-    const id = ++gen.current;
-    const none = Promise.resolve({ items: [] as Sale[] });
-    const [s, d, r] = await Promise.allSettled([
-      api<Summary>(`/api/mobile/summary?p=${period}`),
-      canSales ? api<{ items: Sale[] }>('/api/mobile/sales?type=debt') : none,
-      canSales ? api<{ items: Sale[] }>('/api/mobile/sales?type=all') : none,
-    ]);
-    if (id !== gen.current) return;
-    if (s.status === 'fulfilled') setSum(s.value);
-    if (d.status === 'fulfilled') setDebts(d.value.items);
-    if (r.status === 'fulfilled') setRecent(r.value.items.slice(0, 4));
-    const failed = [s, d, r].find((x) => x.status === 'rejected') as PromiseRejectedResult | undefined;
-    setError(failed ? errMsg(failed.reason) : null);
-    setLoading(false); setRefreshing(false);
-  }, [canSales, period]);
+  // Keshdan darhol (oflayn/sekin internetda ham), fonda yangilanadi; davr almashsa — yangisi kelguncha eskisi turadi
+  const sumQ = useResource<Summary>(`/api/mobile/summary?p=${period}`);
+  const debtsQ = useResource<{ items: Sale[] }>(canSales ? '/api/mobile/sales?type=debt' : null);
+  const recentQ = useResource<{ items: Sale[] }>(canSales ? '/api/mobile/sales?type=all' : null);
+  const sum = sumQ.data;
+  const debts = debtsQ.data?.items ?? [];
+  const recent = (recentQ.data?.items ?? []).slice(0, 4);
+  // Keshda hech narsa yo'q (birinchi ochilish) — hammasi kelguncha spinner
+  const loading = (!sum && sumQ.loading) || (canSales && ((!debtsQ.data && debtsQ.loading) || (!recentQ.data && recentQ.loading)));
+  const error = sumQ.error ?? debtsQ.error ?? recentQ.error;
+  const refreshing = sumQ.refreshing || debtsQ.refreshing || recentQ.refreshing;
+  const refresh = () => { void sumQ.refresh(); if (canSales) { void debtsQ.refresh(); void recentQ.refresh(); } };
+  const retry = () => { sumQ.retry(); if (canSales) { debtsQ.retry(); recentQ.retry(); } };
 
-  useEffect(() => { load(); }, [load]);
-  // Boshqa ekrandan qaytganda — jimgina yangilash
+  // Boshqa ekrandan qaytganda — jimgina yangilash (funksiyalar barqaror)
   const first = useRef(true);
-  useFocusEffect(useCallback(() => { if (first.current) { first.current = false; return; } load(); }, [load]));
+  const { reloadSilently: reloadSum } = sumQ;
+  const { reloadSilently: reloadDebts } = debtsQ;
+  const { reloadSilently: reloadRecent } = recentQ;
+  useFocusEffect(useCallback(() => {
+    if (first.current) { first.current = false; return; }
+    reloadSum(); reloadDebts(); reloadRecent();
+  }, [reloadSum, reloadDebts, reloadRecent]));
 
   const today = debts.filter((x) => x.remainingAmount > 0 && isToday(x.dueDate));
   const late = debts.filter((x) => x.remainingAmount > 0 && isOverdue(x.dueDate));
@@ -92,7 +86,8 @@ export default function Home() {
     ...(f.tables && can('order.create') ? [{ key: 'tables', label: d.restaurant.title, icon: 'restaurant' as const, color: c.sq.p, onPress: () => router.push('/tables') }] : []),
     // Sex: usta/ishchi — ishbay (asosiy ish joyi); omborchi — kirim aktlari (faqat ko'rish; server ruxsati bilan bir xil)
     ...(f.piecework && can('piecework.log') ? [{ key: 'piecework', label: d.production.piecework.tile, icon: 'hammer' as const, color: c.sq.p, onPress: () => router.push('/piecework') }] : []),
-    ...(f.purchasing && (can('receipt.create') || can('po.manage') || can('suppliers.view'))
+    // Server: lib/production/receipts.ts → RECEIPT_READ_PERMS (production.view ham — sex xodimi xom ashyo kelganini ko'radi)
+    ...(f.purchasing && (can('receipt.create') || can('po.manage') || can('suppliers.view') || can('production.view'))
       ? [{ key: 'receipts', label: d.production.receipts.tile, icon: 'archive' as const, color: c.sq.t, onPress: () => router.push('/receipts') }] : []),
     ...(can('sale.create') ? [{ key: 'sale', label: d.tabs.newSale, icon: 'add-circle' as const, color: c.sq.b, onPress: () => router.push('/sale-new') }] : []),
     ...(canSales ? [
@@ -118,12 +113,12 @@ export default function Home() {
   const salesN = sum?.periodSales ?? sum?.todaySales ?? 0;
 
   if (loading) return <Screen bar={bar}><Loading /></Screen>;
-  if (!sum && error) return <Screen bar={bar} onRefresh={() => { setRefreshing(true); load(); }} refreshing={refreshing}><OfflineBanner /><ErrorState message={error} onRetry={() => { setLoading(true); load(); }} /></Screen>;
+  if (!sum && error) return <Screen bar={bar} onRefresh={refresh} refreshing={refreshing}><ErrorState message={error} onRetry={retry} /></Screen>;
 
   return (
-    <Screen bar={bar} refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} gap={14}>
-      <OfflineBanner />
-      {error ? <InlineError message={error} onRetry={load} /> : null}
+    <Screen bar={bar} refreshing={refreshing} onRefresh={refresh} gap={14}>
+      <CacheStamp of={sumQ} />
+      {error ? <InlineError message={error} onRetry={refresh} /> : null}
 
       {me && !me.org.active ? (
         <Group>

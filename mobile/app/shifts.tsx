@@ -6,7 +6,7 @@ import { useTheme } from '@/lib/theme';
 import { fmtMoney, fmtDateTime, digits, grouped } from '@/lib/format';
 import { useDict, tr } from '@/lib/i18n';
 import {
-  Screen, NavBar, LargeTitle, Group, Cell, Field, Button, Loading, ErrorState, InlineError, EmptyState,
+  Screen, NavBar, LargeTitle, Group, Cell, Field, Button, Loading, ErrorState, InlineError, CacheStamp, EmptyState,
 } from '@/components/ui';
 
 interface OpenShift {
@@ -77,6 +77,7 @@ export default function Shifts() {
       <LargeTitle title={k.title} />
       {res.loading && !data ? <Loading /> : !data ? <ErrorState message={res.error} onRetry={res.retry} /> : (
         <>
+          <CacheStamp of={res} />
           {res.error ? <InlineError message={res.error} onRetry={res.refresh} /> : null}
 
           {data.open.length === 0 ? <EmptyState icon="time-outline" title={k.none} message={k.noneHint} /> : null}

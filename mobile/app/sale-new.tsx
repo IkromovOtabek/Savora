@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { View, Alert, ActivityIndicator, StyleSheet } from 'react-native';
 import { Text } from '@/components/ui/Text';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
-import { api, errMsg } from '@/lib/api';
+import { api, ApiError, errMsg } from '@/lib/api';
 import { useAuth, useCan } from '@/lib/auth';
 import { useDebounced, usePaged } from '@/lib/hooks';
 import { takePicked, type PickedProduct } from '@/lib/pick';
@@ -68,9 +68,10 @@ export default function SaleNew() {
 
   // Oflayn: server ro'yxati tarmoq xatosi bilan tugasa — qurilmadagi katalogdan qidiramiz
   const pos = useOfflinePos();
-  // usePaged xatoni matn qilib beradi — tarmoq xatosi api.ts dagi aynan shu matnlar
-  const listNetErr = !!list.error && (list.error === d.api.offline || list.error === d.api.timeout);
-  const listOffline = listNetErr && list.items.length === 0 && !!pos.catalog;
+  // Xato turi bo'yicha (matn bilan emas — til almashsa ham ishlaydi). Javob kelmasa — telefondagi katalog ustun:
+  // u navbatdagi sotuvlarni qoldiqdan ayirgan, keshdagi server ro'yxati esa eskirgan bo'lishi mumkin
+  const listNetErr = list.errorKind === 'network' || list.errorKind === 'timeout';
+  const listOffline = listNetErr && !!pos.catalog;
   const offlineItems = useMemo(
     () => (listOffline ? searchCatalog(pos.catalog, dq).map(toPicked) : []),
     [listOffline, pos.catalog, dq],
@@ -160,9 +161,11 @@ export default function SaleNew() {
       }
       // Internet yo'q: naqd sotuv telefonda saqlanadi va keyin yuboriladi; qarz/nasiya — yo'q
       pos.markOffline();
-      // Oflayn faqat naqd: karta/o'tkazma to'lovini tasdiqlab bo'lmaydi
+      // Oflayn faqat naqd: karta/o'tkazma to'lovini tasdiqlab bo'lmaydi.
+      // Timeout — natija noma'lum (server yozgan bo'lishi mumkin); qayta bosish xavfsiz: kalit o'sha (saleKey)
       if (pay !== 'cash' || method !== 'cash') {
-        Alert.alert(d.offline.bannerTitle, d.offline.cashOnly);
+        if (e instanceof ApiError && e.kind === 'timeout') Alert.alert(d.saleNew.failTitle, errMsg(e));
+        else Alert.alert(d.offline.bannerTitle, d.offline.cashOnly);
         return;
       }
       try {

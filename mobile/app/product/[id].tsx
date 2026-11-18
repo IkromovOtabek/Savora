@@ -9,7 +9,7 @@ import { useDict, tr } from '@/lib/i18n';
 import { fmtQty, qtyWithUnit } from '@/lib/qty';
 import { saleHref } from '@/lib/pick';
 import {
-  Screen, NavBar, LargeTitle, Group, Cell, Pill, Button, Loading, ErrorState, InlineError, type Tone,
+  Screen, NavBar, LargeTitle, Group, Cell, Pill, Button, Loading, ErrorState, InlineError, CacheStamp, type Tone,
 } from '@/components/ui';
 
 interface Detail {
@@ -76,6 +76,7 @@ export default function ProductDetail() {
         {p.kind === 'bundle' ? <Pill label={tr(d.common.pcs, { n: fmtQty(p.available) })} tone={p.available > 0 ? 'ok' : 'bad'} /> : null}
       </View>
 
+      <CacheStamp of={res} />
       {res.error ? <InlineError message={res.error} onRetry={res.refresh} /> : null}
 
       <Group header={d.productDetail.price}>

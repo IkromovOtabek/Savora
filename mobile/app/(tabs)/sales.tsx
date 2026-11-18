@@ -7,7 +7,7 @@ import { fmtMoney, payLabel, fmtDate } from '@/lib/format';
 import { useDict, tr } from '@/lib/i18n';
 import {
   Screen, useLayout, TopBar, SegmentedControl, Cell, AmountColumn, Pill, listCellStyle,
-  Loading, EmptyState, ErrorState, InlineError, type Tone,
+  Loading, EmptyState, ErrorState, InlineError, CacheStamp, type Tone,
 } from '@/components/ui';
 
 interface Sale {
@@ -40,8 +40,12 @@ export default function Sales() {
     </TopBar>
   );
 
-  const header = list.error && list.items.length > 0 ? (
-    <View style={{ paddingBottom: 14 }}><InlineError message={list.error} onRetry={list.refresh} /></View>
+  // Kesh vaqti (oflayn/sekin) va yangilash xatosi — ro'yxat tepasida
+  const header = (list.error && list.items.length > 0) || list.fromCache ? (
+    <View style={{ paddingBottom: 14, gap: 8 }}>
+      <CacheStamp of={list} />
+      {list.error && list.items.length > 0 ? <InlineError message={list.error} onRetry={list.refresh} /> : null}
+    </View>
   ) : null;
 
   return (

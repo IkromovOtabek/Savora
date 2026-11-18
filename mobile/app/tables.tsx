@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { Text } from '@/components/ui/Text';
 import { errMsg } from '@/lib/api';
+import { useCachedState } from '@/lib/hooks';
 import { useTheme, tabular, MAX_CONTENT, type Palette } from '@/lib/theme';
 import { fmtCompact, fmtMoney } from '@/lib/format';
 import { useDict, tr } from '@/lib/i18n';
@@ -13,7 +14,7 @@ import {
 } from '@/lib/restaurant';
 import {
   Screen, NavBar, LargeTitle, SegmentedControl, Chips, Group, Cell, Button, Pill, Stepper, Sheet, Loading, ErrorState,
-  InlineError, EmptyState, useLayout,
+  InlineError, CacheStamp, EmptyState, useLayout,
 } from '@/components/ui';
 
 type Filter = 'all' | 'mine' | 'free';
@@ -41,7 +42,8 @@ export default function Tables() {
   const L = useLayout();
 
   const [branchId, setBranchId] = useState<string | null>(null);
-  const [board, setBoard] = useState<TablesBoard | null>(null);
+  // Oxirgi holat telefonda saqlanadi: qayta ochilganda / internet yo'q paytda stollar darhol ko'rinadi (polling o'zgarmagan)
+  const [board, setBoard, boardAt] = useCachedState<TablesBoard>(['restaurant', 'tables', branchId ?? '']);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -243,6 +245,7 @@ export default function Tables() {
   return (
     <Screen header={header} refreshing={refreshing} onRefresh={() => load('refresh')} gap={14}>
       {title}
+      <CacheStamp of={{ updatedAt: boardAt, fromCache: !!error }} />
       {error ? <InlineError message={error} onRetry={() => load('silent')} /> : null}
 
       {board.branches.length > 1 ? (

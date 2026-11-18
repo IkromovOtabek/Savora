@@ -10,7 +10,7 @@ import { useTheme, tabular, MONO } from '@/lib/theme';
 import { fmtMoney, fmtDate, fmtDayMonth, payLabel, payMethodLabel, digits, grouped, PAY_METHODS, type PayMethod } from '@/lib/format';
 import { useDict, tr } from '@/lib/i18n';
 import {
-  Screen, NavBar, LargeTitle, Group, Cell, Pill, Ring, Button, Field, Chips, Loading, ErrorState, InlineError, useLayout, type Tone, type IconName,
+  Screen, NavBar, LargeTitle, Group, Cell, Pill, Ring, Button, Field, Chips, Loading, ErrorState, InlineError, CacheStamp, useLayout, type Tone, type IconName,
 } from '@/components/ui';
 
 /** left — shu oydan qolgan qism (eski server bermasa amount − paidAmount) */
@@ -79,6 +79,7 @@ export default function SaleDetail() {
         subtitle={metaLine}
       />
 
+      <CacheStamp of={res} />
       {res.error ? <InlineError message={res.error} onRetry={res.refresh} /> : null}
 
       <Group>

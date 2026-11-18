@@ -2,6 +2,7 @@ import React, { createContext, useCallback, useContext, useEffect, useRef, useSt
 import { AppState } from 'react-native';
 import { useAuth, canWith } from './auth';
 import { errMsg } from './api';
+import { getNetState, useNetState } from './net';
 import {
   loadCatalog, refreshCatalog, loadQueue, enqueueSale, syncQueue, dismissQueued, isNetworkError,
   type Catalog, type QueuedSale, type NewQueuedSale, type SyncReport,
@@ -10,8 +11,9 @@ import {
 /**
  * Oflayn POS holati butun ilova uchun: katalog, navbat, sinxron.
  *  - Kirgandan keyin va ilova oldinga chiqqanda: navbat yuboriladi, katalog yangilanadi.
- *  - Navbatda yuborilmagan sotuv bo'lsa — har 60 s qayta urinadi.
- * Native paket (NetInfo) ishlatilmaydi: "oflayn" — so'rov tarmoq xatosi bilan tugaganini bildiradi.
+ *  - Navbatda yuborilmagan sotuv bo'lsa — har 60 s qayta urinadi (oflayn holatda kutadi: tekshiruvni ping qiladi).
+ *  - Internet qaytishi bilan (net.ts: offline/slow → online) — darhol yuboriladi, 60 s kutmasdan.
+ * Native paket (NetInfo) ishlatilmaydi: "oflayn" — so'rov tarmoq xatosi bilan tugagani yoki net.ts holati.
  */
 interface OfflinePosState {
   catalog: Catalog | null;
@@ -116,15 +118,26 @@ export function OfflinePosProvider({ children }: { children: React.ReactNode }) 
   const pendingCount = queue.filter((s) => s.status === 'pending').length;
   const problemCount = queue.length - pendingCount;
 
-  // Yuborilmagan sotuv bor ekan — davriy qayta urinish
+  // Yuborilmagan sotuv bor ekan — davriy qayta urinish (oflaynda bekor so'rov yubormaymiz: qaytishni ping aniqlaydi)
   useEffect(() => {
     if (pendingCount === 0) return;
-    const t = setInterval(() => { void syncNow(); }, RETRY_MS);
+    const t = setInterval(() => { if (getNetState() !== 'offline') void syncNow(); }, RETRY_MS);
     return () => clearInterval(t);
   }, [pendingCount, syncNow]);
 
+  // Internet qaytdi (oflayn/sekin → onlayn) — navbat darhol yuboriladi
+  const net = useNetState();
+  const prevNet = useRef(net);
+  useEffect(() => {
+    const was = prevNet.current;
+    prevNet.current = net;
+    if (net !== 'online' || was === 'online') return;
+    setOffline(false);
+    if (pendingCount > 0) void syncNow();
+  }, [net, pendingCount, syncNow]);
+
   return (
-    <Ctx.Provider value={{ catalog, queue, pendingCount, problemCount, syncing, offline, lastError, lastReport, enqueue, syncNow, refresh, dismiss, markOffline }}>
+    <Ctx.Provider value={{ catalog, queue, pendingCount, problemCount, syncing, offline: offline || net === 'offline', lastError, lastReport, enqueue, syncNow, refresh, dismiss, markOffline }}>
       {children}
     </Ctx.Provider>
   );
