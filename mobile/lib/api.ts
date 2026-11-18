@@ -62,6 +62,11 @@ interface ApiOptions {
   timeoutMs?: number;
   /** Oflayn holatda ham tarmoqqa chiqadi (profil, foydalanuvchi o'zi tortib yangilaganda) */
   force?: boolean;
+  /**
+   * Boshqa token (Savora Market xaridori). Kalit berilsa (null ham) — biznes tokeni o'rniga shu yuboriladi
+   * (null — tokensiz) va 401 da biznes sessiyasi yopilmaydi.
+   */
+  token?: string | null;
 }
 
 export async function api<T = unknown>(path: string, opts: ApiOptions = {}): Promise<T> {
@@ -76,8 +81,11 @@ export async function api<T = unknown>(path: string, opts: ApiOptions = {}): Pro
 
   // Accept-Language — server xato matnlarini ilova tilida qaytaradi (restoran API: lib/restaurant/session.ts mobileLocale)
   const headers: Record<string, string> = { 'Content-Type': 'application/json', Accept: 'application/json', 'Accept-Language': getLocale() };
-  const useAuth = opts.auth !== false;
-  if (useAuth) {
+  const ownToken = 'token' in opts;
+  const useAuth = !ownToken && opts.auth !== false;
+  if (ownToken) {
+    if (opts.token) headers.Authorization = `Bearer ${opts.token}`;
+  } else if (useAuth) {
     const token = await getToken();
     if (token) headers.Authorization = `Bearer ${token}`;
   }

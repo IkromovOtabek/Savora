@@ -7,6 +7,7 @@ import type { IconName } from '@/components/ui';
 import { fontFor } from '@/components/ui/Text';
 import { Loading, ErrorState } from '@/components/ui';
 import { useDict } from '@/lib/i18n';
+import { useMarketDict } from '@/lib/marketI18n';
 
 /** Faol tab — ikonka orqasida yumshoq urg'u "pill"i. */
 function TabIcon({ name, active, color, bg }: { name: IconName; active: boolean; color: string; bg: string }) {
@@ -21,11 +22,12 @@ export default function TabsLayout() {
   const { loading, me, error, refresh } = useAuth();
   const { c, dark } = useTheme();
   const d = useDict();
+  const md = useMarketDict();
   const router = useRouter();
 
   if (loading) return <Loading full />;
   if (!me && error) return <ErrorState full message={error} onRetry={refresh} />;
-  if (!me) return <Redirect href="/login" />;
+  if (!me) return <Redirect href="/market" />;
 
   const f = me.features ?? {};
   const nasiyaOn = !!(f.variant || f.nasiya);
@@ -79,6 +81,8 @@ export default function TabsLayout() {
       <Tabs.Screen name="nasiya" options={{ title: d.tabs.nasiya, href: nasiyaOn && canSales ? undefined : null, tabBarIcon: ({ color, focused }) => <TabIcon name={focused ? 'time' : 'time-outline'} active={focused} color={color} bg={c.tintSoft} /> }} />
       {/* Nasiya yoqilmagan bo'lsa — uning o'rnida Sotuvlar */}
       <Tabs.Screen name="sales" options={{ title: d.tabs.sales, href: !nasiyaOn && canSales ? undefined : null, tabBarIcon: ({ color, focused }) => <TabIcon name={focused ? 'cart' : 'cart-outline'} active={focused} color={color} bg={c.tintSoft} /> }} />
+      {/* Savora Market — biznes foydalanuvchisi ham xaridor sifatida ko'radi («market» emas: /market — ochiq bozor ekrani) */}
+      <Tabs.Screen name="bozor" options={{ title: md.tab, tabBarIcon: ({ color, focused }) => <TabIcon name={focused ? 'storefront' : 'storefront-outline'} active={focused} color={color} bg={c.tintSoft} /> }} />
       <Tabs.Screen name="profile" options={{ title: d.tabs.profile, tabBarIcon: ({ color, focused }) => <TabIcon name={focused ? 'person-circle' : 'person-circle-outline'} active={focused} color={color} bg={c.tintSoft} /> }} />
     </Tabs>
   );

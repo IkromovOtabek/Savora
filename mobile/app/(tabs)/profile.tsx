@@ -11,6 +11,7 @@ import { useI18n, tr, type Locale, LOCALES, LOCALE_SHORT } from '@/lib/i18n';
 import { Screen, TopBar, Group, Cell, Avatar, Pill, SegmentedControl, Switch, Card, type Tone } from '@/components/ui';
 import { api, errMsg } from '@/lib/api';
 import { getPushStatus, registerForPush, type PushStatus } from '@/lib/push';
+import { useMarketDict } from '@/lib/marketI18n';
 
 interface AiResp {
   report: null | {
@@ -177,6 +178,7 @@ export default function Profile() {
   const { me, logout } = useAuth();
   const { c, mode, setMode } = useTheme();
   const { d, locale, setLocale } = useI18n();
+  const md = useMarketDict();
   const router = useRouter();
   const t = me?.terms;
   const f = me?.features ?? {};
@@ -253,6 +255,14 @@ export default function Profile() {
         {can('sales.view') ? <Cell icon="receipt" iconColor={c.sq.b} title={d.profile.sales} chevron onPress={() => router.push('/(tabs)/sales')} /> : null}
         {f.kassa && can('kassa.view') ? <Cell icon="time" iconColor={c.sq.o} title={d.profile.shifts} chevron onPress={() => router.push('/shifts')} /> : null}
       </Group>
+      ) : null}
+
+      {/* Savora Market (e-commerce) — faqat do'kon egasi */}
+      {isAdmin ? (
+        <Group header={md.profile.group} icon="globe-outline">
+          <Cell icon="storefront" iconColor={c.sq.t} title={md.profile.shop} chevron onPress={() => router.push('/ecom')} />
+          <Cell icon="bag-check" iconColor={c.sq.p} title={md.profile.orders} chevron onPress={() => router.push('/ecom-orders')} />
+        </Group>
       ) : null}
 
       {(f.kirimChiqim && isAdmin && can('kirimChiqim.manage')) || (f.daftar && can('daftar.manage')) ? (

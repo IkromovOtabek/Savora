@@ -1,0 +1,135 @@
+/**
+ * Savora Market savati — SOF hisob (React / React Native importsiz, `node --test` bilan tekshiriladi).
+ * Holat va saqlash — `marketCart.tsx`. Qoidalar web (web/components/market/cart.tsx) bilan bir xil:
+ * miqdor qoldiqdan oshmaydi, kasr birlik (kg, m…) — 0,1 qadam, qolgani butun son ≥ 1.
+ * Buyurtmada server baribir jonli tekshiradi (narx, qoldiq).
+ */
+
+/** Katalog kartochkasining savatga kerakli qismi (lib/market.ts ListingCard) */
+export interface CartCard {
+  id: string;
+  name: string;
+  price: number;
+  priceFrom: boolean;
+  image?: string;
+  shopName: string;
+  shopSlug: string;
+  /** Mavjud qoldiq */
+  qty: number;
+  unit?: string;
+  fractional: boolean;
+}
+
+export interface CartItem {
+  id: string;
+  qty: number;
+  price: number;
+  priceFrom: boolean;
+  name: string;
+  image?: string;
+  shopName: string;
+  shopSlug: string;
+  unit?: string;
+  fractional: boolean;
+  /** Mavjud qoldiq (savat ochilganda serverdan yangilanadi); 0 — sotuvda yo'q */
+  max: number;
+}
+
+export const MAX_LINES = 50;
+
+const round3 = (n: number) => Math.round(n * 1000) / 1000;
+
+/** Stepper qadami: kasr birlikda 0,1, aks holda 1 */
+export const qtyStepOf = (fractional: boolean) => (fractional ? 0.1 : 1);
+/** Eng kichik miqdor (shundan kam — qator o'chadi) */
+export const qtyMinOf = (fractional: boolean) => (fractional ? 0.1 : 1);
+
+/** Miqdorni birlik va qoldiqqa moslash: kasr — 3 xonagacha, butun — pastga; max 0 bo'lsa cheklanmaydi */
+export function clampQty(qty: number, max: number, fractional: boolean): number {
+  if (!Number.isFinite(qty)) return 0;
+  const q = fractional ? round3(qty) : Math.floor(qty);
+  return Math.max(0, Math.min(q, max > 0 ? max : q));
+}
+
+export function lineFromCard(c: CartCard, qty: number): CartItem {
+  return {
+    id: c.id, qty, price: c.price, priceFrom: c.priceFrom, name: c.name, image: c.image, shopName: c.shopName,
+    shopSlug: c.shopSlug, unit: c.unit, fractional: c.fractional, max: c.qty,
+  };
+}
+
+/** Savatga qo'shish (bor bo'lsa — miqdor qo'shiladi, kartochka ma'lumoti yangilanadi) */
+export function addLine(items: CartItem[], card: CartCard, qty: number): CartItem[] {
+  // Qoldig'i yo'q tovar qo'shilmaydi (clampQty uchun max 0 — «cheklanmagan»)
+  if (!(card.qty > 0)) return items;
+  const cur = items.find((x) => x.id === card.id);
+  if (cur) {
+    const q = clampQty(cur.qty + qty, card.qty, card.fractional);
+    return q > 0 ? items.map((x) => (x.id === card.id ? lineFromCard(card, q) : x)) : items.filter((x) => x.id !== card.id);
+  }
+  if (items.length >= MAX_LINES) return items;
+  const q = clampQty(qty, card.qty, card.fractional);
+  return q > 0 ? [...items, lineFromCard(card, q)] : items;
+}
+
+/** Miqdorni o'rnatish; 0 yoki kam bo'lsa — qator o'chadi */
+export function setLineQty(items: CartItem[], id: string, qty: number): CartItem[] {
+  return items.flatMap((x) => {
+    if (x.id !== id) return [x];
+    const q = clampQty(qty, x.max, x.fractional);
+    return q > 0 ? [{ ...x, qty: q }] : [];
+  });
+}
+
+export function removeLine(items: CartItem[], id: string): CartItem[] {
+  return items.filter((x) => x.id !== id);
+}
+
+/**
+ * Server javobi (POST /api/market/cart) bilan moslash. Javobda yo'q tovar — sotuvdan olingan (max 0).
+ * changed — narx, miqdor yoki mavjudlik o'zgardi (foydalanuvchiga ogohlantirish).
+ */
+export function syncLines(items: CartItem[], cards: CartCard[]): { items: CartItem[]; changed: boolean } {
+  const byId = new Map(cards.map((c) => [c.id, c]));
+  let changed = false;
+  const next = items.map((x) => {
+    const c = byId.get(x.id);
+    if (!c || !(c.qty > 0)) {
+      if (x.max !== 0) changed = true;
+      return { ...x, max: 0 };
+    }
+    const n = lineFromCard(c, Math.min(x.qty, c.qty));
+    if (n.price !== x.price || n.qty !== x.qty || x.max === 0) changed = true;
+    return n;
+  });
+  return { items: next, changed };
+}
+
+/** Telefonda saqlangan savatni o'qish — buzilgan yozuvlar tashlanadi */
+export function parseStoredCart(raw: string | null): CartItem[] {
+  if (!raw) return [];
+  try {
+    const arr: unknown = JSON.parse(raw);
+    if (!Array.isArray(arr)) return [];
+    return arr
+      .filter((x): x is CartItem =>
+        !!x && typeof x === 'object' && typeof (x as CartItem).id === 'string' && typeof (x as CartItem).qty === 'number'
+        && (x as CartItem).qty > 0 && typeof (x as CartItem).price === 'number' && typeof (x as CartItem).name === 'string'
+        && typeof (x as CartItem).shopSlug === 'string')
+      .map((x) => ({ ...x, max: typeof x.max === 'number' ? x.max : x.qty, fractional: !!x.fractional, priceFrom: !!x.priceFrom }))
+      .slice(0, MAX_LINES);
+  } catch {
+    return [];
+  }
+}
+
+/** Ikki ro'yxatni birlashtirish (saqlangan + o'qib bo'lguncha qo'shilgan): bir xil tovar — keyingisi ustun */
+export function mergeLines(base: CartItem[], extra: CartItem[]): CartItem[] {
+  const ids = new Set(extra.map((x) => x.id));
+  return [...base.filter((x) => !ids.has(x.id)), ...extra].slice(0, MAX_LINES);
+}
+
+/** Savatdagi (sotuvdagi) qatorlar soni — belgi uchun */
+export function cartCount(items: CartItem[]): number {
+  return items.filter((x) => x.max > 0).length;
+}

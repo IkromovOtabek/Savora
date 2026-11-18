@@ -13,6 +13,7 @@ import { errMsg } from '@/lib/api';
 import { useTheme } from '@/lib/theme';
 import { useDict, useI18n, LOCALES, LOCALE_SHORT } from '@/lib/i18n';
 import { Field, Button, LogoSvg, Wordmark } from '@/components/ui';
+import { useMarketDict } from '@/lib/marketI18n';
 
 const TILES = 12;
 const ease = Easing.bezier(0.2, 0.8, 0.2, 1);
@@ -24,6 +25,7 @@ export default function LoginScreen() {
   const d = useDict();
   const { locale, setLocale } = useI18n();
   const insets = useSafeAreaInsets();
+  const md = useMarketDict();
   // savora://login?u=... — web'da ro'yxatdan o'tgach ilovaga qaytganda login oldindan to'ldiriladi
   const { u } = useLocalSearchParams<{ u?: string }>();
   const [username, setUsername] = useState(typeof u === 'string' && /^[a-z0-9_]{3,40}$/.test(u) ? u : '');
@@ -208,6 +210,18 @@ export default function LoginScreen() {
             </Animated.View>
           </Animated.View>
 
+          {/* Ilova ochilishi Savora Market — biznes kirishidan unga qaytish yo'li */}
+          <Animated.View style={{ opacity: foot }}>
+            <Pressable
+              onPress={() => (router.canGoBack() ? router.back() : router.replace('/market'))}
+              hitSlop={8}
+              accessibilityRole="link"
+              style={({ pressed }) => [s.market, { backgroundColor: c.tintSoft }, pressed && { opacity: 0.6 }]}
+            >
+              <Ionicons name="storefront-outline" size={18} color={c.tint} />
+              <Text style={[s.marketT, { color: c.tint }]}>{md.backToMarket}</Text>
+            </Pressable>
+          </Animated.View>
           <Animated.Text style={[s.foot, { color: c.ink3, opacity: foot }]}>{d.login.foot}</Animated.Text>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -239,4 +253,6 @@ const s = StyleSheet.create({
   register: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', paddingTop: 6 },
   registerT: { fontSize: 15 },
   foot: { fontSize: 13, textAlign: 'center', marginTop: 22, lineHeight: 18, paddingHorizontal: 32 },
+  market: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, alignSelf: 'center', marginTop: 20, borderRadius: 999, paddingHorizontal: 16, minHeight: 42 },
+  marketT: { fontSize: 15, fontWeight: '700' },
 });

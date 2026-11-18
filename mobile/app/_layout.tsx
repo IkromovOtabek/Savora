@@ -7,6 +7,8 @@ import { SafeAreaProvider, SafeAreaInsetsContext, useSafeAreaInsets } from 'reac
 import { ThemeProvider as NavThemeProvider, DefaultTheme, DarkTheme, type Theme as NavTheme } from '@react-navigation/native';
 import { QueryClientProvider, IsRestoringProvider } from '@tanstack/react-query';
 import { AuthProvider, useAuth } from '@/lib/auth';
+import { BuyerProvider } from '@/lib/buyer';
+import { MarketCartProvider } from '@/lib/marketCart';
 import { ThemeProvider, useTheme } from '@/lib/theme';
 import { I18nProvider } from '@/lib/i18n';
 import { AnimatedSplash } from '@/components/AnimatedSplash';
@@ -29,8 +31,9 @@ function AuthGate() {
   const router = useRouter();
   useEffect(() => {
     if (loading || me || error) return;
-    // Kirmagan foydalanuvchi faqat kirish va ro'yxatdan o'tish ekranlarida qola oladi
-    if (segments[0] !== 'login' && segments[0] !== 'register') router.replace('/login');
+    // Kirmagan foydalanuvchi faqat kirish, ro'yxatdan o'tish va Savora Market ekranlarida qola oladi
+    const seg = segments[0] as string | undefined;
+    if (seg !== 'login' && seg !== 'register' && seg !== 'market') router.replace('/market');
   }, [loading, me, error, segments, router]);
   return null;
 }
@@ -126,6 +129,7 @@ function Navigation() {
         <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: c.bg } }}>
           <Stack.Screen name="index" />
           <Stack.Screen name="login" options={{ animation: 'fade' }} />
+          <Stack.Screen name="market/index" options={{ animation: 'fade' }} />
           <Stack.Screen name="(tabs)" options={{ animation: 'fade' }} />
           <Stack.Screen name="offline-sales" />
           <Stack.Screen name="scan" options={{ presentation: 'fullScreenModal', contentStyle: { backgroundColor: '#000' } }} />
@@ -152,11 +156,16 @@ export default function RootLayout() {
       <I18nProvider>
         <ThemeProvider>
           <AuthProvider>
-            <QueryProvider>
-              <OfflinePosProvider>
-                <Navigation />
-              </OfflinePosProvider>
-            </QueryProvider>
+            {/* Savora Market xaridori va savati — biznes sessiyasidan mustaqil */}
+            <BuyerProvider>
+              <MarketCartProvider>
+                <QueryProvider>
+                  <OfflinePosProvider>
+                    <Navigation />
+                  </OfflinePosProvider>
+                </QueryProvider>
+              </MarketCartProvider>
+            </BuyerProvider>
           </AuthProvider>
         </ThemeProvider>
       </I18nProvider>
