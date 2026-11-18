@@ -20,7 +20,7 @@ import { applyOnboardingSetup } from '@/lib/onboardingSetup';
 type State = { error?: string } | null;
 
 /** Yangi do'kon uchun bepul sinov muddati (kun). .env: TRIAL_DAYS */
-const TRIAL_DAYS = Number(process.env.TRIAL_DAYS || 14);
+const TRIAL_DAYS = Number(process.env.TRIAL_DAYS || 7);
 
 export async function registerAction(_prev: State, formData: FormData): Promise<State> {
   const zone = await getAppZone();
@@ -40,7 +40,7 @@ export async function registerAction(_prev: State, formData: FormData): Promise<
   const confirmPassword = String(formData.get('confirmPassword') || '');
   const referredBy = String(formData.get('referredBy') || '').trim().toUpperCase() || undefined;
 
-  // 2-qadamda tanlangan tarif. Bepul — doimiy; pulli — 14 kun sinov.
+  // 2-qadamda tanlangan tarif. Bepul — doimiy; pulli — TRIAL_DAYS kun sinov.
   // Mobil ilovadan kelgan ro'yxatdan o'tish — faqat bepul tarif (App Store qoidasi), oxirida ilovaga qaytish sahifasi
   const fromApp = formData.get('fromApp') === '1';
   const rawTier = fromApp ? 'free' : String(formData.get('planTier') || 'pro');
@@ -90,7 +90,7 @@ export async function registerAction(_prev: State, formData: FormData): Promise<
       industryProfile: parseIndustryProfile(formData.get('industryProfile'), businessType),
       adminPassword,
       // Tanlangan tarif — modullar `defaultFeaturesForPlan` orqali avtomatik yoqiladi.
-      // Bepul: doimiy; pulli: 14 kun sinov, muddati tugagach to'lov kerak.
+      // Bepul: doimiy; pulli: TRIAL_DAYS kun sinov, muddati tugagach to'lov kerak.
       planTier,
       billingCycle,
       isTrial: !isFree,

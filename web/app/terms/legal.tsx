@@ -5,7 +5,7 @@ import { getI18n } from '@/lib/i18n/server';
 export const LEGAL_UPDATED = '2026-yil oktabr';
 
 /** Sinov muddati — register action va landing bilan bir xil manba */
-export const TRIAL_DAYS = Number(process.env.TRIAL_DAYS || 14);
+export const TRIAL_DAYS = Number(process.env.TRIAL_DAYS || 7);
 
 /** [Kvadrat qavsdagi] to'ldiriladigan joy — asoschi/yurist tomonidan aniq qiymat qo'yiladi */
 export function Ph({ children }: { children: React.ReactNode }) {

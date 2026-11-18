@@ -24,7 +24,7 @@ import SavoraJsonLd from '@/components/seo/JsonLd';
 import '@/components/landing/landing.css';
 
 /** Sinov muddati — register action bilan bir xil manba */
-const TRIAL_DAYS = Number(process.env.TRIAL_DAYS || 14);
+const TRIAL_DAYS = Number(process.env.TRIAL_DAYS || 7);
 
 function Svg({ children, size = 22 }: { children: React.ReactNode; size?: number }) {
   return (

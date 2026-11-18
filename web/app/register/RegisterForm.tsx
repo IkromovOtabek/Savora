@@ -316,7 +316,7 @@ export default function RegisterForm({ plans, fromApp = false }: { plans: PlanPr
                 <dt>{t.planGroup}</dt>
                 <dd>
                   {selectedPlan ? planLabel(selectedPlan) : '—'}
-                  {selectedPlan && <small> · {selectedPlan.monthlyPrice === 0 ? t.foreverFree : t.trial14}</small>}
+                  {selectedPlan && <small> · {selectedPlan.monthlyPrice === 0 ? t.foreverFree : t.trialBadge}</small>}
                 </dd>
               </div>
             </dl>
