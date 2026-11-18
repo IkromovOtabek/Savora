@@ -8,7 +8,7 @@ import { isFractionalUnit } from '@/lib/qty';
 import { PAY_METHODS, methodOf, type PayMethod } from '@/lib/payMethods';
 import { saleBankParts } from '@/lib/bankCredit';
 
-type ReceiptSale = Pick<ISale, 'saleNo' | 'productSnapshot' | 'customerSnapshot' | 'paymentType' | 'bankName' | 'bankParts' | 'totalAmount' | 'paidAmount' | 'remainingAmount' | 'soldBy' | 'dueDate' | 'createdAt' | 'discount'> & Parameters<typeof computeInstallmentPlan>[0];
+type ReceiptSale = Pick<ISale, 'saleNo' | 'productSnapshot' | 'customerSnapshot' | 'paymentType' | 'bankName' | 'bankParts' | 'totalAmount' | 'paidAmount' | 'remainingAmount' | 'soldBy' | 'dueDate' | 'createdAt' | 'discount'> & Partial<Pick<ISale, 'tableNumber'>> & Parameters<typeof computeInstallmentPlan>[0];
 
 /**
  * Chek qog'ozi — bitta sotuv yoki kassadagi bir nechta qatorli sotuv (har qator — alohida Sale).
@@ -59,6 +59,8 @@ export default function ReceiptPaper({ sales, org, receipt, d, publicView = fals
       <dl className="sl-rc-meta">
         <dt>{k.no}</dt><dd>{no}</dd>
         <dt>{d.common.date}</dt><dd>{fmtDateTime(first.createdAt!)}</dd>
+        {/* Restoran to'lovi: stol raqami (Sale.tableNumber) */}
+        {first.tableNumber ? (<><dt>{d.restaurant.common.table}</dt><dd>{first.tableNumber}</dd></>) : null}
         {receipt.showSeller && (<><dt>{k.seller}</dt><dd>{first.soldBy}</dd></>)}
         {customer && (<><dt>{d.common.customer}</dt><dd>{customer}</dd></>)}
         {phone && (<><dt>{d.common.phone}</dt><dd>{phone}</dd></>)}

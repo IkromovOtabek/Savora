@@ -8,19 +8,15 @@ import Icon from '@/components/icons/Icon';
 import LogoutButton from '@/components/LogoutButton';
 import ThemeToggle from '@/components/ThemeToggle';
 import type { PermissionKey } from '@/lib/permissions';
-import { NAV_GROUPS, NAV_ICONS, GROUP_ICONS, TAB_ORDER, TAB_LABELS, applyNavLayout, type NavGroup, type NavLink, type NavLayout } from '@/lib/navConfig';
+import { NAV_GROUPS, NAV_ICONS, GROUP_ICONS, TAB_ORDER, TAB_LABELS, applyNavLayout, isNavLinkActive, type NavGroup, type NavLink, type NavLayout } from '@/lib/navConfig';
 import NavEditor from './NavEditor';
 import LangSwitch from '@/components/LangSwitch';
 import { useDict } from '@/lib/i18n/client';
 import { tr } from '@/lib/i18n/fmt';
 
-function matches(href: string, pathname: string): boolean {
-  return pathname === href || pathname.startsWith(`${href}/`);
-}
-
+/** Aniqroq ichki menyu havolasi ochiq bo'lsa ota havola faol emas (lib/navConfig.ts → isNavLinkActive) */
 function isActive(link: NavLink, pathname: string): boolean {
-  if (link.exact) return pathname === link.href;
-  return matches(link.href, pathname) || !!link.also?.some((h) => matches(h, pathname));
+  return isNavLinkActive(link, pathname);
 }
 
 function Count({ n, onBrand }: { n: number; onBrand?: boolean }) {

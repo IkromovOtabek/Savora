@@ -18,7 +18,8 @@
     "expire": "node --env-file=.env scripts/expire-orgs.mjs",
     "notify": "node --env-file=.env scripts/notify-expiry.mjs",
     "backup": "node --env-file=.env scripts/backup.mjs",
-    "restore": "node --env-file=.env scripts/restore.mjs"
+    "restore": "node --env-file=.env scripts/restore.mjs",
+    "seed:restaurant": "node --env-file-if-exists=.env scripts/seed-demo-restaurant.mjs"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1072.0",

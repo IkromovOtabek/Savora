@@ -90,6 +90,10 @@ export default function Home() {
   const modules: TileItem[] = [
     // Restoran — ofitsant uchun asosiy ish joyi, shuning uchun birinchi
     ...(f.tables && can('order.create') ? [{ key: 'tables', label: d.restaurant.title, icon: 'restaurant' as const, color: c.sq.p, onPress: () => router.push('/tables') }] : []),
+    // Sex: usta/ishchi — ishbay (asosiy ish joyi); omborchi — kirim aktlari (faqat ko'rish; server ruxsati bilan bir xil)
+    ...(f.piecework && can('piecework.log') ? [{ key: 'piecework', label: d.production.piecework.tile, icon: 'hammer' as const, color: c.sq.p, onPress: () => router.push('/piecework') }] : []),
+    ...(f.purchasing && (can('receipt.create') || can('po.manage') || can('suppliers.view'))
+      ? [{ key: 'receipts', label: d.production.receipts.tile, icon: 'archive' as const, color: c.sq.t, onPress: () => router.push('/receipts') }] : []),
     ...(can('sale.create') ? [{ key: 'sale', label: d.tabs.newSale, icon: 'add-circle' as const, color: c.sq.b, onPress: () => router.push('/sale-new') }] : []),
     ...(canSales ? [
       { key: 'sales', label: d.home.allSales, icon: 'receipt' as const, color: c.sq.b, onPress: () => router.push('/(tabs)/sales') },

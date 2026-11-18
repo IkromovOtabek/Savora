@@ -1,13 +1,13 @@
 /**
  * Miqdor qoidalari — web/lib/qty.ts nusxasi (mobil web kodini import qila olmaydi; qoidalar bir xil
  * bo'lishi shart, server baribir qayta tekshiradi).
- *  - kg, g, m, m2, l — kasr miqdor, ko'pi bilan 3 xona (1,5 kg; 2,25 m)
- *  - dona/qop/quti/paket va birliksiz — butun son
+ *  - kg, g, m, m2, l, m3, t, list, rulon — kasr miqdor, ko'pi bilan 3 xona (1,5 kg; 2,25 m; sexda 0,25 list)
+ *  - dona/qop/quti/paket/juft va birliksiz — butun son
  *  - narx × miqdor jami butun so'mga yaxlitlanadi
  */
 const SCALE = 1000;
 const QTY_MAX = 1_000_000;
-const FRACTIONAL = ['kg', 'g', 'm', 'm2', 'l'];
+const FRACTIONAL = ['kg', 'g', 'm', 'm2', 'l', 'm3', 't', 'list', 'rulon'];
 
 export function isFractionalUnit(unit?: string | null): boolean {
   return !!unit && FRACTIONAL.includes(unit);

@@ -1,8 +1,9 @@
 # Restoran moduli — backend API (UI agentlari uchun)
 
-Sana: 2026-11-18. Asos: `docs/business/TAKLIF_2026-11_SHABLONLAR.md` §1 (MVP + 2-faza backend qismi).
+Sana: 2026-11-18 (yangilandi: E2E sinovdan keyin). Asos: `docs/business/TAKLIF_2026-11_SHABLONLAR.md` §1 (MVP + 2-faza).
 Bu hujjat va `lib/restaurant/*` kodi — UI sahifalari (`/app/tables`, `/app/kitchen`, `/app/restaurant`,
-mijoz QR sahifasi `/m/<slug>/<token>`, mobil ilova) uchun YAGONA manba. Sahifalarning o'zi hali yo'q.
+mijoz QR sahifasi `/m/<slug>/<token>`, mobil ilova) uchun YAGONA manba. Sahifalar va mobil ekranlar yozilgan
+va demo restoranda uchdan-uchgacha sinalgan (§14).
 
 ---
 
@@ -34,8 +35,13 @@ mijoz QR sahifasi `/m/<slug>/<token>`, mobil ilova) uchun YAGONA manba. Sahifala
 Super Admin istalgan do'konda qo'lda yoqishi mumkin.
 
 **Menyu bandlari** (`lib/navConfig.ts`): «Sotuvlar» guruhida `/app/tables` (Stollar; `tables` + `order.create`),
-`/app/kitchen` (Oshxona; `kitchen` + `kitchen.view`); «Sozlamalar» guruhida `/app/restaurant`
-(Restoran sozlamalari; `tables` + `tables.manage`). Nomlar — `d.shell.nav.links`.
+`/app/kitchen` (Oshxona; `kitchen` + `kitchen.view`); «Hisobotlar» guruhida `/app/restaurant/reports`
+(Restoran hisobotlari; `tables` + `reports.view`); «Sozlamalar» guruhida `/app/restaurant`
+(Restoran sozlamalari; `tables` + `tables.manage`). Nomlar — `d.shell.nav.links`. Hisobotlar markazida (`/app/reports`)
+«Restoran» kartasi — `tables` moduli yoqiq va `reports.view` bo'lsa.
+
+**PWA yorliqlari** (`public/manifest.webmanifest` → `shortcuts`): «Stollar» (`/app/tables`) va «Oshxona ekrani»
+(`/app/kitchen`) — planshetda ilovani bosib turganda tez ochish (modul o'chiq do'konda `/app/locked` ga yo'naltiradi).
 
 ---
 
@@ -46,7 +52,7 @@ Super Admin istalgan do'konda qo'lda yoqishi mumkin.
 | Kalit | Nomi | Modul | Filial standarti | Ishlatiladi |
 |---|---|---|---|---|
 | `order.create` | Buyurtma olish | tables | ✓ | stol ochish, taom qo'shish, yuborish, yetkazildi, pre-chek, QR tasdiq, bekor (yuborilmagan), chaqiruvni ko'rish |
-| `order.viewAll` | Barcha buyurtmalar | tables | ✓ | boshqa ofitsantlar stollari/buyurtmalari |
+| `order.viewAll` | Barcha buyurtmalar | tables | ✓ | boshqa ofitsantlar stollari/buyurtmalari; chaqiruv/hisob so'rovini «Ko'rdim» (kassir) |
 | `order.transfer` | Stol/ofitsantni o'tkazish | tables | — | transferOrder, waiters ro'yxati |
 | `order.voidItem` | Yuborilgan taomni bekor qilish | tables | — | voidItem (sent/cooking/ready/served) |
 | `order.split` | Hisobni bo'lish | tables | ✓ | payOrder `items` bilan |
@@ -132,6 +138,12 @@ kdsWarnMinutes (10), kdsAlertMinutes (20, > warn), brand { logoUrl?, color? (#RR
 ```
 Logo/muqova — faqat shu do'konga yuklangan rasm (`/api/upload`, `isTenantUploadUrl`).
 
+**Bir filialda bir nechta login.** Backend (`resolveBranchId`, `waitersList`, ruxsatlar) bir filialga bog'langan
+bir nechta xodimni (ofitsant, oshpaz, kassir) qo'llaydi, LEKIN hozirgi UI (`/app/users` → «Filial qo'shish»)
+har login uchun ALOHIDA filial yaratadi. Restoran xodimlarini bitta filialga biriktirish UI'si hali yo'q —
+demo restoranda seed skripti yaratadi (§14). Bitta joyli restoran uchun tavsiya: zal/stol/taom — egasining
+asosiy omborida (`isMain`), xodimlar — shu filialga.
+
 **Menu slug qarori:** alohida `menuSlug` SAQLANMAYDI. QR manzili `/m/<Organization.slug>/<Table.qrToken>` — do'kon slug'i
 master bazada noyob va tenantni topish uchun yetarli (yangi master indeks/migratsiya shart emas). Sozlama
 ko'rinishida `menuSlug` (= org slug) va `qrBaseUrl` qaytadi.
@@ -214,8 +226,9 @@ Server action: `{ ok: true, data, success? }` yoki `{ ok: false, error, code, de
 ### OrderView (`lib/restaurant/view.ts`)
 ```ts
 {
-  id, orderNo, branchId, type, source, status, tableId, tableNumber, hallId, guests, waiterId, waiterName, note,
-  serviceChargePct, packFee, packFeePaid, openedBy, openedAt, precheckAt, paidAt, cancelledAt, cancelReason, updatedAt, rev,
+  id, orderNo, branchId, type, source, status, tableId, tableNumber, hallId, hallName /* pre-chek uchun */, guests, waiterId,
+  waiterName, note, serviceChargePct, packFee, packFeePaid, openedBy, openedAt, precheckAt, paidAt, cancelledAt, cancelReason,
+  updatedAt, rev, requireVoidReason /* sozlama: yuborilgan taomni bekor qilishda sabab majburiy */,
   items: OrderItemView[],
   payments: [{ checkoutId, itemIds, saleIds, subtotal, discount, serviceCharge, packFee, total, parts, change, paidAt, by,
                publicPath /* "/r/…" ochiq chek */ }],
@@ -229,6 +242,8 @@ OrderItemView = { id, clientItemId, productId, name, displayName, basePrice, pri
   timings: { waitMs, prepMs /* ready−sent */, deliveryMs /* served−ready */, totalMs } }
 ```
 Barcha sanalar — ISO satr yoki `null`. Pre-chek chekida `d.restaurant.common.precheckNote` («fiskal chek emas») majburiy.
+`hallName` va `requireVoidReason` — `ops.orderViewFor(ctx, order)` to'ldiradi (bitta so'rov ichida ctx bo'yicha keshlanadi):
+UI alohida `getShopSettings` o'qimaydi, amal javobidagi `data.order` ham shu maydonlar bilan keladi.
 
 ### OrderSummary (ro'yxatlar)
 `{ id, orderNo, type, status, source, tableId, tableNumber, guests, waiterId, waiterName, openedAt, updatedAt, access, mine, total|null, due|null, counts|null }`
@@ -255,9 +270,9 @@ sahifani revalidate QILMAYDI — `data.order` dan holatni yangilang (yoki `route
 | `payOrderAction(orderId, input)` | `{ items?: [{ itemId, qty? }], parts: [{ method, amount }], discount?: { kind: 'percent'\|'amount', value }, payId? }` | sale.create (+order.split, +sale.discount) | `{ order, checkoutId, saleIds, receiptNo, total, change, publicPath, closed }` |
 | `cancelOrderAction(orderId, { reason? })` | | order.create | `{ order }` |
 | `updateOrderInfoAction(orderId, { guests?, note? })` | guests 0 — tozalash | order.create | `{ order }` |
-| `ackTableCallAction({ tableId, kind? })` | `kind: 'waiter'\|'bill'` (yo'q — ikkalasi) | order.create | `{ tableId }` |
+| `ackTableCallAction({ tableId, kind? })` | `kind: 'waiter'\|'bill'` (yo'q — ikkalasi) | order.create yoki order.viewAll | `{ tableId }` |
 | `saveRestaurantSettingsAction(input)` | `{ serviceChargePct?, takeawayPackFee?, requireVoidReason?, kdsWarnMinutes?, kdsAlertMinutes?, brand?: { logoUrl?, color?, coverUrl? } }` (null/'' — tozalash) | tables.manage | `RestaurantSettings` |
-| `saveHallAction({ id?, name, branchId?, sort?, active? })` | | tables.manage | `{ id }` |
+| `saveHallAction({ id?, name, branchId?, sort?, active? })` | `sort` — zallar tartibi (UI: ← → tugmalari, 0.. ketma-ket qayta yoziladi) | tables.manage | `{ id }` |
 | `deleteHallAction(id)` | stollari bo'lsa — `hallHasTables` | tables.manage | `{ id }` |
 | `saveTableAction({ id?, hallId, number, seats?, x?, y?, active? })` | | tables.manage | `{ id, qrToken }` |
 | `createTablesRangeAction({ hallId, from, to, seats? })` | ≤100 ta, band raqam o'tkaziladi | tables.manage | `{ created, skipped }` |
@@ -265,7 +280,7 @@ sahifani revalidate QILMAYDI — `data.order` dan holatni yangilang (yoki `route
 | `regenerateTableQrAction(id)` | | tables.manage | `{ id, qrToken, qrPath, qrUrl }` |
 | `saveStationAction({ id?, name, kind, branchId?, printerIp?, sort?, active? })` | | tables.manage | `{ id }` |
 | `deleteStationAction(id)` | taomlar stansiyasiz qoladi | tables.manage | `{ id, detached }` |
-| `updateMenuItemAction({ productId, stationId?, modifierGroups?, ikpu? })` | stationId null — olib tashlash; modifierGroups `[{ name, required, min?, max?, options: [{ name, price }] }]` | product.edit | `{ id }` |
+| `updateMenuItemAction({ productId, stationId?, modifierGroups?, ikpu? })` | stationId null — olib tashlash; modifierGroups `[{ name, required, min?, max?, options: [{ name, price }] }]`; `/app/products/<id>` va `/app/restaurant/menu` revalidate | product.edit | `{ id }` |
 | `setStopListAction({ productId, stopped })` | | menu.stopList | `{ id, name, stopListed }` |
 
 Server komponentda o'qish: `const ctx = await restaurantCtxFromSession()` (`lib/restaurant/session.ts`), so'ng
@@ -282,22 +297,32 @@ birinchi filial, bo'lmasa asosiy ombor), `since` (ISO), `stationId`, `status`, `
 |---|---|---|
 | `GET /api/restaurant/tables` | tables + (order.create\|order.viewAll) | `TablesBoard`: `{ serverTime, branchId, branches[], halls[{id,name,sort}], tables[{ id, hallId, number, seats, x, y, calls:{waiterAt,billAt}, order: OrderSummary\|null }], takeaway: OrderSummary[] }` |
 | `GET /api/restaurant/orders?status=active\|closed\|all&type=&since=` | tables + (order.create\|order.viewAll) | `{ serverTime, next, orders: OrderSummary[] }` (`since` bo'lsa — holatidan qat'i nazar o'zgarganlar; `closed` — oxirgi 24 soat) |
-| `GET /api/restaurant/orders/:id` | shu | `{ order: OrderView }` |
-| `GET /api/restaurant/kitchen?stationId=&since=` | kitchen + kitchen.view | `KitchenBoard`: `{ serverTime, next, branchId, branches, settings:{kdsWarnMinutes,kdsAlertMinutes}, stations[{id,name,kind}], orders[{ id, orderNo, type, status, tableNumber, waiterName, guests, updatedAt, items: KdsItem[] }] }`; `KdsItem = { id, name, displayName, qty, unit, modifiers[{group,name}], note, status, stationId, stationKind, sentAt, cookStartedAt, readyAt, elapsedMs, level: 'ok'\|'warn'\|'alert' }` |
-| `GET /api/restaurant/menu` | (tables\|kitchen) + (order.create\|order.viewAll\|menu.stopList\|kitchen.view) | `{ branchId, categories: string[], items: MenuItemView[] }`; `MenuItemView = { id, name, price, photoUrl, category, categoryId, kind, unit, stationId, stopListed, available (null — cheksiz), modifierGroups[{ id, name, required, min, max, options[{ id, name, price }] }] }` |
+| `GET /api/restaurant/orders/:id` | shu | `{ order: OrderView, serverTime }` |
+| `GET /api/restaurant/kitchen?stationId=&since=` | kitchen + kitchen.view | `KitchenBoard`: `{ serverTime, next, branchId, branches, settings:{kdsWarnMinutes,kdsAlertMinutes}, stations[{id,name,kind}], orders: KdsOrder[] }`; `KdsOrder = { id, orderNo, type, status, source, tableNumber, waiterName, guests, note, updatedAt, items: KdsItem[], voided: [{ id, reason, voidedAt }] }`; `KdsItem = { id, name, displayName, qty, unit, modifiers[{group,name}], note, status, stationId, stationKind, fromQr, sentAt, cookStartedAt, readyAt, elapsedMs, level: 'ok'\|'warn'\|'alert' }`. `voided` — shu stansiyada oshxonaga yuborilgandan keyin bekor qilingan taomlar (since rejimida — `since` dan, to'liq rejimda — oxirgi 2 daqiqa; to'liq rejimda faqat yaqinda bekor qilingani bor buyurtma ham `items: []` bilan keladi) |
+| `GET /api/restaurant/menu` | (tables\|kitchen) + (order.create\|order.viewAll\|menu.stopList\|kitchen.view) | `{ branchId, categories: string[], items: MenuItemView[] }`; `MenuItemView = { id, name, price, photoUrl, category, categoryId, kind, unit, stationId, stopListed, available (null — cheksiz), ikpu (MXIK yoki null), modifierGroups[{ id, name, required, min, max, options[{ id, name, price }] }] }`. Qoldig'i tugagan tovar (status `sold`) — faqat menyu muharririda (`menuEditorView`, `buildMenu(..., { withSoldOut: true })`), ofitsant va mijoz menyusida yo'q |
 | `GET /api/restaurant/setup` | tables + tables.manage | `{ branchId, branches, settings, menuSlug, qrBaseUrl, halls[], tables[{…, qrToken, qrPath, qrUrl, busy}], stations[] }` |
 | `GET /api/restaurant/waiters` | tables + order.transfer | `{ waiters: [{ id, username, name, role }] }` |
 | `GET /api/restaurant/reports/timings?from=&to=` | tables + reports.view | `{ from, to, overall, byStation[], byWaiter[], byDish[], voids:{count,amount,lossCount,lossAmount} }` (stats: `{ prep, delivery, wait, total }` har biri `{ count, avgMs, medianMs, p90Ms, maxMs }`; davr ≤93 kun, standart 7 kun) |
+| `GET /api/restaurant/reports/overview?p=today\|yesterday\|week\|month` yoki `?from=YYYY-MM-DD&to=YYYY-MM-DD` (≤93 kun), `&branchId=` | tables + reports.view | `RestaurantReport` (`lib/restaurant/reports.ts`): tushum, o'rtacha chek, oshxona vaqtlari (stansiya/taom), ofitsant KPI, bekor qilinganlar va yo'qotish, savdo — `/app/restaurant/reports` sahifasi bilan bir xil |
+| `GET /api/restaurant/reports/export?section=kitchen\|staff\|voids\|sales` + overview filtrlari | tables + reports.view + export.data | CSV (UTF-8 BOM, `Content-Disposition: attachment`), ustun nomlari — joriy tilda |
 
 ### Polling tavsiyasi
 - Stollar taxtasi: 4–5 s, to'liq yengil ro'yxat (`tables`). Buyurtma ekrani: 3–5 s `orders/:id` yoki `orders?since=`.
+- **Mijoz chaqiruvi / hisob so'rovi** (`tables[].calls`) shu taxta so'rovida keladi — alohida kanal shart emas: web
+  `/app/tables` 4 s (yangi chaqiruv — ekran o'quvchiga e'lon + tebranish, zal tabida qizil nuqta), mobil 5 s. Ya'ni mijoz
+  bosgandan keyin ko'pi bilan ~4–5 s da ko'rinadi; sahifa yashirin bo'lsa, ko'ringanda darhol so'raladi. Buyurtma ekranida
+  (`/app/tables/:id`) chaqiruvlar ko'rinmaydi — ofitsant taxtaga qaytadi. Tezroq kerak bo'lsa — SSE (keyingi bosqich).
 - KDS: 3 s. Birinchi so'rov `since`siz; keyin `since=<oldingi javob next>`. `next` = so'rov boshidan 5 s oldin —
   javoblar ustma-ust tushadi, buyurtmani `id` bo'yicha ALMASHTIRING; `items: []` — kartochkani olib tashlang.
 - Sahifa yashirin bo'lsa (`document.hidden`) polling to'xtatilsin. Real vaqt (SSE/Redis pub-sub) — keyingi bosqich.
 
 ---
 
-## 8. Mobil API (`Authorization: Bearer <token>`, xabarlar o'zbekcha, muddati o'tgan do'konda yozish — 402)
+## 8. Mobil API (`Authorization: Bearer <token>`, muddati o'tgan do'konda yozish — 402)
+
+Xato matnlari — ilova tilida: mobil ilova har so'rovda `Accept-Language: uz|ru` yuboradi (`mobile/lib/api.ts`),
+server `mobileLocale(req)` (`lib/restaurant/session.ts`) bo'yicha lug'at tanlaydi; boshqa/yo'q bo'lsa — o'zbekcha.
+Xato kodi (`code`) tildan qat'i nazar bir xil — ilova mantiqni kodga qarab quradi.
 
 | Yo'l | Metod | Tana / parametr | Javob |
 |---|---|---|---|
@@ -306,12 +331,13 @@ birinchi filial, bo'lmasa asosiy ombor), `since` (ISO), `stationId`, `status`, `
 | `/api/mobile/restaurant/menu` | GET | `?branchId=` | `{ branchId, categories, items }` |
 | `/api/mobile/restaurant/orders` | GET | `?status=&type=&since=` | `{ serverTime, next, orders }` |
 | `/api/mobile/restaurant/orders` | POST | openOrder kirishi (`clientOrderId` tavsiya) | `{ order, existing }` |
-| `/api/mobile/restaurant/orders/:id` | GET | | `{ order }` |
-| `/api/mobile/restaurant/orders/:id` | POST | `{ op: 'addItems', items }` · `{ op: 'send', itemIds? }` · `{ op: 'served', itemIds }` · `{ op: 'void', itemId, qty?, reason? }` · `{ op: 'confirm', itemIds?, reject?, send? }` · `{ op: 'precheck' }` · `{ op: 'info', guests?, note? }` | tegishli action `data` shakli |
+| `/api/mobile/restaurant/orders/:id` | GET | | `{ order, serverTime }` (`serverTime` — telefon soati farqi uchun; `order.requireVoidReason` — sabab maydoni majburiymi) |
+| `/api/mobile/restaurant/orders/:id` | POST | `{ op: 'addItems', items }` · `{ op: 'send', itemIds? }` · `{ op: 'served', itemIds }` · `{ op: 'void', itemId, qty?, reason? }` · `{ op: 'confirm', itemIds?, reject?, send? }` · `{ op: 'precheck' }` · `{ op: 'info', guests?, note? }` · `{ op: 'cancel', reason? }` (yuborilgan faol taom va to'lov bo'lmasa) | tegishli action `data` shakli |
 
 To'lov mobil API'da yo'q (kassa — web). Oflayn kelajak uchun: har taomga qurilmada `clientItemId` (UUID) bering —
 takroriy yuborish xavfsiz. `GET /api/mobile/me` → `features.tables|kitchen|qrMenu` va `permissions` (yangi kalitlar bilan).
-Eslatma: mobil ilovaning `lib/format.ts` to'lov usullari ro'yxatida `uzqr` hali yo'q — sotuv tarixida «Naqd» yorlig'i chiqadi (alohida OTA tuzatish).
+Mobil buyurtma ekrani (`mobile/app/order/[id].tsx`): bekor qilishda sabab faqat `order.requireVoidReason` yoqiq va taom
+yuborilgan bo'lsa majburiy; «Buyurtmani bekor qilish» — `can.cancel` bo'lsa (yuborilgan taom yoki to'lov bo'lsa — o'chiq, izoh bilan).
 
 ---
 
@@ -322,10 +348,15 @@ Til — `savora_lang` cookie (`?lang=ru` middleware orqali).
 
 | Yo'l | Metod | Rate-limit | Kirish | Javob |
 |---|---|---|---|---|
-| `/api/public/menu/:slug/:token` | GET | 120/daq IP | — | `{ org:{name}, brand:{logoUrl,color,coverUrl}, table:{number,hall}, serviceChargePct, categories, items[{ id, name, price, photoUrl, category, categoryId, kind, unit, modifierGroups }] }` (stop-list va tugaganlar yashirin; tannarx/qoldiq/stansiya yo'q) |
-| `/api/public/menu/:slug/:token/order` | GET | 120/daq IP | — | `{ orderNo, items[{ name, qty, price, total, status }], due, serviceCharge }` |
+| `/api/public/menu/:slug/:token` | GET | 120/daq IP+stol, 1500/daq IP | — | `{ org:{name}, brand:{logoUrl,color,coverUrl}, table:{number,hall}, serviceChargePct, categories, items[{ id, name, price, photoUrl, category, categoryId, kind, unit, modifierGroups }] }` (stop-list va tugaganlar yashirin; tannarx/qoldiq/stansiya yo'q) |
+| `/api/public/menu/:slug/:token/order` | GET | 120/daq IP+stol, 1500/daq IP | — | `{ orderNo, items[{ name, qty, price, total, status }], due, serviceCharge }` |
 | `/api/public/menu/:slug/:token/order` | POST | 10/10 daq IP + 20/10 daq stol | `{ clientOrderId (8–40, [A-Za-z0-9_-]), items: [{ productId, qty (≤20), optionIds?, note? }] (≤30) }` | 201 + order holati + `added` |
 | `/api/public/menu/:slug/:token/call` | POST | 20/5 daq IP + 6/5 daq stol | `{ kind: 'waiter'\|'bill' }` | `{ kind, at }` |
+
+**O'qish limiti nega IP+stol:** restoran Wi-Fi'da barcha mijozlar bitta tashqi IP'da — faqat IP bo'yicha 120/daq bo'lsa,
+band kechqurun (20–30 stol, har stolda 2–3 telefon, holat 12–30 s da so'raladi) limitga urilardi. Asosiy chegara endi
+IP + stol tokeni bo'yicha (bitta stol telefonlari uchun yetarli), IP bo'yicha esa keng (1500/daq — bitta IP'dan ko'p tokenni
+terib chiqishga qarshi). Sahifa (`/m/...`) ham shu ikki limitni ishlatadi. Yozish limitlari (buyurtma, chaqiruv) o'zgarmagan.
 
 Mijoz taomlari `pending` — ofitsant tasdiqlamaguncha oshxonaga ketmaydi, ombor band qilinmaydi. Stolda ochiq buyurtma
 bo'lsa unga qo'shiladi (pre-chek chiqqan bo'lsa — `orderLocked`), bo'lmasa `qr_self` buyurtma (ofitsantsiz, xizmat haqi 0%)
@@ -375,7 +406,29 @@ Boshqa lug'atlarga qo'shildi: `d.catalog.features.{tables,kitchen,qrMenu}`, `d.c
   texkarta band qilish, parallel yuborish, KDS, bekor qilish (ombor qaytadi / yo'qotish), pre-chek qulfi, qayta ochish,
   bo'lib to'lash, `payId` takrori, Sale qatorlari, kassa smenasi (naqd + UzQR), saboy qadoq, mijoz QR, o'tkazish, parallel stol ochish, rollar.
 
+- `npx vitest run tests/kitchenKds.test.ts` — KDS mantiqi (birlashtirish, bekor/kamaygan taom, «Tayyor» ustuni).
+
 ## 13. Keyingi bosqich (backendda hali yo'q)
 
 Fiskal chek (virtual kassa hamkor), stansiya printeri (TCP 9100 / Print Agent), SSE/Redis real vaqt, kurslar, bron,
 choychaqa, agregatorlar, PIN-kirish (`User.pinHash`), ofitsant KPI sahifasi, mobil oflayn navbat (`clientItemId` tayyor).
+
+## 14. Demo restoran va uchdan-uchgacha sinov (faqat lokal dev)
+
+`npm run seed:restaurant` (`scripts/seed-demo-restaurant.mjs`) — `demo-restoran` do'konini yaratadi yoki to'ldiradi
+(idempotent): Pro tarif, `restaurant` turi (tables/kitchen/qrMenu), loginlar `dr_admin`, `dr_ofitsant`, `dr_oshpaz`,
+`dr_kassir` (rol shablonlari; parol — skriptda yoki `SEED_RESTAURANT_PASSWORD`), «Asosiy zal» (1–4) va «Terrasa» (5–6),
+stansiyalar «Issiq sex»/«Bar», 11 taom + xomashyo (Osh va Kofe — modifikator, Shashlik — texkarta, Manti — stop-list,
+ichimliklar — Bar, non/suv — stansiyasiz, Coca-Cola — 3 dona qoldiq: `outOfStock` sinovi uchun), xizmat haqi 10%, qadoq 3 000.
+`NODE_ENV=production` yoki localhost bo'lmagan `MONGO_URI` da rad etadi. Biznes mantiqi qayta yozilmagan:
+`scripts/ts-hooks.mjs` orqali `lib/organizations.ts` (createOrganization), `lib/roles.ts`, `lib/restaurant/setup.ts` chaqiriladi.
+Kirish: `http://localhost:3000/t/demo-restoran/login`.
+
+Sinalgan oqim (2026-11-18): sozlamalar (umumiy, zal/stol, zal tartibi, QR oynasi va chop etish, stansiya, menyu: modifikator,
+stop-list, tugagan tovar) → ofitsant: stol ochish, modifikatorli taom, yuborish (`failed[]`: stop-list + ombor yetmasligi),
+qisman bekor qilish → mijoz QR buyurtmasi va chaqiruv → ofitsant «Ko'rdim» va tasdiqlash → KDS: boshlash/tayyor, buyurtma izohi,
+QR belgisi, bekor qilingan/kamaygan taom ogohlantirishi → yetkazildi → pre-chek (zal nomi, «fiskal chek emas») → kassir: taomlar
+bo'yicha bo'lish + aralash (UzQR + naqd), teng bo'lish → chek («Orqaga» — buyurtmaga, stol raqami) → kassa smenasi (naqd/karta
+alohida) → sotuvlar → saboy (qadoq, xizmat haqi 0) → hisobotlar; ruxsatlar (oshpaz → `/app/tables`, ofitsant → `/app/restaurant`
+— `/app/locked`); mobil API (tables, menu, open, addItems, send, served, precheck, cancel, `Accept-Language: ru`).
+

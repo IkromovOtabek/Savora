@@ -198,6 +198,22 @@ export type NavLayout = {
 const KNOWN_TITLES = new Set(NAV_GROUPS.map((g) => g.title));
 const KNOWN_HREFS = new Set(NAV_GROUPS.flatMap((g) => g.links.map((l) => l.href)));
 
+/**
+ * Menyu havolasi faolmi: `exact`, prefiks yoki `also`. Ichidagi aniqroq menyu havolasi ochiq bo'lsa — faol emas
+ * (/app/production/recipes da faqat «Texkartalar», «Ishlab chiqarish» emas; /app/restaurant/reports ham shunday).
+ */
+export function isNavLinkActive(link: Pick<NavLink, 'href' | 'exact' | 'also'>, pathname: string): boolean {
+  const hit = (h: string) => pathname === h || pathname.startsWith(`${h}/`);
+  if (link.exact) return pathname === link.href;
+  if (hit(link.href)) {
+    for (const h of KNOWN_HREFS) {
+      if (h.startsWith(`${link.href}/`) && hit(h)) return false;
+    }
+    return true;
+  }
+  return !!link.also?.some(hit);
+}
+
 /** Kelgan (ishonchsiz) qiymatni tekshirib, faqat ma'lum guruh/havolalarni qoldiradi. Yaroqsiz bo'lsa null. */
 export function sanitizeNavLayout(raw: unknown): NavLayout | null {
   if (!raw || typeof raw !== 'object') return null;
