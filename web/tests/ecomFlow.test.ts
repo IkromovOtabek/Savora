@@ -196,6 +196,43 @@ describe.skipIf(!URI)('e-commerce oqimi (MongoDB)', () => {
     expect(await orders.cancelBuyerOrder(buyer.id, orderId)).toBe(false);
   });
 
+  it('xaridor hisobini o\'chirish: parol, qabul qilingan buyurtma to\'sadi, keyin yangisi bekor + ma\'lumot yashiriladi', async () => {
+    const reg = await auth.registerBuyer({ name: 'Olim Karimov', phone: '+998 93 555 44 33', password: 'secret12' }, '127.0.0.3');
+    expect(reg.ok).toBe(true);
+    if (!reg.ok) return;
+    const buyer = { id: String(reg.buyer._id), name: reg.buyer.name, phone: reg.buyer.phone };
+    const choy = (await listings())[0];
+    const place = async () => {
+      const r = await orders.placeMarketOrders(buyer, { lines: [{ listingId: String(choy._id), qty: 1 }], delivery: 'delivery', address: 'Yunusobod 4', note: 'Tez' });
+      expect(r.ok).toBe(true);
+      return r.ok ? r.orders[0].id : '';
+    };
+    const fresh = await place();
+    const accepted = await place();
+    expect(await orders.setShopOrderStatus(String(orgId), actor, accepted, 'accept')).toEqual({ ok: true });
+
+    expect(await auth.deleteBuyerAccount(buyer.id, 'xato')).toEqual({ ok: false, error: 'badPassword' });
+    expect(await auth.deleteBuyerAccount(buyer.id, 'secret12')).toEqual({ ok: false, error: 'activeOrders' });
+    expect(await master.Buyer.exists({ _id: buyer.id })).toBeTruthy();
+
+    expect(await orders.setShopOrderStatus(String(orgId), actor, accepted, 'reject', 'Qoldiq yo\'q')).toEqual({ ok: true });
+    expect(await auth.deleteBuyerAccount(buyer.id, 'secret12')).toEqual({ ok: true });
+
+    expect(await master.Buyer.exists({ _id: buyer.id })).toBeNull();
+    const left = await master.MarketOrder.find({ buyerId: buyer.id }).lean();
+    expect(left).toHaveLength(2);
+    expect(left.find((o) => String(o._id) === fresh)?.status).toBe('cancelled');
+    for (const o of left) {
+      expect(o).toMatchObject({ buyerName: auth.DELETED_BUYER_NAME, buyerPhone: '—' });
+      expect(o.address).toBeUndefined();
+      expect(o.note).toBeUndefined();
+    }
+    // Eski kirish ishlamaydi, raqam bo'shadi
+    expect(await auth.loginBuyer({ phone: '935554433', password: 'secret12' }, '127.0.0.3')).toEqual({ ok: false, error: 'invalid' });
+    expect((await auth.registerBuyer({ name: 'Olim', phone: '935554433', password: 'secret12' }, '127.0.0.3')).ok).toBe(true);
+    expect(await auth.deleteBuyerAccount(new Types.ObjectId().toString(), 'secret12')).toEqual({ ok: false, error: 'notFound' });
+  });
+
   it('muddati tugagan do\'kon tovarlari katalogdan olib tashlanadi', async () => {
     await master.Organization.updateOne({ _id: orgId }, { $set: { status: 'expired' } });
     await sync.syncOrgListingsById(String(orgId));

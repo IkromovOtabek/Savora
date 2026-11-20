@@ -115,6 +115,7 @@ export default function MarketOrders() {
           style={{ minHeight: 70 }}
         />
         <Cell icon="log-out" iconColor={c.sq.r} title={m.orders.logout} destructive onPress={onLogout} />
+        <Cell icon="trash" iconColor={c.sq.r} title={m.orders.deleteAccount} destructive chevron onPress={() => router.push('/market/delete-account')} />
       </Group>
 
       {error && items.length > 0 ? <InlineError message={error} onRetry={refresh} /> : null}

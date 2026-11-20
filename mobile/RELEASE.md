@@ -98,14 +98,14 @@ Lokal muqobil (EAS'ga kirilgan bo'lsa):
 `EXPO_PUBLIC_API_URL=https://savora.uz npx --yes eas-cli@latest update --channel production -m "izoh"`
 (API manzilini albatta bering — aks holda lokal `.env` dagi test manzili prod ilovaga tushib qolishi mumkin).
 
-## App Store'ga (TestFlight'dan keyin) — kerak bo'ladi
+## App Store'ga (TestFlight'dan keyin)
 
-- Skrinshotlar: iPhone 6.7" (1290×2796) va 6.5" (1242×2688) — kamida 3 tadan.
-- Tavsif, kalit so'zlar, qo'llab-quvvatlash URL (`https://savora.uz/help`), **maxfiylik siyosati URL** (`https://savora.uz/privacy`).
-- **App Privacy** anketasi: yig'iladigan ma'lumot — login/identifikator, savdo ma'lumotlari (biznes), "linked to user", tracking yo'q.
-- **Demo hisob** ko'rik uchun (App Review Information): ishlaydigan login + parol, ichida namunaviy ma'lumot bo'lsin.
-- Ilova hisob yaratmaydi (faqat kirish) — Apple'ning "akkauntni o'chirish" talabi tegishli emas; lekin tavsifda "hisob veb-saytda ochiladi" deb yozing.
-- Yosh reytingi: 4+. Kategoriya: Business.
+Tayyor matnlar, App Privacy javoblari, tekshiruvchi uchun izoh va yuborish tartibi — [`store/APP-STORE.md`](store/APP-STORE.md).
+
+- Ilovada hisob ochish bor (do'kon egasi va Market xaridori) → Apple 5.1.1(v) bo'yicha ikkalasida ham
+  ilova ichidan o'chirish bor: Profil → Hisobni o'chirish; Bozor → Buyurtmalarim → Hisobni o'chirish.
+- Push (`expo-notifications`) qo'shilgandan beri provisioning profile'da **Push Notifications** imkoniyati
+  bo'lishi shart — aks holda build «doesn't support the Push Notifications capability» bilan yiqiladi.
 
 ## Android (Play Console) — xuddi shu yo'l
 

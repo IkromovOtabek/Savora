@@ -128,3 +128,39 @@ export async function loginBuyer(input: { phone: unknown; password: unknown }, i
   await Buyer.updateOne({ _id: b._id }, { $set: { lastLoginAt: new Date() } });
   return { ok: true, buyer: { _id: b._id, name: b.name, phone: b.phone, tokenVersion: b.tokenVersion ?? 0, address: b.address } };
 }
+
+/** O'chirilgan xaridor buyurtmalarida ism/telefon o'rniga yoziladi */
+export const DELETED_BUYER_NAME = "O'chirilgan xaridor";
+
+export type BuyerDeleteError = 'badPassword' | 'activeOrders' | 'rateLimited' | 'notFound';
+
+/**
+ * Xaridor hisobini o'chirish (App Store 5.1.1(v)) — parol bilan tasdiqlanadi.
+ * Do'kon qabul qilgan («accepted») buyurtma bo'lsa rad etiladi: do'konga yetkazish uchun telefon kerak.
+ * «Yangi» buyurtmalar bekor qilinadi, qolgan buyurtmalarda ism/telefon/manzil yashiriladi, akkaunt butunlay o'chadi
+ * (telefon bo'shaydi — qayta ro'yxatdan o'tish mumkin). Do'kon sotuvlari (tenant) — biznes hujjati, tegilmaydi.
+ */
+export async function deleteBuyerAccount(buyerId: string, password: unknown): Promise<{ ok: true } | { ok: false; error: BuyerDeleteError }> {
+  if (!Types.ObjectId.isValid(buyerId)) return { ok: false, error: 'notFound' };
+  const rl = await hitRateLimit(`buyer-delete:${buyerId}`, 5, 60 * 60_000);
+  if (!rl.ok) return { ok: false, error: 'rateLimited' };
+
+  const { Buyer, MarketOrder } = await getMasterModels();
+  const b = await Buyer.findById(buyerId).select('password').lean();
+  if (!b) return { ok: false, error: 'notFound' };
+  const pass = typeof password === 'string' ? password : '';
+  if (!pass || pass.length > 100 || !(await bcrypt.compare(pass, b.password))) return { ok: false, error: 'badPassword' };
+  if (await MarketOrder.exists({ buyerId: b._id, status: 'accepted' })) return { ok: false, error: 'activeOrders' };
+
+  await MarketOrder.updateMany(
+    { buyerId: b._id, status: 'new' },
+    { $set: { status: 'cancelled' }, $push: { history: { status: 'cancelled', at: new Date(), by: 'xaridor' } } },
+  );
+  // Shu orada do'kon qabul qilgan buyurtma bo'lsa — uning aloqa ma'lumoti yetkazish uchun qoladi
+  await MarketOrder.updateMany(
+    { buyerId: b._id, status: { $ne: 'accepted' } },
+    { $set: { buyerName: DELETED_BUYER_NAME, buyerPhone: '—' }, $unset: { address: 1, note: 1 } },
+  );
+  await Buyer.deleteOne({ _id: b._id });
+  return { ok: true };
+}

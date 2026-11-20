@@ -229,6 +229,15 @@ export const uz = {
       failed: "Buyurtmani yuborib bo'lmadi. Qayta urinib ko'ring.",
       loginRequired: 'Avval kiring.',
     },
+    account: {
+      deleted: "Hisob o'chirildi.",
+      errors: {
+        badPassword: "Parol noto'g'ri.",
+        activeOrders: "Do'kon qabul qilgan buyurtmangiz bor — u topshirilgach yoki rad etilgach hisobni o'chira olasiz.",
+        rateLimited: "Urinishlar ko'p. Birozdan keyin qayta urinib ko'ring.",
+        notFound: 'Hisob topilmadi.',
+      },
+    },
   },
 };
 
@@ -459,6 +468,15 @@ export const ru: typeof uz = {
       rateLimited: 'Слишком много заказов. Попробуйте позже.',
       failed: 'Не удалось отправить заказ. Попробуйте ещё раз.',
       loginRequired: 'Сначала войдите.',
+    },
+    account: {
+      deleted: 'Аккаунт удалён.',
+      errors: {
+        badPassword: 'Неверный пароль.',
+        activeOrders: 'У вас есть заказ, принятый магазином, — удалить аккаунт можно после его выдачи или отклонения.',
+        rateLimited: 'Слишком много попыток. Попробуйте позже.',
+        notFound: 'Аккаунт не найден.',
+      },
     },
   },
 };
