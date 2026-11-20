@@ -1,6 +1,7 @@
 import { getTenantSession } from '@/lib/tenantSession';
 import { sumCashFromSales } from '@/lib/cashKassa';
 import { KASSA_SALE_FILTER } from '@/lib/kassa';
+import { bankFinancedFilter } from '@/lib/bankCredit';
 import { amtTone, fmtMoney } from '@/lib/format';
 import { getDict } from '@/lib/i18n/server';
 import FinanceTabs from '@/components/tenant/FinanceTabs';
@@ -29,8 +30,13 @@ export default async function FinanceStatePage() {
       { $group: { _id: '$branchId', total: { $sum: '$remainingAmount' } } },
     ]),
     Sale.aggregate<{ _id: unknown; total: number }>([
-      { $match: { status: { $ne: 'cancelled' }, paymentType: 'bank_credit' } },
-      { $group: { _id: '$branchId', total: { $sum: { $subtract: ['$totalAmount', '$paidAmount'] } } } },
+      // Bank + nasiya sotuvida bank qismi — bankParts jami (qoldiq — mijoz nasiyasi, debitorda)
+      { $match: { status: { $ne: 'cancelled' }, ...bankFinancedFilter() } },
+      { $group: { _id: '$branchId', total: { $sum: { $cond: [
+        { $eq: ['$paymentType', 'bank_credit'] },
+        { $subtract: ['$totalAmount', '$paidAmount'] },
+        { $sum: '$bankParts.amount' },
+      ] } } } },
     ]),
     // Bankdan olingan pul — filial naqd kassasiga o'tadi, bank qarzidan ayriladi
     BankReceipt.aggregate<{ _id: unknown; total: number }>([{ $group: { _id: '$branchId', total: { $sum: '$amount' } } }]),

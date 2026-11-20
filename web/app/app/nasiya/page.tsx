@@ -51,9 +51,13 @@ function toRow(s: SaleLike, now: Date, today0: Date) {
   const late = unpaid.filter((m) => daysAgo(m.dueDate) > 0);
   const dueToday = unpaid.filter((m) => daysAgo(m.dueDate) === 0);
   const lateDays = late.length ? daysAgo(late[0].dueDate) : 0;
+  // Bank krediti + nasiya: nasiya summasi — mijoz zimmasidagi qism (banklar qismi Kredit kassada)
+  const total = plan?.total ?? s.totalAmount;
   return {
     s,
     plan,
+    total,
+    bank: plan?.bank ?? 0,
     down: plan?.down ?? 0,
     monthly: plan?.monthly ?? 0,
     monthsPaid: plan?.monthsPaid ?? 0,
@@ -64,7 +68,7 @@ function toRow(s: SaleLike, now: Date, today0: Date) {
     lateSum: late.reduce((a, m) => a + m.left, 0),
     todaySum: dueToday.reduce((a, m) => a + m.left, 0),
     bucket: lateDays > 0 ? BUCKETS.find((bk) => lateDays >= bk.min && lateDays <= bk.max)?.key : undefined,
-    progress: s.totalAmount > 0 ? s.paidAmount / s.totalAmount : 0,
+    progress: total > 0 ? s.paidAmount / total : 0,
   };
 }
 
@@ -97,9 +101,9 @@ export default async function NasiyaPage({
   const debtRows = rows.filter((r) => !r.isPaid);
   const todayRows = debtRows.filter((r) => r.todaySum > 0);
   const lateRows = debtRows.filter((r) => r.lateDays > 0);
-  const sumTotal = rows.reduce((a, r) => a + r.s.totalAmount, 0);
+  const sumTotal = rows.reduce((a, r) => a + r.total, 0);
   const sumPaidAll = rows.reduce((a, r) => a + r.s.paidAmount, 0);
-  const sumPaidTotal = paidRows.reduce((a, r) => a + r.s.totalAmount, 0);
+  const sumPaidTotal = paidRows.reduce((a, r) => a + r.total, 0);
   const sumDebtRemaining = debtRows.reduce((a, r) => a + r.s.remainingAmount, 0);
   const sumToday = todayRows.reduce((a, r) => a + r.todaySum, 0);
   const sumLate = lateRows.reduce((a, r) => a + r.lateSum, 0);
@@ -246,7 +250,7 @@ export default async function NasiyaPage({
                       <span className="cl-row-body">
                         <span className="cl-row-top">
                           <b className="cl-row-name">{name}</b>
-                          <b className="cl-row-amt t-num">{r.isPaid ? fmtMoney(r.s.totalAmount) : fmtMoney(r.s.remainingAmount)}</b>
+                          <b className="cl-row-amt t-num">{r.isPaid ? fmtMoney(r.total) : fmtMoney(r.s.remainingAmount)}</b>
                         </span>
                         <span className="cl-row-top">
                           <small className="cl-row-sub">{r.s.productSnapshot.name} · <span className="t-num">{tr(k.termVal, { paid: r.monthsPaid, total: r.months })}</span></small>
@@ -314,6 +318,7 @@ function NasiyaDetail({ r, back, d }: { r: Row; back: string; d: Dict }) {
         <Ring value={r.progress} size={104} tone={r.isPaid ? 'ok' : r.lateDays > 0 ? 'bad' : 'gold'} />
         <dl className="cl-kv">
           <div><dt>{k.soldPrice}</dt><dd className="t-num">{fmtMoney(s.totalAmount)}</dd></div>
+          {r.bank > 0 && <div><dt>{d.sales.newSale.viaBank}</dt><dd className="t-num">{fmtMoney(r.bank)}</dd></div>}
           <div><dt>{d.common.paid}</dt><dd className="t-num cl-c-ok">{fmtMoney(s.paidAmount)}</dd></div>
           <div><dt>{d.common.remaining}</dt><dd className={`t-num${s.remainingAmount > 0 ? ' cl-c-gold' : ' cl-c-ok'}`}>{fmtMoney(s.remainingAmount)}</dd></div>
           <div><dt>{d.sales.down}</dt><dd className="t-num">{fmtMoney(r.down)}</dd></div>

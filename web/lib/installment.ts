@@ -18,7 +18,8 @@ export interface InstallmentMonth {
 
 /** Nasiya to'lov rejasi — sotuv ma'lumotidan hisoblanadi. */
 export interface InstallmentPlan {
-  total: number; // sotilgan narx
+  total: number; // mijoz zimmasidagi narx: sotilgan narx − bank ulushlari (bank krediti + nasiya)
+  bank: number; // banklar to'lagan qism (oddiy nasiyada 0) — Kredit kassada hisoblanadi
   down: number; // boshlang'ich to'lov
   monthly: number; // asosiy oylik to'lov (yaxlitlangan)
   months: number; // oylar soni
@@ -35,7 +36,7 @@ type SaleForPlan = Pick<
   ISale,
   'totalAmount' | 'paidAmount' | 'remainingAmount' | 'installmentMonths' | 'payments' | 'downPayment' | 'createdAt'
   | 'payDay' | 'installmentAmounts'
->;
+> & Partial<Pick<ISale, 'bankParts'>>;
 
 /** To'lov kuni (1–31) — noto'g'ri qiymat bo'lsa yo'q */
 export function normPayDay(v: unknown): number | undefined {
@@ -88,7 +89,7 @@ function monthAmounts(sale: SaleForPlan, financed: number, months: number, plann
  * - Boshlang'ich = `downPayment` maydoni (yangi sotuvlar), bo'lmasa "Boshlang'ich to'lov"
  *   izohli to'lov, aks holda 0. MUHIM: `payments[0]` dan OLINMAYDI — chunki boshlang'ichsiz
  *   nasiyada birinchi oy to'lovi payments[0] bo'lib qolib, hisobni buzardi (eski bug).
- * - Oylik = (narx − boshlang'ich) / oylar; yaxlitlash qoldig'i oxirgi oyga qo'shiladi.
+ * - Oylik = (narx − bank ulushlari − boshlang'ich) / oylar; yaxlitlash qoldig'i oxirgi oyga qo'shiladi.
  *   Qisman to'lovda qoldiq keyingi oylarga bo'lingan bo'lsa — `installmentAmounts` dan.
  * - Oy "to'langan" — boshlang'ichdan keyingi to'lovlar shu oygacha summani qoplasa
  *   (eng erta oylardan boshlab).
@@ -99,7 +100,9 @@ export function computeInstallmentPlan(sale: SaleForPlan, now: Date = new Date()
   const months = sale.installmentMonths ?? 0;
   if (months < 1) return null;
 
-  const total = Math.max(0, sale.totalAmount);
+  // Bank krediti + nasiya: banklar qismi jadvalga kirmaydi — oylik faqat mijoz qismidan
+  const bank = Math.max(0, (sale.bankParts ?? []).reduce((a, p) => a + (Number.isFinite(p.amount) ? p.amount : 0), 0));
+  const total = Math.max(0, sale.totalAmount - bank);
   const down = typeof sale.downPayment === 'number'
     ? Math.max(0, sale.downPayment)
     : Math.max(0, sale.payments?.find((p) => p.note === DOWN_NOTE)?.amount ?? 0);
@@ -138,6 +141,7 @@ export function computeInstallmentPlan(sale: SaleForPlan, now: Date = new Date()
 
   return {
     total,
+    bank,
     down,
     monthly: baseMonthly,
     months,

@@ -6,7 +6,7 @@ import type { Dict } from '@/lib/i18n/server';
 import { qtyWithUnit, tr } from '@/lib/i18n/fmt';
 import { isFractionalUnit } from '@/lib/qty';
 import { PAY_METHODS, methodOf, type PayMethod } from '@/lib/payMethods';
-import { saleBankParts } from '@/lib/bankCredit';
+import { isBankNasiya, saleBankParts } from '@/lib/bankCredit';
 import { markingLabel } from '@/lib/gs1';
 
 type ReceiptSale = Pick<ISale, 'saleNo' | 'productSnapshot' | 'customerSnapshot' | 'paymentType' | 'bankName' | 'bankParts' | 'totalAmount' | 'paidAmount' | 'remainingAmount' | 'soldBy' | 'dueDate' | 'createdAt' | 'discount'> & Partial<Pick<ISale, 'tableNumber' | 'markingCodes'>> & Parameters<typeof computeInstallmentPlan>[0];
@@ -106,11 +106,11 @@ export default function ReceiptPaper({ sales, org, receipt, d, publicView = fals
         <strong>{fmtMoney(total)} {d.common.sum}</strong>
       </div>
       {/* Naqd/karta sotuvda — usullar bo'yicha; qarz/nasiya/kreditda — turi va to'langan qismi usullari */}
-      {sameType && first.paymentType !== 'cash' && <div className="sl-rc-line"><span>{d.sales.paymentType}</span><span>{d.sales.paymentTypesFull[first.paymentType]}</span></div>}
+      {sameType && first.paymentType !== 'cash' && <div className="sl-rc-line"><span>{d.sales.paymentType}</span><span>{sales.length === 1 && isBankNasiya(first) ? d.sales.bankNasiya : d.sales.paymentTypesFull[first.paymentType]}</span></div>}
       {methods.map((m) => (
         <div key={m} className="sl-rc-line"><span>{d.sales.payMethods[m]}</span><span>{fmtMoney(byMethod.get(m) ?? 0)} {d.common.sum}</span></div>
       ))}
-      {/* Bank krediti: har bank o'z ulushi bilan */}
+      {/* Bank krediti (va bank + nasiya): har bank o'z ulushi bilan */}
       {sales.length === 1 && saleBankParts(first).map((p) => (
         <div key={p.bankName} className="sl-rc-line"><span>{p.bankName}</span><span>{fmtMoney(p.amount)} {d.common.sum}</span></div>
       ))}

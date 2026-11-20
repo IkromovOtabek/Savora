@@ -205,3 +205,50 @@ describe('spreadShortfall — qisman to\'lov qoldig\'i keyingi oylarga', () => {
     expect(plan.schedule[11].amount).toBe(18_190);
   });
 });
+
+describe('computeInstallmentPlan — bank krediti + nasiya', () => {
+  const base = sale({
+    totalAmount: 12_000_000,
+    paidAmount: 0,
+    remainingAmount: 4_000_000,
+    installmentMonths: 4,
+    downPayment: 0,
+    bankParts: [
+      { bankName: 'Ishonch', amount: 4_000_000 },
+      { bankName: 'BirZum', amount: 4_000_000 },
+    ],
+    createdAt: new Date(2026, 10, 20),
+  });
+
+  it('oylik jadval faqat nasiya qismidan (4 mln / 4 oy), banklar qismi kirmaydi', () => {
+    const plan = computeInstallmentPlan(base, new Date(2026, 10, 21))!;
+    expect(plan.total).toBe(4_000_000);
+    expect(plan.bank).toBe(8_000_000);
+    expect(plan.monthly).toBe(1_000_000);
+    expect(plan.schedule.reduce((a, m) => a + m.amount, 0)).toBe(4_000_000);
+    expect(plan.remaining).toBe(4_000_000);
+  });
+
+  it('boshlang\'ich to\'lov bilan: 12 mln = 1 mln + banklar 8 mln + nasiya 3 mln / 3 oy', () => {
+    const plan = computeInstallmentPlan(
+      { ...base, paidAmount: 1_000_000, remainingAmount: 3_000_000, downPayment: 1_000_000, installmentMonths: 3 },
+      new Date(2026, 10, 21),
+    )!;
+    expect(plan.down).toBe(1_000_000);
+    expect(plan.monthly).toBe(1_000_000);
+    expect(plan.monthsPaid).toBe(0);
+  });
+
+  it('mijoz 1-oyni to\'lasa — 1-oy yopiladi', () => {
+    const plan = computeInstallmentPlan({ ...base, paidAmount: 1_000_000, remainingAmount: 3_000_000 }, new Date(2026, 10, 21))!;
+    expect(plan.schedule[0].paid).toBe(true);
+    expect(plan.schedule[1].paid).toBe(false);
+    expect(plan.monthsPaid).toBe(1);
+  });
+
+  it('oddiy nasiyada bank 0', () => {
+    const plan = computeInstallmentPlan(sale({ totalAmount: 600, remainingAmount: 600, installmentMonths: 6 }))!;
+    expect(plan.bank).toBe(0);
+    expect(plan.total).toBe(600);
+  });
+});

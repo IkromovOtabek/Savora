@@ -22,6 +22,8 @@ export type ReturnCalcInput = {
   remainingAmount: number;
   paymentType: PaymentType;
   status: string;
+  /** Bank krediti + nasiya: bank ulushlari bor — qisman qaytarish bank krediti kabi yopiq */
+  bankParts?: { amount: number }[] | null;
 };
 
 export type ReturnCalc = {
@@ -42,7 +44,7 @@ export function computePartialReturn(
   returnQty: number,
 ): { ok: true; calc: ReturnCalc } | { ok: false; error: ReturnCalcError } {
   if (sale.status === 'cancelled') return { ok: false, error: 'cancelled' };
-  if (sale.paymentType === 'bank_credit') return { ok: false, error: 'bankCredit' };
+  if (sale.paymentType === 'bank_credit' || (sale.bankParts?.length ?? 0) > 0) return { ok: false, error: 'bankCredit' };
   if (!isValidQty(returnQty, sale.unit)) return { ok: false, error: 'badQty' };
   if (roundQty(returnQty) >= roundQty(sale.qty)) return { ok: false, error: 'useCancel' };
 

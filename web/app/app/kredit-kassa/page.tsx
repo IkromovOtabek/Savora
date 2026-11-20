@@ -1,7 +1,7 @@
 import { getTenantAdminSession } from '@/lib/tenantSession';
 import CreditKassaPanel from '@/components/tenant/CreditKassaPanel';
 import { getDict } from '@/lib/i18n/server';
-import { bankBalanceOf, computeBankBalances } from '@/lib/bankCredit';
+import { bankBalanceOf, bankFinancedFilter, computeBankBalances } from '@/lib/bankCredit';
 
 export async function generateMetadata() {
   const d = await getDict();
@@ -17,7 +17,8 @@ export default async function CreditKassaPage() {
 
   const [banks, creditSales, receiptSums, recent] = await Promise.all([
     CreditBank.find().sort({ name: 1 }).lean(),
-    Sale.find({ paymentType: 'bank_credit', status: { $ne: 'cancelled' } })
+    // Bank krediti va bank + nasiya sotuvlari (nasiyada bank ulushi — bankParts)
+    Sale.find({ ...bankFinancedFilter(), status: { $ne: 'cancelled' } })
       .select('paymentType status bankName bankParts totalAmount paidAmount remainingAmount')
       .lean(),
     BankReceipt.aggregate<{ _id: string; total: number }>([

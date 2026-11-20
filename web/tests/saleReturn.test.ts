@@ -9,6 +9,14 @@ function input(over: Partial<ReturnCalcInput> = {}): ReturnCalcInput {
 }
 
 describe('computePartialReturn', () => {
+  it('bank krediti + nasiya: qisman qaytarish bank krediti kabi yopiq', () => {
+    const r = computePartialReturn(input({
+      paymentType: 'installment', status: 'partial', totalAmount: 12_000_000, paidAmount: 0, remainingAmount: 4_000_000,
+      bankParts: [{ amount: 4_000_000 }, { amount: 4_000_000 }],
+    }), 1);
+    expect(r).toEqual({ ok: false, error: 'bankCredit' });
+  });
+
   it("naqd sotuv: qaytgan qiymat to'liq naqd qaytariladi", () => {
     const r = computePartialReturn(input(), 2);
     expect(r.ok).toBe(true);

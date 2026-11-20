@@ -134,6 +134,9 @@ export default function SaleForm({ isPhoneShop, products, mediaEnabled, features
   const [notes, setNotes] = useState('');
   // Bank krediti: bir yoki bir nechta bank. Bitta bank bo'lsa — qolgan summa to'liq unga yoziladi
   const [bankRows, setBankRows] = useState<{ bank: string; amount: string }[]>([{ bank: '', amount: '' }]);
+  // Bank krediti + nasiya: qolgan summaning bir qismini mijoz oyma-oy do'konga to'laydi
+  const [nasiyaOn, setNasiyaOn] = useState(false);
+  const [nasiyaAmount, setNasiyaAmount] = useState('');
   // Sana faqat brauzerda (server/klient vaqt mintaqasi farqi hydration xatosiga olib kelmasin)
   const [now, setNow] = useState<Date | null>(null);
   useEffect(() => {
@@ -307,14 +310,31 @@ export default function SaleForm({ isPhoneShop, products, mediaEnabled, features
   const overpaid = paymentType !== 'cash' && paid > total && total > 0;
   const fieldsOff = isPending || !hasItems;
 
-  // Bank ulushlari: bitta bank — qolgan summa to'liq; bir nechta — har biri qo'lda, jami = qolgan summa
+  // Bank krediti + nasiya: nasiya qismi qolgan summadan kam (banklarga ham qolsin), oylik — shu qismdan
+  const canNasiya = features.variant || features.nasiya;
+  const withNasiya = paymentType === 'bank_credit' && canNasiya && nasiyaOn;
+  const nasiyaN = withNasiya ? Math.max(0, Math.floor(Number(nasiyaAmount) || 0)) : 0;
+  const nasiyaBad = withNasiya && (nasiyaN < 1 || nasiyaN >= rest);
+  const nasiyaMonthly = withNasiya && monthsN > 0 ? Math.floor(nasiyaN / monthsN) : 0;
+  const nasiyaLastMonth = withNasiya && monthsN > 0 ? nasiyaN - nasiyaMonthly * (monthsN - 1) : 0;
+  // Nasiyada bitta tovar — bank + nasiya ham shunday
+  const bankNasiyaMulti = withNasiya && items.length > 1;
+
+  // Bank ulushlari: bitta bank — qolgan summa (nasiya qismidan tashqari) to'liq; bir nechta — har biri qo'lda
+  const bankRest = rest - nasiyaN;
   const multiBank = bankRows.length > 1;
-  const bankAmount = (r: { amount: string }) => (multiBank ? Number(r.amount) || 0 : rest);
-  const unallocated = rest - bankRows.reduce((a, r) => a + bankAmount(r), 0);
+  const bankAmount = (r: { amount: string }) => (multiBank ? Number(r.amount) || 0 : bankRest);
+  const unallocated = bankRest - bankRows.reduce((a, r) => a + bankAmount(r), 0);
   const bankPartsJson = JSON.stringify(bankRows.map((r) => ({ bankName: r.bank, amount: bankAmount(r) })));
   // Har bank summasi > 0 va jami = qolgan summa bo'lmaguncha tasdiqlab bo'lmaydi
   const bankZeroRow = multiBank && bankRows.some((r) => bankAmount(r) < 1);
-  const bankBlocked = paymentType === 'bank_credit' && multiBank && (unallocated !== 0 || bankZeroRow);
+  const bankBlocked = paymentType === 'bank_credit' && ((multiBank && (unallocated !== 0 || bankZeroRow)) || nasiyaBad || bankNasiyaMulti);
+
+  function toggleNasiya(on: boolean) {
+    setNasiyaOn(on);
+    // Bir nechta bankda taqsimlanmagan qoldiq bo'lsa — nasiya qismi shu summadan boshlanadi
+    if (on && !nasiyaAmount && multiBank && unallocated > 0) setNasiyaAmount(String(unallocated));
+  }
 
   function updateBankRow(i: number, patch: Partial<{ bank: string; amount: string }>) {
     setBankRows((rows) => rows.map((r, j) => (j === i ? { ...r, ...patch } : r)));
@@ -323,7 +343,7 @@ export default function SaleForm({ isPhoneShop, products, mediaEnabled, features
     setBankRows((rows) => {
       if (rows.length >= MAX_BANK_PARTS) return rows;
       // Birinchi qo'shishda: 1-bank hozirgi qoldiqni oladi, yangisi bo'sh — foydalanuvchi bo'lib chiqadi
-      if (rows.length === 1) return [{ ...rows[0], amount: String(rest) }, { bank: '', amount: '' }];
+      if (rows.length === 1) return [{ ...rows[0], amount: String(bankRest) }, { bank: '', amount: '' }];
       return [...rows, { bank: '', amount: unallocated > 0 ? String(unallocated) : '' }];
     });
   }
@@ -682,15 +702,97 @@ export default function SaleForm({ isPhoneShop, products, mediaEnabled, features
                               : tr(k.overAllocated, { sum: fmtMoney(-unallocated) })}
                         </span>
                       ) : (
-                        <span className="field-hint">{k.bankSingleHint}</span>
+                        <span className="field-hint">
+                          {withNasiya ? tr(k.bankSingleNasiyaHint, { sum: fmtMoney(Math.max(0, bankRest)) }) : k.bankSingleHint}
+                        </span>
                       )}
                       {bankRows.length < Math.min(MAX_BANK_PARTS, bankOptions.length) && (
                         <button type="button" className="sl-quick sl-bank-add" onClick={addBankRow} disabled={fieldsOff}>
                           <Icon name="plus" size={14} /> {k.addBankRow}
                         </button>
                       )}
+                      {canNasiya && !nasiyaOn && (
+                        <button type="button" className="sl-quick sl-bank-add" onClick={() => toggleNasiya(true)} disabled={fieldsOff}>
+                          <Icon name="plus" size={14} /> {k.addNasiyaPart}
+                        </button>
+                      )}
                     </>
                   )}
+                </div>
+              )}
+
+              {/* Bank krediti + nasiya: banklardan qolgan qismini mijoz oyma-oy do'konga to'laydi (Nasiya bo'limi) */}
+              {withNasiya && (
+                <div className="auth-field" role="group" aria-labelledby="sl-nasiya-l">
+                  <label id="sl-nasiya-l" htmlFor="nasiyaAmount">{k.nasiyaPart}</label>
+                  <div className="sl-bank-row sl-bank-row--multi">
+                    <div className="sl-bank-pick">
+                      <PriceInput
+                        id="nasiyaAmount"
+                        name="nasiyaAmount"
+                        value={nasiyaAmount}
+                        onValueChange={setNasiyaAmount}
+                        disabled={fieldsOff}
+                        placeholder="0"
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      className="sl-bank-del"
+                      onClick={() => toggleNasiya(false)}
+                      disabled={fieldsOff}
+                      aria-label={k.removeNasiyaPart}
+                      title={k.removeNasiyaPart}
+                    >
+                      <Icon name="close" size={16} />
+                    </button>
+                  </div>
+                  {nasiyaN >= rest && rest > 0 ? (
+                    <span className="field-hint sl-bank-sum sl-bank-sum--bad" aria-live="polite">
+                      {tr(d.sales.actions.nasiyaPartTooBig, { sum: fmtMoney(rest) })}
+                    </span>
+                  ) : (
+                    <span className="field-hint">{k.nasiyaPartHint}</span>
+                  )}
+                  {bankNasiyaMulti && (
+                    <div className="auth-alert auth-alert--warn" role="alert">{d.sales.actions.bankNasiyaOneItem}</div>
+                  )}
+                  <div className="sl-fields-2">
+                    <div className="auth-field">
+                      <label htmlFor="installmentMonths">{k.months}</label>
+                      <input
+                        id="installmentMonths"
+                        name="installmentMonths"
+                        type="number"
+                        min={1}
+                        max={60}
+                        value={months}
+                        onChange={(e) => setMonths(e.target.value)}
+                        disabled={fieldsOff}
+                        inputMode="numeric"
+                      />
+                      {Number(months) > PQ294_MAX_MONTHS && (
+                        <small className="field-hint" style={{ color: 'var(--warn)' }}>
+                          {tr(k.pq294Warn, { n: PQ294_MAX_MONTHS })}
+                        </small>
+                      )}
+                    </div>
+                    <div className="auth-field">
+                      <label htmlFor="payDay">{k.payDayLabel}</label>
+                      <select
+                        id="payDay"
+                        name="payDay"
+                        value={payDay}
+                        onChange={(e) => setPayDay(e.target.value)}
+                        disabled={fieldsOff || !payDay}
+                        required
+                      >
+                        {Array.from({ length: 31 }, (_, i) => String(i + 1)).map((v) => (
+                          <option key={v} value={v}>{tr(k.payDayOption, { n: v })}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
                 </div>
               )}
 
@@ -780,10 +882,28 @@ export default function SaleForm({ isPhoneShop, products, mediaEnabled, features
               )}
               {hasItems && paymentType === 'bank_credit' && (
                 <div className="sl-preview sl-preview--bank" aria-live="polite">
-                  <div className="sl-preview-big"><span>{k.viaBank}</span><strong>{fmtMoney(rest)} {d.common.sum}</strong></div>
+                  <div className="sl-preview-big"><span>{k.viaBank}</span><strong>{fmtMoney(Math.max(0, bankRest))} {d.common.sum}</strong></div>
                   {multiBank && bankRows.filter((r) => r.bank).map((r) => (
                     <div key={r.bank} className="sl-preview-row"><span>{r.bank}</span><strong>{fmtMoney(bankAmount(r))} {d.common.sum}</strong></div>
                   ))}
+                  {withNasiya && (
+                    <>
+                      <div className="sl-preview-row"><span>{k.restInstallment}</span><strong>{fmtMoney(nasiyaN)} {d.common.sum}</strong></div>
+                      <div className="sl-preview-row">
+                        <span>{d.sales.monthlyPayment}</span>
+                        <strong>{monthsN > 0 && nasiyaN > 0 ? `${fmtMoney(nasiyaMonthly)} ${d.common.sum}` : '—'}</strong>
+                      </div>
+                      {monthsN > 1 && nasiyaN > 0 && nasiyaLastMonth !== nasiyaMonthly && (
+                        <div className="sl-preview-row"><span>{tr(k.lastMonth, { n: monthsN })}</span><strong>{fmtMoney(nasiyaLastMonth)} {d.common.sum}</strong></div>
+                      )}
+                      {monthsN > 0 && now && (
+                        <div className="sl-preview-row">
+                          <span>{k.firstPayment}</span>
+                          <strong>{fmtDate(installmentDueDate(now, 1, payDayN))}</strong>
+                        </div>
+                      )}
+                    </>
+                  )}
                   {overpaid && <div className="sl-preview-warn">{k.overpaidDown}</div>}
                 </div>
               )}

@@ -23,18 +23,36 @@ type SaleLike = {
 };
 
 /**
- * Sotuvning bank ulushlari. Eski sotuvlarda (bankParts yo'q) — bitta bank, joriy qoldiq bilan:
+ * Sotuvning bank ulushlari. Bank krediti + nasiya sotuvi (paymentType 'installment' + bankParts) ham shu yerda:
+ * bank qismi Kredit kassada, mijoz qismi — oddiy nasiya (remainingAmount — faqat mijoz qarzi).
+ * Eski sotuvlarda (bankParts yo'q) — bitta bank, joriy qoldiq bilan:
  * ilgari bank puli sotuvning o'ziga to'lov qilib yozilgan, shuning uchun joriy qoldiq allaqachon sof summa.
  */
 export function saleBankParts(sale: SaleLike): ISaleBankPart[] {
-  if (sale.paymentType !== 'bank_credit') return [];
+  if (sale.paymentType !== 'bank_credit' && sale.paymentType !== 'installment') return [];
   if (sale.bankParts && sale.bankParts.length > 0) {
     return sale.bankParts.map((p) => ({ bankName: p.bankName, amount: p.amount }));
   }
+  if (sale.paymentType !== 'bank_credit') return [];
   const name = sale.bankName?.trim();
   if (!name) return [];
   const amount = sale.remainingAmount ?? Math.max(0, (sale.totalAmount ?? 0) - (sale.paidAmount ?? 0));
   return [{ bankName: name, amount: Math.max(0, amount) }];
+}
+
+/** Bank ulushlari jami (so'm) */
+export function bankPartsTotal(parts: { amount: number }[] | null | undefined): number {
+  return (parts ?? []).reduce((a, p) => a + (Number.isFinite(p.amount) ? p.amount : 0), 0);
+}
+
+/** Bank krediti + nasiya: banklar bir qismini, qolganini mijoz oyma-oy do'konga to'laydi */
+export function isBankNasiya(sale: { paymentType: PaymentType; bankParts?: ISaleBankPart[] | null }): boolean {
+  return sale.paymentType === 'installment' && (sale.bankParts?.length ?? 0) > 0;
+}
+
+/** Bank moliyalashtirgan sotuvlar so'rovi (Kredit kassa, moliya holati, «Bank krediti» filtri): bank krediti va bank + nasiya */
+export function bankFinancedFilter() {
+  return { $or: [{ paymentType: 'bank_credit' }, { paymentType: 'installment', 'bankParts.0': { $exists: true } }] };
 }
 
 /** Ko'rsatish uchun: "Ishonch, Uzum Nasiya" */

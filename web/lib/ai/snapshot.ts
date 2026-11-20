@@ -214,7 +214,7 @@ export async function buildSnapshot(
     }),
     // Faqat hisob uchun maydonlar — mijoz ma'lumoti so'ralmaydi
     Sale.find({ ...scope, status: 'partial', remainingAmount: { $gt: 0 } })
-      .select('paymentType remainingAmount totalAmount paidAmount installmentMonths downPayment payDay installmentAmounts payments.amount payments.paidAt payments.note createdAt dueDate')
+      .select('paymentType remainingAmount totalAmount paidAmount installmentMonths downPayment payDay installmentAmounts bankParts payments.amount payments.paidAt payments.note createdAt dueDate')
       .limit(5000)
       .lean<SaleForNasiya[]>(),
     Branch.find(user.role === 'user' && user.branchId ? { _id: user.branchId } : { active: true })

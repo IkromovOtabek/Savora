@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import {
   bankBalanceOf,
   bankPartsLabel,
+  bankPartsTotal,
+  isBankNasiya,
   computeBankBalances,
   parseBankPartsInput,
   saleBankParts,
@@ -115,5 +117,44 @@ describe('computeBankBalances — Kiritilgan − Olingan = Qoldiq', () => {
     expect(saleBankParts(old)).toEqual([{ bankName: 'Hamkorbank', amount: 6 }]);
     expect(saleBankParts({ ...old, paymentType: 'cash' })).toEqual([]);
     expect(bankPartsLabel([{ bankName: 'A', amount: 1 }, { bankName: 'B', amount: 2 }])).toBe('A, B');
+  });
+});
+
+describe('Bank krediti + nasiya — 12 mln = Ishonch 4 + BirZum 4 + nasiya 4', () => {
+  const mixed = {
+    paymentType: 'installment' as const,
+    status: 'partial' as const,
+    bankParts: [
+      { bankName: 'Ishonch', amount: 4_000_000 },
+      { bankName: 'BirZum', amount: 4_000_000 },
+    ],
+    totalAmount: 12_000_000,
+    paidAmount: 0,
+    // Qoldiq — faqat mijoz nasiyasi
+    remainingAmount: 4_000_000,
+  };
+
+  it('banklar qolgan summadan nasiya qismi ayrilgan holda tekshiriladi', () => {
+    const rest = 12_000_000 - 0;
+    const nasiya = 4_000_000;
+    expect(validateBankParts(mixed.bankParts, rest - nasiya)).toEqual({ ok: true, parts: mixed.bankParts });
+    // Nasiyasiz bo'lsa banklar 12 mln bo'lishi kerak edi
+    expect(validateBankParts(mixed.bankParts, rest)).toEqual({ ok: false, error: 'sumMismatch' });
+  });
+
+  it('bank ulushlari Kredit kassada «Kiritilgan» bo\'lib chiqadi, mijoz qoldig\'i emas', () => {
+    expect(isBankNasiya(mixed)).toBe(true);
+    expect(saleBankParts(mixed)).toEqual(mixed.bankParts);
+    expect(bankPartsTotal(saleBankParts(mixed))).toBe(8_000_000);
+    const map = computeBankBalances([mixed], [{ bankName: 'BirZum', amount: 4_000_000 }]);
+    expect(bankBalanceOf(map, 'Ishonch')).toEqual({ financed: 4_000_000, received: 0, balance: 4_000_000, salesCount: 1 });
+    expect(bankBalanceOf(map, 'BirZum').balance).toBe(0);
+  });
+
+  it('oddiy nasiya (bankParts yo\'q) bankka tegishli emas', () => {
+    const plain = { ...mixed, bankParts: undefined, bankName: 'Ishonch' };
+    expect(isBankNasiya(plain)).toBe(false);
+    expect(saleBankParts(plain)).toEqual([]);
+    expect(computeBankBalances([plain], []).size).toBe(0);
   });
 });

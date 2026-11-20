@@ -11,6 +11,7 @@ import { parsePeriod, periodRange, type PeriodKey } from '@/lib/period';
 import { loadUserPermissions, requirePermission } from '@/lib/permissionGuard';
 import { getDict } from '@/lib/i18n/server';
 import { plural, qtyWithUnit, tr } from '@/lib/i18n/fmt';
+import { bankFinancedFilter, isBankNasiya } from '@/lib/bankCredit';
 
 export async function generateMetadata() {
   const d = await getDict();
@@ -50,7 +51,10 @@ export default async function SalesPage({
   const scope = branchFilter(user);
   const filter: Record<string, unknown> = { ...scope };
   if (sp.status && sp.status in SALE_STATUS_LABELS) filter.status = sp.status;
-  if (sp.type && sp.type in PAYMENT_TYPE_LABELS) filter.paymentType = sp.type;
+  const typeParam = sp.type && sp.type in PAYMENT_TYPE_LABELS ? (sp.type as PaymentType) : undefined;
+  // «Bank krediti» — bank + nasiya sotuvlari ham (ularning bank ulushi Kredit kassada)
+  if (typeParam === 'bank_credit') Object.assign(filter, bankFinancedFilter());
+  else if (typeParam) filter.paymentType = typeParam;
   // Davr: Hammasi (sukut) · Kecha · Bugun · Hafta · Oy · Yil · aniq kun
   const period = parsePeriod(sp.p, 'all');
   const periodMatch: Record<string, unknown> = {};
@@ -60,7 +64,7 @@ export default async function SalesPage({
     filter.createdAt = periodMatch.createdAt;
   }
   const activeStatus = filter.status as SaleStatus | undefined;
-  const activeType = filter.paymentType as PaymentType | undefined;
+  const activeType = typeParam;
 
   const sales = await Sale.find(filter).sort({ createdAt: -1 }).limit(200).lean();
 
@@ -96,6 +100,7 @@ export default async function SalesPage({
       total: s.totalAmount,
       remaining: s.remainingAmount,
       type: s.paymentType as PaymentType,
+      bankNasiya: isBankNasiya(s),
       note,
       customer,
       avatar: initials(customer || name),
@@ -118,6 +123,7 @@ export default async function SalesPage({
   const sumGroup = { $group: { _id: null, n: { $sum: 1 }, sum: { $sum: '$totalAmount' } } };
   const [summary] = await Sale.aggregate<{
     byType: { _id: PaymentType; n: number }[];
+    bankNasiya: { n: number }[];
     all: SumRow[];
     week: SumRow[];
     today: SumRow[];
@@ -127,6 +133,8 @@ export default async function SalesPage({
       $facet: {
         // Tur chiplari soni — tanlangan davr bo'yicha (ro'yxat bilan mos)
         byType: [{ $match: periodMatch }, { $group: { _id: '$paymentType', n: { $sum: 1 } } }],
+        // Bank + nasiya — «Nasiya» chipida ham, «Bank krediti» chipida ham sanaladi
+        bankNasiya: [{ $match: { ...periodMatch, paymentType: 'installment', 'bankParts.0': { $exists: true } } }, { $count: 'n' }],
         all: [sumGroup],
         week: [{ $match: { createdAt: { $gte: weekStart } } }, sumGroup],
         today: [{ $match: { createdAt: { $gte: todayStart } } }, sumGroup],
@@ -135,6 +143,8 @@ export default async function SalesPage({
   ]);
   const typeCount = Object.fromEntries((summary?.byType ?? []).map((t) => [t._id, t.n])) as Partial<Record<PaymentType, number>>;
   const typeTotal = (summary?.byType ?? []).reduce((a, t) => a + t.n, 0);
+  const bankNasiyaCount = summary?.bankNasiya[0]?.n ?? 0;
+  if (bankNasiyaCount > 0) typeCount.bank_credit = (typeCount.bank_credit ?? 0) + bankNasiyaCount;
   const all = summary?.all[0] ?? { n: 0, sum: 0 };
   const week = summary?.week[0] ?? { n: 0, sum: 0 };
   const today = summary?.today[0] ?? { n: 0, sum: 0 };
@@ -266,7 +276,7 @@ export default async function SalesPage({
                         {r.name}{r.qty !== 1 ? ` × ${r.qtyText}` : ''}
                       </Link>
                       <span className={`sl-pill sl-pill--${r.cancelled ? 'cancelled' : r.type}`}>
-                        {r.cancelled ? d.sales.saleStatus.cancelled : TYPE_SHORT[r.type]}
+                        {r.cancelled ? d.sales.saleStatus.cancelled : r.bankNasiya ? d.sales.bankNasiyaShort : TYPE_SHORT[r.type]}
                       </span>
                     </div>
                     {/* Asosiy 2-qator: mijoz · sana. Qolgani (raqam, filial, IMEI, rang) faqat keng ekranda */}
