@@ -433,6 +433,9 @@ function TableCard({ t, now, canCreate, canAck, acking, linked, onOpen, onAck }:
   const counts = o?.counts;
   const name = tr(c.tableN, { n: t.number });
   const linkedText = linked ? tr(k.linkedN, { n: linked.count, sum: fmtMoney(linked.due) }) : '';
+  // Yaqin bron (≤ 60 daqiqa yoki mehmon kechikmoqda) — band qilingan stolni boshqa mehmonga bermaslik uchun
+  const rv = t.reservation;
+  const rvText = rv ? tr(rv.late ? d.reservations.boardLate : d.reservations.boardBadge, { time: rv.time, name: rv.customerName, guests: rv.guests }) : '';
 
   return (
     <li className="rt-table" data-state={state} data-alert={alert ?? undefined} data-mine={isMine(o) || undefined}>
@@ -441,7 +444,7 @@ function TableCard({ t, now, canCreate, canAck, acking, linked, onOpen, onAck }:
         className="rt-table-main"
         onClick={onOpen}
         disabled={disabled}
-        aria-label={`${name}, ${label}${o?.access && o.due !== null ? `, ${fmtMoney(o.due)} ${d.common.sum}` : ''}${linkedText ? `, ${linkedText}` : ''}`}
+        aria-label={`${name}, ${label}${o?.access && o.due !== null ? `, ${fmtMoney(o.due)} ${d.common.sum}` : ''}${linkedText ? `, ${linkedText}` : ''}${rvText ? `, ${rvText}` : ''}`}
         title={state === 'other' ? k.otherWaiter : undefined}
       >
         <span className="rt-table-top">
@@ -475,10 +478,11 @@ function TableCard({ t, now, canCreate, canAck, acking, linked, onOpen, onAck }:
             {canCreate && <span className="rt-table-cta"><Icon name="plus" size={13} />{k.openTable}</span>}
           </span>
         )}
-        {/* Kartochka belgilari: shu stol mehmonlariga ochiq saboy (boshqa belgilar ham shu qatorga) */}
-        {linked && (
+        {/* Kartochka belgilari: yaqin bron, shu stol mehmonlariga ochiq saboy */}
+        {(linked || rv) && (
           <span className="rt-table-badges">
-            <span className="rt-tag rt-tag--tk"><Icon name="basket" size={12} />{linkedText}</span>
+            {rv && <span className="rt-tag rt-tag--rsv" data-late={rv.late || undefined}><Icon name="clock" size={12} />{rvText}</span>}
+            {linked && <span className="rt-tag rt-tag--tk"><Icon name="basket" size={12} />{linkedText}</span>}
           </span>
         )}
       </button>

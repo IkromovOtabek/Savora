@@ -28,7 +28,7 @@ export interface NotificationList {
 }
 
 /** Ilovadagi ekranlar (expo-router yo'llari) */
-export type NotifyRoute = '/tables' | '/(tabs)/products' | '/notifications';
+export type NotifyRoute = '/tables' | '/reservations' | '/(tabs)/products' | '/notifications';
 
 /**
  * Server web yo'lini yuboradi ('/app/...') — ilovadagi mos ekran. Mos ekran yo'q — null
@@ -38,6 +38,8 @@ export function notifyRouteOf(url: string | null | undefined): NotifyRoute | nul
   if (typeof url !== 'string') return null;
   const path = url.split('?')[0].replace(/\/+$/, '');
   if (path === '/app/tables' || path.startsWith('/app/tables/')) return '/tables';
+  // Bron eslatmasi (reservationSoon) — bronlar ekrani (mobile/app/reservations.tsx)
+  if (path === '/app/restaurant/reservations') return '/reservations';
   // Ombor (kam qoldiq) va menyu (taomga oz porsiya) — ilovada «Ombor» tabi (xom ashyo qoldig'i)
   if (path === '/app/products' || path.startsWith('/app/products/') || path === '/app/menu' || path.startsWith('/app/menu/')) return '/(tabs)/products';
   return null;

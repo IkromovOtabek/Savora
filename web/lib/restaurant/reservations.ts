@@ -760,42 +760,5 @@ export async function seatReservation(ctx: RestaurantCtx, id: string, now = new 
 
 /* ───────────────────────────── stollar taxtasi uchun ───────────────────────────── */
 
-export interface UpcomingReservation {
-  id: string;
-  /** ISO */
-  startAt: string;
-  /** Toshkent soati HH:MM */
-  time: string;
-  customerName: string;
-  guests: number;
-  /** Mehmon kechikmoqda (boshlanganiga 15 daqiqadan oshdi) */
-  late: boolean;
-}
-
-/**
- * Stollar taxtasi uchun: stol → eng yaqin `booked` bron. Oyna: boshlanishiga ≤ `windowMin` daqiqa qolgan yoki boshlanganiga
- * ≤ 30 daqiqa bo'lgan (kechikayotgan mehmon). Huquq yo'q / modul o'chiq / boshqa filial — bo'sh obyekt (taxta buzilmasin).
- * Kalit — stol id (TableBoardRow.id).
- */
-export async function upcomingByTable(
-  ctx: RestaurantCtx,
-  branchId: string,
-  now: Date = new Date(),
-  windowMin = 60,
-): Promise<Record<string, UpcomingReservation>> {
-  if (!ctx.features.tables || !validId(branchId)) return {};
-  if (!(['order.create', 'order.viewAll', 'reservation.manage'] as const).some((k) => ctx.perms.has(k))) return {};
-  if (ctx.user.role !== 'admin' && ctx.user.branchId !== branchId) return {};
-  const list = await ctx.m.Reservation.find({
-    branchId,
-    status: 'booked',
-    startAt: { $gte: new Date(now.getTime() - RESERVATION_LIMITS.boardGraceMin * 60_000), $lte: new Date(now.getTime() + windowMin * 60_000) },
-  }).sort({ startAt: 1 }).select('tableId startAt customerName guests status').limit(500).lean<ReservationDoc[]>();
-  const out: Record<string, UpcomingReservation> = {};
-  for (const r of list) {
-    const k = String(r.tableId);
-    if (out[k]) continue;
-    out[k] = { id: String(r._id), startAt: r.startAt.toISOString(), time: tashkentClock(r.startAt), customerName: r.customerName, guests: r.guests, late: isLate(r, now) };
-  }
-  return out;
-}
+// Aylanma importsiz (queries.ts → reservationBoard.ts) — shu yerdan ham eksport qilinadi
+export { upcomingByTable, type UpcomingReservation } from './reservationBoard';

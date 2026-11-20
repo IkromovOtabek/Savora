@@ -49,8 +49,8 @@ const board: Board = {
   branches: [],
   halls: [{ id: id(2), name: 'Asosiy zal', sort: 0 }],
   tables: [
-    { id: id(10), hallId: id(2), number: 5, seats: 4, x: null, y: null, calls: { waiterAt: null, billAt: '2026-11-20T11:50:00.000Z' }, order: sum(20, { tableId: id(10), tableNumber: 5 }) },
-    { id: id(11), hallId: id(2), number: 6, seats: 2, x: null, y: null, calls: { waiterAt: null, billAt: null }, order: null },
+    { id: id(10), hallId: id(2), number: 5, seats: 4, x: null, y: null, calls: { waiterAt: null, billAt: '2026-11-20T11:50:00.000Z' }, order: sum(20, { tableId: id(10), tableNumber: 5 }), reservation: null },
+    { id: id(11), hallId: id(2), number: 6, seats: 2, x: null, y: null, calls: { waiterAt: null, billAt: null }, order: null, reservation: null },
   ],
   takeaway: [
     sum(30, { type: 'takeaway', source: 'cashier', forTableId: id(10), forTableNumber: 5, due: 25000 }),

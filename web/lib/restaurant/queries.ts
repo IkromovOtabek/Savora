@@ -19,6 +19,7 @@ import { fail, needAnyPerm, needFeature, needPerm, ok, type OpResult, type Resta
 import { loadOrder, orderViewFor, resolveBranchId, restaurantSettings, staffNamesFor } from './ops';
 import { staffName } from '../staffNames';
 import { orderSummary, type OrderSummary, type OrderView } from './view';
+import { upcomingByTable, type UpcomingReservation } from './reservationBoard';
 
 const iso = (d?: Date | string | null): string | null => (d ? new Date(d).toISOString() : null);
 /** Polling: keyingi `since` — so'rov boshidan 5 s oldin (parallel yozuvlar o'tkazib yuborilmasin; id bo'yicha almashtiring) */
@@ -51,6 +52,8 @@ export interface TableBoardRow {
   calls: { waiterAt: string | null; billAt: string | null };
   /** null — bo'sh stol */
   order: OrderSummary | null;
+  /** Yaqin bron (≤ 60 daqiqa qolgan yoki mehmon kechikmoqda) — `reservationBoard.ts` (§18); yo'q — null */
+  reservation: UpcomingReservation | null;
 }
 
 export interface TablesBoard {
@@ -70,7 +73,7 @@ export async function tablesBoard(ctx: RestaurantCtx, input: { branchId?: string
   if (!br.ok) return br;
   const branchId = br.data;
   const start = Date.now();
-  const [halls, tables, orders, branches, names] = await Promise.all([
+  const [halls, tables, orders, branches, names, upcoming] = await Promise.all([
     ctx.m.Hall.find({ branchId, active: true }).sort({ sort: 1, createdAt: 1 }).select('name sort').lean(),
     ctx.m.Table.find({ branchId, active: true }).sort({ number: 1 }).select('hallId number seats x y callWaiterAt callBillAt').lean(),
     ctx.m.Order.find({ branchId, status: { $in: ['open', 'precheck'] } })
@@ -78,6 +81,8 @@ export async function tablesBoard(ctx: RestaurantCtx, input: { branchId?: string
       .lean<OrderDoc[]>(),
     branchesFor(ctx),
     staffNamesFor(ctx),
+    // Bron belgisi taxtani buzmasin: xato bo'lsa — belgisiz
+    upcomingByTable(ctx, branchId, new Date(start)).catch(() => ({} as Record<string, UpcomingReservation>)),
   ]);
   const summarize = (o: OrderDoc) => orderSummary(o, ctx.user.id, canAccessOrder(ctx.user, ctx.perms, o), names);
   const byTable = new Map<string, OrderDoc>();
@@ -102,6 +107,7 @@ export async function tablesBoard(ctx: RestaurantCtx, input: { branchId?: string
         y: t.y ?? null,
         calls: { waiterAt: iso(t.callWaiterAt), billAt: iso(t.callBillAt) },
         order: o ? summarize(o) : null,
+        reservation: upcoming[String(t._id)] ?? null,
       };
     }),
     takeaway: takeaway.sort((a, b) => String(a.openedAt).localeCompare(String(b.openedAt))),

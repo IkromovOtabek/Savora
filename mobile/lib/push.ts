@@ -17,7 +17,7 @@ export const PUSH_CHANNEL_ID = 'savora';
 const TOKEN_KEY = 'savora_push_token';
 
 /** Bosilganda ochilishi mumkin bo'lgan ekranlar (server `data.url` yuboradi) */
-const ALLOWED_URLS = ['/shifts', '/(tabs)/nasiya', '/(tabs)/sales', '/daftar', '/ecom-orders', '/tables', '/(tabs)/products', '/notifications'] as const;
+const ALLOWED_URLS = ['/shifts', '/(tabs)/nasiya', '/(tabs)/sales', '/daftar', '/ecom-orders', '/tables', '/reservations', '/(tabs)/products', '/notifications'] as const;
 export type PushUrl = (typeof ALLOWED_URLS)[number];
 
 /**

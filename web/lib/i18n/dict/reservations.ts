@@ -19,6 +19,9 @@ export const uz = {
   emptyHintNoManage: "Bronlarni administrator yoki kassir qo'shadi.",
   statuses: { booked: 'Kutilmoqda', seated: 'Keldi', cancelled: 'Bekor qilindi', no_show: 'Kelmadi' },
   late: 'Kechikmoqda',
+  /** Stollar taxtasidagi belgi: {time}, {name}, {guests} */
+  boardBadge: 'Bron {time} · {name}, {guests} kishi',
+  boardLate: 'Bron {time} · {name} kechikmoqda',
   /** {n} — stol raqami */
   tableN: '{n}-stol',
   /** {n} — mehmonlar soni */
@@ -154,6 +157,8 @@ export const ru: typeof uz = {
   emptyHintNoManage: 'Брони добавляет администратор или кассир.',
   statuses: { booked: 'Ожидается', seated: 'Пришёл', cancelled: 'Отменена', no_show: 'Не пришёл' },
   late: 'Опаздывает',
+  boardBadge: 'Бронь {time} · {name}, гостей: {guests}',
+  boardLate: 'Бронь {time} · {name} опаздывает',
   tableN: 'Стол {n}',
   guestsN: 'Гостей: {n}',
   itemsN: 'Блюд заранее: {n}',

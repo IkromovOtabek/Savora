@@ -1162,6 +1162,10 @@ const uz = {
   reservations: {
     title: 'Bronlar',
     tile: 'Bronlar',
+    /** Stollar plitkasidagi yaqin bron: {time}; to'liq (ekran o'quvchi): {time}, {name}, {guests} */
+    boardShort: 'Bron {time}',
+    boardFull: 'Bron {time}: {name}, {guests} kishi',
+    boardLate: 'kechikmoqda',
     today: 'Bugun',
     tomorrow: 'Ertaga',
     prevDay: 'Oldingi kun',
@@ -2359,6 +2363,9 @@ const ru: Dict = {
   reservations: {
     title: 'Бронирования',
     tile: 'Брони',
+    boardShort: 'Бронь {time}',
+    boardFull: 'Бронь {time}: {name}, гостей: {guests}',
+    boardLate: 'опаздывает',
     today: 'Сегодня',
     tomorrow: 'Завтра',
     prevDay: 'Предыдущий день',

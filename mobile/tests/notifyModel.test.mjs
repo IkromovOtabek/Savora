@@ -9,7 +9,7 @@ test('web yo\'li → ilova ekrani', () => {
   assert.equal(notifyRouteOf('/app/tables/64a000000000000000000001'), '/tables');
   assert.equal(notifyRouteOf('/app/products?low=1'), '/(tabs)/products');
   assert.equal(notifyRouteOf('/app/menu'), '/(tabs)/products');
-  assert.equal(notifyRouteOf('/app/restaurant/reservations'), null);
+  assert.equal(notifyRouteOf('/app/restaurant/reservations'), '/reservations');
   assert.equal(notifyRouteOf('/app/tablesX'), null);
   assert.equal(notifyRouteOf(null), null);
   assert.equal(notifyRouteOf(undefined), null);
@@ -17,7 +17,7 @@ test('web yo\'li → ilova ekrani', () => {
 
 test('push nishoni: ilova ichidagi yo\'l — ekran yoki ro\'yxat; tashqi — yo\'q', () => {
   assert.equal(pushTargetOf('/app/tables'), '/tables');
-  assert.equal(pushTargetOf('/app/restaurant/reservations'), '/notifications');
+  assert.equal(pushTargetOf('/app/restaurant/reservations'), '/reservations');
   assert.equal(pushTargetOf('/app'), '/notifications');
   assert.equal(pushTargetOf('/'), null);
   assert.equal(pushTargetOf('https://evil.example/app/tables'), null);

@@ -232,6 +232,9 @@ export default function Tables() {
     // Shu stol mehmonlariga ochiq saboylar
     const lk = linked.get(t.id);
     const lkDue = lk ? lk.reduce((x, k) => x + (k.due ?? 0), 0) : 0;
+    // Yaqin bron — band qilingan stolni boshqa mehmonga bermaslik uchun
+    const rv = t.reservation ?? null;
+    const rvFull = rv ? `${tr(d.reservations.boardFull, { time: rv.time, name: rv.customerName, guests: rv.guests })}${rv.late ? ` (${d.reservations.boardLate})` : ''}` : '';
     return (
       <Pressable
         key={t.id}
@@ -239,7 +242,7 @@ export default function Tables() {
         accessibilityRole="button"
         accessibilityLabel={[
           tr(r.tableN, { n: t.number }), status, call ? r.calls : '', ready ? tr(r.readyN, { n: ready }) : '',
-          lk ? tr(r.linkedFull, { n: lk.length, sum: fmtMoney(lkDue) }) : '',
+          lk ? tr(r.linkedFull, { n: lk.length, sum: fmtMoney(lkDue) }) : '', rvFull,
         ].filter(Boolean).join(', ')}
         style={({ pressed }) => [
           s.tile,
@@ -257,6 +260,11 @@ export default function Tables() {
           </View>
         </View>
         <Text style={[s.tileSub, { color: look.sub }]} numberOfLines={1}>{status}</Text>
+        {rv ? (
+          <Text style={[s.tileLinked, tabular, { color: rv.late ? c.bad : c.gold }]} numberOfLines={1}>
+            {tr(d.reservations.boardShort, { time: rv.time })}
+          </Text>
+        ) : null}
         {lk ? (
           <Text style={[s.tileLinked, tabular, { color: c.ok }]} numberOfLines={1}>
             {tr(r.linkedN, { n: lk.length })} · {fmtCompact(lkDue)}

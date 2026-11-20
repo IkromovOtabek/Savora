@@ -147,6 +147,9 @@
 /* Kartochka belgilari (stolga bog'langan saboy va h.k.) — tugma ichida, eng pastda */
 .rt-table-badges { display: flex; flex-wrap: wrap; gap: 4px; }
 .rt-tag--tk { gap: 4px; background: color-mix(in srgb, var(--accent) 14%, transparent); color: var(--accent); }
+/* Yaqin bron (§18): kechikayotgan mehmon — ogohlantiruvchi rang */
+.rt-tag--rsv { gap: 4px; background: var(--warn-soft); color: var(--warn); }
+.rt-tag--rsv[data-late] { background: var(--danger-soft); color: var(--danger); }
 .rt-table-for { color: var(--ink-1); font-weight: 700; }
 
 .rt-legend { list-style: none; margin: 24px 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: 8px 18px; font-size: 13px; color: var(--ink-3); }

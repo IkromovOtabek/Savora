@@ -383,7 +383,7 @@ birinchi filial, bo'lmasa asosiy ombor), `since` (ISO), `stationId`, `status`, `
 
 | Yo'l | Huquq | Javob |
 |---|---|---|
-| `GET /api/restaurant/tables` | tables + (order.create\|order.viewAll) | `TablesBoard`: `{ serverTime, branchId, branches[], halls[{id,name,sort}], tables[{ id, hallId, number, seats, x, y, calls:{waiterAt,billAt}, order: OrderSummary\|null }], takeaway: OrderSummary[] }` |
+| `GET /api/restaurant/tables` | tables + (order.create\|order.viewAll) | `TablesBoard`: `{ serverTime, branchId, branches[], halls[{id,name,sort}], tables[{ id, hallId, number, seats, x, y, calls:{waiterAt,billAt}, order: OrderSummary\|null, reservation: { id, startAt, time, customerName, guests, late }\|null }], takeaway: OrderSummary[] }` |
 | `GET /api/restaurant/orders?status=active\|closed\|all&type=&since=` | tables + (order.create\|order.viewAll) | `{ serverTime, next, orders: OrderSummary[] }` (`since` bo'lsa — holatidan qat'i nazar o'zgarganlar; `closed` — oxirgi 24 soat) |
 | `GET /api/restaurant/orders/:id` | shu | `{ order: OrderView, serverTime }` |
 | `GET /api/restaurant/kitchen?stationId=&since=` | kitchen + kitchen.view | `KitchenBoard`: `{ serverTime, next, branchId, branches, settings:{kdsWarnMinutes,kdsAlertMinutes}, stations[{id,name,kind}], orders: KdsOrder[] }`; `KdsOrder = { id, orderNo, type, status, source, tableNumber, forTableNumber /* saboyning stoli, §16 */, waiterName, guests, note, updatedAt, items: KdsItem[], voided: [{ id, reason, voidedAt }] }`; `KdsItem = { id, name, displayName, qty, unit, modifiers[{group,name}], note, status, stationId, stationKind, fromQr, sentAt, cookStartedAt, readyAt, elapsedMs, level: 'ok'\|'warn'\|'alert' }`. `voided` — shu stansiyada oshxonaga yuborilgandan keyin bekor qilingan taomlar (since rejimida — `since` dan, to'liq rejimda — oxirgi 2 daqiqa; to'liq rejimda faqat yaqinda bekor qilingani bor buyurtma ham `items: []` bilan keladi) |
@@ -569,9 +569,10 @@ Boshqa lug'atlarga qo'shildi: `d.catalog.features.{tables,kitchen,qrMenu}`, `d.c
 
 ## 13. Keyingi bosqich (backendda hali yo'q)
 
-Fiskal chek (virtual kassa hamkor), tarmoq printeri agenti (TCP 9100, `printerIp`; brauzer printer stansiyasi — §7a, bor), SSE/Redis real vaqt, kurslar, bron,
+Fiskal chek (virtual kassa hamkor), tarmoq printeri agenti (TCP 9100, `printerIp`; brauzer printer stansiyasi — §7a, bor), SSE/Redis real vaqt, kurslar,
 choychaqa, agregatorlar, PIN-kirish (`User.pinHash` — planshet rejimi: qurilmani ishonchli qilish va bekor qilish
-mexanizmi, sessiya almashish/avto-qulf kerak; hozircha qilinmadi), ofitsant KPI sahifasi, mobil oflayn navbat (`clientItemId` tayyor).
+mexanizmi, sessiya almashish/avto-qulf kerak; hozircha qilinmadi), mobil oflayn navbat (`clientItemId` tayyor), mobil kassir ekrani.
+Bron (§18), ofitsant kabineti (§17), bildirishnomalar (§15), hisoblar/kassir oynasi (§16) — 2026-11-20 da qo'shildi.
 
 ## 14. Demo restoran va uchdan-uchgacha sinov (faqat lokal dev)
 
@@ -902,7 +903,7 @@ Natija — `ResResult<T>` (`OpResult` shakli; xato kodi `d.restaurant.errors` yo
 | `cancelReservation(ctx, id, reason?)` | | `{ reservation }` |
 | `markNoShow(ctx, id)` | | `{ reservation }` |
 | `seatReservation(ctx, id)` | | `SeatResult`: `{ reservation, orderId, order: OrderView \| null (takrorda null), skipped: [{ name, message }], existing }` |
-| **`upcomingByTable(ctx, branchId, now = new Date(), windowMin = 60)`** | stollar taxtasi uchun | `Record<tableId, { id, startAt (ISO), time ('HH:MM'), customerName, guests, late }>` — har stolda eng yaqin `booked` bron: boshlanishiga ≤ `windowMin` daqiqa qolgan yoki boshlanganiga ≤ 30 daqiqa (kechikayotgan mehmon, `late` — 15 daqiqadan oshgan). Modul o'chiq / huquq yo'q (`order.create`, `order.viewAll`, `reservation.manage` dan biri) / boshqa filial — `{}` (taxta buzilmaydi) |
+| **`upcomingByTable(ctx, branchId, now = new Date(), windowMin = 60)`** (`reservationBoard.ts`, `reservations.ts` qayta eksport qiladi — aylanma importsiz) | stollar taxtasi: `tablesBoard` → `TableBoardRow.reservation` (web kartochkada «Bron 19:00 · Ali, 4 kishi», kechiksa qizil; mobil plitkada «Bron 19:00») | `Record<tableId, { id, startAt (ISO), time ('HH:MM'), customerName, guests, late }>` — har stolda eng yaqin `booked` bron: boshlanishiga ≤ `windowMin` daqiqa qolgan yoki boshlanganiga ≤ 30 daqiqa (kechikayotgan mehmon, `late` — 15 daqiqadan oshgan). Modul o'chiq / huquq yo'q (`order.create`, `order.viewAll`, `reservation.manage` dan biri) / boshqa filial — `{}` (taxta buzilmaydi) |
 
 `ReservationView = { id, branchId, tableId, tableNumber, hallId, hallName, customerId, customerName, customerPhone, guests,
 startAt, endAt, day, time, endTime, durationMin, items[{ productId, name, qty, note, optionIds, options }], note, status, late,

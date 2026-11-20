@@ -25,7 +25,7 @@ const sum = (id: string, p: Partial<OrderSummary> = {}): OrderSummary => ({
   access: true, mine: true, total: 10000, due: 10000, counts: null, ...p,
 });
 const table = (id: string, number: number, order: OrderSummary | null, billAt: string | null = null): TableBoardRow => ({
-  id, hallId: 'h1', number, seats: 4, x: null, y: null, calls: { waiterAt: null, billAt }, order,
+  id, hallId: 'h1', number, seats: 4, x: null, y: null, calls: { waiterAt: null, billAt }, order, reservation: null,
 });
 
 describe('hisoblar ro\'yxati (bills.ts)', () => {

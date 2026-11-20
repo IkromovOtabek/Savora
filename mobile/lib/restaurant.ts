@@ -60,6 +60,8 @@ export interface TableRow {
   calls: { waiterAt: string | null; billAt: string | null };
   /** null — bo'sh stol */
   order: OrderSummary | null;
+  /** Yaqin bron (≤ 60 daqiqa yoki mehmon kechikmoqda); eski server — yo'q */
+  reservation?: { id: string; startAt: string; time: string; customerName: string; guests: number; late: boolean } | null;
 }
 
 export interface TablesBoard {

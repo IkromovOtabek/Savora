@@ -34,7 +34,7 @@ import { pieceworkEntrySchema, IPieceworkEntry } from './models/tenant/Piecework
 import { notificationSchema, INotification } from './models/tenant/Notification';
 import { reservationSchema, IReservation } from './models/tenant/Reservation';
 
-const TENANT_MODELS_VERSION = 23;
+const TENANT_MODELS_VERSION = 24;
 
 type TenantModelsMap = Map<string, ReturnType<typeof registerModels>>;
 const globalForTenant = global as unknown as { _savdoproTenantCache?: TenantModelsMap };
