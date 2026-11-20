@@ -130,8 +130,15 @@ diagnostika/crash (SDK yo'q).
 
 ## 5. Skrinshotlar
 
-- iPhone **6.9"** — 1320×2868 (yoki 1290×2796) piksel, 3–10 ta. iPad shart emas (`supportsTablet: false`).
-- Tayyor fayllar: `mobile/store/screenshots/` (yaratilgach).
+- iPhone **6.9"** — 1320×2868 piksel, 3–10 ta. iPad shart emas (`supportsTablet: false`).
+- **Tayyor:** `mobile/store/screenshots/ios-6.9/01.png … 05.png` (uslub — «Panorama», 2026-11-20 tanlangan).
+  App Store Connect → iOS App → Previews and Screenshots → **6.9" Display** ga shu tartibda torting:
+  01 Asosiy → 02 Sotuv → 03 Chek → 04 Qarzlar → 05 Ombor (lenta sahifadan sahifaga uzluksiz o'tadi).
+- Ichidagi ekranlar — ilovaning haqiqiy ekranlari (Android emulator, lokal bazadagi «Baraka Market» demo do'koni),
+  tizim qatori iOS ko'rinishiga almashtirilgan.
+- Qayta yasash: `mobile/store/screenshots-src/gen.html` — matnlar `FINAL` ro'yxatida, xom ekranlar `img/`.
+  Chrome bilan: `--headless=new --allow-file-access-from-files --window-size=1320,2868 --screenshot=01.png "file://…/gen.html?mode=final&s=0"`
+  (`s=0…4`; `?mode=strip` — beshalasi yonma-yon ko'rinishi).
 
 ## 6. Demo hisob (siz tayyorlaysiz)
 

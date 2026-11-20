@@ -1,0 +1,235 @@
+<!doctype html>
+<html lang="uz">
+<head>
+<meta charset="utf-8">
+<title>Savora App Store skrinshotlari</title>
+<style>
+  @font-face { font-family: Onest; font-weight: 500; src: url(../../node_modules/@expo-google-fonts/onest/500Medium/Onest_500Medium.ttf); }
+  @font-face { font-family: Onest; font-weight: 600; src: url(../../node_modules/@expo-google-fonts/onest/600SemiBold/Onest_600SemiBold.ttf); }
+  @font-face { font-family: Onest; font-weight: 700; src: url(../../node_modules/@expo-google-fonts/onest/700Bold/Onest_700Bold.ttf); }
+  @font-face { font-family: Onest; font-weight: 800; src: url(../../node_modules/@expo-google-fonts/onest/800ExtraBold/Onest_800ExtraBold.ttf); }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { background: #fff; font-family: Onest, sans-serif; -webkit-font-smoothing: antialiased; }
+  .slide { position: relative; width: 1320px; height: 2868px; overflow: hidden; }
+  .abs { position: absolute; }
+  .phone { position: absolute; background: #0c0d10; box-shadow: inset 0 0 0 3px #2b2d33, inset 0 0 0 9px #0c0d10, inset 0 0 0 11px #3a3d44; }
+  .screen { position: relative; width: 100%; height: 100%; overflow: hidden; background-size: 100% 100%; }
+  .sfill { position: absolute; left: 0; top: 0; width: 100%; height: 1px; transform-origin: top; }
+  .island { position: absolute; left: 50%; transform: translateX(-50%); background: #000; }
+  .sbar { position: absolute; left: 0; right: 0; top: 0; display: flex; align-items: center; justify-content: space-between; color: #0b0d12; font-weight: 600; }
+  .hl { font-weight: 800; letter-spacing: -0.025em; line-height: 1.04; }
+  .sub { font-weight: 500; line-height: 1.3; }
+  .chip { position: absolute; display: flex; align-items: center; gap: 26px; background: #fff; border-radius: 44px; padding: 34px 44px 34px 34px; box-shadow: 0 30px 80px rgba(16, 32, 80, .18), 0 6px 18px rgba(16, 32, 80, .08); }
+  .chip .ic { width: 96px; height: 96px; border-radius: 30px; display: grid; place-items: center; flex: none; }
+  .chip .t1 { font-size: 34px; font-weight: 600; color: #667085; }
+  .chip .t2 { font-size: 50px; font-weight: 800; color: #0b0d12; letter-spacing: -0.02em; }
+  /* doska */
+  .board { padding: 56px 60px 64px; }
+  .board h2 { font-size: 46px; font-weight: 800; letter-spacing: -0.02em; color: #0b0d12; }
+  .board p { font-size: 26px; color: #475467; margin-top: 8px; font-weight: 500; }
+  .row { display: flex; gap: 36px; margin-top: 36px; }
+  .cell { width: 422px; height: 917px; border-radius: 26px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,.12); }
+  .cell .slide { transform: scale(0.3197); transform-origin: 0 0; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script>
+const q = new URLSearchParams(location.search);
+const MODE = q.get('mode') || 'board';
+const C = Number(q.get('c') || 1);
+const S = Number(q.get('s') || 0);
+
+// Xom ekranlar: 1080×2400 (Android emulator), yuqori 130 px — tizim qatori (iOS qatori bilan almashtiriladi)
+const RAW_W = 1080, RAW_H = 2400, SBAR = 132;
+const SLIDES = [
+  { img: 'img/home.png', h: ["Do'koningiz", '<em>kaftingizda</em>'], sub: "Tushum, qoldiq va qarz — bir qarashda",
+    zoom: [36, 545, 1044, 940], chip: { t1: 'Bugungi tushum', t2: "1 171 000 so'm", ic: 'up', c: '#12B76A', bg: '#E7F8EF' } },
+  { img: 'img/sale.png', h: ['Sotuv bir necha', '<em>soniyada</em>'], sub: "Naqd, karta yoki qarzga — bitta ekranda",
+    zoom: [36, 800, 1044, 1600], chip: { t1: "To'lov turi", t2: 'Naqd · Karta · Qarz', ic: 'card', c: '#2F6BFF', bg: '#E8F0FF' } },
+  { img: 'img/debt.png', h: ['Har bir qarz', '<em>nazoratda</em>'], sub: "Kim, qancha qarz — muddati o'tganlar alohida",
+    zoom: [36, 545, 1044, 1420], chip: { t1: "Muddati o'tgan", t2: "385 000 so'm", ic: 'alert', c: '#F04438', bg: '#FFECEC' } },
+];
+// Yakuniy to'plam (Panorama): tartib — Asosiy → Sotuv → Chek → Qarzlar → Ombor
+const FINAL = [
+  SLIDES[0],
+  SLIDES[1],
+  { img: 'img/done.png', h: ['Chek —', '<em>bir bosishda</em>'], sub: "Sotuvdan so'ng chekni mijozga ulashing" },
+  SLIDES[2],
+  { img: 'img/stock.png', h: ["Ombor qoldig'i", '<em>doim aniq</em>'], sub: "Dona, kg yoki litr — har bir tovar hisobda" },
+];
+
+const LOGO = {
+  a: 'M165,6 L168,50 C136,61 111,73 99,87 C92,95 91,102 92,110 L130,156 L100,157 C58,157 16,146 10,114 C5,88 20,70 45,58 C80,41 120,25 165,6 Z',
+  b: 'M91,116 Q91,103 104,103 C152,106 204,130 217,166 C230,204 214,248 180,269 C155,284 120,292 78,293 L42,273 L148,214 C153,205 153,188 145,174 C135,158 115,149 91,148 Z',
+  bars: ['M26,221 Q26,212 35,212 L38.5,212 Q47.5,212 47.5,221 L47.5,261.2 L26,272.6 Z', 'M58.5,205 Q58.5,196 67.5,196 L72,196 Q81,196 81,205 L81,243.5 L58.5,255.4 Z', 'M91,188 Q91,179 100,179 L105,179 Q114,179 114,188 L114,226 L91,238.2 Z'],
+};
+let gid = 0;
+function logo(size, mono = false, opacity = 1) {
+  const id = 'lg' + (gid++);
+  const fa = mono ? `fill="#fff"` : `fill="url(#${id}a)"`, fb = mono ? `fill="#fff"` : `fill="url(#${id}b)"`;
+  return `<svg width="${size * 222 / 298}" height="${size}" viewBox="6 2 222 298" style="opacity:${opacity}">
+    <defs>
+      <linearGradient id="${id}a" x1="0" y1="0" x2=".35" y2="1"><stop offset="0" stop-color="#2CC3FF"/><stop offset=".55" stop-color="#1F86F7"/><stop offset="1" stop-color="#1F5BE6"/></linearGradient>
+      <linearGradient id="${id}b" x1=".15" y1="0" x2=".55" y2="1"><stop offset="0" stop-color="#2AA2FF"/><stop offset=".55" stop-color="#2566F0"/><stop offset="1" stop-color="#2238D6"/></linearGradient>
+    </defs>
+    <path d="${LOGO.a}" ${fa}/><path d="${LOGO.b}" ${fb}/>${LOGO.bars.map((d) => `<path d="${d}" ${fb}/>`).join('')}
+  </svg>`;
+}
+
+function iosIcons(h, color) {
+  const s = h / 12;
+  return `<svg width="${78 * s}" height="${12 * s}" viewBox="0 0 78 12" fill="${color}">
+    <rect x="0" y="8" width="3" height="4" rx="1"/><rect x="5" y="5.5" width="3" height="6.5" rx="1"/><rect x="10" y="3" width="3" height="9" rx="1"/><rect x="15" y="0.5" width="3" height="11.5" rx="1"/>
+    <path d="M31.5 2.2c2.4 0 4.6.9 6.3 2.4l1.2-1.3A10.7 10.7 0 0 0 31.5.4 10.7 10.7 0 0 0 24 3.3l1.2 1.3c1.7-1.5 3.9-2.4 6.3-2.4zm0 3.4c1.5 0 2.8.5 3.9 1.4l1.2-1.3a7.6 7.6 0 0 0-10.2 0l1.2 1.3c1-.9 2.4-1.4 3.9-1.4zm0 3.3c.6 0 1.1.2 1.5.5l-1.5 1.7-1.5-1.7c.4-.3.9-.5 1.5-.5z"/>
+    <rect x="47" y="0.8" width="25" height="10.6" rx="3.2" fill="none" stroke="${color}" stroke-opacity=".4" stroke-width="1"/><rect x="49" y="2.8" width="21" height="6.6" rx="1.8"/><path d="M73.5 4.2v3.8c.8-.3 1.3-1 1.3-1.9s-.5-1.6-1.3-1.9z" fill-opacity=".45"/>
+  </svg>`;
+}
+
+/** Telefon: w — tashqi kenglik. Ekranning yuqori tizim qatori ekran rangidagi chiziq bilan to'ldirilib, iOS qatori chiziladi. */
+function phone(img, w, style = '') {
+  const bez = Math.round(w * 0.032);
+  const sw = w - 2 * bez, k = sw / RAW_W, sh = Math.round(RAW_H * k), h = sh + 2 * bez;
+  const R = Math.round(w * 0.135), r = R - bez;
+  const sbh = SBAR * k, ih = sh * 0.039, iw = sw * 0.29, it = sh * 0.0125;
+  const time = Math.round(sw * 0.042);
+  return `<div class="phone" style="width:${w}px;height:${h}px;border-radius:${R}px;padding:${bez}px;${style}">
+    <div class="screen" style="border-radius:${r}px;background-image:url(${img})">
+      <div class="sfill" style="background-image:url(${img});background-size:${sw}px ${sh}px;background-position:0 ${-(SBAR + 10) * k}px;transform:scaleY(${sbh + 2})"></div>
+      <div class="sbar" style="height:${it * 2 + ih}px;padding:0 ${sw * 0.085}px 0 ${sw * 0.11}px;font-size:${time}px"><span>9:41</span>${iosIcons(time * 0.62, '#0b0d12')}</div>
+      <div class="island" style="top:${it}px;width:${iw}px;height:${ih}px;border-radius:${ih / 2}px"></div>
+    </div>
+  </div>`;
+}
+const phoneH = (w) => { const bez = Math.round(w * 0.032); const sw = w - 2 * bez; return Math.round(RAW_H * sw / RAW_W) + 2 * bez; };
+
+/** Ekrandan kattalashtirilgan bo'lak (x1,y1,x2,y2 — xom piksellarda) */
+function zoomCard(img, [x1, y1, x2, y2], width, style = '') {
+  const k = width / (x2 - x1);
+  return `<div class="abs" style="width:${width}px;height:${(y2 - y1) * k}px;border-radius:52px;background:url(${img}) ${-x1 * k}px ${-y1 * k}px / ${RAW_W * k}px ${RAW_H * k}px no-repeat;box-shadow:0 50px 120px rgba(16,32,80,.28),0 0 0 10px #fff;${style}"></div>`;
+}
+
+const ICONS = {
+  up: (c) => `<svg width="54" height="54" viewBox="0 0 24 24" fill="none" stroke="${c}" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17l6-6 4 4 8-8"/><path d="M14 7h7v7"/></svg>`,
+  card: (c) => `<svg width="54" height="54" viewBox="0 0 24 24" fill="none" stroke="${c}" stroke-width="2.4" stroke-linecap="round"><rect x="2.5" y="5" width="19" height="14" rx="3"/><path d="M2.5 10h19M6.5 15h4"/></svg>`,
+  alert: (c) => `<svg width="54" height="54" viewBox="0 0 24 24" fill="none" stroke="${c}" stroke-width="2.6" stroke-linecap="round"><circle cx="12" cy="12" r="9.5"/><path d="M12 7v6M12 16.5v.5"/></svg>`,
+};
+function chip(d, style) {
+  return `<div class="chip" style="${style}"><div class="ic" style="background:${d.bg}">${ICONS[d.ic](d.c)}</div><div><div class="t1">${d.t1}</div><div class="t2">${d.t2}</div></div></div>`;
+}
+
+function star8(cx, cy, r, stroke, sw) {
+  const pts = [];
+  for (let i = 0; i < 16; i++) { const a = Math.PI / 8 * i - Math.PI / 2; const rr = i % 2 ? r * 0.72 : r; pts.push(`${cx + rr * Math.cos(a)},${cy + rr * Math.sin(a)}`); }
+  return `<polygon points="${pts.join(' ')}" fill="none" stroke="${stroke}" stroke-width="${sw}"/>`;
+}
+
+// ───────────────────────── 5 ta uslub ─────────────────────────
+const CONCEPTS = {
+  1: { name: 'Kobalt', desc: "Brend ko'kidan to'q tunga gradient, yirik oq sarlavha, orqada lenta-S belgisi. Klassik va kuchli.",
+    render(sl, i) {
+      const pw = 1040, ph = phoneH(pw);
+      return `<div class="slide" style="background:linear-gradient(165deg,#2F6BFF 0%,#1A4FD0 38%,#0B1D5C 78%,#08132F 100%)">
+        <div class="abs" style="right:-260px;top:900px">${logo(1700, true, 0.06)}</div>
+        <div class="abs" style="left:110px;top:150px;display:flex;align-items:center;gap:22px">${logo(84, true)}<span style="color:#fff;font-size:46px;font-weight:700;letter-spacing:-0.02em">Savora</span></div>
+        <div class="abs hl" style="left:110px;top:300px;width:1120px;color:#fff;font-size:124px">${sl.h[0]}<br>${sl.h[1].replace('<em>', '<span style="color:#9CC2FF">').replace('</em>', '</span>')}</div>
+        <div class="abs sub" style="left:110px;top:590px;width:1100px;color:rgba(255,255,255,.78);font-size:50px">${sl.sub}</div>
+        ${phone(sl.img, pw, `left:${(1320 - pw) / 2}px;top:820px;box-shadow:0 80px 160px rgba(0,0,0,.45), inset 0 0 0 3px #2b2d33, inset 0 0 0 9px #0c0d10, inset 0 0 0 11px #3a3d44`)}
+      </div>`;
+    } },
+  2: { name: 'Oq minimal', desc: "Yorug' fon, qora sarlavha va ko'k kalit so'z, ekrandan «chiqib turgan» ma'lumot kartochkasi. Apple uslubiga yaqin.",
+    render(sl, i) {
+      const pw = 1000, ph = phoneH(pw);
+      const chipPos = ['left:60px;top:2330px', 'right:50px;top:2160px', 'left:60px;top:2080px'][i];
+      return `<div class="slide" style="background:radial-gradient(1200px 900px at 50% 0%,#FFFFFF 0%,#F3F6FC 60%,#EAF0FA 100%)">
+        <div class="abs hl" style="left:0;right:0;top:190px;text-align:center;color:#0B0D12;font-size:120px">${sl.h[0]}<br>${sl.h[1].replace('<em>', '<span style="color:#2F6BFF">').replace('</em>', '</span>')}</div>
+        <div class="abs sub" style="left:0;right:0;top:470px;text-align:center;color:#475467;font-size:50px">${sl.sub}</div>
+        ${phone(sl.img, pw, `left:${(1320 - pw) / 2}px;top:700px;box-shadow:0 70px 140px rgba(16,32,80,.22), inset 0 0 0 3px #2b2d33, inset 0 0 0 9px #0c0d10, inset 0 0 0 11px #3a3d44`)}
+        ${chip(sl.chip, chipPos)}
+      </div>`;
+    } },
+  3: { name: 'Samarqand', desc: "To'q tungi ko'k, nozik sakkiz qirrali yulduz naqshi (ilovadagi kabi), oltin urg'u. Milliy va premium.",
+    render(sl, i) {
+      const pw = 1020;
+      let stars = '';
+      for (let y = 0; y < 8; y++) for (let x = 0; x < 6; x++) stars += star8(x * 250 + (y % 2 ? 125 : 0), y * 220 + 60, 78, '#FFFFFF', 3);
+      return `<div class="slide" style="background:radial-gradient(1400px 1100px at 80% 10%,#16295A 0%,#0A1122 62%)">
+        <svg class="abs" style="left:0;top:0;opacity:.07" width="1320" height="1700">${stars}</svg>
+        <div class="abs" style="left:0;right:0;top:1500px;height:1400px;background:radial-gradient(700px 500px at 50% 30%,rgba(255,168,0,.20),transparent 70%)"></div>
+        <div class="abs" style="left:110px;top:170px;width:120px;height:10px;border-radius:5px;background:#FFA800"></div>
+        <div class="abs hl" style="left:110px;top:230px;width:1120px;color:#fff;font-size:124px">${sl.h[0]}<br>${sl.h[1].replace('<em>', '<span style="color:#FFB627">').replace('</em>', '</span>')}</div>
+        <div class="abs sub" style="left:110px;top:520px;width:1100px;color:rgba(255,255,255,.72);font-size:50px">${sl.sub}</div>
+        ${phone(sl.img, pw, `left:${(1320 - pw) / 2}px;top:760px;box-shadow:0 0 0 4px rgba(255,182,39,.55), 0 80px 160px rgba(0,0,0,.55), inset 0 0 0 3px #2b2d33, inset 0 0 0 9px #0c0d10, inset 0 0 0 11px #3a3d44`)}
+      </div>`;
+    } },
+  4: { name: 'Panorama', desc: "Uchala skrinshot bitta uzluksiz lenta bilan bog'lanadi — App Store'da varaqlaganda yaxlit manzara. Telefonlar qiya.",
+    render(sl, i, n = 3) {
+      const pw = 940;
+      const rot = [-6, 5, -4, 5, -5][i % 5];
+      const W = n * 1320;
+      // Uzluksiz lenta: har 1500 px da to'lqin, n ta sahifa bo'ylab (sahifa chegarasida ham ko'rinadi)
+      const wave = (dy) => {
+        let d = `M-200 ${1900 + dy} C 500 ${1300 + dy}, 900 ${2500 + dy}, 1500 ${1900 + dy}`;
+        for (let x = 1500, k = 0; x < W + 400; x += 1500, k++) d += ` S ${x + 1000} ${(k % 2 ? 2500 : 1100) + dy}, ${x + 1500} ${(k % 2 ? 1750 : 1850) + dy}`;
+        return d;
+      };
+      const ribbon = `<svg class="abs" style="left:${-i * 1320}px;top:0" width="${W}" height="2868" viewBox="0 0 ${W} 2868">
+        <defs><linearGradient id="rb${i}" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="${W}" y2="0"><stop offset="0" stop-color="#2CC3FF"/><stop offset=".5" stop-color="#2566F0"/><stop offset="1" stop-color="#2238D6"/></linearGradient>
+        <linearGradient id="rc${i}" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="${W}" y2="0"><stop offset="0" stop-color="#9FDCFF"/><stop offset="1" stop-color="#7FA2FF"/></linearGradient></defs>
+        <path d="${wave(-100)}" fill="none" stroke="url(#rc${i})" stroke-width="520" stroke-linecap="round" opacity=".45"/>
+        <path d="${wave(0)}" fill="none" stroke="url(#rb${i})" stroke-width="300" stroke-linecap="round"/>
+      </svg>`;
+      return `<div class="slide" style="background:linear-gradient(180deg,#F4F7FF 0%,#E6EDFF 100%)">
+        ${ribbon}
+        <div class="abs hl" style="left:110px;top:180px;width:1120px;color:#0B0D12;font-size:120px">${sl.h[0]}<br>${sl.h[1].replace('<em>', '<span style="color:#2566F0">').replace('</em>', '</span>')}</div>
+        <div class="abs sub" style="left:110px;top:460px;width:1100px;color:#475467;font-size:50px">${sl.sub}</div>
+        ${phone(sl.img, pw, `left:${(1320 - pw) / 2}px;top:715px;transform:rotate(${rot}deg);box-shadow:0 80px 150px rgba(20,40,120,.30), inset 0 0 0 3px #2b2d33, inset 0 0 0 9px #0c0d10, inset 0 0 0 11px #3a3d44`)}
+      </div>`;
+    } },
+  5: { name: 'Lupa', desc: "Har sahifa o'z pastel rangida, telefon chetga surilgan, eng muhim joy lupa kabi kattalashtirib ko'rsatiladi. Zamonaviy, o'ynoqi.",
+    render(sl, i) {
+      const pw = 1000;
+      const bg = ['linear-gradient(180deg,#EAF1FF,#D9E6FF)', 'linear-gradient(180deg,#E9F9F0,#D3F2E1)', 'linear-gradient(180deg,#FFF0EE,#FFDCD7)'][i];
+      const accent = ['#2F6BFF', '#12A35E', '#E5372B'][i];
+      return `<div class="slide" style="background:${bg}">
+        <div class="abs hl" style="left:110px;top:180px;width:1120px;color:#0B0D12;font-size:120px">${sl.h[0]}<br>${sl.h[1].replace('<em>', `<span style="color:${accent}">`).replace('</em>', '</span>')}</div>
+        <div class="abs sub" style="left:110px;top:460px;width:1100px;color:#344054;font-size:50px">${sl.sub}</div>
+        ${phone(sl.img, pw, `left:400px;top:760px;box-shadow:0 70px 140px rgba(16,32,80,.25), inset 0 0 0 3px #2b2d33, inset 0 0 0 9px #0c0d10, inset 0 0 0 11px #3a3d44`)}
+        ${zoomCard(sl.img, sl.zoom, 1060, `left:80px;top:${[1180, 1260, 1200][i]}px`)}
+      </div>`;
+    } },
+};
+
+const root = document.getElementById('root');
+if (MODE === 'slide') {
+  root.innerHTML = CONCEPTS[C].render(SLIDES[S], S);
+} else if (MODE === 'final') {
+  root.innerHTML = CONCEPTS[4].render(FINAL[S], S, FINAL.length);
+} else if (MODE === 'strip') {
+  // Yakuniy to'plam ketma-ket (App Store'da varaqlagandagi ko'rinish)
+  const sc = 0.25;
+  root.innerHTML = `<div style="display:flex;gap:0;padding:40px;background:#fff">${FINAL.map((sl, i) => `<div class="st" data-i="${i}" style="width:${1320 * sc}px;height:${2868 * sc}px;overflow:hidden;border-radius:${i === 0 ? '24px 0 0 24px' : i === FINAL.length - 1 ? '0 24px 24px 0' : '0'};${i ? 'border-left:2px solid #fff' : ''}"></div>`).join('')}</div>`;
+  root.querySelectorAll('.st').forEach((cell) => {
+    const i = Number(cell.dataset.i);
+    cell.innerHTML = CONCEPTS[4].render(FINAL[i], i, FINAL.length);
+    cell.firstElementChild.style.transform = `scale(${sc})`;
+    cell.firstElementChild.style.transformOrigin = '0 0';
+  });
+} else if (MODE === 'overview') {
+  root.innerHTML = `<div class="board"><h2>5 ta uslub — birinchi skrinshot</h2><p>Raqamni tanlang: 1 Kobalt · 2 Oq minimal · 3 Samarqand · 4 Panorama · 5 Lupa</p>
+    <div class="row" style="gap:30px">${[1, 2, 3, 4, 5].map((c) => `<div><div class="cell ov" data-c="${c}" style="width:317px;height:689px"></div><div style="margin-top:18px;font-size:30px;font-weight:700;color:#0b0d12">${c} · ${CONCEPTS[c].name}</div></div>`).join('')}</div></div>`;
+  root.querySelectorAll('.ov').forEach((cell) => {
+    const c = Number(cell.dataset.c);
+    cell.innerHTML = CONCEPTS[c].render(SLIDES[0], 0);
+    const sl = cell.firstElementChild;
+    sl.style.transform = 'scale(.2402)';
+    sl.style.transformOrigin = '0 0';
+  });
+} else {
+  const cn = CONCEPTS[C];
+  root.innerHTML = `<div class="board"><h2>${C} · ${cn.name}</h2><p>${cn.desc}</p>
+    <div class="row">${SLIDES.map((sl, i) => `<div class="cell">${cn.render(sl, i)}</div>`).join('')}</div></div>`;
+}
+</script>
+</body>
+</html>
