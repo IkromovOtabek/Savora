@@ -7,6 +7,7 @@ import { sendDailyExpiryNotifications } from '@/lib/notifications';
 import { sendDailyInstallmentReminders } from '@/lib/installmentReminders';
 import { sendDailyDaftarReminders } from '@/lib/daftarReminders';
 import { sendDailySummaries } from '@/lib/shopNotify';
+import { sendReservationReminders } from '@/lib/restaurant/reservationReminders';
 import { getDict } from '@/lib/i18n/server';
 import { tr } from '@/lib/i18n/fmt';
 
@@ -63,4 +64,13 @@ export async function runDailySummaryAction(): Promise<Result> {
   const run = await runCronJob('daily-summary', async () => ({ ...(await sendDailySummaries()) }), 'manual');
   if (!run.ok) return { error: tr(d.superPanel.actions.cronError, { e: run.error ?? '' }) };
   return { success: d.superPanel.actions.summarySent, data: run.result };
+}
+
+export async function runReservationRemindersAction(): Promise<Result> {
+  await requireSuperAdmin();
+  if (!process.env.CRON_SECRET) return noCronSecret();
+  const d = await getDict();
+  const run = await runCronJob('reservation-reminders', async () => ({ ...(await sendReservationReminders()) }), 'manual');
+  if (!run.ok) return { error: tr(d.superPanel.actions.cronError, { e: run.error ?? '' }) };
+  return { success: tr(d.reservations.cronDone, { n: Number(run.result?.sent ?? 0) }), data: run.result };
 }

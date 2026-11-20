@@ -266,7 +266,8 @@ describe('huquqlar (4-versiya) va rollar', () => {
   const fresh: PermissionKey[] = ['production.view', 'production.manage', 'recipe.manage', 'production.viewCost', 'receipt.create', 'po.manage', 'piecework.log', 'piecework.approve'];
 
   it('yangi kalitlar: since 4, sahifa, modul', () => {
-    expect(PERMISSIONS_VERSION).toBe(4);
+    // 5-versiya (restoran bronlari) qo'shilgan — 4-versiya kalitlari o'zgarmaydi
+    expect(PERMISSIONS_VERSION).toBeGreaterThanOrEqual(4);
     for (const k of fresh) {
       expect(PERMISSION_KEYS).toContain(k);
       expect(PERMISSIONS[k].since).toBe(4);

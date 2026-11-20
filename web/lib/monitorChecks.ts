@@ -262,6 +262,7 @@ export const CRON_SCHEDULE: Record<CronJob, { label: string; time: string; desc:
   'installment-reminders': { label: 'Nasiya eslatmasi', time: '10:00', desc: "Muddati o'tgan nasiya to'lovlari" },
   'daftar-reminders': { label: 'Daftar eslatmasi', time: '10:30', desc: 'Qarz daftari — egaga Telegram, mijozga SMS' },
   'daily-summary': { label: 'Kunlik yakun', time: '21:00', desc: "Do'kon egasiga kunlik savdo (Telegram, sozlamada yoqilganlarga)" },
+  'reservation-reminders': { label: 'Bron eslatmasi', time: 'har 5 daq', desc: 'Restoran bronlari: boshlanishiga 30 daqiqa qolganda xodimlarga bildirishnoma' },
 };
 
 export type CronState = 'ok' | 'late' | 'failed' | 'never';

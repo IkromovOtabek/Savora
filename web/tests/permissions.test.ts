@@ -15,6 +15,7 @@ import {
   upgradeLegacyPermissions,
 } from '@/lib/permissions';
 import { FEATURE_KEYS } from '@/lib/featureKeys';
+import { RESTAURANT_ROLES } from '@/lib/models/tenant/Role';
 import { userSchema } from '@/lib/models/tenant/User';
 
 describe('hasPermission', () => {
@@ -146,5 +147,34 @@ describe('eski (1-versiya) ro\'yxatlarni yangilash', () => {
     const set = effectivePermissionsWithRole({ role: 'user', permissions: ['sale.create'] }, { permissions: ['kassa.view'], permVersion: PERMISSIONS_VERSION });
     expect([...set]).toEqual(['kassa.view']);
     expect(rolePermissionList({ permissions: ['customers.manage'] })).toContain('customers.view');
+  });
+});
+
+describe('bronlar (5-versiya): reservation.manage', () => {
+  it('kalit: tables moduli, since 5, filialga beriladi', () => {
+    expect(PERMISSIONS_VERSION).toBeGreaterThanOrEqual(5);
+    expect(PERMISSION_KEYS).toContain('reservation.manage');
+    expect(PERMISSIONS['reservation.manage']).toMatchObject({ feature: 'tables', since: 5, legacy: 'order.viewAll' });
+    expect(PERMISSIONS['reservation.manage'].adminOnly).toBeFalsy();
+    expect(ROLE_DEFAULT_PERMISSIONS.user).toContain('reservation.manage');
+  });
+
+  it('v4 ro\'yxatdan meros: barcha buyurtmalarni ko\'rgan (kassir) oladi, faqat buyurtma olgan (ofitsant) — yo\'q', () => {
+    const cashier = effectivePermissions({ role: 'user', permissions: ['order.create', 'order.viewAll', 'sale.create'], permVersion: 4 });
+    expect(cashier.has('reservation.manage')).toBe(true);
+    const waiter = effectivePermissions({ role: 'user', permissions: ['order.create', 'tasks.view'], permVersion: 4 });
+    expect(waiter.has('reservation.manage')).toBe(false);
+    // Joriy versiyada egasi olib qo'ygan bo'lsa — qayta qo'shilmaydi
+    const removed = effectivePermissions({ role: 'user', permissions: ['order.create', 'order.viewAll'], permVersion: PERMISSIONS_VERSION });
+    expect(removed.has('reservation.manage')).toBe(false);
+  });
+
+  it('rol shablonlari: Administrator va «Kassir (restoran)» — bor, Ofitsant/Oshpaz/Barmen — yo\'q', () => {
+    const has = (name: string) => RESTAURANT_ROLES.find((r) => r.name === name)!.permissions.includes('reservation.manage');
+    expect(has('Administrator')).toBe(true);
+    expect(has('Kassir (restoran)')).toBe(true);
+    expect(has('Ofitsant')).toBe(false);
+    expect(has('Oshpaz')).toBe(false);
+    expect(has('Barmen')).toBe(false);
   });
 });

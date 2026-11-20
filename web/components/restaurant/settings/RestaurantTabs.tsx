@@ -23,6 +23,9 @@ interface Props {
 
 /** Hisobotlar sahifasi o'z sarlavhasini chiqaradi — u yerda umumiy sarlavha takrorlanmaydi */
 const OWN_HEADER = '/app/restaurant/reports';
+/** Bronlar (/app/restaurant/reservations) — ishchi sahifa (menyuda «Sotuvlar»da): sozlamalar sarlavhasi ham, tablar ham yo'q */
+const STANDALONE = '/app/restaurant/reservations';
+const under = (pathname: string, base: string) => pathname === base || pathname.startsWith(`${base}/`);
 
 function TabsView({ canManage, canReports, branch }: Props & { branch: string | null }) {
   const t = useDict().restaurant.settings;
@@ -59,7 +62,8 @@ function TabsWithBranch(props: Props) {
 /** Restoran sozlamalari sarlavhasi + tablar: Umumiy · Zal va stollar · Stansiyalar · Hisobotlar (Menyu — alohida bo'lim /app/menu) */
 export default function RestaurantTabs({ title, sub, ...props }: Props & { title: string; sub: string }) {
   const pathname = usePathname();
-  const ownHeader = pathname === OWN_HEADER || pathname.startsWith(`${OWN_HEADER}/`);
+  if (under(pathname, STANDALONE)) return null;
+  const ownHeader = under(pathname, OWN_HEADER);
   return (
     <>
       {!ownHeader && (
