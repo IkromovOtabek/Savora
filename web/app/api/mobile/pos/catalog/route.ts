@@ -26,7 +26,7 @@ export async function GET(req: Request) {
   const { Product } = await getTenantModels(user.dbName);
   const filter = { ...branchFilter(user), status: 'in_stock' };
   const [items, total] = await Promise.all([
-    Product.find(filter, { name: 1, imei: 1, barcode: 1, salePrice: 1, trackQuantity: 1, quantity: 1, soldQuantity: 1, status: 1, unit: 1, kind: 1, bundleItems: 1 })
+    Product.find(filter, { name: 1, imei: 1, barcode: 1, productId: 1, salePrice: 1, trackQuantity: 1, quantity: 1, soldQuantity: 1, status: 1, unit: 1, kind: 1, bundleItems: 1 })
       .sort({ name: 1 })
       .limit(CATALOG_LIMIT)
       .lean(),
@@ -43,6 +43,8 @@ export async function GET(req: Request) {
       name: p.name,
       imei: p.imei,
       barcode: p.barcode ?? null,
+      // Barkod yorlig'idagi mahsulot ID (PRD-…) — oflayn skanerda ham topilsin
+      productId: p.productId ?? null,
       salePrice: p.salePrice,
       kind: p.kind ?? 'goods',
       trackQuantity: sellOf(p).tracked,

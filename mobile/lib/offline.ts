@@ -22,6 +22,8 @@ export interface CatalogItem {
   kind?: string;
   imei: string;
   barcode: string | null;
+  /** Mahsulot ID (PRD-…) — barkod yorlig'ida kodlanishi mumkin; eski server/kesh yubormaydi */
+  productId?: string | null;
   salePrice: number;
   trackQuantity: boolean;
   available: number;
@@ -120,15 +122,17 @@ export function searchCatalog(cat: Catalog | null, q: string, limit = 60): Catal
   const list = !t
     ? cat.items
     : cat.items.filter((p) =>
-        p.name.toLowerCase().includes(t) || p.imei.toLowerCase().includes(tn) || (p.barcode ?? '').toLowerCase().includes(tn));
+        p.name.toLowerCase().includes(t) || p.imei.toLowerCase().includes(tn) || (p.barcode ?? '').toLowerCase().includes(tn)
+        || (p.productId ?? '').toLowerCase().includes(tn));
   return list.slice(0, limit);
 }
 
-/** Skaner kodi bo'yicha aniq mos (IMEI yoki shtrix) */
+/** Skaner kodi bo'yicha aniq mos (IMEI, shtrix yoki yorliqdagi mahsulot ID) */
 export function findByCode(cat: Catalog | null, code: string): CatalogItem | null {
   if (!cat) return null;
   const norm = code.replace(/\s/g, '').toUpperCase();
-  return cat.items.find((p) => p.imei.toUpperCase() === norm || p.barcode === code.trim()) ?? null;
+  return cat.items.find((p) => p.imei.toUpperCase() === norm || p.barcode === code.trim()
+    || (!!p.productId && p.productId.toUpperCase() === norm)) ?? null;
 }
 
 export function toPicked(p: CatalogItem): PickedProduct {

@@ -71,6 +71,8 @@ export async function GET(req: Request) {
       { name: { $regex: q, $options: 'i' } },
       { imei: { $regex: qn, $options: 'i' } },
       { barcode: { $regex: qn, $options: 'i' } },
+      // Mahsulot ID (PRD-…) — IMEI/shtrixi yo'q tovarning barkod yorlig'ida shu kodlanadi (lib/labels/settings.ts)
+      { productId: { $regex: qn, $options: 'i' } },
     ];
   }
 
@@ -89,6 +91,7 @@ export async function GET(req: Request) {
       name: p.name,
       imei: p.imei,
       barcode: p.barcode ?? null,
+      productId: p.productId ?? null,
       salePrice: p.salePrice,
       purchasePrice: canViewCost ? p.purchasePrice : 0,
       costHidden: !canViewCost,

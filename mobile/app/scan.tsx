@@ -16,7 +16,7 @@ import { Screen, NavBar, EmptyState, Button, Loading } from '@/components/ui';
 import { useDict, tr } from '@/lib/i18n';
 import { gtinToBarcode, isMarkingCode, parseGs1 } from '@/lib/gs1';
 
-interface Item extends PickedProduct { imei: string; barcode: string | null }
+interface Item extends PickedProduct { imei: string; barcode: string | null; productId?: string | null }
 
 export default function Scan() {
   const router = useRouter();
@@ -55,9 +55,9 @@ export default function Scan() {
     }
     try {
       const r = await api<{ items: Item[] }>(`/api/mobile/products?q=${encodeURIComponent(code)}`);
-      // Aniq mos kelganini birinchi olamiz (kod/shtrix), bo'lmasa birinchisi
+      // Aniq mos kelganini birinchi olamiz (IMEI/shtrix/yorliqdagi mahsulot ID), bo'lmasa birinchisi
       const norm = code.replace(/\s/g, '').toUpperCase();
-      const hit = r.items.find((p) => p.imei?.toUpperCase() === norm || p.barcode === code) ?? r.items[0];
+      const hit = r.items.find((p) => p.imei?.toUpperCase() === norm || p.barcode === code || p.productId?.toUpperCase() === norm) ?? r.items[0];
       if (hit) {
         if (pickMode) {
           if (hit.status !== 'in_stock' || hit.available <= 0) {
