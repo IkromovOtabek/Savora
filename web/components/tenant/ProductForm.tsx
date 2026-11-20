@@ -109,6 +109,12 @@ interface Props {
    * yaratishda — izoh. `purchasing` — xarid birligi maydoni (production yoki purchasing moduli yoqiq).
    */
   stockSettings?: StockSettingsInitial & { purchasing: boolean };
+  /**
+   * Yaratishda «Barkod kerak» tanlovi (IMEI'siz do'kon, xizmat emas): belgilansa — zavod barkodi bo'lmasa do'kon ichki
+   * barkodi yaratiladi va saqlangach yorliq chop etiladi; belgilanmasa — yorliq taklif qilinmaydi.
+   * `defaultOn` — sukut (do'kon sozlamasi «qo'shilgach chop etish»).
+   */
+  barcodeChoice?: { defaultOn: boolean };
 }
 
 export default function ProductForm({
@@ -131,6 +137,7 @@ export default function ProductForm({
   initial,
   extraNames = [],
   stockSettings,
+  barcodeChoice,
 }: Props) {
   const d = useDict();
   const t = d.stock.form;
@@ -165,6 +172,7 @@ export default function ProductForm({
   const fractional = isFractionalUnit(unit);
   const [supplierId, setSupplierId] = useState(initial?.supplierId ?? '');
   const [marked, setMarked] = useState(!!initial?.marked);
+  const [needBarcode, setNeedBarcode] = useState(!!barcodeChoice?.defaultOn);
   // Yangi mahsulot: xarid birligi tanlovi (koeffitsient maydoni shu tanlovga qarab chiqadi)
   const [purchaseUnit, setPurchaseUnit] = useState('');
   const activeCreditBanks = creditBanks.filter(Boolean);
@@ -372,6 +380,24 @@ export default function ProductForm({
                         <span className="field-hint">{t.barcodeHint}</span>
                       )}
                     </div>
+                    {barcodeChoice && isCreate && kind !== 'service' && (
+                      <label className="st-switch-row">
+                        <input type="hidden" name="barcodeAsked" value="1" />
+                        <span className="st-switch-row-t">
+                          <b>{d.labels.need.label}</b>
+                          <small>{needBarcode ? d.labels.need.hintOn : d.labels.need.hintOff}</small>
+                        </span>
+                        <input
+                          type="checkbox"
+                          role="switch"
+                          className="st-switch"
+                          name="needBarcode"
+                          checked={needBarcode}
+                          onChange={(e) => setNeedBarcode(e.target.checked)}
+                          disabled={isPending}
+                        />
+                      </label>
+                    )}
                     {!colorInFields && (
                       <div className="auth-field">
                         <label htmlFor="color">{t.colorFeatureLabel}</label>

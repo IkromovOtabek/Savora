@@ -69,6 +69,14 @@ export const uz = {
     printHint: 'Barkod yorlig\'ini chop etib, tovarga yopishtiring — kassada skaner bilan darhol topiladi.',
     addMore: 'Yana qo\'shish',
     autoOn: 'Avto-chop etish yoqiq',
+    /** {code} — yaratilgan ichki barkod */
+    barcodeCreated: 'Barkod yaratildi: {code}',
+  },
+  /** Mahsulot qo'shish formasi: «Barkod kerak» */
+  need: {
+    label: 'Barkod kerak',
+    hintOn: "Zavod barkodi bo'lmasa — do'kon ichki barkodi (200…) yaratiladi. Saqlangach yorliq chop etiladi.",
+    hintOff: "Barkodsiz (masalan, xom ashyo) — yorliq taklif qilinmaydi. Keyin kartochkadan chop etish mumkin.",
   },
   bulk: 'Barkod chop etish',
   importDone: 'Yorliqlarni chop etish ({n})',
@@ -143,6 +151,12 @@ export const ru: typeof uz = {
     printHint: 'Напечатайте этикетку со штрихкодом и наклейте на товар — на кассе сканер сразу его найдёт.',
     addMore: 'Добавить ещё',
     autoOn: 'Автопечать включена',
+    barcodeCreated: 'Штрихкод создан: {code}',
+  },
+  need: {
+    label: 'Нужен штрихкод',
+    hintOn: 'Если нет заводского штрихкода — создаётся внутренний (200…). После сохранения печатается этикетка.',
+    hintOff: 'Без штрихкода (например, сырьё) — этикетка не предлагается. Напечатать можно позже из карточки.',
   },
   bulk: 'Печать штрихкодов',
   importDone: 'Печать этикеток ({n})',

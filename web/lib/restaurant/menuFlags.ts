@@ -18,6 +18,7 @@
  * mahsulotlari menyuda (buildMenu `flags === false`).
  */
 import type { RestaurantModels } from './context';
+import type { MenuSection } from './types';
 import { logError } from '../logger';
 
 export const MENU_VERSION = 1;
@@ -31,6 +32,18 @@ export function isOnMenu(p: MenuFlagSource): boolean {
   if (p.menuItem === true) return true;
   if (p.menuItem === false) return false;
   return p.kind === 'bundle' || p.kind === 'service';
+}
+
+/**
+ * Menyu bo'limi: belgilangan bo'lsa — o'sha; belgisi yo'q eski band — stansiyasi bar turida bo'lsa «bar», aks holda
+ * «oshxona». `barStationIds` — filialning bar turidagi stansiyalari.
+ */
+export function menuSectionOf(
+  p: { menuSection?: string | null; stationId?: unknown },
+  barStationIds: ReadonlySet<string>,
+): MenuSection {
+  if (p.menuSection === 'bar' || p.menuSection === 'kitchen') return p.menuSection;
+  return p.stationId && barStationIds.has(String(p.stationId)) ? 'bar' : 'kitchen';
 }
 
 /** isOnMenu'ning Mongo filtri (boshqa shartlar bilan `$and` ichida ishlating — ichida `$or` bor) */

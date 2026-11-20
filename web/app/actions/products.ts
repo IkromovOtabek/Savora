@@ -9,6 +9,7 @@ import { reserveStock, releaseStock } from '@/lib/stock';
 import { PRODUCT_UNITS, isPhoneShop, type ProductUnit } from '@/lib/businessTypes';
 import { ProductStatus } from '@/lib/models/tenant/Product';
 import { generateProductCode, generateSku } from '@/lib/productId';
+import { uniqueInternalBarcode } from '@/lib/labels/internalBarcode';
 import { checkSaleQty, clampQtyToStock, isStockless, parseQtyField } from '@/lib/productQuantity';
 import { parseBundleItems, parseProductKind } from '@/lib/productKinds';
 import { isFractionalUnit, parseQty, priceTimesQty, qtyLabel, roundQty } from '@/lib/qty';
@@ -261,7 +262,7 @@ export async function createProductAction(_prev: State, formData: FormData): Pro
 
   const name = String(formData.get('name') || '').trim();
   let imei = normalizeImei(String(formData.get('imei') || ''));
-  const barcode = String(formData.get('barcode') || '').trim();
+  let barcode = String(formData.get('barcode') || '').trim();
   const color = String(formData.get('color') || '').trim();
   const notes = String(formData.get('notes') || '').trim();
   const photoUrl = String(formData.get('photoUrl') || '').trim();
@@ -275,6 +276,14 @@ export async function createProductAction(_prev: State, formData: FormData): Pro
   const quantityRaw = String(formData.get('quantity') || '1');
 
   if (!name) return { error: m.nameRequired };
+  // «Barkod kerak» (forma so'ragan bo'lsa): zavod barkodi bo'lmasa — do'kon ichki barkodi; yorliq kartasi shunga qarab
+  const barcodeAsked = !phoneShop && kind !== 'service' && formData.get('barcodeAsked') === '1';
+  const needBarcode = barcodeAsked && formData.get('needBarcode') === 'on';
+  let barcodeCreated = false;
+  if (needBarcode && !barcode) {
+    barcode = await uniqueInternalBarcode(Product);
+    barcodeCreated = true;
+  }
   if (phoneShop && !stockless) {
     if (!imei || imei.length < 10) return { error: m.imeiMin };
   } else {
@@ -390,8 +399,10 @@ export async function createProductAction(_prev: State, formData: FormData): Pro
     if (barcode) await rememberBarcodeNames(user.organizationId, [{ code: barcode, name }]);
     revalidatePath('/app');
     revalidatePath('/app/products');
-    // created=1 — toast (SearchParamToast uni URL'dan olib tashlaydi); added=1 qoladi — «barkod chop eting» kartasi va avto-chop etish
-    redirect(`/app/products/${product._id}?created=1&added=1`);
+    // created=1 — toast (SearchParamToast uni URL'dan olib tashlaydi); added=1 qoladi — «barkod chop eting» kartasi va avto-chop etish.
+    // bc=1 — «Barkod kerak» belgilangan (yorliq darhol chop etiladi), bc=0 — barkod kerak emas (yorliq taklif qilinmaydi)
+    const bc = barcodeAsked ? `&bc=${needBarcode ? (barcodeCreated ? 'new' : '1') : '0'}` : '';
+    redirect(`/app/products/${product._id}?created=1&added=1${bc}`);
   } catch (err) {
     if (err && typeof err === 'object' && 'digest' in err) throw err;
     return { error: m.createFailed };

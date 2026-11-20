@@ -40,7 +40,7 @@ export default async function ProductDetailPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ created?: string; added?: string; deleteBlocked?: string }>;
+  searchParams: Promise<{ created?: string; added?: string; deleteBlocked?: string; bc?: string }>;
 }) {
   const { id } = await params;
   const sp = await searchParams;
@@ -97,6 +97,10 @@ export default async function ProductDetailPage({
   // Barkod yorlig'i: xizmatdan boshqa hamma tovarga; yangi qo'shilganda — sozlamaga ko'ra darhol chop etiladi
   const canLabel = kind !== 'service';
   const labelCfg = resolveLabelSettings(shopSettings.label, isPhoneShop(org));
+  // Qo'shish formasidagi «Barkod kerak»: 1/new — darhol chop etish (new — ichki barkod yaratildi), 0 — yorliq taklif qilinmaydi
+  const bcChoice = sp?.bc === '1' || sp?.bc === 'new' ? 'yes' : sp?.bc === '0' ? 'no' : null;
+  const createdLabel = canLabel && bcChoice !== 'no';
+  const createdAuto = bcChoice === 'yes' || (bcChoice === null && labelCfg.autoPrint);
   const status = product.status as ProductStatus;
   const initialLetter = (product.name ?? '').trim().charAt(0).toUpperCase() || '?';
   const productFields = orgProductFields(org);
@@ -142,16 +146,17 @@ export default async function ProductDetailPage({
           <span className="lb-created-ic" aria-hidden="true"><Icon name="check" size={22} /></span>
           <div className="lb-created-t">
             <b>{t.createdOk}</b>
-            {canLabel && (
+            {sp?.bc === 'new' && product.barcode && <span>{tr(d.labels.created.barcodeCreated, { code: product.barcode })}</span>}
+            {createdLabel && (
               <span>
                 {d.labels.created.printHint}
-                {labelCfg.autoPrint && <> · <em>{d.labels.created.autoOn}</em></>}
+                {createdAuto && <> · <em>{d.labels.created.autoOn}</em></>}
               </span>
             )}
           </div>
           <div className="lb-created-a">
-            {canLabel && (
-              <LabelPrint ids={[String(product._id)]} variant="primary" label={d.labels.print.buttonFull} auto={labelCfg.autoPrint} canSettings={isAdmin} />
+            {createdLabel && (
+              <LabelPrint ids={[String(product._id)]} variant="primary" label={d.labels.print.buttonFull} auto={createdAuto} canSettings={isAdmin} />
             )}
             {perms.has('product.create') && (
               <Link href="/app/products/new" className="btn btn-tinted btn-with-icon">

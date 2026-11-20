@@ -23,9 +23,10 @@ import { tr } from '../i18n/fmt';
 import { normalizeModifierGroups } from './modifiers';
 import { resolveBranchId } from './ops';
 import { needAnyPerm, needFeature, needPerm, ok, type OpErr, type OpResult, type RestaurantCtx } from './context';
-import { ensureMenuFlags, isOnMenu, MENU_KINDS, onMenuFilter } from './menuFlags';
+import { ensureMenuFlags, isOnMenu, MENU_KINDS, menuSectionOf, onMenuFilter } from './menuFlags';
 import { marginPct, portionsFrom, recipeLineCost } from './recipeUnits';
-import type { StationKind } from './types';
+import { MENU_SECTIONS, type MenuSection, type StationKind } from './types';
+import { uniqueInternalBarcode } from '../labels/internalBarcode';
 
 const validId = (v: unknown): v is string => typeof v === 'string' && /^[a-f0-9]{24}$/i.test(v);
 
@@ -62,6 +63,11 @@ function canOf(ctx: RestaurantCtx): MenuCan {
     stop: ctx.perms.has('menu.stopList'),
     viewCost: ctx.perms.has('product.viewCost'),
   };
+}
+
+/** Filialning bar turidagi stansiyalari (bo'limi belgilanmagan eski band uchun) */
+function barStationIds(stations: readonly { _id: unknown; kind?: string | null }[]): Set<string> {
+  return new Set(stations.filter((s) => s.kind === 'bar').map((s) => String(s._id)));
 }
 
 /* ───────────────────────────── ombor ma'lumoti (tannarx, qoldiq) ───────────────────────────── */
@@ -106,6 +112,10 @@ export interface MenuRow {
   photoUrl: string | null;
   category: string | null;
   stationId: string | null;
+  /** Menyu bo'limi: oshxona yoki bar */
+  section: MenuSection;
+  /** Barkod (zavodniki yoki do'kon ichki kodi); yo'q — null */
+  barcode: string | null;
   stopListed: boolean;
   /** Necha porsiya: taom — retsept xom ashyosi qoldig'idan, tovar — qoldiq; null — cheklovsiz (xizmat). 0 — «Tugagan» */
   portions: number | null;
@@ -144,6 +154,7 @@ export async function menuAdminView(ctx: RestaurantCtx, input: { branchId?: stri
   const fields = {
     name: 1, salePrice: 1, purchasePrice: 1, photoUrl: 1, category: 1, kind: 1, unit: 1, trackQuantity: 1, quantity: 1,
     soldQuantity: 1, status: 1, bundleItems: 1, stationId: 1, modifierGroups: 1, stopListed: 1, systemKey: 1, ikpu: 1, menuItem: 1,
+    menuSection: 1, barcode: 1,
   };
   const status = { $or: [{ status: 'in_stock' }, { status: 'sold', trackQuantity: true }] };
   const [products, hiddenDocs, stations, branches] = await Promise.all([
@@ -158,6 +169,7 @@ export async function menuAdminView(ctx: RestaurantCtx, input: { branchId?: stri
   const all = [...products, ...hiddenDocs].filter((p) => !p.systemKey);
   const compIds = [...new Set(all.flatMap((p) => (p.kind === 'bundle' ? (p.bundleItems ?? []).map((i) => String(i.productId)) : [])))];
   const stock = await stockInfo(ctx, compIds);
+  const barStations = barStationIds(stations);
 
   const row = (p: Lean): MenuRow => {
     const type = typeOf(p);
@@ -171,6 +183,8 @@ export async function menuAdminView(ctx: RestaurantCtx, input: { branchId?: stri
       photoUrl: p.photoUrl ? resolvePublicFileUrl(p.photoUrl) : null,
       category: p.category ?? null,
       stationId: p.stationId ? String(p.stationId) : null,
+      section: menuSectionOf(p, barStations),
+      barcode: p.barcode || null,
       stopListed: !!p.stopListed,
       portions: stats ? stats.portions : type === 'goods' ? (p.trackQuantity ? getStockQty(p) : p.status === 'in_stock' ? 1 : 0) : null,
       recipeCount: p.bundleItems?.length ?? 0,
@@ -211,6 +225,8 @@ export interface StockOption {
   /** Tayyor tovarni menyuga qo'shishda formani to'ldirish uchun: turkum va stansiya */
   categoryId?: string | null;
   stationId?: string | null;
+  /** Tovarning barkodi (bo'lsa — yangisi yaratilmaydi) */
+  barcode?: string | null;
 }
 
 export interface DishFormValue {
@@ -223,6 +239,8 @@ export interface DishFormValue {
   /** Turkumga bog'lanmagan eski kategoriya matni */
   categoryName: string | null;
   stationId: string | null;
+  section: MenuSection;
+  barcode: string | null;
   ikpu: string | null;
   modifierGroups: { name: string; required: boolean; min: number; max: number; options: { name: string; price: number }[] }[];
   /** Retsept (asosiy birlikda) */
@@ -272,7 +290,7 @@ export async function dishFormData(ctx: RestaurantCtx, input: { id?: string; bra
           ...(recipeIds.length ? [{ _id: { $in: recipeIds } }] : []),
         ],
       },
-      { name: 1, unit: 1, trackQuantity: 1, quantity: 1, soldQuantity: 1, status: 1, kind: 1, purchasePrice: 1, salePrice: 1, categoryId: 1, stationId: 1 },
+      { name: 1, unit: 1, trackQuantity: 1, quantity: 1, soldQuantity: 1, status: 1, kind: 1, purchasePrice: 1, salePrice: 1, categoryId: 1, stationId: 1, barcode: 1 },
     ).sort({ name: 1 }).limit(1500).lean<Lean[]>(),
     ctx.m.ProductCategory.find({}, { name: 1, parentId: 1 }).sort({ name: 1 }).limit(2000).lean(),
     ctx.m.KitchenStation.find({ branchId }).sort({ sort: 1, createdAt: 1 }).select('name kind active').lean(),
@@ -290,6 +308,7 @@ export async function dishFormData(ctx: RestaurantCtx, input: { id?: string; bra
       tracked: !!p.trackQuantity,
       categoryId: p.categoryId ? String(p.categoryId) : null,
       stationId: p.stationId ? String(p.stationId) : null,
+      barcode: p.barcode || null,
     }));
   const dish: DishFormValue | null = doc
     ? {
@@ -301,6 +320,8 @@ export async function dishFormData(ctx: RestaurantCtx, input: { id?: string; bra
       categoryId: doc.categoryId ? String(doc.categoryId) : null,
       categoryName: doc.category ?? null,
       stationId: doc.stationId ? String(doc.stationId) : null,
+      section: menuSectionOf(doc, barStationIds(stations)),
+      barcode: doc.barcode || null,
       ikpu: doc.ikpu || null,
       modifierGroups: (doc.modifierGroups ?? []).map((g) => ({
         name: g.name, required: !!g.required, min: g.min ?? 0, max: g.max ?? 1,
@@ -339,6 +360,10 @@ export interface DishInput {
   categoryId?: string | null;
   photoUrl?: string | null;
   stationId?: string | null;
+  /** Menyu bo'limi (oshxona / bar) */
+  section?: MenuSection;
+  /** Barkod kerak: tovarda barkod bo'lmasa — do'kon ichki barkodi yaratiladi (lib/labels/internalBarcode.ts) */
+  barcode?: boolean;
   ikpu?: string | null;
   modifierGroups?: unknown;
   /** Taom retsepti — xom ashyoning asosiy birligida */
@@ -367,6 +392,8 @@ export function parseDishInput(raw: unknown): DishInput | null {
   const photoUrl = str(r.photoUrl, 600);
   const ikpu = str(r.ikpu, 40);
   if (photoUrl === false || ikpu === false) return null;
+  if (r.section !== undefined && !(MENU_SECTIONS as readonly unknown[]).includes(r.section)) return null;
+  if (r.barcode !== undefined && typeof r.barcode !== 'boolean') return null;
   let recipe: { productId: string; qty: number }[] | undefined;
   if (r.recipe !== undefined) {
     if (!Array.isArray(r.recipe) || r.recipe.length > MENU_LIMITS.recipe) return null;
@@ -389,6 +416,8 @@ export function parseDishInput(raw: unknown): DishInput | null {
     ...(categoryId !== undefined ? { categoryId } : {}),
     ...(photoUrl !== undefined ? { photoUrl } : {}),
     ...(stationId !== undefined ? { stationId } : {}),
+    ...(r.section !== undefined ? { section: r.section as MenuSection } : {}),
+    ...(r.barcode !== undefined ? { barcode: r.barcode as boolean } : {}),
     ...(ikpu !== undefined ? { ikpu } : {}),
     ...(r.modifierGroups !== undefined ? { modifierGroups: r.modifierGroups } : {}),
     ...(recipe ? { recipe } : {}),
@@ -449,7 +478,10 @@ function recipeDiff(before: { id: string; qty: number; name: string; unit: strin
  * tovarni menyuga qo'shish — product.edit. Taom tannarxi (purchasePrice) retseptdan qayta hisoblanadi (sotuv
  * hisobotlarida foyda to'g'ri chiqsin). Tovar turini almashtirib bo'lmaydi (taom ↔ xizmat — mumkin).
  */
-export async function saveMenuDish(ctx: RestaurantCtx, input: DishInput): Promise<OpResult<{ id: string; created: boolean }>> {
+export async function saveMenuDish(
+  ctx: RestaurantCtx,
+  input: DishInput,
+): Promise<OpResult<{ id: string; created: boolean; /** Shu saqlashda yaratilgan ichki barkod (yorliq chop etish uchun) */ barcode: string | null }>> {
   const off = needFeature(ctx, 'tables');
   if (off) return off;
   const t = ctx.d.menu.errors;
@@ -526,6 +558,13 @@ export async function saveMenuDish(ctx: RestaurantCtx, input: DishInput): Promis
     if (v) set.ikpu = v;
     else unset.ikpu = '';
   }
+  if (input.section) set.menuSection = input.section;
+  // Barkod kerak — tovarda (zavod yoki avvalgi) barkod bo'lmasa, do'kon ichki barkodi; bor bo'lsa o'zgarmaydi
+  let newBarcode: string | null = null;
+  if (input.barcode && !doc?.barcode) {
+    newBarcode = await uniqueInternalBarcode(ctx.m.Product);
+    set.barcode = newBarcode;
+  }
 
   // Tur bo'yicha: retsept / tannarx
   let recipe: RecipeLine[] | null = null;
@@ -566,9 +605,9 @@ export async function saveMenuDish(ctx: RestaurantCtx, input: DishInput): Promis
     const id = String(created._id);
     await recordAudit(ctx.user, {
       action: 'product.create', entity: 'product', entityId: id,
-      summary: `Menyuga qo'shildi: ${name}${recipe ? ` (retsept: ${recipe.map((l) => `${l.name} ${qtyLabel(l.qty, l.unit)}`).join(', ')})` : ''}${via}`,
+      summary: `Menyuga qo'shildi: ${name}${recipe ? ` (retsept: ${recipe.map((l) => `${l.name} ${qtyLabel(l.qty, l.unit)}`).join(', ')})` : ''}${newBarcode ? `, barkod ${newBarcode}` : ''}${via}`,
     });
-    return ok({ id, created: true });
+    return ok({ id, created: true, barcode: newBarcode });
   }
 
   const id = String(doc._id);
@@ -591,7 +630,7 @@ export async function saveMenuDish(ctx: RestaurantCtx, input: DishInput): Promis
   );
   await recordAudit(ctx.user, {
     action: addingGoods ? 'product.menuOn' : 'product.menu', entity: 'product', entityId: id,
-    summary: `«${name}»: ${addingGoods ? "ombordagi tovar menyuga qo'shildi" : 'menyu bandi saqlandi'}${via}`,
+    summary: `«${name}»: ${addingGoods ? "ombordagi tovar menyuga qo'shildi" : 'menyu bandi saqlandi'}${newBarcode ? `, barkod ${newBarcode}` : ''}${via}`,
   });
   if (diff) {
     await recordAudit(ctx.user, {
@@ -603,7 +642,7 @@ export async function saveMenuDish(ctx: RestaurantCtx, input: DishInput): Promis
       },
     });
   }
-  return ok({ id, created: false });
+  return ok({ id, created: false, barcode: newBarcode });
 }
 
 /** Menyuga qo'shish / menyudan olish (mahsulot o'chmaydi: tovar omborda qoladi, taom «Menyudan olinganlar»da) */

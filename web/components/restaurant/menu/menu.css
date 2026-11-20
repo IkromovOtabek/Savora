@@ -130,3 +130,14 @@
   .mn-sum-portions { margin-left: 0; }
   .mn-savebar .btn { flex: 1; min-width: 0; }
 }
+
+/* ── Bo'limlar (Taomlar / Bar) va barkod ─────────────────── */
+.mn-sections { justify-self: start; }
+.mn-section-pick { display: grid; gap: 8px; justify-items: start; }
+.mn-section-pick .rs-hint { margin: 0; }
+.mn-barcode-has {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; padding: 10px 12px; border-radius: 12px;
+  background: var(--fill); color: var(--ink-1); font-variant-numeric: tabular-nums;
+}
+.mn-barcode-has > span { flex: 1 1 auto; min-width: 0; font-weight: 600; }
+.mn-barcode-has > .btn { margin-left: auto; }

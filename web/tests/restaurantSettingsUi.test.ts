@@ -88,6 +88,7 @@ describe('restoran sozlamalari UI (smoke)', () => {
     const can = { create: true, edit: true, stop: true, viewCost: true };
     const row = (over: Record<string, unknown>) => ({
       id: id(40), name: 'Osh', type: 'dish' as const, price: 45000, photoUrl: null, category: 'Milliy', stationId: id(30), stopListed: false,
+      section: 'kitchen' as 'kitchen' | 'bar', barcode: null as string | null,
       portions: 12, recipeCount: 4, modifierCount: 1, ikpu: null, cost: 18400, margin: 59.1, ...over,
     });
     const view = {
@@ -127,7 +128,7 @@ describe('restoran sozlamalari UI (smoke)', () => {
       ],
       dish: {
         id: id(40), type: 'dish' as const, name: 'Osh', price: 45000, photoUrl: null, categoryId: id(60), categoryName: 'Milliy', stationId: id(30),
-        ikpu: null, modifierGroups: [], recipe: [{ productId: id(70), qty: 0.15 }, { productId: id(71), qty: 0.1 }], cost: null, unit: 'dona', available: null, stopListed: false,
+        section: 'kitchen' as const, barcode: null, ikpu: null, modifierGroups: [], recipe: [{ productId: id(70), qty: 0.15 }, { productId: id(71), qty: 0.1 }], cost: null, unit: 'dona', available: null, stopListed: false,
       },
     };
     const html = renderToStaticMarkup(createElement(DishForm, { data, mediaEnabled: false }));

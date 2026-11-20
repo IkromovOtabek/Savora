@@ -3,11 +3,14 @@
 import { useDeferredValue, useMemo, useState } from 'react';
 import Link from 'next/link';
 import Icon from '@/components/icons/Icon';
+import SegmentSwitch from '@/components/ui/SegmentSwitch';
+import LabelPrint from '@/components/tenant/labels/LabelPrint';
 import { useDict } from '@/lib/i18n/client';
 import { tr } from '@/lib/i18n/fmt';
 import { fmtMoney } from '@/lib/format';
 import { fmtQty } from '@/lib/qty';
 import type { MenuAdminView, MenuRow } from '@/lib/restaurant/menuAdmin';
+import type { MenuSection } from '@/lib/restaurant/types';
 import { setStopListAction, updateMenuItemAction } from '@/app/actions/restaurant';
 import { setMenuMembershipAction } from '@/app/actions/menu';
 import BranchPicker from '@/components/restaurant/settings/BranchPicker';
@@ -20,16 +23,26 @@ const LOW_MARGIN = 30;
 
 const isNoRecipe = (i: MenuRow) => i.type === 'service' || (i.type === 'dish' && i.recipeCount === 0);
 
+/** Bo'lim tanlovi URL'da (?section=bar) — sahifa yangilansa va «qo'shish» tugmalari (MenuAddActions) shu bo'limda */
+function rememberSection(section: MenuSection) {
+  const url = new URL(window.location.href);
+  if (section === 'bar') url.searchParams.set('section', 'bar');
+  else url.searchParams.delete('section');
+  if (url.href !== window.location.href) window.history.replaceState(null, '', url.pathname + url.search);
+}
+
 /**
- * Menyu (/app/menu): kategoriyalar bo'yicha taomlar — rasm, narx, porsiya (retsept xom ashyosidan), tannarx va
- * foyda (product.viewCost), stansiya, stop-list; qidiruv va filtrlar; menyudan olish/qaytarish.
+ * Menyu (/app/menu): ikki bo'lim — Taomlar (oshxona) va Bar; ichida kategoriyalar bo'yicha — rasm, narx, porsiya
+ * (retsept xom ashyosidan), tannarx va foyda (product.viewCost), stansiya, stop-list, barkod (bar); qidiruv va
+ * filtrlar; menyudan olish/qaytarish.
  */
-export default function MenuBoard({ view }: { view: MenuAdminView }) {
+export default function MenuBoard({ view, section: initialSection = 'kitchen' }: { view: MenuAdminView; section?: MenuSection }) {
   const d = useDict();
   const t = d.menu;
   const { pending, run } = useRun();
   const [items, setItems] = useState(view.items);
   const [hidden, setHidden] = useState(view.hidden);
+  const [section, setSection] = useState<MenuSection>(initialSection);
   const [q, setQ] = useState('');
   const query = useDeferredValue(searchKey(q));
   const [cat, setCat] = useState('');
@@ -39,16 +52,34 @@ export default function MenuBoard({ view }: { view: MenuAdminView }) {
 
   const patch = (id: string, p: Partial<MenuRow>) => setItems((list) => list.map((i) => (i.id === id ? { ...i, ...p } : i)));
 
+  const sectionCount = useMemo(() => ({
+    kitchen: items.filter((i) => i.section === 'kitchen').length,
+    bar: items.filter((i) => i.section === 'bar').length,
+  }), [items]);
+  const inSection = useMemo(() => items.filter((i) => i.section === section), [items, section]);
+  const hiddenInSection = useMemo(() => hidden.filter((i) => i.section === section), [hidden, section]);
+  const categories = useMemo(
+    () => view.categories.filter((c) => inSection.some((i) => i.category === c) || hiddenInSection.some((i) => i.category === c)),
+    [view.categories, inSection, hiddenInSection],
+  );
+
   const counts: Record<Filter, number> = useMemo(() => ({
-    all: items.length,
-    stop: items.filter((i) => i.stopListed).length,
-    noRecipe: items.filter(isNoRecipe).length,
-    soldOut: items.filter((i) => i.portions === 0).length,
-    hidden: hidden.length,
-  }), [items, hidden]);
+    all: inSection.length,
+    stop: inSection.filter((i) => i.stopListed).length,
+    noRecipe: inSection.filter(isNoRecipe).length,
+    soldOut: inSection.filter((i) => i.portions === 0).length,
+    hidden: hiddenInSection.length,
+  }), [inSection, hiddenInSection]);
+
+  function pickSection(next: MenuSection) {
+    setSection(next);
+    setCat('');
+    if (filter === 'hidden') setFilter('all');
+    rememberSection(next);
+  }
 
   const groups = useMemo(() => {
-    const source = filter === 'hidden' ? hidden : items;
+    const source = filter === 'hidden' ? hiddenInSection : inSection;
     const list = source.filter((i) => {
       if (query && !searchKey(i.name).includes(query)) return false;
       if (cat && (cat === '\u0000' ? i.category : i.category !== cat)) return false;
@@ -60,7 +91,7 @@ export default function MenuBoard({ view }: { view: MenuAdminView }) {
     const byCat = new Map<string, MenuRow[]>();
     for (const i of list) byCat.set(i.category ?? '', [...(byCat.get(i.category ?? '') ?? []), i]);
     return [...byCat.entries()].sort(([a], [b]) => (a === '' ? 1 : b === '' ? -1 : a.localeCompare(b)));
-  }, [items, hidden, query, cat, filter]);
+  }, [inSection, hiddenInSection, query, cat, filter]);
 
   const toggleStop = (item: MenuRow) =>
     run(() => setStopListAction({ productId: item.id, stopped: !item.stopListed }), {
@@ -104,21 +135,36 @@ export default function MenuBoard({ view }: { view: MenuAdminView }) {
     { key: 'soldOut', label: t.filters.soldOut },
     ...(counts.hidden > 0 || filter === 'hidden' ? [{ key: 'hidden' as const, label: t.filters.hidden }] : []),
   ];
-  const branchQ = view.branches.length > 1 ? `?branch=${view.branchId}` : '';
+  const newQ = new URLSearchParams({
+    ...(view.branches.length > 1 ? { branch: view.branchId } : {}),
+    ...(section === 'bar' ? { section: 'bar' } : {}),
+  }).toString();
+  const empty = inSection.length === 0 && hiddenInSection.length === 0;
 
   return (
     <div className="rs-stack mn-board">
       <BranchPicker branches={view.branches} value={view.branchId} />
       {!view.flags && <p className="t-note t-note--warn rs-note" role="status">{t.legacy}</p>}
 
-      {items.length === 0 && hidden.length === 0 ? (
+      <SegmentSwitch
+        className="mn-sections"
+        label={t.sections.label}
+        value={section}
+        onChange={pickSection}
+        options={[
+          { value: 'kitchen', label: `${t.sections.kitchen} · ${sectionCount.kitchen}` },
+          { value: 'bar', label: `${t.sections.bar} · ${sectionCount.bar}` },
+        ]}
+      />
+
+      {empty ? (
         <section className="rs-card mn-empty">
-          <span className="ux-empty-ic" aria-hidden="true"><Icon name="utensils" size={26} /></span>
-          <b>{t.empty}</b>
-          <p className="rs-hint">{t.emptyHint}</p>
+          <span className="ux-empty-ic" aria-hidden="true"><Icon name={section === 'bar' ? 'cup' : 'utensils'} size={26} /></span>
+          <b>{section === 'bar' ? t.sections.barEmpty : t.empty}</b>
+          <p className="rs-hint">{section === 'bar' ? t.sections.barEmptyHint : t.emptyHint}</p>
           {can.create && (
-            <Link href={`/app/menu/new${branchQ}`} className="btn btn-primary btn-with-icon">
-              <Icon name="plus" size={18} /> {t.addDish}
+            <Link href={`/app/menu/new${newQ ? `?${newQ}` : ''}`} className="btn btn-primary btn-with-icon">
+              <Icon name="plus" size={18} /> {section === 'bar' ? t.addBar : t.addDish}
             </Link>
           )}
         </section>
@@ -143,8 +189,8 @@ export default function MenuBoard({ view }: { view: MenuAdminView }) {
               />
               <select className="input rs-menu-cat" value={cat} onChange={(e) => setCat(e.target.value)} aria-label={t.allCategories}>
                 <option value="">{t.allCategories}</option>
-                {view.categories.map((c) => <option key={c} value={c}>{c}</option>)}
-                {[...items, ...hidden].some((i) => !i.category) && <option value={'\u0000'}>{t.noCategory}</option>}
+                {categories.map((c) => <option key={c} value={c}>{c}</option>)}
+                {[...inSection, ...hiddenInSection].some((i) => !i.category) && <option value={'\u0000'}>{t.noCategory}</option>}
               </select>
             </div>
             <div className="rs-chips" role="group" aria-label={d.common.filter}>
@@ -214,6 +260,7 @@ function DishRow({ item, hiddenMode, stations, stationName, pending, can, onStop
   if (item.type === 'dish') meta.push(item.recipeCount ? tr(t.recipeN, { n: item.recipeCount }) : t.recipeEmpty);
   if (item.modifierCount) meta.push(tr(t.modsN, { n: item.modifierCount }));
   if (!can.edit || !stations.length) meta.push(stationName ?? d.restaurant.common.noStation);
+  if (item.barcode) meta.push(tr(t.barcode.short, { code: item.barcode }));
 
   return (
     <li className={`rs-dish mn-row${item.stopListed ? ' is-stop' : ''}`}>
@@ -292,6 +339,7 @@ function DishRow({ item, hiddenMode, stations, stationName, pending, can, onStop
                   {d.restaurant.settings.stopList}
                 </button>
               )}
+              {can.edit && item.barcode && <LabelPrint ids={[item.id]} variant="bulk" label={t.barcode.print} />}
               {can.edit && (
                 <>
                   <Link href={`/app/menu/${item.id}`} className="btn btn-sm btn-ghost" aria-label={tr(t.editFor, { name: item.name })}>

@@ -2,6 +2,7 @@ import { Schema, Types } from 'mongoose';
 import { softDeletePlugin } from '../../softDelete';
 import { PRODUCT_UNITS, type ProductUnit } from '../../businessTypes';
 import { markEcomDirty } from '../../ecom/dirty';
+import { MENU_SECTIONS, type MenuSection } from '../../restaurant/types';
 
 export type ProductStatus = 'in_stock' | 'sold' | 'reserved' | 'defective' | 'transferred';
 export type SoldPaymentType = 'cash' | 'credit';
@@ -131,6 +132,8 @@ export interface IProduct {
    * texkarta/xizmat — menyuda, oddiy tovar — yo'q (lib/restaurant/menuFlags.ts → isOnMenu, bir martalik migratsiya).
    */
   menuItem?: boolean;
+  /** Restoran: menyu bo'limi — oshxona yoki bar; yo'q — stansiya turidan (lib/restaurant/menuFlags.ts → menuSectionOf) */
+  menuSection?: MenuSection;
   /** Tizim mahsuloti (masalan restoran xizmat haqi qatori) — soft-delete holatida, ro'yxatlarda ko'rinmaydi */
   systemKey?: string;
   /**
@@ -252,6 +255,7 @@ export const productSchema = new Schema<IProduct>(
     },
     stopListed: { type: Boolean },
     menuItem: { type: Boolean },
+    menuSection: { type: String, enum: MENU_SECTIONS },
     systemKey: { type: String, trim: true },
     itemCode: { type: String, trim: true, uppercase: true, maxlength: 40 },
     purchaseUnit: { type: String, enum: PRODUCT_UNITS },

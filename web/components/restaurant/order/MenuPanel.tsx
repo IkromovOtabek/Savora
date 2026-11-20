@@ -2,11 +2,14 @@
 
 import { useMemo, useRef, useState } from 'react';
 import Icon from '@/components/icons/Icon';
+import SegmentSwitch from '@/components/ui/SegmentSwitch';
 import { fmtMoney } from '@/lib/format';
 import { useDict } from '@/lib/i18n/client';
 import { tr } from '@/lib/i18n/fmt';
 import { fmtQty } from '@/lib/qty';
+import { codeMatches } from '@/lib/scanCode';
 import type { MenuItemView } from '@/lib/restaurant/queries';
+import type { MenuSection } from '@/lib/restaurant/types';
 
 export interface MenuData {
   branchId: string;
@@ -25,8 +28,9 @@ export function dishOff(i: MenuItemView): 'stop' | 'out' | null {
 }
 
 /**
- * Ofitsant menyusi: qidiruv, kategoriya chiplari, rasmli kartochkalar. Stop-list va tugagan taom — o'chiq
- * (belgi bilan, bosilmaydi). Modifikatorli taom — dialog orqali, oddiysi — darhol savatga.
+ * Ofitsant menyusi: bo'limlar (Taomlar / Bar — bar bandi bo'lsa), qidiruv, kategoriya chiplari, rasmli kartochkalar.
+ * Qidiruv butun menyu bo'yicha (bo'lim va kategoriyasiz) — nom yoki barkod: skaner kodi + Enter darhol qo'shadi.
+ * Stop-list va tugagan taom — o'chiq (belgi bilan, bosilmaydi). Modifikatorli taom — dialog orqali, oddiysi — darhol savatga.
  */
 export default function MenuPanel({ menu, onPick, cartQty }: {
   menu: MenuData;
@@ -38,12 +42,32 @@ export default function MenuPanel({ menu, onPick, cartQty }: {
   const k = d.restaurant.order;
   const [q, setQ] = useState('');
   const [cat, setCat] = useState('');
+  const hasBar = menu.items.some((i) => i.section === 'bar');
+  const [section, setSection] = useState<MenuSection>('kitchen');
   const searchRef = useRef<HTMLInputElement>(null);
+  const t = d.menu.sections;
+
+  const inSection = useMemo(() => (hasBar ? menu.items.filter((i) => i.section === section) : menu.items), [menu.items, hasBar, section]);
+  const categories = useMemo(
+    () => (hasBar ? menu.categories.filter((c) => inSection.some((i) => i.category === c)) : menu.categories),
+    [menu.categories, inSection, hasBar],
+  );
+  /** Skanerlangan barkodga aynan mos band (klaviatura tartibi adashgan bo'lsa ham) */
+  const scanHit = useMemo(
+    () => (q.trim() ? menu.items.find((i) => i.barcode && codeMatches([i.barcode], q)) ?? null : null),
+    [menu.items, q],
+  );
 
   const items = useMemo(() => {
     const s = q.trim().toLowerCase();
-    return menu.items.filter((i) => (!cat || i.category === cat) && (!s || i.name.toLowerCase().includes(s)));
-  }, [menu.items, q, cat]);
+    if (s) return scanHit ? [scanHit] : menu.items.filter((i) => i.name.toLowerCase().includes(s));
+    return inSection.filter((i) => !cat || i.category === cat);
+  }, [menu.items, inSection, q, cat, scanHit]);
+
+  function pickSection(next: MenuSection) {
+    setSection(next);
+    setCat('');
+  }
 
   return (
     <section className="rt-menu" aria-label={k.menu}>
@@ -58,16 +82,27 @@ export default function MenuPanel({ menu, onPick, cartQty }: {
             onKeyDown={(e) => {
               if (e.key === 'Escape' && q) { e.preventDefault(); setQ(''); }
               if (e.key === 'Enter' && items.length === 1 && !dishOff(items[0])) { e.preventDefault(); onPick(items[0]); setQ(''); }
+              // Skaner: barkod topildi-yu, taom tanlab bo'lmaydi (stop-list/tugagan) — maydon tozalansin, keyingi skan uchun
+              else if (e.key === 'Enter' && scanHit) { e.preventDefault(); setQ(''); }
             }}
             placeholder={k.searchPh}
             aria-label={k.searchPh}
             autoComplete="off"
           />
         </label>
-        {menu.categories.length > 0 && (
+        {hasBar && (
+          <SegmentSwitch
+            className="seg-sw--sm rt-sections"
+            label={t.label}
+            value={section}
+            onChange={pickSection}
+            options={[{ value: 'kitchen', label: t.kitchen }, { value: 'bar', label: t.bar }]}
+          />
+        )}
+        {categories.length > 0 && (
           <div className="rt-cats" role="group" aria-label={k.categories}>
             <button type="button" className="rt-cat" aria-pressed={!cat} onClick={() => setCat('')}>{k.allCategories}</button>
-            {menu.categories.map((name) => (
+            {categories.map((name) => (
               <button key={name} type="button" className="rt-cat" aria-pressed={cat === name} onClick={() => setCat(cat === name ? '' : name)}>
                 {name}
               </button>

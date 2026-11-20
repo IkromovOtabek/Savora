@@ -37,6 +37,13 @@ export const UNSENT_STATUSES: readonly ItemStatus[] = ['pending', 'new'];
 export const STATION_KINDS = ['kitchen', 'bar'] as const;
 export type StationKind = (typeof STATION_KINDS)[number];
 
+/**
+ * Menyu bo'limi: oshxona (taomlar) yoki bar (ichimlik va bar mahsulotlari). `Product.menuSection`; belgisi yo'q eski
+ * band — stansiyasi bar bo'lsa «bar», aks holda «oshxona» (menuFlags.ts → menuSectionOf).
+ */
+export const MENU_SECTIONS = ['kitchen', 'bar'] as const;
+export type MenuSection = (typeof MENU_SECTIONS)[number];
+
 /** Taomni bekor qilish bosqichi: yuborilmagan / yuborilgan, tayyorlash boshlanmagan (ombor qaytadi) / boshlangan (yo'qotish) */
 export const VOID_STAGES = ['unsent', 'beforeCook', 'afterCook'] as const;
 export type VoidStage = (typeof VOID_STAGES)[number];

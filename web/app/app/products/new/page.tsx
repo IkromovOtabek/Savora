@@ -4,10 +4,12 @@ import ProductForm from '@/components/tenant/ProductForm';
 import { getUsdRate } from '@/lib/currency';
 import { requirePermission, userCan } from '@/lib/permissionGuard';
 import { getDict } from '@/lib/i18n/server';
-import { orgProductFields, parseBusinessType } from '@/lib/businessTypes';
+import { isPhoneShop, orgProductFields, parseBusinessType } from '@/lib/businessTypes';
 import { ensureMainBranchId } from '@/lib/mainBranch';
 import { loadBundleCandidates } from '@/lib/productKinds';
 import { loadExtraFieldNames } from '@/lib/productFields';
+import { getShopSettings } from '@/lib/shopSettings';
+import { resolveLabelSettings } from '@/lib/labels/settings';
 
 export async function generateMetadata() {
   const d = await getDict();
@@ -32,17 +34,22 @@ export default async function NewProductPage() {
   // Katalog: turkumlar (daraxt formada quriladi) va brendlar — mobil /api/mobile/catalog/* bilan bir xil
   // To'plam tarkibi — mahsulot tushadigan ombor tovarlaridan (createProductAction bilan bir xil ombor)
   const targetBranchId = user.role === 'user' && user.branchId ? user.branchId : await ensureMainBranchId(Branch);
-  const [categories, brands, bundleCandidates, extraNames] = await Promise.all([
+  const [categories, brands, bundleCandidates, extraNames, shopSettings] = await Promise.all([
     ProductCategory.find({}, { name: 1, parentId: 1 }).sort({ name: 1 }).limit(2000).lean(),
     Brand.find({}, { name: 1 }).sort({ name: 1 }).limit(1000).lean(),
     loadBundleCandidates(Product, targetBranchId, { canViewCost: await userCan(user, 'product.viewCost') }),
     loadExtraFieldNames(Product),
+    getShopSettings(ShopSettings),
   ]);
+  const showImei = isImeiEnabled(org);
+  // «Barkod kerak» — IMEI'siz do'konda; sukut — yorliq sozlamasidagi «qo'shilgach darhol chop etish»
+  const barcodeDefault = resolveLabelSettings(shopSettings.label, isPhoneShop(org)).autoPrint;
 
   return (
     <ProductForm
       mode="create"
-      showImei={isImeiEnabled(org)}
+      showImei={showImei}
+      barcodeChoice={showImei ? undefined : { defaultOn: barcodeDefault }}
       createTitle={d.catalog.terms[parseBusinessType(org.businessType || 'general')].addItem}
       mediaEnabled={features.mediaUpload}
       isAdmin={isAdmin}

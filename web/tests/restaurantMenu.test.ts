@@ -8,9 +8,10 @@
  */
 import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
 import mongoose, { Types } from 'mongoose';
-import { isOnMenu } from '@/lib/restaurant/menuFlags';
+import { isOnMenu, menuSectionOf } from '@/lib/restaurant/menuFlags';
 import { fromBaseQty, marginPct, portionsFrom, preferredRecipeUnit, recipeLineCost, recipeUnitsFor, toBaseQty } from '@/lib/restaurant/recipeUnits';
 import { parseDishInput } from '@/lib/restaurant/menuAdmin';
+import { isInternalBarcode } from '@/lib/labels/internalBarcode';
 
 vi.mock('@/lib/audit', () => ({ recordAudit: vi.fn(async () => {}) }));
 vi.mock('@/lib/onboarding', () => ({ markOnboardingStep: vi.fn(async () => {}) }));
@@ -58,6 +59,19 @@ describe('menyu belgisi va retsept birliklari (sof mantiq)', () => {
     expect(parseDishInput({ type: 'dish', name: 'X', price: 1, categoryId: { $ne: null } })).toBeNull();
     expect(parseDishInput({ type: 'dish', name: 'X', price: 1, recipe: [{ productId: { $gt: '' }, qty: 1 }] })).toBeNull();
     expect(parseDishInput({ type: 'service', name: 'X', price: 1, stationId: null, categoryId: '' })).toMatchObject({ stationId: null, categoryId: null });
+    // Bo'lim va «barkod kerak»
+    expect(parseDishInput({ type: 'goods', name: 'Cola', price: 1, section: 'bar', barcode: true })).toMatchObject({ section: 'bar', barcode: true });
+    expect(parseDishInput({ type: 'goods', name: 'Cola', price: 1, section: 'vip' })).toBeNull();
+    expect(parseDishInput({ type: 'goods', name: 'Cola', price: 1, barcode: 'yes' })).toBeNull();
+    expect(parseDishInput({ type: 'dish', name: 'Osh', price: 1 })).not.toHaveProperty('section');
+  });
+  it('menuSectionOf: belgi ustun, yo\'q bo\'lsa — bar stansiyasi → bar, qolgani — oshxona', () => {
+    const bar = new Set(['b1']);
+    expect(menuSectionOf({ menuSection: 'bar' }, bar)).toBe('bar');
+    expect(menuSectionOf({ menuSection: 'kitchen', stationId: 'b1' }, bar)).toBe('kitchen');
+    expect(menuSectionOf({ stationId: 'b1' }, bar)).toBe('bar');
+    expect(menuSectionOf({ stationId: 'k1' }, bar)).toBe('kitchen');
+    expect(menuSectionOf({}, bar)).toBe('kitchen');
   });
 });
 
@@ -277,5 +291,45 @@ describe.skipIf(!URI)('restoran menyusi va ombor (MongoDB)', () => {
     expect(form.ok && form.data.stock.map((s) => s.name)).toEqual(expect.arrayContaining(['Guruch', "Go'sht", 'Zira', 'Suv 0,5']));
     expect(form.ok && form.data.stock.map((s) => s.name)).not.toContain('Cola');
     expect(form.ok && form.data.dish).toMatchObject({ type: 'dish', recipe: [{ productId: P.rice, qty: 0.15 }, { productId: P.meat, qty: 0.1 }] });
+  });
+
+  it('bar bo\'limi va barkod: ichki barkod yaratiladi, zavodnikiga tegilmaydi; menyu va ofitsant ro\'yxatida bo\'lim', async () => {
+    const b = await setup.saveStation(admin, { name: 'Bar', kind: 'bar', branchId: String(branchId) });
+    const barId = b.ok ? b.data.id : '';
+    // Yangi bar xizmati «barkod kerak» bilan — 200… EAN-13
+    const mojito = await menu.saveMenuDish(admin, {
+      type: 'service', branchId: String(branchId), name: 'Mojito', price: 30000, stationId: barId, section: 'bar', barcode: true,
+    });
+    expect(mojito.ok).toBe(true);
+    const code = mojito.ok ? mojito.data.barcode : null;
+    expect(code && isInternalBarcode(code)).toBe(true);
+    expect(await m.Product.findById(mojito.ok ? mojito.data.id : '').lean()).toMatchObject({ menuSection: 'bar', barcode: code });
+    // Qayta saqlash — barkod o'zgarmaydi
+    const again = await menu.saveMenuDish(admin, { id: mojito.ok ? mojito.data.id : '', type: 'service', name: 'Mojito', price: 32000, barcode: true });
+    expect(again).toMatchObject({ ok: true, data: { barcode: null } });
+    expect((await m.Product.findById(mojito.ok ? mojito.data.id : '').lean()).barcode).toBe(code);
+    // Zavod barkodli tovar menyuga — o'z barkodi qoladi
+    const sprite = await m.Product.create({
+      imei: '4780000000017', barcode: '4780000000017', name: 'Sprite', unit: 'dona', trackQuantity: true, quantity: 12,
+      purchasePrice: 6000, salePrice: 0, branchId, status: 'in_stock', kind: 'goods', menuItem: false,
+    });
+    const add = await menu.saveMenuDish(admin, { type: 'goods', productId: String(sprite._id), name: 'Sprite', price: 10000, section: 'bar', barcode: true });
+    expect(add).toMatchObject({ ok: true, data: { barcode: null } });
+    expect(await m.Product.findById(sprite._id).lean()).toMatchObject({ barcode: '4780000000017', menuSection: 'bar', menuItem: true });
+    // Belgisiz eski band bar stansiyasida — bar; Cola (oshxona stansiyasi) — oshxona
+    const oldBar = await m.Product.create({
+      imei: `P${Math.random().toString(36).slice(2, 10)}`, name: 'Limonad', kind: 'service', salePrice: 12000, purchasePrice: 0,
+      branchId, status: 'in_stock', stationId: new Types.ObjectId(barId),
+    });
+    const view = await menu.menuAdminView(admin, { branchId: String(branchId) });
+    const sec = (name: string) => view.ok && view.data.items.find((i) => i.name === name)?.section;
+    expect([sec('Mojito'), sec('Sprite'), sec('Limonad'), sec('Cola')]).toEqual(['bar', 'bar', 'bar', 'kitchen']);
+    const staff = await queries.staffMenu(ali);
+    const item = staff.ok ? staff.data.items.find((i) => i.name === 'Mojito') : undefined;
+    expect(item).toMatchObject({ section: 'bar', barcode: code });
+    // Mijoz menyusiga barkod chiqmaydi
+    const pubMenu = await queries.buildMenu(m, branchId, { forPublic: true });
+    expect(pubMenu.items.find((i) => i.name === 'Mojito')?.barcode).toBeNull();
+    await m.Product.deleteMany({ _id: { $in: [sprite._id, oldBar._id] } });
   });
 });

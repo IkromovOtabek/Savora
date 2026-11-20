@@ -195,6 +195,9 @@ const SERVICES = [
   { code: 'DEMO-CHOY-QORA', name: 'Qora choy (choynak)', cat: 'ichimlik', price: 8000, cost: 1500, st: 'bar', prep: [1, 3] },
   { code: 'DEMO-CHOY-LIMON', name: 'Limonli choy', cat: 'ichimlik', price: 12000, cost: 3000, st: 'bar', prep: [2, 4] },
   { code: 'DEMO-KOMPOT', name: 'Kompot (1 l)', cat: 'ichimlik', price: 15000, cost: 5000, st: 'bar', prep: [1, 2] },
+  { code: 'DEMO-MOJITO', name: 'Mojito (alkogolsiz)', cat: 'ichimlik', price: 28000, cost: 7000, st: 'bar', prep: [3, 5] },
+  { code: 'DEMO-LIMONAD', name: 'Uy limonadi (1 l)', cat: 'ichimlik', price: 30000, cost: 8000, st: 'bar', prep: [2, 4] },
+  { code: 'DEMO-FRESH', name: 'Apelsin fresh', cat: 'ichimlik', price: 25000, cost: 10000, st: 'bar', prep: [3, 5] },
 ];
 /** Tayyor tovar: omborda sanaladi va menyuda. Stansiyasiz — darhol beriladi */
 const GOODS = [
@@ -202,11 +205,21 @@ const GOODS = [
   { code: 'DEMO-COLA', name: 'Coca-Cola 0,5 l', cat: 'ichimlik', unit: 'dona', price: 10000, cost: 6500 },
   { code: 'DEMO-FANTA', name: 'Fanta 0,5 l', cat: 'ichimlik', unit: 'dona', price: 10000, cost: 6500 },
   { code: 'DEMO-SUV', name: 'Mineral suv 0,5 l', cat: 'ichimlik', unit: 'dona', price: 6000, cost: 3000 },
+  { code: 'DEMO-PEPSI', name: 'Pepsi 0,5 l', cat: 'ichimlik', unit: 'dona', price: 10000, cost: 6500 },
+  { code: 'DEMO-SPRITE', name: 'Sprite 0,5 l', cat: 'ichimlik', unit: 'dona', price: 10000, cost: 6500 },
+  { code: 'DEMO-FUSETEA', name: 'Fuse Tea 0,5 l', cat: 'ichimlik', unit: 'dona', price: 12000, cost: 7500 },
+  { code: 'DEMO-BORJOMI', name: 'Borjomi 0,5 l', cat: 'ichimlik', unit: 'dona', price: 18000, cost: 11000 },
+  { code: 'DEMO-SHARBAT', name: 'Rich sharbat 1 l', cat: 'ichimlik', unit: 'dona', price: 24000, cost: 15000 },
+  { code: 'DEMO-REDBULL', name: 'Red Bull 0,25 l', cat: 'ichimlik', unit: 'dona', price: 25000, cost: 16000 },
   { code: 'DEMO-NAPOLEON', name: 'Napoleon (bo\'lak)', cat: 'desert', unit: 'dona', price: 22000, cost: 12000, st: 'bar', prep: [1, 3] },
   { code: 'DEMO-CHAKCHAK', name: 'Chak-chak', cat: 'desert', unit: 'dona', price: 18000, cost: 9000, st: 'bar', prep: [1, 2] },
   { code: 'DEMO-MUZQAYMOQ', name: 'Muzqaymoq', cat: 'desert', unit: 'dona', price: 15000, cost: 7000, st: 'bar', prep: [1, 3] },
 ];
 const MENU = new Map([...DISHES, ...SERVICES, ...GOODS].map((x) => [x.code, x]));
+/** Menyu bo'limi: ichimlik va desertlar — Bar, qolgani — Taomlar (oshxona) */
+const isBar = (x) => x.cat === 'ichimlik' || x.cat === 'desert';
+/** Barkod — bardagi tayyor (sanaladigan) tovarlarga: shisha, qadoq, desert bo'lagi. Choy, kofe, mojito — barkodsiz */
+const needsBarcode = (x) => isBar(x) && GOODS.includes(x);
 const PAY_WEIGHTS = [['cash', 42], ['uzcard', 18], ['humo', 16], ['click', 12], ['payme', 8], ['uzqr', 4]];
 const VOID_REASONS = ["Mijoz fikrini o'zgartirdi", 'Ofitsant xato kiritdi', 'Mijoz kutishni xohlamadi'];
 const SETTINGS = { serviceChargePct: 10, takeawayPackFee: 3000, requireVoidReason: true, kdsWarnMinutes: 12, kdsAlertMinutes: 25 };
@@ -273,7 +286,14 @@ function tableItems(R, guests, dinner) {
   for (let k = 0; k < salads; k++) add(R.weighted([['DEMO-ACHCHIQ', 40], ['DEMO-SEZAR', 20], ['DEMO-OLIVYE', 20], ['DEMO-YUNON', 20]]), 1);
   if (R.chance(0.85)) add('DEMO-NON', Math.max(1, Math.ceil(guests / 2)));
   if (R.chance(0.8)) add(R.weighted([['DEMO-CHOY-KOK', 60], ['DEMO-CHOY-QORA', 25], ['DEMO-CHOY-LIMON', 15]]), Math.max(1, Math.round(guests / 2)));
-  if (R.chance(0.35)) add(R.weighted([['DEMO-COLA', 40], ['DEMO-FANTA', 25], ['DEMO-SUV', 35]]), R.int(1, Math.min(3, guests)));
+  if (R.chance(0.45)) {
+    add(R.weighted([
+      ['DEMO-COLA', 26], ['DEMO-FANTA', 14], ['DEMO-SPRITE', 10], ['DEMO-PEPSI', 10], ['DEMO-SUV', 22], ['DEMO-BORJOMI', 6],
+      ['DEMO-FUSETEA', 7], ['DEMO-SHARBAT', 5],
+    ]), R.int(1, Math.min(3, guests)));
+  }
+  if (R.chance(dinner ? 0.16 : 0.08)) add(R.weighted([['DEMO-MOJITO', 45], ['DEMO-LIMONAD', 35], ['DEMO-FRESH', 20]]), R.int(1, Math.min(2, guests)));
+  if (R.chance(dinner ? 0.05 : 0.02)) add('DEMO-REDBULL', 1);
   if (R.chance(0.15)) add('DEMO-KOMPOT', 1);
   if (R.chance(dinner ? 0.12 : 0.06)) add('DEMO-SOMSA', R.int(1, guests));
   return [...out.values()];
@@ -295,7 +315,7 @@ function takeawayItems(R) {
   if (kind === 'shashlik') out.push(line(R.weighted([['DEMO-SH-MOL', 50], ['DEMO-LULA', 30], ['DEMO-SH-TOVUQ', 20]]), R.int(4, 10)));
   if (kind === 'lagmon') out.push(line('DEMO-LAGMON', R.int(1, 3)));
   if (R.chance(0.5)) out.push(line('DEMO-NON', R.int(1, 3)));
-  if (R.chance(0.3)) out.push(line('DEMO-COLA', R.int(1, 2)));
+  if (R.chance(0.3)) out.push(line(R.weighted([['DEMO-COLA', 50], ['DEMO-PEPSI', 20], ['DEMO-SPRITE', 15], ['DEMO-SUV', 15]]), R.int(1, 2)));
   return out;
 }
 
@@ -434,6 +454,8 @@ const { reserveUsername, isUsernameAvailable, releaseUsername, lookupUser } = li
 const { markOnboardingStep } = lib('onboarding');
 const { addOrgUser, removeOrgUserByUsername } = lib('orgUsers');
 const { generateProductCode, generateSku } = lib('productId');
+// Kerak bo'lganda yuklanadi: serverdagi eski kod bilan ham --sync-master / --remove ishlasin
+const uniqueInternalBarcode = (Product) => lib('labels/internalBarcode').uniqueInternalBarcode(Product);
 const setup = lib('restaurant/setup');
 const menu = lib('restaurant/menuAdmin');
 const { ensureMenuFlags } = lib('restaurant/menuFlags');
@@ -550,7 +572,7 @@ async function ensureSetup(org, m, features, adminCtx, branchId, password, initi
     stockValue += initialQty(p) * p.cost;
     must(await menu.saveMenuDish(adminCtx, {
       type: 'goods', productId: String(doc._id), name: p.name, price: p.price, categoryId: String(catIds[p.cat]),
-      stationId: p.st ? stationIds[p.st] : null,
+      stationId: p.st ? stationIds[p.st] : null, section: isBar(p) ? 'bar' : 'kitchen', ...(needsBarcode(p) ? { barcode: true } : {}),
     }), `Menyu ${p.name}`);
     ids[p.code] = doc._id;
     created++;
@@ -561,7 +583,7 @@ async function ensureSetup(org, m, features, adminCtx, branchId, password, initi
     tick();
     const res = must(await menu.saveMenuDish(adminCtx, {
       type: p.recipe ? 'dish' : 'service', branchId: String(branchId), name: p.name, price: p.price, categoryId: String(catIds[p.cat]),
-      stationId: p.st ? stationIds[p.st] : null,
+      stationId: p.st ? stationIds[p.st] : null, section: isBar(p) ? 'bar' : 'kitchen',
       ...(p.recipe ? { recipe: p.recipe.map(([code, qty]) => ({ productId: String(ids[code]), qty })) } : { cost: p.cost }),
       ...(p.mods ? { modifierGroups: p.mods } : {}),
       ...(p.ikpu ? { ikpu: p.ikpu } : {}),
@@ -571,6 +593,19 @@ async function ensureSetup(org, m, features, adminCtx, branchId, password, initi
     created++;
   }
   if (created) console.log(`✓ Ombor va menyu: ${created} ta mahsulot qo'shildi (${RAW.length} xom ashyo, ${DISHES.length + SERVICES.length + GOODS.length} menyu pozitsiyasi)`);
+  // Avvalgi demo (bo'lim va barkod paydo bo'lishidan oldin yaratilgan) — bo'lim va bar tovarlari barkodi to'ldiriladi
+  let synced = 0;
+  for (const p of MENU.values()) {
+    const doc = ids[p.code] ? await m.Product.findById(ids[p.code]).select('menuSection barcode').lean() : null;
+    if (!doc) continue;
+    const set = {};
+    if (!doc.menuSection) set.menuSection = isBar(p) ? 'bar' : 'kitchen';
+    if (needsBarcode(p) && !doc.barcode) set.barcode = await uniqueInternalBarcode(m.Product);
+    if (Object.keys(set).length) { await m.Product.updateOne({ _id: doc._id }, { $set: set }); synced++; }
+  }
+  if (synced) console.log(`✓ Bo'lim/barkod yangilandi: ${synced} ta menyu bandi`);
+  const bar = [...MENU.values()].filter(isBar);
+  console.log(`  Bar: ${bar.length} ta band, ${bar.filter(needsBarcode).length} tasi barkodli; Taomlar: ${MENU.size - bar.length} ta`);
   if (created) await markOnboardingStep(String(org._id), 'productAdded');
   if (stockValue > 0) {
     await m.CashFlow.create({ type: 'expense', amount: Math.round(stockValue / 1000) * 1000, category: 'Boshqa xarajat',

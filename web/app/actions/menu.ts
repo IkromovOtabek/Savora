@@ -25,7 +25,7 @@ function revalidateMenu(productId?: string) {
 }
 
 /** Taom/xizmat qo'shish yoki tahrirlash, ombordagi tovarni menyuga qo'shish (kirish — DishInput) */
-export async function saveMenuDishAction(input: unknown): Promise<ActionResult<{ id: string; created: boolean }>> {
+export async function saveMenuDishAction(input: unknown): Promise<ActionResult<{ id: string; created: boolean; barcode: string | null }>> {
   const ctx = await restaurantCtxFromSession();
   const p = parseDishInput(input);
   if (!p) return invalid(ctx.d.restaurant.errors.badInput);

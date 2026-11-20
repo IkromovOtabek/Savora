@@ -8,8 +8,8 @@ export async function generateMetadata() {
   return { title: (await getDict()).menu.form.newTitle };
 }
 
-/** Taom qo'shish (?type=goods — ombordagi tovarni menyuga, ?product=<id> — tanlangan tovar; admin — ?branch=<id>) */
-export default async function NewDishPage({ searchParams }: { searchParams: Promise<{ branch?: string; type?: string; product?: string }> }) {
+/** Taom qo'shish (?type=goods — ombordagi tovarni menyuga, ?product=<id> — tanlangan tovar; ?section=bar — Bar bo'limiga; admin — ?branch=<id>) */
+export default async function NewDishPage({ searchParams }: { searchParams: Promise<{ branch?: string; type?: string; product?: string; section?: string }> }) {
   const ctx = await restaurantCtxFromSession();
   if (!ctx.perms.has('product.create') && !ctx.perms.has('product.edit')) redirect('/app/locked?p=product.create');
   const sp = await searchParams;
@@ -24,6 +24,7 @@ export default async function NewDishPage({ searchParams }: { searchParams: Prom
       data={r.data}
       initialType={type}
       initialProductId={ok(sp.product)}
+      initialSection={sp.section === 'bar' ? 'bar' : 'kitchen'}
       mediaEnabled={!!ctx.features.mediaUpload}
     />
   );

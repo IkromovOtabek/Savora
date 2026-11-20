@@ -52,6 +52,8 @@ const menuItem = (over: Partial<MenuItemView> & Record<string, unknown>): MenuIt
   kind: 'bundle',
   unit: 'dona',
   stationId: new Types.ObjectId().toString(),
+  section: 'kitchen',
+  barcode: '2001234567893',
   stopListed: false,
   available: 7,
   ikpu: '10202001001000000',
@@ -185,7 +187,7 @@ describe('GET /api/public/menu/<slug>', () => {
     expect(body.serviceChargePct).toBe(10);
     expect(body.items).toHaveLength(1);
     const json = JSON.stringify(body);
-    for (const internal of ['stationId', 'ikpu', 'available', 'stopListed', 'costPrice', 'recipe', 'dbName', 'purchasePrice', 'quantity']) {
+    for (const internal of ['stationId', 'barcode', 'section', 'ikpu', 'available', 'stopListed', 'costPrice', 'recipe', 'dbName', 'purchasePrice', 'quantity']) {
       expect(json).not.toContain(internal);
     }
     expect(body.items[0].modifierGroups[0].options[0]).toEqual({ id: 'o1', name: 'Katta', price: 10000 });

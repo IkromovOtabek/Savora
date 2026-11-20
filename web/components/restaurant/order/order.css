@@ -254,6 +254,8 @@
 }
 .rt-search:focus-within { box-shadow: 0 0 0 3px var(--brand-ring); }
 .rt-search input { flex: 1; min-width: 0; border: 0; background: transparent; outline: none; font-size: 16px; color: var(--ink-1); }
+/* Bo'limlar: Taomlar / Bar — butun kenglik, teng tugmalar */
+.rt-sections { width: 100%; }
 .rt-cats { display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; padding-bottom: 2px; }
 .rt-cats::-webkit-scrollbar { display: none; }
 .rt-cat {

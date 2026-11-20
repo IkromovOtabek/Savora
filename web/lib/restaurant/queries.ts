@@ -13,8 +13,8 @@ import { canAccessOrder } from './rules';
 import { itemDisplayName } from './modifiers';
 import { kdsLevel, summarizeTimings, type TimedItem } from './timings';
 import { qrMenuPath } from './qr';
-import { ensureMenuFlags, onMenuFilter } from './menuFlags';
-import { KDS_STATUSES, type ItemStatus, type OrderSource, type RestaurantSettings, type StationKind } from './types';
+import { ensureMenuFlags, menuSectionOf, onMenuFilter } from './menuFlags';
+import { KDS_STATUSES, type ItemStatus, type MenuSection, type OrderSource, type RestaurantSettings, type StationKind } from './types';
 import { fail, needAnyPerm, needFeature, needPerm, ok, type OpResult, type RestaurantCtx, type RestaurantModels } from './context';
 import { loadOrder, orderViewFor, resolveBranchId, restaurantSettings, staffNamesFor } from './ops';
 import { staffName } from '../staffNames';
@@ -314,6 +314,10 @@ export interface MenuItemView {
   kind: 'goods' | 'service' | 'bundle';
   unit: string | null;
   stationId: string | null;
+  /** Menyu bo'limi: oshxona yoki bar (ofitsant menyusida alohida) */
+  section: MenuSection;
+  /** Barkod — ofitsant/barmen skaner bilan qo'shadi. Mijoz QR-menyusiga chiqmaydi (public.ts oq ro'yxati) */
+  barcode: string | null;
   stopListed: boolean;
   /** Sotsa bo'ladigan miqdor; null — cheklovsiz (xizmat) */
   available: number | null;
@@ -331,7 +335,7 @@ type MenuProduct = IProduct & { _id: Types.ObjectId };
  * modifikator/MXIK ni tovar kelishidan oldin sozlash) va xodim menyusi («Tugagan» — o'chiq). Mijoz menyusida emas.
  */
 export async function buildMenu(
-  m: Pick<RestaurantModels, 'Product' | 'ShopSettings' | 'Order'>,
+  m: Pick<RestaurantModels, 'Product' | 'ShopSettings' | 'Order' | 'KitchenStation'>,
   branchId: string | Types.ObjectId,
   opts: { forPublic?: boolean; withSoldOut?: boolean } = {},
 ): Promise<{ categories: string[]; items: MenuItemView[] }> {
@@ -340,11 +344,15 @@ export async function buildMenu(
     : { status: 'in_stock' };
   // Faqat menyudagilar (Product.menuItem; xom ashyo — yo'q). Belgi rejimi bo'lmasa (migratsiya xatosi) — eski: hammasi
   const flags = await ensureMenuFlags(m);
+  const barStations = new Set(
+    (await m.KitchenStation.find({ branchId, kind: 'bar' }).select('_id').lean()).map((st) => String(st._id)),
+  );
   const products = await m.Product.find(
     { branchId, ...(flags ? { $and: [status, onMenuFilter()] } : status), ...(opts.forPublic ? { stopListed: { $ne: true } } : {}) },
     {
       name: 1, salePrice: 1, photoUrl: 1, category: 1, categoryId: 1, kind: 1, unit: 1, trackQuantity: 1, quantity: 1,
       soldQuantity: 1, status: 1, bundleItems: 1, stationId: 1, modifierGroups: 1, stopListed: 1, systemKey: 1, ikpu: 1,
+      menuSection: 1, barcode: 1,
     },
   ).sort({ category: 1, name: 1 }).limit(1000).lean<MenuProduct[]>();
   const sell = await sellableInfo(m.Product, products);
@@ -364,6 +372,8 @@ export async function buildMenu(
       kind: p.kind ?? 'goods',
       unit: p.unit ?? null,
       stationId: p.stationId ? String(p.stationId) : null,
+      section: menuSectionOf(p, barStations),
+      barcode: opts.forPublic ? null : p.barcode || null,
       stopListed: !!p.stopListed,
       available,
       ikpu: p.ikpu || null,
