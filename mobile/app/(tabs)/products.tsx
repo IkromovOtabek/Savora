@@ -5,6 +5,7 @@ import { useAuth, useCan } from '@/lib/auth';
 import { useDebounced, usePaged } from '@/lib/hooks';
 import { useTheme } from '@/lib/theme';
 import { fmtMoney } from '@/lib/format';
+import { qtyWithUnit } from '@/lib/qty';
 import { isSellable, saleHref } from '@/lib/pick';
 import { useDict, tr } from '@/lib/i18n';
 import {
@@ -109,7 +110,9 @@ export default function Products() {
                   {item.kind === 'service'
                     ? <Pill label={d.productKind.service} tone="br" />
                     : item.available > 0
-                      ? <Pill label={item.kind === 'bundle' ? `${d.productKind.bundle} · ${fmtMoney(item.available)}` : item.trackQuantity ? tr(d.common.pcs, { n: fmtMoney(item.available) }) : d.products.inSale} tone="ok" />
+                      ? <Pill label={item.kind === 'bundle' ? `${d.productKind.bundle} · ${fmtMoney(item.available)}` : item.trackQuantity
+                        ? (item.unit && item.unit !== 'dona' ? qtyWithUnit(item.available, item.unit, d.productFields.units) : tr(d.common.pcs, { n: fmtMoney(item.available) }))
+                        : d.products.inSale} tone="ok" />
                       : <Pill label={d.products.soldOut} tone="bad" />}
                   {item.menuItem ? <Pill label={d.products.inMenu} tone="br" /> : null}
                 </AmountColumn>
