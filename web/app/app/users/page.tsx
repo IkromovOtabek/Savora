@@ -4,6 +4,7 @@ import { effectivePermissionsWithRole, rolePermissionList } from '@/lib/permissi
 import { ensureDefaultRoles } from '@/lib/roles';
 import { resolveOrgPlan } from '@/lib/plans';
 import { isStaffLogin } from '@/lib/staff';
+import { staffRoleOptions } from '@/lib/staffRoles';
 import { getDict } from '@/lib/i18n/server';
 
 export async function generateMetadata() {
@@ -87,7 +88,8 @@ export default async function UsersPage() {
         activeUserCount={users.filter((u) => u.active).length}
         branches={branches.filter((b) => b.active).map((b) => ({ id: String(b._id), name: b.name, isMain: !!b.isMain }))}
         features={features}
-        roles={roles.map((r) => ({ id: String(r._id), name: r.name, permissions: rolePermissionList(r) }))}
+        // Restoran rol shablonlari birinchi, har biriga bir qatorli izoh (xodim qo'shish formasi) — lib/staffRoles.ts
+        roles={staffRoleOptions(roles.map((r) => ({ id: String(r._id), name: r.name, permissions: rolePermissionList(r) })), d.waiterDay.staff)}
       />
     </>
   );

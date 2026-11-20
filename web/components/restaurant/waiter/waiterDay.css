@@ -1,0 +1,102 @@
+/* ==========================================================================
+   OFITSANT KABINETI «Mening kunim» — /app/tables/me   ·   Prefiks: wd-
+   Asos: tenant.css (t-page-head, t-period-seg, ux-empty, ux-clay), finance.css (fn-panel).
+   Ranglar faqat tokenlardan — Kun / Tun / Qora mavzularida o'zi moslashadi. Katta raqamlar, 375px — bir ustun emas, 2 ustun.
+   ========================================================================== */
+
+.wd-page { display: flex; flex-direction: column; gap: 18px; min-width: 0; }
+.wd-head { align-items: flex-start; gap: 12px; flex-wrap: wrap; margin-bottom: 0; }
+.wd-refresh { margin-left: auto; display: flex; align-items: center; gap: 10px; flex: none; }
+.wd-refresh-t { font-size: 13px; color: var(--ink-3); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.wd-refresh .btn[aria-busy="true"] svg { animation: wd-spin 1s linear infinite; }
+@keyframes wd-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .wd-refresh .btn[aria-busy="true"] svg { animation: none; } }
+
+.wd-period { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.wd-period .t-period-seg a { min-height: 42px; padding: 0 20px; font-size: 15px; }
+.wd-range { font-size: 14px; font-weight: 600; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+
+/* Ko'rsatkichlar: telefon — 2 ustun, planshet/kompyuter — 3 ustun */
+.wd-kpis { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.wd-kpi {
+  background: var(--surface); border-radius: var(--r-lg); box-shadow: var(--shadow-sm); padding: 14px 16px;
+  display: flex; flex-direction: column; gap: 6px; min-width: 0;
+}
+.wd-kpi-l { display: flex; align-items: center; gap: 10px; font-size: 14px; font-weight: 600; color: var(--ink-2); min-width: 0; }
+.wd-kpi-l .ux-clay { flex: none; width: 32px; height: 32px; border-radius: 10px; }
+.wd-kpi-l .ux-clay svg { width: 16px; height: 16px; }
+/* Raqam ichida — uzluksiz bo'shliq (fmtMoney): satr faqat raqam va «so'm» orasida bo'linadi */
+.wd-kpi-v {
+  font-size: 30px; font-weight: 800; line-height: 1.1; letter-spacing: -.03em; color: var(--ink-1);
+  font-variant-numeric: tabular-nums;
+}
+.wd-kpi-v small { display: inline-block; margin-left: 5px; font-size: 14px; font-weight: 600; letter-spacing: 0; color: var(--ink-3); white-space: nowrap; }
+.wd-kpi-s { font-size: 12.5px; color: var(--ink-3); }
+.wd-kpi--bad .wd-kpi-v { color: var(--danger); }
+/* Tor kartada ham raqam sig'adi (oylik summa 8 xonali bo'lishi mumkin): shrift karta kengligiga moslashadi */
+.wd-kpi { container-type: inline-size; }
+.wd-kpi-v { font-size: min(30px, 22cqi); }
+.wd-kpi--money .wd-kpi-v { font-size: min(30px, 14.5cqi); }
+
+/* Bo'lim */
+.wd-sec { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.wd-sec-head { display: flex; align-items: baseline; gap: 10px; }
+.wd-sec-head h2 { margin: 0; font-size: 20px; font-weight: 800; letter-spacing: -.02em; color: var(--ink-1); }
+.wd-count {
+  min-width: 26px; padding: 2px 9px; border-radius: 99px; background: var(--fill); color: var(--ink-2);
+  font-size: 13px; font-weight: 700; text-align: center; font-variant-numeric: tabular-nums;
+}
+.wd-empty { padding: 26px 16px; background: var(--surface); border-radius: var(--r-lg); box-shadow: var(--shadow-sm); }
+.wd-empty p { max-width: 42ch; }
+.wd-foot { margin: 0; padding: 0 4px; font-size: 13px; color: var(--ink-3); }
+
+/* Ochiq stollar — katta bosiladigan kartalar */
+.wd-open { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; }
+.wd-open-card {
+  display: flex; flex-direction: column; gap: 10px; min-height: 132px; padding: 14px 16px; border-radius: var(--r-lg);
+  background: var(--surface); box-shadow: var(--shadow-sm); color: var(--ink-1); text-decoration: none;
+  border: 2px solid transparent; transition: box-shadow .15s ease, border-color .15s ease;
+}
+.wd-open-card:hover { box-shadow: var(--shadow); }
+.wd-open-card:focus-visible { outline: 3px solid var(--brand-ring); outline-offset: 2px; }
+.wd-open-card.is-ready { border-color: var(--accent); }
+.wd-open-top { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.wd-open-t { font-size: 22px; font-weight: 800; letter-spacing: -.02em; }
+.wd-open-no { font-size: 12px; color: var(--ink-3); font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.wd-badges { display: flex; flex-wrap: wrap; gap: 6px; min-height: 24px; }
+.wd-badge {
+  display: inline-flex; align-items: center; gap: 4px; min-height: 24px; padding: 0 9px; border-radius: 99px;
+  background: var(--fill); color: var(--ink-2); font-size: 12.5px; font-weight: 700; white-space: nowrap;
+}
+.wd-badge--ok { background: var(--accent-soft); color: var(--accent); }
+.wd-badge--warn { background: var(--warn-soft); color: var(--warn); }
+.wd-badge--info { background: var(--brand-soft); color: var(--brand); }
+.wd-open-bottom { margin-top: auto; display: flex; align-items: flex-end; justify-content: space-between; gap: 10px; }
+.wd-open-meta { font-size: 13px; color: var(--ink-3); min-width: 0; }
+.wd-open-due { display: grid; justify-items: end; gap: 1px; flex: none; }
+.wd-open-due small { font-size: 11.5px; color: var(--ink-3); }
+.wd-open-due b { font-size: 18px; font-weight: 800; font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+/* Yopilgan hisoblar */
+.wd-closed { padding: 4px 0; }
+.wd-closed ul { list-style: none; margin: 0; padding: 0; }
+.wd-bill { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 12px; padding: 11px 16px; }
+.wd-bill + .wd-bill { border-top: 1px solid var(--sep); }
+.wd-bill-time { font-size: 14px; font-weight: 600; color: var(--ink-2); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.wd-bill-place { display: grid; gap: 1px; min-width: 0; }
+.wd-bill-place b { font-size: 15px; font-weight: 700; color: var(--ink-1); }
+.wd-bill-place small { font-size: 12.5px; color: var(--ink-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.wd-bill-sum { font-size: 17px; font-weight: 800; color: var(--ink-1); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.wd-closed .wd-foot { padding: 8px 16px 6px; border-top: 1px solid var(--sep); }
+
+@media (max-width: 760px) {
+  .wd-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  .wd-kpi { padding: 12px 14px; }
+  .wd-kpi-l { font-size: 13px; gap: 8px; }
+  .wd-kpi-l .ux-clay { width: 28px; height: 28px; }
+  .wd-period .t-period-seg { width: 100%; }
+  .wd-period .t-period-seg a { flex: 1; justify-content: center; padding: 0 10px; }
+  .wd-refresh-t { display: none; }
+  .wd-open { grid-template-columns: minmax(0, 1fr); }
+  .wd-bill { padding: 11px 14px; gap: 10px; }
+}

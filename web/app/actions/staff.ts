@@ -8,7 +8,8 @@ import { getDict } from '@/lib/i18n/server';
 import { tr } from '@/lib/i18n/fmt';
 import { logError } from '@/lib/logger';
 
-type State = { error?: string; success?: string } | null;
+/** `created` — yangi xodim (forma «Login · Parol» kartasini ko'rsatadi; parol javobga QO'SHILMAYDI — formada bor) */
+type State = { error?: string; success?: string; created?: { name: string; username: string } } | null;
 
 /**
  * Xodimlar (bir filialga bir nechta login) — /app/users. Mantiq: lib/staff.ts (mobil API bilan umumiy).
@@ -28,7 +29,10 @@ export async function createStaffAction(_prev: State, formData: FormData): Promi
     }, d);
     if (!r.ok) return { error: r.error };
     revalidatePath('/app/users');
-    return { success: tr(d.crm.team.staff.created, { name: r.data.fullName, username: r.data.username }) };
+    return {
+      success: tr(d.crm.team.staff.created, { name: r.data.fullName, username: r.data.username }),
+      created: { name: r.data.fullName, username: r.data.username },
+    };
   } catch (e) {
     logError('createStaffAction failed', e);
     return { error: d.crm.team.errCreate };

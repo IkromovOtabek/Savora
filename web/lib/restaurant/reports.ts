@@ -11,7 +11,8 @@
  * Filial doirasi: filial xodimi — faqat o'z filiali (branchAggMatch); egasi — hammasi yoki tanlangan filial.
  * Indekslar: orders {branchId,status,updatedAt} (vaqt, bekor), {branchId,paidAt} (savdo); sales {orderId}.
  * DB qismi — aggregation; sof hisoblash (persentil, jamlash, CSV) — alohida eksport qilingan funksiyalar
- * (tests/restaurantReports.test.ts).
+ * (tests/restaurantReports.test.ts). «Ofitsantlar» jadvali — waiterTable; ofitsant kabineti (waiterDay.ts) shu fayldagi
+ * reportScope, closedOrdersData, voidRows ni qayta ishlatadi (docs/RESTORAN_API.md §17).
  */
 import { Types } from 'mongoose';
 import type { Dict } from '../i18n/dict';
@@ -115,6 +116,8 @@ export interface VoidRow {
   stage: 'beforeCook' | 'afterCook';
   /** Pishgandan keyin — ombordan chiqqan, puli olinmagan */
   loss: boolean;
+  /** Buyurtma ofitsanti kaliti — `SalesOrder.waiterKey` bilan bir xil (waiterId, bo'lmasa login); «Ofitsantlar» jadvali uchun */
+  waiterKey?: string;
 }
 export interface VoidTotals { count: number; amount: number; lossCount: number; lossAmount: number }
 export interface VoidStaff extends VoidTotals { name: string }
@@ -319,6 +322,43 @@ export function summarizeSales(orders: SalesOrder[], money: Map<string, OrderMon
   };
 }
 
+/** «Ofitsantlar» jadvali qatori: KPI + shu ofitsant stollarida (oshxonaga yuborilgandan keyin) bekor qilingan taomlar */
+export interface WaiterRow extends WaiterKpi {
+  voids: number;
+  voidAmount: number;
+  /** Shulardan pishgandan keyin (yo'qotish) */
+  lossCount: number;
+}
+
+/**
+ * Ofitsant KPI + bekor qilinganlar (buyurtma ofitsanti bo'yicha, kalit — `waiterKey`). Tartib: KPI tartibi (tushum),
+ * yopilgan hisobi yo'q, lekin bekori bor ofitsantlar — oxirida (bekor soni bo'yicha).
+ */
+export function waiterTable(byWaiter: WaiterKpi[], voids: Pick<VoidRow, 'waiterKey' | 'waiterName' | 'amount' | 'loss'>[]): WaiterRow[] {
+  const v = new Map<string, { name: string; voids: number; voidAmount: number; lossCount: number }>();
+  for (const r of voids) {
+    const key = r.waiterKey ?? r.waiterName ?? '';
+    const x = v.get(key) ?? { name: r.waiterName ?? '', voids: 0, voidAmount: 0, lossCount: 0 };
+    x.voids += 1;
+    x.voidAmount += r.amount;
+    if (r.loss) x.lossCount += 1;
+    if (!x.name && r.waiterName) x.name = r.waiterName;
+    v.set(key, x);
+  }
+  const rows: WaiterRow[] = byWaiter.map((w) => {
+    const x = v.get(w.key);
+    v.delete(w.key);
+    return { ...w, voids: x?.voids ?? 0, voidAmount: x?.voidAmount ?? 0, lossCount: x?.lossCount ?? 0 };
+  });
+  const rest = [...v.entries()]
+    .map(([key, x]): WaiterRow => ({
+      key, name: x.name, orders: 0, revenue: 0, avgCheck: 0, guests: 0, avgGuests: null, serviceCharge: 0, avgServiceMs: null,
+      voids: x.voids, voidAmount: x.voidAmount, lossCount: x.lossCount,
+    }))
+    .sort((a, b) => b.voids - a.voids || b.voidAmount - a.voidAmount);
+  return [...rows, ...rest];
+}
+
 /** Davomiylik: «7,5 daq» (10 daqiqagacha kasr bilan), «24 daq», «1 soat 5 daq»; yo'q — «—» */
 export function fmtDuration(ms: number | null | undefined, t: { minutes: string; hoursMinutes: string }): string {
   if (ms == null || !Number.isFinite(ms) || ms < 0) return '—';
@@ -353,10 +393,13 @@ export function reportCsv(r: RestaurantReport, section: ReportCsvSection, d: Dic
     for (const x of r.kitchen.dishes) rows.push([t.byDish, x.name, ...statRow(x.prep)]);
     for (const w of r.kitchen.deliveryByWaiter) rows.push([t.deliveryByWaiter, w.name || t.noWaiter, ...statRow(w.delivery)]);
   } else if (section === 'staff') {
-    rows.push([t.colWaiter, t.colOrders, t.colRevenue, t.colAvgCheck, t.colGuests, t.colAvgGuests, t.colService, c.serviceTimeMin]);
-    const line = (name: string, k: SalesTotals) => [name, k.orders, k.revenue, k.avgCheck, k.guests, k.avgGuests ?? '', k.serviceCharge, csvMin(k.avgServiceMs)];
-    for (const w of r.sales.byWaiter) rows.push(line(w.name || t.noWaiter, w));
-    rows.push(line(t.total, r.sales.totals));
+    const w = d.waiterDay.report;
+    rows.push([t.colWaiter, t.colOrders, t.colRevenue, t.colAvgCheck, t.colGuests, t.colAvgGuests, t.colService, c.serviceTimeMin, w.colVoids, w.colVoidAmount]);
+    const line = (name: string, k: SalesTotals, v: { count: number; amount: number }) => [
+      name, k.orders, k.revenue, k.avgCheck, k.guests, k.avgGuests ?? '', k.serviceCharge, csvMin(k.avgServiceMs), v.count, v.amount,
+    ];
+    for (const x of waiterTable(r.sales.byWaiter, r.voids.rows)) rows.push(line(x.name || t.noWaiter, x, { count: x.voids, amount: x.voidAmount }));
+    rows.push(line(t.total, r.sales.totals, r.voids.totals));
   } else if (section === 'voids') {
     rows.push([t.colWhen, t.colWho, t.colOrder, c.table, t.colWaiter, t.colDish, t.colQty, t.colAmount, t.colStage, t.colReason]);
     for (const v of r.voids.rows) {
@@ -376,14 +419,17 @@ export function reportCsv(r: RestaurantReport, section: ReportCsvSection, d: Dic
 
 /* ───────────────────────────── DB ───────────────────────────── */
 
-interface Scope {
+export interface ReportScope {
   match: Record<string, unknown>;
   branchId: string | null;
   branches: { id: string; name: string }[];
 }
 
-/** Filial doirasi: xodim — o'z filiali (boshqasi so'ralsa — badBranch); egasi — tanlangan yoki barcha filiallar */
-async function reportScope(ctx: RestaurantCtx, requested?: string | null): Promise<OpResult<Scope>> {
+/**
+ * Filial doirasi: xodim — o'z filiali (boshqasi so'ralsa — badBranch); egasi — tanlangan yoki barcha filiallar.
+ * Ofitsant kabineti (waiterDay.ts) ham shu doirani ishlatadi.
+ */
+export async function reportScope(ctx: RestaurantCtx, requested?: string | null): Promise<OpResult<ReportScope>> {
   if (ctx.user.role !== 'admin') {
     if (requested && requested !== ctx.user.branchId) return fail(ctx.d, 'badBranch');
     return ok({ match: branchAggMatch(ctx.user), branchId: ctx.user.branchId ?? null, branches: [] });
@@ -435,9 +481,10 @@ async function kitchenGroups(ctx: RestaurantCtx, match: Record<string, unknown>,
   }));
 }
 
-async function voidRows(ctx: RestaurantCtx, match: Record<string, unknown>, from: Date, to: Date): Promise<VoidRow[]> {
+/** Davrda (voidedAt) oshxonaga yuborilgandan keyin bekor qilingan taomlar (≤ REPORT_LIMITS.voids + 1, eng yangisi birinchi) */
+export async function voidRows(ctx: RestaurantCtx, match: Record<string, unknown>, from: Date, to: Date): Promise<VoidRow[]> {
   const rows = await ctx.m.Order.aggregate<{
-    orderId: Types.ObjectId; orderNo: string; tableNumber?: number; type: OrderType; waiterName?: string;
+    orderId: Types.ObjectId; orderNo: string; tableNumber?: number; type: OrderType; waiterId?: string; waiterName?: string;
     name: string; qty: number; price: number; voidedAt: Date; voidedBy?: string; reason?: string; stage: 'beforeCook' | 'afterCook';
   }>([
     { $match: { ...match, status: { $in: [...ORDER_STATUSES] }, updatedAt: { $gte: from }, openedAt: { $lt: to }, items: { $elemMatch: { status: 'voided', voidedAt: { $gte: from, $lt: to } } } } },
@@ -446,7 +493,7 @@ async function voidRows(ctx: RestaurantCtx, match: Record<string, unknown>, from
     { $sort: { 'items.voidedAt': -1, _id: 1 } },
     { $limit: MAX_VOIDS + 1 },
     { $project: {
-      _id: 0, orderId: '$_id', orderNo: 1, tableNumber: 1, type: 1, waiterName: 1,
+      _id: 0, orderId: '$_id', orderNo: 1, tableNumber: 1, type: 1, waiterId: 1, waiterName: 1,
       name: '$items.name', qty: '$items.qty', price: '$items.price', voidedAt: '$items.voidedAt',
       voidedBy: '$items.voidedBy', reason: '$items.voidReason', stage: '$items.voidStage',
     } },
@@ -465,21 +512,48 @@ async function voidRows(ctx: RestaurantCtx, match: Record<string, unknown>, from
     reason: v.reason ?? '',
     stage: v.stage,
     loss: v.stage === 'afterCook',
+    waiterKey: String(v.waiterId || v.waiterName || ''),
   }));
 }
 
-async function salesData(ctx: RestaurantCtx, match: Record<string, unknown>, from: Date, to: Date, names?: StaffNames): Promise<SalesReport> {
-  // Yopilgan buyurtmalar. `$type: 'date'` — qisman indeks {branchId, paidAt} (partialFilter paidAt $type date)
+/** Yopilgan buyurtma (savdo hisoboti va ofitsant kabineti) — raqami va stoli bilan */
+export interface ClosedOrder extends SalesOrder {
+  orderNo: string;
+  tableNumber: number | null;
+}
+
+export interface ClosedOrdersData {
+  /** To'lov vaqti bo'yicha — eng yangisi birinchi, ≤ REPORT_LIMITS.orders */
+  orders: ClosedOrder[];
+  /** Buyurtma id → tushum va xizmat haqi (Sale qatorlaridan) */
+  money: Map<string, OrderMoney>;
+  /** `withTop` bo'lsa — eng ko'p sotilgan taomlar */
+  topDishes: DishSold[];
+  truncated: boolean;
+}
+
+/**
+ * Davrda YOPILGAN (status paid, paidAt) buyurtmalar va ularning puli — Sale qatorlaridan: bekor qilingan Sale kirmaydi,
+ * qaytarish summani kamaytiradi. Bo'lib to'langan hisob — bitta buyurtma, pul — barcha qismlari (oxirgi qism to'langan
+ * kunga). `match` — filial doirasi (+ ixtiyoriy `waiterId`). Hisobot (salesData) va ofitsant kabineti (waiterDay.ts) uchun.
+ */
+export async function closedOrdersData(
+  ctx: RestaurantCtx, match: Record<string, unknown>, from: Date, to: Date, names: StaffNames | undefined, withTop: boolean,
+): Promise<ClosedOrdersData> {
+  // `$type: 'date'` — qisman indeks {branchId, paidAt} (partialFilter paidAt $type date)
   // shu shartsiz tanlanmaydi (explain bilan tekshirilgan: aks holda filialning barcha buyurtmalari ko'rib chiqiladi)
   const docs = await ctx.m.Order.find({ ...match, status: 'paid', paidAt: { $type: 'date', $gte: from, $lt: to } })
-    .select('type waiterId waiterName guests openedAt paidAt')
+    .select('orderNo type tableNumber waiterId waiterName guests openedAt paidAt')
     .sort({ paidAt: -1 })
     .limit(MAX_ORDERS + 1)
     .lean();
   const truncated = docs.length > MAX_ORDERS;
-  const orders: SalesOrder[] = docs.slice(0, MAX_ORDERS).map((o) => ({
+  const kept = docs.slice(0, MAX_ORDERS);
+  const orders: ClosedOrder[] = kept.map((o) => ({
     id: String(o._id),
+    orderNo: o.orderNo,
     type: o.type,
+    tableNumber: o.tableNumber ?? null,
     waiterKey: o.waiterId || o.waiterName || '',
     // Ko'rsatish uchun ism (bazada login) — lib/staffNames
     waiterName: staffName(names, o.waiterName, o.waiterId) ?? '',
@@ -492,38 +566,45 @@ async function salesData(ctx: RestaurantCtx, match: Record<string, unknown>, fro
   if (orders.length) {
     const [agg] = await ctx.m.Sale.aggregate<{
       byOrder: { _id: Types.ObjectId; revenue: number; serviceCharge: number }[];
-      byProduct: { _id: Types.ObjectId; qty: number; revenue: number; name: string }[];
+      byProduct?: { _id: Types.ObjectId; qty: number; revenue: number; name: string }[];
     }>([
       // indeks {orderId}; bekor qilingan Sale kirmaydi, qaytarish totalAmount/saleQuantity ni kamaytirgan
-      { $match: { orderId: { $in: docs.slice(0, MAX_ORDERS).map((o) => o._id) }, status: { $ne: 'cancelled' } } },
+      { $match: { orderId: { $in: kept.map((o) => o._id) }, status: { $ne: 'cancelled' } } },
       { $facet: {
         byOrder: [{ $group: {
           _id: '$orderId',
           revenue: { $sum: '$totalAmount' },
           serviceCharge: { $sum: { $cond: [{ $eq: ['$productSnapshot.imei', SERVICE_IMEI] }, '$totalAmount', 0] } },
         } }],
-        byProduct: [
-          { $match: { 'productSnapshot.imei': { $nin: [SERVICE_IMEI, PACK_IMEI] } } },
-          { $group: {
-            _id: '$productId',
-            qty: { $sum: { $ifNull: ['$productSnapshot.saleQuantity', 1] } },
-            revenue: { $sum: '$totalAmount' },
-            name: { $first: '$productSnapshot.name' },
-          } },
-          { $sort: { qty: -1, revenue: -1, _id: 1 } },
-          { $limit: TOP_SOLD },
-        ],
+        ...(withTop ? {
+          byProduct: [
+            { $match: { 'productSnapshot.imei': { $nin: [SERVICE_IMEI, PACK_IMEI] } } },
+            { $group: {
+              _id: '$productId',
+              qty: { $sum: { $ifNull: ['$productSnapshot.saleQuantity', 1] } },
+              revenue: { $sum: '$totalAmount' },
+              name: { $first: '$productSnapshot.name' },
+            } },
+            { $sort: { qty: -1, revenue: -1, _id: 1 } },
+            { $limit: TOP_SOLD },
+          ],
+        } : {}),
       } },
     ]);
     for (const x of agg?.byOrder ?? []) money.set(String(x._id), { revenue: x.revenue, serviceCharge: x.serviceCharge });
     const top = agg?.byProduct ?? [];
     // Nom — mahsulotning hozirgi nomi (Sale'dagi nom modifikatorli bo'lishi mumkin: «Osh (Katta)»)
-    const names = top.length
+    const products = top.length
       ? await ctx.m.Product.find({ _id: { $in: top.map((x) => x._id) } }).setOptions({ withDeleted: true }).select('name').lean()
       : [];
-    const nameById = new Map(names.map((p) => [String(p._id), p.name]));
+    const nameById = new Map(products.map((p) => [String(p._id), p.name]));
     topDishes = top.map((x) => ({ productId: String(x._id), name: nameById.get(String(x._id)) ?? x.name, qty: Math.round(x.qty * 1000) / 1000, revenue: x.revenue }));
   }
+  return { orders, money, topDishes, truncated };
+}
+
+async function salesData(ctx: RestaurantCtx, match: Record<string, unknown>, from: Date, to: Date, names?: StaffNames): Promise<SalesReport> {
+  const { orders, money, topDishes, truncated } = await closedOrdersData(ctx, match, from, to, names, true);
   return { ...summarizeSales(orders, money), topDishes, truncated };
 }
 
@@ -550,7 +631,7 @@ export async function restaurantReport(ctx: RestaurantCtx, input: { from: Date; 
   const groups = rawGroups.map((g) => ({ ...g, waiterName: staffName(names, g.waiterName, OBJECT_ID.test(g.waiterKey) ? g.waiterKey : undefined) ?? '' }));
   const voidList = voids.slice(0, MAX_VOIDS).map((v) => ({
     ...v,
-    waiterName: staffName(names, v.waiterName) ?? '',
+    waiterName: staffName(names, v.waiterName, v.waiterKey && OBJECT_ID.test(v.waiterKey) ? v.waiterKey : undefined) ?? '',
     voidedBy: staffName(names, v.voidedBy) ?? v.voidedBy,
   }));
   return ok({

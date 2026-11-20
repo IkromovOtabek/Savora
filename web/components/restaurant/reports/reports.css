@@ -68,6 +68,7 @@
 .rr-table tbody tr.rr-row-loss { background: var(--danger-soft); }
 .rr-table tbody tr.rr-row-loss:hover { background: var(--danger-soft); }
 .rr-muted { color: var(--ink-3); font-weight: 500; }
+.rr-nowrap { white-space: nowrap; }
 .rr-loss { color: var(--danger); font-weight: 700; }
 
 /* Davomiylik chizig'i: o'rtacha — to'liq bo'lak, 90-persentil — tik chiziq */

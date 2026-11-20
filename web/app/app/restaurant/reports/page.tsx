@@ -166,7 +166,7 @@ export default async function RestaurantReportsPage({ searchParams }: { searchPa
           {res.data.sales.truncated && <div className="t-note t-note--warn">{tr(t.truncated, { n: REPORT_LIMITS.orders })}</div>}
 
           <KitchenSection k={res.data.kitchen} d={d} />
-          <StaffSection s={res.data.sales} d={d} />
+          <StaffSection s={res.data.sales} v={res.data.voids} d={d} />
           <VoidsSection v={res.data.voids} d={d} maxRows={REPORT_LIMITS.voids} />
           <SalesSection s={res.data.sales} d={d} />
         </>

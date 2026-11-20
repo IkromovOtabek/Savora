@@ -1137,7 +1137,44 @@ const uz = {
   /* restoran bronlari */
   reservations: {},
   /* ofitsant kabineti «Mening kunim» */
-  waiterDay: {},
+  waiterDay: {
+    title: 'Mening kunim',
+    /** Bosh sahifa plitkasi */
+    tile: 'Mening kunim',
+    periods: { today: 'Bugun', week: 'Hafta', month: 'Oy' },
+    kpi: {
+      orders: 'Yopilgan hisoblar',
+      revenue: 'Sotuv',
+      avgCheck: 'O\'rtacha chek',
+      guests: 'Mehmonlar',
+      serviceCharge: 'Xizmat haqi',
+      voids: 'Bekor qilingan',
+    },
+    /** {n} — mehmon kiritilmagan hisoblar */
+    guestsMissing: '{n} ta hisobda yo\'q',
+    /** {n} — pishgandan keyin bekor qilinganlar */
+    voidsLoss: '{n} tasi pishgandan keyin',
+    voidsNone: 'Yo\'q — barakalla!',
+    revenueNote: 'Xizmat haqi bilan',
+    openTitle: 'Hozir ochiq stollarim',
+    openEmpty: 'Hozir ochiq stolingiz yo\'q',
+    openEmptyHint: 'Yangi stol — «Stollar» bo\'limida',
+    openHint: 'Stolni bosing — buyurtma ekrani ochiladi',
+    /** {n} — tayyor taomlar */
+    ready: '{n} ta tayyor',
+    /** {n} — tasdiqlanmagan QR taomlar */
+    pending: 'QR: {n} ta tasdiqlang',
+    /** {n} — yuborilmagan taomlar */
+    unsent: '{n} ta yuborilmagan',
+    precheck: 'Pre-chek berilgan',
+    /** {t} — vaqt */
+    openedAt: 'Ochildi {t}',
+    closedTitle: 'Yopilgan hisoblarim',
+    closedEmpty: 'Bu davrda yopilgan hisobingiz yo\'q',
+    /** {n} — ko'rsatilgan, {total} — jami */
+    closedShown: 'Oxirgi {n} tasi ko\'rsatildi (jami {total})',
+    noAccess: 'Bu bo\'lim buyurtma oladigan xodim uchun («Buyurtma olish» huquqi).',
+  },
 };
 
 export type Dict = typeof uz;
@@ -2190,7 +2227,36 @@ const ru: Dict = {
     pushOff: 'Чтобы уведомления (со звуком) приходили, даже когда приложение закрыто, разрешите уведомления Savora в настройках телефона.',
   },
   reservations: {},
-  waiterDay: {},
+  waiterDay: {
+    title: 'Мой день',
+    tile: 'Мой день',
+    periods: { today: 'Сегодня', week: 'Неделя', month: 'Месяц' },
+    kpi: {
+      orders: 'Закрытые счета',
+      revenue: 'Продажи',
+      avgCheck: 'Средний чек',
+      guests: 'Гости',
+      serviceCharge: 'Обслуживание',
+      voids: 'Отменено',
+    },
+    guestsMissing: 'в {n} счетах не указано',
+    voidsLoss: 'из них {n} после приготовления',
+    voidsNone: 'Нет — отлично!',
+    revenueNote: 'С обслуживанием',
+    openTitle: 'Мои открытые столы',
+    openEmpty: 'Сейчас у вас нет открытых столов',
+    openEmptyHint: 'Новый стол — в разделе «Столы»',
+    openHint: 'Нажмите на стол — откроется экран заказа',
+    ready: 'готово: {n}',
+    pending: 'QR: подтвердите {n}',
+    unsent: 'не отправлено: {n}',
+    precheck: 'Пре-чек выдан',
+    openedAt: 'Открыт {t}',
+    closedTitle: 'Мои закрытые счета',
+    closedEmpty: 'За этот период закрытых счетов нет',
+    closedShown: 'Показаны последние {n} (всего {total})',
+    noAccess: 'Раздел для сотрудника, принимающего заказы (право «Приём заказов»).',
+  },
 };
 
 const dicts: Record<Locale, Dict> = { uz, ru };
