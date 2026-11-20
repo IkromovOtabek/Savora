@@ -43,6 +43,7 @@ export default function GeneralSettingsForm({ initial, shopName, kitchen, qrMenu
   const [requireVoid, setRequireVoid] = useState(initial.requireVoidReason);
   const [warn, setWarn] = useState(String(initial.kdsWarnMinutes));
   const [alert, setAlert] = useState(String(initial.kdsAlertMinutes));
+  const [lowPortions, setLowPortions] = useState(String(initial.lowPortions ?? 5));
   const [logo, setLogo] = useState(initial.brand.logoUrl ?? '');
   const [cover, setCover] = useState(initial.brand.coverUrl ?? '');
   const [color, setColor] = useState(initial.brand.color ?? '');
@@ -52,19 +53,22 @@ export default function GeneralSettingsForm({ initial, shopName, kitchen, qrMenu
   const warnNum = Number(warn);
   const alertNum = Number(alert);
   const kdsOk = !kitchen || (Number.isInteger(warnNum) && Number.isInteger(alertNum) && warnNum >= 1 && warnNum <= 240 && alertNum <= 480 && alertNum > warnNum);
+  const lowNum = Number(lowPortions);
+  const lowOk = lowPortions.trim() !== '' && Number.isInteger(lowNum) && lowNum >= 0 && lowNum <= 1000;
   const colorOk = color === '' || isBrandColor(color);
   const accent = colorOk && color ? color.toUpperCase() : DEFAULT_COLOR;
   const shownPct = pctOk ? Math.round(pctNum * 100) / 100 : 0;
 
   function submit(e: React.FormEvent) {
     e.preventDefault();
-    if (!pctOk || !kdsOk || !colorOk || !infoOk) return;
+    if (!pctOk || !kdsOk || !lowOk || !colorOk || !infoOk) return;
     run(
       () => saveRestaurantSettingsAction({
         serviceChargePct: shownPct,
         takeawayPackFee: Number(pack || 0),
         requireVoidReason: requireVoid,
         ...(kitchen ? { kdsWarnMinutes: warnNum, kdsAlertMinutes: alertNum } : {}),
+        lowPortions: lowNum,
         brand: { logoUrl: logo || null, color: color ? color.toUpperCase() : null, coverUrl: cover || null },
         info: {
           about: info.about,
@@ -139,6 +143,28 @@ export default function GeneralSettingsForm({ initial, shopName, kitchen, qrMenu
               {!kdsOk && <small className="rs-error" id="rs-kds-err" role="alert">{t.kdsOrderError}</small>}
             </fieldset>
           )}
+          {/* Bildirishnomalar (lib/restaurant/stockAlerts.ts): taomga oz porsiya qolganda */}
+          <fieldset className="rs-fieldset">
+            <legend className="rs-label">{d.notify.settings.title}</legend>
+            <p className="rs-hint">{d.notify.settings.hint}</p>
+            <div className="auth-field">
+              <label htmlFor="rs-low">{d.notify.settings.lowPortions} ({d.notify.settings.lowPortionsUnit})</label>
+              <input
+                id="rs-low"
+                type="number"
+                inputMode="numeric"
+                min={0}
+                max={1000}
+                step={1}
+                value={lowPortions}
+                onChange={(e) => setLowPortions(e.target.value)}
+                aria-invalid={!lowOk}
+                aria-describedby="rs-low-hint"
+              />
+              <small className="rs-hint" id="rs-low-hint">{lowOk ? d.notify.settings.lowPortionsHint : d.notify.settings.lowPortionsBad}</small>
+            </div>
+            <p className="rs-hint">{d.notify.settings.minStockHint}</p>
+          </fieldset>
         </section>
 
         <section className="rs-card rs-form" aria-labelledby="rs-g-brand">
@@ -202,7 +228,7 @@ export default function GeneralSettingsForm({ initial, shopName, kitchen, qrMenu
         />
 
         <div className="rs-savebar">
-          <button type="submit" className="btn btn-primary" disabled={pending || !pctOk || !kdsOk || !colorOk || !infoOk}>
+          <button type="submit" className="btn btn-primary" disabled={pending || !pctOk || !kdsOk || !lowOk || !colorOk || !infoOk}>
             {pending ? d.common.saving : d.common.save}
           </button>
         </div>

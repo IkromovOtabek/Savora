@@ -5,7 +5,7 @@ import { sendLowStockAlerts } from '@/lib/production/lowStock';
 
 /**
  * Kunlik: do'kon egalariga bugungi savdo yakuni (Telegram, sozlamada yoqilganlarga) va
- * minimal qoldiqdan kam mahsulotlar ogohlantirishi (kirim/ishlab chiqarish moduli yoqilganlarga — lib/production/lowStock.ts)
+ * minimal qoldiqdan kam mahsulotlar ogohlantirishi (kirim/ishlab chiqarish yoki restoran moduli yoqilganlarga — lib/production/lowStock.ts)
  */
 export async function GET(req: NextRequest) {
   return handleCronRequest(req, 'daily-summary', async () => {

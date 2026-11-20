@@ -605,7 +605,84 @@ Manti — `stopListed`; mijoz QR menyusi — 11 ta (stop-list va tugagan yashiri
 
 ## 15. Bildirishnomalar va ovoz (web qo'ng'iroqcha, mobil ro'yxat, push)
 
-_(to'ldiriladi — `lib/notify.ts`)_
+Boshqa modullar faqat **`notify(org, input)`** ni chaqiradi (`lib/notify.ts`, imzo — shartnoma; hech qachon xato tashlamaydi).
+Matn bazaga yozilmaydi: `kind` + `params` saqlanadi, sarlavha/matn ko'ruvchining tilida lug'atdan (`d.notify.kinds`,
+`lib/notifyView.ts → notifyText`); push matni — uz.
+
+| Fayl | Nima |
+|---|---|
+| `lib/notify.ts` | `notify`, `createNotification` (natija bilan), `resolveNotifications` («Ko'rdim»), `listNotifications`, `markNotificationsRead`, `visibleFilter`, `resolveRecipients`, `notifyInBackground` / `settleNotifications` (fon vazifalari) |
+| `lib/notifyView.ts` (client'da ham) | turlar, dedupe oynalari, ohang, matn, `safeAppUrl`, `cleanParams`, «5 daqiqa oldin» |
+| `lib/models/tenant/Notification.ts` | `notifications` (tenant) |
+| `lib/restaurant/tableCalls.ts` | QR chaqiruv → xabar, «Ko'rdim» kalitlari |
+| `lib/restaurant/stockAlerts.ts` | taom yuborilgandan keyin kam qoldiq / oz porsiya |
+| `components/notify/NotifyBell.tsx` | web qo'ng'iroqcha (sarlavhada, `tables` moduli bo'lsa) |
+| `lib/useAudioSignal.ts` | WebAudio signal (KDS bilan umumiy; `useKdsSound` shu ustida) |
+| mobil: `app/notifications.tsx`, `components/NotifyBellButton.tsx`, `lib/notifyModel.ts`, `lib/push.ts → pushUrlOf` | ro'yxat, bosh sahifa qo'ng'iroqchasi, url → ekran |
+
+### Model (`notifications`)
+`{ kind, params (oddiy qiymatlar, ≤12 kalit, matn ≤120), branchId|null, url? ('/app/...' — boshqasi saqlanmaydi),
+audience: { userIds[], anyPermission[], admins }, dedupeKey?, dedupeSlot? (NOYOB), readBy[] (userId), resolvedAt?, createdAt }`.
+TTL — 14 kun. Indekslar: `audience.userIds|anyPermission|admins` + `createdAt`, `{dedupeKey, createdAt}`, `dedupeSlot` unique.
+
+### Turlar (`NotifyKind`)
+| kind | params | Kimga | url | Takrorlanmaslik |
+|---|---|---|---|---|
+| `waiterCall` | `{ table }` | stol ofitsanti; ofitsant yo'q — filialdagi `order.create` | `/app/tables` | `waiterCall:<tableId>`, 2 daq |
+| `billCall` | `{ table }` | ofitsant + filialdagi `order.viewAll` (kassir); ofitsant yo'q — `order.create`/`order.viewAll` | `/app/tables` | `billCall:<tableId>`, 2 daq |
+| `lowStock` | `{ product, qty, unit, min, branch? }` | egasi + filialdagi `product.edit`/`menu.stopList` | `/app/products?low=1` | `lowStock:<productId>`, 12 soat |
+| `dishLow` | `{ dish, portions, branch? }` (0 — «Tugadi») | shu | `/app/menu` | `dishLow:<id>:low\|out`, 12 soat |
+| `reservationSoon` | `{ table, time, name, guests }` | bron agenti belgilaydi | `/app/restaurant/reservations` | 1 soat |
+
+### Qoidalar
+- **Kim ko'radi** — o'qishda, joriy huquq bilan (`visibleFilter`): `userIds` ichida; YOKI filial xodimi, xabar o'z filialida
+  (yoki filialsiz) va amaldagi huquqlaridan biri `anyPermission` da; YOKI `admins` va u egasi. `anyPermission` egasiga
+  tegishli emas (egasi — `admins`/`userIds`). Filialsiz xodim — hech narsa (fail-closed). Ofitsant A boshqa ofitsant stoli
+  chaqiruvini ko'rmaydi.
+- **Hech kim mos kelmasa** (filialda xodim yo'q, ofitsant nofaol) — `admins: true` bo'ladi: egasi ko'radi.
+- **Takrorlanmaslik**: shu `dedupeKey` li hal qilinmagan xabar oynada bo'lsa — yangisi yo'q; parallel so'rov — noyob
+  `dedupeSlot` (`<key>@<oyna raqami>`). «Ko'rdim» (`ackTableCall` → `resolveNotifications`) — chaqiruv xabari hammada
+  o'qilgan (`handled`), oyna bo'shaydi: mijoz yana chaqirsa — darhol yangi xabar.
+- **Push**: oluvchilar userId'ga aylantiriladi — faol, filial mos, huquq `loadUserPermissions` bilan bir xil hisob
+  (rol yoki shaxsiy ro'yxat, o'chiq modul kesilgan); `pushToShop(dbName, { userIds })` fonda (xato — log). `data.url` —
+  web yo'li; mobil `pushUrlOf`: `/app/tables` → `/tables`, ombor/menyu → `/(tabs)/products`, boshqa `/app/...` → `/notifications`.
+- **Triggerlar**: `public.publicCall` (QR chaqiruv) — fonda, mijoz javobni kutmaydi. `ops.sendItems` → `after` (pre-chek/to'lov
+  oldidan avtomatik yuborish, QR tasdiq + yuborish ham) — `stockAlerts.checkStockAfterSend` fonda: yuborilgan taom
+  retsepti xom ashyosi (tayyor tovar — o'zi) qoldig'i `minStock` dan kam → `lowStock`; shu xom ashyo ishlatiladigan menyudagi
+  taom (stop-listdagisiz) va menyudagi tayyor tovar porsiyasi ≤ `ShopSettings.restaurant.lowPortions` → `dishLow`.
+  Porsiya — «Menyu» bo'limi bilan bir xil (`portionsFrom`, qoldiq `in_stock|sold` → getStockQty).
+- **Sozlama** `lowPortions` (0–1000, standart 5, 0 — o'chiq): Restoran sozlamalari → Umumiy → «Bildirishnomalar»;
+  `saveRestaurantSettingsAction({ lowPortions })`. `lowStock` — mahsulotdagi «Minimal qoldiq» (`minStock`) bo'yicha.
+- **Kunlik cron** (`lib/production/lowStock.ts → sendLowStockAlerts`) endi `tables` yoqiq do'konlarga ham (Telegram + egasiga
+  push, faqat `minStock` kiritilgan mahsulotlar).
+
+### API
+| Yo'l | Metod | Kirish | Javob |
+|---|---|---|---|
+| `/api/notifications` (sessiya) | GET | `?after=<ISO>&limit=0..50` (`after` — shundan keyingilar, `limit=0` — faqat son) | `{ serverTime, unread, items: NotificationView[] }` |
+| `/api/notifications` | POST | `{ id }` yoki `{ all: true }` | `{ unread, updated }`; ko'rinmaydigan id — 404 `notFound` |
+| `/api/mobile/notifications` (Bearer) | GET / POST | xuddi shunday; matn — `Accept-Language` tilida | xuddi shunday |
+
+`NotificationView = { id, kind, params, url, createdAt, read, handled, title, body }` (`read` — shu foydalanuvchi o'qigan
+yoki chaqiruv «Ko'rdim» bilan yopilgan). Javoblar `no-store`.
+
+### UI
+- **Web** (`NotifyBell`, sarlavhada `tables` moduli bo'lsa; qarzdorlik tugmasi shunda hamyon ikonkasida): o'qilmaganlar
+  soni, ro'yxat (yangisi tepada, «5 daqiqa oldin» — server soatiga moslangan, tur ikonkasi), «Hammasini o'qildi», bosilganda —
+  o'qildi + `url`. So'rov 15 s, sahifa yashirin bo'lsa to'xtaydi, qaytganda/fokusda darhol; birinchisi — ro'yxat, keyin
+  `after` bilan. **Ovoz**: faqat sahifa ochilgandan keyin kelgan o'qilmagan xabarga, chaqiruv — shoshilinch ohang (3 ton),
+  ombor — yumshoq; «Ovoz» tugmasi (localStorage `savora_notify_sound`, standart yoqiq); avtoplay — birinchi teginishda.
+  Chaqiruv — ekranda toast («Ochish», 20 s). 375 px da ro'yxat ekran kengligida.
+- **Mobil**: bosh sahifa sarlavhasida qo'ng'iroqcha (soni bilan, `tables` bo'lsa; fokusda 15 s), `/notifications` ekrani
+  (o'qildi, «Hammasini o'qildi», bosilganda stollar/ombor, pull-to-refresh, push o'chiq bo'lsa — sozlamaga eslatma).
+  Push ovozi — mavjud `savora` kanali.
+
+### Tekshiruv
+- `npx vitest run tests/notifyLogic.test.ts` — matn (uz/ru), url/parametr xavfsizligi, chaqiruv auditoriyasi, qo'ng'iroqcha.
+- `MONGO_TEST_URI=mongodb://127.0.0.1:27019 npx vitest run tests/notifyFlow.test.ts` — kim ko'radi (ofitsant A/B, kassir,
+  oshpaz roli, boshqa filial, egasi), dedupe va «Ko'rdim», parallel so'rov, o'qildi (foydalanuvchi bo'yicha), egasiga o'tish,
+  kam qoldiq chegarasi va «tugadi», porsiya «Menyu» bilan bir xil, tayyor tovar, `lowPortions: 0`, push oluvchilari.
+- Mobil: `npm test` (`tests/notifyModel.test.mjs`).
 
 ## 16. Hisoblar ko'rinishi, kassir oynasi, saboyning stoli
 

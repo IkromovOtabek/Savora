@@ -123,6 +123,7 @@ export function restaurantSchemas(e: Errors) {
       requireVoidReason: zOptBool(),
       kdsWarnMinutes: zOptNum(e.badSettings, 1, 240, { int: true }),
       kdsAlertMinutes: zOptNum(e.badSettings, 1, 480, { int: true }),
+      lowPortions: zOptNum(e.badSettings, 0, 1000, { int: true }),
       brand: z.object({
         logoUrl: zOptText(500, e.badUrl),
         color: zOptText(7, e.badColor),

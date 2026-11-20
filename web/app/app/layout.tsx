@@ -20,6 +20,7 @@ import LangSwitch from '@/components/LangSwitch';
 import { getDict } from '@/lib/i18n/server';
 import { tr } from '@/lib/i18n/fmt';
 import { countNewShopOrders } from '@/lib/ecom/orders';
+import NotifyBell from '@/components/notify/NotifyBell';
 import './tenant.css';
 import '@/components/ui/ux.css';
 
@@ -70,6 +71,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   const isAdmin = user.role === 'admin';
   const canSell = features.sales && permissions.includes('sale.create');
+  // Bildirishnomalar qo'ng'iroqchasi (lib/notify.ts) — hozircha restoran (stollar) moduli bilan; bunda qarzdorlik tugmasi hamyon ikonkasida
+  const showNotify = !!features.tables;
   const navProps = { isAdmin, features, showImei, permissions, badges: navBadges, layout: sanitizeNavLayout(navUser?.navLayout) };
   // Menyu rejimi: sukut — tor ikonli panel; foydalanuvchi kengaytirgan bo'lsa cookie'da 'wide'
   const navWide = (await cookies()).get(NAV_MODE_COOKIE)?.value === 'wide';
@@ -131,10 +134,11 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             )}
             {features.sales && (
               <Link href="/app/debts" className="t-icon-btn" aria-label={`${d.shell.layout.debts}${debtCount > 0 ? `: ${tr(d.common.nPcs, { n: debtCount })}` : ''}`} title={d.shell.layout.debts}>
-                <Icon name="bell" size={18} />
+                <Icon name={showNotify ? 'wallet' : 'bell'} size={18} />
                 {debtCount > 0 && <span className="t-icon-dot" aria-hidden="true" />}
               </Link>
             )}
+            {showNotify && <NotifyBell />}
             <ThemeToggle />
           </div>
         </header>

@@ -1,6 +1,8 @@
 /**
  * Ombor ogohlantirishi — kuniga bir marta (mavjud `/api/cron/daily-summary` cron'iga ulangan), bitta xabarda:
- *  1) minimal qoldiqdan kam — `purchasing` yoki `production` moduli yoqiq do'konlarda;
+ *  1) minimal qoldiqdan kam — `purchasing`, `production` yoki `tables` (restoran: xom ashyo) moduli yoqiq do'konlarda.
+ *     Restoranda kun davomida ham ilova ichida xabar bor (lib/restaurant/stockAlerts.ts — taom yuborilganda); bu esa
+ *     kunlik yig'ma (Telegram + egasiga push). Faqat `minStock` kiritilgan mahsulotlar — kiritilmagan do'konga xabar bormaydi;
  *  2) yaroqlilik muddati yaqin/o'tgan — `ShopSettings.stock.expiryWarnDays` o'rnatilgan do'konlarda (ro'yxatdan
  *     o'tish ustasi yozadi), omborda qoldig'i bor tovarlar.
  * Shart: do'kon faol, Telegram ulangan yoki ilovada push qurilmasi bor. Telegram — do'kon chatiga, push — adminlarga.
@@ -74,7 +76,7 @@ export async function sendLowStockAlerts(): Promise<{ orgs: number; sent: number
     try {
       const { Product, Branch, ShopSettings } = await getTenantModels(org.dbName);
       const warnDays = (await ShopSettings.findOne({ key: 'main' }).select('stock').lean())?.stock?.expiryWarnDays ?? 0;
-      const wantLow = f.purchasing || f.production;
+      const wantLow = f.purchasing || f.production || f.tables;
       if (!wantLow && !(warnDays > 0)) continue;
       const fields = 'name quantity soldQuantity status minStock unit branchId expiryDate';
       const [low, exp] = await Promise.all([

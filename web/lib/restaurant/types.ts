@@ -106,6 +106,11 @@ export interface RestaurantSettings {
   kdsWarnMinutes: number;
   /** KDS: shuncha daqiqadan keyin qizil */
   kdsAlertMinutes: number;
+  /**
+   * Bildirishnoma (lib/restaurant/stockAlerts.ts): taomga shuncha yoki kamroq porsiya qolganda (va tugaganda) xabar.
+   * 0 — o'chiq. Standart 5
+   */
+  lowPortions: number;
   brand: {
     logoUrl?: string;
     /** #RRGGBB */
@@ -139,6 +144,7 @@ export const DEFAULT_RESTAURANT_SETTINGS: RestaurantSettings = {
   requireVoidReason: true,
   kdsWarnMinutes: 10,
   kdsAlertMinutes: 20,
+  lowPortions: 5,
   brand: {},
   info: {},
 };

@@ -13,6 +13,7 @@ import {
   SegmentedControl, CacheStamp,
   type TileItem,
 } from '@/components/ui';
+import { NotifyBellButton } from '@/components/NotifyBellButton';
 
 interface Summary {
   inStock: number; todaySales: number; todayRevenue: number; debtTotal: number;
@@ -76,7 +77,13 @@ export default function Home() {
       left={<BrandMark size={40} />}
       title={me?.org.name ?? 'Savora'}
       subtitle={`${greeting()}, ${me?.user.username ?? ''}`}
-      actions={<IconButton icon="scan-outline" label={d.common.barcodeScanner} onPress={() => router.push('/scan')} />}
+      actions={(
+        <>
+          {/* Bildirishnomalar (mijoz chaqiruvi, kam qoldiq) — restoran moduli bilan */}
+          {f.tables ? <NotifyBellButton /> : null}
+          <IconButton icon="scan-outline" label={d.common.barcodeScanner} onPress={() => router.push('/scan')} />
+        </>
+      )}
     />
   );
 
