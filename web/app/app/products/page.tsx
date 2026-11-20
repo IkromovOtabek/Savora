@@ -1,4 +1,6 @@
 import Link from 'next/link';
+import { redirect } from 'next/navigation';
+import { scanVariants } from '@/lib/scanCode';
 import { fmtQty } from '@/lib/qty';
 import { getStockQty } from '@/lib/productQuantity';
 import type { CSSProperties } from 'react';
@@ -84,14 +86,28 @@ export default async function ProductsPage({
   const filter: Record<string, unknown> = {};
   const q = (sp.q ?? '').trim();
   if (q) {
+    // Kod variantlari: asl ko'rinish va — skaner kirill tartibida yozgan bo'lsa (ЗКВ-…) — lotinga qaytarilgani
+    const codes = scanVariants(q);
+    // Skaner (yoki to'liq kod): IMEI / shtrix / ID aniq BITTA tovarga mos kelsa — ro'yxat o'rniga kartochkasi ochiladi
+    // (sotilgani ham — «bu telefon sotilgan» darhol ko'rinadi). Bir nechta mos kelsa — oddiy ro'yxat.
+    if (!/\s/.test(q) && q.length >= 4 && !sp.page) {
+      const upper = codes.map((c) => c.toUpperCase());
+      const hits = await Product.find({
+        ...branchFilter(user),
+        $or: [{ imei: { $in: upper } }, { productId: { $in: upper } }, { barcode: { $in: codes } }],
+      }, { _id: 1 }).limit(2).lean();
+      if (hits.length === 1) redirect(`/app/products/${hits[0]._id}`);
+    }
     // Regex injection/ReDoS himoyasi: ekranlangan, 50 belgigacha
     const pattern = searchPattern(q);
-    const qNoSpace = searchPattern(q.replace(/\s/g, ''));
+    const codePatterns = [...new Set(codes.map((c) => searchPattern(c)))];
     filter.$or = [
       { name: { $regex: pattern, $options: 'i' } },
-      { imei: { $regex: qNoSpace, $options: 'i' } },
-      { barcode: { $regex: qNoSpace, $options: 'i' } },
-      { productId: { $regex: qNoSpace, $options: 'i' } },
+      ...codePatterns.flatMap((p) => [
+        { imei: { $regex: p, $options: 'i' } },
+        { barcode: { $regex: p, $options: 'i' } },
+        { productId: { $regex: p, $options: 'i' } },
+      ]),
     ];
   }
   if (sp.branch && /^[a-f0-9]{24}$/i.test(sp.branch)) filter.branchId = sp.branch;
@@ -210,7 +226,9 @@ export default async function ProductsPage({
   const canCreate = perms.has('product.create');
   const canExport = !!features.export && perms.has('export.data');
   const hasFilter = !!(q || activeStatus || sp.branch || activeCat || activeBrand || imeiFilter || lowFilter || mxikFilter);
-  const canBulk = perms.has('stock.adjust') || perms.has('stock.writeOff');
+  // Belgilash ustuni: ommaviy amallar (qayta baholash/hisobdan chiqarish) va barkod yorlig'i (restorandan boshqa hammaga)
+  const labelPrint = !restaurant;
+  const canBulk = perms.has('stock.adjust') || perms.has('stock.writeOff') || labelPrint;
   const toggleCols: { key: ToggleCol; label: string }[] = [
     ...(scoped ? [] : [{ key: 'branch' as const, label: d.common.branch }]),
     { key: 'status', label: t.colStatus },
@@ -381,7 +399,7 @@ export default async function ProductsPage({
           </div>
         </div>
       ) : (
-        <ProductListShell columns={toggleCols} extraColumns={extraCols} canBulk={canBulk} canReval={perms.has('stock.adjust')} canWriteOff={perms.has('stock.writeOff')} exportHref={canExport ? '/api/export/products' : undefined}>
+        <ProductListShell columns={toggleCols} extraColumns={extraCols} canBulk={canBulk} canReval={perms.has('stock.adjust')} canWriteOff={perms.has('stock.writeOff')} labelPrint={labelPrint} canLabelSettings={isAdmin} exportHref={canExport ? '/api/export/products' : undefined}>
           <div className="st-list-head">
             {canBulk && (
               <span className="st-chk"><input type="checkbox" className="st-check-all" aria-label={t.selectAll} /></span>

@@ -28,6 +28,8 @@ export function mergeShopSettings(doc?: Partial<ShopSettings> | null): ShopSetti
     },
     stock: { ...stripUndef(doc?.stock) },
     ecom: { ...d.ecom, ...stripUndef(doc?.ecom) },
+    // Sukut biznes turiga bog'liq — lib/labels/settings.ts → resolveLabelSettings(label, isPhoneShop(org))
+    label: { ...stripUndef(doc?.label) },
     updatedBy: doc?.updatedBy,
   };
 }
@@ -44,7 +46,7 @@ export async function getShopSettings(M: Model<IShopSettings>): Promise<ShopSett
 }
 
 /** Bitta bo'limni yangilash (upsert) */
-export async function saveShopSettingsPart<K extends 'receipt' | 'currency' | 'notify' | 'restaurant' | 'stock' | 'ecom'>(
+export async function saveShopSettingsPart<K extends 'receipt' | 'currency' | 'notify' | 'restaurant' | 'stock' | 'ecom' | 'label'>(
   M: Model<IShopSettings>, part: K, value: Partial<NonNullable<ShopSettings[K]>>, by: string,
 ): Promise<void> {
   // by bo'sh — avtomatik yangilanish (CBU kursi), oxirgi tahrirlovchi o'zgarmaydi

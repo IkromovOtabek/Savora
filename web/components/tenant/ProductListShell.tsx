@@ -5,6 +5,7 @@ import Link from 'next/link';
 import Icon from '@/components/icons/Icon';
 import { useDict } from '@/lib/i18n/client';
 import { tr } from '@/lib/i18n/fmt';
+import LabelPrint from '@/components/tenant/labels/LabelPrint';
 
 export type ToggleCol = 'branch' | 'status' | 'price';
 
@@ -43,7 +44,7 @@ function readHidden(): ToggleCol[] {
  * qatorlarni belgilash va belgilanganlarni qayta baholash / hisobdan chiqarishga yuborish.
  * Qatorlar serverda chiziladi — bu yerda faqat belgilash holati DOM'dan o'qiladi.
  */
-export default function ProductListShell({ columns, extraColumns = [], canBulk, canReval = canBulk, canWriteOff = canBulk, exportHref, children }: {
+export default function ProductListShell({ columns, extraColumns = [], canBulk, canReval = canBulk, canWriteOff = canBulk, labelPrint = false, canLabelSettings = false, exportHref, children }: {
   columns: { key: ToggleCol; label: string }[];
   /** Qo'shimcha ustun nomlari — qatorlarda `.st-x[data-x=i]` kataklari shu tartibda */
   extraColumns?: string[];
@@ -51,6 +52,9 @@ export default function ProductListShell({ columns, extraColumns = [], canBulk, 
   /** Qayta baholash / hisobdan chiqarish — alohida huquqlar */
   canReval?: boolean;
   canWriteOff?: boolean;
+  /** Belgilanganlarga barkod yorlig'i chop etish; canLabelSettings — oynada sozlamalar havolasi (do'kon egasi) */
+  labelPrint?: boolean;
+  canLabelSettings?: boolean;
   exportHref?: string;
   children: ReactNode;
 }) {
@@ -157,6 +161,7 @@ export default function ProductListShell({ columns, extraColumns = [], canBulk, 
         {canBulk && sel.length > 0 ? (
           <div className="st-bulk" role="status">
             <b>{tr(t.selected, { n: sel.length })}</b>
+            {labelPrint && <LabelPrint ids={sel} variant="bulk" label={d.labels.bulk} canSettings={canLabelSettings} />}
             {canReval && <Link href={`/app/revaluation?ids=${ids}`} className="btn btn-sm btn-tinted">{t.bulkReval}</Link>}
             {canWriteOff && <Link href={`/app/write-off?ids=${ids}`} className="btn btn-sm btn-tinted">{t.bulkWriteOff}</Link>}
             <button type="button" className="btn btn-sm btn-ghost" onClick={clear}>{t.clearSel}</button>

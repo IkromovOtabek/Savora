@@ -6,6 +6,9 @@ import { markingModeOf } from '@/lib/marking';
 import { getUsdRate } from '@/lib/currency';
 import { getDict } from '@/lib/i18n/server';
 import EcomSettingsForm from '@/components/tenant/ecom/EcomSettingsForm';
+import LabelSettingsForm from '@/components/tenant/labels/LabelSettingsForm';
+import { resolveLabelSettings } from '@/lib/labels/settings';
+import { isPhoneShop } from '@/lib/businessTypes';
 import '@/components/tenant/styles/shopSettings.css';
 import '@/components/tenant/styles/ecom.css';
 
@@ -13,7 +16,7 @@ export async function generateMetadata() {
   return { title: (await getDict()).shell.shopSettings.metaTitle };
 }
 
-const TABS = ['receipt', 'currency', 'notify', 'marking', 'ecom'] as const;
+const TABS = ['receipt', 'label', 'currency', 'notify', 'marking', 'ecom'] as const;
 type Tab = (typeof TABS)[number];
 
 /** Do'kon sozlamalari (BILLZ: Sozlamalar) — chek, valyuta, bildirishnomalar */
@@ -24,7 +27,7 @@ export default async function ShopSettingsPage({ searchParams }: { searchParams:
   const dict = await getDict();
   const k = dict.shell.shopSettings;
   const settings = await getShopSettings(ShopSettings);
-  const label: Record<Tab, string> = { receipt: k.tabReceipt, currency: k.tabCurrency, notify: k.tabNotify, marking: dict.sales.marking.tab, ecom: dict.ecom.settings.tab };
+  const label: Record<Tab, string> = { receipt: k.tabReceipt, label: dict.labels.settings.tab, currency: k.tabCurrency, notify: k.tabNotify, marking: dict.sales.marking.tab, ecom: dict.ecom.settings.tab };
   // Valyuta tabida CBU kursi eskirgan bo'lsa yangilanadi
   const usd = tab === 'currency' ? await getUsdRate(ShopSettings) : null;
 
@@ -47,6 +50,9 @@ export default async function ShopSettingsPage({ searchParams }: { searchParams:
 
       {tab === 'receipt' && (
         <ReceiptSettingsForm initial={settings.receipt} shop={{ name: org.name, phone: org.phone }} />
+      )}
+      {tab === 'label' && (
+        <LabelSettingsForm initial={resolveLabelSettings(settings.label, isPhoneShop(org))} shopName={org.name} phoneShop={isPhoneShop(org)} />
       )}
       {tab === 'currency' && usd && (
         <CurrencySettingsForm

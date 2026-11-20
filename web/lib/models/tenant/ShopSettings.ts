@@ -1,5 +1,6 @@
 import { Schema } from 'mongoose';
 import type { RestaurantSettings } from '../../restaurant/types';
+import { LABEL_FIELDS, LABEL_LIMITS, LABEL_TEXT_SIZES, type StoredLabelSettings } from '../../labels/settings';
 
 /**
  * Do'kon sozlamalari (BILLZ: "Sozlamalar") — do'konda bitta hujjat (key: 'main').
@@ -52,6 +53,8 @@ export interface IShopSettings {
     autoPublish?: boolean;
     note?: string;
   };
+  /** Barkod yorlig'i (lib/labels): o'lcham, maydonlar, nusxa, qo'shilgach avto-chop etish. Yo'q — biznes turiga qarab sukut */
+  label?: StoredLabelSettings;
   /**
    * Restoran menyusi ma'lumot versiyasi: 1 — mahsulotlarda `menuItem` belgisi qo'yilgan (menyu va ombor ajratilgan).
    * Yo'q — hali migratsiya qilinmagan (lib/restaurant/menuFlags.ts → ensureMenuFlags birinchi ochilganda qo'yadi).
@@ -114,6 +117,14 @@ export const shopSettingsSchema = new Schema<IShopSettings>(
     ecom: {
       autoPublish: { type: Boolean },
       note: { type: String, trim: true, maxlength: 300 },
+    },
+    label: {
+      width: { type: Number, min: LABEL_LIMITS.minW, max: LABEL_LIMITS.maxW },
+      height: { type: Number, min: LABEL_LIMITS.minH, max: LABEL_LIMITS.maxH },
+      fields: { type: [{ type: String, enum: LABEL_FIELDS }], default: undefined },
+      textSize: { type: String, enum: LABEL_TEXT_SIZES },
+      copies: { type: Number, min: 1, max: LABEL_LIMITS.maxCopies },
+      autoPrint: { type: Boolean },
     },
     menuVersion: { type: Number, min: 0 },
     updatedBy: { type: String },

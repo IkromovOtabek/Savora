@@ -27,6 +27,7 @@ import {
   type RawImportRow,
 } from '@/lib/productImport';
 import { importProductsBatchAction, type ImportRowResult } from '@/app/actions/productImport';
+import LabelPrint from '@/components/tenant/labels/LabelPrint';
 
 const MAX_FILE_MB = 15;
 const PREVIEW_ROWS = 100;
@@ -254,6 +255,8 @@ export default function ProductImportWizard({
     const problems = results.filter((r) => r.status === 'skipped' || r.status === 'error');
     const noImei = results.filter((r) => r.noImei).length;
     const added = n('created') + n('restocked');
+    // Yangi qo'shilganlarga barkod yorlig'i — bir bosishda hammasi
+    const createdIds = results.filter((r) => r.status === 'created' && r.id).map((r) => r.id!);
     const invalidByLine = new Map(checked.filter((c) => !c.res.ok).map((c) => [c.raw.line, c.res.ok ? [] : c.res.issues]));
     const tiles = [
       { key: 'created', v: n('created'), cls: n('created') ? 'ok' : '' },
@@ -288,6 +291,9 @@ export default function ProductImportWizard({
           )}
           <div className="im-done-actions">
             <Link href="/app/products" className="btn btn-primary">{t.goToStock}</Link>
+            {createdIds.length > 0 && (
+              <LabelPrint ids={createdIds} label={tr(d.labels.importDone, { n: createdIds.length })} canSettings={isAdmin} />
+            )}
             <button type="button" className="btn btn-tinted" onClick={reset}>{t.again}</button>
           </div>
         </section>

@@ -18,8 +18,13 @@ import Tilt from '@/components/ui/Tilt';
 import MoreMenu from '@/components/ui/MoreMenu';
 import { getDict } from '@/lib/i18n/server';
 import { tr, qtyWithUnit } from '@/lib/i18n/fmt';
-import { orgProductFields } from '@/lib/businessTypes';
+import { isPhoneShop, orgProductFields } from '@/lib/businessTypes';
 import { loadExtraFieldNames, toDateInputValue } from '@/lib/productFields';
+import Link from 'next/link';
+import LabelPrint from '@/components/tenant/labels/LabelPrint';
+import { getShopSettings } from '@/lib/shopSettings';
+import { resolveLabelSettings } from '@/lib/labels/settings';
+import '@/components/tenant/styles/labels.css';
 
 function fmtMoney(n: number) {
   return new Intl.NumberFormat('uz-UZ').format(n);
@@ -35,7 +40,7 @@ export default async function ProductDetailPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ created?: string; deleteBlocked?: string }>;
+  searchParams: Promise<{ created?: string; added?: string; deleteBlocked?: string }>;
 }) {
   const { id } = await params;
   const sp = await searchParams;
@@ -46,12 +51,14 @@ export default async function ProductDetailPage({
   const isAdmin = user.role === 'admin';
 
   if (!Types.ObjectId.isValid(id)) notFound();
+  // Yangi qo'shilgan: created=1 toast bo'lib URL'dan o'chadi, added=1 qoladi (karta va avto-chop etish shunga bog'liq)
+  const justAdded = sp?.created === '1' || sp?.added === '1';
   // «Omborni ko'rish» yo'q bo'lsa ham — yangi qo'shgan mahsulotini (qo'shish huquqi bilan) ochishi mumkin
   const viewPerms = await loadUserPermissions(user);
-  if (!viewPerms.has('products.view') && !(sp?.created === '1' && viewPerms.has('product.create'))) {
+  if (!viewPerms.has('products.view') && !(justAdded && viewPerms.has('product.create'))) {
     redirect(`/app/locked?p=${encodeURIComponent('products.view')}`);
   }
-  const product = await Product.findById(id).lean();
+  const [product, shopSettings] = await Promise.all([Product.findById(id).lean(), getShopSettings(ShopSettings)]);
   if (!product) notFound();
   // Filial-login faqat o'z filiali mahsulotini ko'radi/tahrirlaydi
   if (!isAdmin && user.branchId && String(product.branchId) !== user.branchId) notFound();
@@ -87,6 +94,9 @@ export default async function ProductDetailPage({
   const canSell = features.sales && perms.has('sale.create');
   const canTransfer = perms.has('transfer.create') && !stockless;
   const canDelete = perms.has('product.delete');
+  // Barkod yorlig'i: xizmatdan boshqa hamma tovarga; yangi qo'shilganda — sozlamaga ko'ra darhol chop etiladi
+  const canLabel = kind !== 'service';
+  const labelCfg = resolveLabelSettings(shopSettings.label, isPhoneShop(org));
   const status = product.status as ProductStatus;
   const initialLetter = (product.name ?? '').trim().charAt(0).toUpperCase() || '?';
   const productFields = orgProductFields(org);
@@ -127,8 +137,29 @@ export default async function ProductDetailPage({
         <BackLink href="/app/products" className="btn btn-plain btn-sm">{d.stock.form.back}</BackLink>
       </div>
 
-      {sp?.created === '1' && (
-        <div className="auth-alert auth-alert--info" role="status">{t.createdOk}</div>
+      {justAdded && (
+        <section className="lb-created" role="status">
+          <span className="lb-created-ic" aria-hidden="true"><Icon name="check" size={22} /></span>
+          <div className="lb-created-t">
+            <b>{t.createdOk}</b>
+            {canLabel && (
+              <span>
+                {d.labels.created.printHint}
+                {labelCfg.autoPrint && <> · <em>{d.labels.created.autoOn}</em></>}
+              </span>
+            )}
+          </div>
+          <div className="lb-created-a">
+            {canLabel && (
+              <LabelPrint ids={[String(product._id)]} variant="primary" label={d.labels.print.buttonFull} auto={labelCfg.autoPrint} canSettings={isAdmin} />
+            )}
+            {perms.has('product.create') && (
+              <Link href="/app/products/new" className="btn btn-tinted btn-with-icon">
+                <Icon name="plus" size={17} /> {d.labels.created.addMore}
+              </Link>
+            )}
+          </div>
+        </section>
       )}
       {/* Excel'dan IMEI'siz qo'shilgan telefon — IMEI kiritilgach (tahrir formasi) yo'qoladi */}
       {imeiPending && (
@@ -257,6 +288,7 @@ export default async function ProductDetailPage({
             branches={filialBranches}
           />
         )}
+        {canLabel && !justAdded && <LabelPrint ids={[String(product._id)]} canSettings={isAdmin} />}
         <a href="#st-edit" className="btn btn-tinted btn-with-icon">
           <Icon name="edit" size={17} /> {d.common.edit}
         </a>

@@ -17,6 +17,7 @@ import type { ProductUnit } from '@/lib/businessTypes';
 import { topCategoryChips, type CategoryItem } from '@/lib/productCatalog';
 import { isExpiredOn, isMarkingCode, localDateKey, parseGs1, type Gs1Code } from '@/lib/gs1';
 import { markingNeed, markingShortfall, productMatchesGtin, type MarkingMode } from '@/lib/marking';
+import { codeMatches } from '@/lib/scanCode';
 import './styles/pos.css';
 
 export interface PosProduct {
@@ -244,7 +245,8 @@ export default function PosScreen({ products, categories = [], canDiscount, canE
     const q = code.trim().toLowerCase();
     if (!q) return;
     if (handleGs1(code)) { searchRef.current?.focus(); return; }
-    const p = products.find((x) => x.codes.some((c) => c.toLowerCase() === q));
+    // Klaviatura kirill tartibida qolgan bo'lsa ham (ЗКВ-… → PRD-…) — lib/scanCode.ts
+    const p = products.find((x) => codeMatches(x.codes, code));
     if (p) add(p);
     else { toast(tr(k.scanNotFound, { code: code.trim() }), 'error'); setQuery(''); }
     searchRef.current?.focus();
@@ -406,7 +408,7 @@ export default function PosScreen({ products, categories = [], canDiscount, canE
       if (handleGs1(query)) return;
       const q = query.trim().toLowerCase();
       // Skaner: kod aniq mos kelsa — darhol savatchaga
-      const exact = products.find((p) => p.codes.some((c) => c.toLowerCase() === q));
+      const exact = q ? products.find((p) => codeMatches(p.codes, query)) : undefined;
       const pick = exact ?? results[hit];
       if (pick) add(pick);
       else if (gun && q) { toast(tr(k.scanNotFound, { code: query.trim() }), 'error'); setQuery(''); }

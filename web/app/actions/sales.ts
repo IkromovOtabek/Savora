@@ -37,6 +37,7 @@ import { z } from 'zod';
 import { formToObject, parseInput, zId, zText, zMoney, zInt, zOptInt, zOptQty, zOptDate, zField, zOneOf } from '@/lib/validation';
 import { PAY_METHODS } from '@/lib/payMethods';
 import { escapeRegExp } from '@/lib/security';
+import { scanVariants } from '@/lib/scanCode';
 import { splitSale } from '@/lib/saleSplit';
 import { newCheckoutId } from '@/lib/receiptLink';
 import type { IProduct } from '@/lib/models/tenant/Product';
@@ -146,17 +147,17 @@ export async function lookupProductByScan(code: string): Promise<ScannedProduct 
   const trimmed = code.trim();
   if (!trimmed) return null;
 
-  const qNoSpace = trimmed.replace(/\s/g, '');
-  const upper = qNoSpace.toUpperCase();
+  // Asl ko'rinish va — klaviatura kirill tartibida qolgan bo'lsa — lotinga qaytarilgani (lib/scanCode.ts)
+  const variants = scanVariants(trimmed);
+  const upper = variants.map((v) => v.toUpperCase());
 
   const product = await Product.findOne({
     ...branchFilter(user),
     status: 'in_stock',
     $or: [
-      { barcode: trimmed },
-      { barcode: qNoSpace },
-      { imei: upper },
-      { productId: upper },
+      { barcode: { $in: [trimmed, ...variants] } },
+      { imei: { $in: upper } },
+      { productId: { $in: upper } },
     ],
   }).lean();
   if (!product) return null;

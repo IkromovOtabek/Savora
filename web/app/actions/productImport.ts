@@ -33,6 +33,8 @@ export type ImportRowResult = {
   reason?: ImportSkipReason;
   /** Telefon do'koni: IMEI'siz qo'shildi — omborda «IMEI kiriting» bildirishnomasi chiqadi */
   noImei?: true;
+  /** Yangi mahsulot id'si — natija sahifasida barkod yorliqlarini chop etish uchun */
+  id?: string;
 };
 export type ImportBatchResult = { ok: true; results: ImportRowResult[] } | { ok: false; error: string };
 
@@ -207,7 +209,7 @@ export async function importProductsBatchAction(input: {
         }
       }
       if (!created) throw new Error('productId collision');
-      results.push(noImei ? { line, status: 'created', noImei: true } : { line, status: 'created' });
+      results.push({ line, status: 'created', id: String(created._id), ...(noImei ? { noImei: true as const } : {}) });
       // Fayl ichidagi keyingi takror qator — shu mahsulotga (rejimga qarab o'tkaziladi yoki qoldiqqa qo'shiladi)
       if (key) existing.set(key, { _id: created._id, branchId: doc.branchId, trackQuantity: doc.trackQuantity, kind: 'goods' });
       if (row.barcode) remembered.push({ code: row.barcode, name: row.name });

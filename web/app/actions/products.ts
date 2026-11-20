@@ -390,7 +390,8 @@ export async function createProductAction(_prev: State, formData: FormData): Pro
     if (barcode) await rememberBarcodeNames(user.organizationId, [{ code: barcode, name }]);
     revalidatePath('/app');
     revalidatePath('/app/products');
-    redirect(`/app/products/${product._id}?created=1`);
+    // created=1 — toast (SearchParamToast uni URL'dan olib tashlaydi); added=1 qoladi — «barkod chop eting» kartasi va avto-chop etish
+    redirect(`/app/products/${product._id}?created=1&added=1`);
   } catch (err) {
     if (err && typeof err === 'object' && 'digest' in err) throw err;
     return { error: m.createFailed };

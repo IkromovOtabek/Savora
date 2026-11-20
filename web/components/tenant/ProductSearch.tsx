@@ -1,11 +1,14 @@
 'use client';
 
-import { useRef, type ReactNode } from 'react';
+import { useEffect, useRef, type ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 import CameraScanButton from '@/components/ui/CameraScanButton';
 import Icon from '@/components/icons/Icon';
 import { useDict } from '@/lib/i18n/client';
 import { scanToBarcode } from '@/lib/gs1';
+
+/** Skaner belgilari orasidagi eng katta oraliq (ms) — undan sekin bo'lsa odam yozyapti */
+const SCAN_GAP_MS = 50;
 
 interface Props {
   /** Bo'sh bo'lsa (filial login yoki bitta filial) — filial tanlovi ko'rsatilmaydi */
@@ -46,9 +49,37 @@ export default function ProductSearch({ branches, categories = [], brands = [], 
     // DataMatrix (markirovka) — GTIN'dan mahsulot shtrix-kodi bo'yicha qidiriladi
     const code = scanToBarcode(raw);
     if (qRef.current) qRef.current.value = code;
-    // Skanerlangach darhol qidiramiz (filial/holat saqlanadi)
+    // Skanerlangach darhol qidiramiz (filial/holat saqlanadi); kod bitta tovarga mos bo'lsa — server kartochkani ochadi
     go(code, initial.branch, initial.status);
   }
+
+  // USB skaner — klaviatura: hech qaysi maydon tanlanmagan bo'lsa ham kodni ushlaymiz (tez ketma-ket belgilar + Enter).
+  // Odam bunchalik tez yozmaydi, shuning uchun oddiy klaviatura bosishlari (yorliq oynasi, tugmalar) ta'sirlanmaydi.
+  const onScanRef = useRef(onScan);
+  onScanRef.current = onScan;
+  useEffect(() => {
+    let buf = '';
+    let last = 0;
+    function onKey(e: KeyboardEvent) {
+      const el = e.target as HTMLElement | null;
+      if (el && (el.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName))) return;
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
+      const now = performance.now();
+      if (now - last > SCAN_GAP_MS) buf = '';
+      last = now;
+      if (e.key === 'Enter') {
+        if (buf.length >= 4) {
+          e.preventDefault();
+          onScanRef.current(buf);
+        }
+        buf = '';
+      } else if (e.key.length === 1) {
+        buf += e.key;
+      }
+    }
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
 
   // Filial tanlansa darhol qo'llanadi — alohida "Qidirish" bosish shart emas
   function onBranch(e: React.ChangeEvent<HTMLSelectElement>) {
