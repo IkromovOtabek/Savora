@@ -140,6 +140,8 @@ export interface MenuAdminView {
   can: MenuCan;
   /** false — menyu belgilari tayyor emas (eski rejim: barcha mahsulot menyuda) */
   flags: boolean;
+  /** «Bar bo'limi va barkod» moduli (barMenu): Taomlar/Bar tablari, barkod — faqat yoqilgan do'konda */
+  barMenu: boolean;
 }
 
 /** /app/menu: filial menyusi (taom, tovar, xizmat) — porsiya, tannarx, foyda; menyudan olinganlar alohida */
@@ -204,6 +206,7 @@ export async function menuAdminView(ctx: RestaurantCtx, input: { branchId?: stri
     hidden: hiddenDocs.filter((p) => !p.systemKey).map(row),
     can,
     flags,
+    barMenu: !!ctx.features.barMenu,
   });
 }
 
@@ -262,6 +265,8 @@ export interface DishFormData {
   categories: { id: string; name: string; parentId: string | null }[];
   stations: { id: string; name: string; kind: StationKind; active: boolean }[];
   can: MenuCan;
+  /** «Bar bo'limi va barkod» moduli yoqiqmi (bo'lim tanlovi va barkod bloki) */
+  barMenu: boolean;
 }
 
 /** Taom qo'shish (id yo'q) yoki tahrirlash formasi ma'lumoti */
@@ -342,6 +347,7 @@ export async function dishFormData(ctx: RestaurantCtx, input: { id?: string; bra
     categories: cats.map((c) => ({ id: String(c._id), name: c.name, parentId: c.parentId ? String(c.parentId) : null })),
     stations: stations.map((s) => ({ id: String(s._id), name: s.name, kind: s.kind, active: s.active })),
     can,
+    barMenu: !!ctx.features.barMenu,
   });
 }
 
@@ -558,10 +564,12 @@ export async function saveMenuDish(
     if (v) set.ikpu = v;
     else unset.ikpu = '';
   }
-  if (input.section) set.menuSection = input.section;
+  // Bo'lim va barkod — faqat «Bar bo'limi va barkod» moduli yoqilgan do'konda (boshqasida e'tiborsiz)
+  const barMenu = !!ctx.features.barMenu;
+  if (barMenu && input.section) set.menuSection = input.section;
   // Barkod kerak — tovarda (zavod yoki avvalgi) barkod bo'lmasa, do'kon ichki barkodi; bor bo'lsa o'zgarmaydi
   let newBarcode: string | null = null;
-  if (input.barcode && !doc?.barcode) {
+  if (barMenu && input.barcode && !doc?.barcode) {
     newBarcode = await uniqueInternalBarcode(ctx.m.Product);
     set.barcode = newBarcode;
   }

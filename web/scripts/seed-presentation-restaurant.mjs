@@ -832,6 +832,15 @@ async function cleanupOpen(env) {
 
 /* ───────────── master yozuvlari (tenant bazasi boshqa joyda to'ldirilgan bo'lsa) ───────────── */
 
+/**
+ * «Bar bo'limi va barkod» moduli — faqat shu do'konda. To'g'ridan kolleksiyaga: serverdagi eski kod sxemasida
+ * `features.barMenu` bo'lmasa ham yozilsin (Mongoose noma'lum maydonni tashlab yuborardi)
+ */
+async function enableBarMenu(org) {
+  const { Organization } = await getMasterModels();
+  await Organization.collection.updateOne({ _id: org._id }, { $set: { 'features.barMenu': true } });
+}
+
 async function syncMaster(org, m, st) {
   const users = await m.User.find({ username: { $in: STAFF.map((s) => s.username) } }).select('username fullName branchId').lean();
   const listed = new Set((org.users ?? []).map((u) => u.username));
@@ -851,7 +860,8 @@ async function syncMaster(org, m, st) {
   }
   if (st.demoProducts) await markOnboardingStep(String(org._id), 'productAdded');
   if (st.demoSales) await markOnboardingStep(String(org._id), 'saleMade');
-  console.log(`✓ Master: ${users.length} xodim — katalogga ${reserved}, do'kon ro'yxatiga ${addedToOrg} ta qo'shildi; onboarding belgilari yangilandi`);
+  await enableBarMenu(org);
+  console.log(`✓ Master: ${users.length} xodim — katalogga ${reserved}, do'kon ro'yxatiga ${addedToOrg} ta qo'shildi; onboarding belgilari yangilandi; «Bar bo'limi va barkod» moduli yoqildi`);
 }
 
 /* ───────────── o'chirish ───────────── */
@@ -896,7 +906,8 @@ async function removeDemo(org, m) {
 
 async function main() {
   const org = await loadOrg();
-  const features = resolveOrgFeatures(org);
+  // Taqdimot — Bar bo'limi va barkod bilan: modul shu skript ichida yoqiq (masterda — --apply/--sync-master yoqadi)
+  const features = { ...resolveOrgFeatures(org), barMenu: true };
   const m = await getTenantModels(org.dbName);
   const st = await status(m);
   const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
@@ -967,6 +978,7 @@ async function main() {
   const firstDayNeed = restockPlan(usage, firstDay, 1);
   const initialQty = (p) => roundUp(Math.max(stepOf(p), p.daily ? (firstDayNeed.get(p.code) ?? 0) * 1.1 : (firstWeek.get(p.code) ?? 0) * 1.15), p);
   const ids = await ensureSetup(org, m, features, adminCtx, branchId, password, initialQty);
+  await enableBarMenu(org);
   setClock(null);
   if (newUsers && !process.env.DEMO_STAFF_PASSWORD) console.log(`  Xodimlar paroli (faqat shu yerda ko'rinadi): ${password}`);
 

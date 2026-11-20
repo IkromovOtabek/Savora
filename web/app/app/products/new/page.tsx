@@ -42,14 +42,14 @@ export default async function NewProductPage() {
     getShopSettings(ShopSettings),
   ]);
   const showImei = isImeiEnabled(org);
-  // «Barkod kerak» — IMEI'siz do'konda; sukut — yorliq sozlamasidagi «qo'shilgach darhol chop etish»
+  // «Barkod kerak» — «Bar bo'limi va barkod» moduli yoqilgan, IMEI'siz do'konda; sukut — yorliq sozlamasidagi «qo'shilgach chop etish»
   const barcodeDefault = resolveLabelSettings(shopSettings.label, isPhoneShop(org)).autoPrint;
 
   return (
     <ProductForm
       mode="create"
       showImei={showImei}
-      barcodeChoice={showImei ? undefined : { defaultOn: barcodeDefault }}
+      barcodeChoice={showImei || !features.barMenu ? undefined : { defaultOn: barcodeDefault }}
       createTitle={d.catalog.terms[parseBusinessType(org.businessType || 'general')].addItem}
       mediaEnabled={features.mediaUpload}
       isAdmin={isAdmin}

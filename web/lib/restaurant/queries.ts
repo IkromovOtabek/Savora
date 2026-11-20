@@ -337,7 +337,7 @@ type MenuProduct = IProduct & { _id: Types.ObjectId };
 export async function buildMenu(
   m: Pick<RestaurantModels, 'Product' | 'ShopSettings' | 'Order' | 'KitchenStation'>,
   branchId: string | Types.ObjectId,
-  opts: { forPublic?: boolean; withSoldOut?: boolean } = {},
+  opts: { forPublic?: boolean; withSoldOut?: boolean; /** «Bar bo'limi va barkod» moduli: yo'q — hammasi «oshxona», barkodsiz */ barMenu?: boolean } = {},
 ): Promise<{ categories: string[]; items: MenuItemView[] }> {
   const status = opts.withSoldOut && !opts.forPublic
     ? { $or: [{ status: 'in_stock' }, { status: 'sold', trackQuantity: true }] }
@@ -345,7 +345,7 @@ export async function buildMenu(
   // Faqat menyudagilar (Product.menuItem; xom ashyo — yo'q). Belgi rejimi bo'lmasa (migratsiya xatosi) — eski: hammasi
   const flags = await ensureMenuFlags(m);
   const barStations = new Set(
-    (await m.KitchenStation.find({ branchId, kind: 'bar' }).select('_id').lean()).map((st) => String(st._id)),
+    opts.barMenu ? (await m.KitchenStation.find({ branchId, kind: 'bar' }).select('_id').lean()).map((st) => String(st._id)) : [],
   );
   const products = await m.Product.find(
     { branchId, ...(flags ? { $and: [status, onMenuFilter()] } : status), ...(opts.forPublic ? { stopListed: { $ne: true } } : {}) },
@@ -372,8 +372,8 @@ export async function buildMenu(
       kind: p.kind ?? 'goods',
       unit: p.unit ?? null,
       stationId: p.stationId ? String(p.stationId) : null,
-      section: menuSectionOf(p, barStations),
-      barcode: opts.forPublic ? null : p.barcode || null,
+      section: opts.barMenu ? menuSectionOf(p, barStations) : 'kitchen',
+      barcode: opts.barMenu && !opts.forPublic ? p.barcode || null : null,
       stopListed: !!p.stopListed,
       available,
       ikpu: p.ikpu || null,
@@ -402,7 +402,7 @@ export async function staffMenu(ctx: RestaurantCtx, input: { branchId?: string }
   if (denied) return denied;
   const br = await resolveBranchId(ctx, input.branchId);
   if (!br.ok) return br;
-  return ok({ branchId: br.data, ...(await buildMenu(ctx.m, br.data, { withSoldOut: true })) });
+  return ok({ branchId: br.data, ...(await buildMenu(ctx.m, br.data, { withSoldOut: true, barMenu: !!ctx.features.barMenu })) });
 }
 
 /* ───────────────────────────── sozlamalar ko'rinishi ───────────────────────────── */

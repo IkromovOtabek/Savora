@@ -30,9 +30,9 @@ export default async function MenuPage({ searchParams }: { searchParams: Promise
           <h1 className="t-page-title">{t.title}</h1>
           <p className="t-page-sub">{t.sub}</p>
         </div>
-        <MenuAddActions branchId={v.branches.length > 1 ? v.branchId : null} canCreate={v.can.create} canEdit={v.can.edit} />
+        <MenuAddActions branchId={v.branches.length > 1 ? v.branchId : null} canCreate={v.can.create} canEdit={v.can.edit} barMenu={v.barMenu} />
       </div>
-      <MenuBoard key={v.branchId} view={v} section={sp.section === 'bar' ? 'bar' : 'kitchen'} />
+      <MenuBoard key={v.branchId} view={v} section={v.barMenu && sp.section === 'bar' ? 'bar' : 'kitchen'} />
     </>
   );
 }

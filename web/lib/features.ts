@@ -204,6 +204,16 @@ export const TENANT_MODULES: Record<FeatureKey, FeatureModule> = {
     defaultByPlan: { free: false, starter: false, pro: false, business: false, custom: false },
     allowedByPlan: { free: false, starter: false, pro: true, business: true, custom: true },
   },
+  // Menyuda «Bar» bo'limi va bar mahsulotiga barkod — standart OFF, presetda ham yo'q: faqat Super Admin yoqadi
+  barMenu: {
+    key: 'barMenu',
+    label: "Bar bo'limi va barkod",
+    description: "Menyuda Taomlar / Bar bo'limlari, bar mahsulotiga barkod va yorliq, skaner bilan qo'shish",
+    route: '/app/menu',
+    category: 'savdo',
+    defaultByPlan: { free: false, starter: false, pro: false, business: false, custom: false },
+    allowedByPlan: { free: false, starter: true, pro: true, business: true, custom: true },
+  },
   // Ishlab chiqarish sexi modullari — standart OFF; biznes preseti (manufacturing, wholesale) yoki Super Admin yoqadi
   production: {
     key: 'production',

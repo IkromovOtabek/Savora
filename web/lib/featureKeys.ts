@@ -21,6 +21,8 @@ export const FEATURE_KEYS = [
   'tables',
   'kitchen',
   'qrMenu',
+  // Menyuda alohida «Bar» bo'limi va bar mahsulotiga barkod — faqat Super Admin yoqqan do'konda (presetda yo'q)
+  'barMenu',
   // Ishlab chiqarish va ombor kirimi (docs/SEX_API.md): texkarta + ishlab chiqarish akti + tannarx,
   // kirim akti + yetkazib beruvchiga buyurtma, ishbay haq
   'production',

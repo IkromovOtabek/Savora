@@ -9,9 +9,16 @@ import { useDict } from '@/lib/i18n/client';
  * Menyu sarlavhasidagi «qo'shish» tugmalari — tanlangan bo'limga mos (?section=bar: «Bar mahsuloti qo'shish»,
  * forma Bar bo'limi bilan ochiladi). Bo'lim MenuBoard'da almashsa URL (replaceState) orqali shu yerga yetadi.
  */
-export default function MenuAddActions({ branchId, canCreate, canEdit }: { branchId: string | null; canCreate: boolean; canEdit: boolean }) {
+export default function MenuAddActions({ branchId, canCreate, canEdit, barMenu }: {
+  branchId: string | null;
+  canCreate: boolean;
+  canEdit: boolean;
+  /** «Bar bo'limi va barkod» moduli */
+  barMenu: boolean;
+}) {
   const t = useDict().menu;
-  const bar = useSearchParams().get('section') === 'bar';
+  const sp = useSearchParams();
+  const bar = barMenu && sp.get('section') === 'bar';
   const q = (extra: Record<string, string>) => {
     const s = new URLSearchParams({ ...extra, ...(bar ? { section: 'bar' } : {}), ...(branchId ? { branch: branchId } : {}) }).toString();
     return s ? `?${s}` : '';

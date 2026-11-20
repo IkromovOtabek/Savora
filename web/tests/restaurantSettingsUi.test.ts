@@ -93,7 +93,7 @@ describe('restoran sozlamalari UI (smoke)', () => {
     });
     const view = {
       branchId: id(1), branches: [], stations: [{ id: id(30), name: 'Issiq sex', kind: 'kitchen' as const, active: true }],
-      categories: ['Milliy'], can, flags: true, hidden: [row({ id: id(44), name: 'Manti', portions: 3 })],
+      categories: ['Milliy'], can, flags: true, barMenu: false, hidden: [row({ id: id(44), name: 'Manti', portions: 3 })],
       items: [
         row({}),
         row({ id: id(41), name: 'Somsa', portions: 0, cost: 9000, margin: 25 }),
@@ -116,12 +116,27 @@ describe('restoran sozlamalari UI (smoke)', () => {
     expect(noCost).not.toContain('/app/menu/' + id(40));
     const empty = renderToStaticMarkup(createElement(MenuBoard, { view: { ...view, items: [], hidden: [] } }));
     expect(empty).toContain("Menyuda hali taom yo");
+    // «Bar bo'limi va barkod» moduli: o'chiq — tablar yo'q; yoqiq — Taomlar/Bar, bar bandi alohida, barkod chiqadi
+    expect(html).not.toContain('Taomlar ·');
+    const barView = {
+      ...view, barMenu: true,
+      items: [...view.items, row({ id: id(45), name: 'Sprite', type: 'goods' as const, category: 'Ichimliklar', section: 'bar', barcode: '2001234567893', portions: 12 })],
+    };
+    const kitchenTab = renderToStaticMarkup(createElement(MenuBoard, { view: barView }));
+    expect(kitchenTab).toContain('Taomlar · 4');
+    expect(kitchenTab).toContain('Bar · 1');
+    expect(kitchenTab).not.toContain('Sprite');
+    const barTab = renderToStaticMarkup(createElement(MenuBoard, { view: barView, section: 'bar' }));
+    expect(barTab).toContain('Sprite');
+    expect(barTab).toContain('barkod 2001234567893');
+    expect(barTab).not.toContain('>Osh<');
   });
   it('taom formasi: retsept (g ↔ kg), tannarx, porsiya', () => {
     const data = {
       branchId: id(1), branches: [], categories: [{ id: id(60), name: 'Milliy', parentId: null }],
       stations: [{ id: id(30), name: 'Issiq sex', kind: 'kitchen' as const, active: true }],
       can: { create: true, edit: true, stop: true, viewCost: true },
+      barMenu: false,
       stock: [
         { id: id(70), name: 'Guruch', unit: 'kg', available: 10, cost: 15000, price: 0, tracked: true },
         { id: id(71), name: "Mol go'shti", unit: 'kg', available: 0.5, cost: 95000, price: 0, tracked: true },
@@ -137,6 +152,14 @@ describe('restoran sozlamalari UI (smoke)', () => {
     expect(html).toContain('Guruch');
     expect(html).toMatch(/11\s750/); // 0,15×15 000 + 0,1×95 000 = 2 250 + 9 500
     expect(html).toContain('≈ 5 porsiya'); // go'sht 0,5 kg / 0,1
+    expect(html).not.toContain("Bo'lim"); // modul o'chiq — bo'lim tanlovi yo'q
+    const barForm = renderToStaticMarkup(createElement(DishForm, {
+      data: { ...data, barMenu: true, dish: null, stations: [...data.stations, { id: id(31), name: 'Bar', kind: 'bar' as const, active: true }] },
+      initialType: 'service' as const, initialSection: 'bar' as const, mediaEnabled: false,
+    }));
+    expect(barForm).toContain('Bar mahsuloti qo&#x27;shish');
+    expect(barForm).toContain('Barkod kerak');
+    expect(barForm).toMatch(/<option value="[a-f0-9]{24}" selected="">Bar<\/option>/); // bar stansiyasi o'zi tanlandi
     const fresh = renderToStaticMarkup(createElement(DishForm, { data: { ...data, dish: null }, initialType: 'goods' as const, mediaEnabled: true }));
     expect(fresh).toContain('Ombordagi tovar');
   });

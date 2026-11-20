@@ -94,7 +94,10 @@ export default function DishForm({ data, initialType, initialProductId, initialS
   const stationKind = (id: string) => data.stations.find((s) => s.id === id)?.kind ?? null;
   /** Mavjud barkod (tahrir yoki tanlangan ombor tovari) — bo'lsa yangisi yaratilmaydi */
   const existingBarcode = editing ? dish.barcode : goods?.barcode ?? null;
-  const wantBarcode = section === 'bar' && needBarcode && !existingBarcode;
+  // «Bar bo'limi va barkod» moduli o'chiq — bo'lim tanlovi va barkod bloki yo'q (avvalgidek)
+  const barMenu = data.barMenu;
+  const isBar = barMenu && section === 'bar';
+  const wantBarcode = isBar && needBarcode && !existingBarcode;
 
   // Bo'lim almashganda stansiya mos bo'lsin: Bar — birinchi faol bar stansiyasi (tanlanmagan yoki oshxona bo'lsa),
   // Taomlar — bar stansiyasi tanlangan bo'lsa birinchi faol oshxona stansiyasi (yo'q — stansiyasiz)
@@ -155,7 +158,7 @@ export default function DishForm({ data, initialType, initialProductId, initialS
       // Ombordagi tovar qo'shilayotganda bo'sh rasm uning mavjud rasmini o'chirmasin
       ...(photo !== undefined && (editing || photo) ? { photoUrl: photo } : {}),
       stationId: stationId || null,
-      section,
+      ...(barMenu ? { section } : {}),
       ...(wantBarcode ? { barcode: true } : {}),
       ikpu,
       modifierGroups: v.groups,
@@ -181,8 +184,8 @@ export default function DishForm({ data, initialType, initialProductId, initialS
     });
   }
 
-  const title = editing ? f.editTitle : type === 'goods' ? f.goodsTitle : section === 'bar' ? f.barTitle : f.newTitle;
-  const backHrefSection = section === 'bar' && !editing
+  const title = editing ? f.editTitle : type === 'goods' ? f.goodsTitle : isBar ? f.barTitle : f.newTitle;
+  const backHrefSection = isBar && !editing
     ? `/app/menu?${new URLSearchParams({ ...(branchQ ? { branch: data.branchId } : {}), section: 'bar' })}`
     : backHref;
 
@@ -224,7 +227,8 @@ export default function DishForm({ data, initialType, initialProductId, initialS
       {dish?.stopListed && <p className="t-note t-note--warn rs-note">{f.stopped}</p>}
       {!editing && !can.create && <p className="t-note t-note--info rs-note">{f.noCreatePerm}</p>}
 
-      {/* Bo'lim: Taomlar (oshxona) / Bar */}
+      {/* Bo'lim: Taomlar (oshxona) / Bar — «Bar bo'limi va barkod» moduli yoqilgan do'konda */}
+      {barMenu && (
       <div className="mn-section-pick">
         <span className="rs-label" id="mn-section-l">{f.section}</span>
         <SegmentSwitch
@@ -236,6 +240,7 @@ export default function DishForm({ data, initialType, initialProductId, initialS
         />
         <small className="rs-hint">{f.sectionHints[section]}</small>
       </div>
+      )}
 
       {/* Turi */}
       {allowed.length > 1 && (
@@ -321,7 +326,7 @@ export default function DishForm({ data, initialType, initialProductId, initialS
             </select>
             <span className="field-hint">{f.stationHint}</span>
           </div>
-          {section === 'bar' && (
+          {isBar && (
             existingBarcode ? (
               <div className="auth-field mn-barcode">
                 <span className="rs-label">{t.barcode.title}</span>

@@ -24,7 +24,7 @@ export default async function NewDishPage({ searchParams }: { searchParams: Prom
       data={r.data}
       initialType={type}
       initialProductId={ok(sp.product)}
-      initialSection={sp.section === 'bar' ? 'bar' : 'kitchen'}
+      initialSection={r.data.barMenu && sp.section === 'bar' ? 'bar' : 'kitchen'}
       mediaEnabled={!!ctx.features.mediaUpload}
     />
   );

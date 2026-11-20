@@ -56,8 +56,10 @@ export default function MenuBoard({ view, section: initialSection = 'kitchen' }:
     kitchen: items.filter((i) => i.section === 'kitchen').length,
     bar: items.filter((i) => i.section === 'bar').length,
   }), [items]);
-  const inSection = useMemo(() => items.filter((i) => i.section === section), [items, section]);
-  const hiddenInSection = useMemo(() => hidden.filter((i) => i.section === section), [hidden, section]);
+  // Modul o'chiq — bo'limlarsiz (avvalgidek bitta ro'yxat)
+  const sectioned = view.barMenu;
+  const inSection = useMemo(() => (sectioned ? items.filter((i) => i.section === section) : items), [items, section, sectioned]);
+  const hiddenInSection = useMemo(() => (sectioned ? hidden.filter((i) => i.section === section) : hidden), [hidden, section, sectioned]);
   const categories = useMemo(
     () => view.categories.filter((c) => inSection.some((i) => i.category === c) || hiddenInSection.some((i) => i.category === c)),
     [view.categories, inSection, hiddenInSection],
@@ -137,34 +139,37 @@ export default function MenuBoard({ view, section: initialSection = 'kitchen' }:
   ];
   const newQ = new URLSearchParams({
     ...(view.branches.length > 1 ? { branch: view.branchId } : {}),
-    ...(section === 'bar' ? { section: 'bar' } : {}),
+    ...(sectioned && section === 'bar' ? { section: 'bar' } : {}),
   }).toString();
   const empty = inSection.length === 0 && hiddenInSection.length === 0;
+  const bar = sectioned && section === 'bar';
 
   return (
     <div className="rs-stack mn-board">
       <BranchPicker branches={view.branches} value={view.branchId} />
       {!view.flags && <p className="t-note t-note--warn rs-note" role="status">{t.legacy}</p>}
 
-      <SegmentSwitch
-        className="mn-sections"
-        label={t.sections.label}
-        value={section}
-        onChange={pickSection}
-        options={[
-          { value: 'kitchen', label: `${t.sections.kitchen} · ${sectionCount.kitchen}` },
-          { value: 'bar', label: `${t.sections.bar} · ${sectionCount.bar}` },
-        ]}
-      />
+      {sectioned && (
+        <SegmentSwitch
+          className="mn-sections"
+          label={t.sections.label}
+          value={section}
+          onChange={pickSection}
+          options={[
+            { value: 'kitchen', label: `${t.sections.kitchen} · ${sectionCount.kitchen}` },
+            { value: 'bar', label: `${t.sections.bar} · ${sectionCount.bar}` },
+          ]}
+        />
+      )}
 
       {empty ? (
         <section className="rs-card mn-empty">
-          <span className="ux-empty-ic" aria-hidden="true"><Icon name={section === 'bar' ? 'cup' : 'utensils'} size={26} /></span>
-          <b>{section === 'bar' ? t.sections.barEmpty : t.empty}</b>
-          <p className="rs-hint">{section === 'bar' ? t.sections.barEmptyHint : t.emptyHint}</p>
+          <span className="ux-empty-ic" aria-hidden="true"><Icon name={bar ? 'cup' : 'utensils'} size={26} /></span>
+          <b>{bar ? t.sections.barEmpty : t.empty}</b>
+          <p className="rs-hint">{bar ? t.sections.barEmptyHint : t.emptyHint}</p>
           {can.create && (
             <Link href={`/app/menu/new${newQ ? `?${newQ}` : ''}`} className="btn btn-primary btn-with-icon">
-              <Icon name="plus" size={18} /> {section === 'bar' ? t.addBar : t.addDish}
+              <Icon name="plus" size={18} /> {bar ? t.addBar : t.addDish}
             </Link>
           )}
         </section>
@@ -218,6 +223,7 @@ export default function MenuBoard({ view, section: initialSection = 'kitchen' }:
                       key={item.id}
                       item={item}
                       hiddenMode={filter === 'hidden'}
+                      barMenu={sectioned}
                       stations={view.stations}
                       stationName={item.stationId ? stationName.get(item.stationId) ?? null : null}
                       pending={pending}
@@ -241,6 +247,7 @@ export default function MenuBoard({ view, section: initialSection = 'kitchen' }:
 interface RowProps {
   item: MenuRow;
   hiddenMode: boolean;
+  barMenu: boolean;
   stations: MenuAdminView['stations'];
   stationName: string | null;
   pending: boolean;
@@ -251,7 +258,7 @@ interface RowProps {
   onRestore: () => void;
 }
 
-function DishRow({ item, hiddenMode, stations, stationName, pending, can, onStop, onStation, onRemove, onRestore }: RowProps) {
+function DishRow({ item, hiddenMode, barMenu, stations, stationName, pending, can, onStop, onStation, onRemove, onRestore }: RowProps) {
   const d = useDict();
   const t = d.menu;
   const k = d.restaurant.kitchen;
@@ -260,7 +267,7 @@ function DishRow({ item, hiddenMode, stations, stationName, pending, can, onStop
   if (item.type === 'dish') meta.push(item.recipeCount ? tr(t.recipeN, { n: item.recipeCount }) : t.recipeEmpty);
   if (item.modifierCount) meta.push(tr(t.modsN, { n: item.modifierCount }));
   if (!can.edit || !stations.length) meta.push(stationName ?? d.restaurant.common.noStation);
-  if (item.barcode) meta.push(tr(t.barcode.short, { code: item.barcode }));
+  if (barMenu && item.barcode) meta.push(tr(t.barcode.short, { code: item.barcode }));
 
   return (
     <li className={`rs-dish mn-row${item.stopListed ? ' is-stop' : ''}`}>
@@ -339,7 +346,7 @@ function DishRow({ item, hiddenMode, stations, stationName, pending, can, onStop
                   {d.restaurant.settings.stopList}
                 </button>
               )}
-              {can.edit && item.barcode && <LabelPrint ids={[item.id]} variant="bulk" label={t.barcode.print} />}
+              {barMenu && can.edit && item.barcode && <LabelPrint ids={[item.id]} variant="bulk" label={t.barcode.print} />}
               {can.edit && (
                 <>
                   <Link href={`/app/menu/${item.id}`} className="btn btn-sm btn-ghost" aria-label={tr(t.editFor, { name: item.name })}>

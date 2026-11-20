@@ -276,8 +276,9 @@ export async function createProductAction(_prev: State, formData: FormData): Pro
   const quantityRaw = String(formData.get('quantity') || '1');
 
   if (!name) return { error: m.nameRequired };
-  // «Barkod kerak» (forma so'ragan bo'lsa): zavod barkodi bo'lmasa — do'kon ichki barkodi; yorliq kartasi shunga qarab
-  const barcodeAsked = !phoneShop && kind !== 'service' && formData.get('barcodeAsked') === '1';
+  // «Barkod kerak» («Bar bo'limi va barkod» moduli, forma so'ragan bo'lsa): zavod barkodi bo'lmasa — do'kon ichki
+  // barkodi; yorliq kartasi shunga qarab
+  const barcodeAsked = !!features.barMenu && !phoneShop && kind !== 'service' && formData.get('barcodeAsked') === '1';
   const needBarcode = barcodeAsked && formData.get('needBarcode') === 'on';
   let barcodeCreated = false;
   if (needBarcode && !barcode) {

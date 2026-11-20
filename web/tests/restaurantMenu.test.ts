@@ -296,6 +296,22 @@ describe.skipIf(!URI)('restoran menyusi va ombor (MongoDB)', () => {
   it('bar bo\'limi va barkod: ichki barkod yaratiladi, zavodnikiga tegilmaydi; menyu va ofitsant ro\'yxatida bo\'lim', async () => {
     const b = await setup.saveStation(admin, { name: 'Bar', kind: 'bar', branchId: String(branchId) });
     const barId = b.ok ? b.data.id : '';
+    // «Bar bo'limi va barkod» moduli o'chiq (standart) — bo'lim va barkod e'tiborsiz, ofitsant menyusi bo'limsiz
+    expect(admin.features.barMenu).toBe(false);
+    const off = await menu.saveMenuDish(admin, {
+      type: 'service', branchId: String(branchId), name: 'Choy (modulsiz)', price: 8000, stationId: barId, section: 'bar', barcode: true,
+    });
+    expect(off).toMatchObject({ ok: true, data: { barcode: null } });
+    const offDoc = await m.Product.findById(off.ok ? off.data.id : '').lean();
+    expect(offDoc.menuSection).toBeUndefined();
+    expect(offDoc.barcode).toBeUndefined();
+    const offView = await menu.menuAdminView(admin, { branchId: String(branchId) });
+    expect(offView.ok && offView.data.barMenu).toBe(false);
+    const offStaff = await queries.staffMenu(ali);
+    expect(offStaff.ok && offStaff.data.items.find((i) => i.name === 'Choy (modulsiz)')).toMatchObject({ section: 'kitchen', barcode: null });
+    await m.Product.deleteOne({ _id: offDoc._id });
+    // Super Admin modulni yoqdi
+    for (const c of [admin, ali]) c.features = { ...c.features, barMenu: true };
     // Yangi bar xizmati «barkod kerak» bilan — 200… EAN-13
     const mojito = await menu.saveMenuDish(admin, {
       type: 'service', branchId: String(branchId), name: 'Mojito', price: 30000, stationId: barId, section: 'bar', barcode: true,
@@ -331,5 +347,6 @@ describe.skipIf(!URI)('restoran menyusi va ombor (MongoDB)', () => {
     const pubMenu = await queries.buildMenu(m, branchId, { forPublic: true });
     expect(pubMenu.items.find((i) => i.name === 'Mojito')?.barcode).toBeNull();
     await m.Product.deleteMany({ _id: { $in: [sprite._id, oldBar._id] } });
+    for (const c of [admin, ali]) c.features = { ...c.features, barMenu: false };
   });
 });
