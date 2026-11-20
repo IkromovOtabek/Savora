@@ -50,6 +50,10 @@ const DAYS = Math.min(90, Math.max(1, Number.parseInt(opt('days') ?? '30', 10) |
 const FORCE = flag('force');
 if (!SLUG || !/^[a-z0-9-]{2,40}$/.test(SLUG)) refuse("--slug <do'kon-slug> majburiy (masalan: --slug dom24)");
 if (!process.env.MONGO_URI) refuse("MONGO_URI yo'q — `node --env-file=.env …` bilan ishga tushiring.");
+/** Prodda demo ma'lumot faqat shu do'konlarga (egasi tasdiqlagan; qolganlari — haqiqiy mijozlar). Telefon do'koni — seed-presentation-phone.mjs */
+const ALLOWED = ['dom24'];
+const LOCAL_DB = /^mongodb:\/\/(127\.0\.0\.1|localhost|\[::1\])[:/]/.test(process.env.MONGO_URI);
+if (!ALLOWED.includes(SLUG) && !LOCAL_DB) refuse(`«${SLUG}» demo ro'yxatida yo'q (${ALLOWED.join(', ')}) — prod bazada boshqa do'konga yozilmaydi.`);
 
 /* ───────────────────────────── simulyatsiya soati ───────────────────────────── */
 
