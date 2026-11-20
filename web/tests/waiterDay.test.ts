@@ -182,6 +182,7 @@ describe('WaiterDayView', () => {
     totals: { orders: 2, revenue: 157_000, avgCheck: 78_500, guests: 3, guestsMissing: 1, serviceCharge: 10_000, voids: 1, voidAmount: 45_000, lossCount: 1 },
     open: [{
       id: 'o7', orderNo: 'B20261120-0007', type: 'dine_in', status: 'open', source: 'waiter', tableId: 't7', tableNumber: 7, guests: 4,
+      forTableId: null, forTableNumber: null, precheckAt: null,
       waiterId: 'u1', waiterName: 'Aziz Karimov', openedAt: '2026-11-20T08:30:00.000Z', updatedAt: null, access: true, mine: true,
       total: 90_000, due: 99_000, counts: { items: 3, pending: 1, unsent: 0, active: 3, ready: 2, voided: 0, unpaid: 3 },
     }],
