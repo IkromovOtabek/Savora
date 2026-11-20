@@ -1116,6 +1116,12 @@ const uz = {
     cancelOrderHint: 'Oshxonaga yuborilgan taom bor — avval ularni bekor qiling.',
     cancelledOk: 'Buyurtma bekor qilindi',
   },
+  /* bildirishnomalar: ro'yxat ekrani, bosh sahifadagi qo'ng'iroqcha */
+  notify: {},
+  /* restoran bronlari */
+  reservations: {},
+  /* ofitsant kabineti «Mening kunim» */
+  waiterDay: {},
 };
 
 export type Dict = typeof uz;
@@ -2150,6 +2156,9 @@ const ru: Dict = {
     cancelOrderHint: 'Есть блюда, отправленные на кухню, — сначала отмените их.',
     cancelledOk: 'Заказ отменён',
   },
+  notify: {},
+  reservations: {},
+  waiterDay: {},
 };
 
 const dicts: Record<Locale, Dict> = { uz, ru };

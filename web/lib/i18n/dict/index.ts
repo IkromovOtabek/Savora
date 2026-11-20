@@ -16,6 +16,10 @@ import * as onboarding from './onboarding';
 import * as ecom from './ecom';
 import * as menu from './menu';
 import * as labels from './labels';
+import * as notify from './notify';
+import * as reservations from './reservations';
+import * as waiterDay from './waiterDay';
+import * as cashier from './cashier';
 
 /**
  * Barcha bo'lim lug'atlari. Yangi bo'lim qo'shish: dict/<nom>.ts yarating (uz + ru: typeof uz),
@@ -40,6 +44,10 @@ export const dictionaries = {
     ecom: ecom.uz,
     menu: menu.uz,
     labels: labels.uz,
+    notify: notify.uz,
+    reservations: reservations.uz,
+    waiterDay: waiterDay.uz,
+    cashier: cashier.uz,
   },
   ru: {
     common: common.ru,
@@ -59,6 +67,10 @@ export const dictionaries = {
     ecom: ecom.ru,
     menu: menu.ru,
     labels: labels.ru,
+    notify: notify.ru,
+    reservations: reservations.ru,
+    waiterDay: waiterDay.ru,
+    cashier: cashier.ru,
   },
 } satisfies Record<Locale, unknown>;
 

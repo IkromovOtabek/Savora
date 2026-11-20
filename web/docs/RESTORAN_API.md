@@ -602,3 +602,19 @@ pomidor 0,15 kg chiqdi; 4-Sezar — `outOfStock`, menyuda `available: 0`; xom as
 Manti — `stopListed`; mijoz QR menyusi — 11 ta (stop-list va tugagan yashirin, xom ashyo yo'q); mobil `?stock=1` — 17 ta
 (faqat tovar, «menyu» belgisi). Kun/Tun/Qora, 375px — gorizontal siljish yo'q.
 
+
+## 15. Bildirishnomalar va ovoz (web qo'ng'iroqcha, mobil ro'yxat, push)
+
+_(to'ldiriladi — `lib/notify.ts`)_
+
+## 16. Hisoblar ko'rinishi, kassir oynasi, saboyning stoli
+
+_(to'ldiriladi)_
+
+## 17. Ofitsant kabineti («Mening kunim») va ofitsantlar hisoboti
+
+_(to'ldiriladi)_
+
+## 18. Bron
+
+_(to'ldiriladi)_
