@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import Icon from '@/components/icons/Icon';
 import { getLabelDataAction, type LabelData } from '@/app/actions/labels';
-import { expandCopies, labelDocument, labelGeometry, type LabelRenderCtx } from '@/lib/labels/render';
+import { expandCopies, labelDocument, labelWarnings, type LabelRenderCtx } from '@/lib/labels/render';
 import { printLabelDocument } from '@/lib/labels/print';
 import { LABEL_LIMITS } from '@/lib/labels/settings';
 import { useDict } from '@/lib/i18n/client';
@@ -107,9 +107,10 @@ export default function LabelPrint({ ids, variant = 'button', label, auto = fals
   const previewHtml = data && ctx && first ? labelDocument([first], data.settings, ctx) : '';
   const total = data ? expandCopies(data.items, copies, perUnit).length : 0;
   const hasUnits = !!data?.items.some((i) => i.available > 1);
-  const pending = data?.items.filter((i) => i.imeiPending).length ?? 0;
-  const noCode = data?.items.find((i) => !i.code || !labelGeometry(i.code, data.settings.width));
-  const tight = !!(data && first && labelGeometry(first.code, data.settings.width)?.tight);
+  const warn = data ? labelWarnings(data.items, data.settings) : null;
+  const pending = warn?.imeiPending ?? 0;
+  const noCode = warn?.noCode;
+  const tight = !!warn?.tight;
 
   const btnCls = variant === 'bulk'
     ? 'btn btn-sm btn-tinted btn-with-icon'

@@ -19,6 +19,7 @@ import {
   type NamedItem, type CategoryChoice, type BundleChoice,
 } from '@/lib/catalog';
 import { qtyWithUnit } from '@/lib/qty';
+import { fetchLabels, printLabels } from '@/lib/labels';
 
 /** "31032027" → "31.03.2027" (yozish davomida nuqtalar qo'yiladi) */
 function maskDate(v: string): string {
@@ -277,7 +278,7 @@ export default function ProductNew() {
     }
     setBusy(true);
     try {
-      const r = await api<{ id: string; count: number }>('/api/mobile/products', {
+      const r = await api<{ id: string; ids?: string[]; count: number }>('/api/mobile/products', {
         method: 'POST',
         body: {
           name: name.trim(),
@@ -312,11 +313,26 @@ export default function ProductNew() {
         },
       });
       allowLeave.current = true;
-      Alert.alert(
-        d.productNew.saved,
-        r.count > 1 ? tr(f.variantsSaved, { n: r.count }) : tr(d.productNew.savedMsg, { item: t?.item ?? d.terms.item }),
-      );
+      const savedMsg = r.count > 1 ? tr(f.variantsSaved, { n: r.count }) : tr(d.productNew.savedMsg, { item: t?.item ?? d.terms.item });
+      // Barkod yorlig'i (web: qo'shilgach yorliq paneli). Xizmatda yo'q; ma'lumot olinmasa — oddiy «Saqlandi»
+      const label = kind === 'service' ? null : await fetchLabels(r.ids?.length ? r.ids : [r.id], { timeoutMs: 8000 }).catch(() => null);
+      if (label?.settings.autoPrint) {
+        // «Qo'shilgach darhol chop etish» yoqiq — oynasiz, sozlamadagi nusxa bilan. Forma yopilishidan OLDIN:
+        // iOS yopilish animatsiyasi paytida chop etish oynasini ko'rsatmaydi. «Saqlandi» — chop etish oynasidan keyin
+        const printed = await printLabels(label).then(() => true, () => false);
+        router.back();
+        Alert.alert(d.productNew.saved, printed ? savedMsg : `${savedMsg}\n\n${d.labels.printFailed}`);
+        return;
+      }
       router.back();
+      if (label) {
+        Alert.alert(d.productNew.saved, savedMsg, [
+          { text: d.common.close, style: 'cancel' },
+          { text: d.labels.button, onPress: () => { printLabels(label).catch(() => Alert.alert(d.common.error, d.labels.printFailed)); } },
+        ]);
+      } else {
+        Alert.alert(d.productNew.saved, savedMsg);
+      }
     } catch (e) {
       Alert.alert(d.common.error, errMsg(e, d.productNew.saveError));
     } finally { setBusy(false); }

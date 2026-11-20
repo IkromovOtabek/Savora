@@ -1,4 +1,4 @@
-import { useCallback, useRef } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { View } from 'react-native';
 import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
 import { useAuth, useCan } from '@/lib/auth';
@@ -11,6 +11,7 @@ import { saleHref } from '@/lib/pick';
 import {
   Screen, NavBar, LargeTitle, Group, Cell, Pill, Button, Loading, ErrorState, InlineError, CacheStamp, type Tone,
 } from '@/components/ui';
+import { LabelPrintSheet } from '@/components/LabelPrintSheet';
 
 interface Detail {
   id: string; name: string; brand: string | null; deviceModel: string | null;
@@ -39,6 +40,7 @@ export default function ProductDetail() {
   const f = me?.features ?? {};
   const can = useCan();
   const res = useResource<Detail>(id ? `/api/mobile/products/${id}` : null);
+  const [labelOpen, setLabelOpen] = useState(false);
   const first = useRef(true);
   useFocusEffect(useCallback(() => { if (first.current) { first.current = false; return; } res.reloadSilently(); }, [res.reloadSilently]));
 
@@ -98,6 +100,14 @@ export default function ProductDetail() {
         <Cell title={d.productDetail.added} value={fmtDate(p.createdAt)} />
         {p.notes ? <Cell title={d.common.note} value={p.notes} wrapValue /> : null}
       </Group>
+
+      {/* Barkod yorlig'i — web'dagi kabi xizmatda yo'q */}
+      {p.kind !== 'service' ? (
+        <>
+          <Button title={d.labels.button} icon="barcode-outline" variant="tinted" full onPress={() => setLabelOpen(true)} />
+          <LabelPrintSheet ids={[p.id]} visible={labelOpen} onClose={() => setLabelOpen(false)} />
+        </>
+      ) : null}
 
       {p.kind === 'bundle' && p.bundleItems?.length ? (
         <Group header={d.bundle.items}>

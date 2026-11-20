@@ -3,7 +3,8 @@ import BitArray from '@zxing/library/esm/core/common/BitArray';
 import Code128Reader from '@zxing/library/esm/core/oned/Code128Reader';
 import { CODE128_PATTERNS, code128Bars, code128Values, code128Widths } from '@/lib/labels/code128';
 import { codeMatches, scanVariants } from '@/lib/scanCode';
-import { expandCopies, labelDocument, labelGeometry } from '@/lib/labels/render';
+import { expandCopies, labelDocument, labelGeometry, labelWarnings } from '@/lib/labels/render';
+import { cleanLabelIds, labelScope, LABEL_MAX_IDS } from '@/lib/labels/data';
 import { labelCodeOf, resolveLabelSettings, type LabelItem } from '@/lib/labels/settings';
 
 /** Shtrix-kodni piksel qatoriga aylantirib, ZXing (kamera skaneri ishlatadigan dekoder) bilan o'qiydi */
@@ -119,5 +120,33 @@ describe('yorliq sozlamalari va chizish', () => {
     expect(expandCopies(items, 2, false).map((i) => i.id)).toEqual(['a', 'a', 'b', 'b']);
     expect(expandCopies(items, 2, true).map((i) => i.id)).toEqual(['a', 'a', 'a', 'b']);
     expect(expandCopies([item({ available: 5000 })], 1, true)).toHaveLength(1000);
+  });
+
+  it('ogohlantirishlar: IMEI kutilmoqda, kodlanmaydigan kod, zich chiziq (web oynasi + mobil API)', () => {
+    const s = resolveLabelSettings({ width: 40 }, true);
+    const w = labelWarnings([item({ imeiPending: true }), item({ name: 'Kirill', code: 'ШК-1' }), item()], s);
+    expect(w.imeiPending).toBe(1);
+    expect(w.noCode?.name).toBe('Kirill');
+    expect(w.tight).toBe(false);
+    expect(labelWarnings([item()], resolveLabelSettings({ width: 30 }, true)).tight).toBe(true);
+    expect(labelWarnings([], s)).toEqual({ imeiPending: 0, noCode: null, tight: false });
+  });
+});
+
+describe('yorliq huquqi va ID tozalash (lib/labels/data.ts — web va mobil umumiy)', () => {
+  const u = { username: 'ali' };
+  it('«Omborni ko\'rish» — hammasi, faqat «Mahsulot qo\'shish» — o\'zi qo\'shgani, aks holda rad', () => {
+    expect(labelScope(u, new Set(['products.view', 'product.create']))).toEqual({});
+    expect(labelScope(u, new Set(['product.create']))).toEqual({ createdBy: 'ali' });
+    expect(labelScope(u, new Set(['sale.create']))).toBeNull();
+  });
+
+  it('ID: faqat ObjectId, takrorsiz, chegarali; massiv bo\'lmasa — bo\'sh', () => {
+    const a = '64b7f0c2a1b2c3d4e5f60718';
+    const b = '64b7f0c2a1b2c3d4e5f60719';
+    expect(cleanLabelIds([a, 'x', a, b, 5, '', '{"$ne":1}'])).toEqual([a, b]);
+    expect(cleanLabelIds('64b7f0c2a1b2c3d4e5f60718')).toEqual([]);
+    const many = Array.from({ length: LABEL_MAX_IDS + 20 }, (_, i) => i.toString(16).padStart(24, '0'));
+    expect(cleanLabelIds(many)).toHaveLength(LABEL_MAX_IDS);
   });
 });

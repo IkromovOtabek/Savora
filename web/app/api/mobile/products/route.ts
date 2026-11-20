@@ -323,5 +323,6 @@ export async function POST(req: Request) {
   await rememberBarcodeNames(user.organizationId, created.map((p) => ({ code: p.barcode, name: p.name })));
 
   const first = created[0];
-  return NextResponse.json({ id: String(first._id), name: first.name, count: created.length }, { status: 201 });
+  // ids — variantlar bilan qo'shilganda barchasining barkod yorlig'i (mobil: avto-chop etish)
+  return NextResponse.json({ id: String(first._id), ids: created.map((p) => String(p._id)), name: first.name, count: created.length }, { status: 201 });
 }

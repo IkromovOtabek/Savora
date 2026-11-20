@@ -58,6 +58,25 @@ export function labelGeometry(code: string, width: number): LabelGeometry | null
   return { bars: enc.bars, modules: enc.modules, moduleMm: x, widthMm: enc.modules * x, tight };
 }
 
+/** Chop etishdan oldingi ogohlantirishlar — web oynasi va mobil API (/api/mobile/labels) bir xil hisoblaydi */
+export interface LabelWarnings {
+  /** IMEI hali kiritilmagan telefonlar soni (barkodda mahsulot ID) */
+  imeiPending: number;
+  /** Kodi barkodga aylanmaydigan birinchi tovar (kirill va h.k.) — kod matn bo'lib chiqadi */
+  noCode: LabelItem | null;
+  /** Birinchi yorliqda chiziq 0.25 mm dan ingichka */
+  tight: boolean;
+}
+
+export function labelWarnings(items: LabelItem[], s: Pick<LabelSettings, 'width'>): LabelWarnings {
+  const first = items[0];
+  return {
+    imeiPending: items.filter((i) => i.imeiPending).length,
+    noCode: items.find((i) => !i.code || !labelGeometry(i.code, s.width)) ?? null,
+    tight: !!(first?.code && labelGeometry(first.code, s.width)?.tight),
+  };
+}
+
 const ESC: Record<string, string> = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
 export function escapeHtml(s: string): string {
   return String(s).replace(/[&<>"']/g, (c) => ESC[c]);
