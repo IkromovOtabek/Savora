@@ -47,8 +47,8 @@ const setup = {
     { id: id(21), hallId: id(10), number: 2, seats: 2, x: null, y: null, active: false, qrToken: 'tok2tok2tok2tok2tok2', qrPath: '/m/demo/tok2', qrUrl: 'https://savora.uz/m/demo/tok2', busy: false },
   ],
   stations: [
-    { id: id(30), name: 'Issiq sex', kind: 'kitchen' as const, printerIp: null, sort: 0, active: true },
-    { id: id(31), name: 'Bar', kind: 'bar' as const, printerIp: '192.168.1.5', sort: 1, active: false },
+    { id: id(30), name: 'Issiq sex', kind: 'kitchen' as const, printerIp: null, printEnabled: true, sort: 0, active: true },
+    { id: id(31), name: 'Bar', kind: 'bar' as const, printerIp: '192.168.1.5', printEnabled: false, sort: 1, active: false },
   ],
 };
 

@@ -518,6 +518,12 @@ export default function KitchenScreen({ canBump, isAdmin, urlStation, urlBranch 
             <ExpandIcon out={kiosk} />
             <span className="kds-tool-text">{kiosk ? k.exitFullscreen : k.fullscreen}</span>
           </button>
+          {!kiosk && (
+            <Link className="kds-tool" href="/app/kitchen/print">
+              <Icon name="clipboard" size={20} />
+              <span className="kds-tool-text">{d.restaurant.print.title}</span>
+            </Link>
+          )}
         </div>
       </header>
 

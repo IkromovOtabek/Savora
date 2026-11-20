@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import Icon from '@/components/icons/Icon';
 import { useDict } from '@/lib/i18n/client';
 import { tr } from '@/lib/i18n/fmt';
@@ -10,7 +11,7 @@ import { deleteStationAction, saveStationAction } from '@/app/actions/restaurant
 import { useRun } from './useRun';
 
 type Station = RestaurantSetupView['stations'][number];
-type Draft = { id: string; name: string; kind: StationKind; printerIp: string };
+type Draft = { id: string; name: string; kind: StationKind; printerIp: string; printEnabled: boolean };
 
 /** Stansiyalar (Issiq sex, Bar…): qo'shish, tahrirlash, faol/nofaol, o'chirish */
 export default function StationsManager({ stations, branchId }: { stations: Station[]; branchId: string }) {
@@ -32,7 +33,7 @@ export default function StationsManager({ stations, branchId }: { stations: Stat
     e.preventDefault();
     if (!edit || !edit.name.trim()) return;
     run(
-      () => saveStationAction({ id: edit.id, name: edit.name.trim(), kind: edit.kind, printerIp: edit.printerIp.trim() }),
+      () => saveStationAction({ id: edit.id, name: edit.name.trim(), kind: edit.kind, printerIp: edit.printerIp.trim(), printEnabled: edit.printEnabled }),
       { after: () => setEdit(null) },
     );
   }
@@ -46,6 +47,11 @@ export default function StationsManager({ stations, branchId }: { stations: Stat
       <div>
         <h2 className="rs-h" id="rs-st-h">{t.stations}</h2>
         <p className="rs-hint">{t.stationsHint}</p>
+        {stations.some((s) => s.printEnabled && s.active) && (
+          <Link className="btn btn-ghost btn-sm btn-with-icon rs-st-print" href={`/app/kitchen/print?branch=${encodeURIComponent(branchId)}`}>
+            <Icon name="clipboard" size={15} /> {t.openPrintStation}
+          </Link>
+        )}
       </div>
 
       <form className="rs-inline rs-st-add" onSubmit={add}>
@@ -90,6 +96,11 @@ export default function StationsManager({ stations, branchId }: { stations: Stat
                     <input className="input" value={edit.printerIp} onChange={(e) => setEdit({ ...edit, printerIp: e.target.value })} placeholder="192.168.1.50" maxLength={64} inputMode="decimal" autoComplete="off" disabled={pending} aria-describedby="rs-st-ip-h" />
                   </label>
                   <small className="rs-hint rs-st-iph" id="rs-st-ip-h">{t.printerIpHint}</small>
+                  <label className="rs-check rs-st-print-on">
+                    <input type="checkbox" checked={edit.printEnabled} onChange={(e) => setEdit({ ...edit, printEnabled: e.target.checked })} disabled={pending} aria-describedby="rs-st-pr-h" />
+                    <span>{t.printEnabled}</span>
+                  </label>
+                  <small className="rs-hint rs-st-iph" id="rs-st-pr-h">{t.printEnabledHint}</small>
                   <div className="rs-row-actions">
                     <button type="submit" className="btn btn-primary btn-sm" disabled={pending || !edit.name.trim()}>{d.common.save}</button>
                     <button type="button" className="btn btn-ghost btn-sm" onClick={() => setEdit(null)}>{d.common.cancel}</button>
@@ -108,12 +119,13 @@ export default function StationsManager({ stations, branchId }: { stations: Stat
                     {s.printerIp ? ` · ${s.printerIp}` : ''}
                   </small>
                 </span>
+                {s.printEnabled && <span className="t-pill t-pill--ok">{t.printerBadge}</span>}
                 {!s.active && <span className="t-pill t-pill--warn">{d.common.inactive}</span>}
                 <span className="rs-row-actions">
                   <button
                     type="button"
                     className="icon-btn"
-                    onClick={() => setEdit({ id: s.id, name: s.name, kind: s.kind, printerIp: s.printerIp ?? '' })}
+                    onClick={() => setEdit({ id: s.id, name: s.name, kind: s.kind, printerIp: s.printerIp ?? '', printEnabled: s.printEnabled })}
                     aria-label={`${d.common.edit}: ${s.name}`}
                     title={d.common.edit}
                   >

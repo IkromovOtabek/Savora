@@ -41,6 +41,13 @@ export type StationKind = (typeof STATION_KINDS)[number];
 export const VOID_STAGES = ['unsent', 'beforeCook', 'afterCook'] as const;
 export type VoidStage = (typeof VOID_STAGES)[number];
 
+/** Oshxona printeri varag'i: yuborilgan taomlar / bekor qilingan taom («BEKOR QILINDI») */
+export const PRINT_JOB_KINDS = ['order', 'void'] as const;
+export type PrintJobKind = (typeof PRINT_JOB_KINDS)[number];
+/** Varaq holati: navbatda (chop etilmagan) / chop etildi */
+export const PRINT_JOB_STATUSES = ['pending', 'printed'] as const;
+export type PrintJobStatus = (typeof PRINT_JOB_STATUSES)[number];
+
 /** Mijoz QR orqali chaqiruvi */
 export const TABLE_CALL_KINDS = ['waiter', 'bill'] as const;
 export type TableCallKind = (typeof TABLE_CALL_KINDS)[number];

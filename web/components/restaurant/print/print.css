@@ -1,0 +1,102 @@
+/* ============================================================
+   Printer stansiyasi (/app/kitchen/print) va oshxona varag'i (.kt).
+   Ekranda — boshqaruv, ro'yxat, ko'rinish; chop etishda — faqat .kp-print
+   ichidagi bitta varaq (termal rulon 58/80 mm, qora-oq, katta shrift).
+   Ranglar faqat tokenlar orqali (Kun / Tun / Qora mavzular).
+   ============================================================ */
+
+.kp { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+.kp-screen { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+.kp-print { display: none; }
+
+/* ── boshqaruv ── */
+.kp-control { display: flex; flex-direction: column; gap: 14px; padding: 16px; }
+.kp-control.is-running { box-shadow: var(--shadow-sm), inset 0 0 0 2px var(--accent); }
+.kp-control-main { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 16px; }
+.kp-run { min-height: 48px; padding-inline: 20px; font-size: 16px; font-weight: 700; display: inline-flex; align-items: center; gap: 8px; }
+.kp-state { display: flex; flex-direction: column; gap: 4px; margin-right: auto; min-width: 0; }
+.kp-state > b { font-size: 17px; font-weight: 700; }
+.kp-on { color: var(--accent); }
+.kp-off { color: var(--ink-2); }
+.kp-state-meta { display: flex; flex-wrap: wrap; gap: 4px 12px; color: var(--ink-3); font-size: 13px; }
+.kp-live { display: inline-flex; align-items: center; gap: 6px; font-weight: 700; color: var(--ink-2); }
+.kp-live::before { content: ''; width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
+.kp-live--live { color: var(--accent); }
+.kp-live--offline { color: var(--danger); }
+.kp-test { display: inline-flex; align-items: center; gap: 6px; }
+
+.kp-filters { display: flex; flex-wrap: wrap; gap: 12px 16px; align-items: flex-end; }
+.kp-field { display: flex; flex-direction: column; gap: 6px; min-width: 0; font-size: 13px; color: var(--ink-3); font-weight: 600; }
+.kp-field select { min-width: 200px; }
+.kp-control .t-note { margin: 0; }
+
+/* ── ro'yxat va ko'rinish ── */
+.kp-grid { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 14px; align-items: start; }
+.kp-side { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+@media (max-width: 900px) { .kp-grid { grid-template-columns: minmax(0, 1fr); } }
+
+.kp-empty { margin: 0; padding: 8px 16px 16px; color: var(--ink-3); font-size: 14px; }
+.kp-list { list-style: none; margin: 0; padding: 4px 8px 8px; display: flex; flex-direction: column; }
+.kp-row { display: flex; align-items: center; gap: 4px; border-radius: 12px; }
+.kp-row + .kp-row { border-top: 1px solid var(--sep); }
+.kp-row.is-on { background: var(--fill-2); }
+.kp-row-main {
+  flex: 1; min-width: 0; display: flex; align-items: center; gap: 12px;
+  padding: 10px 8px; background: none; border: 0; color: inherit; font: inherit; text-align: left; cursor: pointer; border-radius: 12px;
+}
+.kp-row-main:hover { background: var(--fill-2); }
+.kp-row-time { font-weight: 700; color: var(--ink-2); min-width: 44px; }
+.kp-row-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.kp-row-body b { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-weight: 700; }
+.kp-row-body small { color: var(--ink-3); font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.kp-status { flex: none; font-size: 12px; font-weight: 700; padding: 3px 8px; border-radius: var(--r-pill); white-space: nowrap; }
+.kp-status--ok { background: var(--accent-soft); color: var(--accent); }
+.kp-status--wait { background: var(--fill-2); color: var(--ink-2); }
+.kp-status--bad { background: var(--danger-soft); color: var(--danger); }
+@media (max-width: 520px) {
+  .kp-row-main { flex-wrap: wrap; }
+  .kp-status { margin-left: 56px; }
+}
+
+.kp-paper { --kt-w: 80mm; display: flex; justify-content: center; padding: 8px 16px 16px; }
+.kp-paper .kt { width: min(100%, calc(var(--kt-w) + 24px)); padding: 14px 12px; background: #fff; color: #000; border-radius: 6px; box-shadow: var(--shadow-sm); border: 1px solid var(--sep); }
+
+/* ── sozlash yo'riqnomasi ── */
+.kp-setup { padding: 14px 16px; }
+.kp-setup summary { cursor: pointer; font-weight: 700; font-size: 16px; }
+.kp-steps { margin: 12px 0 0; padding-left: 20px; display: flex; flex-direction: column; gap: 10px; font-size: 14px; color: var(--ink-2); line-height: 1.45; }
+.kp-steps small { display: block; margin-top: 6px; color: var(--ink-3); font-size: 12px; }
+.kp-mac { margin-top: 12px; display: flex; flex-direction: column; gap: 6px; font-size: 13px; color: var(--ink-3); }
+.kp-code { display: flex; align-items: flex-start; gap: 8px; margin-top: 8px; padding: 8px 10px; border-radius: 10px; background: var(--fill-2); }
+.kp-code code { flex: 1; min-width: 0; font-family: var(--font-mono); font-size: 12px; line-height: 1.4; color: var(--ink-1); word-break: break-all; user-select: all; }
+
+/* ============================================================
+   Oshxona varag'i
+   ============================================================ */
+.kt { font-family: var(--font-mono), ui-monospace, monospace; color: #000; font-size: 13px; line-height: 1.3; }
+.kt-banner { text-align: center; font-weight: 800; font-size: 15px; letter-spacing: .06em; padding: 2px 0; margin-bottom: 6px; border: 2px solid #000; }
+.kt-banner--void { background: #000; color: #fff; }
+.kt-head { display: flex; justify-content: space-between; gap: 8px; font-weight: 700; font-size: 13px; text-transform: uppercase; }
+.kt-place { font-size: 22px; font-weight: 800; line-height: 1.15; margin-top: 4px; }
+.kt-meta { font-size: 12px; margin-top: 2px; }
+.kt-cut { border: 0; border-top: 1px dashed #000; margin: 8px 0; }
+.kt-lines { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.kt-line-main { display: flex; align-items: baseline; gap: 6px; font-size: 16px; font-weight: 800; }
+.kt-qty { flex: none; }
+.kt-name { min-width: 0; overflow-wrap: anywhere; }
+.kt-name--void { text-decoration: line-through; }
+.kt-tag { flex: none; font-size: 11px; font-weight: 700; border: 1px solid #000; padding: 0 3px; }
+.kt-mod { padding-left: 18px; font-size: 13px; font-weight: 600; }
+.kt-note { padding-left: 18px; font-size: 13px; font-weight: 700; }
+.kt--void .kt-lines + .kt-banner { margin-top: 8px; margin-bottom: 0; }
+.kt-order-note { font-size: 13px; font-weight: 700; }
+
+/* ── chop etish: faqat varaq ── */
+@media print {
+  .kp-screen, .no-print { display: none !important; }
+  .kp { display: block; }
+  .kp-print { display: block; width: auto; margin: 0; padding: 0; background: #fff; }
+  .kp-print .kt { width: auto; }
+  .kp-print .kt * { color: #000 !important; }
+  .kp-print .kt-banner--void { color: #fff !important; background: #000 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+}

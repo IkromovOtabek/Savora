@@ -278,7 +278,7 @@ export async function regenerateTableQr(ctx: RestaurantCtx, id: string): Promise
 
 export async function saveStation(
   ctx: RestaurantCtx,
-  input: { id?: string; name: string; kind: StationKind; branchId?: string; printerIp?: string | null; sort?: number; active?: boolean },
+  input: { id?: string; name: string; kind: StationKind; branchId?: string; printerIp?: string | null; printEnabled?: boolean; sort?: number; active?: boolean },
 ): Promise<OpResult<{ id: string }>> {
   const denied = guard(ctx);
   if (denied) return denied;
@@ -292,6 +292,7 @@ export async function saveStation(
     kind: input.kind,
     ...(input.sort !== undefined ? { sort: input.sort } : {}),
     ...(input.active !== undefined ? { active: input.active } : {}),
+    ...(input.printEnabled !== undefined ? { printEnabled: input.printEnabled } : {}),
   };
   if (input.id) {
     if (!validId(input.id)) return fail(ctx.d, 'stationNotFound');
@@ -300,7 +301,7 @@ export async function saveStation(
       { $set: { ...fields, ...(printerIp ? { printerIp } : {}) }, ...(printerIp ? {} : { $unset: { printerIp: '' } }) },
     );
     if (!r.matchedCount) return fail(ctx.d, 'stationNotFound');
-    await settingsAudit(ctx, 'station.update', `Stansiya «${name}» tahrirlandi`);
+    await settingsAudit(ctx, 'station.update', `Stansiya «${name}» tahrirlandi${input.printEnabled === undefined ? '' : input.printEnabled ? ' (printer yoqildi)' : ' (printer o\'chirildi)'}`);
     return ok({ id: input.id });
   }
   const br = await resolveBranchId(ctx, input.branchId);

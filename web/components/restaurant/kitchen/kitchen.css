@@ -67,6 +67,7 @@
 }
 .kds-tool:hover { background: var(--fill-2); }
 .kds-tool:active { opacity: .6; }
+a.kds-tool { text-decoration: none; }
 .kds-tool[aria-pressed="true"] { background: var(--brand-soft); color: var(--brand); border-color: transparent; }
 .kds-tool-aa { font-size: 18px; font-weight: 800; line-height: 1; }
 .kds-tool-aa small { font-size: 12px; }

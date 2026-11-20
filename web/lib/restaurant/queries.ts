@@ -28,7 +28,7 @@ const DAY = 24 * 60 * 60 * 1000;
 const KDS_VOID_LOOKBACK_MS = 2 * 60_000;
 
 /** Admin uchun filiallar (tanlash); filial xodimiga — bo'sh */
-async function branchesFor(ctx: RestaurantCtx): Promise<{ id: string; name: string; isMain: boolean }[]> {
+export async function branchesFor(ctx: RestaurantCtx): Promise<{ id: string; name: string; isMain: boolean }[]> {
   if (ctx.user.role !== 'admin') return [];
   const list = await ctx.m.Branch.find({ active: true }).select('name isMain').sort({ createdAt: 1 }).lean();
   return list.map((b) => ({ id: String(b._id), name: b.name, isMain: !!b.isMain }));
@@ -407,7 +407,7 @@ export interface RestaurantSetupView {
   qrBaseUrl: string;
   halls: { id: string; name: string; sort: number; active: boolean }[];
   tables: { id: string; hallId: string; number: number; seats: number; x: number | null; y: number | null; active: boolean; qrToken: string; qrPath: string; qrUrl: string; busy: boolean }[];
-  stations: { id: string; name: string; kind: StationKind; printerIp: string | null; sort: number; active: boolean }[];
+  stations: { id: string; name: string; kind: StationKind; printerIp: string | null; printEnabled: boolean; sort: number; active: boolean }[];
 }
 
 export async function restaurantSetupView(ctx: RestaurantCtx, input: { branchId?: string } = {}): Promise<OpResult<RestaurantSetupView>> {
@@ -440,7 +440,7 @@ export async function restaurantSetupView(ctx: RestaurantCtx, input: { branchId?
         active: t.active, qrToken: t.qrToken, qrPath, qrUrl: `${base}${qrPath}`, busy: busyIds.has(String(t._id)),
       };
     }),
-    stations: stations.map((s) => ({ id: String(s._id), name: s.name, kind: s.kind, printerIp: s.printerIp ?? null, sort: s.sort ?? 0, active: s.active })),
+    stations: stations.map((s) => ({ id: String(s._id), name: s.name, kind: s.kind, printerIp: s.printerIp ?? null, printEnabled: !!s.printEnabled, sort: s.sort ?? 0, active: s.active })),
   });
 }
 

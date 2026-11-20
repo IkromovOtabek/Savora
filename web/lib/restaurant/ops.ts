@@ -44,6 +44,7 @@ import { fail, needAnyPerm, needFeature, needPerm, ok, orderRef, type OpErr, typ
 import { orderView, type OrderView } from './view';
 import { ensureMenuFlags, isOnMenu } from './menuFlags';
 import { loadStaffNames, type StaffNames } from '../staffNames';
+import { enqueueSentTickets, enqueueVoidTicket } from './print';
 
 type Item = IOrderItem;
 
@@ -493,6 +494,8 @@ export async function sendItems(
       set: { items: o.items.map((i) => updated.get(String(i._id)) ?? i) },
       undo,
       after: async (saved: OrderDoc) => {
+        // Oshxona printeri: printeri yoqilgan stansiyalarga varaq (xato yuborishni to'xtatmaydi)
+        await enqueueSentTickets(ctx, saved, [...updated.keys()], () => staffNamesFor(ctx)).catch((e) => logError('restaurant print enqueue failed', e));
         await audit(ctx, 'order.send', saved, `oshxonaga ${updated.size} ta taom${failed.length ? `, yuborilmadi: ${failed.map((f) => f.name).join(', ')}` : ''}`, {
           sent: [...updated.keys()], failed,
         });
@@ -598,6 +601,8 @@ export async function voidItem(
     return ok({
       set: { items },
       after: async (saved: OrderDoc) => {
+        // Oshxonada turgan taom — printerga «BEKOR QILINDI» varag'i
+        await enqueueVoidTicket(ctx, saved, String(voided._id), item.status, () => staffNamesFor(ctx)).catch((e) => logError('restaurant print enqueue failed', e));
         if (releaseNow) {
           await releaseStock(ctx.m.Product, item.productId, vqty, { action: 'returned', detail: `Buyurtma ${orderRef(saved)}: taom bekor qilindi`, by: ctx.user.username, at: now });
         }

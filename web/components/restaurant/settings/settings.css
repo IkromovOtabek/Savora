@@ -224,6 +224,8 @@
 .rs-st-edit { display: flex; align-items: flex-end; gap: 8px; flex-wrap: wrap; width: 100%; }
 .rs-st-edit .rs-mini:not(.rs-mini--grow) .input { width: 150px; }
 .rs-st-iph { flex-basis: 100%; }
+.rs-st-print-on { flex-basis: 100%; min-height: 36px; }
+.rs-st-print { margin-top: 10px; }
 
 /* ── Menyu ────────────────────────────────────────────────── */
 .rs-menu-tools { gap: 12px; }

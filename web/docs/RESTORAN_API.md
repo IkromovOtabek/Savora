@@ -97,7 +97,10 @@ taxtada «band» bo'lib ko'rinadi, summalar yashirin (`access: false`). Oshxona 
 Band/bo'shligi saqlanmaydi — ochiq buyurtmadan (`Order.activeTableKey`). QR almashtirilsa eski havola ishlamaydi.
 
 ### KitchenStation (`kitchen_stations`)
-`{ branchId, name, kind: 'kitchen'|'bar', printerIp? (2-faza, faqat saqlanadi), sort, active }`
+`{ branchId, name, kind: 'kitchen'|'bar', printerIp? (tarmoq agenti uchun, hozircha faqat saqlanadi), printEnabled (avtomatik chop etish, standart false), sort, active }`
+
+### PrintJob (`print_jobs`) — oshxona printeri navbati (§7a)
+`{ branchId, stationId, stationName, kind: 'order'|'void', orderId, orderNo, orderType, tableNumber?, waiterName? (ism), guests?, orderNote?, lines[{ itemId, name, qty, unit?, modifiers[{group,name}], note?, fromQr?, reason? }], status: 'pending'|'printed', queuedAt, copy?, claimedBy?, claimedAt?, attempts, printedAt?, printedBy?, createdBy }`. Narx saqlanmaydi. TTL — 7 kun.
 
 ### Order (`orders`)
 ```
@@ -369,7 +372,7 @@ Server komponentda o'qish: `const ctx = await restaurantCtxFromSession()` (`lib/
 
 ---
 
-## 7. Web JSON API (sessiya cookie, faqat GET, `Cache-Control: no-store`)
+## 7. Web JSON API (sessiya cookie, GET; printer stansiyasi — POST §7a; `Cache-Control: no-store`)
 
 Umumiy parametrlar: `branchId` (admin uchun; filial xodimida e'tiborsiz/tekshiriladi; berilmasa admin — zal ochilgan
 birinchi filial, bo'lmasa asosiy ombor), `since` (ISO), `stationId`, `status`, `type`. 401 — sessiya yo'q.
@@ -386,6 +389,27 @@ birinchi filial, bo'lmasa asosiy ombor), `since` (ISO), `stationId`, `status`, `
 | `GET /api/restaurant/reports/timings?from=&to=` | tables + reports.view | `{ from, to, overall, byStation[], byWaiter[], byDish[], voids:{count,amount,lossCount,lossAmount} }` (stats: `{ prep, delivery, wait, total }` har biri `{ count, avgMs, medianMs, p90Ms, maxMs }`; davr ≤93 kun, standart 7 kun) |
 | `GET /api/restaurant/reports/overview?p=today\|yesterday\|week\|month` yoki `?from=YYYY-MM-DD&to=YYYY-MM-DD` (≤93 kun), `&branchId=` | tables + reports.view | `RestaurantReport` (`lib/restaurant/reports.ts`): tushum, o'rtacha chek, oshxona vaqtlari (stansiya/taom), ofitsant KPI, bekor qilinganlar va yo'qotish, savdo — `/app/restaurant/reports` sahifasi bilan bir xil |
 | `GET /api/restaurant/reports/export?section=kitchen\|staff\|voids\|sales` + overview filtrlari | tables + reports.view + export.data | CSV (UTF-8 BOM, `Content-Disposition: attachment`), ustun nomlari — joriy tilda |
+
+### 7a. Oshxona printeri (printer stansiyasi `/app/kitchen/print`)
+
+Brauzer orqali: kassa/oshxona kompyuterida Chrome `--kiosk-printing` (dialogsiz, asosiy printerga) bilan sahifa ochiq turadi.
+Varaq navbatga avtomatik tushadi (ops.ts → `lib/restaurant/print.ts`, xato buyurtma amalini to'xtatmaydi):
+- `sendItems` (shu jumladan pre-chek/to'lov oldidan avtomatik yuborish, QR tasdiqlash + yuborish, mobil) — yuborilgan taomlar
+  stansiya bo'yicha bitta `order` varag'iga; faqat `printEnabled` va faol stansiyalar. Stansiyasiz taom tushmaydi.
+- `voidItem` — taom `sent|cooking|ready` holatida bekor qilinsa, `void` varag'i (sabab bilan, «BEKOR QILINDI / TAYYORLAMANG!»).
+
+| Yo'l | Huquq | Javob |
+|---|---|---|
+| `POST /api/restaurant/print` `{ deviceId, branchId?, stationId?, claim? }` | kitchen + kitchen.view | `PrintStationBoard`: `{ serverTime, branchId, branches, stations[{id,name,kind,printEnabled}], jobs: PrintJobView[], recent: PrintJobView[] }`. `claim: true` — 5 tagacha varaq shu qurilmaga atomik beriladi (`findOneAndUpdate`) |
+| `POST /api/restaurant/print/:id` `{ op: 'done' }` | shu | `{ id, printed }` (takror — zararsiz) |
+| `POST /api/restaurant/print/:id` `{ op: 'reprint' }` | shu | `{ id }` — «NUSXA» belgili yangi varaq navbatga; asl varaq o'zgarmaydi; audit `print.reprint` |
+
+Qoidalar (`lib/restaurant/printQueue.ts`): olingan, lekin `done` bo'lmagan varaq 60 s dan keyin boshqa qurilmaga o'tadi (shu
+qurilma — darhol qayta oladi); 30 daqiqadan eski yoki 5 marta olingan varaq avtomatik chiqmaydi (`stale: true`, qo'lda qayta
+chop etiladi). `stationId` bo'sh — filialning barcha stansiyalari. Klient: navbat bo'sh bo'lgandagina `claim` qiladi, varaqlarni
+bittadan `window.print()` qiladi, keyin `done`; sahifa yashirin bo'lsa ham so'rov to'xtamaydi (KDS'dan farqi).
+`PrintJobView = { id, kind, status, stationId, stationName, orderId, orderNo, orderType, tableNumber, waiterName, guests, orderNote, lines[{name,qty,unit,modifiers,note,fromQr,reason}], copy, queuedAt, printedAt, printedBy, attempts, stale }`.
+Sozlash: Restoran sozlamalari → Stansiyalar → «Avtomatik chop etish»; Chrome yorlig'i buyrug'i sahifadagi yo'riqnomada.
 
 ### Polling tavsiyasi
 - Stollar taxtasi: 4–5 s, to'liq yengil ro'yxat (`tables`). Buyurtma ekrani: 3–5 s `orders/:id` yoki `orders?since=`.
@@ -487,7 +511,7 @@ Admin: «Restoran sozlamalari → Umumiy» → **«Mijoz sahifasi»** bloki (`co
 | `moduleOff` | 403 | modul o'chiq |
 | `noPermission` | 403 | huquq yo'q (`{label}` — huquq nomi) |
 | `badInput`, `badBranch`, `badQty`, `badModifiers`, `badSettings`, `badColor`, `badUrl`, `badModifierGroups`, `voidReasonRequired`, `tooManyItems`, `discountTooBig`, `underpaid`, `overpaidCard`, `overpaid`, `nothingToSend`, `nothingToPay`, `emptyOrder` | 400 | kirish/biznes qoidasi |
-| `orderNotFound`, `tableNotFound`, `hallNotFound`, `stationNotFound`, `productNotFound`, `itemNotFound`, `waiterNotFound`, `qrUnavailable` | 404 | topilmadi yoki ko'rish huquqi yo'q (ma'lumot sizmasin) |
+| `orderNotFound`, `tableNotFound`, `hallNotFound`, `stationNotFound`, `printJobNotFound`, `productNotFound`, `itemNotFound`, `waiterNotFound`, `qrUnavailable` | 404 | topilmadi yoki ko'rish huquqi yo'q (ma'lumot sizmasin) |
 | `tableBusy`, `tableNumberTaken`, `conflict`, `orderClosed`, `orderLocked`, `notPrecheck`, `badTransition`, `itemPaid`, `hasActiveItems`, `hasPayments`, `hallHasTables`, `tableHasOrder`, `pendingItems`, `stopListed`, `outOfStock`, `sendFailed` | 409 | holat ziddiyati (`sendFailed` → `details.failed[]`, `badTransition` → `details.skipped[]`) |
 | `rateLimited` | 429 | `Retry-After` sarlavhasi bilan |
 | `failed` | 500 | kutilmagan xato (log yozilgan) |
@@ -505,6 +529,7 @@ Admin: «Restoran sozlamalari → Umumiy» → **«Mijoz sahifasi»** bloki (`co
 | `tables` | taxta holatlari, chaqiruvlar | sahifa matnlari |
 | `order` | amal tugmalari, hisob qatorlari, natija xabarlari | ekran matnlari |
 | `kitchen` | KDS tugmalari, ustunlar, stop-list | ekran matnlari |
+| `print` | printer stansiyasi, varaq matnlari, sozlash yo'riqnomasi | — |
 | `qrMenu` | mijoz sahifasi asosiy matnlari | qolganlari |
 | `reports` | vaqt hisoboti sarlavhalari | jadval matnlari |
 
@@ -522,6 +547,9 @@ Boshqa lug'atlarga qo'shildi: `d.catalog.features.{tables,kitchen,qrMenu}`, `d.c
   bo'lib to'lash, `payId` takrori, Sale qatorlari, kassa smenasi (naqd + UzQR), saboy qadoq, mijoz QR, o'tkazish, parallel stol ochish, rollar.
 
 - `npx vitest run tests/kitchenKds.test.ts` — KDS mantiqi (birlashtirish, bekor/kamaygan taom, «Tayyor» ustuni).
+- `npx vitest run tests/kitchenPrint.test.ts` — oshxona printeri: varaqlarga ajratish, olish sharti, eskirgan varaq, varaq render, Chrome buyrug'i.
+- `MONGO_TEST_URI=mongodb://127.0.0.1:27019 npx vitest run tests/kitchenPrintFlow.test.ts` — yuborish → varaq, bitta qurilma oladi,
+  muddat o'tgach boshqasiga, bekor varag'i, NUSXA + audit, eskirgan varaq, huquq va filial chegarasi.
 - `MONGO_TEST_URI=mongodb://127.0.0.1:27019 npx vitest run tests/restaurantMenu.test.ts` — menyu va ombor (§2a): `isOnMenu`,
   retsept birliklari (g ↔ kg, 3 xona), tannarx/foyda/porsiya, `parseDishInput` (NoSQL injection); migratsiya (texkarta,
   xizmat, stansiyali, sotilgan → menyu; xom ashyo → ombor; takror — egasining tanlovi saqlanadi), mijoz menyusida xom ashyo
@@ -534,7 +562,7 @@ Boshqa lug'atlarga qo'shildi: `d.catalog.features.{tables,kitchen,qrMenu}`, `d.c
 
 ## 13. Keyingi bosqich (backendda hali yo'q)
 
-Fiskal chek (virtual kassa hamkor), stansiya printeri (TCP 9100 / Print Agent), SSE/Redis real vaqt, kurslar, bron,
+Fiskal chek (virtual kassa hamkor), tarmoq printeri agenti (TCP 9100, `printerIp`; brauzer printer stansiyasi — §7a, bor), SSE/Redis real vaqt, kurslar, bron,
 choychaqa, agregatorlar, PIN-kirish (`User.pinHash` — planshet rejimi: qurilmani ishonchli qilish va bekor qilish
 mexanizmi, sessiya almashish/avto-qulf kerak; hozircha qilinmadi), ofitsant KPI sahifasi, mobil oflayn navbat (`clientItemId` tayyor).
 

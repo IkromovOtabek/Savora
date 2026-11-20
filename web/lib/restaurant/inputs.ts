@@ -171,6 +171,8 @@ export function restaurantSchemas(e: Errors) {
       kind: zOneOf(STATION_KINDS, bad),
       branchId: zOptId(e.badBranch),
       printerIp: zOptText(64, bad),
+      /** Yuborilmasa — o'zgarmaydi */
+      printEnabled: zOptBool(),
       sort: zOptNum(bad, 0, 10_000, { int: true }),
       active: zOptBool(),
     }),
@@ -182,6 +184,15 @@ export function restaurantSchemas(e: Errors) {
     }),
     stopList: z.object({ productId: zId(e.productNotFound), stopped: zOptBool().transform((b) => !!b) }),
     id: z.object({ id: zId(bad) }),
+    /** Printer stansiyasi so'rovi (POST /api/restaurant/print): qurilma kaliti majburiy */
+    printPoll: z.object({
+      branchId: zOptId(e.badBranch),
+      stationId: zOptId(e.stationNotFound),
+      deviceId: zOptClientId(bad).refine((v) => !!v, bad).transform((v) => v as string),
+      claim: zOptBool().transform((b) => !!b),
+    }),
+    /** Varaq amali (POST /api/restaurant/print/<id>) */
+    printOp: z.object({ op: zOneOf(['done', 'reprint'] as const, bad) }),
     /** Polling so'rovi parametrlari (GET ?branchId=&stationId=&since=) */
     query: z.object({
       branchId: zOptId(e.badBranch),

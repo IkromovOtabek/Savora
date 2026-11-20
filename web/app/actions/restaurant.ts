@@ -255,7 +255,7 @@ export async function regenerateTableQrAction(id: string): Promise<ActionResult<
   return toAction(r, t.settings.qrRegenerated);
 }
 
-export async function saveStationAction(input: { id?: string; name: string; kind: StationKind; branchId?: string; printerIp?: string; sort?: number; active?: boolean }): Promise<ActionResult<{ id: string }>> {
+export async function saveStationAction(input: { id?: string; name: string; kind: StationKind; branchId?: string; printerIp?: string; printEnabled?: boolean; sort?: number; active?: boolean }): Promise<ActionResult<{ id: string }>> {
   const { ctx, s, t } = await prep();
   const p = parseInput(s.station, input, t.errors.badInput);
   if (!p.ok) return invalid(p.error);

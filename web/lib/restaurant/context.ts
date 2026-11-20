@@ -13,7 +13,7 @@ import { tr } from '../i18n/fmt';
 export type TenantModels = Awaited<ReturnType<typeof getTenantModels>>;
 export type RestaurantModels = Pick<
   TenantModels,
-  'Order' | 'Table' | 'Hall' | 'KitchenStation' | 'Product' | 'Sale' | 'User' | 'Branch' | 'ShopSettings' | 'ProductCategory'
+  'Order' | 'Table' | 'Hall' | 'KitchenStation' | 'PrintJob' | 'Product' | 'Sale' | 'User' | 'Branch' | 'ShopSettings' | 'ProductCategory'
 >;
 
 export interface RestaurantCtx {
@@ -50,6 +50,7 @@ const HTTP_STATUS: Partial<Record<RestaurantErrorCode, number>> = {
   tableNotFound: 404,
   hallNotFound: 404,
   stationNotFound: 404,
+  printJobNotFound: 404,
   productNotFound: 404,
   itemNotFound: 404,
   waiterNotFound: 404,
