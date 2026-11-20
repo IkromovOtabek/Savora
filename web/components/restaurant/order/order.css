@@ -606,7 +606,14 @@ a.rt-cash-warn:hover b { opacity: .9; }
   .rt-cash-foot {
     position: sticky; z-index: 6; bottom: calc(var(--t-tabbar-h, 58px) + env(safe-area-inset-bottom, 0px));
     border-radius: 0 0 20px 20px; box-shadow: 0 -10px 24px -18px rgba(0, 0, 0, .45);
+    gap: 8px; padding: 10px 14px 12px;
   }
+  /* Yopishqoq pastki panel ixcham: faqat «To'lanadi» va tugmalar — taomlar ro'yxatini yopib qo'ymasin
+     (oraliq summa, xizmat haqi va chegirma — to'lov oynasida to'liq ko'rinadi) */
+  .rt-cash-foot .rt-sum > div:not(.rt-sum-total), .rt-cash-foot > p { display: none; }
+  .rt-cash-foot .rt-sum-total dd { font-size: 22px; }
+  .rt-cash-foot .rt-foot-acts .btn { min-height: 52px; }
+  .rt-cash-foot .rt-cash-open { min-height: 32px; padding-block: 2px; }
 }
 @media (max-width: 640px) {
   .rt-viewbar .rt-seg { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); width: 100%; }

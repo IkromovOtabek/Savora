@@ -108,13 +108,14 @@ export async function checkStockAfterSend(
     const more = await m.Product.find({ _id: { $in: missing } }).select('trackQuantity quantity soldQuantity status kind').lean<Lean[]>();
     for (const p of more) available.set(String(p._id), stockAvailable(p));
   }
-  const alerts: { id: string; name: string; portions: number }[] = dishes
+  // `goods` — tayyor tovar: matnda «porsiya» emas, ombordagi qoldiq (birligi bilan) ko'rsatiladi
+  const alerts: { id: string; name: string; portions: number; goods?: { unit: string | null } }[] = dishes
     .map((p) => ({ id: String(p._id), name: p.name, portions: dishPortions(p.bundleItems, available) }));
   // Menyudagi tayyor tovar (ichimlik, non): porsiya = qoldiq (minimal qoldiq xabari bo'lsa — takrorlanmaydi)
   for (const p of stockDocs) {
     if (p.kind === 'bundle' || isStockless(p) || !sentIds.includes(String(p._id))) continue;
     if (!isOnMenu(p) || p.stopListed || lowIds.has(String(p._id))) continue;
-    alerts.push({ id: String(p._id), name: p.name, portions: Math.floor(available.get(String(p._id)) ?? 0) });
+    alerts.push({ id: String(p._id), name: p.name, portions: Math.floor(available.get(String(p._id)) ?? 0), goods: { unit: p.unit ?? null } });
   }
   for (const a of alerts) {
     if (a.portions > lowPortions) continue;
@@ -122,7 +123,7 @@ export async function checkStockAfterSend(
     await notify(org, {
       ...base,
       kind: 'dishLow',
-      params: { dish: a.name, portions: a.portions, ...extra },
+      params: { dish: a.name, portions: a.portions, ...(a.goods ? { goods: 1, unit: a.goods.unit } : {}), ...extra },
       url: '/app/menu',
       dedupeKey: `dishLow:${a.id}:${a.portions === 0 ? 'out' : 'low'}`,
     });

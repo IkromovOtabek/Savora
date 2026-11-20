@@ -127,8 +127,11 @@ export function notifyText(d: Dict, kind: string, params: NotifyParams): { title
       };
     case 'dishLow': {
       const portions = num(p.portions);
-      if (!(portions > 0)) return { title: tr(t.dishOut.title, { dish: str(p.dish) }), body: t.dishOut.body + branch };
-      return { title: tr(t.dishLow.title, { dish: str(p.dish) }), body: tr(t.dishLow.body, { portions }) + branch };
+      // `goods` — tayyor tovar (ichimlik, non): porsiya emas, ombordagi qoldiq
+      const goods = num(p.goods) === 1;
+      if (!(portions > 0)) return { title: tr(t.dishOut.title, { dish: str(p.dish) }), body: (goods ? t.dishOut.goodsBody : t.dishOut.body) + branch };
+      const body = goods ? tr(t.dishLow.goodsBody, { qty: qtyText(d, portions, p.unit) }) : tr(t.dishLow.body, { portions });
+      return { title: tr(t.dishLow.title, { dish: str(p.dish) }), body: body + branch };
     }
     case 'reservationSoon': {
       const who = { name: str(p.name), guests: str(p.guests) };
