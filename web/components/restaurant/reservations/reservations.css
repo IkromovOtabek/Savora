@@ -1,0 +1,118 @@
+/* ==========================================================================
+   BRONLAR — /app/restaurant/reservations   ·   Prefiks: rsv- (umumiy tugma/oynalar — order.css dagi rt-)
+   Faqat globals.css tokenlari (Kun / Tun / Qora). Planshet birinchi, telefon 375px.
+   Bosish maydonlari ≥ 44px; tugmalar tekis (3D emas).
+   ========================================================================== */
+
+.rsv-head { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
+.rsv-head .t-page-title { margin: 0; }
+.rsv-new { min-height: 48px; padding-inline: 18px; }
+
+/* Kun almashtirgich */
+.rsv-days { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 18px; }
+.rsv-days .rt-seg button { min-height: 44px; }
+.rsv-arrow {
+  width: 44px; height: 44px; display: grid; place-items: center; flex: none; border: 0; border-radius: 12px;
+  background: var(--fill-2); color: var(--ink-1); cursor: pointer;
+}
+.rsv-arrow:hover { background: var(--fill); }
+.rsv-arrow:focus-visible { outline: 3px solid var(--brand-ring); outline-offset: 1px; }
+.rsv-date { width: auto; min-height: 44px; max-width: 170px; }
+.rsv-branch { width: auto; min-height: 44px; max-width: 220px; }
+
+/* Ro'yxat */
+.rsv-hour { display: flex; align-items: center; gap: 10px; margin: 18px 0 8px; font-size: 15px; font-weight: 750; color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.rsv-hour::after { content: ''; flex: 1; height: 1px; background: var(--sep); }
+.rsv-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.rsv-card {
+  display: grid; grid-template-columns: 76px 1fr auto; gap: 4px 14px; align-items: start;
+  padding: 14px 16px; border-radius: 18px; background: var(--surface); box-shadow: var(--shadow-sm);
+  border-left: 4px solid var(--brand);
+}
+.rsv-card[data-status="seated"] { border-left-color: var(--accent); }
+.rsv-card[data-status="cancelled"], .rsv-card[data-status="no_show"] { border-left-color: var(--fill-3); opacity: .72; }
+.rsv-card[data-late] { border-left-color: var(--warn); }
+.rsv-time { display: grid; gap: 2px; font-variant-numeric: tabular-nums; }
+.rsv-time b { font-size: 22px; font-weight: 800; letter-spacing: -.02em; line-height: 1.1; }
+.rsv-time small { font-size: 13px; color: var(--ink-3); font-weight: 600; }
+.rsv-main { display: grid; gap: 4px; min-width: 0; }
+.rsv-name { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; font-size: 16.5px; font-weight: 750; }
+.rsv-meta { display: flex; flex-wrap: wrap; gap: 4px 12px; color: var(--ink-2); font-size: 14px; font-weight: 600; }
+.rsv-meta a { color: var(--brand); text-decoration: none; font-variant-numeric: tabular-nums; }
+.rsv-meta a:hover { text-decoration: underline; }
+.rsv-table { color: var(--ink-1); font-weight: 800; }
+.rsv-items { margin: 2px 0 0; font-size: 13.5px; color: var(--ink-2); line-height: 1.45; }
+.rsv-note { margin: 0; padding: 6px 10px; border-radius: 10px; background: var(--fill-2); color: var(--ink-2); font-size: 13.5px; line-height: 1.4; }
+.rsv-by { margin: 0; font-size: 12.5px; color: var(--ink-3); }
+.rsv-actions { display: flex; flex-direction: column; align-items: stretch; gap: 6px; min-width: 132px; }
+.rsv-actions .btn { min-height: 44px; justify-content: center; }
+.rsv-actions-row { display: flex; gap: 6px; }
+.rsv-actions-row .btn { flex: 1; min-width: 0; padding-inline: 8px; }
+.rsv-tag--late { background: var(--warn-soft); color: var(--warn); }
+.rsv-tag--seated { background: var(--accent-soft); color: var(--accent); }
+.rsv-tag--off { background: var(--fill); color: var(--ink-3); }
+.rsv-empty { min-height: 220px; display: grid; place-items: center; align-content: center; gap: 8px; text-align: center; color: var(--ink-2); }
+.rsv-empty b { font-size: 17px; color: var(--ink-1); }
+
+/* Forma */
+.rsv-form, .rt-modal .rsv-form { display: grid; gap: 14px; padding: 0; }
+.rsv-sec { display: grid; gap: 8px; }
+.rsv-two { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.rsv-two label { display: grid; gap: 6px; }
+.rsv-two .input { min-height: 48px; font-size: 16px; }
+.rsv-picked {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  padding: 10px 12px; border-radius: 14px; background: var(--brand-soft); color: var(--ink-1);
+}
+.rsv-picked b { display: block; font-size: 15.5px; }
+.rsv-picked small { color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.rsv-hits { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.rsv-hit {
+  width: 100%; min-height: 48px; display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  padding: 8px 12px; border: 0; border-radius: 12px; background: var(--fill-2); color: var(--ink-1);
+  font: inherit; font-weight: 650; text-align: left; cursor: pointer;
+}
+.rsv-hit:hover { background: var(--fill); }
+.rsv-hit small { color: var(--ink-2); font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.rsv-hours { display: flex; gap: 6px; overflow-x: auto; padding: 2px 2px 6px; scrollbar-width: thin; }
+.rsv-hours .rt-chip { flex: none; min-width: 52px; font-variant-numeric: tabular-nums; }
+.rsv-when { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.rsv-chip-off { opacity: .55; }
+.rsv-chip-tag { display: block; font-size: 10.5px; font-weight: 700; opacity: .85; }
+.rsv-lines { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.rsv-line { display: grid; gap: 8px; padding: 10px 12px; border-radius: 14px; background: var(--fill-2); }
+.rsv-line-top { display: flex; align-items: center; gap: 10px; }
+.rsv-line-top b { flex: 1; min-width: 0; font-size: 15px; }
+.rsv-line .rt-qty button { width: 40px; height: 40px; }
+.rsv-line .input { min-height: 42px; font-size: 15px; }
+.rsv-x {
+  width: 40px; height: 40px; flex: none; display: grid; place-items: center; border: 0; border-radius: 10px;
+  background: transparent; color: var(--danger); cursor: pointer;
+}
+.rsv-x:hover { background: var(--danger-soft); }
+.rsv-mgroup { display: grid; gap: 6px; }
+.rsv-mgroup span { font-size: 13px; font-weight: 700; color: var(--ink-2); }
+.rsv-mgroup .rt-chip { min-height: 38px; font-size: 14px; }
+.rsv-mgroup[data-bad] span { color: var(--danger); }
+.rsv-menu { display: grid; gap: 8px; }
+.rsv-dishes { list-style: none; margin: 0; padding: 2px; display: grid; gap: 6px; max-height: 260px; overflow-y: auto; }
+.rsv-dish {
+  width: 100%; min-height: 48px; display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  padding: 8px 12px; border: 0; border-radius: 12px; background: var(--surface); box-shadow: var(--shadow-sm);
+  color: var(--ink-1); font: inherit; font-weight: 650; text-align: left; cursor: pointer;
+}
+.rsv-dish:hover:not(:disabled) { background: var(--fill-2); }
+.rsv-dish:disabled { cursor: not-allowed; opacity: .55; }
+.rsv-dish small { color: var(--ink-2); font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+@media (max-width: 640px) {
+  .rsv-head { align-items: stretch; }
+  .rsv-new { width: 100%; }
+  .rsv-card { grid-template-columns: 62px 1fr; padding: 12px 14px; }
+  .rsv-time b { font-size: 19px; }
+  .rsv-actions { grid-column: 1 / -1; min-width: 0; flex-direction: row; flex-wrap: wrap; }
+  .rsv-actions > .btn { flex: 1 1 120px; }
+  .rsv-actions-row { flex: 1 1 100%; }
+  .rsv-two { grid-template-columns: 1fr; }
+  .rsv-date { max-width: none; flex: 1; }
+}

@@ -69,6 +69,8 @@ export const PERMISSION_KEYS = [
   'kitchen.bump',
   'menu.stopList',
   'tables.manage',
+  // Restoran bronlari (5-versiya)
+  'reservation.manage',
   // Ishlab chiqarish va kirim (4-versiya): texkarta, ishlab chiqarish akti, tannarx, kirim akti, xarid, ishbay
   'production.view',
   'production.manage',
@@ -249,6 +251,9 @@ export const PERMISSIONS: Record<PermissionKey, PermissionDef> = {
   'kitchen.bump': P('kitchen.bump', 'kitchen', 'Taom holatini belgilash', "«Boshlandi», «Tayyor» (oshpaz, barmen)", { feature: 'kitchen', legacy: 'sale.create', since: 3 }),
   'menu.stopList': P('menu.stopList', 'kitchen', 'Stop-list', "Tugagan taomni menyudan vaqtincha olib qo'yish va qaytarish", { feature: 'tables', legacy: 'sale.create', since: 3 }),
   'tables.manage': P('tables.manage', 'restaurant', 'Zal va stollar sozlamasi', "Zallar, stollar, QR-kodlar, stansiyalar, xizmat haqi va brend", { feature: 'tables', since: 3 }),
+  // Bron — 5-versiya (docs/RESTORAN_API.md §18). Ilgari barcha buyurtmalarni ko'ra olgan xodimga (kassir, administrator) meros;
+  // ofitsant (faqat order.create) bron yarata olmaydi, lekin ro'yxatni ko'radi va «Keldi» qila oladi.
+  'reservation.manage': P('reservation.manage', 'tables', 'Bronlar', "Stol bron qilish, tahrirlash, bekor qilish, «Kelmadi» belgisi", { feature: 'tables', legacy: 'order.viewAll', since: 5 }),
 
   // Ishlab chiqarish va kirim — 4-versiya (docs/SEX_API.md). Ko'rish ilgari omborni ko'ra olganga, tannarx — kelish
   // narxini ko'ra olganga, kirim akti — mahsulot qo'sha olganga (ilgari kirim + yetkazib beruvchi qarzi mahsulot formasida
@@ -272,9 +277,10 @@ export const PERMISSIONS: Record<PermissionKey, PermissionDef> = {
  * Huquqlar katalogi versiyasi. Saqlangan ro'yxat eski versiyada bo'lsa — o'sha versiyadan keyin qo'shilgan
  * kalitlar `legacy` qoidasi bilan qo'shiladi.
  *   2 — sahifalar bo'yicha bo'lingan huquqlar; 3 — restoran (order.*, kitchen.*, menu.stopList, tables.manage);
- *   4 — ishlab chiqarish va kirim (production.*, recipe.manage, receipt.create, po.manage, piecework.*).
+ *   4 — ishlab chiqarish va kirim (production.*, recipe.manage, receipt.create, po.manage, piecework.*);
+ *   5 — restoran bronlari (reservation.manage).
  */
-export const PERMISSIONS_VERSION = 4;
+export const PERMISSIONS_VERSION = 5;
 
 /** `since` ko'rsatilmagan legacy huquqlar 2-versiyada qo'shilgan */
 const DEFAULT_SINCE = 2;
@@ -321,6 +327,7 @@ export const ROLE_DEFAULT_PERMISSIONS: Record<TenantRole, readonly PermissionKey
     'kitchen.view',
     'kitchen.bump',
     'menu.stopList',
+    'reservation.manage',
     // Sex kundalik ishlari (modul yoqilmagan do'konda amalda kesiladi); tannarx — kelish narxi kabi
     'production.view',
     'production.viewCost',

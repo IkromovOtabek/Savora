@@ -31,8 +31,9 @@ import { productionOrderSchema, IProductionOrder } from './models/tenant/Product
 import { goodsReceiptSchema, IGoodsReceipt } from './models/tenant/GoodsReceipt';
 import { purchaseOrderSchema, IPurchaseOrder } from './models/tenant/PurchaseOrder';
 import { pieceworkEntrySchema, IPieceworkEntry } from './models/tenant/PieceworkEntry';
+import { reservationSchema, IReservation } from './models/tenant/Reservation';
 
-const TENANT_MODELS_VERSION = 22;
+const TENANT_MODELS_VERSION = 23;
 
 type TenantModelsMap = Map<string, ReturnType<typeof registerModels>>;
 const globalForTenant = global as unknown as { _savdoproTenantCache?: TenantModelsMap };
@@ -88,6 +89,8 @@ function registerModels(conn: import('mongoose').Connection) {
     (conn.models.KitchenStation as Model<IKitchenStation>) || conn.model<IKitchenStation>('KitchenStation', kitchenStationSchema);
   const Order = (conn.models.Order as Model<IOrder>) || conn.model<IOrder>('Order', orderSchema);
   const PrintJob = (conn.models.PrintJob as Model<IPrintJob>) || conn.model<IPrintJob>('PrintJob', printJobSchema);
+  const Reservation =
+    (conn.models.Reservation as Model<IReservation>) || conn.model<IReservation>('Reservation', reservationSchema);
   // Ishlab chiqarish va kirim (lib/production, docs/SEX_API.md)
   const Recipe = (conn.models.Recipe as Model<IRecipe>) || conn.model<IRecipe>('Recipe', recipeSchema);
   const ProductionOrder =
@@ -98,7 +101,7 @@ function registerModels(conn: import('mongoose').Connection) {
     (conn.models.PurchaseOrder as Model<IPurchaseOrder>) || conn.model<IPurchaseOrder>('PurchaseOrder', purchaseOrderSchema);
   const PieceworkEntry =
     (conn.models.PieceworkEntry as Model<IPieceworkEntry>) || conn.model<IPieceworkEntry>('PieceworkEntry', pieceworkEntrySchema);
-  return { conn, User, Branch, Product, Customer, Sale, CreditBank, BankReceipt, CashFlow, Transfer, AuditLog, LedgerEntry, Task, AiReport, Supplier, SupplierEntry, CashShift, StockAdjustment, FinanceCategory, Role, ShopSettings, ProductCategory, Brand, Hall, Table, KitchenStation, Order, PrintJob, Recipe, ProductionOrder, GoodsReceipt, PurchaseOrder, PieceworkEntry };
+  return { conn, User, Branch, Product, Customer, Sale, CreditBank, BankReceipt, CashFlow, Transfer, AuditLog, LedgerEntry, Task, AiReport, Supplier, SupplierEntry, CashShift, StockAdjustment, FinanceCategory, Role, ShopSettings, ProductCategory, Brand, Hall, Table, KitchenStation, Order, PrintJob, Reservation, Recipe, ProductionOrder, GoodsReceipt, PurchaseOrder, PieceworkEntry };
 }
 
 /**

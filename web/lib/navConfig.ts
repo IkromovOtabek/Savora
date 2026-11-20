@@ -57,6 +57,7 @@ export const NAV_ICONS: Record<string, IconName> = {
   '/app/kitchen': 'utensils',
   '/app/restaurant': 'qr',
   '/app/restaurant/reports': 'utensils',
+  '/app/restaurant/reservations': 'clock',
   '/app/production': 'building',
   '/app/production/recipes': 'clipboard',
   '/app/receipts': 'download',
@@ -118,6 +119,8 @@ export const NAV_GROUPS: NavGroup[] = [
       // Restoran menyusi: taomlar, retsept (xom ashyo — Omborda); ofitsant/oshpaz — faqat stop-list
       { href: '/app/menu', label: 'Menyu', feature: 'tables', anyPermission: ['product.create', 'product.edit', 'menu.stopList'] },
       { href: '/app/tables', label: 'Stollar', feature: 'tables', permission: 'order.create' },
+      // Bronlar: ro'yxat va «Keldi» — ofitsant ham; yaratish — reservation.manage (docs/RESTORAN_API.md §18)
+      { href: '/app/restaurant/reservations', label: 'Bronlar', feature: 'tables', anyPermission: ['reservation.manage', 'order.create'] },
       { href: '/app/kitchen', label: 'Oshxona', feature: 'kitchen', permission: 'kitchen.view' },
       { href: '/app/sales', label: 'Sotuvlar', feature: 'sales', permission: 'sales.view' },
       { href: '/app/kassa', label: 'Naqd kassa', feature: 'kassa', permission: 'kassa.view' },

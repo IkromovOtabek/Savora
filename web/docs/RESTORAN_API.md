@@ -66,6 +66,7 @@ Super Admin istalgan do'konda qo'lda yoqishi mumkin.
 | `kitchen.bump` | Taom holatini belgilash | kitchen | ✓ | bump cooking/ready (served ham) |
 | `menu.stopList` | Stop-list | tables | ✓ | setStopList |
 | `tables.manage` | Zal va stollar sozlamasi | tables | — | setup.* (zal, stol, QR, stansiya, sozlamalar) |
+| `reservation.manage` | Bronlar | tables | ✓ | bron yaratish, tahrirlash, bekor qilish, «Kelmadi», mijoz qidiruvi, bron formasi (§18). **5-versiya** (`since: 5`, `legacy: 'order.viewAll'`); ro'yxat va «Keldi» — `order.create` ham yetarli |
 
 Bog'liq mavjud huquqlar: to'lov — `sale.create`; chegirma — `sale.discount`; taomning stansiya/modifikator/MXIK
 maydonlari — `product.edit`; vaqt hisoboti — `reports.view`.
@@ -617,4 +618,117 @@ _(to'ldiriladi)_
 
 ## 18. Bron
 
-_(to'ldiriladi)_
+Oldindan stol band qilish: mijoz, vaqt, mehmonlar, stol, oldindan taomlar. Mantiq — `lib/restaurant/reservations.ts`
+(`RestaurantCtx` bilan), sof qoidalar (client'da ham) — `reservationRules.ts`, zod — `reservationInputs.ts`, eslatma cron'i —
+`reservationReminders.ts`, model — `lib/models/tenant/Reservation.ts` (`reservations`). Lug'at — `d.reservations`
+(web `lib/i18n/dict/reservations.ts`, mobil `mobile/lib/i18n.tsx` → `reservations`). Testlar: `tests/reservationRules.test.ts`
+(bazasiz), `tests/reservations.test.ts` (MongoDB), `mobile/tests/reservationTime.test.mjs`.
+
+### Model `Reservation`
+```
+branchId, tableId, tableNumber, hallId, customerId?, customerName, customerPhone, guests (1–100)
+startAt (lahza), durationMin (30–480, 15 qadam; standart 120), endAt (= startAt + durationMin — ustma-ust so'rovi uchun)
+items [{ productId, name, qty, note?, optionIds?, options? (variant nomlari) }]  — narx saqlanmaydi
+note?, status: booked | seated | cancelled | no_show
+orderId?, seatedAt/By, cancelledAt/By/Reason, noShowAt/By, remindedAt?, createdBy, updatedBy?, timestamps
+```
+Indekslar: `{branchId,startAt}`, `{tableId,startAt}`, `{status,startAt}` (eslatma cron'i).
+
+### Qoidalar (backend kafolatlaydi)
+1. **Vaqt — Toshkent (UTC+5)**, server/telefon vaqt zonasidan mustaqil: kirish `date: 'YYYY-MM-DD'` + `time: 'HH:MM'` (15 daqiqa
+   qadam); javobda `day`, `time`, `endTime` tayyor satr — client vaqt zonasini hisoblamaydi.
+2. **Ustma-ust yo'q:** bir stolda vaqt oralig'i kesishgan `booked|seated` bron bo'lmaydi (tutashgan — mumkin: 18–20 va 20–22).
+   Bekor qilingan va «Kelmadi» bronlar stolni band qilmaydi. Parallel so'rovlarda ham: yozuvdan keyin qayta tekshiriladi —
+   yaratishda kechroq yozilgani o'chiriladi, tahrirda o'zgarish qaytariladi → `reservationOverlap` (stol, band vaqt, mijoz ismi).
+3. **Vaqt chegarasi:** o'tgan vaqtga — yo'q (15 daqiqa chegara: hozirgina qo'ng'iroq qilgan mijoz), bir yildan uzoqqa — yo'q.
+   Tahrirda vaqt o'zgarmagan bo'lsa (kechikayotgan bronning izohi/taomi) — tekshirilmaydi.
+4. **Stol** faol, shu filialda (filial xodimi — faqat o'z filiali; egasi `branchId` bersa — stol o'sha filialda; tahrirda filial o'zgarmaydi).
+5. **Oldindan taomlar** — `ops.prepareItems` bilan (buyurtma bilan bir xil): menyuda (`isOnMenu`), stop-listda emas, miqdor,
+   majburiy modifikatorlar; ≤ 30 qator.
+6. **Mijoz:** `customerId` (qidiruvdan) yoki `customerName` + `customerPhone`. Telefon: O'zbekiston — to'liq 9 raqam
+   («+998 90 123 45 67» ko'rinishiga), xorijiy — «+» bilan 8–15 raqam. Telefon bo'yicha mavjud `Customer` topilsa — bog'lanadi
+   (ismi ustidan yozilmaydi), bo'lmasa yangisi yaratiladi (POS qarz sotuvi kabi — `customers.manage` shart emas). Mijoz faqat
+   boshqa tekshiruvlardan keyin yaratiladi.
+7. **«Keldi» (seat):** `ops.openOrder({ type: 'dine_in', tableId, guests, clientOrderId: 'res-<id>', items })` — taomlar `new`
+   holatida (ofitsant oshxonaga yuboradi), bron `seated` + `orderId`. Stolda boshqa ochiq buyurtma bo'lsa — `tableBusy`.
+   Takroriy «Keldi» — o'sha buyurtma (`existing: true`), ikkinchisi ochilmaydi. Taom endi menyuda bo'lmasa (stop-list, menyudan
+   olingan) — stol baribir ochiladi, o'sha taomlar `skipped[]` da. Faqat `reservation.manage` bo'lgan xodim ham stolni ocha oladi
+   (shu amal uchun `order.create` beriladi); buyurtma ofitsanti — «Keldi» bosgan xodim (kerak bo'lsa `order.transfer`).
+   Boshlanishiga 3 soatdan ko'p bo'lsa — `reservationTooEarly` (ertangi bronni adashib ochmaslik uchun).
+8. **«Kelmadi»** — faqat boshlanish vaqti kelgach (`reservationNotStarted`). Faqat `booked` bron o'zgaradi (`reservationClosed`).
+9. **Audit** (`entity: 'order'`, `entityId` — bron id): `reservation.create|update|cancel|seat|noShow`, izoh «Bron: stol 5,
+   2026-11-21 19:00, Aziz (4 kishi)…».
+
+### Huquqlar
+| Amal | Huquq |
+|---|---|
+| Ro'yxat, bitta bron, «Keldi» | `order.create` **yoki** `reservation.manage` |
+| Yaratish, tahrirlash, bekor qilish, «Kelmadi», bo'sh stollar, mijoz qidiruvi, forma ma'lumoti | `reservation.manage` |
+
+Modul — `tables`. Rol shablonlari: «Administrator», «Kassir (restoran)» — `reservation.manage` bor; «Ofitsant» — yo'q
+(ro'yxatni ko'radi, «Keldi» qiladi). Filial standarti (`ROLE_DEFAULT_PERMISSIONS.user`) — bor. v4 aniq ro'yxatlarga meros:
+`order.viewAll` bo'lsa beriladi.
+
+### Funksiyalar (`lib/restaurant/reservations.ts`)
+Natija — `ResResult<T>` (`OpResult` shakli; xato kodi `d.restaurant.errors` yoki `d.reservations.errors` kaliti).
+| Funksiya | Kirish | `data` |
+|---|---|---|
+| `listReservations(ctx, { date?, branchId? })` | sana yo'q — bugun | `ReservationsDay`: `{ serverTime, date, today, branchId, branches, items: ReservationView[], counts: { booked, seated, cancelled, no_show, guests }, can: { manage, seat } }` |
+| `getReservation(ctx, id)` | | `{ reservation }` |
+| `reservationForm(ctx, { branchId? })` | | `{ branchId, branches, halls[{id,name}], tables[{id,number,seats,hallId}], menu: { categories, items: MenuItemView[] } }` |
+| `freeTables(ctx, branchId, startAt, durationMin, guests, { excludeId? })` | | `FreeTable[]` = `{ id, number, seats, hallId, hallName, fits, busyNow }` — sig'adiganlari birinchi (o'rindig'i kamrog'i oldin), keyin sig'maydiganlar; `busyNow` — hozir ochiq buyurtma (bron 2 soat ichida bo'lsa) |
+| `searchReservationCustomers(ctx, q)` | 2+ belgi; 3+ raqam — telefon (oxirgi raqamlar, formatdan qat'i nazar), aks holda ism | `[{ id, name, phone }]` (≤ 8) |
+| `createReservation(ctx, input)` | `ReservationInput`: `{ branchId?, tableId, date, time, durationMin?, guests, customerId?, customerName?, customerPhone?, items?: [{ productId, qty, optionIds?, note? }], note? }` | `{ reservation }` |
+| `updateReservation(ctx, id, input)` | to'liq almashtirish; vaqt o'zgarsa `remindedAt` tozalanadi | `{ reservation }` |
+| `cancelReservation(ctx, id, reason?)` | | `{ reservation }` |
+| `markNoShow(ctx, id)` | | `{ reservation }` |
+| `seatReservation(ctx, id)` | | `SeatResult`: `{ reservation, orderId, order: OrderView \| null (takrorda null), skipped: [{ name, message }], existing }` |
+| **`upcomingByTable(ctx, branchId, now = new Date(), windowMin = 60)`** | stollar taxtasi uchun | `Record<tableId, { id, startAt (ISO), time ('HH:MM'), customerName, guests, late }>` — har stolda eng yaqin `booked` bron: boshlanishiga ≤ `windowMin` daqiqa qolgan yoki boshlanganiga ≤ 30 daqiqa (kechikayotgan mehmon, `late` — 15 daqiqadan oshgan). Modul o'chiq / huquq yo'q (`order.create`, `order.viewAll`, `reservation.manage` dan biri) / boshqa filial — `{}` (taxta buzilmaydi) |
+
+`ReservationView = { id, branchId, tableId, tableNumber, hallId, hallName, customerId, customerName, customerPhone, guests,
+startAt, endAt, day, time, endTime, durationMin, items[{ productId, name, qty, note, optionIds, options }], note, status, late,
+orderId, seatedAt, seatedBy, cancelledAt, cancelledBy, cancelReason, noShowAt, remindedAt, createdBy, createdAt }`
+(`seatedBy/cancelledBy/createdBy` — xodim ISMI).
+
+Xato kodlari (`d.reservations.errors`): `reservationNotFound`, `customerNotFound` (404); `reservationOverlap`,
+`reservationClosed`, `reservationTooEarly`, `reservationNotStarted` (409); `reservationPast`, `reservationTooFar`, `badDate`,
+`badTime`, `badDuration`, `badGuests`, `badPhone`, `customerRequired` (400). Umumiylari — §10 (`tableNotFound`, `tableBusy`,
+`productNotFound`, `stopListed`, `badModifiers`, `noPermission`, `moduleOff`, `conflict`…).
+
+### Web
+Sahifa **`/app/restaurant/reservations`** (`app/app/restaurant/reservations/page.tsx`, `components/restaurant/reservations/*`,
+uslub `rv-*` + `order.css` dagi `rt-*`): kun almashtirgich (‹ Bugun / Ertaga › + sana; egasiga filial), soat bo'yicha ro'yxat,
+holat belgilari («Kechikmoqda», «Keldi», «Bekor qilindi», «Kelmadi»), telefon — `tel:` havola; qator amallari: «Keldi» (→
+`/app/tables/<orderId>`), «Tahrirlash», «Bekor qilish» (sabab tugmalari + matn), «Kelmadi» (vaqti kelgach). «Yangi bron» oynasi:
+mijoz (ism/telefon yozilganda mavjud mijozlar taklif qilinadi), sana, vaqt (soat tugmalari + :00/:15/:30/:45), davomiylik,
+mehmonlar, shu vaqtda bo'sh stollar (mosi birinchi; kichik / «hozir band» belgisi), oldindan taomlar (qidiruvli menyu, ±,
+modifikator, izoh), izoh. Har daqiqada jim yangilanadi. Restoran sozlamalari sarlavhasi va tablari bu sahifada ko'rinmaydi.
+Menyu: «Sotuvlar» → «Bronlar» (Stollar'dan keyin; `tables` + `reservation.manage | order.create`).
+Server action'lar — `app/actions/reservations.ts`: `reservationFreeTablesAction`, `searchReservationCustomersAction`,
+`createReservationAction`, `updateReservationAction(id, …)`, `cancelReservationAction(id, { reason? })`,
+`noShowReservationAction(id)`, `seatReservationAction(id)` — natija `ActionResult`.
+
+### Mobil API (`Authorization: Bearer`, `Accept-Language`)
+| Yo'l | Metod | Kirish | Javob |
+|---|---|---|---|
+| `/api/mobile/restaurant/reservations` | GET | `?date=YYYY-MM-DD&branchId=` | `ReservationsDay` |
+| `/api/mobile/restaurant/reservations` | POST | `ReservationInput` | 201 `{ reservation }` |
+| `/api/mobile/restaurant/reservations/form` | GET | `?branchId=` | forma ma'lumoti |
+| `/api/mobile/restaurant/reservations/free-tables` | GET | `?date&time&durationMin&guests&branchId&excludeId` | `{ tables: FreeTable[] }` |
+| `/api/mobile/restaurant/reservations/customers` | GET | `?q=` | `{ customers: [{ id, name, phone }] }` |
+| `/api/mobile/restaurant/reservations/:id` | GET | | `{ reservation }` |
+| `/api/mobile/restaurant/reservations/:id` | POST | `{ op: 'update', ...ReservationInput }` · `{ op: 'cancel', reason? }` · `{ op: 'noShow' }` · `{ op: 'seat' }` | `{ reservation }` / `SeatResult` |
+
+Ilova: `mobile/app/reservations.tsx` (kun, ro'yxat, Keldi/Bekor/Kelmadi; polling 30 s), `mobile/app/reservation-new.tsx`
+(forma; `?id=` — tahrir), bosh sahifada «Bronlar» plitkasi (`tables` + `reservation.manage | order.create`); turlar va so'rovlar —
+`mobile/lib/reservations.ts`, vaqt — `mobile/lib/reservationTime.ts`. Yangi native modul yo'q.
+
+### Eslatma (cron)
+`GET /api/cron/reservation-reminders` (`Authorization: Bearer CRON_SECRET`, `lib/cronRuns.ts`, job `reservation-reminders`,
+Super panel → Monitoring → Cron'da «Hozir» tugmasi) — **har 5 daqiqada** (`deploy/crontab.example`). Faol, `tables` moduli
+yoqiq do'konlarda boshlanishiga ≤ 30 daqiqa qolgan (cron kechiksa — boshlanganiga ≤ 10 daqiqa) va `remindedAt` yo'q `booked`
+bronlar atomik olinadi (`remindedAt = now`, ikki nusxa/ustma-ust cron takrorlamaydi), so'ng
+`notify(org, { kind: 'reservationSoon', branchId, params: { table, time, name, guests }, url: '/app/restaurant/reservations',
+audience: { anyPermission: ['reservation.manage', 'order.viewAll'], admins: true }, dedupeKey: 'res:<id>' })` (§15).
+Javob: `{ ok, orgs, sent, failed }`. Serverda sozlash — crontab'ga bitta qator (deploy egasi qo'shadi):
+`*/5 * * * * . /etc/savora-cron.env; for p in 3001 3002; do curl -fsS --max-time 120 -H "Authorization: Bearer $CRON_SECRET" http://127.0.0.1:$p/api/cron/reservation-reminders && break; done >> /var/log/savora-cron.log 2>&1`.

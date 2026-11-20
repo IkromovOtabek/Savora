@@ -6,6 +6,7 @@ import { useEffect } from 'react';
 import Icon from '@/components/icons/Icon';
 import {
   runExpireOrgsAction, runExpiryNotifyAction, runInstallmentRemindersAction, runDaftarRemindersAction, runDailySummaryAction,
+  runReservationRemindersAction,
 } from '@/app/actions/systems';
 import type { CronJob } from '@/lib/models/master/CronRun';
 
@@ -15,6 +16,7 @@ const ACTIONS: Record<CronJob, typeof runExpireOrgsAction> = {
   'installment-reminders': runInstallmentRemindersAction,
   'daftar-reminders': runDaftarRemindersAction,
   'daily-summary': runDailySummaryAction,
+  'reservation-reminders': runReservationRemindersAction,
 };
 
 /** Cron ishini paneldan qo'lda ishga tushirish; natija cron_runs'ga yoziladi va sahifa yangilanadi */

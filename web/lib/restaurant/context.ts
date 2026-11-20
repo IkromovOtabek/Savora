@@ -14,6 +14,8 @@ export type TenantModels = Awaited<ReturnType<typeof getTenantModels>>;
 export type RestaurantModels = Pick<
   TenantModels,
   'Order' | 'Table' | 'Hall' | 'KitchenStation' | 'PrintJob' | 'Product' | 'Sale' | 'User' | 'Branch' | 'ShopSettings' | 'ProductCategory'
+  // Bronlar (lib/restaurant/reservations.ts): bron va mijoz (telefon bo'yicha topish/yaratish)
+  | 'Reservation' | 'Customer'
 >;
 
 export interface RestaurantCtx {

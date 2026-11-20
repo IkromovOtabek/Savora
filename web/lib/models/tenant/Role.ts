@@ -82,22 +82,22 @@ export const RESTAURANT_ROLES: { name: string; permissions: PermissionKey[]; per
     permVersion: PERMISSIONS_VERSION,
   },
   {
-    // Mavjud «Kassir» + barcha buyurtmalar, to'lov, hisobni bo'lish
+    // Mavjud «Kassir» + barcha buyurtmalar, to'lov, hisobni bo'lish, bronlar
     name: 'Kassir (restoran)',
     permissions: [
       'sale.create', 'sales.view', 'kassa.view', 'kassa.shift', 'customers.view', 'customers.manage',
-      'debts.view', 'payment.accept', 'order.create', 'order.viewAll', 'order.split', 'tasks.view', 'profile.password',
+      'debts.view', 'payment.accept', 'order.create', 'order.viewAll', 'order.split', 'reservation.manage', 'tasks.view', 'profile.password',
     ],
     permVersion: PERMISSIONS_VERSION,
   },
   {
-    // Stol o'tkazish, bekor qilish, qayta ochish, chegirma, stollar sozlamasi, hisobotlar, hisobdan chiqarish
+    // Stol o'tkazish, bekor qilish, qayta ochish, chegirma, stollar sozlamasi, bronlar, hisobotlar, hisobdan chiqarish
     name: 'Administrator',
     permissions: [
       'sale.create', 'sale.discount', 'sales.view', 'sale.cancel', 'sale.return', 'kassa.view', 'kassa.shift',
       'products.view', 'product.edit', 'stock.writeOff', 'customers.view', 'debts.view', 'payment.accept',
       'order.create', 'order.viewAll', 'order.transfer', 'order.voidItem', 'order.split', 'order.reopen',
-      'kitchen.view', 'kitchen.bump', 'menu.stopList', 'tables.manage',
+      'kitchen.view', 'kitchen.bump', 'menu.stopList', 'tables.manage', 'reservation.manage',
       'reports.view', 'tasks.view', 'tasks.manage', 'profile.password',
     ],
     permVersion: PERMISSIONS_VERSION,
