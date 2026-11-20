@@ -28,6 +28,8 @@ import { RESTAURANT_LIMITS, type ItemStatus, type RestaurantSettings, type Table
 import { fail, ok, type OpResult, type RestaurantModels } from './context';
 import { prepareItems, restaurantSettings, type AddItemInput } from './ops';
 import { buildMenu, type MenuItemView } from './queries';
+import { notifyInBackground } from '../notify';
+import { notifyTableCall } from './tableCalls';
 
 export interface PublicTableCtx {
   org: { id: string; name: string; slug: string; dbName: string };
@@ -301,10 +303,15 @@ export async function publicPlaceOrder(c: PublicTableCtx, input: PublicOrderInpu
   return fail(d, 'conflict');
 }
 
-/** «Ofitsantni chaqirish» / «Hisob so'rash» — stolga vaqt belgisi (ofitsant stollar taxtasida ko'radi) */
+/**
+ * «Ofitsantni chaqirish» / «Hisob so'rash» — stolga vaqt belgisi (ofitsant stollar taxtasida ko'radi) va bildirishnoma
+ * (qo'ng'iroqcha + push: stol ofitsantiga, bo'lmasa filial ofitsantlariga — lib/restaurant/tableCalls.ts). Bildirishnoma
+ * fonda: mijoz javobni kutmaydi; 2 daqiqada takror bosish — bitta xabar.
+ */
 export async function publicCall(c: PublicTableCtx, kind: TableCallKind): Promise<OpResult<{ kind: TableCallKind; at: string }>> {
   const at = new Date();
   await c.m.Table.updateOne({ _id: c.table._id }, { $set: kind === 'waiter' ? { callWaiterAt: at } : { callBillAt: at } });
+  notifyInBackground(() => notifyTableCall({ id: c.org.id, dbName: c.org.dbName }, c.m, c.table, kind), 'qr call notify');
   return ok({ kind, at: at.toISOString() });
 }
 

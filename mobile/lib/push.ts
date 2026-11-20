@@ -4,6 +4,7 @@ import * as Device from 'expo-device';
 import Constants from 'expo-constants';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { api } from './api';
+import { pushTargetOf } from './notifyModel';
 
 /**
  * Push bildirishnomalar: ruxsat, Expo push token va serverga yozish (POST /api/mobile/push).
@@ -16,12 +17,18 @@ export const PUSH_CHANNEL_ID = 'savora';
 const TOKEN_KEY = 'savora_push_token';
 
 /** Bosilganda ochilishi mumkin bo'lgan ekranlar (server `data.url` yuboradi) */
-const ALLOWED_URLS = ['/shifts', '/(tabs)/nasiya', '/(tabs)/sales', '/daftar', '/ecom-orders'] as const;
+const ALLOWED_URLS = ['/shifts', '/(tabs)/nasiya', '/(tabs)/sales', '/daftar', '/ecom-orders', '/tables', '/(tabs)/products', '/notifications'] as const;
 export type PushUrl = (typeof ALLOWED_URLS)[number];
 
+/**
+ * Ilova ekrani: ro'yxatdagi yo'l — o'zi; ilova ichidagi bildirishnoma (web/lib/notify.ts) web yo'lini yuboradi
+ * ('/app/tables' → stollar, ombor/menyu → «Ombor» tabi, boshqasi → bildirishnomalar ro'yxati — lib/notifyModel.ts).
+ */
 export function pushUrlOf(data: unknown): PushUrl | null {
   const url = (data as { url?: unknown } | null | undefined)?.url;
-  return typeof url === 'string' && (ALLOWED_URLS as readonly string[]).includes(url) ? (url as PushUrl) : null;
+  if (typeof url !== 'string') return null;
+  if ((ALLOWED_URLS as readonly string[]).includes(url)) return url as PushUrl;
+  return pushTargetOf(url);
 }
 
 // Ilova ochiq turganda ham: banner + ovoz

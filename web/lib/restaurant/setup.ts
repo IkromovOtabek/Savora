@@ -42,6 +42,8 @@ export interface RestaurantSettingsInput {
   requireVoidReason?: boolean;
   kdsWarnMinutes?: number;
   kdsAlertMinutes?: number;
+  /** Taom kam qolganda bildirishnoma chegarasi (porsiya, 0–1000; 0 — o'chiq) */
+  lowPortions?: number;
   /** null yoki '' — o'chirish */
   brand?: { logoUrl?: string | null; color?: string | null; coverUrl?: string | null };
   /** Mijoz sahifasi aloqa ma'lumoti (lib/restaurant/info.ts): null yoki '' — o'chirish */
@@ -67,6 +69,10 @@ export async function saveRestaurantSettings(ctx: RestaurantCtx, input: Restaura
   if (input.requireVoidReason !== undefined) next.requireVoidReason = !!input.requireVoidReason;
   if (input.kdsWarnMinutes !== undefined) next.kdsWarnMinutes = input.kdsWarnMinutes;
   if (input.kdsAlertMinutes !== undefined) next.kdsAlertMinutes = input.kdsAlertMinutes;
+  if (input.lowPortions !== undefined) {
+    if (!Number.isInteger(input.lowPortions) || input.lowPortions < 0 || input.lowPortions > 1000) return fail(ctx.d, 'badSettings');
+    next.lowPortions = input.lowPortions;
+  }
   const okMin = (n: number, max: number) => Number.isInteger(n) && n >= 1 && n <= max;
   if (!okMin(next.kdsWarnMinutes, 240) || !okMin(next.kdsAlertMinutes, 480) || next.kdsAlertMinutes <= next.kdsWarnMinutes) {
     return fail(ctx.d, 'badSettings');
@@ -99,6 +105,7 @@ export async function saveRestaurantSettings(ctx: RestaurantCtx, input: Restaura
     requireVoidReason: next.requireVoidReason,
     kdsWarnMinutes: next.kdsWarnMinutes,
     kdsAlertMinutes: next.kdsAlertMinutes,
+    lowPortions: next.lowPortions,
     brand: next.brand,
     info: next.info,
   }, ctx.user.username);

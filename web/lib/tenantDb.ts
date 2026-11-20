@@ -31,8 +31,9 @@ import { productionOrderSchema, IProductionOrder } from './models/tenant/Product
 import { goodsReceiptSchema, IGoodsReceipt } from './models/tenant/GoodsReceipt';
 import { purchaseOrderSchema, IPurchaseOrder } from './models/tenant/PurchaseOrder';
 import { pieceworkEntrySchema, IPieceworkEntry } from './models/tenant/PieceworkEntry';
+import { notificationSchema, INotification } from './models/tenant/Notification';
 
-const TENANT_MODELS_VERSION = 22;
+const TENANT_MODELS_VERSION = 23;
 
 type TenantModelsMap = Map<string, ReturnType<typeof registerModels>>;
 const globalForTenant = global as unknown as { _savdoproTenantCache?: TenantModelsMap };
@@ -98,7 +99,10 @@ function registerModels(conn: import('mongoose').Connection) {
     (conn.models.PurchaseOrder as Model<IPurchaseOrder>) || conn.model<IPurchaseOrder>('PurchaseOrder', purchaseOrderSchema);
   const PieceworkEntry =
     (conn.models.PieceworkEntry as Model<IPieceworkEntry>) || conn.model<IPieceworkEntry>('PieceworkEntry', pieceworkEntrySchema);
-  return { conn, User, Branch, Product, Customer, Sale, CreditBank, BankReceipt, CashFlow, Transfer, AuditLog, LedgerEntry, Task, AiReport, Supplier, SupplierEntry, CashShift, StockAdjustment, FinanceCategory, Role, ShopSettings, ProductCategory, Brand, Hall, Table, KitchenStation, Order, PrintJob, Recipe, ProductionOrder, GoodsReceipt, PurchaseOrder, PieceworkEntry };
+  // Ilova ichidagi bildirishnomalar (lib/notify.ts)
+  const Notification =
+    (conn.models.Notification as Model<INotification>) || conn.model<INotification>('Notification', notificationSchema);
+  return { conn, User, Branch, Product, Customer, Sale, CreditBank, BankReceipt, CashFlow, Transfer, AuditLog, LedgerEntry, Task, AiReport, Supplier, SupplierEntry, CashShift, StockAdjustment, FinanceCategory, Role, ShopSettings, ProductCategory, Brand, Hall, Table, KitchenStation, Order, PrintJob, Recipe, ProductionOrder, GoodsReceipt, PurchaseOrder, PieceworkEntry, Notification };
 }
 
 /**

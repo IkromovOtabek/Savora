@@ -94,6 +94,8 @@ export const shopSettingsSchema = new Schema<IShopSettings>(
       requireVoidReason: { type: Boolean },
       kdsWarnMinutes: { type: Number, min: 1, max: 240 },
       kdsAlertMinutes: { type: Number, min: 1, max: 480 },
+      // Taom kam qolganda bildirishnoma chegarasi (porsiya; 0 — o'chiq) — lib/restaurant/stockAlerts.ts
+      lowPortions: { type: Number, min: 0, max: 1000 },
       brand: {
         logoUrl: { type: String, trim: true, maxlength: 500 },
         color: { type: String, trim: true, maxlength: 7 },

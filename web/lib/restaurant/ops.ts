@@ -45,6 +45,9 @@ import { orderView, type OrderView } from './view';
 import { ensureMenuFlags, isOnMenu } from './menuFlags';
 import { loadStaffNames, type StaffNames } from '../staffNames';
 import { enqueueSentTickets, enqueueVoidTicket } from './print';
+import { notifyInBackground, resolveNotifications } from '../notify';
+import { checkStockAfterSend } from './stockAlerts';
+import { tableCallKeys } from './tableCalls';
 
 type Item = IOrderItem;
 
@@ -499,6 +502,12 @@ export async function sendItems(
         await audit(ctx, 'order.send', saved, `oshxonaga ${updated.size} ta taom${failed.length ? `, yuborilmadi: ${failed.map((f) => f.name).join(', ')}` : ''}`, {
           sent: [...updated.keys()], failed,
         });
+        // Bildirishnoma: kam qoldiq / taomga oz porsiya (lib/restaurant/stockAlerts.ts) — fonda, yuborishni kutdirmaydi
+        const sentItems = [...updated.values()];
+        notifyInBackground(
+          () => checkStockAfterSend({ id: ctx.orgId, dbName: ctx.user.dbName ?? '' }, ctx.m, saved.branchId, sentItems),
+          'restaurant stock alerts',
+        );
       },
       result: async (saved: OrderDoc) => ({ order: await view(ctx, saved), sent: [...updated.keys()], failed }),
     });
@@ -821,7 +830,10 @@ export async function ackTableCall(ctx: RestaurantCtx, tableId: string, kind?: T
   if (!validId(tableId)) return fail(ctx.d, 'tableNotFound');
   const unset = kind === 'waiter' ? { callWaiterAt: '' } : kind === 'bill' ? { callBillAt: '' } : { callWaiterAt: '', callBillAt: '' };
   const r = await ctx.m.Table.updateOne({ _id: tableId, ...branchFilter(ctx.user) }, { $unset: unset });
-  return r.matchedCount ? ok({ tableId }) : fail(ctx.d, 'tableNotFound');
+  if (!r.matchedCount) return fail(ctx.d, 'tableNotFound');
+  // Qo'ng'iroqchadagi chaqiruv xabari hammada «Ko'rildi»; mijoz yana chaqirsa — darhol yangi xabar (lib/notify.ts)
+  await resolveNotifications(ctx.user.dbName ?? '', tableCallKeys(tableId, kind));
+  return ok({ tableId });
 }
 
 /* ───────────────────────────── to'lov ───────────────────────────── */

@@ -6,6 +6,7 @@
  * Har biri mavjud bo'lmasa jim ishlamay qoladi — sahifa ularsiz ham to'liq ishlaydi.
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { SIGNALS, useAudioSignal } from '@/lib/useAudioSignal';
 
 /* ───────────────────────────── localStorage ───────────────────────────── */
 
@@ -28,115 +29,17 @@ export function writeStore(key: string, value: string | null): void {
 
 /* ───────────────────────────── ovozli signal ───────────────────────────── */
 
-type AudioCtor = typeof AudioContext;
-
-function audioCtor(): AudioCtor | null {
-  if (typeof window === 'undefined') return null;
-  if (typeof AudioContext !== 'undefined') return AudioContext;
-  return (window as Window & { webkitAudioContext?: AudioCtor }).webkitAudioContext ?? null;
-}
-
 /**
- * Qisqa ikki tonli signal. Brauzer avtoplay cheklovi: AudioContext faqat foydalanuvchi teginishidan
- * keyin ishlaydi — birinchi teginishda (pointerdown/keydown) ochiladi; ungacha `locked` = true
- * (ekranda «bir marta teging» eslatmasi).
+ * Qisqa ikki tonli signal (umumiy WebAudio mantiqi — lib/useAudioSignal.ts, bildirishnomalar bilan bir xil).
+ * Brauzer avtoplay cheklovi: birinchi teginishda ochiladi; ungacha `locked` = true («bir marta teging» eslatmasi).
  */
 export function useKdsSound(enabled: boolean) {
-  const ctxRef = useRef<AudioContext | null>(null);
-  const [locked, setLocked] = useState(false);
-
-  const ensure = useCallback((): AudioContext | null => {
-    if (ctxRef.current) return ctxRef.current;
-    const AC = audioCtor();
-    if (!AC) return null;
-    try {
-      const c = new AC();
-      c.addEventListener('statechange', () => setLocked(c.state !== 'running'));
-      ctxRef.current = c;
-    } catch {
-      return null;
-    }
-    return ctxRef.current;
-  }, []);
-
-  const play = useCallback((c: AudioContext) => {
-    const t0 = c.currentTime + 0.01;
-    const tone = (freq: number, at: number, dur: number) => {
-      const osc = c.createOscillator();
-      const gain = c.createGain();
-      osc.type = 'sine';
-      osc.frequency.value = freq;
-      gain.gain.setValueAtTime(0.0001, t0 + at);
-      gain.gain.exponentialRampToValueAtTime(0.4, t0 + at + 0.02);
-      gain.gain.exponentialRampToValueAtTime(0.0001, t0 + at + dur);
-      osc.connect(gain).connect(c.destination);
-      osc.start(t0 + at);
-      osc.stop(t0 + at + dur + 0.05);
-    };
-    tone(880, 0, 0.18);
-    tone(1320, 0.2, 0.28);
-  }, []);
-
-  /** Kontekstni ochish (teginishda); `test` — tasdiq tovushi. Ochilmasa 400 ms dan keyin `locked` */
-  const unlock = useCallback((test = false) => {
-    const c = ensure();
-    if (!c) return;
-    if (c.state === 'running') {
-      setLocked(false);
-      if (test) play(c);
-      return;
-    }
-    c.resume()
-      .then(() => {
-        setLocked(c.state !== 'running');
-        if (test && c.state === 'running') play(c);
-      })
-      .catch(() => setLocked(true));
-    window.setTimeout(() => { if (c.state !== 'running') setLocked(true); }, 400);
-  }, [ensure, play]);
-
-  useEffect(() => {
-    if (!enabled) return;
-    if (!audioCtor()) return;
-    // Sahifaga menyudan (bosish bilan) kelingan bo'lsa — faollashtirish bor, kontekst darhol ochiladi
-    const activated = (navigator as Navigator & { userActivation?: { hasBeenActive: boolean } }).userActivation?.hasBeenActive;
-    if (activated || ctxRef.current) unlock(false);
-    else setLocked(true);
-    const onGesture = () => unlock(false);
-    window.addEventListener('pointerdown', onGesture, true);
-    window.addEventListener('keydown', onGesture, true);
-    return () => {
-      window.removeEventListener('pointerdown', onGesture, true);
-      window.removeEventListener('keydown', onGesture, true);
-    };
-  }, [enabled, unlock]);
-
+  const { beep: play, unlock: open, locked } = useAudioSignal(enabled);
+  /** Kontekstni ochish (teginishda); `test` — tasdiq tovushi */
+  const unlock = useCallback((test = false) => open(test ? SIGNALS.kds : undefined), [open]);
   /** Yangi buyurtma signali (ovoz o'chiq yoki kontekst yopiq bo'lsa — jim) */
-  const beep = useCallback(() => {
-    if (!enabled) return;
-    const c = ensure();
-    if (!c) return;
-    if (c.state === 'running') {
-      play(c);
-      return;
-    }
-    // Avval teginish bo'lgan bo'lsa ochiladi; bo'lmasa kechikkan tovush chalinmasin (1,5 s chegarasi)
-    const asked = Date.now();
-    c.resume()
-      .then(() => {
-        if (c.state === 'running' && Date.now() - asked < 1500) play(c);
-        setLocked(c.state !== 'running');
-      })
-      .catch(() => setLocked(true));
-    window.setTimeout(() => { if (c.state !== 'running') setLocked(true); }, 400);
-  }, [enabled, ensure, play]);
-
-  useEffect(() => () => {
-    ctxRef.current?.close().catch(() => {});
-    ctxRef.current = null;
-  }, []);
-
-  return { beep, unlock, locked: enabled && locked };
+  const beep = useCallback(() => play(SIGNALS.kds), [play]);
+  return { beep, unlock, locked };
 }
 
 /* ───────────────────────────── ekran o'chmasligi ───────────────────────────── */
