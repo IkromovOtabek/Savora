@@ -1,19 +1,34 @@
 import type { Dict } from '@/lib/i18n/dict';
+import { tr } from '@/lib/i18n/fmt';
 import { fmtMoney } from '@/lib/format';
-import type { SalesReport, SalesTotals } from '@/lib/restaurant/reports';
+import { waiterTable, type SalesReport, type SalesTotals, type VoidReport } from '@/lib/restaurant/reports';
 import { Empty, Panel, Section, durFmt, fmtNum } from './ui';
 
-/** 3-talab: ofitsant KPI — davrda yopilgan buyurtmalar bo'yicha */
-export default function StaffSection({ s, d }: { s: SalesReport; d: Dict }) {
+/**
+ * 3-talab: «Ofitsantlar» jadvali — davrda yopilgan buyurtmalar bo'yicha KPI + ofitsant stollarida (oshxonaga yuborilgandan
+ * keyin) bekor qilingan taomlar (`waiterTable`, docs/RESTORAN_API.md §17). Ism — login emas (lib/staffNames).
+ */
+export default function StaffSection({ s, v, d }: { s: SalesReport; v: VoidReport; d: Dict }) {
   const t = d.restaurant.reports;
+  const w = d.waiterDay.report;
   const dur = durFmt(d);
-  const share = (v: number) => (s.totals.revenue > 0 ? Math.round((v / s.totals.revenue) * 100) : 0);
+  const share = (x: number) => (s.totals.revenue > 0 ? Math.round((x / s.totals.revenue) * 100) : 0);
   const avgGuests = (k: SalesTotals) => (k.avgGuests != null ? fmtNum(k.avgGuests) : '—');
+  const rows = waiterTable(s.byWaiter, v.rows);
+  // Bitta element — telefondagi kartochka ko'rinishida (data-label) qator bo'linmasin
+  const voidCell = (n: number, loss: number) => (
+    n === 0 ? '—' : (
+      <span className="rr-nowrap">
+        {n}
+        {loss > 0 && <span className="rr-loss" title={tr(w.lossTitle, { n: loss })}> · {loss}</span>}
+      </span>
+    )
+  );
 
   return (
     <Section id="staff" title={t.staffTitle} sub={t.staffSub}>
-      <Panel id="staff-kpi" title={t.byWaiter} sub={`${t.colServiceTime}: ${t.serviceTimeHint}`}>
-        {s.byWaiter.length === 0 ? (
+      <Panel id="staff-kpi" title={w.title} sub={w.sub}>
+        {rows.length === 0 ? (
           <Empty icon="users" text={t.staffEmpty} />
         ) : (
           <div className="table-wrap">
@@ -28,25 +43,29 @@ export default function StaffSection({ s, d }: { s: SalesReport; d: Dict }) {
                   <th className="num">{t.colAvgGuests}</th>
                   <th className="num">{t.colService}</th>
                   <th className="num" title={t.serviceTimeHint}>{t.colServiceTime}</th>
+                  <th className="num" title={w.sub}>{w.colVoids}</th>
                 </tr>
               </thead>
               <tbody>
-                {s.byWaiter.map((w) => (
-                  <tr key={w.key || '-'}>
+                {rows.map((x) => (
+                  <tr key={x.key || '-'}>
                     <td data-label={t.colWaiter}>
-                      <span className="cell-main">{w.name || t.noWaiter}<span className="rr-muted"> · {share(w.revenue)}%</span></span>
+                      <span className="cell-main">{x.name || t.noWaiter}<span className="rr-muted"> · {share(x.revenue)}%</span></span>
                     </td>
-                    <td data-label={t.colOrders} className="num">{w.orders}</td>
-                    <td data-label={t.colRevenue} className="num"><b>{fmtMoney(w.revenue)}</b></td>
-                    <td data-label={t.colAvgCheck} className="num">{fmtMoney(w.avgCheck)}</td>
-                    <td data-label={t.colGuests} className="num">{w.guests || '—'}</td>
-                    <td data-label={t.colAvgGuests} className="num">{avgGuests(w)}</td>
-                    <td data-label={t.colService} className="num">{fmtMoney(w.serviceCharge)}</td>
-                    <td data-label={t.colServiceTime} className="num">{dur(w.avgServiceMs)}</td>
+                    <td data-label={t.colOrders} className="num">{x.orders}</td>
+                    <td data-label={t.colRevenue} className="num"><b>{fmtMoney(x.revenue)}</b></td>
+                    <td data-label={t.colAvgCheck} className="num">{fmtMoney(x.avgCheck)}</td>
+                    <td data-label={t.colGuests} className="num">{x.guests || '—'}</td>
+                    <td data-label={t.colAvgGuests} className="num">{avgGuests(x)}</td>
+                    <td data-label={t.colService} className="num">{fmtMoney(x.serviceCharge)}</td>
+                    <td data-label={t.colServiceTime} className="num">{dur(x.avgServiceMs)}</td>
+                    <td data-label={w.colVoids} className="num" title={x.voids ? `${w.colVoidAmount}: ${fmtMoney(x.voidAmount)}` : undefined}>
+                      {voidCell(x.voids, x.lossCount)}
+                    </td>
                   </tr>
                 ))}
               </tbody>
-              {s.byWaiter.length > 1 && (
+              {rows.length > 1 && (
                 <tfoot>
                   <tr>
                     <th>{t.total}</th>
@@ -57,6 +76,7 @@ export default function StaffSection({ s, d }: { s: SalesReport; d: Dict }) {
                     <th data-label={t.colAvgGuests} className="num">{avgGuests(s.totals)}</th>
                     <th data-label={t.colService} className="num">{fmtMoney(s.totals.serviceCharge)}</th>
                     <th data-label={t.colServiceTime} className="num">{dur(s.totals.avgServiceMs)}</th>
+                    <th data-label={w.colVoids} className="num">{voidCell(v.totals.count, v.totals.lossCount)}</th>
                   </tr>
                 </tfoot>
               )}

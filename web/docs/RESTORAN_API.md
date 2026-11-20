@@ -613,7 +613,80 @@ _(to'ldiriladi)_
 
 ## 17. Ofitsant kabineti («Mening kunim») va ofitsantlar hisoboti
 
-_(to'ldiriladi)_
+**Kim:** modul `tables` + `order.create` (Ofitsant, Barmen, Kassir (restoran), Administrator, egasi). Faqat O'Z ma'lumoti —
+`Order.waiterId = user.id` (sessiya/token'dan; boshqa ofitsantni tanlash parametri YO'Q). Filial — `reports.ts → reportScope`:
+xodim — o'z filiali (boshqasi so'ralsa `badBranch`; boshqa filialga o'tkazilgan xodim eski filial hisoblarini ko'rmaydi);
+egasi — barcha filiallar yoki `branchId`.
+
+**Qayerda:** web **`/app/tables/me`** (`app/app/tables/me/page.tsx` → `components/restaurant/waiter/WaiterDayView.tsx`, ko'rinib
+turganda 30 s da `router.refresh`, «Yangilash» tugmasi; nav «Sotuvlar» → «Mening kunim», ikonka `sun`, `d.shell.nav.links`);
+mobil `mobile/app/waiter-day.tsx` (bosh sahifa plitkasi «Mening kunim» — «Stollar» yonida; 30 s polling, pastga tortib yangilash).
+Server: `lib/restaurant/waiterDay.ts → waiterDay(ctx, { period, branchId?, now? })`. Lug'at — `d.waiterDay` (web), `waiterDay` (mobil).
+
+**Davr:** `today | week | month` (sukut va noma'lum qiymat — bugun) — **Toshkent kuni** (UTC+5, `lib/period.ts →
+tashkentPeriodRange`), server zonasidan qat'i nazar: bugun / bugun bilan 7 kun / 30 kun. Ro'yxatdagi vaqtlar ham Toshkent
+bo'yicha. Eslatma: restoran hisobotlari (`parseReportRange`) hozircha server MAHALLIY vaqtini oladi — prod jarayon zonasi
+Asia/Tashkent bo'lmasa, rahbar hisobotidagi «Bugun» bilan kabinetdagi «Bugun» chegarasi farq qiladi.
+
+**Ko'rsatkichlar** — rahbar hisoboti bilan BIR XIL hisob (`reports.ts → closedOrdersData`, `summarizeSales`, `voidRows`):
+
+| Ko'rsatkich | Qoida |
+|---|---|
+| Yopilgan hisoblar | davrda yopilgan (`status: paid`, `paidAt`) buyurtmalar; bo'lib to'langan hisob — BITTA (oxirgi qism to'langan vaqt) |
+| Sotuv | shu buyurtmalarning Sale qatorlari (`totalAmount`): bekor qilingan Sale kirmaydi, qaytarish kamaytiradi; xizmat haqi va qadoq bilan |
+| O'rtacha chek | sotuv / hisoblar (butun so'm) |
+| Mehmonlar | `guests` yig'indisi; `guestsMissing` — mehmon soni kiritilmagan hisoblar |
+| Xizmat haqi | «XIZMAT» Sale qatorlari |
+| Bekor qilingan taomlar | davrda (`voidedAt`) oshxonaga YUBORILGANDAN keyin bekor qilingan qatorlar (`voidStage: beforeCook\|afterCook`), `voidAmount`; `lossCount` — pishgandan keyin. Yuborilmaganini bekor qilish (tuzatish) kirmaydi |
+
+**Ro'yxatlar:** `open` — hozir ochiq (`open`/`precheck`) buyurtmalarim, davrdan qat'i nazar (≤100; stollar raqam bo'yicha, keyin
+saboy) — `OrderSummary`: `counts.ready` → «N ta tayyor» (karta yashil), `counts.pending` → «QR: N ta tasdiqlang», `counts.unsent`,
+pre-chek, `due`; bosilsa — buyurtma ekrani (web `/app/tables/<id>`, mobil `/order/<id>`). `closed` — davrda yopilganlar, eng yangisi
+birinchi, ≤100 (`WAITER_CLOSED_SHOWN`; jami — `totals.orders`), summa — shu hisobning barcha to'lov qismlari.
+
+```ts
+WaiterDay = {
+  period, from, to, fromDay, toDay /* Toshkent kunlari YYYY-MM-DD, ikkalasi ham kiradi */, name /* ism, login emas */, serverTime,
+  totals: { orders, revenue, avgCheck, guests, guestsMissing, serviceCharge, voids, voidAmount, lossCount },
+  open: OrderSummary[], closed: [{ id, orderNo, type, tableNumber, guests, paidAt, total }],
+  truncated /* REPORT_LIMITS.orders dan oshdi */
+}
+```
+
+**Mobil API:** `GET /api/mobile/restaurant/waiter-day?p=today|week|month&branchId=` (Bearer) → `WaiterDay`, `no-store`;
+`p` noto'g'ri — 400 `badInput`; huquq yo'q — 403 `noPermission`; modul o'chiq — 403 `moduleOff`. Ilova turlari va sof
+yordamchilar (belgilar tartibi, Toshkent vaqti) — `mobile/lib/waiterDay.ts`.
+
+### 17a. «Ofitsantlar» jadvali (rahbar)
+
+`/app/restaurant/reports` → «Ofitsantlar KPI» → «Ofitsantlar» (huquq `reports.view`, mavjud davr va filial filtrlari). Har
+ofitsant: hisoblar, tushum (ulush %), o'rtacha chek, mehmonlar, o'rtacha mehmon, xizmat haqi, o'rtacha xizmat vaqti va
+**bekor qilingan** — shu ofitsant stollarida oshxonaga yuborilgandan keyin bekor qilingan taomlar (qizil «· N» — pishgandan
+keyin; katak ustida summa). `reports.ts → waiterTable(sales.byWaiter, voids.rows)`: kalit — `waiterId`, bo'lmasa login
+(`VoidRow.waiterKey` = `SalesOrder.waiterKey`); yopilgan hisobi yo'q, lekin bekori bor ofitsant — jadval oxirida. Ism —
+`staffNamesFor` (login emas). CSV `section=staff` — oxirgi ikki ustun «Bekor qilingan», «Bekor summasi». Bekor qatorlari
+≤ 2 000 (`REPORT_LIMITS.voids`, oshsa `voids.truncated`). `closedOrdersData` (avval ichki `salesData`) — eksport qilindi,
+savdo hisoboti natijasi o'zgarmagan.
+
+### 17b. Xodim qo'shish (`/app/users`)
+
+Restoran do'konida (rol shablonlari bor) «Yangi xodim» oynasida rol — kartochkalar: **Ofitsant** (standart tanlov), Oshpaz,
+Barmen, Kassir (restoran), Administrator — har biri bir qatorli izoh bilan (nima qila oladi; `lib/staffRoles.ts →
+staffRoleOptions`, `d.waiterDay.staff.hints`); qolgan rollar va «Rolsiz» — «Boshqa rollar» ichida. Restoran bo'lmagan
+do'kon — avvalgi oddiy ro'yxat. Yaratilgach oyna yopilmaydi — xodimga beriladigan karta: **Login · Parol** va kirish manzili
+(`<host>/login`), «Nusxa olish» (`Login: X · Parol: Y` + `Kirish: …`), «Yana xodim qo'shish». Parol serverdan qaytmaydi (formadagi
+qiymat, faqat shu oynada); `createStaffAction` javobiga faqat `created: { name, username }` qo'shildi. Parol xeshlash, tarif
+limiti, audit, login registri — o'zgarmagan (`lib/staff.ts`).
+
+### 17c. Tekshiruv
+
+- `npx vitest run tests/waiterDay.test.ts` — davr chegaralari (UTC+5), KPI, ro'yxat tartibi va chegarasi, `waiterTable`, CSV,
+  rol tartibi va izohlari (Role.ts shablonlari bilan mosligi), render (uz/ru).
+- `MONGO_TEST_URI=mongodb://127.0.0.1:27019 npx vitest run tests/waiterDay.test.ts` — ikki ofitsant; bo'lib to'lash (1 hisob,
+  2 qism, xizmat haqi); yuborilgandan keyin bekor qilingan taom; ochiq stol (tayyor taom, `due`); faqat o'z ma'lumoti; rahbar
+  jadvalida kalitlar mosligi; huquq/modul; filial chegarasi (boshqa filial so'rovi, filiali almashgan xodim); davr chegaralari
+  (Toshkent yarim tuni, hafta, oy); egasi ham buyurtma olsa.
+- Mobil: `cd mobile && npm test` (`tests/waiterDay.test.mjs`).
 
 ## 18. Bron
 

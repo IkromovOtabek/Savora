@@ -84,6 +84,8 @@ export default function Home() {
   const modules: TileItem[] = [
     // Restoran — ofitsant uchun asosiy ish joyi, shuning uchun birinchi
     ...(f.tables && can('order.create') ? [{ key: 'tables', label: d.restaurant.title, icon: 'restaurant' as const, color: c.sq.p, onPress: () => router.push('/tables') }] : []),
+    // Ofitsant kabineti: o'z hisoblari, sotuvi va ochiq stollari (waiter-day.tsx)
+    ...(f.tables && can('order.create') ? [{ key: 'waiterDay', label: d.waiterDay.tile, icon: 'today' as const, color: c.sq.g, onPress: () => router.push('/waiter-day') }] : []),
     // Sex: usta/ishchi — ishbay (asosiy ish joyi); omborchi — kirim aktlari (faqat ko'rish; server ruxsati bilan bir xil)
     ...(f.piecework && can('piecework.log') ? [{ key: 'piecework', label: d.production.piecework.tile, icon: 'hammer' as const, color: c.sq.p, onPress: () => router.push('/piecework') }] : []),
     // Server: lib/production/receipts.ts → RECEIPT_READ_PERMS (production.view ham — sex xodimi xom ashyo kelganini ko'radi)

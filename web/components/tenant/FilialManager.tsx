@@ -15,6 +15,7 @@ import type { PermissionKey } from '@/lib/permissions';
 import { useDict } from '@/lib/i18n/client';
 import { tr } from '@/lib/i18n/fmt';
 import '@/components/tenant/styles/admin.css';
+import '@/components/tenant/styles/staffPick.css';
 
 interface Row {
   id: string;
@@ -47,7 +48,12 @@ type Modal =
   | { type: 'createStaff'; branchId?: string }
   | { type: 'edit'; row: Row }
   | { type: 'editStaff'; row: Row }
-  | { type: 'perms'; row: Row };
+  | { type: 'perms'; row: Row }
+  /** Xodim yaratildi — unga beriladigan «Login · Parol» kartasi (parol faqat shu oynada, formadan) */
+  | { type: 'staffCreated'; name: string; username: string; password: string };
+
+/** Rol (sahifa lib/staffRoles.ts → staffRoleOptions bilan tartiblaydi: restoran shablonlari birinchi, izoh bilan) */
+interface RoleOpt { id: string; name: string; permissions: string[]; group?: 'restaurant' | 'other'; hint?: string }
 
 /** Ism/nomdan 1–2 harfli bosh harflar (avatar uchun) */
 function initials(name: string): string {
@@ -77,14 +83,16 @@ export default function FilialManager({
   /** Faol filiallar (asosiy ombor bilan) — xodim biriktirish uchun */
   branches: BranchOpt[];
   features: OrgFeatures;
-  roles?: { id: string; name: string; permissions: string[] }[];
+  roles?: RoleOpt[];
 }) {
   const router = useRouter();
   const d = useDict();
   const t = d.crm.team;
   const s = t.staff;
+  const w = d.waiterDay.staff;
   const [modal, setModal] = useState<Modal>(null);
   const [busy, setBusy] = useState(false);
+  const [copied, setCopied] = useState(false);
   /** Ikki bosqichli o'chirish: birinchi bosishda shu qatorga tasdiq chiqadi */
   const [confirmId, setConfirmId] = useState<string | null>(null);
 
@@ -117,6 +125,42 @@ export default function FilialManager({
     toast(res?.success ?? d.common.saved, 'success');
     setModal(null);
     router.refresh();
+  }
+
+  /** Yangi xodim: muvaffaqiyatda oyna yopilmaydi — xodimga beriladigan login/parol kartasi ko'rsatiladi */
+  async function createStaff(form: HTMLFormElement) {
+    const fd = new FormData(form);
+    const password = String(fd.get('password') || '');
+    setBusy(true);
+    let res: Awaited<ReturnType<typeof createStaffAction>> = null;
+    try {
+      res = await createStaffAction(null, fd);
+    } catch {
+      res = { error: d.common.error };
+    } finally {
+      setBusy(false);
+    }
+    if (res?.error) { toast(res.error, 'error'); return; }
+    if (!res?.created) {
+      toast(res?.success ?? d.common.saved, 'success');
+      setModal(null);
+    } else {
+      setCopied(false);
+      setModal({ type: 'staffCreated', name: res.created.name, username: res.created.username, password });
+    }
+    router.refresh();
+  }
+
+  /** «Login: X · Parol: Y» + kirish manzili — xodimga yuborish uchun */
+  async function copyCredentials(m: { username: string; password: string }) {
+    const text = `${w.login}: ${m.username} · ${w.password}: ${m.password}\n${w.enterAt}: ${window.location.origin}/login`;
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      toast(w.copied, 'success');
+    } catch {
+      toast(w.copyFailed, 'error');
+    }
   }
 
   async function remove(row: Row) {
@@ -168,6 +212,19 @@ export default function FilialManager({
         {branches.map((b) => <option key={b.id} value={b.id}>{branchLabel(b)}</option>)}
       </select>
     </div>
+  );
+
+  // Restoran do'konida rol shablonlari (Ofitsant birinchi — standart tanlov); boshqa do'konda — oddiy ro'yxat
+  const restRoles = roles.filter((r) => r.group === 'restaurant');
+  const otherRoles = roles.filter((r) => r.group !== 'restaurant');
+  const roleRadio = (r: Pick<RoleOpt, 'id' | 'name' | 'hint'>, checked: boolean) => (
+    <label key={r.id || 'none'} className="sp-role">
+      <input type="radio" name="roleId" value={r.id} defaultChecked={checked} />
+      <span>
+        <b>{r.name}</b>
+        {r.hint && <small>{r.hint}</small>}
+      </span>
+    </label>
   );
 
   return (
@@ -440,7 +497,7 @@ export default function FilialManager({
                 <Icon name="close" size={18} />
               </button>
             </div>
-            <form onSubmit={(e) => { e.preventDefault(); run((fd) => createStaffAction(null, fd), e.currentTarget); }}>
+            <form onSubmit={(e) => { e.preventDefault(); void createStaff(e.currentTarget); }}>
               <p className="ad-hint">{s.chooseStaff}</p>
               {usersAtLimit && (
                 <p className="ad-hint ad-hint--warn" role="alert">
@@ -454,13 +511,27 @@ export default function FilialManager({
                   <input id="sc-name" name="fullName" required maxLength={80} disabled={busy} placeholder={s.fullNamePlaceholder} autoComplete="off" autoFocus />
                 </div>
                 {branchSelect('sc-branch', modal.branchId)}
-                <div className="auth-field">
-                  <label htmlFor="sc-role">{s.roleLabel}</label>
-                  <select id="sc-role" name="roleId" defaultValue="" disabled={busy}>
-                    <option value="">{s.roleNone}</option>
-                    {roles.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
-                  </select>
-                </div>
+                {restRoles.length > 0 ? (
+                  // Restoran: shablonlar kartochka ko'rinishida (izoh bilan), qolganlari — «Boshqa rollar» ichida
+                  <fieldset className="sp-roles" disabled={busy}>
+                    <legend>{s.roleLabel}</legend>
+                    <p className="sp-group">{w.restaurantRoles}</p>
+                    {restRoles.map((r) => roleRadio(r, r.id === restRoles[0].id))}
+                    <details className="sp-more">
+                      <summary>{w.otherRoles}</summary>
+                      {otherRoles.map((r) => roleRadio(r, false))}
+                      {roleRadio({ id: '', name: w.roleNoneShort, hint: w.noneHint }, false)}
+                    </details>
+                  </fieldset>
+                ) : (
+                  <div className="auth-field">
+                    <label htmlFor="sc-role">{s.roleLabel}</label>
+                    <select id="sc-role" name="roleId" defaultValue="" disabled={busy}>
+                      <option value="">{s.roleNone}</option>
+                      {roles.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
+                    </select>
+                  </div>
+                )}
                 <p className="ad-hint">{s.roleHint}</p>
               </fieldset>
               <fieldset className="ad-fieldset">
@@ -631,6 +702,37 @@ export default function FilialManager({
                 <button type="submit" className="btn btn-primary btn-sm" disabled={busy}>{busy ? d.common.saving : d.common.save}</button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* ===== Xodim yaratildi: xodimga beriladigan login va parol (nusxa olish) ===== */}
+      {/* Tashqariga bosilganda yopilmaydi — parol tasodifan yo'qolmasin («Tayyor», ✕ yoki Esc) */}
+      {modal?.type === 'staffCreated' && (
+        <div className="u-modal-overlay">
+          <div className="u-modal sp-done" role="dialog" aria-modal="true" aria-labelledby="sp-done-title">
+            <div className="u-modal-head">
+              <h3 id="sp-done-title"><span className="sp-done-ic" aria-hidden="true"><Icon name="check" size={16} /></span>{w.createdTitle}</h3>
+              <button type="button" className="u-icon-btn" aria-label={d.common.close} onClick={() => setModal(null)}>
+                <Icon name="close" size={18} />
+              </button>
+            </div>
+            <div className="sp-done-body">
+              <p className="ad-hint">{tr(w.createdLead, { name: modal.name })}</p>
+              <div className="sp-cred">
+                <div className="sp-cred-row"><span>{w.login}</span><b>{modal.username}</b></div>
+                <div className="sp-cred-row"><span>{w.password}</span><b>{modal.password}</b></div>
+                <div className="sp-cred-row sp-cred-row--sub"><span>{w.enterAt}</span><b>{`${window.location.host}/login`}</b></div>
+              </div>
+              <p className="ad-hint">{w.passwordOnce}</p>
+              <div className="u-modal-actions sp-done-actions">
+                <button type="button" className="btn btn-ghost btn-sm" onClick={() => setModal({ type: 'createStaff' })}>{w.addAnother}</button>
+                <button type="button" className="btn btn-tinted btn-sm" onClick={() => void copyCredentials(modal)} autoFocus>
+                  <Icon name={copied ? 'check' : 'clipboard'} size={16} /> {copied ? w.copied : w.copy}
+                </button>
+                <button type="button" className="btn btn-primary btn-sm" onClick={() => setModal(null)}>{w.done}</button>
+              </div>
+            </div>
           </div>
         </div>
       )}
