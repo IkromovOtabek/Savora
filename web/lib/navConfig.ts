@@ -54,6 +54,7 @@ export const NAV_ICONS: Record<string, IconName> = {
   '/app/tasks': 'check',
   '/app/menu': 'clipboard',
   '/app/tables': 'grid',
+  '/app/tables/cashier': 'wallet',
   '/app/kitchen': 'utensils',
   '/app/restaurant': 'qr',
   '/app/restaurant/reports': 'utensils',
@@ -118,6 +119,8 @@ export const NAV_GROUPS: NavGroup[] = [
       // Restoran menyusi: taomlar, retsept (xom ashyo — Omborda); ofitsant/oshpaz — faqat stop-list
       { href: '/app/menu', label: 'Menyu', feature: 'tables', anyPermission: ['product.create', 'product.edit', 'menu.stopList'] },
       { href: '/app/tables', label: 'Stollar', feature: 'tables', permission: 'order.create' },
+      // Restoran kassiri: to'lov navbati va hisob (barcha hisoblar — order.viewAll, sahifa o'zi tekshiradi)
+      { href: '/app/tables/cashier', label: 'Kassa', feature: 'tables', permission: 'sale.create' },
       { href: '/app/kitchen', label: 'Oshxona', feature: 'kitchen', permission: 'kitchen.view' },
       { href: '/app/sales', label: 'Sotuvlar', feature: 'sales', permission: 'sales.view' },
       { href: '/app/kassa', label: 'Naqd kassa', feature: 'kassa', permission: 'kassa.view' },

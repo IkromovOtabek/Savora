@@ -43,6 +43,19 @@ export const zOptText = (max: number, message: string) =>
     return s;
   });
 
+/** ObjectId yoki tozalash: yuborilmasa — undefined (o'zgarmaydi), null/'' — null (olib tashlash), id — 24 hex */
+export const zOptIdOrNull = (message: string) =>
+  zField((v, ctx) => {
+    if (v === undefined) return undefined;
+    if (v === null || v === '') return null;
+    const s = typeof v === 'string' ? v.trim() : '';
+    if (!/^[a-f0-9]{24}$/i.test(s)) {
+      ctx.addIssue({ code: 'custom', message });
+      return z.NEVER;
+    }
+    return s;
+  });
+
 /** Ixtiyoriy son oralig'ida (kasr mumkin); yuborilmasa — undefined */
 export const zOptNum = (message: string, min: number, max: number, opts: { int?: boolean } = {}) =>
   zField((v, ctx) => {
@@ -82,6 +95,8 @@ export function restaurantSchemas(e: Errors) {
       note: zText(RESTAURANT_LIMITS.noteMax, bad),
       clientOrderId: zOptClientId(bad),
       items: z.array(item).max(RESTAURANT_LIMITS.maxAddItems, e.tooManyItems).optional(),
+      // Saboy qaysi stol mehmonlariga (faqat takeaway; ops.openOrder tekshiradi)
+      forTableId: zOptId(e.tableNotFound),
     }),
     addItems: z.object({ items: z.array(item).min(1, bad).max(RESTAURANT_LIMITS.maxAddItems, e.tooManyItems) }),
     send: z.object({ itemIds: idList(bad, RESTAURANT_LIMITS.maxOrderItems).optional() }),
@@ -114,7 +129,12 @@ export function restaurantSchemas(e: Errors) {
       payId: zOptClientId(bad),
     }),
     cancel: z.object({ reason: zText(RESTAURANT_LIMITS.voidReasonMax, bad) }),
-    info: z.object({ guests: zOptNum(bad, 0, RESTAURANT_LIMITS.maxGuests, { int: true }), note: zOptText(RESTAURANT_LIMITS.noteMax, bad) }),
+    info: z.object({
+      guests: zOptNum(bad, 0, RESTAURANT_LIMITS.maxGuests, { int: true }),
+      note: zOptText(RESTAURANT_LIMITS.noteMax, bad),
+      // Saboyning stoli: null — olib tashlash
+      forTableId: zOptIdOrNull(e.tableNotFound),
+    }),
     ackCall: z.object({ tableId: zId(e.tableNotFound), kind: zOneOf(TABLE_CALL_KINDS, bad).optional() }),
 
     settings: z.object({

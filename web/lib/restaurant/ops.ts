@@ -287,6 +287,18 @@ export interface OpenOrderInput {
   clientOrderId?: string;
   /** Darhol qo'shiladigan taomlar (ixtiyoriy) */
   items?: AddItemInput[];
+  /**
+   * Saboy qaysi stol mehmonlariga (ixtiyoriy, faqat `takeaway`): stol faol va shu filialda bo'lishi shart.
+   * Faqat ma'lumot — stol bandligiga (`activeTableKey`) va «bir stolda bitta ochiq buyurtma» qoidasiga ta'sir qilmaydi.
+   */
+  forTableId?: string;
+}
+
+/** Saboy bog'lanadigan stol: faol, buyurtma filialida (filial xodimi — faqat o'z filiali) */
+async function findForTable(ctx: RestaurantCtx, tableId: string, branchId: unknown): Promise<{ _id: Types.ObjectId; number: number } | null> {
+  if (!validId(tableId)) return null;
+  return ctx.m.Table.findOne({ _id: tableId, branchId, active: true, ...branchFilter(ctx.user) }, { number: 1 })
+    .lean<{ _id: Types.ObjectId; number: number }>();
 }
 
 /** Stol ochish (dine_in) yoki saboy buyurtma. Stolda ochiq buyurtma bo'lsa — o'shani qaytaradi (`existing: true`) */
@@ -323,6 +335,13 @@ export async function openOrder(ctx: RestaurantCtx, input: OpenOrderInput): Prom
     if (!br.ok) return br;
     branchId = br.data;
   }
+  // Saboyning stoli — faqat saboyda; stoldagi buyurtma o'z stoli bilan (tableId)
+  let forTable: { _id: Types.ObjectId; number: number } | null = null;
+  if (input.forTableId) {
+    if (input.type !== 'takeaway') return fail(ctx.d, 'badInput');
+    forTable = await findForTable(ctx, input.forTableId, branchId);
+    if (!forTable) return fail(ctx.d, 'tableNotFound');
+  }
 
   const settings = await restaurantSettings(ctx.m);
   const now = new Date();
@@ -343,6 +362,7 @@ export async function openOrder(ctx: RestaurantCtx, input: OpenOrderInput): Prom
       source: input.type === 'takeaway' ? 'cashier' : 'waiter',
       status: 'open',
       ...(table ? { tableId: table._id, tableNumber: table.number, hallId: table.hallId, activeTableKey: String(table._id) } : {}),
+      ...(forTable ? { forTableId: forTable._id, forTableNumber: forTable.number } : {}),
       ...(input.guests ? { guests: input.guests } : {}),
       waiterId: ctx.user.id,
       waiterName: ctx.user.username,
@@ -357,7 +377,11 @@ export async function openOrder(ctx: RestaurantCtx, input: OpenOrderInput): Prom
       rev: 0,
     });
     const o = created.toObject() as OrderDoc;
-    await audit(ctx, 'order.open', o, `${input.type === 'takeaway' ? 'saboy' : 'stol ochildi'}${items.length ? `, ${items.length} ta taom` : ''}`, { type: input.type });
+    const what = input.type === 'takeaway' ? `saboy${forTable ? ` (${forTable.number}-stol uchun)` : ''}` : 'stol ochildi';
+    await audit(ctx, 'order.open', o, `${what}${items.length ? `, ${items.length} ta taom` : ''}`, {
+      type: input.type,
+      ...(forTable ? { forTableNumber: forTable.number } : {}),
+    });
     return ok({ order: await view(ctx, o), existing: false });
   } catch (e) {
     if (!isDupKey(e)) throw e;
@@ -792,22 +816,48 @@ export async function cancelOrder(ctx: RestaurantCtx, orderId: string, reason?: 
   });
 }
 
-/** Mehmonlar soni va izoh */
+/**
+ * Mehmonlar soni, izoh va saboyning stoli. `forTableId`: berilmasa — o'zgarmaydi, `null`/'' — bog'lanish olib
+ * tashlanadi, id — faqat saboyda (stol faol va buyurtma filialida). Stol o'zgarishi auditga yoziladi.
+ */
 export async function updateOrderInfo(
   ctx: RestaurantCtx,
   orderId: string,
-  input: { guests?: number | null; note?: string | null },
+  input: { guests?: number | null; note?: string | null; forTableId?: string | null },
 ): Promise<OpResult<{ order: OrderView }>> {
   const denied = needPerm(ctx, 'order.create');
   if (denied) return denied;
-  return mutateOrder(ctx, orderId, (o) => {
+  return mutateOrder(ctx, orderId, async (o) => {
     const err = access(ctx, o) ?? statusGuard(ctx, o, 'edit');
     if (err) return err;
     const set: Record<string, unknown> = {};
     const unset: string[] = [];
     if (input.guests !== undefined) { if (input.guests) set.guests = input.guests; else unset.push('guests'); }
     if (input.note !== undefined) { if (input.note) set.note = input.note; else unset.push('note'); }
-    return ok({ set, unset, result: async (saved: OrderDoc) => ({ order: await view(ctx, saved) }) });
+    let tableNote: string | null = null;
+    if (input.forTableId !== undefined) {
+      if (o.type !== 'takeaway') return fail(ctx.d, 'badInput');
+      const before = o.forTableNumber ?? '—';
+      if (!input.forTableId) {
+        if (o.forTableId) {
+          unset.push('forTableId', 'forTableNumber');
+          tableNote = `${before} → —`;
+        }
+      } else if (input.forTableId !== String(o.forTableId ?? '')) {
+        const t = await findForTable(ctx, input.forTableId, o.branchId);
+        if (!t) return fail(ctx.d, 'tableNotFound');
+        Object.assign(set, { forTableId: t._id, forTableNumber: t.number });
+        tableNote = `${before} → ${t.number}`;
+      }
+    }
+    return ok({
+      set,
+      unset,
+      after: async (saved: OrderDoc) => {
+        if (tableNote) await audit(ctx, 'order.forTable', saved, `saboy stoli: ${tableNote}`, { forTableNumber: saved.forTableNumber ?? null });
+      },
+      result: async (saved: OrderDoc) => ({ order: await view(ctx, saved) }),
+    });
   });
 }
 
@@ -1145,6 +1195,8 @@ async function writeSaleLines(
       soldBy,
       orderId: o._id,
       ...(o.tableNumber ? { tableNumber: o.tableNumber } : {}),
+      // Saboy — qaysi stol mehmonlariga (chekda «Saboy: 5-stol»)
+      ...(o.type === 'takeaway' && o.forTableNumber ? { forTableNumber: o.forTableNumber } : {}),
     });
     return {
       result: { saleId: String(sale._id), saleNo, itemId: line.item ? String(line.item._id) : null },

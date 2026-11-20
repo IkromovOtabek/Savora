@@ -16,10 +16,12 @@ export const PRINT_DONE_RETRIES = 3;
 
 export type PaperWidth = 58 | 80;
 
-/** Varaq yuqorisidagi katta yozuv: «STOL 12» / «SABOY» / «QR · STOL 5» */
-export function ticketPlace(j: Pick<PrintJobView, 'orderType' | 'tableNumber'>, d: Dict): string {
+/** Varaq yuqorisidagi katta yozuv: «STOL 12» / «SABOY» / «SABOY · STOL 5» (stol mehmonlariga) / «QR · STOL 5» */
+export function ticketPlace(j: Pick<PrintJobView, 'orderType' | 'tableNumber'> & Partial<Pick<PrintJobView, 'forTableNumber'>>, d: Dict): string {
   const p = d.restaurant.print;
-  if (j.orderType === 'takeaway') return p.ticketTakeaway;
+  if (j.orderType === 'takeaway') {
+    return j.forTableNumber ? `${p.ticketTakeaway} · ${tr(p.ticketTable, { n: j.forTableNumber })}` : p.ticketTakeaway;
+  }
   const table = j.tableNumber !== null ? tr(p.ticketTable, { n: j.tableNumber }) : '';
   if (j.orderType === 'qr_self') return table ? `${p.ticketQr} · ${table}` : p.ticketQr;
   return table || p.ticketTakeaway;
@@ -90,6 +92,7 @@ export function sampleJob(d: Dict, stationName: string, now: number): PrintJobVi
     orderNo: 'TEST-0001',
     orderType: 'dine_in',
     tableNumber: 1,
+    forTableNumber: null,
     waiterName: null,
     guests: null,
     orderNote: p.ticketTestFoot,

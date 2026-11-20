@@ -36,9 +36,10 @@ export interface KdsReduced { from: number; to: number; at: number }
 
 type Dict = ReturnType<typeof useDict>;
 
-/** Stol raqami yoki buyurtma turi («Saboy», «QR buyurtma») */
-export function orderLabel(o: Pick<KdsOrder, 'tableNumber' | 'type'>, d: Dict): string {
+/** Stol raqami yoki buyurtma turi («Saboy», «Saboy · 5-stol», «QR buyurtma») */
+export function orderLabel(o: Pick<KdsOrder, 'tableNumber' | 'type'> & Partial<Pick<KdsOrder, 'forTableNumber'>>, d: Dict): string {
   const c = d.restaurant.common;
+  if (o.type === 'takeaway' && o.forTableNumber) return tr(c.takeawayFor, { n: o.forTableNumber });
   return o.tableNumber ? tr(c.tableN, { n: o.tableNumber }) : c.orderTypes[o.type];
 }
 

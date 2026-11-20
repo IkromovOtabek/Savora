@@ -51,6 +51,8 @@ export interface PrintJobView {
   orderNo: string;
   orderType: OrderType;
   tableNumber: number | null;
+  /** Saboy qaysi stol mehmonlariga (varaqda «SABOY · STOL 5») */
+  forTableNumber: number | null;
   waiterName: string | null;
   guests: number | null;
   orderNote: string | null;
@@ -92,6 +94,7 @@ export function printJobView(j: PrintJobDoc, now: number): PrintJobView {
     orderNo: j.orderNo,
     orderType: j.orderType,
     tableNumber: j.tableNumber ?? null,
+    forTableNumber: j.forTableNumber ?? null,
     waiterName: j.waiterName ?? null,
     guests: j.guests ?? null,
     orderNote: j.orderNote ?? null,
@@ -214,6 +217,7 @@ export async function reprintPrintJob(ctx: RestaurantCtx, id: string): Promise<O
     orderNo: j.orderNo,
     orderType: j.orderType,
     tableNumber: j.tableNumber,
+    forTableNumber: j.forTableNumber,
     waiterName: j.waiterName,
     guests: j.guests,
     orderNote: j.orderNote,

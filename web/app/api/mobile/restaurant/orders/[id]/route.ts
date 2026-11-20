@@ -24,7 +24,7 @@ export async function GET(req: Request, { params }: Params) {
  *   void      { itemId, qty?, reason? }        — bekor qilish
  *   confirm   { itemIds?, reject?, send? }     — mijoz QR taomlari
  *   precheck  {}                               — hisob (pre-chek)
- *   info      { guests?, note? }
+ *   info      { guests?, note?, forTableId? }      — forTableId: saboyning stoli (null — olib tashlash)
  *   cancel    { reason? }                      — buyurtmani bekor qilish (oshxonaga yuborilgan faol taom va to'lov bo'lmasa)
  * To'lov mobil ilovada yo'q (kassa — web).
  */
@@ -41,7 +41,7 @@ export async function POST(req: Request, { params }: Params) {
     z.object({ op: z.literal('void'), itemId: s.voidItem.shape.itemId, qty: s.voidItem.shape.qty, reason: s.voidItem.shape.reason }),
     z.object({ op: z.literal('confirm'), itemIds: s.confirm.shape.itemIds, reject: s.confirm.shape.reject, send: s.confirm.shape.send }),
     z.object({ op: z.literal('precheck') }),
-    z.object({ op: z.literal('info'), guests: s.info.shape.guests, note: s.info.shape.note }),
+    z.object({ op: z.literal('info'), guests: s.info.shape.guests, note: s.info.shape.note, forTableId: s.info.shape.forTableId }),
     z.object({ op: z.literal('cancel'), reason: s.cancel.shape.reason }),
   ]);
   const b = await bodyOf(req, schema, a);
@@ -54,7 +54,7 @@ export async function POST(req: Request, { params }: Params) {
     case 'void': return toResponse(await voidItem(ctx, id, { itemId: d.itemId, qty: d.qty, reason: d.reason }));
     case 'confirm': return toResponse(await confirmPendingItems(ctx, id, { itemIds: d.itemIds, reject: d.reject, send: d.send }));
     case 'precheck': return toResponse(await precheckOrder(ctx, id));
-    case 'info': return toResponse(await updateOrderInfo(ctx, id, { guests: d.guests === undefined ? undefined : d.guests || null, note: d.note }));
+    case 'info': return toResponse(await updateOrderInfo(ctx, id, { guests: d.guests === undefined ? undefined : d.guests || null, note: d.note, forTableId: d.forTableId }));
     case 'cancel': return toResponse(await cancelOrder(ctx, id, d.reason || undefined));
   }
 }

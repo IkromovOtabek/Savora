@@ -9,7 +9,7 @@ import { useTheme, tabular, MAX_CONTENT, type Palette } from '@/lib/theme';
 import { fmtCompact, fmtMoney } from '@/lib/format';
 import { useDict, tr } from '@/lib/i18n';
 import {
-  restaurantApi, usePolling, newClientKey, isNetErr, fmtDur, sinceMs,
+  restaurantApi, usePolling, newClientKey, isNetErr, fmtDur, sinceMs, buildBills, linkedTakeaways,
   type TablesBoard, type TableRow, type OrderSummary, type CallKind,
 } from '@/lib/restaurant';
 import {
@@ -18,7 +18,12 @@ import {
 } from '@/components/ui';
 
 type Filter = 'all' | 'mine' | 'free';
+/** Stollar to'ri yoki ochiq hisoblar ro'yxati */
+type BoardView = 'tables' | 'bills';
 const GUEST_PRESETS = [1, 2, 3, 4, 5, 6, 8];
+/** Saboy stoli tanlovida «Stolsiz» kaliti */
+const NO_TABLE = '';
+const shortNo = (orderNo: string) => orderNo.split('-').pop() ?? orderNo;
 
 /** Stol holati → rang va yorliq (ofitsant bir qarashda ajratsin) */
 function tableLook(t: TableRow, c: Palette) {
@@ -33,7 +38,11 @@ const hasCall = (t: TableRow) => !!(t.calls.waiterAt || t.calls.billAt);
 /** Chaqiruvni ko'rsatamiz: bo'sh stol yoki buyurtmasi menga ochiq stol */
 const callVisible = (t: TableRow) => hasCall(t) && (!t.order || t.order.access);
 
-/** Ofitsant ekrani — zal tanlash, stollar to'ri, chaqiruvlar, saboy. Polling 5 s (fokusda). */
+/**
+ * Ofitsant ekrani — zal tanlash, stollar to'ri, chaqiruvlar, saboy (ixtiyoriy — qaysi stol mehmonlariga).
+ * «Hisoblar» — ko'ra oladigan barcha ochiq hisoblar (pre-chek / hisob so'ragan birinchi, bog'langan saboy stol ostida).
+ * Polling 5 s (fokusda).
+ */
 export default function Tables() {
   const router = useRouter();
   const { c } = useTheme();
@@ -48,6 +57,7 @@ export default function Tables() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<Filter>('all');
+  const [view, setView] = useState<BoardView>('tables');
   const [hall, setHall] = useState<string>('all');
   const [acking, setAcking] = useState<string | null>(null);
   const ackRef = useRef(false);
@@ -115,6 +125,11 @@ export default function Tables() {
     } finally { setBusy(false); }
   }
 
+  /* ───── saboy (ixtiyoriy — qaysi stol mehmonlariga) ───── */
+  const [takeawayOpen, setTakeawayOpen] = useState(false);
+  const [forTable, setForTable] = useState<string>(NO_TABLE);
+  function startTakeaway() { setForTable(NO_TABLE); setTakeawayOpen(true); }
+
   async function newTakeaway() {
     if (busyRef.current || !board) return;
     setBusy(true);
@@ -123,13 +138,16 @@ export default function Tables() {
         type: 'takeaway',
         // Admin — tanlangan filialda; filial xodimida server o'z filialini oladi
         branchId: board.branches.length ? board.branchId : undefined,
-        clientOrderId: keyFor(`takeaway:${board.branchId}`),
+        clientOrderId: keyFor(`takeaway:${board.branchId}:${forTable}`),
+        ...(forTable ? { forTableId: forTable } : {}),
       });
       openKey.current = null;
+      setTakeawayOpen(false);
       goOrder(res.order, true);
       load('silent');
     } catch (e) {
       Alert.alert(d.common.error, isNetErr(e) ? r.netError : errMsg(e));
+      if (!isNetErr(e)) { setForTable(NO_TABLE); load('silent'); }
     } finally { setBusy(false); }
   }
 
@@ -180,6 +198,9 @@ export default function Tables() {
   }, [board, filter]);
 
   const takeaway = board?.takeaway ?? [];
+  // Stolga bog'langan saboylar (plitkadagi belgi) va «Hisoblar» ro'yxati
+  const linked = useMemo(() => linkedTakeaways({ takeaway }), [takeaway]);
+  const bills = useMemo(() => buildBills({ tables: board?.tables ?? [], takeaway }), [board, takeaway]);
   const mineCount = (board?.tables ?? []).filter((t) => t.order?.mine).length;
   const freeCount = (board?.tables ?? []).filter((t) => !t.order).length;
   const branchName = board?.branches.find((b) => b.id === board.branchId)?.name;
@@ -208,12 +229,18 @@ export default function Tables() {
       : o.guests ? tr(r.guestsN, { n: o.guests }) : r.statuses.open;
     // Ochiq summa (o'z stoli); hali taom yo'q yoki boshqa ofitsant stoli — ochilganidan beri vaqt
     const bottom = o?.access && o.due ? fmtCompact(o.due) : o ? fmtDur(sinceMs(o.openedAt)) : '';
+    // Shu stol mehmonlariga ochiq saboylar
+    const lk = linked.get(t.id);
+    const lkDue = lk ? lk.reduce((x, k) => x + (k.due ?? 0), 0) : 0;
     return (
       <Pressable
         key={t.id}
         onPress={() => onTable(t)}
         accessibilityRole="button"
-        accessibilityLabel={[tr(r.tableN, { n: t.number }), status, call ? r.calls : '', ready ? tr(r.readyN, { n: ready }) : ''].filter(Boolean).join(', ')}
+        accessibilityLabel={[
+          tr(r.tableN, { n: t.number }), status, call ? r.calls : '', ready ? tr(r.readyN, { n: ready }) : '',
+          lk ? tr(r.linkedFull, { n: lk.length, sum: fmtMoney(lkDue) }) : '',
+        ].filter(Boolean).join(', ')}
         style={({ pressed }) => [
           s.tile,
           { width: tileW, backgroundColor: look.bg, borderColor: call ? c.bad : ready ? c.ok : o ? 'transparent' : c.sep },
@@ -230,6 +257,11 @@ export default function Tables() {
           </View>
         </View>
         <Text style={[s.tileSub, { color: look.sub }]} numberOfLines={1}>{status}</Text>
+        {lk ? (
+          <Text style={[s.tileLinked, tabular, { color: c.ok }]} numberOfLines={1}>
+            {tr(r.linkedN, { n: lk.length })} · {fmtCompact(lkDue)}
+          </Text>
+        ) : null}
         <View style={s.tileBottom}>
           {bottom ? <Text style={[s.tileSum, tabular, { color: look.fg }]} numberOfLines={1}>{bottom}</Text> : <View />}
           {ready > 0 ? <View style={[s.badge, { backgroundColor: c.ok }]}><Text style={s.badgeT}>{ready}</Text></View>
@@ -252,17 +284,28 @@ export default function Tables() {
         <Chips options={board.branches.map((b) => ({ key: b.id, label: b.name }))} value={branchId ?? board.branchId} onChange={(k) => { setBranchId(k); setHall('all'); }} />
       ) : null}
 
-      <SegmentedControl<Filter>
+      <SegmentedControl<BoardView>
         options={[
-          { key: 'all', label: r.filterAll },
-          { key: 'mine', label: mineCount ? `${r.filterMine} · ${mineCount}` : r.filterMine },
-          { key: 'free', label: freeCount ? `${r.filterFree} · ${freeCount}` : r.filterFree },
+          { key: 'tables', label: r.viewTables },
+          { key: 'bills', label: bills.summary.count ? `${r.viewBills} · ${bills.summary.count}` : r.viewBills },
         ]}
-        value={filter}
-        onChange={setFilter}
+        value={view}
+        onChange={setView}
       />
 
-      {halls.length > 1 ? (
+      {view === 'tables' ? (
+        <SegmentedControl<Filter>
+          options={[
+            { key: 'all', label: r.filterAll },
+            { key: 'mine', label: mineCount ? `${r.filterMine} · ${mineCount}` : r.filterMine },
+            { key: 'free', label: freeCount ? `${r.filterFree} · ${freeCount}` : r.filterFree },
+          ]}
+          value={filter}
+          onChange={setFilter}
+        />
+      ) : null}
+
+      {view === 'tables' && halls.length > 1 ? (
         <Chips options={[{ key: 'all', label: r.allHalls }, ...halls.map((h) => ({ key: h.id, label: h.name }))]} value={hall} onChange={setHall} />
       ) : null}
 
@@ -282,7 +325,35 @@ export default function Tables() {
         </Group>
       ) : null}
 
-      {board.tables.length === 0 ? (
+      {view === 'bills' ? (
+        <>
+          <Group>
+            <Cell icon="receipt-outline" iconColor={c.sq.b} title={r.billsOpen} value={String(bills.summary.count)} valueStrong />
+            <Cell icon="cash-outline" iconColor={c.sq.g} title={r.billsDue} value={fmtMoney(bills.summary.due, { suffix: true })} valueStrong />
+            <Cell
+              icon="time-outline"
+              iconColor={c.sq.a}
+              title={r.billsPrecheck}
+              value={String(bills.summary.precheck)}
+              valueStrong
+              valueColor={bills.summary.precheck ? c.gold : undefined}
+            />
+            {bills.summary.billRequests ? (
+              <Cell icon="notifications" iconColor={c.sq.r} title={r.billsAsked} value={String(bills.summary.billRequests)} valueStrong valueColor={c.bad} />
+            ) : null}
+          </Group>
+          {bills.rows.length === 0 ? (
+            <EmptyState icon="receipt-outline" title={r.noBills} message={r.noBillsMsg} />
+          ) : (
+            <Group header={r.viewBills} icon="receipt-outline">
+              {bills.rows.flatMap((row) => [
+                <BillCell key={row.order.id} o={row.order} billAt={row.billAt} onPress={() => router.push(`/order/${row.order.id}`)} />,
+                ...row.linked.map((x) => <BillCell key={x.id} o={x} kid onPress={() => router.push(`/order/${x.id}`)} />),
+              ])}
+            </Group>
+          )}
+        </>
+      ) : board.tables.length === 0 ? (
         <EmptyState icon="restaurant-outline" title={r.title} message={r.noHalls} />
       ) : shown.length === 0 ? (
         <EmptyState icon="grid-outline" title={r.noTables} />
@@ -299,14 +370,33 @@ export default function Tables() {
         })
       ) : grid(shown)}
 
-      {filter !== 'free' ? (
+      {view === 'tables' && filter !== 'free' ? (
         <Group header={r.takeawayList} icon="bag-handle-outline">
           {[
             ...takeaway.filter((o) => filter !== 'mine' || o.mine).map((o) => <TakeawayCell key={o.id} o={o} onPress={() => router.push(`/order/${o.id}`)} />),
-            <Cell key="__new" icon="add-circle" iconColor={c.sq.b} title={r.newTakeaway} onPress={newTakeaway} disabled={busy} chevron />,
+            <Cell key="__new" icon="add-circle" iconColor={c.sq.b} title={r.newTakeaway} onPress={startTakeaway} disabled={busy} chevron />,
           ]}
         </Group>
       ) : null}
+
+      {/* Yangi saboy: ixtiyoriy — qaysi stol mehmonlariga (band stol ham bo'ladi) */}
+      <Sheet
+        visible={takeawayOpen}
+        onClose={() => setTakeawayOpen(false)}
+        title={r.newTakeaway}
+        subtitle={r.forTable}
+        footer={<Button title={r.openTakeaway} icon="bag-handle" size="lg" full loading={busy} onPress={() => { void newTakeaway(); }} />}
+      >
+        <Text style={[s.hint, { color: c.ink3 }]}>{r.forTableHint}</Text>
+        <Chips<string>
+          options={[
+            { key: NO_TABLE, label: r.noTable },
+            ...board.tables.map((t) => ({ key: t.id, label: t.order ? tr(r.tableBusyN, { n: t.number }) : String(t.number) })),
+          ]}
+          value={forTable}
+          onChange={setForTable}
+        />
+      </Sheet>
 
       <Sheet
         visible={!!openFor}
@@ -335,7 +425,7 @@ function TakeawayCell({ o, onPress }: { o: OrderSummary; onPress: () => void }) 
       icon="bag-handle"
       iconColor={o.status === 'precheck' ? c.sq.a : c.sq.t}
       title={tr(r.takeawayNo, { no: o.orderNo })}
-      subtitle={[fmtDur(sinceMs(o.openedAt)), o.waiterName].filter(Boolean).join(' · ')}
+      subtitle={[o.forTableNumber !== null ? tr(r.forTableN, { n: o.forTableNumber }) : null, fmtDur(sinceMs(o.openedAt)), o.waiterName].filter(Boolean).join(' · ')}
       right={
         <View style={{ alignItems: 'flex-end', gap: 3 }}>
           <Text style={[{ fontSize: 16, fontWeight: '800', color: c.ink }, tabular]}>{o.due !== null ? fmtMoney(o.due) : '—'}</Text>
@@ -348,13 +438,43 @@ function TakeawayCell({ o, onPress }: { o: OrderSummary; onPress: () => void }) 
   );
 }
 
+/** «Hisoblar» qatori: stol yoki saboy, ofitsant, vaqt, mehmonlar, summa, holat; `kid` — stolga bog'langan saboy */
+function BillCell({ o, billAt = null, kid = false, onPress }: { o: OrderSummary; billAt?: string | null; kid?: boolean; onPress: () => void }) {
+  const { c } = useTheme();
+  const d = useDict();
+  const r = d.restaurant;
+  const title = o.tableNumber !== null
+    ? tr(r.tableN, { n: o.tableNumber })
+    : [tr(r.takeawayNo, { no: shortNo(o.orderNo) }), o.forTableNumber !== null && !kid ? tr(r.tableN, { n: o.forTableNumber }) : null].filter(Boolean).join(' · ');
+  return (
+    <Cell
+      icon={kid ? 'return-down-forward' : o.tableNumber !== null ? 'restaurant' : 'bag-handle'}
+      iconColor={o.status === 'precheck' ? c.sq.a : kid ? c.sq.g : c.sq.t}
+      title={title}
+      subtitle={[o.waiterName, fmtDur(sinceMs(o.openedAt)), o.guests ? tr(r.guestsN, { n: o.guests }) : null].filter(Boolean).join(' · ')}
+      right={
+        <View style={{ alignItems: 'flex-end', gap: 3 }}>
+          <Text style={[{ fontSize: kid ? 15 : 16, fontWeight: '800', color: c.ink }, tabular]}>{o.due !== null ? fmtMoney(o.due) : '—'}</Text>
+          {billAt ? <Pill label={r.billRequested} tone="bad" />
+            : o.status === 'precheck' ? <Pill label={r.precheck} tone="au" />
+              : <Pill label={r.statuses[o.status]} tone="br" />}
+        </View>
+      }
+      onPress={onPress}
+      chevron
+    />
+  );
+}
+
 const s = StyleSheet.create({
   grid: { flexDirection: 'row', flexWrap: 'wrap' },
+  hint: { fontSize: 14, fontWeight: '500', lineHeight: 20 },
   tile: { minHeight: 108, borderRadius: 20, padding: 12, borderWidth: 1, justifyContent: 'space-between' },
   tileTop: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 4 },
   num: { fontSize: 30, fontWeight: '800', letterSpacing: -0.8, flexShrink: 1 },
   icons: { flexDirection: 'row', alignItems: 'center', gap: 3, paddingTop: 4 },
   tileSub: { fontSize: 13, fontWeight: '600' },
+  tileLinked: { fontSize: 12, fontWeight: '700' },
   tileBottom: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 4, minHeight: 22 },
   tileSum: { fontSize: 15, fontWeight: '800', flexShrink: 1 },
   badge: { minWidth: 22, height: 22, borderRadius: 11, paddingHorizontal: 6, alignItems: 'center', justifyContent: 'center' },

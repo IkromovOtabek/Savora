@@ -14,7 +14,8 @@ export async function GET(req: Request) {
 }
 
 /**
- * Stol ochish / saboy: { type: 'dine_in'|'takeaway', tableId?, branchId?, guests?, note?, clientOrderId?, items? }.
+ * Stol ochish / saboy: { type: 'dine_in'|'takeaway', tableId?, branchId?, guests?, note?, clientOrderId?, items?, forTableId? }.
+ * `forTableId` — saboy qaysi stol mehmonlariga (faqat takeaway; stol faol va shu filialda).
  * Stolda ochiq buyurtma bo'lsa — o'sha qaytadi (`existing: true`). `clientOrderId` — takroriy yuborishdan himoya.
  */
 export async function POST(req: Request) {

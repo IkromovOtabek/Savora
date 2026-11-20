@@ -197,7 +197,8 @@ export default async function TenantDashboard({
   // Restoran/kafe — kelgan mijozlar kartasi; bosilsa restoran hisoboti (shu davr va filial bilan) yoki stollar
   const guests = features.tables ? (guestAgg[0] ?? { guests: 0, orders: 0 }) : null;
   const guestsHref = (() => {
-    if (!perms.has('reports.view')) return '/app/tables';
+    // Hisobotsiz xodim: kassir (to'lov + barcha hisoblar) — kassa oynasi, ofitsant — stollar
+    if (!perms.has('reports.view')) return perms.has('sale.create') && perms.has('order.viewAll') ? '/app/tables/cashier' : '/app/tables';
     const q = new URLSearchParams();
     if (period === 'yesterday' || period === 'week' || period === 'month') q.set('p', period);
     else if (isDayPeriod(period)) { q.set('from', period); q.set('to', period); }

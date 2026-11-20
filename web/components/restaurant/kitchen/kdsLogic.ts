@@ -256,6 +256,7 @@ export function kdsOrderFromView(
       status: v.status,
       source: v.source,
       tableNumber: v.tableNumber,
+      forTableNumber: v.type === 'takeaway' ? v.forTableNumber : null,
       waiterName: v.waiterName,
       guests: v.guests,
       note: v.note,

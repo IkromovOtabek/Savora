@@ -9,7 +9,7 @@ import { PAY_METHODS, methodOf, type PayMethod } from '@/lib/payMethods';
 import { isBankNasiya, saleBankParts } from '@/lib/bankCredit';
 import { markingLabel } from '@/lib/gs1';
 
-type ReceiptSale = Pick<ISale, 'saleNo' | 'productSnapshot' | 'customerSnapshot' | 'paymentType' | 'bankName' | 'bankParts' | 'totalAmount' | 'paidAmount' | 'remainingAmount' | 'soldBy' | 'dueDate' | 'createdAt' | 'discount'> & Partial<Pick<ISale, 'tableNumber' | 'markingCodes'>> & Parameters<typeof computeInstallmentPlan>[0];
+type ReceiptSale = Pick<ISale, 'saleNo' | 'productSnapshot' | 'customerSnapshot' | 'paymentType' | 'bankName' | 'bankParts' | 'totalAmount' | 'paidAmount' | 'remainingAmount' | 'soldBy' | 'dueDate' | 'createdAt' | 'discount'> & Partial<Pick<ISale, 'tableNumber' | 'forTableNumber' | 'markingCodes'>> & Parameters<typeof computeInstallmentPlan>[0];
 
 /**
  * Chek qog'ozi — bitta sotuv yoki kassadagi bir nechta qatorli sotuv (har qator — alohida Sale).
@@ -62,6 +62,10 @@ export default function ReceiptPaper({ sales, org, receipt, d, publicView = fals
         <dt>{d.common.date}</dt><dd>{fmtDateTime(first.createdAt!)}</dd>
         {/* Restoran to'lovi: stol raqami (Sale.tableNumber) */}
         {first.tableNumber ? (<><dt>{d.restaurant.common.table}</dt><dd>{first.tableNumber}</dd></>) : null}
+        {/* Saboy — qaysi stol mehmonlariga (Sale.forTableNumber) */}
+        {!first.tableNumber && first.forTableNumber ? (
+          <><dt>{d.restaurant.common.orderTypes.takeaway}</dt><dd>{tr(d.restaurant.common.tableN, { n: first.forTableNumber })}</dd></>
+        ) : null}
         {receipt.showSeller && (<><dt>{k.seller}</dt><dd>{first.soldBy}</dd></>)}
         {customer && (<><dt>{d.common.customer}</dt><dd>{customer}</dd></>)}
         {phone && (<><dt>{d.common.phone}</dt><dd>{phone}</dd></>)}

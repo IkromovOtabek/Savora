@@ -34,7 +34,7 @@ const grouped = (s: string) => (s ? fmtMoney(num(s)) : '');
  * PAY_METHODS (UzQR bilan), aralash to'lov, naqdda qaytim. Xizmat haqi, qadoq va chegirma qatorlari ochiq.
  * `payId` — takroriy bosish/tarmoq uzilishida ikki marta yozilmasin (oyna davomida bitta).
  */
-export default function PayDialog({ order, busy, run, onClose, onFailed, shopName, backHref }: {
+export default function PayDialog({ order, busy, run, onClose, onFailed, shopName, backHref, onBack, backLabel }: {
   order: OrderView;
   busy: boolean;
   run: Runner;
@@ -43,6 +43,10 @@ export default function PayDialog({ order, busy, run, onClose, onFailed, shopNam
   onFailed: (f: SendFailure[]) => void;
   shopName: string;
   backHref: string;
+  /** Hisob yopilgach asosiy tugma havola emas, amal bo'lsin (kassir oynasi — navbatga qaytish) */
+  onBack?: () => void;
+  /** Asosiy tugma yozuvi (standart — «Stollarga qaytish») */
+  backLabel?: string;
 }) {
   const d = useDict();
   const k = d.restaurant.order;
@@ -179,7 +183,9 @@ export default function PayDialog({ order, busy, run, onClose, onFailed, shopNam
         footer={done.closed ? (
           <>
             <button type="button" className="btn btn-ghost" onClick={onClose}>{d.common.close}</button>
-            <Link href={backHref} className="btn btn-primary" data-autofocus>{k.backToTables}</Link>
+            {onBack
+              ? <button type="button" className="btn btn-primary" onClick={onBack} data-autofocus>{backLabel ?? k.backToTables}</button>
+              : <Link href={backHref} className="btn btn-primary" data-autofocus>{backLabel ?? k.backToTables}</Link>}
           </>
         ) : (
           <>

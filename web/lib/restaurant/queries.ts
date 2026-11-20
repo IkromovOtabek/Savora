@@ -35,6 +35,8 @@ export async function branchesFor(ctx: RestaurantCtx): Promise<{ id: string; nam
 }
 
 const ORDER_READ_PERMS = ['order.create', 'order.viewAll'] as const;
+/** Ro'yxatlar (OrderSummary) uchun o'qiladigan maydonlar — taomlarning faqat hisobga kerakli qismi */
+const SUMMARY_FIELDS = 'orderNo type status source tableId tableNumber forTableId forTableNumber guests waiterId waiterName openedAt precheckAt updatedAt serviceChargePct packFee packFeePaid items.price items.qty items.status items.paidCheckoutId payments.total branchId';
 
 /* ───────────────────────────── stollar taxtasi ───────────────────────────── */
 
@@ -72,7 +74,7 @@ export async function tablesBoard(ctx: RestaurantCtx, input: { branchId?: string
     ctx.m.Hall.find({ branchId, active: true }).sort({ sort: 1, createdAt: 1 }).select('name sort').lean(),
     ctx.m.Table.find({ branchId, active: true }).sort({ number: 1 }).select('hallId number seats x y callWaiterAt callBillAt').lean(),
     ctx.m.Order.find({ branchId, status: { $in: ['open', 'precheck'] } })
-      .select('orderNo type status source tableId tableNumber guests waiterId waiterName openedAt updatedAt serviceChargePct packFee packFeePaid items.price items.qty items.status items.paidCheckoutId payments.total branchId')
+      .select(SUMMARY_FIELDS)
       .lean<OrderDoc[]>(),
     branchesFor(ctx),
     staffNamesFor(ctx),
@@ -133,7 +135,7 @@ export async function listOrders(ctx: RestaurantCtx, input: OrdersListInput = {}
   const [orders, names] = await Promise.all([ctx.m.Order.find(filter)
     .sort({ updatedAt: -1 })
     .limit(Math.min(Math.max(input.limit ?? 100, 1), 200))
-    .select('orderNo type status source tableId tableNumber guests waiterId waiterName openedAt updatedAt serviceChargePct packFee packFeePaid items.price items.qty items.status items.paidCheckoutId payments.total branchId')
+    .select(SUMMARY_FIELDS)
     .lean<OrderDoc[]>(), staffNamesFor(ctx)]);
   return ok({
     serverTime: new Date(start).toISOString(),
@@ -191,6 +193,8 @@ export interface KdsOrder {
   /** Kim ochgan: ofitsant / mijoz QR / kassa */
   source: OrderSource;
   tableNumber: number | null;
+  /** Saboy qaysi stol mehmonlariga («Saboy · 5-stol»); null/yo'q — bog'lanmagan yoki stoldagi buyurtma */
+  forTableNumber?: number | null;
   waiterName: string | null;
   guests: number | null;
   /** Buyurtma izohi (ofitsant: «allergiya», «tezroq» va h.k.) */
@@ -246,7 +250,7 @@ export async function kitchenBoard(
     restaurantSettings(ctx.m),
     ctx.m.KitchenStation.find({ branchId, active: true }).sort({ sort: 1, createdAt: 1 }).select('name kind').lean(),
     ctx.m.Order.find(filter).sort({ openedAt: 1 }).limit(300)
-      .select('orderNo type status source tableNumber waiterId waiterName guests note updatedAt items')
+      .select('orderNo type status source tableNumber forTableNumber waiterId waiterName guests note updatedAt items')
       .lean<OrderDoc[]>(),
     branchesFor(ctx),
     staffNamesFor(ctx),
@@ -260,6 +264,7 @@ export async function kitchenBoard(
     status: o.status,
     source: o.source ?? 'waiter',
     tableNumber: o.tableNumber ?? null,
+    forTableNumber: o.type === 'takeaway' ? o.forTableNumber ?? null : null,
     waiterName: staffName(names, o.waiterName, o.waiterId),
     guests: o.guests ?? null,
     note: o.note ?? null,
