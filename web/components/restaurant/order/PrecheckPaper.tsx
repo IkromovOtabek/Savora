@@ -44,7 +44,12 @@ export default function PrecheckPaper({ order, org, receipt, logoUrl, d, printed
       <dl className="sl-rc-meta">
         <dt>{c.order}</dt><dd>{order.orderNo}</dd>
         {order.hallName ? (<><dt>{c.hall}</dt><dd>{order.hallName}</dd></>) : null}
-        <dt>{c.table}</dt><dd>{order.tableNumber !== null ? order.tableNumber : c.orderTypes[order.type]}</dd>
+        <dt>{c.table}</dt>
+        <dd>
+          {order.tableNumber !== null ? order.tableNumber
+            : order.forTableNumber !== null ? tr(c.takeawayFor, { n: order.forTableNumber })
+              : c.orderTypes[order.type]}
+        </dd>
         <dt>{c.waiter}</dt><dd>{order.waiterName ?? '—'}</dd>
         {order.guests ? (<><dt>{c.guests}</dt><dd>{order.guests}</dd></>) : null}
         <dt>{d.common.date}</dt><dd>{fmtDateTime(order.precheckAt ?? printedAt)}</dd>

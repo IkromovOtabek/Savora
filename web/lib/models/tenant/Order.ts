@@ -95,6 +95,13 @@ export interface IOrder {
    * bir vaqtda faqat bitta ochiq buyurtma (parallel «stol ochish»da ikkinchisi mavjudini oladi).
    */
   activeTableKey?: string;
+  /**
+   * Saboy (takeaway) qaysi stol mehmonlariga — faqat ma'lumot (ro'yxat, chek, oshxona varag'i). Stol bandligiga
+   * (`activeTableKey`) ta'sir qilmaydi: stolda o'z ochiq buyurtmasi bo'lishi mumkin, bitta stolga bir nechta saboy ham.
+   */
+  forTableId?: Types.ObjectId;
+  /** Stol raqami (nusxa — stol o'chirilsa ham chekda qoladi) */
+  forTableNumber?: number;
   guests?: number;
   waiterId?: string;
   waiterName?: string;
@@ -197,6 +204,8 @@ export const orderSchema = new Schema<IOrder>(
     tableNumber: { type: Number },
     hallId: { type: Schema.Types.ObjectId, ref: 'Hall' },
     activeTableKey: { type: String },
+    forTableId: { type: Schema.Types.ObjectId, ref: 'Table' },
+    forTableNumber: { type: Number },
     guests: { type: Number, min: 1, max: 100 },
     waiterId: { type: String, trim: true },
     waiterName: { type: String, trim: true },

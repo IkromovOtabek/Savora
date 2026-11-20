@@ -15,6 +15,9 @@ import { newClientSaleId } from './offline';
 import { priceTimesQty } from './qty';
 import { getDict, tr } from './i18n';
 
+// «Hisoblar» ko'rinishi (sof funksiyalar — alohida faylda, testlanadi)
+export { buildBills, linkedTakeaways, billRank, type BillRow, type BillsSummary } from './restaurantBills';
+
 /* ───────────────────────────── turlar ───────────────────────────── */
 
 export type OrderType = 'dine_in' | 'takeaway' | 'qr_self';
@@ -32,10 +35,14 @@ export interface OrderSummary {
   source: 'waiter' | 'qr' | 'cashier';
   tableId: string | null;
   tableNumber: number | null;
+  /** Saboy qaysi stol mehmonlariga (faqat ma'lumot — stol bandligiga ta'sir qilmaydi) */
+  forTableId: string | null;
+  forTableNumber: number | null;
   guests: number | null;
   waiterId: string | null;
   waiterName: string | null;
   openedAt: string | null;
+  precheckAt: string | null;
   updatedAt: string | null;
   /** false — boshqa ofitsant stoli (summalar yashirin) */
   access: boolean;
@@ -116,6 +123,9 @@ export interface OrderView {
   tableNumber: number | null;
   /** Zal nomi (pre-chekda) */
   hallName: string | null;
+  /** Saboy qaysi stol mehmonlariga (null — bog'lanmagan) */
+  forTableId: string | null;
+  forTableNumber: number | null;
   guests: number | null;
   waiterId: string | null;
   waiterName: string | null;
@@ -165,7 +175,8 @@ type OrderOpBody =
   | { op: 'void'; itemId: string; qty?: number; reason?: string }
   | { op: 'confirm'; itemIds?: string[]; reject?: boolean; send?: boolean }
   | { op: 'precheck' }
-  | { op: 'info'; guests?: number; note?: string }
+  /** forTableId — saboyning stoli (null — olib tashlash; faqat saboyda) */
+  | { op: 'info'; guests?: number; note?: string; forTableId?: string | null }
   | { op: 'cancel'; reason?: string };
 
 /** Server soati bilan farq (ms) — «necha daqiqa» hisobi telefon soati noto'g'ri bo'lsa ham to'g'ri chiqsin */
@@ -186,7 +197,8 @@ export const restaurantApi = {
   },
   ackCall: (tableId: string, kind?: CallKind) => api<{ tableId: string }>(`${BASE}/tables`, { method: 'POST', body: { op: 'ackCall', tableId, kind } }),
   menu: (branchId?: string | null) => api<Menu>(`${BASE}/menu${q(branchId)}`),
-  open: (body: { type: 'dine_in' | 'takeaway'; tableId?: string; branchId?: string; guests?: number; clientOrderId: string }) =>
+  /** `forTableId` — saboy qaysi stol mehmonlariga (ixtiyoriy, faqat takeaway) */
+  open: (body: { type: 'dine_in' | 'takeaway'; tableId?: string; branchId?: string; guests?: number; clientOrderId: string; forTableId?: string }) =>
     api<{ order: OrderView; existing: boolean }>(`${BASE}/orders`, { method: 'POST', body }),
   async order(id: string) {
     const sent = Date.now();

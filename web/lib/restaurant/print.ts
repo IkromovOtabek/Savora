@@ -61,6 +61,7 @@ export function buildPrintJobs(
       orderNo: o.orderNo,
       orderType: o.type,
       ...(o.tableNumber !== undefined && o.tableNumber !== null ? { tableNumber: o.tableNumber } : {}),
+      ...(o.type === 'takeaway' && o.forTableNumber ? { forTableNumber: o.forTableNumber } : {}),
       ...(meta.waiterName ? { waiterName: meta.waiterName } : {}),
       ...(o.guests ? { guests: o.guests } : {}),
       ...(o.note ? { orderNote: o.note } : {}),

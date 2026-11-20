@@ -81,8 +81,8 @@ describe('applyNavLayout', () => {
     });
     const o = order(res);
     expect(o[0]).toBe('Moliya:/app/kassa,/app/finance,/app/kredit-kassa');
-    // Saqlangan tartibda yo'q havolalar — o'z guruhi oxirida, standart tartibda (restoran: Menyu, Stollar, Mening kunim, Oshxona)
-    expect(o[1]).toBe('Sotuvlar:/app/reports,/app,/app/pos,/app/menu,/app/tables,/app/tables/me,/app/kitchen,/app/sales,/app/shifts');
+    // Saqlangan tartibda yo'q havolalar — o'z guruhi oxirida, standart tartibda (restoran: Menyu, Stollar, Kassa, Mening kunim, Oshxona)
+    expect(o[1]).toBe('Sotuvlar:/app/reports,/app,/app/pos,/app/menu,/app/tables,/app/tables/cashier,/app/tables/me,/app/kitchen,/app/sales,/app/shifts');
     // Qolgan guruhlar standart tartibda oxirida, barcha havolalar saqlanadi
     expect(res.map((g) => g.title)).toEqual(['Moliya', 'Sotuvlar', 'Mahsulotlar', 'Ishlab chiqarish', 'Mijozlar', 'Hisobotlar', 'E-commerce', 'Boshqaruv', 'Sozlamalar']);
     const all = res.flatMap((g) => g.links.map((l) => l.href)).sort();

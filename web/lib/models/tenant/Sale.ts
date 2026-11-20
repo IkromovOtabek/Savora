@@ -111,6 +111,8 @@ export interface ISale {
   orderId?: Types.ObjectId;
   /** Restoran: stol raqami (chek va hisobot uchun nusxa) */
   tableNumber?: number;
+  /** Restoran saboyi: qaysi stol mehmonlariga (chekda «Saboy: 5-stol»; stol bandligi emas) */
+  forTableNumber?: number;
   /**
    * Markirovka kodlari (GS1 DataMatrix, kanonik ko'rinish — GS = \x1d, lib/gs1.ts) — har dona uchun bittadan.
    * Fiskal uzatish keyingi bosqichda (virtual kassa); hozir chekda belgisi va takror sotuvni bloklash uchun.
@@ -200,6 +202,7 @@ export const saleSchema = new Schema<ISale>(
     syncedAt: { type: Date },
     orderId: { type: Schema.Types.ObjectId, ref: 'Order' },
     tableNumber: { type: Number },
+    forTableNumber: { type: Number },
     markingCodes: { type: [{ type: String, maxlength: 200 }], default: undefined },
     markingKeys: { type: [{ type: String, maxlength: 60 }], default: undefined },
   },

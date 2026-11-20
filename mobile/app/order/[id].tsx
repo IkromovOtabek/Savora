@@ -9,7 +9,7 @@ import { fmtQty } from '@/lib/qty';
 import { useDict, tr, type Dict } from '@/lib/i18n';
 import {
   restaurantApi, usePolling, isNetErr, errCode, failedOf, fmtClock, fmtDur, sinceMs, getCart, cartCount,
-  type OrderView, type OrderItem, type ItemStatus, type SendFailure,
+  type OrderView, type OrderItem, type ItemStatus, type SendFailure, type TableRow,
 } from '@/lib/restaurant';
 import {
   Screen, NavBar, LargeTitle, Group, Cell, AmountColumn, Pill, Button, Field, Chips, Stepper, Sheet, Loading, ErrorState,
@@ -139,6 +139,28 @@ export default function OrderScreen() {
   const [guests, setGuests] = useState(1);
   const saveGuests = async () => { if ((await run('info', { op: 'info', guests })) === 'ok') setGuestsOpen(false); };
 
+  /* ───── saboy: qaysi stol mehmonlariga ───── */
+  const [tableOpen, setTableOpen] = useState(false);
+  const [tables, setTables] = useState<TableRow[] | null>(null);
+  const [tablesErr, setTablesErr] = useState<string | null>(null);
+  const [forTable, setForTable] = useState('');
+  async function openForTable() {
+    if (!order) return;
+    setForTable(order.forTableId ?? '');
+    setTablesErr(null);
+    setTableOpen(true);
+    try {
+      setTables((await restaurantApi.tables(order.branchId)).tables);
+    } catch (e) {
+      setTablesErr(isNetErr(e) ? r.netError : errMsg(e));
+    }
+  }
+  async function saveForTable() {
+    if (!order) return;
+    if (forTable === (order.forTableId ?? '')) { setTableOpen(false); return; }
+    if ((await run('info', { op: 'info', forTableId: forTable || null })) === 'ok') setTableOpen(false);
+  }
+
   /* ───── bekor qilish ───── */
   const [voidItem, setVoidItem] = useState<OrderItem | null>(null);
   const [voidQty, setVoidQty] = useState(1);
@@ -235,6 +257,7 @@ export default function OrderScreen() {
   const statusTone: Tone = order.status === 'precheck' ? 'au' : order.status === 'open' ? 'br' : 'mut';
   const subtitle = [
     order.tableNumber !== null ? order.orderNo : null,
+    order.forTableNumber !== null ? tr(r.forTableN, { n: order.forTableNumber }) : null,
     order.waiterName,
     tr(r.openedAt, { t: fmtClock(order.openedAt) }),
   ].filter(Boolean).join(' · ');
@@ -292,6 +315,19 @@ export default function OrderScreen() {
             valueStrong
             chevron={isOpen && !!can?.edit}
             onPress={isOpen && can?.edit ? () => { setGuests(order.guests ?? 2); setGuestsOpen(true); } : undefined}
+          />
+          {order.note ? <Cell icon="chatbubble-ellipses" iconColor={c.sq.g} title={d.common.note} subtitle={order.note} subtitleLines={3} /> : null}
+        </Group>
+      ) : order.type === 'takeaway' ? (
+        <Group>
+          <Cell
+            icon="restaurant"
+            iconColor={c.sq.p}
+            title={r.forTable}
+            value={order.forTableNumber !== null ? tr(r.tableN, { n: order.forTableNumber }) : r.noTable}
+            valueStrong
+            chevron={isOpen && !!can?.edit}
+            onPress={isOpen && can?.edit ? () => { void openForTable(); } : undefined}
           />
           {order.note ? <Cell icon="chatbubble-ellipses" iconColor={c.sq.g} title={d.common.note} subtitle={order.note} subtitleLines={3} /> : null}
         </Group>
@@ -381,6 +417,28 @@ export default function OrderScreen() {
         <Group>
           <Cell title={r.guests} right={<Stepper value={guests} onChange={setGuests} min={1} max={100} />} />
         </Group>
+      </Sheet>
+
+      {/* Saboy: qaysi stol mehmonlariga */}
+      <Sheet
+        visible={tableOpen}
+        onClose={() => setTableOpen(false)}
+        title={r.forTable}
+        subtitle={title}
+        footer={<Button title={d.common.save} size="lg" full loading={busy === 'info'} onPress={() => { void saveForTable(); }} />}
+      >
+        <Text style={[s.hint, { color: c.ink3 }]}>{r.forTableHint}</Text>
+        {tablesErr ? <InlineError message={tablesErr} onRetry={() => { void openForTable(); }} /> : null}
+        {tables ? (
+          <Chips<string>
+            options={[
+              { key: '', label: r.noTable },
+              ...tables.map((t) => ({ key: t.id, label: t.order ? tr(r.tableBusyN, { n: t.number }) : String(t.number) })),
+            ]}
+            value={forTable}
+            onChange={setForTable}
+          />
+        ) : !tablesErr ? <Loading /> : null}
       </Sheet>
 
       {/* Bekor qilish */}

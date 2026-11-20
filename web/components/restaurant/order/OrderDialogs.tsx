@@ -118,15 +118,86 @@ export function VoidDialog({ order, item, requireVoidReason, busy, run, onClose 
   );
 }
 
-/** Mehmonlar soni va buyurtma izohi (updateOrderInfo) */
+/** Saboy stoli tanlovi uchun stol (taxtadan): `busy` — stolda ochiq hisob bor */
+export interface PickTable { id: string; number: number; hallId: string; busy: boolean }
+
+/** Taxtadagi stollar → tanlov ro'yxati */
+export function pickTablesOf(board: Pick<TablesBoard, 'tables'>): PickTable[] {
+  return board.tables.map((t) => ({ id: t.id, number: t.number, hallId: t.hallId, busy: !!t.order }));
+}
+
+/**
+ * Saboy qaysi stol mehmonlariga: «Stolsiz» + stollar (raqam, ko'p zalda — zal nomi, band stol belgisi).
+ * Band stol ham tanlanadi — saboy alohida hisob, stol bandligiga ta'sir qilmaydi.
+ */
+export function ForTablePicker({ tables, halls, value, onChange, labelledBy }: {
+  tables: readonly PickTable[];
+  halls: readonly { id: string; name: string }[];
+  value: string;
+  onChange: (id: string) => void;
+  labelledBy: string;
+}) {
+  const d = useDict();
+  const k = d.restaurant.tables;
+  const c = d.restaurant.common;
+  const hallName = new Map(halls.map((h) => [h.id, h.name]));
+  const multiHall = halls.length > 1;
+  return (
+    <div className="rt-chips rt-chips--tables" role="radiogroup" aria-labelledby={labelledBy}>
+      <button type="button" role="radio" aria-checked={value === ''} className="rt-chip rt-chip--table rt-chip--none" onClick={() => onChange('')}>
+        {k.noTable}
+      </button>
+      {tables.map((t) => {
+        const hall = multiHall ? hallName.get(t.hallId) ?? '' : '';
+        const small = [hall, t.busy ? k.tableBusyMark : ''].filter(Boolean).join(' · ');
+        return (
+          <button
+            key={t.id}
+            type="button"
+            role="radio"
+            aria-checked={value === t.id}
+            className="rt-chip rt-chip--table"
+            data-busy={t.busy || undefined}
+            onClick={() => onChange(value === t.id ? '' : t.id)}
+            aria-label={[tr(c.tableN, { n: t.number }), hall, t.busy ? k.tableBusyMark : ''].filter(Boolean).join(', ')}
+          >
+            <b>{t.number}</b>
+            {small && <small>{small}</small>}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+/** Mehmonlar soni, buyurtma izohi va (saboyda) qaysi stol mehmonlariga — updateOrderInfo */
 export function InfoDialog({ order, busy, run, onClose }: { order: OrderView; busy: boolean; run: Runner; onClose: () => void }) {
   const d = useDict();
   const k = d.restaurant.order;
   const [guests, setGuests] = useState(order.guests ?? 0);
   const [note, setNote] = useState(order.note ?? '');
+  const takeaway = order.type === 'takeaway';
+  const [forTable, setForTable] = useState(order.forTableId ?? '');
+  const [board, setBoard] = useState<TablesBoard | null>(null);
+  const [loadErr, setLoadErr] = useState('');
+
+  // Saboy: stollar ro'yxati (shu filial)
+  useEffect(() => {
+    if (!takeaway) return;
+    const ctrl = new AbortController();
+    getJson<TablesBoard>(`/api/restaurant/tables?branchId=${encodeURIComponent(order.branchId)}`, ctrl.signal)
+      .then((r) => { if (r.ok) setBoard(r.data); else setLoadErr(r.error || d.restaurant.errors.failed); })
+      .catch(() => { /* yopildi */ });
+    return () => ctrl.abort();
+  }, [takeaway, order.branchId, d.restaurant.errors.failed]);
 
   async function submit() {
-    const r = await run('info', () => updateOrderInfoAction(order.id, { guests, note: note.trim() }));
+    const tableChanged = takeaway && forTable !== (order.forTableId ?? '');
+    const r = await run('info', () => updateOrderInfoAction(order.id, {
+      guests,
+      note: note.trim(),
+      ...(tableChanged ? { forTableId: forTable || null } : {}),
+    }));
     if (r?.ok) onClose();
   }
 
@@ -143,6 +214,15 @@ export function InfoDialog({ order, busy, run, onClose }: { order: OrderView; bu
       )}
     >
       <form className="rt-form" onSubmit={(e) => { e.preventDefault(); void submit(); }}>
+        {takeaway && (
+          <>
+            <span className="rt-label" id="rt-info-for">{k.forTable} <small>{d.common.optional}</small></span>
+            {loadErr && <p className="rt-bad" role="alert">{loadErr}</p>}
+            {board ? (
+              <ForTablePicker tables={pickTablesOf(board)} halls={board.halls} value={forTable} onChange={setForTable} labelledBy="rt-info-for" />
+            ) : !loadErr ? <p className="rt-muted">{d.common.loading}</p> : null}
+          </>
+        )}
         <span className="rt-label">{d.restaurant.common.guests}</span>
         <div className="rt-chips" role="radiogroup" aria-label={d.restaurant.common.guests}>
           {[1, 2, 3, 4, 5, 6, 8, 10].map((n) => (

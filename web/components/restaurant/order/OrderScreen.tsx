@@ -19,6 +19,7 @@ import {
   addOrderItemsAction,
   bumpItemsAction,
   confirmQrItemsAction,
+  openOrderAction,
   precheckOrderAction,
   reopenOrderAction,
   sendToKitchenAction,
@@ -352,6 +353,23 @@ export default function OrderScreen({ initialOrder, initialMenu, serverNow, shop
     if (r?.ok) setDialog(null);
   }
 
+  /** Shu stol mehmonlariga saboy (alohida hisob) — ochilgach o'sha buyurtma ekraniga. `run` emas: javob boshqa buyurtma */
+  async function newLinkedTakeaway() {
+    if (busyRef.current || !order.tableId) return;
+    busyRef.current = true;
+    setBusy('takeaway');
+    try {
+      const r = await openOrderAction({ type: 'takeaway', branchId: order.branchId, forTableId: order.tableId, clientOrderId: newClientId('tk') });
+      if (r.ok) { router.push(`/app/tables/${r.data.order.id}`); return; }
+      toast(r.error, 'error');
+    } catch {
+      toast(d.restaurant.errors.failed, 'error');
+    } finally {
+      busyRef.current = false;
+      setBusy(null);
+    }
+  }
+
   // Klaviatura: / — menyu qidiruvi, P — to'lov (oyna yopiq bo'lsa)
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -405,6 +423,13 @@ export default function OrderScreen({ initialOrder, initialMenu, serverNow, shop
         <div className="rt-oh-meta">
           <span><Icon name="user" size={14} />{order.waiterName ?? d.restaurant.tables.noWaiter}</span>
           {mins !== null && <span title={hhmm(order.openedAt)} suppressHydrationWarning><Icon name="clock" size={14} />{tr(c.minutes, { n: mins })}</span>}
+          {order.type === 'takeaway' && (can?.edit ? (
+            <button type="button" className="rt-oh-guests" onClick={() => setDialog({ kind: 'info' })} aria-label={k.forTable}>
+              <Icon name="grid" size={14} />
+              {order.forTableNumber !== null ? tr(k.forTableN, { n: order.forTableNumber }) : d.restaurant.tables.noTable}
+              <Icon name="edit" size={12} />
+            </button>
+          ) : order.forTableNumber !== null ? <span><Icon name="grid" size={14} />{tr(k.forTableN, { n: order.forTableNumber })}</span> : null)}
           {can?.edit ? (
             <button type="button" className="rt-oh-guests" onClick={() => setDialog({ kind: 'info' })} aria-label={k.infoTitle}>
               <Icon name="users" size={14} />{order.guests ?? '—'}<Icon name="edit" size={12} />
@@ -414,6 +439,9 @@ export default function OrderScreen({ initialOrder, initialMenu, serverNow, shop
         {(can?.edit || can?.transfer || can?.cancel || can?.reopen || order.status === 'precheck') && (
           <MoreMenu label={k.more}>
             {can?.edit && <button type="button" role="menuitem" onClick={() => setDialog({ kind: 'info' })}>{k.infoTitle}</button>}
+            {can?.edit && order.type === 'dine_in' && order.tableId && (
+              <button type="button" role="menuitem" onClick={newLinkedTakeaway} disabled={!!busy}>{k.newLinkedTakeaway}</button>
+            )}
             {can?.transfer && <button type="button" role="menuitem" onClick={() => setDialog({ kind: 'transfer' })}>{k.transfer}</button>}
             {order.status === 'precheck' && (
               <a role="menuitem" href={`/app/tables/${order.id}/precheck`} target="_blank" rel="noopener">{k.precheckOpen}</a>

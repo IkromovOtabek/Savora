@@ -165,14 +165,21 @@ export async function cancelOrderAction(orderId: string, input: { reason?: strin
   return toAction(r, r.ok ? t.order.cancelled : undefined);
 }
 
-/** Mehmonlar soni (0 — tozalash) va izoh */
-export async function updateOrderInfoAction(orderId: string, input: { guests?: number; note?: string }): Promise<ActionResult<{ order: OrderView }>> {
+/** Mehmonlar soni (0 — tozalash), izoh va saboyning stoli (`forTableId: null` — olib tashlash; faqat saboyda) */
+export async function updateOrderInfoAction(
+  orderId: string,
+  input: { guests?: number; note?: string; forTableId?: string | null },
+): Promise<ActionResult<{ order: OrderView }>> {
   const { ctx, s, t } = await prep();
   const id = orderIdOf(ctx, s, orderId);
   if (!id.ok) return invalid(id.error);
   const p = parseInput(s.info, input, t.errors.badInput);
   if (!p.ok) return invalid(p.error);
-  const r = await ops.updateOrderInfo(ctx, id.data.id, { guests: p.data.guests === undefined ? undefined : p.data.guests || null, note: p.data.note });
+  const r = await ops.updateOrderInfo(ctx, id.data.id, {
+    guests: p.data.guests === undefined ? undefined : p.data.guests || null,
+    note: p.data.note,
+    forTableId: p.data.forTableId,
+  });
   return toAction(r, r.ok ? t.order.updated : undefined);
 }
 

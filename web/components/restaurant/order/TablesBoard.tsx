@@ -12,10 +12,15 @@ import { ackTableCallAction, openOrderAction } from '@/app/actions/restaurant';
 import type { TablesBoard as Board, TableBoardRow } from '@/lib/restaurant/queries';
 import type { OrderSummary } from '@/lib/restaurant/view';
 import type { TableCallKind } from '@/lib/restaurant/types';
+import { buildBills, linkedTakeaways, linkedTotals } from '@/lib/restaurant/bills';
 import Modal, { QtyStepper } from './Modal';
+import BillsList, { BillsSummaryBar, billTitle } from './BillsList';
+import { ForTablePicker, pickTablesOf } from './OrderDialogs';
 import { getJson, minutesSince, newClientId, useNow, usePolling } from './shared';
 
 type Filter = 'all' | 'mine' | 'free';
+/** Taxta ko'rinishi: stollar to'ri yoki ochiq hisoblar ro'yxati */
+type View = 'tables' | 'bills';
 /** Asosiy holat (rang) va diqqat belgisi (halqa + yorliq) */
 type BaseState = 'free' | 'open' | 'precheck' | 'other';
 type Alert = 'bill' | 'call' | 'qr' | null;
@@ -23,6 +28,7 @@ type Alert = 'bill' | 'call' | 'qr' | null;
 const POLL_MS = 4000;
 const HALL_KEY = 'savora_tables_hall';
 const FILTER_KEY = 'savora_tables_filter';
+const VIEW_KEY = 'savora_tables_view';
 const ORPHAN_HALL = '_';
 
 function baseState(t: TableBoardRow): BaseState {
@@ -45,8 +51,9 @@ function isMine(o: OrderSummary | null): boolean {
 
 /**
  * Zal ko'rinishi (/app/tables): zal tablari, stollar grid'i (holat rangi, summa, ofitsant, daqiqa),
- * mijoz chaqiruvlari («Ko'rdim»), «Mening stollarim» filtri, saboy (stolsiz) buyurtma.
- * Polling 4 s — /api/restaurant/tables (sahifa yashirin bo'lsa to'xtaydi).
+ * mijoz chaqiruvlari («Ko'rdim»), «Mening stollarim» filtri, saboy (ixtiyoriy — qaysi stol mehmonlariga).
+ * «Hisoblar» ko'rinishi — barcha ko'rinadigan ochiq hisoblar (lib/restaurant/bills.ts): jamlama, pre-chek birinchi,
+ * stolga bog'langan saboylar stol ostida. Polling 4 s — /api/restaurant/tables (sahifa yashirin bo'lsa to'xtaydi).
  */
 export default function TablesBoard({ initial, serverNow, canCreate, canAck, canManage }: {
   initial: Board;
@@ -71,19 +78,27 @@ export default function TablesBoard({ initial, serverNow, canCreate, canAck, can
   const [hall, setHall] = useState<string>(initial.halls[0]?.id ?? ORPHAN_HALL);
   const [opening, setOpening] = useState<TableBoardRow | null>(null);
   const [acking, setAcking] = useState<string | null>(null);
-  const [takeawayBusy, setTakeawayBusy] = useState(false);
+  const [takeawayOpen, setTakeawayOpen] = useState(false);
+  const [view, setView] = useState<View>('tables');
   const [announce, setAnnounce] = useState('');
   const now = useNow(serverNow, skew);
 
-  // Qurilmada eslab qolingan zal va filtr
+  // Qurilmada eslab qolingan zal, filtr va ko'rinish
   useEffect(() => {
     try {
       const h = localStorage.getItem(`${HALL_KEY}:${initial.branchId}`);
       if (h) setHall(h);
       const f = localStorage.getItem(FILTER_KEY);
       if (f === 'all' || f === 'mine' || f === 'free') setFilter(f);
+      const v = localStorage.getItem(VIEW_KEY);
+      if (v === 'tables' || v === 'bills') setView(v);
     } catch { /* xotira yopiq */ }
   }, [initial.branchId]);
+
+  const pickView = useCallback((v: View) => {
+    setView(v);
+    try { localStorage.setItem(VIEW_KEY, v); } catch { /* e'tiborsiz */ }
+  }, []);
 
   const pickHall = useCallback((id: string) => {
     setHall(id);
@@ -150,6 +165,9 @@ export default function TablesBoard({ initial, serverNow, canCreate, canAck, can
   const visible = inHall.filter((t) => filter === 'all' || (filter === 'free' ? !t.order : isMine(t.order)));
   const freeCount = board.tables.filter((t) => !t.order).length;
   const busyCount = board.tables.length - freeCount;
+  // Stolga bog'langan saboylar (kartochkadagi belgi) va «Hisoblar» ro'yxati
+  const linked = useMemo(() => linkedTakeaways(board), [board]);
+  const bills = useMemo(() => buildBills(board), [board]);
 
   async function ack(t: TableBoardRow, kind: TableCallKind) {
     const key = `${t.id}:${kind}`;
@@ -178,17 +196,9 @@ export default function TablesBoard({ initial, serverNow, canCreate, canAck, can
     if (!t.order && canCreate) setOpening(t);
   }
 
-  async function newTakeaway() {
-    if (takeawayBusy) return;
-    setTakeawayBusy(true);
-    try {
-      const r = await openOrderAction({ type: 'takeaway', branchId: board.branchId, clientOrderId: newClientId('tk') });
-      if (r.ok) router.push(`/app/tables/${r.data.order.id}`);
-      else { toast(r.error, 'error'); setTakeawayBusy(false); }
-    } catch {
-      toast(d.restaurant.errors.failed, 'error');
-      setTakeawayBusy(false);
-    }
+  function ackBill(tableId: string) {
+    const t = board.tables.find((x) => x.id === tableId);
+    if (t) void ack(t, 'bill');
   }
 
   function changeBranch(id: string) {
@@ -217,7 +227,9 @@ export default function TablesBoard({ initial, serverNow, canCreate, canAck, can
         <div>
           <h1 className="t-page-title">{k.title}</h1>
           <p className="t-page-sub">
-            {tr(k.summary, { free: freeCount, busy: busyCount })}
+            {view === 'bills'
+              ? tr(d.cashier.summaryLine, { n: bills.summary.count, sum: fmtMoney(bills.summary.due) })
+              : tr(k.summary, { free: freeCount, busy: busyCount })}
             <span className={`rt-live${online ? '' : ' is-off'}`} role="status">
               <i aria-hidden="true" />{online ? k.live : k.offline}
             </span>
@@ -230,9 +242,9 @@ export default function TablesBoard({ initial, serverNow, canCreate, canAck, can
             </select>
           )}
           {canCreate && (
-            <button type="button" className="btn btn-primary btn-with-icon rt-takeaway-btn" onClick={newTakeaway} disabled={takeawayBusy}>
+            <button type="button" className="btn btn-primary btn-with-icon rt-takeaway-btn" onClick={() => setTakeawayOpen(true)}>
               <Icon name="basket" size={18} />
-              {takeawayBusy ? d.common.loading : k.newTakeaway}
+              {k.newTakeaway}
             </button>
           )}
         </div>
@@ -240,7 +252,37 @@ export default function TablesBoard({ initial, serverNow, canCreate, canAck, can
 
       <p className="sr-only" aria-live="assertive">{announce}</p>
 
-      {board.tables.length === 0 ? (
+      <div className="rt-viewbar">
+        <div className="rt-seg" role="radiogroup" aria-label={d.cashier.viewAria}>
+          <button type="button" role="radio" aria-checked={view === 'tables'} onClick={() => pickView('tables')}>{d.cashier.viewTables}</button>
+          <button type="button" role="radio" aria-checked={view === 'bills'} onClick={() => pickView('bills')}>
+            {d.cashier.viewBills}
+            {bills.summary.count > 0 && <span className="rt-count">{bills.summary.count}</span>}
+          </button>
+        </div>
+      </div>
+
+      {view === 'bills' ? (
+        <section className="rt-billsview" aria-label={d.cashier.billsAria}>
+          <BillsSummaryBar summary={bills.summary} />
+          {bills.rows.length === 0 ? (
+            <div className="ux-empty rt-empty">
+              <span className="ux-empty-ic" aria-hidden="true"><Icon name="clipboard" size={26} /></span>
+              <b>{d.cashier.noBills}</b>
+              <p className="rt-muted">{d.cashier.noBillsHint}</p>
+            </div>
+          ) : (
+            <BillsList
+              rows={bills.rows}
+              now={now}
+              label={d.cashier.billsAria}
+              canAck={canAck}
+              ackingTable={acking?.endsWith(':bill') ? acking.slice(0, -5) : null}
+              onAck={ackBill}
+            />
+          )}
+        </section>
+      ) : board.tables.length === 0 ? (
         <div className="ux-empty rt-empty">
           <span className="ux-empty-ic" aria-hidden="true"><Icon name="grid" size={26} /></span>
           <b>{k.noHalls}</b>
@@ -298,6 +340,7 @@ export default function TablesBoard({ initial, serverNow, canCreate, canAck, can
                     canCreate={canCreate}
                     canAck={canAck}
                     acking={acking}
+                    linked={linkedTotals(linked.get(t.id))}
                     onOpen={() => onTable(t)}
                     onAck={(kind) => ack(t, kind)}
                   />
@@ -308,7 +351,7 @@ export default function TablesBoard({ initial, serverNow, canCreate, canAck, can
         </>
       )}
 
-      {board.takeaway.length > 0 && (
+      {view === 'tables' && board.takeaway.length > 0 && (
         <section className="rt-takeaway" aria-labelledby="rt-tk-title">
           <h2 id="rt-tk-title" className="rt-h2">{k.takeawayList} <span className="rt-count">{board.takeaway.length}</span></h2>
           <ul className="rt-grid rt-grid--tk">
@@ -316,13 +359,14 @@ export default function TablesBoard({ initial, serverNow, canCreate, canAck, can
               const mins = minutesSince(o.openedAt, now);
               return (
                 <li key={o.id} className="rt-table" data-state={o.status === 'precheck' ? 'precheck' : 'open'}>
-                  <Link href={`/app/tables/${o.id}`} className="rt-table-main">
+                  <Link href={`/app/tables/${o.id}`} className="rt-table-main" aria-label={billTitle(o, d)}>
                     <span className="rt-table-top">
                       <b className="rt-table-no rt-table-no--sm">{o.orderNo.split('-').pop()}</b>
                       <span className="rt-pill">{c.orderStatuses[o.status]}</span>
                     </span>
                     <span className="rt-table-sum">{fmtMoney(o.due ?? 0)} <small>{d.common.sum}</small></span>
                     <span className="rt-table-meta">
+                      {o.forTableNumber !== null && <span className="rt-table-for"><Icon name="grid" size={13} />{tr(c.tableN, { n: o.forTableNumber })}</span>}
                       <span><Icon name="user" size={13} />{o.mine ? k.mine : o.waiterName ?? '—'}</span>
                       {mins !== null && <span><Icon name="clock" size={13} />{tr(c.minutes, { n: mins })}</span>}
                     </span>
@@ -334,7 +378,7 @@ export default function TablesBoard({ initial, serverNow, canCreate, canAck, can
         </section>
       )}
 
-      {board.tables.length > 0 && (
+      {view === 'tables' && board.tables.length > 0 && (
         <ul className="rt-legend" aria-label={k.legend}>
           <li data-state="free">{k.free}</li>
           <li data-state="open">{k.legendOpen}</li>
@@ -353,16 +397,26 @@ export default function TablesBoard({ initial, serverNow, canCreate, canAck, can
           onBusy={() => { setOpening(null); void refresh(); }}
         />
       )}
+      {takeawayOpen && (
+        <NewTakeawayDialog
+          board={board}
+          onClose={() => setTakeawayOpen(false)}
+          onOpened={(id) => router.push(`/app/tables/${id}`)}
+          onStale={() => void refresh()}
+        />
+      )}
     </div>
   );
 }
 
-function TableCard({ t, now, canCreate, canAck, acking, onOpen, onAck }: {
+function TableCard({ t, now, canCreate, canAck, acking, linked, onOpen, onAck }: {
   t: TableBoardRow;
   now: number;
   canCreate: boolean;
   canAck: boolean;
   acking: string | null;
+  /** Shu stol mehmonlariga ochiq saboylar (ko'rinadiganlari): soni va summa */
+  linked: { count: number; due: number } | null;
   onOpen: () => void;
   onAck: (kind: TableCallKind) => void;
 }) {
@@ -378,6 +432,7 @@ function TableCard({ t, now, canCreate, canAck, acking, onOpen, onAck }: {
   const calls = ([['waiter', t.calls.waiterAt], ['bill', t.calls.billAt]] as const).filter(([, at]) => !!at);
   const counts = o?.counts;
   const name = tr(c.tableN, { n: t.number });
+  const linkedText = linked ? tr(k.linkedN, { n: linked.count, sum: fmtMoney(linked.due) }) : '';
 
   return (
     <li className="rt-table" data-state={state} data-alert={alert ?? undefined} data-mine={isMine(o) || undefined}>
@@ -386,7 +441,7 @@ function TableCard({ t, now, canCreate, canAck, acking, onOpen, onAck }: {
         className="rt-table-main"
         onClick={onOpen}
         disabled={disabled}
-        aria-label={`${name}, ${label}${o?.access && o.due !== null ? `, ${fmtMoney(o.due)} ${d.common.sum}` : ''}`}
+        aria-label={`${name}, ${label}${o?.access && o.due !== null ? `, ${fmtMoney(o.due)} ${d.common.sum}` : ''}${linkedText ? `, ${linkedText}` : ''}`}
         title={state === 'other' ? k.otherWaiter : undefined}
       >
         <span className="rt-table-top">
@@ -418,6 +473,12 @@ function TableCard({ t, now, canCreate, canAck, acking, onOpen, onAck }: {
           <span className="rt-table-meta">
             <span><Icon name="users" size={13} />{tr(k.seatsN, { n: t.seats })}</span>
             {canCreate && <span className="rt-table-cta"><Icon name="plus" size={13} />{k.openTable}</span>}
+          </span>
+        )}
+        {/* Kartochka belgilari: shu stol mehmonlariga ochiq saboy (boshqa belgilar ham shu qatorga) */}
+        {linked && (
+          <span className="rt-table-badges">
+            <span className="rt-tag rt-tag--tk"><Icon name="basket" size={12} />{linkedText}</span>
           </span>
         )}
       </button>
@@ -499,6 +560,73 @@ function OpenTableDialog({ table, onClose, onOpened, onBusy }: {
           incLabel={o.qtyInc}
         />
         <p className="rt-muted rt-small">{tr(k.seatsN, { n: table.seats })}</p>
+        <button type="submit" hidden />
+      </form>
+    </Modal>
+  );
+}
+
+/**
+ * Yangi saboy: ixtiyoriy — qaysi stol mehmonlariga (band stol ham bo'ladi; stol bandligiga ta'sir qilmaydi).
+ * Standart «Stolsiz» — bitta bosish bilan ochiladi.
+ */
+function NewTakeawayDialog({ board, onClose, onOpened, onStale }: {
+  board: Board;
+  onClose: () => void;
+  onOpened: (orderId: string) => void;
+  /** Stol topilmadi (o'chirilgan/nofaol) — taxta yangilansin */
+  onStale: () => void;
+}) {
+  const d = useDict();
+  const k = d.restaurant.tables;
+  const [tableId, setTableId] = useState('');
+  const [busy, setBusy] = useState(false);
+  // Takror bosish / tarmoq uzilishidan himoya — bitta oynada bitta kalit (stol o'zgarsa — yangi kalit)
+  const [clientOrderId, setClientOrderId] = useState(() => newClientId('tk'));
+  const tables = useMemo(() => pickTablesOf(board), [board]);
+
+  function pick(id: string) {
+    setTableId(id);
+    setClientOrderId(newClientId('tk'));
+  }
+
+  async function submit() {
+    if (busy) return;
+    setBusy(true);
+    try {
+      const r = await openOrderAction({ type: 'takeaway', branchId: board.branchId, clientOrderId, forTableId: tableId || undefined });
+      if (r.ok) { onOpened(r.data.order.id); return; }
+      toast(r.error, 'error');
+      setBusy(false);
+      if (r.code === 'tableNotFound') { setTableId(''); onStale(); }
+    } catch {
+      toast(d.restaurant.errors.failed, 'error');
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Modal
+      title={k.newTakeawayTitle}
+      onClose={onClose}
+      busy={busy}
+      wide
+      footer={(
+        <>
+          <button type="button" className="btn btn-ghost" onClick={onClose} disabled={busy}>{d.common.cancel}</button>
+          <button type="button" className="btn btn-primary btn-with-icon" onClick={submit} disabled={busy} data-autofocus>
+            <Icon name="basket" size={18} />
+            {busy ? d.common.loading : k.openTakeaway}
+          </button>
+        </>
+      )}
+    >
+      <form className="rt-form" onSubmit={(e) => { e.preventDefault(); void submit(); }}>
+        <p className="rt-label" id="rt-tk-for">{k.forTableQ} <small>{d.common.optional}</small></p>
+        <p className="rt-muted rt-small">{k.forTableHint}</p>
+        {tables.length > 0 && (
+          <ForTablePicker tables={tables} halls={board.halls} value={tableId} onChange={pick} labelledBy="rt-tk-for" />
+        )}
         <button type="submit" hidden />
       </form>
     </Modal>

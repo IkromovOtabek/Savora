@@ -144,6 +144,11 @@
 .rt-call button:disabled { opacity: .55; }
 .rt-call button:focus-visible { outline: 3px solid #fff; outline-offset: 1px; }
 
+/* Kartochka belgilari (stolga bog'langan saboy va h.k.) — tugma ichida, eng pastda */
+.rt-table-badges { display: flex; flex-wrap: wrap; gap: 4px; }
+.rt-tag--tk { gap: 4px; background: color-mix(in srgb, var(--accent) 14%, transparent); color: var(--accent); }
+.rt-table-for { color: var(--ink-1); font-weight: 700; }
+
 .rt-legend { list-style: none; margin: 24px 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: 8px 18px; font-size: 13px; color: var(--ink-3); }
 .rt-legend li { display: inline-flex; align-items: center; gap: 6px; }
 .rt-legend li::before { content: ""; width: 12px; height: 12px; border-radius: 4px; background: var(--rt-c); }
@@ -170,6 +175,10 @@
 .rt-chips--tables { max-height: 240px; overflow-y: auto; padding: 2px; }
 .rt-chip--table { display: grid; place-items: center; align-content: center; gap: 0; min-width: 64px; min-height: 58px; }
 .rt-chip--table b { font-size: 20px; font-weight: 800; }
+.rt-chip--none { padding-inline: 16px; font-weight: 750; }
+/* Band stol (ochiq hisob bor) — saboy uchun tanlansa bo'ladi, faqat belgi */
+.rt-chip--table[data-busy] { box-shadow: inset 0 -3px 0 var(--brand); }
+.rt-chip--table[data-busy][aria-checked="true"] { box-shadow: none; }
 .rt-chip--table small { font-size: 11px; font-weight: 600; opacity: .8; max-width: 90px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .rt-hint { margin: 0; padding: 10px 12px; border-radius: 12px; background: var(--fill-2); color: var(--ink-2); font-size: 14px; line-height: 1.45; }
 .rt-hint--warn { background: var(--warn-soft); color: var(--warn); font-weight: 600; }
@@ -462,6 +471,151 @@
 @media print {
   .rt-pc-note { border-color: #000; }
   .rt-pc-logo { filter: grayscale(1); width: 36px; height: 36px; }
+}
+
+/* ── Hisoblar (taxtadagi «Hisoblar» va kassir navbati) ───────── */
+.rt-viewbar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-bottom: 14px; }
+.rt-viewbar .rt-seg button { display: inline-flex; align-items: center; gap: 8px; min-width: 112px; justify-content: center; }
+.rt-viewbar .rt-count { height: 22px; min-width: 22px; padding: 0 6px; }
+
+.rt-bsum { margin: 0 0 14px; display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
+.rt-bsum > div { display: grid; gap: 2px; padding: 12px 14px; border-radius: 16px; background: var(--surface); box-shadow: var(--shadow-sm); min-width: 0; }
+.rt-bsum dt { font-size: 12.5px; font-weight: 650; color: var(--ink-3); }
+.rt-bsum dd { margin: 0; font-size: 22px; font-weight: 800; letter-spacing: -.02em; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.rt-bsum dd small { font-size: 12px; font-weight: 600; color: var(--ink-3); }
+.rt-bsum [data-k="precheck"][data-on] { background: var(--gold-soft); }
+.rt-bsum [data-k="precheck"][data-on] dd { color: var(--warn); }
+.rt-bsum [data-k="bill"] { background: var(--danger-soft); }
+.rt-bsum [data-k="bill"] dd { color: var(--danger); }
+.rt-bsum--compact { margin: 0; grid-template-columns: repeat(auto-fit, minmax(96px, 1fr)); gap: 6px; }
+.rt-bsum--compact > div { padding: 8px 10px; border-radius: 12px; box-shadow: none; background: var(--fill-2); }
+.rt-bsum--compact dt { font-size: 11.5px; line-height: 1.2; }
+.rt-bsum--compact dd { font-size: 16px; }
+
+.rt-bills { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.rt-billsview .rt-bills { grid-template-columns: repeat(auto-fill, minmax(min(100%, 420px), 1fr)); align-items: start; }
+.rt-bill {
+  --rt-c: var(--brand); --rt-ink: var(--brand);
+  position: relative; border-radius: 16px; background: var(--surface); box-shadow: var(--shadow-sm); overflow: hidden;
+}
+.rt-bill::before { content: ""; position: absolute; inset: 0 auto 0 0; width: 5px; background: var(--rt-c); }
+.rt-bill[data-state="precheck"] { --rt-c: var(--gold); --rt-ink: var(--warn); background: color-mix(in srgb, var(--gold) 10%, var(--surface)); }
+.rt-bill[data-bill] { box-shadow: 0 0 0 2px var(--danger), var(--shadow-sm); }
+.rt-bill[data-selected] { box-shadow: 0 0 0 3px var(--brand), var(--shadow-sm); }
+.rt-bill-main {
+  display: grid; grid-template-columns: 48px minmax(0, 1fr) auto; align-items: center; gap: 10px;
+  width: 100%; min-height: 64px; padding: 10px 12px 10px 15px; border: 0; background: transparent;
+  color: var(--ink-1); font: inherit; text-align: left; text-decoration: none; cursor: pointer;
+}
+.rt-bill-main:hover { background: var(--fill-2); }
+.rt-bill-main:active { opacity: .75; }
+.rt-bill-main:focus-visible { outline: 3px solid var(--brand-ring); outline-offset: -3px; border-radius: 14px; }
+.rt-bill-no {
+  display: grid; place-items: center; width: 48px; height: 48px; border-radius: 14px;
+  background: color-mix(in srgb, var(--rt-c) 14%, transparent); color: var(--rt-ink);
+  font-size: 21px; font-weight: 800; letter-spacing: -.03em; font-variant-numeric: tabular-nums;
+}
+.rt-bill-body { display: grid; gap: 2px; min-width: 0; justify-items: start; }
+.rt-bill-body b { font-size: 15.5px; font-weight: 750; overflow-wrap: anywhere; }
+.rt-bill-body small { font-size: 12.5px; color: var(--ink-3); overflow-wrap: anywhere; }
+.rt-bill-right { display: grid; justify-items: end; gap: 4px; }
+.rt-bill-sum { font-size: 17px; font-weight: 800; letter-spacing: -.02em; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.rt-bill .rt-pill { background: color-mix(in srgb, var(--rt-c) 15%, transparent); color: var(--rt-ink); }
+.rt-bill-call {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; padding: 8px 10px 8px 15px;
+  background: var(--danger-fill); color: #fff; font-size: 13.5px; font-weight: 700;
+}
+.rt-bill-call span { flex: 1; min-width: 120px; }
+.rt-bill-call button {
+  min-height: 40px; padding: 0 16px; border: 0; border-radius: 10px;
+  background: rgba(255, 255, 255, .22); color: #fff; font-weight: 750; cursor: pointer;
+}
+.rt-bill-call button:hover:not(:disabled) { background: rgba(255, 255, 255, .32); }
+.rt-bill-call button:disabled { opacity: .55; }
+.rt-bill-call button:focus-visible { outline: 3px solid #fff; outline-offset: 1px; }
+.rt-bill-kids { list-style: none; margin: 0; padding: 0 10px 10px 15px; display: grid; gap: 6px; }
+.rt-bill-kid { --rt-c: var(--accent); --rt-ink: var(--accent); border-radius: 12px; background: var(--fill-2); }
+.rt-bill-kid[data-state="precheck"] { --rt-c: var(--gold); --rt-ink: var(--warn); }
+.rt-bill-kid[data-selected] { box-shadow: 0 0 0 2.5px var(--brand); }
+.rt-bill-main--kid { grid-template-columns: 38px minmax(0, 1fr) auto; min-height: 52px; padding: 6px 10px; border-radius: 12px; }
+.rt-bill-main--kid .rt-bill-no { width: 38px; height: 38px; border-radius: 11px; font-size: 16px; }
+.rt-bill-main--kid .rt-bill-body b { font-size: 14px; }
+.rt-bill-main--kid .rt-bill-sum { font-size: 15px; }
+
+/* ── Kassir oynasi (/app/tables/cashier) ─────────────────────── */
+.t-body:has(.rt-cashier) .t-shell-fab { display: none; }
+.rt-cash-warn {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; margin: 0 0 14px; padding: 12px 14px;
+  border-radius: 14px; background: var(--warn-soft); color: var(--warn); font-weight: 650; text-decoration: none;
+}
+.rt-cash-warn span { flex: 1; min-width: 200px; }
+.rt-cash-warn b { padding: 8px 14px; border-radius: 10px; background: var(--warn); color: #fff; font-weight: 750; white-space: nowrap; }
+a.rt-cash-warn:hover b { opacity: .9; }
+.rt-cash {
+  display: grid; gap: 16px; align-items: start;
+  grid-template-columns: minmax(320px, 420px) minmax(0, 1fr);
+}
+.rt-cash-queue, .rt-cash-detail {
+  position: sticky; top: 72px; max-height: calc(100dvh - 168px); min-height: 420px; display: flex; flex-direction: column;
+  border-radius: 20px; background: var(--surface); box-shadow: var(--shadow-sm); overflow: hidden; min-width: 0;
+}
+.rt-cash-qhead { display: grid; gap: 10px; padding: 14px 14px 12px; border-bottom: 1px solid var(--sep); }
+.rt-cash-h { margin: 0; display: flex; align-items: center; gap: 8px; font-size: 17px; font-weight: 750; }
+.rt-cash-qhead .rt-search { box-shadow: none; background: var(--fill-2); min-height: 48px; }
+.rt-cash-qhead .rt-search:focus-within { box-shadow: 0 0 0 3px var(--brand-ring); }
+.rt-cash-qlist { flex: 1; overflow-y: auto; overscroll-behavior: contain; padding: 10px; background: var(--bg-soft); }
+.rt-cash-qhint { margin: 0 2px 8px; }
+.rt-cash-qlist .rt-none { display: grid; gap: 6px; }
+.rt-cash-detail > .rt-empty { flex: 1; padding: 24px; }
+.rt-cash-card { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.rt-cash-dhead { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding: 14px 16px 12px; border-bottom: 1px solid var(--sep); }
+.rt-cash-dhead .rt-oh-title h2 { margin: 0; font-size: 24px; font-weight: 800; letter-spacing: -.03em; line-height: 1.15; }
+.rt-cash-dhead .rt-oh-title { flex: 1; min-width: 160px; }
+.rt-cash-dhead .rt-oh-meta { margin-left: 0; flex-basis: 100%; }
+.rt-cash-back { display: none; }
+.rt-cash-call { padding-inline: 16px; }
+.rt-cash-body { flex: 1; min-height: 120px; overflow-y: auto; overscroll-behavior: contain; padding: 14px 16px 16px; display: grid; align-content: start; gap: 10px; }
+.rt-cash-h3 { margin: 4px 0 0; display: flex; align-items: center; gap: 8px; font-size: 15px; font-weight: 750; }
+.rt-cash-items { list-style: none; margin: 0; padding: 0; }
+.rt-cash-items li {
+  display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: start; gap: 10px;
+  padding: 10px 2px; border-bottom: 1px solid var(--sep);
+}
+.rt-cash-items li:last-child { border-bottom: 0; }
+.rt-cash-paid summary { min-height: 44px; display: flex; align-items: center; gap: 8px; color: var(--ink-3); font-weight: 650; cursor: pointer; }
+.rt-cash-paid .rt-cash-items li { color: var(--ink-3); }
+.rt-cash-linked { display: grid; gap: 6px; padding: 12px; border-radius: 14px; background: color-mix(in srgb, var(--accent) 8%, transparent); }
+.rt-cash-linked .rt-cash-h3 { margin: 0; color: var(--accent); }
+.rt-cash-linked ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.rt-cash-linkbtn { width: 100%; min-height: 48px; justify-content: space-between; }
+.rt-cash-linkbtn b { font-variant-numeric: tabular-nums; }
+.rt-cash-parent { justify-self: start; min-height: 44px; gap: 8px; }
+.rt-cash-foot { display: grid; gap: 10px; padding: 12px 16px 16px; border-top: 1px solid var(--sep); background: var(--surface); }
+.rt-cash-foot .rt-sum-total dd { font-size: 26px; }
+.rt-cash-foot .rt-foot-acts .btn { min-height: 60px; }
+.rt-cash-pay { font-size: 18px; }
+.rt-cash-pay b { font-size: 20px; }
+.rt-cash-open { justify-self: center; }
+
+@media (max-width: 900px) {
+  .rt-cash { grid-template-columns: minmax(0, 1fr); }
+  .rt-cash[data-pane="detail"] .rt-cash-queue, .rt-cash[data-pane="queue"] .rt-cash-detail { display: none; }
+  .rt-cash-queue, .rt-cash-detail { position: static; max-height: none; min-height: 0; overflow: visible; }
+  .rt-cash-qlist, .rt-cash-body { overflow: visible; }
+  .rt-cash-back { display: grid; }
+  .rt-cash-foot {
+    position: sticky; z-index: 6; bottom: calc(var(--t-tabbar-h, 58px) + env(safe-area-inset-bottom, 0px));
+    border-radius: 0 0 20px 20px; box-shadow: 0 -10px 24px -18px rgba(0, 0, 0, .45);
+  }
+}
+@media (max-width: 640px) {
+  .rt-viewbar .rt-seg { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); width: 100%; }
+  .rt-bill-main { grid-template-columns: 42px minmax(0, 1fr) auto; gap: 8px; padding-right: 10px; }
+  .rt-bill-no { width: 42px; height: 42px; font-size: 18px; }
+  .rt-bill-sum { font-size: 15.5px; }
+  .rt-bsum { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .rt-bsum dd { font-size: 19px; }
+  .rt-cash-dhead .rt-oh-title h2 { font-size: 21px; }
 }
 
 /* ── Moslashuvchanlik ───────────────────────────────────────── */

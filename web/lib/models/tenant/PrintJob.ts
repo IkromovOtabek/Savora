@@ -30,6 +30,8 @@ export interface IPrintJob {
   orderNo: string;
   orderType: OrderType;
   tableNumber?: number;
+  /** Saboy qaysi stol mehmonlariga — varaqda «SABOY · STOL 5» */
+  forTableNumber?: number;
   waiterName?: string;
   guests?: number;
   orderNote?: string;
@@ -78,6 +80,7 @@ export const printJobSchema = new Schema<IPrintJob>(
     orderNo: { type: String, required: true, trim: true },
     orderType: { type: String, enum: ORDER_TYPES, required: true },
     tableNumber: { type: Number },
+    forTableNumber: { type: Number },
     waiterName: { type: String, trim: true },
     guests: { type: Number },
     orderNote: { type: String, trim: true, maxlength: 200 },

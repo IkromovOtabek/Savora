@@ -8,6 +8,8 @@ export const uz = {
     table: 'Stol',
     /** {n} — stol raqami */
     tableN: '{n}-stol',
+    /** Saboy qaysi stol mehmonlariga: {n} — stol raqami */
+    takeawayFor: 'Saboy · {n}-stol',
     hall: 'Zal',
     station: 'Stansiya',
     waiter: 'Ofitsant',
@@ -362,6 +364,16 @@ export const uz = {
     /** {n} — stol raqami */
     openTitle: '{n}-stolni ochish',
     guestsQ: 'Mehmonlar soni',
+    /* Saboy va uning stoli */
+    newTakeawayTitle: 'Yangi saboy',
+    forTableQ: 'Qaysi stol mehmonlariga?',
+    forTableHint: "Ixtiyoriy: stol mehmonlari olib ketish uchun buyurtma qilsa. Saboy alohida hisob — stol band bo'lishi shart emas.",
+    noTable: 'Stolsiz',
+    /** Stol band (ochiq hisob bor) — tanlovda belgi */
+    tableBusyMark: 'band',
+    openTakeaway: 'Saboy ochish',
+    /** {n} — soni, {sum} — summa (stol kartochkasida) */
+    linkedN: '+ saboy {n} · {sum}',
   },
   /** Buyurtma ekrani va amallar natijalari */
   order: {
@@ -517,6 +529,11 @@ export const uz = {
     backToTables: 'Stollarga qaytish',
     /** Server amali javob bermadi (tarmoq/server qotdi) — holat qayta o'qiladi */
     actionTimeout: "Server javob bermadi. Buyurtma holati yangilandi — kerak bo'lsa qayta bosing (to'lov ikki marta yozilmaydi).",
+    /* Saboyning stoli */
+    /** {n} — stol raqami (sarlavha ostida) */
+    forTableN: '{n}-stol uchun',
+    forTable: 'Qaysi stol mehmonlariga',
+    newLinkedTakeaway: 'Shu stolga saboy',
   },
   /** Oshxona ekrani (/app/kitchen, KDS) */
   kitchen: {
@@ -925,6 +942,7 @@ export const ru: typeof uz = {
   common: {
     table: 'Стол',
     tableN: 'Стол {n}',
+    takeawayFor: 'С собой · стол {n}',
     hall: 'Зал',
     station: 'Станция',
     waiter: 'Официант',
@@ -1234,6 +1252,13 @@ export const ru: typeof uz = {
     seatsN: 'Мест: {n}',
     openTitle: 'Открыть стол {n}',
     guestsQ: 'Количество гостей',
+    newTakeawayTitle: 'Новый заказ с собой',
+    forTableQ: 'Для гостей какого стола?',
+    forTableHint: 'Необязательно: если гости стола заказывают еду с собой. Это отдельный счёт — стол может быть занят.',
+    noTable: 'Без стола',
+    tableBusyMark: 'занят',
+    openTakeaway: 'Открыть с собой',
+    linkedN: '+ с собой {n} · {sum}',
   },
   order: {
     addItems: 'Добавить блюдо',
@@ -1379,6 +1404,9 @@ export const ru: typeof uz = {
     payRest: 'Оплатить остаток · {sum}',
     backToTables: 'К столам',
     actionTimeout: 'Сервер не ответил. Состояние заказа обновлено — при необходимости нажмите ещё раз (оплата не запишется дважды).',
+    forTableN: 'для стола {n}',
+    forTable: 'Для гостей стола',
+    newLinkedTakeaway: 'С собой для этого стола',
   },
   kitchen: {
     title: 'Экран кухни',

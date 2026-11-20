@@ -80,6 +80,9 @@ export interface OrderView {
   hallId: string | null;
   /** Zal nomi (pre-chekda) — null: stolsiz yoki zal o'chirilgan */
   hallName: string | null;
+  /** Saboy qaysi stol mehmonlariga (faqat ma'lumot; stol bandligiga ta'sir qilmaydi) — null: bog'lanmagan */
+  forTableId: string | null;
+  forTableNumber: number | null;
   guests: number | null;
   waiterId: string | null;
   waiterName: string | null;
@@ -168,6 +171,8 @@ export function orderView(
     tableNumber: o.tableNumber ?? null,
     hallId: sid(o.hallId),
     hallName: opts.hallName ?? null,
+    forTableId: sid(o.forTableId),
+    forTableNumber: o.forTableNumber ?? null,
     guests: o.guests ?? null,
     waiterId: o.waiterId ?? null,
     waiterName: staffName(names, o.waiterName, o.waiterId),
@@ -215,10 +220,15 @@ export interface OrderSummary {
   source: OrderSource;
   tableId: string | null;
   tableNumber: number | null;
+  /** Saboy bog'langan stol (stollar taxtasida shu stol ostida guruhlanadi) */
+  forTableId: string | null;
+  forTableNumber: number | null;
   guests: number | null;
   waiterId: string | null;
   waiterName: string | null;
   openedAt: string | null;
+  /** Pre-chek chiqqan vaqt (kassir navbati) */
+  precheckAt: string | null;
   updatedAt: string | null;
   /** Joriy foydalanuvchi buyurtmani ochib ko'ra oladimi (boshqa ofitsant stolida — false, summalar yashirin) */
   access: boolean;
@@ -238,10 +248,13 @@ export function orderSummary(o: OrderDoc, actorId: string, access: boolean, name
     source: o.source,
     tableId: sid(o.tableId),
     tableNumber: o.tableNumber ?? null,
+    forTableId: sid(o.forTableId),
+    forTableNumber: o.forTableNumber ?? null,
     guests: o.guests ?? null,
     waiterId: o.waiterId ?? null,
     waiterName: staffName(names, o.waiterName, o.waiterId),
     openedAt: iso(o.openedAt),
+    precheckAt: iso(o.precheckAt),
     updatedAt: iso(o.updatedAt),
     access,
     mine: !!o.waiterId && o.waiterId === actorId,
