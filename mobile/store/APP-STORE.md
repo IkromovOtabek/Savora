@@ -104,6 +104,8 @@ Demo buyer account: phone <BUYER_PHONE>, password <BUYER_PASSWORD>.
 Account deletion:
 - Business owner: Profile → Delete account.
 - Buyer: Savora Market → person icon (top) → My orders → Delete account.
+To test account deletion, please create a new free account (Sign up on the login screen) and delete that one —
+deleting the demo business account suspends the demo shop immediately and blocks the rest of the review.
 
 The app does not sell any digital content or subscriptions. In-app registration creates a free plan only.
 Barcode label printing uses the standard iOS print dialog (AirPrint).
@@ -144,10 +146,14 @@ diagnostika/crash (SDK yo'q).
 
 Apple tekshiruvchisi ilovani ichi to'la holda ko'rishi kerak — bo'sh do'kon rad etilishga sabab bo'lishi mumkin.
 
-1. **Do'kon hisobi:** savora.uz'da yangi do'kon oching (masalan, «Savora Demo»), 10–15 ta tovar
-   (rasm va shtrix-kod bilan), bir nechta sotuv va 2–3 ta nasiya qo'shing. Login va parolni 3-bo'limga yozing.
+1. **Do'kon hisobi — `rami`** (2026-11-20 tanlandi): prodda sun'iy ma'lumotli kiyim do'koni (tovar, variant,
+   sotuv, nasiya, daftar, 2 filial). Prodda sun'iy ma'lumot faqat dom24 va rami'da — yangi demo do'kon ochilmaydi.
+   - Mobil login'da do'kon nomi (slug) so'ralmaydi — rami egasining **logini va paroli** 3-bo'limga yoziladi.
+   - Yuborishdan oldin TestFlight'dagi 1.6.0 da shu login bilan kirib, tovarlar, sotuvlar va nasiya ko'rinishini tekshiring.
+   - Tekshiruvchi baribir «Delete account» ni bossa, rami `suspended` bo'ladi (ma'lumot o'chmaydi) —
+     super paneldan qayta faollashtiring va Telegram'dagi «Hisobni o'chirish so'rovi» xabarini e'tiborsiz qoldiring.
 2. **Xaridor hisobi:** ilovada Bozor → Kirish → Ro'yxatdan o'tish (alohida telefon raqam bilan).
-3. Demo do'konni tarif muddati tugamaydigan qilib qo'ying, aks holda ko'rik paytida bloklanib qoladi.
+3. rami tarifining muddati kamida 1–2 oy oldinda bo'lsin (super panel → rami → muddat), aks holda ko'rik paytida bloklanib qoladi.
 
 ## 7. Yuborish tartibi
 
