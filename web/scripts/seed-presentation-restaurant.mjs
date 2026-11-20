@@ -881,6 +881,11 @@ async function removeDemo(org, m) {
   const flows = await m.CashFlow.deleteMany({ $or: [{ recordedBy: { $in: names } }, { shiftId: { $in: shifts.map((s) => s._id) } }] });
   const shiftDel = await m.CashShift.deleteMany({ _id: { $in: shifts.map((s) => s._id) } });
   const audits = await m.AuditLog.deleteMany({ $or: [{ entityId: { $in: entityIds } }, { by: { $in: names } }] });
+  // Demo mahsulotlar bo'yicha ombor/taom bildirishnomalari (dedupeKey `lowStock:<id>` / `dishLow:<id>:…`)
+  const idAlt = productIds.map(String).join('|');
+  const notes = idAlt && m.Notification
+    ? await m.Notification.deleteMany({ dedupeKey: new RegExp(`^(lowStock|dishLow):(${idAlt})(:|$)`) })
+    : { deletedCount: 0 };
   for (const u of users) {
     await m.User.deleteOne({ _id: u._id });
     await releaseUsername(u.username).catch(() => {});
@@ -898,7 +903,7 @@ async function removeDemo(org, m) {
     if (doc && !(await m.Product.exists({ categoryId: doc._id }).setOptions({ withDeleted: true }))) { await m.ProductCategory.deleteOne({ _id: doc._id }); cats++; }
   }
   console.log(`✓ O'chirildi: ${orders.deletedCount} buyurtma, ${sales.deletedCount} sotuv qatori, ${products.deletedCount} mahsulot, `
-    + `${shiftDel.deletedCount} smena, ${flows.deletedCount} kassa yozuvi, ${audits.deletedCount} audit, ${users.length} xodim, ${st2} stansiya, ${cats} kategoriya`);
+    + `${shiftDel.deletedCount} smena, ${flows.deletedCount} kassa yozuvi, ${audits.deletedCount} audit, ${notes.deletedCount} bildirishnoma, ${users.length} xodim, ${st2} stansiya, ${cats} kategoriya`);
   console.log("  Qoldi: rollar, restoran sozlamalari (xizmat haqi 10% va h.k.), zal/stollar, hisoblagichlar — kerak bo'lsa sozlamadan o'zgartiring.");
 }
 
@@ -932,7 +937,12 @@ async function main() {
   const tablesDocs = await m.Table.find({ active: true }).sort({ number: 1 }).select('_id number branchId').lean();
   if (!tablesDocs.length) refuse("Do'konda stol yo'q — avval Restoran sozlamalari → Zal va stollar.");
   const branchId = tablesDocs[0].branchId;
-  const tables = tablesDocs.filter((t) => String(t.branchId) === String(branchId)).map((t) => ({ id: String(t._id), number: t.number }));
+  // Haqiqiy ochiq buyurtmasi bor stol chetda qoladi — demo taomlar o'sha hisobga qo'shilmasin
+  const realBusy = new Set((await m.Order.find({ status: { $in: ['open', 'precheck'] }, activeTableKey: { $exists: true }, clientOrderId: { $not: /^demo-/ } })
+    .select('activeTableKey').lean()).map((o) => o.activeTableKey));
+  const tables = tablesDocs.filter((t) => String(t.branchId) === String(branchId) && !realBusy.has(String(t._id)))
+    .map((t) => ({ id: String(t._id), number: t.number }));
+  if (realBusy.size) console.log(`• ${realBusy.size} ta stolda haqiqiy ochiq buyurtma bor — demo ularga yozilmaydi`);
 
   // Reja: oxirgi demo buyurtmadan (yoki N kun oldindan) hozirgacha
   const now = realNow();
