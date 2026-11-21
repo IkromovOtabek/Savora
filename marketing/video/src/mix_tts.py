@@ -9,6 +9,59 @@ import subprocess
 import sys
 from pathlib import Path
 
+
+def humanize(vo_path, a, hz, cfg, proj):
+    """TTS ovozini «jonli yozuv»ga yaqinlashtirish: iliq EQ, sibilyantni yumshatish, yengil kompressiya,
+    kichik xona akustikasi (sintetik IR) va uzun pauzalardan oldin juda past nafas. Natija: vo_human.wav"""
+    import numpy as np
+    from scipy.io import wavfile
+    from scipy.signal import butter, sosfilt, fftconvolve
+    sr = 48000
+    eq = a / "vo_eq.wav"
+    chain = ("highpass=f=70,equalizer=f=180:t=q:w=1.0:g=2.5,equalizer=f=3200:t=q:w=1.5:g=-1.5,"
+             "equalizer=f=6000:t=q:w=2:g=1,deesser=i=0.4,acompressor=threshold=-24dB:ratio=2.5:attack=8:release=150:makeup=2")
+    subprocess.run(["ffmpeg", "-y", "-v", "error", "-i", str(vo_path), "-af", chain, "-ar", str(sr), "-ac", "1", str(eq)], check=True)
+    _, x = wavfile.read(eq)
+    x = x.astype(np.float64) / 32768
+    rng = np.random.default_rng(11)
+    # xona: erta aks-sadolar + 0.3 s so'nish, 6 kHz dan yuqorisi kesilgan
+    n = int(0.35 * sr)
+    t = np.arange(n) / sr
+    ir = rng.standard_normal(n) * np.exp(-t / 0.07)
+    ir = sosfilt(butter(2, 6000, "low", fs=sr, output="sos"), ir)
+    ir[:int(0.004 * sr)] = 0
+    for ms, g in ((7, 0.5), (13, 0.35), (19, 0.25)):
+        ir[int(ms / 1000 * sr)] += g * 4
+    ir /= np.sqrt(np.sum(ir ** 2))
+    wet = fftconvolve(x, ir)[: len(x)]
+    y = x + wet * hz.get("room", 0.08)
+    # nafas: jumla oldidan, faqat oldingi jumladan keyin pauza yetarli bo'lsa
+    speech_rms = np.sqrt(np.mean(x[np.abs(x) > 0.02] ** 2)) if np.any(np.abs(x) > 0.02) else 0.1
+    level = speech_rms * 10 ** (hz.get("breath_db", -26) / 20)
+    prev_end = -1.0
+    for i, (start, max_len, _t) in enumerate(cfg["slots"], 1):
+        if i in hz.get("breaths", []) and start - prev_end > 0.5:
+            bl = 0.32
+            bn = int(bl * sr)
+            bt = np.arange(bn) / bl / sr
+            nz = rng.standard_normal(bn)
+            b = sosfilt(butter(2, [450, 2300], "band", fs=sr, output="sos"), nz)
+            b += 0.4 * sosfilt(butter(2, [150, 450], "band", fs=sr, output="sos"), rng.standard_normal(bn))
+            env = np.where(bt < 0.45, np.sin(np.pi / 2 * bt / 0.45) ** 2, np.cos(np.pi / 2 * (bt - 0.45) / 0.55) ** 2)
+            b = b * env
+            b *= level / (np.sqrt(np.mean(b ** 2)) + 1e-9)
+            s0 = int((start - 0.06 - bl) * sr)
+            if s0 > 0:
+                y[s0:s0 + bn] += b
+        ln = wavfile.read(proj / "vo" / f"l{i}.wav")[1].shape[0] / sr
+        prev_end = start + min(max_len, ln)
+    y /= max(1.0, np.max(np.abs(y)) / 0.97)
+    out = a / "vo_human.wav"
+    wavfile.write(out, sr, (y * 32767).astype(np.int16))
+    eq.unlink()
+    return out
+
+
 p = Path(sys.argv[1])
 cfg = json.loads((p / "voice_slots.json").read_text(encoding="utf-8"))
 total = cfg["duration"]
@@ -35,13 +88,19 @@ if not mx:
 else:
     # voice_slots.json → "mix": ovoz oldinda (EQ + kompressor), musiqa past va ovoz ostida kuchli ducking,
     # so'ng statik gain bilan target LUFS va limiter (dinamik loudnorm musiqani pauzalarda ko'tarib yubormasin)
-    vo_chain = (f"highpass=f=80,equalizer=f=3000:t=q:w=1.2:g={mx.get('vo_presence_db', 3)},"
-                f"acompressor=threshold=-22dB:ratio=3:attack=5:release=120:makeup=2,volume={mx.get('vo_db', 0)}dB")
+    vo_in = a / "vo.wav"
+    hz = mx.get("humanize")
+    if hz:
+        vo_in = humanize(vo_in, a, hz, cfg, p)
+        vo_chain = f"volume={mx.get('vo_db', 0)}dB"
+    else:
+        vo_chain = (f"highpass=f=80,equalizer=f=3000:t=q:w=1.2:g={mx.get('vo_presence_db', 3)},"
+                    f"acompressor=threshold=-22dB:ratio=3:attack=5:release=120:makeup=2,volume={mx.get('vo_db', 0)}dB")
     mix = (f"[1:a]{vo_chain},aformat=channel_layouts=stereo,asplit=2[vo][sc];[0:a]volume={mx.get('music_db', -14)}dB[m];"
            f"[m][sc]sidechaincompress=threshold={mx.get('duck_threshold', 0.015)}:ratio={mx.get('duck_ratio', 12)}:attack=10:release=300:makeup=1[md];"
            "[md][vo]amix=inputs=2:normalize=0[a]")
     tmp = a / "mix.pre.wav"
-    subprocess.run(["ffmpeg", "-y", "-v", "error", "-i", str(a / "music.wav"), "-i", str(a / "vo.wav"), "-filter_complex", mix,
+    subprocess.run(["ffmpeg", "-y", "-v", "error", "-i", str(a / "music.wav"), "-i", str(vo_in), "-filter_complex", mix,
                     "-map", "[a]", "-ar", "48000", "-ac", "2", "-t", str(total), str(tmp)], check=True)
     meas = subprocess.run(["ffmpeg", "-nostats", "-i", str(tmp), "-af", "ebur128", "-f", "null", "-"], capture_output=True, text=True).stderr
     lufs = float(meas.split("Integrated loudness:")[1].split("I:")[1].split("LUFS")[0])
