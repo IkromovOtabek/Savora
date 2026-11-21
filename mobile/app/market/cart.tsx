@@ -9,7 +9,6 @@ import {
 import { api, ApiError, errMsg } from '@/lib/api';
 import { useTheme, tabular, HAIRLINE } from '@/lib/theme';
 import { useDict, tr } from '@/lib/i18n';
-import { fmtMoney } from '@/lib/format';
 import { priceTimesQty, qtyWithUnit } from '@/lib/qty';
 import { formatUzPhoneInput } from '@/lib/phone';
 import { useMarketDict } from '@/lib/marketI18n';
@@ -87,6 +86,8 @@ export default function MarketCart() {
   }, [cart.items]);
   const live = cart.items.filter((x) => x.max > 0);
   const total = live.reduce((sum, x) => sum + priceTimesQty(x.price, x.qty), 0);
+  // «…dan» narxli tovar: server nusxalarni eng arzonidan taqsimlaydi — haqiqiy jami ko'proq bo'lishi mumkin
+  const totalLabel = priceLabel(m, total, live.some((x) => x.priceFrom));
 
   async function place() {
     if (!live.length || busy) return;
@@ -142,7 +143,7 @@ export default function MarketCart() {
   const footer = buyer ? (
     <Button
       title={m.checkout.send}
-      value={fmtMoney(total, { suffix: true })}
+      value={totalLabel}
       size="lg"
       full
       loading={busy}
@@ -191,7 +192,7 @@ export default function MarketCart() {
 
       <View style={[s.totalRow, { backgroundColor: c.cell }]}>
         <Text style={[s.totalL, { color: c.ink2 }]}>{m.cart.total}</Text>
-        <Text style={[s.totalV, tabular, { color: c.ink }]}>{fmtMoney(total, { suffix: true })}</Text>
+        <Text style={[s.totalV, tabular, { color: c.ink }]}>{totalLabel}</Text>
       </View>
 
       {buyer ? (
@@ -252,7 +253,7 @@ function CartLine({ item: x, onOpen, onQty, onRemove, sep }: {
           </Text>
           {!off ? (
             <Text style={[s.lineTotal, tabular, { color: c.ink }]} numberOfLines={1}>
-              {fmtMoney(priceTimesQty(x.price, x.qty), { suffix: true })}
+              {priceLabel(m, priceTimesQty(x.price, x.qty), x.priceFrom)}
             </Text>
           ) : null}
         </View>

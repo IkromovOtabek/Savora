@@ -1,7 +1,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
-  addLine, setLineQty, removeLine, syncLines, parseStoredCart, mergeLines, cartCount,
+  addLine, putLine, setLineQty, removeLine, syncLines, parseStoredCart, mergeLines, cartCount,
   type CartCard, type CartItem,
 } from './marketCartCore';
 
@@ -18,10 +18,12 @@ interface MarketCartState {
   items: CartItem[];
   /** Saqlangan savat o'qildi */
   ready: boolean;
-  /** Sotuvdagi qatorlar soni (belgi uchun) */
+  /** Belgidagi son — sotuvdagi tovarlar donasi (kasr birlikdagi qator — 1) */
   count: number;
   qtyOf: (id: string) => number;
   add: (card: CartCard, qty?: number) => void;
+  /** Miqdorni aniq o'rnatish, yangi kartochka ma'lumoti bilan (tovar sahifasi); 0 — o'chadi */
+  put: (card: CartCard, qty: number) => void;
   setQty: (id: string, qty: number) => void;
   remove: (id: string) => void;
   clear: () => void;
@@ -63,6 +65,7 @@ export function MarketCartProvider({ children }: { children: React.ReactNode }) 
   }, []);
 
   const add = useCallback((card: CartCard, qty = 1) => commit(addLine(itemsRef.current, card, qty)), [commit]);
+  const put = useCallback((card: CartCard, qty: number) => commit(putLine(itemsRef.current, card, qty)), [commit]);
   const setQty = useCallback((id: string, qty: number) => commit(setLineQty(itemsRef.current, id, qty)), [commit]);
   const remove = useCallback((id: string) => commit(removeLine(itemsRef.current, id)), [commit]);
   const clear = useCallback(() => commit([]), [commit]);
@@ -76,8 +79,8 @@ export function MarketCartProvider({ children }: { children: React.ReactNode }) 
     items, ready,
     count: cartCount(items),
     qtyOf: (id) => items.find((x) => x.id === id)?.qty ?? 0,
-    add, setQty, remove, clear, sync,
-  }), [items, ready, add, setQty, remove, clear, sync]);
+    add, put, setQty, remove, clear, sync,
+  }), [items, ready, add, put, setQty, remove, clear, sync]);
 
   return <MarketCartContext.Provider value={value}>{children}</MarketCartContext.Provider>;
 }

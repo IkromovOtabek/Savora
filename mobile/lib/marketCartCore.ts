@@ -72,6 +72,23 @@ export function addLine(items: CartItem[], card: CartCard, qty: number): CartIte
   return q > 0 ? [...items, lineFromCard(card, q)] : items;
 }
 
+const sameLine = (a: CartItem, b: CartItem) =>
+  a.qty === b.qty && a.price === b.price && a.max === b.max && a.priceFrom === b.priceFrom && a.name === b.name
+  && a.image === b.image && a.unit === b.unit && a.fractional === b.fractional && a.shopName === b.shopName && a.shopSlug === b.shopSlug;
+
+/**
+ * Tovar sahifasidan: savatdagi miqdorni ANIQ o'rnatish (qo'shib emas) — yangi kartochka ma'lumoti (qoldiq, narx)
+ * bilan. Qator yo'q bo'lsa — qo'shiladi, 0 — o'chadi, hech narsa o'zgarmasa — o'sha ro'yxat qaytadi.
+ */
+export function putLine(items: CartItem[], card: CartCard, qty: number): CartItem[] {
+  const cur = items.find((x) => x.id === card.id);
+  const q = card.qty > 0 ? clampQty(qty, card.qty, card.fractional) : 0;
+  if (!(q > 0)) return cur ? items.filter((x) => x.id !== card.id) : items;
+  const next = lineFromCard(card, q);
+  if (cur) return sameLine(cur, next) ? items : items.map((x) => (x.id === card.id ? next : x));
+  return items.length >= MAX_LINES ? items : [...items, next];
+}
+
 /** Miqdorni o'rnatish; 0 yoki kam bo'lsa — qator o'chadi */
 export function setLineQty(items: CartItem[], id: string, qty: number): CartItem[] {
   return items.flatMap((x) => {
@@ -129,7 +146,10 @@ export function mergeLines(base: CartItem[], extra: CartItem[]): CartItem[] {
   return [...base.filter((x) => !ids.has(x.id)), ...extra].slice(0, MAX_LINES);
 }
 
-/** Savatdagi (sotuvdagi) qatorlar soni — belgi uchun */
+/**
+ * Savat belgisidagi son — sotuvdagi tovarlar DONASI (6 ta qatiq → 6), qatorlar soni emas.
+ * Kasr birlikdagi qator (1,5 kg) bitta deb sanaladi.
+ */
 export function cartCount(items: CartItem[]): number {
-  return items.filter((x) => x.max > 0).length;
+  return items.reduce((n, x) => (x.max > 0 ? n + (x.fractional ? 1 : Math.max(1, Math.round(x.qty))) : n), 0);
 }

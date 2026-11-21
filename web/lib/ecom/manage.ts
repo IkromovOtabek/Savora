@@ -77,7 +77,8 @@ export async function applyEcomEdit(m: Models, actor: Actor & { dbName: string }
   if (!name || name.length > 200) return { ok: false, error: 'badName' };
 
   const salePrice = input.salePrice === undefined ? null : intMoney(input.salePrice);
-  if (Number.isNaN(salePrice)) return { ok: false, error: 'badPrice' };
+  // 0 — kassadagi narxni ham guruhning barcha nusxasida o'chirardi; bozordan olish — listed: 'hide'
+  if (Number.isNaN(salePrice) || salePrice === 0) return { ok: false, error: 'badPrice' };
   const oldPrice = input.oldPrice === undefined ? undefined : intMoney(input.oldPrice);
   if (Number.isNaN(oldPrice)) return { ok: false, error: 'badOldPrice' };
   const effPrice = salePrice ?? g.price;

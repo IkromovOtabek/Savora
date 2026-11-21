@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { View, ScrollView, StyleSheet, type NativeScrollEvent, type NativeSyntheticEvent } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
@@ -11,7 +11,7 @@ import { api, ApiError, errMsg } from '@/lib/api';
 import { useTheme, tabular, MAX_CONTENT } from '@/lib/theme';
 import { useDict, tr } from '@/lib/i18n';
 import { fmtMoney } from '@/lib/format';
-import { fmtQty, qtyWithUnit, roundQty } from '@/lib/qty';
+import { qtyWithUnit } from '@/lib/qty';
 import { useMarketDict } from '@/lib/marketI18n';
 import { useMarketCart } from '@/lib/marketCart';
 import { discountPct, type ListingDetail } from '@/lib/market';
@@ -49,6 +49,16 @@ export default function MarketProduct() {
   const [qty, setQty] = useState(1);
   const [slide, setSlide] = useState(0);
 
+  // Sahifa yangi ma'lumot olganda savatdagi qator ham shu qoldiq/narx bilan moslanadi
+  // (qoldiq kamaygan bo'lsa — savatdagi miqdor ham tushadi, stepper chegarasi bilan bir xil bo'ladi)
+  const cartRef = useRef(cart);
+  cartRef.current = cart;
+  useEffect(() => {
+    const fresh = q.data?.item;
+    const n = fresh ? cartRef.current.qtyOf(fresh.id) : 0;
+    if (fresh && n > 0) cartRef.current.put(fresh, n);
+  }, [q.data]);
+
   const back = () => (router.canGoBack() ? router.back() : router.replace('/market'));
   const header = <NavBar onBack={back} right={<CartButton />} />;
   const it = q.data?.item;
@@ -67,46 +77,60 @@ export default function MarketProduct() {
   const images = it.images?.length ? it.images : it.image ? [it.image] : [];
   const w = Math.min(L.width, MAX_CONTENT) - L.padX * 2;
   const pct = discountPct(it.price, it.oldPrice);
-  const inCart = cart.qtyOf(it.id);
-  // Savatga yana qancha qo'shish mumkin (qoldiq − savatdagi)
-  const room = Math.max(0, roundQty(it.qty - inCart));
-  const pick = Math.min(qty, room);
   const units = d.productFields.units;
+  // Savatda bor bo'lsa — stepper SAVATDAGI miqdorni ko'rsatadi va o'zgartiradi (qaytib kirganda ham 6 → 6);
+  // yo'q bo'lsa — qo'shiladigan miqdorni tanlaydi. Ikkalasi ham qoldiqdan oshmaydi.
+  const inCart = Math.min(cart.qtyOf(it.id), it.qty);
+  const value = inCart > 0 ? inCart : Math.min(qty, it.qty);
+  const atMax = it.qty > 0 && value >= it.qty - 1e-9;
+  const notes = [
+    inCart > 0 ? tr(m.product.inCart, { qty: qtyWithUnit(inCart, it.unit, units) }) : '',
+    atMax ? tr(m.product.onlyLeft, { qty: qtyWithUnit(it.qty, it.unit, units) }) : '',
+  ].filter(Boolean).join(' · ');
 
   function onScroll(e: NativeSyntheticEvent<NativeScrollEvent>) {
     const i = Math.round(e.nativeEvent.contentOffset.x / Math.max(1, w));
     if (i !== slide) setSlide(i);
   }
 
+  function change(v: number) {
+    if (!it) return;
+    if (inCart > 0) cart.put(it, v);
+    else setQty(v);
+  }
+
   function add() {
-    if (!it || !(pick > 0)) return;
-    cart.add(it, pick);
+    if (!it || !(value > 0)) return;
+    cart.put(it, value);
+  }
+
+  function removeFromCart() {
+    if (!it) return;
+    cart.remove(it.id);
     setQty(1);
   }
 
-  const footer = (
-    <View style={{ gap: 10 }}>
-      {inCart > 0 ? (
-        <Button
-          title={`${tr(m.product.inCart, { qty: fmtQty(inCart) })} · ${m.product.goCart}`}
-          icon="cart"
-          variant="tinted"
-          size="lg"
-          full
-          onPress={() => router.push('/market/cart')}
+  const footer = it.qty > 0 ? (
+    <View style={{ gap: 8 }}>
+      {notes ? <Text style={[s.note, tabular, { color: atMax ? c.warn : c.ink3, textAlign: 'center' }]}>{notes}</Text> : null}
+      <View style={s.buy}>
+        <QtyStepper
+          value={value}
+          max={it.qty}
+          fractional={it.fractional}
+          onChange={change}
+          onRemove={inCart > 0 ? removeFromCart : undefined}
+          style={{ width: 132, minHeight: 50 }}
         />
-      ) : null}
-      {room > 0 ? (
-        <View style={s.buy}>
-          <QtyStepper value={pick} max={room} fractional={it.fractional} onChange={setQty} style={{ width: 132, minHeight: 50 }} />
+        {inCart > 0 ? (
+          <Button title={m.product.goCart} icon="cart" variant="tinted" size="lg" onPress={() => router.push('/market/cart')} style={{ flex: 1 }} />
+        ) : (
           <Button title={m.product.addToCart} icon="cart-outline" size="lg" onPress={add} style={{ flex: 1 }} />
-        </View>
-      ) : it.qty > 0 ? (
-        <Text style={[s.note, { color: c.ink3, textAlign: 'center' }]}>{m.product.allInCart}</Text>
-      ) : (
-        <Button title={m.catalog.soldOut} variant="gray" size="lg" full disabled />
-      )}
+        )}
+      </View>
     </View>
+  ) : (
+    <Button title={m.catalog.soldOut} variant="gray" size="lg" full disabled />
   );
 
   return (

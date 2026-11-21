@@ -232,6 +232,10 @@ export async function setShopOrderStatus(
 ): Promise<ShopOrderResult> {
   if (!Types.ObjectId.isValid(orderId)) return { ok: false, error: 'notFound' };
   const { MarketOrder } = await getMasterModels();
+  if (action === 'accept') {
+    const short = await acceptShortage(orgId, actor.dbName, orderId);
+    if (short) return { ok: false, error: 'notEnough', item: short };
+  }
   const from: MarketOrderStatus[] = action === 'accept' ? ['new'] : ['new', 'accepted'];
   const to: MarketOrderStatus = action === 'accept' ? 'accepted' : 'rejected';
   const why = String(reason ?? '').trim().slice(0, 300) || undefined;
@@ -270,6 +274,31 @@ async function allocate(Product: Model<IProduct>, item: IMarketOrder['items'][nu
     docs = docs.concat(more.filter((d) => ecomGroupKey(d) === item.key && (d.ecomListed === true || !isSampleItemCode(d.itemCode))));
   }
   return allocateCheapest(docs as (ProductLean & EcomSourceProduct)[], qty);
+}
+
+/**
+ * Qabul qilishdan oldin: shu buyurtma + allaqachon qabul qilingan (hali yakunlanmagan) buyurtmalar omborga sig'adimi.
+ * Buyurtma berishda qoldiq band qilinmaydi — 1 ta tovarga bir necha xaridor buyurtma bersa, sotuvchi hammasini
+ * qabul qilib, keyin yakunlay olmay qolardi. Yetmaydigan birinchi tovar nomi; hammasi yetsa (yoki buyurtma
+ * «yangi» emas — holatni keyingi qadam aytadi) — null.
+ */
+async function acceptShortage(orgId: string, dbName: string, orderId: string): Promise<string | null> {
+  const { MarketOrder } = await getMasterModels();
+  const o = await MarketOrder.findOne({ _id: orderId, orgId, status: 'new' }).lean<OrderDoc>();
+  if (!o) return null;
+  const keys = [...new Set(o.items.map((i) => i.key))];
+  const others = await MarketOrder.find(
+    { orgId, status: 'accepted', _id: { $ne: o._id }, 'items.key': { $in: keys } }, { items: 1 },
+  ).lean<Pick<OrderDoc, 'items'>[]>();
+  const held = new Map<string, number>();
+  for (const x of others) {
+    for (const i of x.items) if (keys.includes(i.key)) held.set(i.key, roundQty((held.get(i.key) ?? 0) + i.qty));
+  }
+  const { Product } = await getTenantModels(dbName);
+  for (const item of o.items) {
+    if (!(await allocate(Product, item, roundQty(item.qty + (held.get(item.key) ?? 0))))) return item.name;
+  }
+  return null;
 }
 
 /**

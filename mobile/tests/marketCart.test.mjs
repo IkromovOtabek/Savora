@@ -2,7 +2,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  clampQty, addLine, setLineQty, removeLine, syncLines, parseStoredCart, mergeLines, cartCount, MAX_LINES,
+  clampQty, addLine, putLine, setLineQty, removeLine, syncLines, parseStoredCart, mergeLines, cartCount, MAX_LINES,
 } from '../lib/marketCartCore.ts';
 
 const card = (id, extra = {}) => ({
@@ -29,6 +29,26 @@ test('qo\'shish: yangi qator, bor bo\'lsa miqdor qo\'shiladi va qoldiq bilan che
   assert.equal(items[0].qty, 5, 'qoldiqdan oshmaydi');
   assert.equal(items[0].price, 12000, 'kartochka ma\'lumoti yangilanadi');
   assert.deepEqual(addLine(items, card('b', { qty: 0 }), 1), items, 'qoldig\'i yo\'q tovar qo\'shilmaydi');
+});
+
+test('tovar sahifasi: miqdor aniq o\'rnatiladi (qo\'shilmaydi), qoldiq bilan cheklanadi', () => {
+  let items = putLine([], card('a', { qty: 18 }), 6);
+  assert.equal(items[0].qty, 6, 'yangi qator — tanlangan miqdor');
+  items = putLine(items, card('a', { qty: 18 }), 6);
+  assert.equal(items[0].qty, 6, 'qayta bosish 12 qilmaydi');
+  const same = putLine(items, card('a', { qty: 18 }), 6);
+  assert.equal(same, items, 'o\'zgarishsiz — o\'sha ro\'yxat (keraksiz saqlash yo\'q)');
+  items = putLine(items, card('a', { qty: 1 }), 4);
+  assert.equal(items[0].qty, 1, 'do\'konda 1 ta — 4 so\'ralsa ham 1');
+  assert.equal(items[0].max, 1, 'yangi qoldiq yoziladi');
+  assert.equal(putLine(items, card('a', { qty: 1 }), 0).length, 0, '0 — o\'chadi');
+  assert.deepEqual(putLine([], card('b', { qty: 0 }), 1), [], 'qoldig\'i yo\'q — qo\'shilmaydi');
+});
+
+test('belgi soni: donalar yig\'indisi, kasr qator — 1', () => {
+  let items = putLine([], card('a', { qty: 18 }), 6);
+  items = putLine(items, card('k', { qty: 5, fractional: true, unit: 'kg' }), 1.5);
+  assert.equal(cartCount(items), 7);
 });
 
 test('qatorlar soni chegarasi', () => {
@@ -58,7 +78,7 @@ test('server bilan moslash: narx o\'zgarishi, sotuvdan olinish, o\'zgarishsiz ho
   const gone = syncLines(items, [card('a')]);
   assert.equal(gone.changed, true);
   assert.equal(gone.items[1].max, 0, 'javobda yo\'q — sotuvda yo\'q');
-  assert.equal(cartCount(gone.items), 1);
+  assert.equal(cartCount(gone.items), 2, 'belgi — sotuvdagi donalar (a: 2 ta), sotuvdan olingan b sanalmaydi');
 
   const less = syncLines(items, [card('a'), card('b', { qty: 3 })]);
   assert.equal(less.changed, true);

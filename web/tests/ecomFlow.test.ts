@@ -103,6 +103,9 @@ describe.skipIf(!URI)('e-commerce oqimi (MongoDB)', () => {
     expect(bad).toEqual({ ok: false, error: 'badImages' });
     const badOld = await manage.applyEcomEdit(tenant, actor, choy.key, { oldPrice: '40000' });
     expect(badOld).toEqual({ ok: false, error: 'badOldPrice' });
+    // 0 — kassadagi narxni ham o'chirardi (bozordan olish — «Yashirish»)
+    expect(await manage.applyEcomEdit(tenant, actor, choy.key, { salePrice: '0' })).toEqual({ ok: false, error: 'badPrice' });
+    expect((await tenant.Product.findById(ids.choy).lean())!.salePrice).toBe(50000);
     const ok = await manage.applyEcomEdit(tenant, actor, choy.key, {
       description: 'Elektr choynak, 1.7 l', oldPrice: '65 000', images: [`/api/uploads/${dbName}/abcdef12-1.jpg`],
     });
@@ -194,6 +197,30 @@ describe.skipIf(!URI)('e-commerce oqimi (MongoDB)', () => {
     expect(await orders.cancelBuyerOrder(new Types.ObjectId().toString(), id)).toBe(false);
     expect(await orders.cancelBuyerOrder(buyer.id, id)).toBe(true);
     expect(await orders.cancelBuyerOrder(buyer.id, orderId)).toBe(false);
+  });
+
+  it('qabul: qoldiq allaqachon qabul qilingan buyurtmalarga ketgan bo\'lsa — «yetarli emas», bo\'shagach qabul bo\'ladi', async () => {
+    const reg = await auth.loginBuyer({ phone: '901112233', password: 'secret12' }, '127.0.0.1');
+    expect(reg.ok).toBe(true);
+    if (!reg.ok) return;
+    const buyer = { id: String(reg.buyer._id), name: reg.buyer.name, phone: reg.buyer.phone };
+    const choy = (await listings())[0];
+    expect(choy.qty).toBe(7);
+    const place = async (qty: number) => {
+      const r = await orders.placeMarketOrders(buyer, { lines: [{ listingId: String(choy._id), qty }], delivery: 'pickup' });
+      expect(r.ok).toBe(true);
+      return r.ok ? r.orders[0].id : '';
+    };
+    // Har biri alohida qoldiqqa sig'adi (buyurtma berishda band qilinmaydi), ikkalasi birga — yo'q
+    const a = await place(5);
+    const b = await place(3);
+    expect(await orders.setShopOrderStatus(String(orgId), actor, a, 'accept')).toEqual({ ok: true });
+    expect(await orders.setShopOrderStatus(String(orgId), actor, b, 'accept')).toEqual({ ok: false, error: 'notEnough', item: 'Choynak' });
+    expect((await master.MarketOrder.findById(b).lean())?.status).toBe('new');
+    // Birinchisi rad etilgach qoldiq bo'shaydi
+    expect(await orders.setShopOrderStatus(String(orgId), actor, a, 'reject')).toEqual({ ok: true });
+    expect(await orders.setShopOrderStatus(String(orgId), actor, b, 'accept')).toEqual({ ok: true });
+    expect(await orders.setShopOrderStatus(String(orgId), actor, b, 'reject')).toEqual({ ok: true });
   });
 
   it('xaridor hisobini o\'chirish: parol, qabul qilingan buyurtma to\'sadi, keyin yangisi bekor + ma\'lumot yashiriladi', async () => {

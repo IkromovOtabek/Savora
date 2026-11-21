@@ -207,7 +207,8 @@ export function Catalog({ shop, title, subtitle, left, extra, listHeader }: Cata
             inCart={cart.qtyOf(item.id)}
             onOpen={() => router.push(`/market/p/${item.id}`)}
             onAdd={() => cart.add(item, 1)}
-            onQty={(v) => cart.setQty(item.id, v)}
+            // Kartochkadagi yangi qoldiq bilan — savat qatoridagi eski chegara «+» ni jimgina to'xtatmasin
+            onQty={(v) => cart.put(item, v)}
             onRemove={() => cart.remove(item.id)}
           />
         )}

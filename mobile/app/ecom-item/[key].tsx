@@ -121,6 +121,8 @@ export default function EcomItemScreen() {
   const errs = {
     name: !form.name.trim() || form.name.trim().length > 200 ? t.errName : null,
     oldPrice: oldN > 0 && oldN <= priceN ? t.errOldPrice : null,
+    // Narxni 0 qilish kassadagi narxni ham hamma nusxada o'chirardi — bozordan olish «Yashirish» orqali
+    price: priceN <= 0 && it.price > 0 ? t.errPrice : null,
   };
   const mixed = it.maxPrice > it.price;
 
@@ -170,7 +172,7 @@ export default function EcomItemScreen() {
   async function save() {
     if (!form || busy) return;
     setTried(true);
-    if (errs.name || errs.oldPrice) return;
+    if (errs.name || errs.oldPrice || errs.price) return;
     setBusy(true);
     try {
       const body: Record<string, unknown> = {
@@ -233,6 +235,7 @@ export default function EcomItemScreen() {
           hint={mixed && priceN === it.price
             ? tr(t.mixedPrices, { min: fmtMoney(it.price), max: fmtMoney(it.maxPrice) })
             : t.priceHint}
+          error={errs.price}
         />
         <Field
           label={t.oldPrice}
