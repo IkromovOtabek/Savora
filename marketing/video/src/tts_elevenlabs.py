@@ -68,11 +68,11 @@ def tts(key, voice_id, text, out, model, stability):
     body = {"text": text, "model_id": model,
             "voice_settings": {"stability": stability, "similarity_boost": 0.8, "style": 0.0, "use_speaker_boost": True}}
     try:
-        audio = call("POST", f"/text-to-speech/{voice_id}?output_format=mp3_44100_192", key, {**body, "language_code": "uz"}, raw=True)
+        audio = call("POST", f"/text-to-speech/{voice_id}?output_format=mp3_44100_128", key, {**body, "language_code": "uz"}, raw=True)
     except RuntimeError as e:
         if "language" not in str(e).lower():
             raise
-        audio = call("POST", f"/text-to-speech/{voice_id}?output_format=mp3_44100_192", key, body, raw=True)
+        audio = call("POST", f"/text-to-speech/{voice_id}?output_format=mp3_44100_128", key, body, raw=True)
     Path(out).write_bytes(audio)
 
 
