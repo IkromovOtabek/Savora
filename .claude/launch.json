@@ -2,6 +2,16 @@
   "version": "0.0.1",
   "configurations": [
     {
+      "name": "reel-prompter",
+      "runtimeExecutable": "sh",
+      "runtimeArgs": [
+        "-c",
+        "cd marketing/video && exec python3 src/prompter/server.py savora-reel-03 --port 3121"
+      ],
+      "port": 3121,
+      "autoPort": false
+    },
+    {
       "name": "dev",
       "runtimeExecutable": "npm",
       "runtimeArgs": [
