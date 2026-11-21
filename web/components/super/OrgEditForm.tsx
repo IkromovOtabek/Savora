@@ -1,6 +1,6 @@
 'use client';
 
-import { useActionState, useState } from 'react';
+import { startTransition, useActionState, useState, type FormEvent } from 'react';
 import { updateOrganizationAction } from '@/app/actions/orgSettings';
 import { PLAN_PRESETS } from '@/lib/plans';
 import { BUSINESS_TYPE_IDS, INDUSTRY_PROFILES } from '@/lib/businessTypes';
@@ -31,17 +31,47 @@ interface Props {
     /** 'set' — parol o'rnatilgan; xeshning o'zi client'ga uzatilmaydi */
     passwordHash: string;
   };
+  /** Tarif standarti (filial, xodim, oylik narx) — tarif tanlanganda maydonlar shundan to'ldiriladi */
+  planDefaults: Partial<Record<string, PlanLimits>>;
 }
 
-export default function OrgEditForm({ orgId, initial }: Props) {
+type PlanLimits = { maxFilial: number; maxUsers: number; monthlyPayment: number };
+
+/** Input'lar uchun satr ko'rinishi (maydonni bo'shatib qayta yozish mumkin bo'lsin) */
+function limitsState(l: PlanLimits) {
+  return { maxFilial: String(l.maxFilial), maxUsers: String(l.maxUsers), monthlyPayment: String(l.monthlyPayment) };
+}
+
+export default function OrgEditForm({ orgId, initial, planDefaults }: Props) {
   const [state, formAction, isPending] = useActionState(updateOrganizationAction, null);
   const [planTier, setPlanTier] = useState(initial.planTier);
+  const [limits, setLimits] = useState(() => limitsState(initial));
   const [bizType, setBizType] = useState(initial.businessType);
   const d = useDict();
   const s = d.superPanel.orgEdit;
 
+  const setLimit = (key: keyof PlanLimits, value: string) => setLimits((l) => ({ ...l, [key]: value }));
+
+  function changeTier(tier: string) {
+    setPlanTier(tier);
+    // Tarif almashsa — filial/xodim/narx yangi tarif standartiga o'tadi (keyin qo'lda o'zgartirsa bo'ladi).
+    // Aks holda eski tarif limitlari yuborilib, tarif nomi o'zgarsa ham limit va narx eskicha qolardi.
+    // O'z tarifiga qaytsa — saqlangan qiymatlar; «Kelishuv»da joriy qiymatlar qoladi.
+    const preset = planDefaults[tier];
+    if (tier === initial.planTier) setLimits(limitsState(initial));
+    else if (tier !== 'custom' && preset) setLimits(limitsState(preset));
+  }
+
+  function handleSubmit(e: FormEvent<HTMLFormElement>) {
+    // `<form action>` React 19 da action'dan keyin formani reset qiladi: tarif <select>'i eski tarifga
+    // qaytib ko'rinardi, keyingi saqlashda esa eski tarif qayta yozilardi. Shuning uchun reset'siz yuboramiz.
+    e.preventDefault();
+    const fd = new FormData(e.currentTarget);
+    startTransition(() => formAction(fd));
+  }
+
   return (
-    <form action={formAction} className="sa-form">
+    <form onSubmit={handleSubmit} className="sa-form">
       <input type="hidden" name="orgId" value={orgId} />
 
       {state?.error && <Alert tone="error">{state.error}</Alert>}
@@ -121,7 +151,7 @@ export default function OrgEditForm({ orgId, initial }: Props) {
               id="planTier"
               name="planTier"
               value={planTier}
-              onChange={(e) => setPlanTier(e.target.value)}
+              onChange={(e) => changeTier(e.target.value)}
               disabled={isPending}
             >
               {Object.values(PLAN_PRESETS).map((p) => (
@@ -132,15 +162,15 @@ export default function OrgEditForm({ orgId, initial }: Props) {
           <div className="sa-grid-3">
             <div className="sa-field">
               <label htmlFor="maxFilial">{s.branchCount}</label>
-              <input id="maxFilial" name="maxFilial" type="number" min={1} defaultValue={initial.maxFilial} disabled={isPending} />
+              <input id="maxFilial" name="maxFilial" type="number" min={1} value={limits.maxFilial} onChange={(e) => setLimit('maxFilial', e.target.value)} disabled={isPending} />
             </div>
             <div className="sa-field">
               <label htmlFor="maxUsers">{s.userCount}</label>
-              <input id="maxUsers" name="maxUsers" type="number" min={1} defaultValue={initial.maxUsers} disabled={isPending} />
+              <input id="maxUsers" name="maxUsers" type="number" min={1} value={limits.maxUsers} onChange={(e) => setLimit('maxUsers', e.target.value)} disabled={isPending} />
             </div>
             <div className="sa-field">
               <label htmlFor="monthlyPayment">{s.monthlySum}</label>
-              <PriceInput id="monthlyPayment" name="monthlyPayment" defaultValue={initial.monthlyPayment} disabled={isPending} />
+              <PriceInput id="monthlyPayment" name="monthlyPayment" value={limits.monthlyPayment} onValueChange={(v) => setLimit('monthlyPayment', v)} disabled={isPending} />
             </div>
           </div>
           {planTier === 'custom' && (

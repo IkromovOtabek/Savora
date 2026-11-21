@@ -3,6 +3,7 @@ import { getMasterModels } from '@/lib/masterDb';
 import { explainOrgFeatures, resolveOrgFeatures } from '@/lib/features';
 import { isBusinessType } from '@/lib/businessTypes';
 import { resolveOrgPlan, fmtPlanPrice } from '@/lib/plans';
+import { getEffectivePlanPresets } from '@/lib/platformSettings';
 import { getOrgAdminCredentials, getOrgDisplayStatus } from '@/lib/organizations';
 import { getDict } from '@/lib/i18n/server';
 import { tr } from '@/lib/i18n/fmt';
@@ -64,6 +65,13 @@ export default async function OrgDetailPage({
   const credentials = await getOrgAdminCredentials(org);
   const status = getOrgDisplayStatus(org);
   const daysLeft = daysUntilExpiry(org);
+  // Tarif tanlanganda formadagi limit/narx shu standartdan to'ldiriladi (Super Admin «Tariflar» sozlamalari bilan)
+  const planDefaults = Object.fromEntries(
+    Object.values(await getEffectivePlanPresets()).map((p) => [
+      p.tier,
+      { maxFilial: p.maxFilial, maxUsers: p.maxUsers, monthlyPayment: p.monthlyPrice },
+    ]),
+  );
 
   return (
     <>
@@ -103,6 +111,7 @@ export default async function OrgDetailPage({
                 <Panel title={t.settingsTitle} sub={t.settingsSub} icon="settings" iconBg="#8a93a8">
                   <OrgEditForm
                     orgId={String(org._id)}
+                    planDefaults={planDefaults}
                     initial={{
                       name: org.name,
                       ownerName: org.ownerName ?? '',

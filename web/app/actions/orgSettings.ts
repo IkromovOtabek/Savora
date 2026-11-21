@@ -15,7 +15,8 @@ function parseStatus(v: string): OrgStatus {
 }
 
 function parseIntField(v: string, fallback: number): number {
-  const n = Number(v);
+  // PriceInput "499 000" ko'rinishida yuboradi — bo'shliqsiz Number() NaN berib, narx 0 bo'lib saqlanardi
+  const n = Number(v.replace(/\s/g, ''));
   return Number.isFinite(n) && n >= 0 ? Math.floor(n) : fallback;
 }
 

@@ -80,6 +80,9 @@ export async function updateOrganization(orgId: string, input: UpdateOrganizatio
     if (input.maxFilial === undefined) org.plan.maxFilial = preset.maxFilial;
     if (input.maxUsers === undefined) org.plan.maxUsers = preset.maxUsers;
     if (input.monthlyPayment === undefined) org.plan.monthlyPayment = preset.monthlyPrice;
+    // Mahsulot limiti formada yo'q — tarif almashsa yangi tarif standartiga o'tadi
+    // (aks holda Bepul'dan Pro'ga o'tgan do'kon 50 mahsulot limitida qolardi). Kelishuvda — o'zgarmaydi.
+    if (tierChanged && tier !== 'custom') org.plan.maxProducts = preset.maxProducts;
     if (tier !== 'custom') org.plan.agreementNote = undefined;
     // Tarif o'zgarsa — Super Admin override'lari tozalanadi va modullar yangi tarif
     // standarti + biznes preseti bo'yicha hisoblanadi (alohida features berilmagan bo'lsa).
