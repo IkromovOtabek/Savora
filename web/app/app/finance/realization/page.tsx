@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { getTenantSession } from '@/lib/tenantSession';
 import { parsePeriod, periodRange } from '@/lib/period';
-import { loadRealization, sumMoney, type MoneyKind } from '@/lib/realization';
+import { bankInOf, loadRealization, sumMoney, type MoneyKind } from '@/lib/realization';
 import { amtTone, fmtDateTime, fmtMoney } from '@/lib/format';
 import { qtyWithUnit, tr } from '@/lib/i18n/fmt';
 import PeriodSeg from '@/components/tenant/PeriodSeg';
@@ -41,6 +41,9 @@ export default async function RealizationPage({ searchParams }: { searchParams: 
   const { money, sold, branchNames } = await loadRealization({ Sale, CashFlow, BankReceipt, SupplierEntry, Supplier, Branch }, start, end);
   const sums = sumMoney(money);
   const salesSum = sold.reduce((a, r) => ({ total: a.total + r.total, cost: a.cost + r.cost, profit: a.profit + r.profit }), { total: 0, cost: 0, profit: 0 });
+  // Foyda = sotuv foydasi (bank ulushisiz) + davrda bankdan olingan pul (Hisobot bilan bir qoida)
+  const bankIn = bankInOf(money);
+  const profit = salesSum.profit + bankIn;
 
   const qs = (v: string) => {
     const p = new URLSearchParams();
@@ -73,7 +76,7 @@ export default async function RealizationPage({ searchParams }: { searchParams: 
         <div className="ux-stat"><div className="ux-stat-l">{mk.totalIn}</div><div className="ux-stat-v t-num amt-pos">+ {fmtMoney(sums.in)}</div></div>
         <div className="ux-stat"><div className="ux-stat-l">{mk.totalOut}</div><div className="ux-stat-v t-num amt-neg">− {fmtMoney(sums.out)}</div></div>
         <div className="ux-stat"><div className="ux-stat-l">{mk.net}</div><div className={`ux-stat-v t-num ${amtTone(sums.net)}`}>{fmtMoney(sums.net)}<small>{d.common.sum}</small></div></div>
-        <div className="ux-stat"><div className="ux-stat-l">{mk.colProfit}</div><div className={`ux-stat-v t-num ${amtTone(salesSum.profit)}`}>{fmtMoney(salesSum.profit)}<small>{d.common.sum}</small></div></div>
+        <div className="ux-stat"><div className="ux-stat-l">{mk.colProfit}</div><div className={`ux-stat-v t-num ${amtTone(profit)}`}>{fmtMoney(profit)}<small>{d.common.sum}</small></div></div>
       </div>
 
       <nav className="cl-seg fx-tabs" aria-label={mk.realTitle}>

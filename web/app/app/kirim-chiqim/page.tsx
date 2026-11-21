@@ -6,6 +6,7 @@ import { getDict } from '@/lib/i18n/server';
 import { plural, tr } from '@/lib/i18n/fmt';
 import { priceTimesQty } from '@/lib/qty';
 import { addQtyByUnit, mergeQtyByUnit } from '@/lib/unitTotals';
+import { saleProfitRevenue, splitBankReceipts } from '@/lib/bankCredit';
 
 export async function generateMetadata() {
   const d = await getDict();
@@ -13,15 +14,17 @@ export async function generateMetadata() {
 }
 
 export default async function KirimChiqimPage() {
-  const { Product, Branch, Sale, org } = await getTenantAdminSession();
+  const { Product, Branch, Sale, BankReceipt, org } = await getTenantAdminSession();
   const d = await getDict();
   const k = d.sales.kirimChiqim;
   const branches = await Branch.find({ active: true }).sort({ createdAt: 1 }).lean();
   const branchIds = branches.map((b) => b._id);
 
-  const [products, sales] = await Promise.all([
+  const [products, sales, receiptSums] = await Promise.all([
     Product.find({ branchId: { $in: branchIds } }).limit(5000).lean(),
     Sale.find({ status: { $ne: 'cancelled' }, branchId: { $in: branchIds } }).limit(5000).lean(),
+    // Bankdan olingan pul (filial kassasi bo'yicha) — bank krediti ulushi foydaga shu bilan kiradi
+    BankReceipt.aggregate<{ _id: unknown; total: number }>([{ $group: { _id: '$branchId', total: { $sum: '$amount' } } }]),
   ]);
 
   // Filial bo'yicha agregatsiya
@@ -49,7 +52,17 @@ export default async function KirimChiqimPage() {
     const cost = priceTimesQty(s.productSnapshot?.purchasePrice ?? 0, qty);
     card.chiqimValue += s.totalAmount ?? 0;
     addQtyByUnit(card.chiqimQty, qty, s.productSnapshot?.unit);
-    card.foyda += (s.totalAmount ?? 0) - cost;
+    // Bank krediti ulushi sotuv paytida foydaga kirmaydi — bankdan pul olinganda (pastda)
+    card.foyda += saleProfitRevenue(s) - cost;
+  }
+
+  const bank = splitBankReceipts(
+    receiptSums.map((r) => ({ amount: r.total, branchId: r._id ? String(r._id) : null })),
+    [...map.keys()],
+  );
+  for (const [branchId, amount] of bank.byBranch) {
+    const card = map.get(branchId);
+    if (card) card.foyda += amount;
   }
 
   const cards = [...map.values()];
@@ -59,7 +72,8 @@ export default async function KirimChiqimPage() {
     kirimQty: mergeQtyByUnit(cards.map((c) => c.kirimQty)),
     chiqimValue: cards.reduce((s, c) => s + c.chiqimValue, 0),
     chiqimQty: mergeQtyByUnit(cards.map((c) => c.chiqimQty)),
-    foyda: cards.reduce((s, c) => s + c.foyda, 0),
+    // Filialsiz (eski) yoki nofaol filialga tushgan bank puli — faqat jami foydada
+    foyda: cards.reduce((s, c) => s + c.foyda, 0) + bank.rest,
   };
 
   return (

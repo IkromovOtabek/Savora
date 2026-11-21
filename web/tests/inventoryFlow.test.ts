@@ -3,7 +3,7 @@
  * qiymat priceTimesQty bilan butun so'mga yaxlitlanadi.
  */
 import { describe, it, expect } from 'vitest';
-import { aggregateFlowTotals, lineFromProduct, type FlowLine } from '@/lib/inventoryFlow';
+import { aggregateFlowTotals, lineFromProduct, lineFromSale, type FlowLine } from '@/lib/inventoryFlow';
 import { addQtyByUnit, mergeQtyByUnit, qtyByUnitEntries, singleUnit, unitKey } from '@/lib/unitTotals';
 import { qtyByUnits } from '@/lib/i18n/fmt';
 import { getDictionary } from '@/lib/i18n';
@@ -112,5 +112,25 @@ describe('inventoryFlow', () => {
 
   it('aggregateFlowTotals: bo\'sh ro\'yxat', () => {
     expect(aggregateFlowTotals([], [])).toEqual({ stockQty: {}, soldQty: {}, stockCost: 0, soldRevenue: 0, profit: 0 });
+  });
+});
+
+describe('kirim-chiqim — bank krediti foydasi', () => {
+  it('bank ulushi sotuv qatori foydasiga kirmaydi, bankdan olingan pul jamiga qo\'shiladi', () => {
+    const line = lineFromSale({
+      _id: 's1', saleNo: 'S-1', totalAmount: 10_000_000, paymentType: 'bank_credit',
+      paidAmount: 5_000_000, remainingAmount: 5_000_000, bankName: 'Ishonch',
+      bankParts: [{ bankName: 'Ishonch', amount: 5_000_000 }],
+      productSnapshot: { name: 'iPhone 14 Pro', saleQuantity: 1, purchasePrice: 7_000_000 },
+    }, 'Chilonzor');
+    expect(line.revenue).toBe(10_000_000);
+    expect(line.profit).toBe(-2_000_000);
+    expect(aggregateFlowTotals([], [line]).profit).toBe(-2_000_000);
+    expect(aggregateFlowTotals([], [line], 5_000_000).profit).toBe(3_000_000);
+  });
+
+  it('to\'lov turi yo\'q eski qator — avvalgidek sotuv − tannarx', () => {
+    const line = lineFromSale({ _id: 's2', saleNo: 'S-2', totalAmount: 500, productSnapshot: { saleQuantity: 1, purchasePrice: 300 } }, 'X');
+    expect(line.profit).toBe(200);
   });
 });

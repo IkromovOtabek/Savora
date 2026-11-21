@@ -49,6 +49,43 @@ export function bankPartsTotal(parts: { amount: number }[] | null | undefined): 
   return (parts ?? []).reduce((a, p) => a + (Number.isFinite(p.amount) ? p.amount : 0), 0);
 }
 
+/**
+ * Foydaga sotuv paytida kiradigan tushum: jami − bank ulushi. Bank ulushi (Kredit kassadagi «Kiritilgan»)
+ * do'kon qo'lida emas — u foydaga «Bankdan pul olindi» yozilganda, olingan summa bilan kiradi
+ * (`splitBankReceipts`). Tannarx esa sotuv paytida to'liq ayriladi: bank to'lamaguncha sotuv foydasi minus
+ * bo'lishi mumkin, bank to'lagach jami foyda = sotuv − tannarx.
+ * Naqd / bosh to'lov va mijozning nasiya / qarz qismi — avvalgidek sotuv paytida.
+ */
+export function saleProfitRevenue(sale: SaleLike): number {
+  return (sale.totalAmount ?? 0) - bankPartsTotal(saleBankParts(sale));
+}
+
+type ReceiptLike = { amount: number; branchId?: { toString(): string } | string | null };
+
+/**
+ * Bankdan olingan pul (foydaga) filiallar bo'yicha: pul tushgan filial kassasi. Filialsiz eski yozuvlar —
+ * filial bitta bo'lsa unga, aks holda `rest` (jami foydada bor, filial qatorida yo'q); ro'yxatda yo'q
+ * (nofaol) filial yozuvlari ham `rest`.
+ */
+export function splitBankReceipts(
+  receipts: ReceiptLike[],
+  branchIds: string[],
+): { byBranch: Map<string, number>; rest: number; total: number } {
+  const listed = new Set(branchIds);
+  const only = branchIds.length === 1 ? branchIds[0] : null;
+  const byBranch = new Map<string, number>();
+  let rest = 0;
+  let total = 0;
+  for (const r of receipts) {
+    if (!Number.isFinite(r.amount)) continue;
+    total += r.amount;
+    const bid = r.branchId ? String(r.branchId) : only;
+    if (bid && listed.has(bid)) byBranch.set(bid, (byBranch.get(bid) ?? 0) + r.amount);
+    else rest += r.amount;
+  }
+  return { byBranch, rest, total };
+}
+
 /** Bank krediti + nasiya: banklar bir qismini, qolganini mijoz oyma-oy do'konga to'laydi */
 export function isBankNasiya(sale: { paymentType: PaymentType; bankParts?: ISaleBankPart[] | null }): boolean {
   return sale.paymentType === 'installment' && (sale.bankParts?.length ?? 0) > 0;

@@ -2,6 +2,8 @@ import type { IProduct } from './models/tenant/Product';
 import { getSoldQty, getStockQty } from './productQuantity';
 import { priceTimesQty } from './qty';
 import { addQtyByUnit, type QtyByUnit } from './unitTotals';
+import { saleProfitRevenue } from './bankCredit';
+import type { ISaleBankPart, PaymentType } from './models/tenant/Sale';
 
 export interface FlowLine {
   id: string;
@@ -62,9 +64,18 @@ interface SaleRow {
   saleNo: string;
   totalAmount?: number;
   productSnapshot?: { name?: string; unit?: string | null; saleQuantity?: number; purchasePrice?: number } | null;
+  // Bank krediti ulushi uchun (yo'q bo'lsa — butun summa foydada)
+  paymentType?: PaymentType;
+  bankName?: string | null;
+  bankParts?: ISaleBankPart[] | null;
+  paidAmount?: number;
+  remainingAmount?: number;
 }
 
-/** Chiqim qatori — haqiqiy sotuvdan (Sotildi bilan bir manba): tushum = totalAmount, tannarx = xarid narxi × miqdor */
+/**
+ * Chiqim qatori — haqiqiy sotuvdan (Sotildi bilan bir manba): tushum = totalAmount, tannarx = xarid narxi × miqdor.
+ * Foyda: bank krediti ulushi kirmaydi — u bankdan pul olinganda jamiga qo'shiladi (`aggregateFlowTotals` bankIn).
+ */
 export function lineFromSale(s: SaleRow, branchName: string): FlowLine {
   const qty = s.productSnapshot?.saleQuantity ?? 1;
   const unitPurchase = s.productSnapshot?.purchasePrice ?? 0;
@@ -81,11 +92,12 @@ export function lineFromSale(s: SaleRow, branchName: string): FlowLine {
     unitSale: qty > 0 ? Math.round(revenue / qty) : revenue,
     cost,
     revenue,
-    profit: revenue - cost,
+    profit: (s.paymentType ? saleProfitRevenue({ ...s, paymentType: s.paymentType }) : revenue) - cost,
   };
 }
 
-export function aggregateFlowTotals(stockLines: FlowLine[], soldLines: FlowLine[]): FlowTotals {
+/** `bankIn` — shu filial(lar) kassasiga bankdan olingan pul: bank krediti ulushi foydaga shu bilan kiradi */
+export function aggregateFlowTotals(stockLines: FlowLine[], soldLines: FlowLine[], bankIn = 0): FlowTotals {
   const stockQty: QtyByUnit = {};
   let stockCost = 0;
   for (const l of stockLines) {
@@ -100,7 +112,7 @@ export function aggregateFlowTotals(stockLines: FlowLine[], soldLines: FlowLine[
     soldRevenue += l.revenue;
     profit += l.profit;
   }
-  return { stockQty, soldQty, stockCost, soldRevenue, profit };
+  return { stockQty, soldQty, stockCost, soldRevenue, profit: profit + bankIn };
 }
 
 export interface BranchMonthFlow {

@@ -10,6 +10,7 @@ import type { ISupplier, ISupplierEntry } from './models/tenant/Supplier';
 import type { IBranch } from './models/tenant/Branch';
 import type { ProductUnit } from './businessTypes';
 import { methodOf, type PayMethod } from './payMethods';
+import { saleProfitRevenue } from './bankCredit';
 
 export type MoneyKind = 'salePay' | 'debtPay' | 'bank' | 'income' | 'expense' | 'refund' | 'supplier';
 
@@ -42,7 +43,8 @@ export interface SoldRow {
   profit: number;
 }
 
-type SaleLike = Pick<ISale, 'saleNo' | 'status' | 'paymentType' | 'payments' | 'returns' | 'totalAmount' | 'createdAt' | 'customerSnapshot' | 'productSnapshot'> & {
+type SaleLike = Pick<ISale, 'saleNo' | 'status' | 'paymentType' | 'payments' | 'returns' | 'totalAmount' | 'createdAt' | 'customerSnapshot' | 'productSnapshot'>
+  & Partial<Pick<ISale, 'bankName' | 'bankParts' | 'paidAmount' | 'remainingAmount'>> & {
   _id: unknown;
   branchId: unknown;
   cancelledAt?: Date | null;
@@ -111,6 +113,11 @@ export function moneyRowsFromFlows(
   });
 }
 
+/** Davrda bankdan olingan pul — bank krediti ulushi foydaga shu summa bilan kiradi */
+export function bankInOf(money: MoneyRow[]): number {
+  return money.reduce((a, r) => a + (r.kind === 'bank' ? r.amountIn : 0), 0);
+}
+
 /** Bankdan olingan pul (bank krediti sotuvlari uchun) */
 export function moneyRowsFromReceipts(
   receipts: (Pick<IBankReceipt, 'bankName' | 'amount' | 'receivedAt' | 'note'> & { branchId?: unknown })[],
@@ -152,7 +159,10 @@ export function sumMoney(rows: MoneyRow[]): { in: number; out: number; net: numb
   return { in: i, out: o, net: i - o };
 }
 
-/** Davrda yaratilgan (bekor qilinmagan) sotuvlar: summa, tannarx va foyda — Hisobotdagi foyda bilan bir xil formula */
+/**
+ * Davrda yaratilgan (bekor qilinmagan) sotuvlar: summa, tannarx va foyda — Hisobotdagi foyda bilan bir xil formula:
+ * bank krediti ulushi sotuv foydasiga kirmaydi (u bankdan pul olinganda — `bankInOf`).
+ */
 export function soldRows(sales: SaleLike[], start: Date, end: Date): SoldRow[] {
   return sales.flatMap((s) => {
     if (s.status === 'cancelled' || !s.createdAt) return [];
@@ -163,7 +173,7 @@ export function soldRows(sales: SaleLike[], start: Date, end: Date): SoldRow[] {
     return [{
       saleId: String(s._id), saleNo: s.saleNo, at, product: s.productSnapshot?.name ?? '—', qty,
       unit: s.productSnapshot?.unit, customer: s.customerSnapshot?.fullName ?? '', paymentType: s.paymentType,
-      branchId: String(s.branchId), total: s.totalAmount, cost, profit: s.totalAmount - cost,
+      branchId: String(s.branchId), total: s.totalAmount, cost, profit: saleProfitRevenue(s) - cost,
     }];
   });
 }
@@ -189,7 +199,7 @@ export async function loadRealization(
         { $or: [{ createdAt: range }, { 'payments.paidAt': range }, { 'returns.returnedAt': range }] },
       ],
     })
-      .select('saleNo status paymentType payments returns totalAmount createdAt customerSnapshot productSnapshot branchId cancelledAt')
+      .select('saleNo status paymentType payments returns totalAmount createdAt customerSnapshot productSnapshot branchId cancelledAt bankName bankParts paidAmount remainingAmount')
       .limit(20000)
       .lean(),
     m.CashFlow.find({ createdAt: range }).select('type amount description category createdAt branchId saleId').limit(20000).lean(),

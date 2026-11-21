@@ -105,6 +105,8 @@ export const uz = {
     creditKassa: 'Kredit kassa',
     selectPlaceholder: 'Tanlang...',
     downPayment: "Boshlang'ich to'lov",
+    /** Bank krediti: mijoz hozir bergan pul — foydaga darhol kiradi (bank ulushi — bankdan pul olinganda) */
+    bankCash: 'Naqd',
     paidNow: "Hozir to'langan",
     months: 'Muddat (oy)',
     pq294Warn: 'Diqqat: 2027-yil 1-yanvardan nasiya muddati {n} oydan oshmasligi kerak (PQ-294).',
@@ -1112,6 +1114,7 @@ export const ru: typeof uz = {
     creditKassa: 'Кредитная касса',
     selectPlaceholder: 'Выберите...',
     downPayment: 'Первоначальный взнос',
+    bankCash: 'Наличные',
     paidNow: 'Оплачено сейчас',
     months: 'Срок (мес.)',
     pq294Warn: 'Внимание: с 1 января 2027 года срок рассрочки не может превышать {n} месяцев (ПП-294).',

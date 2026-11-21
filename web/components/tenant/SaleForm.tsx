@@ -639,7 +639,7 @@ export default function SaleForm({ isPhoneShop, products, mediaEnabled, features
               {paymentType !== 'cash' && (
                 <div className={paymentType === 'installment' ? 'sl-fields-2' : undefined}>
                   <div className="auth-field">
-                    <label htmlFor="paidAmount">{paymentType === 'installment' || paymentType === 'bank_credit' ? k.downPayment : k.paidNow}</label>
+                    <label htmlFor="paidAmount">{paymentType === 'bank_credit' ? k.bankCash : paymentType === 'installment' ? k.downPayment : k.paidNow}</label>
                     <PriceInput id="paidAmount" name="paidAmount" value={paidAmount} onValueChange={setPaidAmount} disabled={fieldsOff} />
                   </div>
                   {paymentType === 'installment' && (
@@ -953,6 +953,8 @@ export default function SaleForm({ isPhoneShop, products, mediaEnabled, features
                   {multiBank && bankRows.filter((r) => r.bank).map((r) => (
                     <div key={r.bank} className="sl-preview-row"><span>{r.bank}</span><strong>{fmtMoney(bankAmount(r))} {d.common.sum}</strong></div>
                   ))}
+                  {/* Sotuv bo'laklari to'liq ko'rinsin: naqd (darhol foydada) + bank (bankdan pul olinganda) + nasiya / qarz */}
+                  <div className="sl-preview-row"><span>{k.bankCash}</span><strong>{fmtMoney(Math.min(paid, total))} {d.common.sum}</strong></div>
                   {bankDebtMode && (
                     <>
                       <div className="sl-preview-row"><span>{k.restDebt}</span><strong>{fmtMoney(nasiyaN)} {d.common.sum}</strong></div>

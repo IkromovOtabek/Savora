@@ -2,6 +2,7 @@ import { getTenantSession } from '@/lib/tenantSession';
 import { userCan } from '@/lib/permissionGuard';
 import { branchFilter, isBranchScoped } from '@/lib/branchScope';
 import { statsFromSales, monthRange, opexFromFlows } from '@/lib/monitoring';
+import { saleProfitRevenue, splitBankReceipts } from '@/lib/bankCredit';
 import Link from 'next/link';
 import { PAYMENT_TYPE_LABELS, PaymentType } from '@/lib/models/tenant/Sale';
 import { getI18n } from '@/lib/i18n/server';
@@ -30,7 +31,7 @@ export default async function MonitoringPage({
   const [y, m] = (sp.month ?? `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`).split('-').map(Number);
   const { start, end } = monthRange(y, m);
 
-  const { user, Sale, Branch, Product, CashFlow, FinanceCategory, features } = await getTenantSession();
+  const { user, Sale, Branch, Product, CashFlow, FinanceCategory, BankReceipt, features } = await getTenantSession();
   const { locale, d } = await getI18n();
   const t = d.shell.monitoring;
   const canExport = features.export && (await userCan(user, 'export.data'));
@@ -39,13 +40,15 @@ export default async function MonitoringPage({
 
   // Filial login — faqat o'z filiali hisoboti; admin — barcha filiallar taqqoslamasi
   const scope = branchFilter(user);
-  const [sales, branchesAll, flows, financeCategories] = await Promise.all([
+  const [sales, branchesAll, flows, financeCategories, bankReceipts] = await Promise.all([
     Sale.find({ ...scope, status: { $ne: 'cancelled' }, createdAt: { $gte: start, $lt: end } }).lean(),
     Branch.find({ active: true }).lean(),
     showNet
       ? CashFlow.find({ createdAt: { $gte: start, $lt: end }, category: { $nin: [null, ''] } }).select('type amount category branchId').lean()
       : Promise.resolve([]),
     showNet ? FinanceCategory.find().select('name type system inProfit').lean() : Promise.resolve([]),
+    // Bankdan olingan pul — bank krediti ulushi foydaga shu kuni kiradi (pul tushgan filial kassasi bo'yicha)
+    BankReceipt.find({ ...scope, receivedAt: { $gte: start, $lt: end } }).select('amount branchId').lean(),
   ]);
   const branches = isBranchScoped(user)
     ? branchesAll.filter((b) => String(b._id) === user.branchId)
@@ -81,7 +84,8 @@ export default async function MonitoringPage({
     });
   }
 
-  // Sotilganlar — Sale.createdAt bo'yicha (kirim = pul kirishi)
+  // Sotilganlar — Sale.createdAt bo'yicha (kirim = pul kirishi).
+  // Foyda: bank krediti ulushi sotuv paytida kirmaydi — u «Bankdan pul olindi» bilan kiradi (pastda)
   for (const sale of sales) {
     const branchId = String(sale.branchId);
     const row = branchFlowMap.get(branchId);
@@ -91,7 +95,15 @@ export default async function MonitoringPage({
     const purchasePrice = sale.productSnapshot?.purchasePrice ?? product?.purchasePrice ?? 0;
     row.kirimQty += qty;
     row.kirimSum += sale.totalAmount;
-    row.profit += sale.totalAmount - purchasePrice * qty;
+    row.profit += saleProfitRevenue(sale) - purchasePrice * qty;
+  }
+  const salesProfit = [...branchFlowMap.values()].reduce((s, r) => s + r.profit, 0);
+
+  // Bankdan olingan pul — olingan oyda to'liq foyda (bank ulushining tannarxi sotuv paytida ayrilgan)
+  const bank = splitBankReceipts(bankReceipts, [...branchFlowMap.keys()]);
+  for (const [branchId, amount] of bank.byBranch) {
+    const row = branchFlowMap.get(branchId);
+    if (row) row.profit += amount;
   }
 
   // Omborga kirgan — Product.createdAt bo'yicha (chiqim = pul ketishi)
@@ -123,7 +135,9 @@ export default async function MonitoringPage({
   const monthSoldQty = branchFlows.reduce((s, r) => s + r.kirimQty, 0);
   const monthIncomingQty = branchFlows.reduce((s, r) => s + r.chiqimQty, 0);
   const monthIncomingSum = branchFlows.reduce((s, r) => s + r.chiqimSum, 0);
-  const monthProfit = branchFlows.reduce((s, r) => s + r.profit, 0);
+  // Filialsiz (eski) va nofaol filial kassasiga tushgan bank puli — jami foydada, «Umumiy» qatorida
+  const monthProfit = branchFlows.reduce((s, r) => s + r.profit, 0) + bank.rest;
+  const showBank = features.creditKassa || bank.total > 0;
 
   // Sof foyda = yalpi foyda + boshqa kirimlar − xarajatlar (faqat foydaga kiruvchi toifalar)
   const opex = opexFromFlows(flows, financeCategories);
@@ -231,10 +245,23 @@ export default async function MonitoringPage({
             </div>
             <div className="fn-panel-body">
               <div className="fn-pass-rows fn-pl">
-                <div className="fn-pass-row">
-                  <span>{t.grossProfit} <small className="fn-pl-hint">({t.profitSub})</small></span>
-                  <strong className={amtTone(monthProfit)}>{fmtMoney(monthProfit)}</strong>
-                </div>
+                {showBank ? (
+                  <>
+                    <div className="fn-pass-row">
+                      <span>{t.grossProfit} <small className="fn-pl-hint">({t.profitSubBank})</small></span>
+                      <strong className={amtTone(salesProfit)}>{fmtMoney(salesProfit)}</strong>
+                    </div>
+                    <div className="fn-pass-row">
+                      <span>{t.bankReceived}</span>
+                      <strong className="fn-in">+ {fmtMoney(bank.total)}</strong>
+                    </div>
+                  </>
+                ) : (
+                  <div className="fn-pass-row">
+                    <span>{t.grossProfit} <small className="fn-pl-hint">({t.profitSub})</small></span>
+                    <strong className={amtTone(monthProfit)}>{fmtMoney(monthProfit)}</strong>
+                  </div>
+                )}
                 <div className="fn-pass-row">
                   <span>{t.otherIncome}</span>
                   <strong className="fn-in">+ {fmtMoney(opex.income)}</strong>
@@ -249,6 +276,7 @@ export default async function MonitoringPage({
                 </div>
               </div>
               <p className="fn-pl-note">
+                {showBank && <>{t.bankNote} <Link href="/app/kredit-kassa">{d.sales.creditKassa.title}</Link>. </>}
                 {t.plNote} <Link href="/app/finance">{t.plAddExpense}</Link> · <Link href="/app/finance/categories">{t.plSettings}</Link>
               </p>
             </div>
@@ -365,16 +393,16 @@ export default async function MonitoringPage({
                     </tr>
                   );
                 })}
-                {showNet && otherOpex !== 0 && (
+                {showNet && (otherOpex !== 0 || bank.rest !== 0) && (
                   <tr>
                     <td data-label={d.common.branch}><span className="cell-main">{t.unbranched}</span></td>
                     <td data-label={t.soldQty} className="fn-right">—</td>
                     <td data-label={t.incomingQty} className="fn-right">—</td>
                     <td data-label={t.saleSum} className="fn-right">—</td>
                     <td data-label={t.purchaseSum} className="fn-right">—</td>
-                    <td data-label={t.grossProfit} className="fn-right">—</td>
+                    <td data-label={t.grossProfit} className={`fn-right ${bank.rest ? amtTone(bank.rest) : ''}`}>{bank.rest ? fmtMoney(bank.rest) : '—'}</td>
                     <td data-label={t.opexCol} className={`fn-right ${amtTone(otherOpex)}`}>{fmtMoney(otherOpex)}</td>
-                    <td data-label={t.netProfit} className={`fn-right ${otherOpex >= 0 ? 'fn-in' : 'fn-out'}`}><strong>{fmtMoney(otherOpex)}</strong></td>
+                    <td data-label={t.netProfit} className={`fn-right ${otherOpex + bank.rest >= 0 ? 'fn-in' : 'fn-out'}`}><strong>{fmtMoney(otherOpex + bank.rest)}</strong></td>
                     <td data-label={t.transaction} className="fn-right">—</td>
                   </tr>
                 )}

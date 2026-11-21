@@ -9,6 +9,8 @@ import {
   computeBankBalances,
   parseBankPartsInput,
   saleBankParts,
+  saleProfitRevenue,
+  splitBankReceipts,
   validateBankParts,
   MAX_BANK_PARTS,
 } from '@/lib/bankCredit';
@@ -189,5 +191,74 @@ describe('Bank krediti + qarz — 10 mln = Ishonch 8 + mijoz 2 mln (7 kunda bir 
 
   it('Kredit kassa so\'rovi bank + qarzni ham oladi', () => {
     expect(bankFinancedFilter().$or).toContainEqual({ paymentType: 'debt', 'bankParts.0': { $exists: true } });
+  });
+});
+
+describe('foyda — bank ulushi faqat bankdan pul olinganda', () => {
+  // iPhone 14 Pro: 10 mln, tannarx 7 mln; mijoz 5 mln naqd berdi, 5 mln — Ishonch
+  const sale = {
+    paymentType: 'bank_credit' as const,
+    totalAmount: 10_000_000,
+    paidAmount: 5_000_000,
+    remainingAmount: 5_000_000,
+    bankName: 'Ishonch',
+    bankParts: [{ bankName: 'Ishonch', amount: 5_000_000 }],
+  };
+  const cost = 7_000_000;
+
+  it('sotuv paytida faqat naqd qism foydaga kiradi', () => {
+    expect(saleProfitRevenue(sale)).toBe(5_000_000);
+    expect(saleProfitRevenue(sale) - cost).toBe(-2_000_000);
+  });
+
+  it('«Bankdan pul olindi» 5 mln — foyda 5 mln ga oshadi, jami = sotuv − tannarx', () => {
+    const bank = splitBankReceipts([{ amount: 5_000_000, branchId: 'b1' }], ['b1']);
+    expect(bank.total).toBe(5_000_000);
+    expect(saleProfitRevenue(sale) - cost + bank.total).toBe(3_000_000);
+  });
+
+  it('bank + nasiya: mijozning nasiya qismi va naqd darhol, bank ulushi kutadi', () => {
+    const r = saleProfitRevenue({
+      paymentType: 'installment',
+      totalAmount: 10_000_000,
+      paidAmount: 3_000_000,
+      remainingAmount: 2_000_000,
+      bankParts: [{ bankName: 'Ishonch', amount: 5_000_000 }],
+    });
+    expect(r).toBe(5_000_000); // 3 mln naqd + 2 mln nasiya
+  });
+
+  it('bank + qarz ham shunday', () => {
+    expect(saleProfitRevenue({
+      paymentType: 'debt', totalAmount: 4_000_000, paidAmount: 1_000_000, remainingAmount: 1_000_000,
+      bankParts: [{ bankName: 'Uzum Nasiya', amount: 2_000_000 }],
+    })).toBe(2_000_000);
+  });
+
+  it('oddiy naqd / nasiya / qarz sotuvlar o\'zgarmaydi', () => {
+    expect(saleProfitRevenue({ paymentType: 'cash', totalAmount: 900_000 })).toBe(900_000);
+    expect(saleProfitRevenue({ paymentType: 'installment', totalAmount: 6_000_000, paidAmount: 1_000_000, remainingAmount: 5_000_000 })).toBe(6_000_000);
+    expect(saleProfitRevenue({ paymentType: 'debt', totalAmount: 2_000_000, paidAmount: 0, remainingAmount: 2_000_000 })).toBe(2_000_000);
+  });
+
+  it('eski bank sotuvi (bankParts yo\'q): faqat to\'langan qism foydada', () => {
+    expect(saleProfitRevenue({ paymentType: 'bank_credit', bankName: 'Ishonch', totalAmount: 8_000_000, paidAmount: 6_000_000, remainingAmount: 2_000_000 })).toBe(6_000_000);
+  });
+
+  it('bank tushumlari filiallarga: filialsiz eski yozuv — bitta filial bo\'lsa unga', () => {
+    const one = splitBankReceipts([{ amount: 100, branchId: null }, { amount: 50, branchId: 'b1' }], ['b1']);
+    expect(one.byBranch.get('b1')).toBe(150);
+    expect(one.rest).toBe(0);
+  });
+
+  it('bir nechta filial: filialsiz va nofaol filial yozuvi — rest, jami saqlanadi', () => {
+    const r = splitBankReceipts(
+      [{ amount: 100, branchId: 'b1' }, { amount: 30 }, { amount: 20, branchId: 'eski' }, { amount: 5, branchId: 'b2' }],
+      ['b1', 'b2'],
+    );
+    expect(r.byBranch.get('b1')).toBe(100);
+    expect(r.byBranch.get('b2')).toBe(5);
+    expect(r.rest).toBe(50);
+    expect(r.total).toBe(155);
   });
 });

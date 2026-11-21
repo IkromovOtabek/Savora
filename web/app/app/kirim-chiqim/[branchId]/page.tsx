@@ -5,6 +5,7 @@ import { aggregateFlowTotals, lineFromProduct, lineFromSale, type FlowLine } fro
 import KirimChiqimPanel from '@/components/tenant/KirimChiqimPanel';
 import BackLink from '@/components/ui/BackLink';
 import { getDict } from '@/lib/i18n/server';
+import { splitBankReceipts } from '@/lib/bankCredit';
 
 export async function generateMetadata({ params }: { params: Promise<{ branchId: string }> }) {
   const { branchId } = await params;
@@ -19,7 +20,7 @@ export default async function KirimChiqimDetailPage({
   params: Promise<{ branchId: string }>;
 }) {
   const { branchId } = await params;
-  const { Product, Branch, Sale } = await getTenantAdminSession();
+  const { Product, Branch, Sale, BankReceipt } = await getTenantAdminSession();
   const d = await getDict();
   const k = d.sales.kirimChiqim;
 
@@ -31,9 +32,10 @@ export default async function KirimChiqimDetailPage({
   if (!isAll && !branch) notFound();
 
   const branchIds = isAll ? branches.map((b) => b._id) : [branch!._id];
-  const [products, sales] = await Promise.all([
+  const [products, sales, receiptSums] = await Promise.all([
     Product.find({ branchId: { $in: branchIds } }).limit(5000).lean(),
     Sale.find({ status: { $ne: 'cancelled' }, branchId: { $in: branchIds } }).sort({ createdAt: -1 }).limit(5000).lean(),
+    BankReceipt.aggregate<{ _id: unknown; total: number }>([{ $group: { _id: '$branchId', total: { $sum: '$amount' } } }]),
   ]);
 
   // Kirim — ombordagi qoldiq mahsulotlar
@@ -47,7 +49,13 @@ export default async function KirimChiqimDetailPage({
   // Chiqim — haqiqiy sotuvlar (Sotildi bilan bir manba)
   const soldLines = sales.map((s) => lineFromSale(s, branchMap[String(s.branchId)] ?? '—'));
 
-  const totals = aggregateFlowTotals(stockLines, soldLines);
+  // Bankdan olingan pul — bank krediti ulushi foydaga shu bilan kiradi (Kirim-chiqim kartalari bilan bir qoida)
+  const bank = splitBankReceipts(
+    receiptSums.map((r) => ({ amount: r.total, branchId: r._id ? String(r._id) : null })),
+    branches.map((b) => String(b._id)),
+  );
+  const bankIn = isAll ? bank.total : bank.byBranch.get(branchId) ?? 0;
+  const totals = aggregateFlowTotals(stockLines, soldLines, bankIn);
   const title = isAll ? k.allBranches : branch!.name;
 
   return (
