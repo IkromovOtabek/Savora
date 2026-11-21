@@ -1,0 +1,16 @@
+{
+  "name": "savora-reel-03",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "npx --yes hyperframes@0.9.77 preview",
+    "check": "npx --yes hyperframes@0.9.77 check",
+    "render": "npx --yes hyperframes@0.9.77 render",
+    "publish": "npx --yes hyperframes@0.9.77 publish",
+    "build3d": "esbuild src3d/stage3d.js --bundle --format=iife --minify --target=chrome120 --define:Math.random=__hfRandom --inject:src3d/banner.js --outfile=lib/stage3d.js && node src3d/strip-raf.cjs"
+  },
+  "devDependencies": {
+    "esbuild": "^0.24.0",
+    "three": "^0.169.0"
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "duration": 26.5,
+  "slots": [
+    [0.3, 1.9, "Har bir do'kon o'zgacha ishlaydi."],
+    [2.5, 2.2, "Bitta shablon hammaga to'g'ri kelmaydi."],
+    [5.0, 2.1, "Savora esa sohangizga moslashadi."],
+    [7.5, 2.0, "Telefon do'konida — IMEI va kafolat."],
+    [9.8, 2.6, "Dorixonada — seriya raqami va yaroqlilik muddati."],
+    [12.6, 1.9, "Kiyim do'konida — o'lcham va rang."],
+    [14.9, 1.9, "Restoranda esa — menyu va taomlar."],
+    [18.55, 1.9, "O'n to'rt yo'nalish — bitta tizimda."],
+    [21.5, 3.8, "Sohangizni tanlang: savora.uz — o'n to'rt kun bepul."]
+  ]
+}

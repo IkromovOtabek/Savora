@@ -1,0 +1,72 @@
+<template>
+  <style>
+    @font-face {
+      font-family: "Onest";
+      src: url("assets/fonts/Onest.ttf") format("truetype");
+      font-weight: 100 900;
+    }
+    #root {
+      position: absolute;
+      inset: 0;
+    }
+    #ten-title {
+      position: absolute;
+      left: 120px;
+      top: 330px;
+      font-family: "Montserrat", sans-serif;
+      font-weight: 800;
+      font-size: 80px;
+      letter-spacing: -0.03em;
+      color: #344054;
+      white-space: nowrap;
+    }
+    .ten-w {
+      display: inline-block;
+    }
+    .ten-chip {
+      position: absolute;
+      top: 0;
+      left: 0;
+      padding: 14px 24px;
+      border-radius: 18px;
+      background: #ffffff;
+      border: 3px dashed #1a5fe0;
+      color: #1a5fe0;
+      font-family: "Onest", sans-serif;
+      font-weight: 700;
+      font-size: 32px;
+      white-space: nowrap;
+      box-shadow: 0 14px 30px rgba(16, 40, 90, 0.14);
+    }
+  </style>
+  <div id="root" data-composition-id="tension" data-width="1080" data-height="1920">
+    <div id="ten-title"><span class="ten-w">Hammaga</span> <span class="ten-w">bir</span> <span class="ten-w">xil?</span></div>
+    <div id="chip-imei" class="ten-chip" data-layout-allow-overflow>IMEI</div>
+    <div id="chip-exp" class="ten-chip" data-layout-allow-overflow>Yaroqlilik muddati</div>
+    <div id="chip-size" class="ten-chip" data-layout-allow-overflow>O'lcham</div>
+  </div>
+  <script>
+    window.__timelines = window.__timelines || {};
+    const tl = gsap.timeline({ paused: true });
+    // sarlavha: so'zma-so'z blur, siljishsiz
+    tl.fromTo(
+      "#ten-title .ten-w",
+      { opacity: 0, filter: "blur(6px)" },
+      { opacity: 1, filter: "blur(0px)", duration: 0.13, ease: "power2.out", stagger: 0.067 },
+      0.12,
+    );
+    tl.to("#ten-title .ten-w", { opacity: 0, filter: "blur(8px)", duration: 0.15, ease: "power2.in", stagger: 0.04 }, 2.3);
+    // chiplar kartaga uriladi (lokal vaqt: 0.65, 1.15, 1.65 = global 3.05, 3.55, 4.05) va qaytib tushadi
+    const chip = (id, hit, from, to, back, rot) => {
+      tl.fromTo(id, { x: from[0], y: from[1], rotation: 0, opacity: 1 }, { x: to[0], y: to[1], duration: 0.3, ease: "power2.in" }, hit - 0.3);
+      tl.to(id, { x: back[0], duration: 0.75, ease: "power2.out" }, hit);
+      tl.to(id, { y: back[1], duration: 0.75, ease: "power2.in" }, hit);
+      tl.to(id, { rotation: rot, duration: 0.75, ease: "power1.out" }, hit);
+    };
+    chip("#chip-imei", 0.65, [-320, 1010], [150, 1040], [-60, 2050], -38);
+    chip("#chip-exp", 1.15, [1120, 1100], [560, 1090], [860, 2100], 34);
+    chip("#chip-size", 1.65, [-300, 1150], [190, 1150], [-40, 2100], -30);
+    tl.set({}, {}, 2.5);
+    window.__timelines["tension"] = tl;
+  </script>
+</template>

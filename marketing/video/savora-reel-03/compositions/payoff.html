@@ -1,0 +1,76 @@
+<template>
+  <style>
+    @font-face {
+      font-family: "Onest";
+      src: url("assets/fonts/Onest.ttf") format("truetype");
+      font-weight: 100 900;
+    }
+    #root {
+      position: absolute;
+      inset: 0;
+    }
+    #po-num {
+      position: absolute;
+      left: 112px;
+      top: 968px;
+      font-family: "Montserrat", sans-serif;
+      font-weight: 800;
+      font-size: 250px;
+      line-height: 250px;
+      letter-spacing: -0.05em;
+      color: #1a5fe0;
+      font-variant-numeric: tabular-nums;
+    }
+    #po-word {
+      position: absolute;
+      left: 452px;
+      top: 1018px;
+      font-family: "Montserrat", sans-serif;
+      font-weight: 800;
+      font-size: 66px;
+      letter-spacing: -0.03em;
+      color: #101828;
+    }
+    #po-sub {
+      position: absolute;
+      left: 456px;
+      top: 1106px;
+      font-family: "Onest", sans-serif;
+      font-weight: 500;
+      font-size: 34px;
+      line-height: 1.3;
+      color: #475467;
+    }
+  </style>
+  <div id="root" data-composition-id="payoff" data-width="1080" data-height="1920">
+    <div id="po-num">14</div>
+    <div id="po-word">yo'nalish</div>
+    <div id="po-sub">ro'yxatdan o'tishda<br />tanlanadi</div>
+  </div>
+  <script>
+    window.__timelines = window.__timelines || {};
+    const tl = gsap.timeline({ paused: true });
+    // lokal vaqt = global − 18.2; kublar 18.84–19.49 da joyiga tushadi — hisoblagich ular bilan
+    const num = document.getElementById("po-num");
+    const counter = { v: 1 };
+    tl.fromTo("#po-num", { opacity: 0, filter: "blur(10px)" }, { opacity: 1, filter: "blur(0px)", duration: 0.16, ease: "power2.out" }, 0.6);
+    tl.fromTo(
+      counter,
+      { v: 1 },
+      {
+        v: 14,
+        duration: 0.65,
+        ease: "none",
+        onUpdate: () => {
+          num.textContent = String(Math.round(counter.v));
+        },
+      },
+      0.64,
+    );
+    tl.fromTo("#po-word", { opacity: 0, filter: "blur(6px)" }, { opacity: 1, filter: "blur(0px)", duration: 0.14, ease: "power2.out" }, 1.0);
+    tl.fromTo("#po-sub", { opacity: 0, color: "#c0c6d0" }, { opacity: 1, color: "#475467", duration: 0.25, ease: "power2.out" }, 1.25);
+    tl.to(["#po-num", "#po-word", "#po-sub"], { opacity: 0, filter: "blur(8px)", duration: 0.16, ease: "power2.in", stagger: 0.03 }, 2.78);
+    tl.set({}, {}, 3);
+    window.__timelines["payoff"] = tl;
+  </script>
+</template>

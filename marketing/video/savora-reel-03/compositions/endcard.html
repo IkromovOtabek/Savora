@@ -1,0 +1,82 @@
+<template>
+  <style>
+    @font-face {
+      font-family: "Onest";
+      src: url("assets/fonts/Onest.ttf") format("truetype");
+      font-weight: 100 900;
+    }
+    #root {
+      position: absolute;
+      inset: 0;
+    }
+    /* «Savora» — web/lib/brand.ts WORDMARK (Montserrat Bold konturlari) */
+    #ec-word {
+      position: absolute;
+      left: 294px;
+      top: 908px;
+      width: 492px;
+      height: 104px;
+    }
+    #ec-word path {
+      fill: #0b1530;
+    }
+    #ec-btn {
+      position: absolute;
+      left: 302px;
+      top: 1062px;
+      width: 476px;
+      height: 104px;
+      border-radius: 26px;
+      background: #1a5fe0;
+      box-shadow: 0 18px 40px rgba(26, 95, 224, 0.28);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    #ec-btn-t {
+      font-family: "Onest", sans-serif;
+      font-weight: 700;
+      font-size: 48px;
+      color: #ffffff;
+      letter-spacing: 0.005em;
+    }
+    #ec-line {
+      position: absolute;
+      left: 120px;
+      width: 840px;
+      top: 1192px;
+      text-align: center;
+      font-family: "Onest", sans-serif;
+      font-weight: 500;
+      font-size: 34px;
+      color: #475467;
+      white-space: nowrap;
+    }
+    .ec-w {
+      display: inline-block;
+    }
+  </style>
+  <div id="root" data-composition-id="endcard" data-width="1080" data-height="1920">
+    <svg id="ec-word" viewBox="0 0 3431 724">
+          <path class="ec-l" d="M313 724Q229 724 152 701.5Q75 679 28 643L83 521Q128 553 189.5 573.5Q251 594 314 594Q362 594 391.5 584.5Q421 575 435 558Q449 541 449 519Q449 491 427 474.5Q405 458 369 447.5Q333 437 289.5 427.5Q246 418 202.5 404Q159 390 123 368Q87 346 64.5 310Q42 274 42 218Q42 158 74.5 108.5Q107 59 172.5 29.5Q238 0 337 0Q403 0 467 15.5Q531 31 580 62L530 185Q481 157 432 143.5Q383 130 336 130Q289 130 259 141Q229 152 216 169.5Q203 187 203 210Q203 237 225 253.5Q247 270 283 280Q319 290 362.5 300Q406 310 449.5 323Q493 336 529 358Q565 380 587.5 416Q610 452 610 507Q610 566 577 615Q544 664 478.5 694Q413 724 313 724Z" />
+          <path class="ec-l" d="M1015 712V607L1005 584V396Q1005 346 974.5 318Q944 290 881 290Q838 290 796.5 303.5Q755 317 726 340L670 231Q714 200 776 183Q838 166 902 166Q1025 166 1093 224Q1161 282 1161 405V712ZM851 720Q788 720 743 698.5Q698 677 674 640Q650 603 650 557Q650 509 673.5 473Q697 437 748 416.5Q799 396 881 396H1024V487H898Q843 487 822.5 505Q802 523 802 550Q802 580 825.5 597.5Q849 615 890 615Q929 615 960 596.5Q991 578 1005 542L1029 614Q1012 666 967 693Q922 720 851 720Z" />
+          <path class="ec-l" d="M1423 712 1197 174H1358L1546 637H1466L1661 174H1811L1584 712Z" />
+          <path class="ec-l" d="M2106 720Q2020 720 1953.5 684Q1887 648 1848.5 585.5Q1810 523 1810 443Q1810 362 1848.5 299.5Q1887 237 1953.5 201.5Q2020 166 2106 166Q2191 166 2258 201.5Q2325 237 2363 299Q2401 361 2401 443Q2401 523 2363 585.5Q2325 648 2258 684Q2191 720 2106 720ZM2106 592Q2145 592 2176 574Q2207 556 2225 522.5Q2243 489 2243 443Q2243 396 2225 363Q2207 330 2176 312Q2145 294 2106 294Q2067 294 2036 312Q2005 330 1986.5 363Q1968 396 1968 443Q1968 489 1986.5 522.5Q2005 556 2036 574Q2067 592 2106 592Z" />
+          <path class="ec-l" d="M2480 712V174H2629V326L2608 282Q2632 225 2685 195.5Q2738 166 2814 166V310Q2804 309 2796 308.5Q2788 308 2779 308Q2715 308 2675.5 344.5Q2636 381 2636 458V712Z" />
+          <path class="ec-l" d="M3216 712V607L3206 584V396Q3206 346 3175.5 318Q3145 290 3082 290Q3039 290 2997.5 303.5Q2956 317 2927 340L2871 231Q2915 200 2977 183Q3039 166 3103 166Q3226 166 3294 224Q3362 282 3362 405V712ZM3052 720Q2989 720 2944 698.5Q2899 677 2875 640Q2851 603 2851 557Q2851 509 2874.5 473Q2898 437 2949 416.5Q3000 396 3082 396H3225V487H3099Q3044 487 3023.5 505Q3003 523 3003 550Q3003 580 3026.5 597.5Q3050 615 3091 615Q3130 615 3161 596.5Q3192 578 3206 542L3230 614Q3213 666 3168 693Q3123 720 3052 720Z" />
+    </svg>
+    <div id="ec-btn"><span id="ec-btn-t">savora.uz</span></div>
+    <div id="ec-line"><span class="ec-w">14</span> <span class="ec-w">kun</span> <span class="ec-w">bepul</span> <span class="ec-w">·</span> <span class="ec-w">karta</span> <span class="ec-w">talab</span> <span class="ec-w">qilinmaydi</span></div>
+  </div>
+  <script>
+    window.__timelines = window.__timelines || {};
+    const tl = gsap.timeline({ paused: true });
+    // lokal vaqt = global − 21.2; 3D logo 21.52 da burilib keladi, nom harfma-harf
+    tl.fromTo(".ec-l", { opacity: 0.0, filter: "blur(6px)" }, { opacity: 1, filter: "blur(0px)", duration: 0.16, ease: "power2.out", stagger: 0.08 }, 0.95);
+    tl.fromTo("#ec-btn", { clipPath: "inset(0px 238px 0px 238px round 26px)", opacity: 0 }, { clipPath: "inset(0px 0px 0px 0px round 26px)", opacity: 1, duration: 0.42, ease: "expo.out" }, 1.55);
+    tl.fromTo("#ec-btn-t", { opacity: 0, filter: "blur(6px)" }, { opacity: 1, filter: "blur(0px)", duration: 0.16, ease: "power2.out" }, 1.72);
+    tl.fromTo("#ec-line .ec-w", { opacity: 0, color: "#c0c6d0" }, { opacity: 1, color: "#475467", duration: 0.1, ease: "none", stagger: 0.08 }, 1.95);
+    tl.set({}, {}, 5.3);
+    window.__timelines["endcard"] = tl;
+  </script>
+</template>

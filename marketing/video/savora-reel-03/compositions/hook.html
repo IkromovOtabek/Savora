@@ -1,0 +1,76 @@
+<template>
+  <style>
+    @font-face {
+      font-family: "Onest";
+      src: url("assets/fonts/Onest.ttf") format("truetype");
+      font-weight: 100 900;
+    }
+    #root {
+      position: absolute;
+      inset: 0;
+    }
+    #hook-label {
+      position: absolute;
+      left: 120px;
+      top: 300px;
+      font-family: "Onest", sans-serif;
+      font-weight: 600;
+      font-size: 34px;
+      color: #667085;
+      letter-spacing: 0.01em;
+    }
+    #hook-slot {
+      position: absolute;
+      left: 120px;
+      top: 352px;
+      width: 820px;
+      height: 104px;
+      overflow: hidden;
+    }
+    #hook-strip {
+      position: absolute;
+      left: 0;
+      top: 0;
+    }
+    .hook-word {
+      display: block;
+      height: 104px;
+      line-height: 104px;
+      font-family: "Montserrat", sans-serif;
+      font-weight: 800;
+      font-size: 76px;
+      letter-spacing: -0.03em;
+      color: #101828;
+      white-space: nowrap;
+    }
+  </style>
+  <div id="root" data-composition-id="hook" data-width="1080" data-height="1920">
+    <div id="hook-label">Biznes turi</div>
+    <div id="hook-slot" data-layout-allow-overflow>
+      <div id="hook-strip" data-layout-ignore>
+        <span class="hook-word">Telefon do'kon</span>
+        <span class="hook-word">Dorixona</span>
+        <span class="hook-word">Kiyim-kechak</span>
+        <span class="hook-word">Restoran / kafe</span>
+        <span class="hook-word">Qurilish mollari</span>
+        <span class="hook-word">Avto ehtiyot qism</span>
+      </div>
+    </div>
+  </div>
+  <script>
+    window.__timelines = window.__timelines || {};
+    const tl = gsap.timeline({ paused: true });
+    // slot: har kub ag'darilishining o'rtasida keyingi soha (stage3d TIPS bilan bir xil)
+    const mids = [0.24, 0.56, 0.86, 1.15, 1.48];
+    tl.set("#hook-strip", { y: 0, filter: "blur(0px)" }, 0);
+    mids.forEach((t, i) => {
+      tl.to("#hook-strip", { y: -104 * (i + 1), duration: 0.12, ease: "power3.out" }, t);
+      tl.to("#hook-strip", { keyframes: { filter: ["blur(0px)", "blur(5px)", "blur(0px)"] }, duration: 0.1, ease: "none" }, t);
+    });
+    // oxirgi ag'darish bo'sh yuzga tushadi — so'zlar so'nadi
+    tl.to("#hook-slot", { opacity: 0, filter: "blur(8px)", duration: 0.18, ease: "power2.in" }, 1.86);
+    tl.to("#hook-label", { opacity: 0, filter: "blur(6px)", duration: 0.16, ease: "power2.in" }, 1.9);
+    tl.set({}, {}, 2.4);
+    window.__timelines["hook"] = tl;
+  </script>
+</template>

@@ -1,0 +1,46 @@
+<template>
+  <style>
+    #root {
+      position: absolute;
+      inset: 0;
+    }
+    #rev-title {
+      position: absolute;
+      left: 120px;
+      top: 296px;
+      font-family: "Montserrat", sans-serif;
+      font-weight: 800;
+      font-size: 84px;
+      line-height: 1.06;
+      letter-spacing: -0.03em;
+      color: #101828;
+      white-space: nowrap;
+    }
+    .rev-w {
+      display: inline-block;
+    }
+    .rev-accent {
+      color: #1a5fe0;
+    }
+  </style>
+  <div id="root" data-composition-id="reveal" data-width="1080" data-height="1920">
+    <div id="rev-title">
+      <span class="rev-w">Har</span> <span class="rev-w">sohaga</span> <span class="rev-w">—</span><br />
+      <span class="rev-w rev-accent">o'z</span> <span class="rev-w rev-accent">formasi</span>
+    </div>
+  </div>
+  <script>
+    window.__timelines = window.__timelines || {};
+    const tl = gsap.timeline({ paused: true });
+    // kub qo'nganda (global 5.72) sarlavha kulrangdan siyohga o'tadi
+    tl.fromTo(
+      "#rev-title .rev-w",
+      { opacity: 0, filter: "blur(6px)" },
+      { opacity: 1, filter: "blur(0px)", duration: 0.13, ease: "power2.out", stagger: 0.067 },
+      0.62,
+    );
+    tl.to("#rev-title .rev-w", { opacity: 0, filter: "blur(8px)", duration: 0.14, ease: "power2.in", stagger: 0.03 }, 2.22);
+    tl.set({}, {}, 2.4);
+    window.__timelines["reveal"] = tl;
+  </script>
+</template>

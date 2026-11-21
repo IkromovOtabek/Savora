@@ -1,0 +1,41 @@
+<template>
+  <style>
+    #root {
+      position: absolute;
+      inset: 0;
+    }
+    #stage-canvas {
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 1080px;
+      height: 1920px;
+    }
+  </style>
+  <div id="root" data-composition-id="stage" data-width="1080" data-height="1920">
+    <canvas id="stage-canvas" width="1080" height="1920" data-layout-ignore></canvas>
+  </div>
+  <script>
+    (function () {
+      // Three.js sahnasi har kadrni hf-seek vaqtidan chizadi (lib/stage3d.js → src3d/stage3d.js)
+      const canvas = document.getElementById("stage-canvas");
+      let ready = false;
+      let last = 0;
+      const build = window.SavoraStage.mount(canvas).then(() => {
+        ready = true;
+        window.SavoraStage.render(last);
+      });
+      window.__hf = window.__hf || {};
+      window.__hf.buildReady = window.__hf.buildReady || {};
+      window.__hf.buildReady["stage3d"] = build;
+      window.addEventListener("hf-seek", (e) => {
+        last = e.detail.time;
+        if (ready) window.SavoraStage.render(last);
+      });
+      window.__timelines = window.__timelines || {};
+      const tl = gsap.timeline({ paused: true });
+      tl.set({}, {}, 26.5);
+      window.__timelines["stage"] = tl;
+    })();
+  </script>
+</template>
