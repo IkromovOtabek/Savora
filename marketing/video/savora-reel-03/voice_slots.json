@@ -3,51 +3,51 @@
   "slots": [
     [
       0.18,
-      2.17,
+      1.77,
       "Har bir do'kon o'zgacha ishlaydi."
     ],
     [
       2.38,
-      2.61,
+      2.17,
       "Bitta shablon hammaga to'g'ri kelmaydi."
     ],
     [
-      5.0,
-      2.65,
+      4.88,
+      2.41,
       "Savora esa sohangizga moslashadi."
     ],
     [
-      7.66,
-      2.36,
+      7.38,
+      2.57,
       "Telefon do'konida — IMEI va kafolat."
     ],
     [
-      10.03,
-      2.79,
-      "Dorixonada — seriya raqami va yaroqlilik muddati."
+      9.96,
+      3.01,
+      "Dorixonada — seriya va yaroqlilik muddati."
     ],
     [
-      12.83,
-      2.05,
+      12.98,
+      2.25,
       "Kiyim do'konida — o'lcham va rang."
     ],
     [
-      14.89,
-      2.29,
-      "Restoranda esa — menyu va taomlar."
+      15.24,
+      2.09,
+      "Restoranda — menyu va taomlar."
     ],
     [
       18.43,
-      2.11,
+      2.25,
       "O'n to'rt yo'nalish — bitta tizimda."
     ],
     [
       21.38,
-      3.73,
+      3.37,
       "Sohangizni tanlang: savora.uz — yetti kun bepul."
     ]
   ],
-  "voice": "Jonli ovoz — foydalanuvchi o'zi o'qigan (src/prompter teleprompter, vo/jonli/*.webm → src/jonli_lines.py). TTS zaxira: vo/tts_oxirgi, vo/r0, vo/sardor, vo/jasur",
+  "voice": "ElevenLabs eleven_v3 — Davronbek (Journalist) agoC45V78njTIxYzwmSb, Starter tarif (tijoriy). Manba vo/eleven/*.mp3 → jonli_lines.py --src vo/eleven --chain toza --lag 0.5. Zaxira: vo/jonli (foydalanuvchi ovozi), vo/tts_oxirgi, vo/r0, vo/jasur",
   "mix": {
     "music_db": -11,
     "duck_threshold": 0.02,

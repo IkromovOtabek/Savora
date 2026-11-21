@@ -48,6 +48,8 @@ argv = sys.argv[1:]
 proj = Path(argv[0])
 cfg = json.loads((proj / "voice_slots.json").read_text(encoding="utf-8"))
 src_dir, vo = proj / (argv[argv.index("--src") + 1] if "--src" in argv else "vo/jonli"), proj / "vo"
+if "--lag" in argv:
+    MAX_LAG = float(argv[argv.index("--lag") + 1])
 if "--chain" in argv and argv[argv.index("--chain") + 1] == "toza":
     BROADCAST = CLEAN
 work = src_dir / "_ish"
