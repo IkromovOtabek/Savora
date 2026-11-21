@@ -82,6 +82,16 @@
       ],
       "port": 3110,
       "autoPort": false
+    },
+    {
+      "name": "savora-mobile-emu",
+      "runtimeExecutable": "sh",
+      "runtimeArgs": [
+        "-c",
+        "export ANDROID_HOME=/opt/homebrew/share/android-commandlinetools && export PATH=$ANDROID_HOME/platform-tools:$PATH && adb wait-for-device && adb reverse tcp:3110 tcp:3110 && adb reverse tcp:8081 tcp:8081 && cd /Users/otabek/Desktop/STARTUP/Real/Savora/mobile && EXPO_PUBLIC_API_URL=http://localhost:3110 CI=1 exec npx expo start --offline --port 8081"
+      ],
+      "port": 8081,
+      "autoPort": false
     }
   ]
 }
