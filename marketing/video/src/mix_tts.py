@@ -96,8 +96,10 @@ else:
     else:
         vo_chain = (f"highpass=f=80,equalizer=f=3000:t=q:w=1.2:g={mx.get('vo_presence_db', 3)},"
                     f"acompressor=threshold=-22dB:ratio=3:attack=5:release=120:makeup=2,volume={mx.get('vo_db', 0)}dB")
-    mix = (f"[1:a]{vo_chain},aformat=channel_layouts=stereo,asplit=2[vo][sc];[0:a]volume={mx.get('music_db', -14)}dB[m];"
-           f"[m][sc]sidechaincompress=threshold={mx.get('duck_threshold', 0.015)}:ratio={mx.get('duck_ratio', 12)}:attack=10:release=300:makeup=1[md];"
+    # music_dips: [[boshlanish, tugash, dB], ...] — muhim jumla ostida musiqani qo'shimcha pasaytirish
+    dips = "".join(f",volume={d}dB:enable='between(t,{s0},{s1})'" for s0, s1, d in mx.get("music_dips", []))
+    mix = (f"[1:a]{vo_chain},aformat=channel_layouts=stereo,asplit=2[vo][sc];[0:a]volume={mx.get('music_db', -14)}dB{dips}[m];"
+           f"[m][sc]sidechaincompress=threshold={mx.get('duck_threshold', 0.015)}:ratio={mx.get('duck_ratio', 12)}:attack=10:release={mx.get('duck_release', 300)}:makeup=1[md];"
            "[md][vo]amix=inputs=2:normalize=0[a]")
     tmp = a / "mix.pre.wav"
     subprocess.run(["ffmpeg", "-y", "-v", "error", "-i", str(a / "music.wav"), "-i", str(vo_in), "-filter_complex", mix,

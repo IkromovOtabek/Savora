@@ -2,48 +2,48 @@
   "duration": 26.5,
   "slots": [
     [
-      0.3,
-      2.1,
+      0.18,
+      2.17,
       "Har bir do'kon o'zgacha ishlaydi."
     ],
     [
-      2.5,
-      2.3,
+      2.38,
+      2.61,
       "Bitta shablon hammaga to'g'ri kelmaydi."
     ],
     [
       5.0,
-      2.3,
+      2.65,
       "Savora esa sohangizga moslashadi."
     ],
     [
-      7.5,
-      2.15,
+      7.66,
+      2.36,
       "Telefon do'konida — IMEI va kafolat."
     ],
     [
-      9.8,
-      2.7,
+      10.03,
+      2.79,
       "Dorixonada — seriya raqami va yaroqlilik muddati."
     ],
     [
-      12.6,
-      2.0,
+      12.83,
+      2.05,
       "Kiyim do'konida — o'lcham va rang."
     ],
     [
-      14.9,
-      2.0,
+      14.89,
+      2.29,
       "Restoranda esa — menyu va taomlar."
     ],
     [
-      18.55,
-      2.0,
+      18.43,
+      2.11,
       "O'n to'rt yo'nalish — bitta tizimda."
     ],
     [
-      21.5,
-      3.4,
+      21.38,
+      3.73,
       "Sohangizni tanlang: savora.uz — yetti kun bepul."
     ]
   ],
@@ -53,8 +53,27 @@
     "duck_threshold": 0.02,
     "duck_ratio": 6,
     "vo_db": 2,
-    "vo_presence_db": 2,
+    "vo_presence_db": 0,
     "target_lufs": -14.5,
-    "ceiling_db": -3
-  }
+    "ceiling_db": -3,
+    "duck_release": 850,
+    "music_dips": [
+      [
+        21.45,
+        25.3,
+        -6
+      ]
+    ]
+  },
+  "anchors": [
+    0.3,
+    2.5,
+    5.0,
+    7.5,
+    9.8,
+    12.6,
+    14.9,
+    18.55,
+    21.5
+  ]
 }
