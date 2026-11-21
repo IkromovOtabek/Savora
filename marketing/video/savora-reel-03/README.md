@@ -17,14 +17,14 @@
 | 14.8–17.1 | Restoran / kafe | Taom qo'shish · Menyu · Nomi · Kategoriya | 14.90 Restoranda esa — menyu va taomlar. |
 | 17.1–18.2 | Tez montaj | Qurilish (kg · m² · qop), Avto (OEM kod), Mebel (Artikul) | — |
 | 18.2–21.2 | PAYOFF: kub 14 kubga bo'linadi, 4-3-4-3 devor | 14 yo'nalish · ro'yxatdan o'tishda tanlanadi | 18.55 O'n to'rt yo'nalish — bitta tizimda. |
-| 21.2–26.5 | END: kublar markazga, 3D logo burilib keladi, «Savora» harflari | savora.uz · 14 kun bepul · karta talab qilinmaydi | 21.50 Sohangizni tanlang: savora.uz — o'n to'rt kun bepul. |
+| 21.2–26.5 | END: kublar markazga, 3D logo burilib keladi, «Savora» harflari | savora.uz · 7 kun bepul · karta talab qilinmaydi | 21.50 Sohangizni tanlang: savora.uz — yetti kun bepul. |
 
 ## Da'volar tekshiruvi (kod bilan)
 
 - 14 yo'nalish, nomlari va ikonkalari — `web/lib/businessTypes.ts` (`BUSINESS_TYPE_IDS`, `BUSINESS_TYPES`), ikonkalar `web/components/icons/Icon.tsx` dan aynan nusxa.
 - Sohaga qarab atamalar: «Telefon qo'shish», «Dori qo'shish», «Taom qo'shish», «Menyu», «Dorixona» — `TERMS`; maydonlar (IMEI, Kafolat (oy), Seriya raqami, Yaroqlilik muddati, O'lcham, Rang, O'lchov birligi, OEM kod, Artikul) — `PRODUCT_FIELDS` + `web/lib/i18n/dict/stock.ts` `fields.labels`.
 - «Menyu va modullar shunga moslandi» — `web/lib/i18n/dict/shell.ts` (businessType hint); soha ro'yxatdan o'tishda tanlanadi.
-- 14 kun bepul, karta talab qilinmaydi — `landing.ts` `hero.noCard`, `TRIAL_DAYS = 14`.
+- 7 kun bepul, karta talab qilinmaydi — `web/app/actions/register.ts:23` va `web/app/page.tsx:27` (`TRIAL_DAYS` = 7, commit 20e645c), `landing.ts` `hero.noCard`.
 - Kartadagi qiymatlar (IMEI raqami, PT-2411, 03.2027, Osh…) — namuna, haqiqiy mijoz ma'lumoti emas.
 - Ishlatilmagan: avto-SMS, shartnoma, Play Market / App Store, mijozlar soni.
 

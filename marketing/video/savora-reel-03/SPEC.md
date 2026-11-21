@@ -26,7 +26,7 @@ SHOTS:   0.0–2.4   HOOK — kub tez dumalaydi (6 yuz), ostida soha nomi slot k
          17.1–18.2 MONTAJ — 3 tez dumalash: Qurilish (kg · m² · qop), Avto (OEM kod), Mebel (Artikul)
          18.2–21.2 PAYOFF — kub 14 kubga bo'linadi, 4-3-4-3 devor; «14» sanaladi, «yo'nalish»
          21.2–26.5 END — kublar markazga yig'iladi, 3D logo yon tomondan burilib keladi, «Savora» harflari,
-                   savora.uz, «14 kun bepul · karta shart emas»; 2.5 s ushlab turiladi
+                   savora.uz, «7 kun bepul · karta talab qilinmaydi»; 2.5 s ushlab turiladi
 BANNED:  qora/to'q ko'k bo'shliq, nur/bloom/zarrachalar, shisha kartalar, binafsha gradient, uchta karta qatori,
          hamma narsa pastdan suzib chiqishi, qo'nganidan keyin suzayotgan sarlavha, burchakdagi logo,
          UI kartasini 3D ga qiyshaytirish, kodda yo'q funksiya (avto-SMS, shartnoma, Play Market)
