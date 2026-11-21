@@ -10,6 +10,7 @@ import { useTheme, tabular } from '@/lib/theme';
 import { digits, grouped, fmtMoney, fmtDateTime, payLabels, payMethodLabel, PAY_METHODS, type PayMethod, type PayType } from '@/lib/format';
 import { uzPhone9, uzPhoneE164 } from '@/lib/phone';
 import { useOfflinePos } from '@/lib/offlinePos';
+import { getNetState } from '@/lib/net';
 import { isNetworkError, newClientSaleId, searchCatalog, toPicked } from '@/lib/offline';
 import { useDict, tr } from '@/lib/i18n';
 import { fmtQty, isFractionalUnit, parseQty, priceTimesQty, qtyWithUnit } from '@/lib/qty';
@@ -148,8 +149,34 @@ export default function SaleNew() {
       notes: notes.trim() || undefined,
       payMethod: paidN > 0 ? method : undefined,
     };
+    const offlineQty = picked.trackQuantity ? saleQty ?? 1 : 1;
+    /** Naqd sotuv telefondagi navbatga (o'sha kalit bilan — server uni ikki marta yozmaydi) */
+    async function saveOffline(p: PickedProduct) {
+      try {
+        await pos.enqueue({
+          clientSaleId,
+          productId: p.id,
+          name: p.name,
+          qty: offlineQty,
+          unit: p.unit ?? null,
+          totalAmount: totalN,
+          notes: notes.trim(),
+        });
+        Alert.alert(d.offline.savedTitle, d.offline.savedMsg, [{ text: 'OK', onPress: () => router.back() }]);
+      } catch (err) {
+        Alert.alert(d.saleNew.failTitle, errMsg(err, d.saleNew.failFallback));
+      }
+    }
     try {
+      // Tarmoq oflayn deb aniqlangan — naqd sotuv serverni kutmasdan navbatga. Aks holda «ulangan, lekin javob yo'q»
+      // tarmoqda (balans tugagan, signal yo'q) har sotuv 15 s timeout kutardi. Internet qaytsa navbat o'zi yuboriladi.
+      if (pay === 'cash' && method === 'cash' && getNetState() === 'offline') {
+        await saveOffline(picked);
+        return;
+      }
       const r = await api<{ id: string; saleNo: string; totalAmount: number; remainingAmount: number; receiptPath: string | null }>('/api/mobile/sales', { method: 'POST', body });
+      // Telefondagi oflayn katalog ham kamaysin — aks holda internet uzilsa sotilgan dona yana «bor» ko'rinadi
+      void pos.noteSold(picked.id, offlineQty);
       router.replace({
         pathname: '/sale-done',
         params: { id: r.id, no: r.saleNo, total: String(r.totalAmount), remaining: String(r.remainingAmount), receipt: r.receiptPath ?? '' },
@@ -168,20 +195,7 @@ export default function SaleNew() {
         else Alert.alert(d.offline.bannerTitle, d.offline.cashOnly);
         return;
       }
-      try {
-        await pos.enqueue({
-          clientSaleId,
-          productId: picked.id,
-          name: picked.name,
-          qty: picked.trackQuantity ? saleQty ?? 1 : 1,
-          unit: picked.unit ?? null,
-          totalAmount: totalN,
-          notes: notes.trim(),
-        });
-        Alert.alert(d.offline.savedTitle, d.offline.savedMsg, [{ text: 'OK', onPress: () => router.back() }]);
-      } catch (err) {
-        Alert.alert(d.saleNew.failTitle, errMsg(err, d.saleNew.failFallback));
-      }
+      await saveOffline(picked);
     } finally { setBusy(false); }
   }
 

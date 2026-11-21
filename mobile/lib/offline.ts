@@ -163,13 +163,19 @@ export async function enqueueSale(userId: string, sale: NewQueuedSale): Promise<
   const item: QueuedSale = { ...sale, clientSaleId: sale.clientSaleId || newClientSaleId(), soldAt: new Date().toISOString(), status: 'pending' };
   q.push(item);
   await saveQueue(userId, q);
-
-  const cat = await loadCatalog(userId);
-  if (cat) {
-    cat.items = cat.items.map((p) => (p.id === sale.productId ? { ...p, available: Math.max(0, roundQty(p.available - sale.qty)) } : p));
-    await writeJson(catalogKey(userId), cat);
-  }
+  await takeFromCatalog(userId, sale.productId, sale.qty);
   return item;
+}
+
+/**
+ * Katalogdagi qoldiqni kamaytiradi: oflayn sotuvda va onlayn sotuvdan keyin ham (katalog keyingi yangilanishgacha
+ * sotilgan donani «bor» deb ko'rsatmasin — IMEI'li telefon ikki marta sotilmasin).
+ */
+export async function takeFromCatalog(userId: string, productId: string, qty: number): Promise<void> {
+  const cat = await loadCatalog(userId);
+  if (!cat || !cat.items.some((p) => p.id === productId)) return;
+  cat.items = cat.items.map((p) => (p.id === productId ? { ...p, available: Math.max(0, roundQty(p.available - qty)) } : p));
+  await writeJson(catalogKey(userId), cat);
 }
 
 /** Ziddiyatli/rad etilgan yozuvni ro'yxatdan olib tashlash (egasi hal qilgach) */

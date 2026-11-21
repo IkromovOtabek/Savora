@@ -4,9 +4,10 @@ import { useAuth, canWith } from './auth';
 import { errMsg } from './api';
 import { getNetState, useNetState } from './net';
 import {
-  loadCatalog, refreshCatalog, loadQueue, enqueueSale, syncQueue, dismissQueued, isNetworkError,
+  loadCatalog, refreshCatalog, loadQueue, enqueueSale, syncQueue, dismissQueued, isNetworkError, takeFromCatalog,
   type Catalog, type QueuedSale, type NewQueuedSale, type SyncReport,
 } from './offline';
+import { queryClient } from './queryClient';
 
 /**
  * Oflayn POS holati butun ilova uchun: katalog, navbat, sinxron.
@@ -26,6 +27,8 @@ interface OfflinePosState {
   lastError: string | null;
   lastReport: SyncReport | null;
   enqueue: (sale: NewQueuedSale) => Promise<void>;
+  /** Onlayn sotuv o'tdi — telefondagi katalog qoldig'i ham kamayadi */
+  noteSold: (productId: string, qty: number) => Promise<void>;
   syncNow: () => Promise<SyncReport | null>;
   refresh: () => Promise<void>;
   dismiss: (clientSaleId: string) => Promise<void>;
@@ -66,6 +69,9 @@ export function OfflinePosProvider({ children }: { children: React.ReactNode }) 
       const report = await syncQueue(id);
       setOffline(false); setLastError(null);
       if (report.sent > 0) setLastReport(report);
+      // Navbatdagi sotuvlar serverga yozildi — ochiq ekranlar (bosh sahifa tushumi, sotuvlar) yangilansin.
+      // Internet qaytganda ekranlar sinxrondan OLDIN yangilanib, yuborilgan sotuvsiz eski raqamda qolardi.
+      if (report.ok > 0) void queryClient.invalidateQueries();
       // Internet qaytdi — keshdagi profilni serverdan yangilaymiz
       if (fromCache) void refreshMe();
       // Katalog: sotuv yuborilgan bo'lsa yoki 5 daqiqadan eski bo'lsa yangilanadi (trafikni tejash)
@@ -99,6 +105,13 @@ export function OfflinePosProvider({ children }: { children: React.ReactNode }) 
     const id = uid.current;
     if (!id) return;
     await dismissQueued(id, clientSaleId);
+    await reload();
+  }, [reload]);
+
+  const noteSold = useCallback(async (productId: string, qty: number) => {
+    const id = uid.current;
+    if (!id) return;
+    await takeFromCatalog(id, productId, qty);
     await reload();
   }, [reload]);
 
@@ -137,7 +150,7 @@ export function OfflinePosProvider({ children }: { children: React.ReactNode }) 
   }, [net, pendingCount, syncNow]);
 
   return (
-    <Ctx.Provider value={{ catalog, queue, pendingCount, problemCount, syncing, offline: offline || net === 'offline', lastError, lastReport, enqueue, syncNow, refresh, dismiss, markOffline }}>
+    <Ctx.Provider value={{ catalog, queue, pendingCount, problemCount, syncing, offline: offline || net === 'offline', lastError, lastReport, enqueue, noteSold, syncNow, refresh, dismiss, markOffline }}>
       {children}
     </Ctx.Provider>
   );

@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
+import React, { createContext, useContext, useEffect, useRef, useState, useCallback } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { api, setToken, clearToken, getToken, setUnauthorizedHandler, ApiError, errMsg } from './api';
 import { unregisterPush } from './push';
@@ -6,6 +6,9 @@ import { clearQueryCache } from './queryClient';
 
 /** Oxirgi muvaffaqiyatli profil — internetsiz ochilganda ilova (oflayn sotuv) ishlashi uchun */
 const ME_CACHE_KEY = 'savora_me_cache';
+/** Ochilishda profil javobini kutish chegarasi (keshdagi profil bo'lsa) */
+const STARTUP_WAIT_MS = 3000;
+const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 async function cacheMe(me: MeResponse | null) {
   try {
     if (me) await AsyncStorage.setItem(ME_CACHE_KEY, JSON.stringify(me));
@@ -76,17 +79,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [me, setMe] = useState<MeResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [fromCache, setFromCache] = useState(false);
+  /** Serverdan profil javobi (muvaffaqiyat yoki aniq rad) olindimi — ochilishdagi kesh shundan keyin qo'yilmaydi */
+  const answered = useRef(false);
 
   const refresh = useCallback(async () => {
     const token = await getToken();
-    if (!token) { setMe(null); setError(null); setFromCache(false); return; }
+    if (!token) { answered.current = true; setMe(null); setError(null); setFromCache(false); return; }
     try {
       // force: oflayn holatda ham tekshiramiz (kirishdan keyin, internet qaytganda) — profil muhim
       const data = await api<MeResponse>('/api/mobile/me', { force: true });
+      answered.current = true;
       setMe(data); setError(null); setFromCache(false);
       void cacheMe(data);
     } catch (e) {
       if (e instanceof ApiError && (e.status === 401 || e.status === 404)) {
+        answered.current = true;
         await clearToken();
         void cacheMe(null);
         void clearQueryCache();
@@ -105,7 +112,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     setUnauthorizedHandler(() => { setMe(null); setError(null); void cacheMe(null); void clearQueryCache(); });
-    (async () => { await refresh(); setLoading(false); })();
+    (async () => {
+      const done = refresh();
+      // Telefonda oxirgi profil bo'lsa, ochilishda serverni STARTUP_WAIT_MS dan ortiq kutmaymiz: «ulangan, lekin
+      // javob yo'q» tarmoqda (balans tugagan, signal yo'q) splash 15 s timeout'gacha turardi. Javob keyin kelsa —
+      // refresh profilni o'zi yangilaydi (401 bo'lsa chiqaradi).
+      const cached = (await getToken()) ? await cachedMe() : null;
+      if (cached) {
+        const late = await Promise.race([done.then(() => false), sleep(STARTUP_WAIT_MS).then(() => true)]);
+        if (late && !answered.current) { setMe((cur) => cur ?? cached); setFromCache(true); setError(null); }
+      } else {
+        await done;
+      }
+      setLoading(false);
+    })();
     return () => setUnauthorizedHandler(null);
   }, [refresh]);
 
