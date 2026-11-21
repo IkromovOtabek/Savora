@@ -13,7 +13,7 @@
     ],
     [
       4.88,
-      2.41,
+      2.39,
       "Savora esa sohangizga moslashadi."
     ],
     [
@@ -23,31 +23,31 @@
     ],
     [
       9.96,
-      3.01,
-      "Dorixonada — seriya va yaroqlilik muddati."
+      3.11,
+      "Dorixonada, seriya va yaroqlilik muddati."
     ],
     [
-      12.98,
+      13.08,
       2.25,
       "Kiyim do'konida — o'lcham va rang."
     ],
     [
-      15.24,
+      15.34,
       2.09,
       "Restoranda — menyu va taomlar."
     ],
     [
       18.43,
-      2.25,
+      2.16,
       "O'n to'rt yo'nalish — bitta tizimda."
     ],
     [
       21.38,
-      3.37,
-      "Sohangizni tanlang: savora.uz — yetti kun bepul."
+      3.91,
+      "Sohangizni tanlang. Savora nuqta uz saytida, yetti kun bepul."
     ]
   ],
-  "voice": "ElevenLabs eleven_v3 — Davronbek (Journalist) agoC45V78njTIxYzwmSb, Starter tarif (tijoriy). Manba vo/eleven/*.mp3 → jonli_lines.py --src vo/eleven --chain toza --lag 0.5. Zaxira: vo/jonli (foydalanuvchi ovozi), vo/tts_oxirgi, vo/r0, vo/jasur",
+  "voice": "ElevenLabs eleven_v3 (5-jumla eleven_v4, tanlov C; 9-jumla tanlov B) — Davronbek (Journalist) agoC45V78njTIxYzwmSb, Starter tarif (tijoriy). Manba vo/eleven/*.mp3 → jonli_lines.py --src vo/eleven --chain toza --lag 0.5. Zaxira: vo/jonli (foydalanuvchi ovozi), vo/tts_oxirgi, vo/r0, vo/jasur",
   "mix": {
     "music_db": -11,
     "duck_threshold": 0.02,

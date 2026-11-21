@@ -13,12 +13,12 @@
 | 2.4–4.9 | SHABLON: fon va kub kulrang, oddiy forma; IMEI / Yaroqlilik muddati / O'lcham chiplari sig'maydi | Hammaga bir xil? | 2.50 Bitta shablon hammaga to'g'ri kelmaydi. |
 | 4.9–7.3 | REVEAL: ko'k to'lqin kubdan tarqaladi, kub sakrab aylanadi, yuzida lenta-S | Har sohaga — o'z formasi | 5.00 Savora esa sohangizga moslashadi. |
 | 7.3–9.7 | Telefon do'kon | Telefon qo'shish · IMEI · Kafolat (oy) | 7.50 Telefon do'konida — IMEI va kafolat. |
-| 9.7–12.5 | Dorixona | Dori qo'shish · Dorixona · Seriya raqami · Yaroqlilik muddati | 10.08 Dorixonada — seriya va yaroqlilik muddati. |
+| 9.7–12.5 | Dorixona | Dori qo'shish · Dorixona · Seriya raqami · Yaroqlilik muddati | 10.08 Dorixonada, seriya va yaroqlilik muddati. (eleven_v4) |
 | 12.5–14.8 | Kiyim-kechak | Kiyim qo'shish · O'lcham S M L XL · Rang | 12.60 Kiyim do'konida — o'lcham va rang. |
 | 14.8–17.1 | Restoran / kafe | Taom qo'shish · Menyu · Nomi · Kategoriya | 15.36 Restoranda — menyu va taomlar. |
 | 17.1–18.2 | Tez montaj | Qurilish (kg · m² · qop), Avto (OEM kod), Mebel (Artikul) | — |
 | 18.2–21.2 | PAYOFF: kub 14 kubga bo'linadi, 4-3-4-3 devor | 14 yo'nalish · ro'yxatdan o'tishda tanlanadi | 18.55 O'n to'rt yo'nalish — bitta tizimda. |
-| 21.2–26.5 | END: kublar markazga, 3D logo burilib keladi, «Savora» harflari | savora.uz · 7 kun bepul · karta talab qilinmaydi | 21.50 Sohangizni tanlang: savora.uz — yetti kun bepul. |
+| 21.2–26.5 | END: kublar markazga, 3D logo burilib keladi, «Savora» harflari | savora.uz · 7 kun bepul · karta talab qilinmaydi | 21.50 Sohangizni tanlang. Savora nuqta uz saytida, yetti kun bepul. |
 
 ## Da'volar tekshiruvi (kod bilan)
 
@@ -34,7 +34,7 @@
 - 3D: Three.js r169 (`src3d/stage3d.js` → `npm run build3d` → `lib/stage3d.js`, gitda yo'q). Har kadr `hf-seek` vaqtidan chiziladi; Three ichidagi `Math.random` urug'li PRNG ga almashtirilgan, rAF nomlari olib tashlangan (deterministik render).
 - Kub: RoundedBoxGeometry, oq chinni (clearcoat), rangli ikonka `map` + bo'rtma `bump`, atrof rangi hemisphere orqali kubga tushadi; VSM yumshoq soya; 2x supersampling (qirralar miltillamaydi). Logo — `web/lib/brand.ts` yo'llaridan ekstruziya, qismlar turli chuqurlikda (z-fighting yo'q), tebranishsiz expo kirish; 14 kub logoga silliq kichrayib yig'iladi.
 - HTML sahnalar: `compositions/` (bg, stage, hook, tension, reveal, proof, card, payoff, endcard). Shriftlar: Montserrat (HyperFrames ichida), Onest (OFL, `assets/fonts`).
-- Ovoz: **ElevenLabs `eleven_v3`, «Davronbek — Journalist»** (`agoC45V78njTIxYzwmSb`, kutubxonadagi o'zbek diktori), Starter tarif — tijoriy foydalanish huquqi bor. Yaratish: `../src/tts_elevenlabs.py savora-reel-03 --voice agoC45V78njTIxYzwmSb` → `vo/eleven/lN.mp3` (kalit `../.env` `ELEVENLABS_API_KEY`). Joylash: `../src/jonli_lines.py savora-reel-03 --src vo/eleven --chain toza --lag 0.5` (hammasi tabiiy tezlikda; 5- va 7-jumla sig'ishi uchun biroz qisqartirildi). Zaxira variantlar (gitda yo'q): `vo/jonli` — egasining o'z ovozi (teleprompter `../src/prompter/`), `vo/r0` — Edge Sardor, `vo/jasur` — UzbekVoice.
+- Ovoz: **ElevenLabs `eleven_v3`, «Davronbek — Journalist»** (`agoC45V78njTIxYzwmSb`, kutubxonadagi o'zbek diktori), Starter tarif — tijoriy foydalanish huquqi bor. Yaratish: `../src/tts_elevenlabs.py savora-reel-03 --voice agoC45V78njTIxYzwmSb` → `vo/eleven/lN.mp3` (kalit `../.env` `ELEVENLABS_API_KEY`). Joylash: `../src/jonli_lines.py savora-reel-03 --src vo/eleven --chain toza --lag 0.6 --pauza 0.2`. Robotga o'xshamasligi uchun: sayt manzili matnda so'z bilan («savora nuqta uz»), tire o'rniga vergul; har jumladan bir nechta variant (`vo/eleven/tanlov/`) va foydalanuvchi tinglab tanlaydi (hammasi tabiiy tezlikda; 5- va 7-jumla sig'ishi uchun biroz qisqartirildi). Zaxira variantlar (gitda yo'q): `vo/jonli` — egasining o'z ovozi (teleprompter `../src/prompter/`), `vo/r0` — Edge Sardor, `vo/jasur` — UzbekVoice.
 - Miks: `../src/mix_tts.py savora-reel-03` — voice_slots.json `mix` bloki: ovozga EQ (+3 dB 3 kHz) va kompressor, musiqa −11 dB va ovoz ostida 6:1 ducking, statik gain → −14.5 LUFS, limiter −3 dB. Eski miksda ovoz musiqadan atigi ~4 dB baland edi, endi ~17 dB.
 - Litsenziya: Edge TTS — Microsoft onlayn xizmati; tijoriy reklamada ishlatishdan oldin shartlarini tekshirish tavsiya etiladi (ishonchli variant — Azure Speech, xuddi shu ovoz, yoki jonli diktor, `../OVOZ-YOZISH.md`).
 - Musiqa: `../src/music03.py` (protsedural, original).

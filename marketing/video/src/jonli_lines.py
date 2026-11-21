@@ -48,6 +48,7 @@ argv = sys.argv[1:]
 proj = Path(argv[0])
 cfg = json.loads((proj / "voice_slots.json").read_text(encoding="utf-8"))
 src_dir, vo = proj / (argv[argv.index("--src") + 1] if "--src" in argv else "vo/jonli"), proj / "vo"
+PAUSE_MAX = float(argv[argv.index("--pauza") + 1]) if "--pauza" in argv else 0.0  # jumla ichidagi pauza chegarasi (s)
 if "--lag" in argv:
     MAX_LAG = float(argv[argv.index("--lag") + 1])
 if "--chain" in argv and argv[argv.index("--chain") + 1] == "toza":
@@ -80,6 +81,26 @@ for i, (start, max_len, text) in enumerate(cfg["slots"], 1):
     a = max(0, sp[0] * fr - int(0.12 * SR))
     b = min(len(x), (sp[-1] + 1) * fr + int(0.25 * SR))
     y = x[a:b]
+    if PAUSE_MAX:
+        # jumla ichidagi uzun pauzani PAUSE_MAX gacha qisqartirish (tezlashtirishdan tabiiyroq); 10 ms crossfade
+        dbs, f10 = frames_db(y, int(0.01 * SR))
+        on = dbs > thr
+        idx = np.where(on)[0]
+        k, cuts = idx[0], []
+        while k <= idx[-1]:
+            if not on[k]:
+                s0 = k
+                while k <= idx[-1] and not on[k]:
+                    k += 1
+                if (k - s0) * 0.01 > PAUSE_MAX:
+                    keep = int(PAUSE_MAX / 0.01)
+                    cuts.append((s0 + keep // 2, k - keep // 2))
+            k += 1
+        xf = int(0.01 * SR)
+        for c0, c1 in reversed(cuts):
+            p0, p1 = c0 * f10, c1 * f10
+            fade = np.linspace(1, 0, xf)
+            y = np.concatenate([y[:p0], y[p0:p0 + xf] * fade + y[p1:p1 + xf] * fade[::-1], y[p1 + xf:]])
     speech = y[np.abs(y) > 10 ** (thr / 20)]
     rms_db = 20 * np.log10(np.sqrt(np.mean(speech ** 2)) + 1e-9) if len(speech) else -60
     y = y * 10 ** ((TARGET_DB - rms_db) / 20)
