@@ -12,6 +12,9 @@ import type { ISaleBankPart, PaymentType, SaleStatus } from './models/tenant/Sal
 /** Bitta sotuvda eng ko'p bank soni */
 export const MAX_BANK_PARTS = 5;
 
+/** Bank krediti + qarz: kun bo'yicha muddat chegarasi (undan uzog'i — oy bo'yicha nasiya) */
+export const MAX_BANK_DEBT_DAYS = 365;
+
 type SaleLike = {
   paymentType: PaymentType;
   status?: SaleStatus;
@@ -23,13 +26,14 @@ type SaleLike = {
 };
 
 /**
- * Sotuvning bank ulushlari. Bank krediti + nasiya sotuvi (paymentType 'installment' + bankParts) ham shu yerda:
- * bank qismi Kredit kassada, mijoz qismi — oddiy nasiya (remainingAmount — faqat mijoz qarzi).
+ * Sotuvning bank ulushlari. Bank krediti + nasiya (paymentType 'installment' + bankParts) va bank krediti + qarz
+ * ('debt' + bankParts) ham shu yerda: bank qismi Kredit kassada, mijoz qismi — oddiy nasiya / qarz
+ * (remainingAmount — faqat mijoz qarzi).
  * Eski sotuvlarda (bankParts yo'q) — bitta bank, joriy qoldiq bilan:
  * ilgari bank puli sotuvning o'ziga to'lov qilib yozilgan, shuning uchun joriy qoldiq allaqachon sof summa.
  */
 export function saleBankParts(sale: SaleLike): ISaleBankPart[] {
-  if (sale.paymentType !== 'bank_credit' && sale.paymentType !== 'installment') return [];
+  if (sale.paymentType !== 'bank_credit' && sale.paymentType !== 'installment' && sale.paymentType !== 'debt') return [];
   if (sale.bankParts && sale.bankParts.length > 0) {
     return sale.bankParts.map((p) => ({ bankName: p.bankName, amount: p.amount }));
   }
@@ -50,9 +54,20 @@ export function isBankNasiya(sale: { paymentType: PaymentType; bankParts?: ISale
   return sale.paymentType === 'installment' && (sale.bankParts?.length ?? 0) > 0;
 }
 
-/** Bank moliyalashtirgan sotuvlar so'rovi (Kredit kassa, moliya holati, «Bank krediti» filtri): bank krediti va bank + nasiya */
+/** Bank krediti + qarz: banklar bir qismini, qolganini mijoz kun bo'yicha muddatda bir martada to'laydi */
+export function isBankDebt(sale: { paymentType: PaymentType; bankParts?: ISaleBankPart[] | null }): boolean {
+  return sale.paymentType === 'debt' && (sale.bankParts?.length ?? 0) > 0;
+}
+
+/** Bank moliyalashtirgan sotuvlar so'rovi (Kredit kassa, moliya holati, «Bank krediti» filtri): bank krediti, bank + nasiya, bank + qarz */
 export function bankFinancedFilter() {
-  return { $or: [{ paymentType: 'bank_credit' }, { paymentType: 'installment', 'bankParts.0': { $exists: true } }] };
+  return {
+    $or: [
+      { paymentType: 'bank_credit' },
+      { paymentType: 'installment', 'bankParts.0': { $exists: true } },
+      { paymentType: 'debt', 'bankParts.0': { $exists: true } },
+    ],
+  };
 }
 
 /** Ko'rsatish uchun: "Ishonch, Uzum Nasiya" */

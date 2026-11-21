@@ -6,7 +6,7 @@ import { useToastOnState } from '@/lib/useToastOnState';
 import { createSaleAction, lookupProductByImei } from '@/app/actions/sales';
 import { PaymentType } from '@/lib/models/tenant/Sale';
 import { OrgFeatures } from '@/lib/features';
-import { MAX_BANK_PARTS } from '@/lib/bankCredit';
+import { MAX_BANK_DEBT_DAYS, MAX_BANK_PARTS } from '@/lib/bankCredit';
 import { POS_HANDOFF_KEY, POS_HANDOFF_TTL_MS, type PosHandoff } from '@/lib/posCart';
 import { fmtDate, fmtMoney } from '@/lib/format';
 import { addMonthsClamped } from '@/lib/dates';
@@ -60,6 +60,17 @@ const DUE_PRESETS = [
   { key: 'week2', days: 14 },
   { key: 'month1', months: 1 },
   { key: 'month3', months: 3 },
+] as const;
+
+/** Bank + nasiya / qarz muddati: kun — muddatgacha bir martalik qarz, oy — oylik nasiya jadvali (yorliqlar: d.sales.newSale.termPresets) */
+type TermUnit = 'days' | 'months';
+const TERM_PRESETS = [
+  { key: 'd7', unit: 'days', n: 7 },
+  { key: 'd14', unit: 'days', n: 14 },
+  { key: 'm1', unit: 'months', n: 1 },
+  { key: 'm3', unit: 'months', n: 3 },
+  { key: 'm6', unit: 'months', n: 6 },
+  { key: 'm12', unit: 'months', n: 12 },
 ] as const;
 
 function addDays(d: Date, n: number): Date {
@@ -137,6 +148,9 @@ export default function SaleForm({ isPhoneShop, products, mediaEnabled, features
   // Bank krediti + nasiya: qolgan summaning bir qismini mijoz oyma-oy do'konga to'laydi
   const [nasiyaOn, setNasiyaOn] = useState(false);
   const [nasiyaAmount, setNasiyaAmount] = useState('');
+  // Shu qism muddati: oy (nasiya moduli yoqilgan bo'lsa) yoki kun (qarz)
+  const [termUnit, setTermUnit] = useState<TermUnit>(features.variant || features.nasiya ? 'months' : 'days');
+  const [debtDays, setDebtDays] = useState('7');
   // Sana faqat brauzerda (server/klient vaqt mintaqasi farqi hydration xatosiga olib kelmasin)
   const [now, setNow] = useState<Date | null>(null);
   useEffect(() => {
@@ -310,13 +324,21 @@ export default function SaleForm({ isPhoneShop, products, mediaEnabled, features
   const overpaid = paymentType !== 'cash' && paid > total && total > 0;
   const fieldsOff = isPending || !hasItems;
 
-  // Bank krediti + nasiya: nasiya qismi qolgan summadan kam (banklarga ham qolsin), oylik — shu qismdan
+  // Bank krediti + nasiya / qarz: shu qism qolgan summadan kam (banklarga ham qolsin).
+  // Muddat oyda — oylik nasiya jadvali (Nasiya moduli kerak); kunda — muddatgacha bir martalik qarz
   const canNasiya = features.variant || features.nasiya;
-  const withNasiya = paymentType === 'bank_credit' && canNasiya && nasiyaOn;
+  const withNasiya = paymentType === 'bank_credit' && nasiyaOn;
   const nasiyaN = withNasiya ? Math.max(0, Math.floor(Number(nasiyaAmount) || 0)) : 0;
   const nasiyaBad = withNasiya && (nasiyaN < 1 || nasiyaN >= rest);
-  const nasiyaMonthly = withNasiya && monthsN > 0 ? Math.floor(nasiyaN / monthsN) : 0;
-  const nasiyaLastMonth = withNasiya && monthsN > 0 ? nasiyaN - nasiyaMonthly * (monthsN - 1) : 0;
+  const bankTermUnit: TermUnit = canNasiya ? termUnit : 'days';
+  const bankDebtMode = withNasiya && bankTermUnit === 'days';
+  const bankInstallment = withNasiya && !bankDebtMode;
+  const debtDaysN = Math.floor(Number(debtDays) || 0);
+  const debtDaysBad = bankDebtMode && (debtDaysN < 1 || debtDaysN > MAX_BANK_DEBT_DAYS);
+  const bankDue = bankDebtMode && now && !debtDaysBad ? addDays(now, debtDaysN) : null;
+  const termPresets = TERM_PRESETS.filter((p) => canNasiya || p.unit === 'days');
+  const nasiyaMonthly = bankInstallment && monthsN > 0 ? Math.floor(nasiyaN / monthsN) : 0;
+  const nasiyaLastMonth = bankInstallment && monthsN > 0 ? nasiyaN - nasiyaMonthly * (monthsN - 1) : 0;
   // Nasiyada bitta tovar — bank + nasiya ham shunday
   const bankNasiyaMulti = withNasiya && items.length > 1;
 
@@ -328,12 +350,18 @@ export default function SaleForm({ isPhoneShop, products, mediaEnabled, features
   const bankPartsJson = JSON.stringify(bankRows.map((r) => ({ bankName: r.bank, amount: bankAmount(r) })));
   // Har bank summasi > 0 va jami = qolgan summa bo'lmaguncha tasdiqlab bo'lmaydi
   const bankZeroRow = multiBank && bankRows.some((r) => bankAmount(r) < 1);
-  const bankBlocked = paymentType === 'bank_credit' && ((multiBank && (unallocated !== 0 || bankZeroRow)) || nasiyaBad || bankNasiyaMulti);
+  const bankBlocked = paymentType === 'bank_credit' && ((multiBank && (unallocated !== 0 || bankZeroRow)) || nasiyaBad || bankNasiyaMulti || debtDaysBad);
 
   function toggleNasiya(on: boolean) {
     setNasiyaOn(on);
     // Bir nechta bankda taqsimlanmagan qoldiq bo'lsa — nasiya qismi shu summadan boshlanadi
     if (on && !nasiyaAmount && multiBank && unallocated > 0) setNasiyaAmount(String(unallocated));
+  }
+
+  function pickTerm(unit: TermUnit, n: number) {
+    setTermUnit(unit);
+    if (unit === 'days') setDebtDays(String(n));
+    else setMonths(String(n));
   }
 
   function updateBankRow(i: number, patch: Partial<{ bank: string; amount: string }>) {
@@ -711,7 +739,7 @@ export default function SaleForm({ isPhoneShop, products, mediaEnabled, features
                           <Icon name="plus" size={14} /> {k.addBankRow}
                         </button>
                       )}
-                      {canNasiya && !nasiyaOn && (
+                      {!nasiyaOn && (
                         <button type="button" className="sl-quick sl-bank-add" onClick={() => toggleNasiya(true)} disabled={fieldsOff}>
                           <Icon name="plus" size={14} /> {k.addNasiyaPart}
                         </button>
@@ -752,31 +780,68 @@ export default function SaleForm({ isPhoneShop, products, mediaEnabled, features
                       {tr(d.sales.actions.nasiyaPartTooBig, { sum: fmtMoney(rest) })}
                     </span>
                   ) : (
-                    <span className="field-hint">{k.nasiyaPartHint}</span>
+                    <span className="field-hint">
+                      {bankDebtMode ? tr(k.debtPartHint, { date: bankDue ? fmtDate(bankDue) : '—' }) : k.nasiyaPartHint}
+                    </span>
                   )}
                   {bankNasiyaMulti && (
                     <div className="auth-alert auth-alert--warn" role="alert">{d.sales.actions.bankNasiyaOneItem}</div>
                   )}
-                  <div className="sl-fields-2">
-                    <div className="auth-field">
-                      <label htmlFor="installmentMonths">{k.months}</label>
+
+                  {/* Muddat: 7 kun / 14 kun — bir martalik qarz; 1–12 oy — oylik nasiya jadvali */}
+                  <div className="auth-field" role="group" aria-labelledby="sl-term-l">
+                    <label id="sl-term-l" htmlFor="sl-term-n">{k.termLabel}</label>
+                    <div className="sl-due-quick" role="group" aria-label={k.termQuickAria}>
+                      {termPresets.map((p) => (
+                        <button
+                          key={p.key}
+                          type="button"
+                          className="sl-quick"
+                          aria-pressed={bankTermUnit === p.unit && (p.unit === 'days' ? debtDays : months) === String(p.n)}
+                          onClick={() => pickTerm(p.unit, p.n)}
+                          disabled={fieldsOff}
+                        >
+                          {k.termPresets[p.key]}
+                        </button>
+                      ))}
+                    </div>
+                    <input type="hidden" name="bankTermUnit" value={bankTermUnit} />
+                    <div className="sl-term-row">
                       <input
-                        id="installmentMonths"
-                        name="installmentMonths"
+                        id="sl-term-n"
+                        name={bankDebtMode ? 'debtDays' : 'installmentMonths'}
                         type="number"
                         min={1}
-                        max={60}
-                        value={months}
-                        onChange={(e) => setMonths(e.target.value)}
+                        max={bankDebtMode ? MAX_BANK_DEBT_DAYS : 60}
+                        value={bankDebtMode ? debtDays : months}
+                        onChange={(e) => (bankDebtMode ? setDebtDays(e.target.value) : setMonths(e.target.value))}
                         disabled={fieldsOff}
                         inputMode="numeric"
+                        aria-label={k.termValueAria}
+                        aria-invalid={debtDaysBad || undefined}
                       />
-                      {Number(months) > PQ294_MAX_MONTHS && (
-                        <small className="field-hint" style={{ color: 'var(--warn)' }}>
-                          {tr(k.pq294Warn, { n: PQ294_MAX_MONTHS })}
-                        </small>
-                      )}
+                      <select
+                        value={bankTermUnit}
+                        onChange={(e) => setTermUnit(e.target.value as TermUnit)}
+                        disabled={fieldsOff || !canNasiya}
+                        aria-label={k.termUnitAria}
+                      >
+                        <option value="days">{k.termUnits.days}</option>
+                        {canNasiya && <option value="months">{k.termUnits.months}</option>}
+                      </select>
                     </div>
+                    {debtDaysBad && (
+                      <small className="field-hint sl-bank-sum--bad">{tr(d.sales.actions.debtDaysRequired, { n: MAX_BANK_DEBT_DAYS })}</small>
+                    )}
+                    {bankInstallment && Number(months) > PQ294_MAX_MONTHS && (
+                      <small className="field-hint" style={{ color: 'var(--warn)' }}>
+                        {tr(k.pq294Warn, { n: PQ294_MAX_MONTHS })}
+                      </small>
+                    )}
+                  </div>
+
+                  {bankDebtMode && bankDue && <input type="hidden" name="dueDate" value={isoDay(bankDue)} />}
+                  {bankInstallment && (
                     <div className="auth-field">
                       <label htmlFor="payDay">{k.payDayLabel}</label>
                       <select
@@ -792,7 +857,7 @@ export default function SaleForm({ isPhoneShop, products, mediaEnabled, features
                         ))}
                       </select>
                     </div>
-                  </div>
+                  )}
                 </div>
               )}
 
@@ -886,7 +951,13 @@ export default function SaleForm({ isPhoneShop, products, mediaEnabled, features
                   {multiBank && bankRows.filter((r) => r.bank).map((r) => (
                     <div key={r.bank} className="sl-preview-row"><span>{r.bank}</span><strong>{fmtMoney(bankAmount(r))} {d.common.sum}</strong></div>
                   ))}
-                  {withNasiya && (
+                  {bankDebtMode && (
+                    <>
+                      <div className="sl-preview-row"><span>{k.restDebt}</span><strong>{fmtMoney(nasiyaN)} {d.common.sum}</strong></div>
+                      <div className="sl-preview-row"><span>{d.sales.dueDate}</span><strong>{bankDue ? fmtDate(bankDue) : '—'}</strong></div>
+                    </>
+                  )}
+                  {bankInstallment && (
                     <>
                       <div className="sl-preview-row"><span>{k.restInstallment}</span><strong>{fmtMoney(nasiyaN)} {d.common.sum}</strong></div>
                       <div className="sl-preview-row">

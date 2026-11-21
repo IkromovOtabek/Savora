@@ -7,7 +7,7 @@ import { getTenantSession } from '@/lib/tenantSession';
 import { parsePrice } from '@/lib/format';
 import { calcSaleStatus, generateSaleNo } from '@/lib/sales';
 import { PaymentType, type ISaleBankPart } from '@/lib/models/tenant/Sale';
-import { MAX_BANK_PARTS, bankPartsLabel, bankPartsTotal, parseBankPartsInput, validateBankParts } from '@/lib/bankCredit';
+import { MAX_BANK_DEBT_DAYS, MAX_BANK_PARTS, bankPartsLabel, bankPartsTotal, parseBankPartsInput, validateBankParts } from '@/lib/bankCredit';
 import type { ProductUnit } from '@/lib/businessTypes';
 import { sendTelegram, tgEscape } from '@/lib/telegram';
 import { notifyNewSale, salePayLabel } from '@/lib/shopNotify';
@@ -330,17 +330,23 @@ export async function createSaleAction(_prev: State, formData: FormData): Promis
     bankName: zText(120, tooLong),
     // Bir nechta bank: [{ bankName, amount }] (JSON) — lib/bankCredit.ts
     bankParts: zText(4000, tooLong),
-    // Bank krediti + nasiya: qolgan summaning mijoz oyma-oy do'konga to'laydigan qismi
+    // Bank krediti + nasiya / qarz: qolgan summaning mijoz do'konga to'laydigan qismi
     nasiyaAmount: zMoney(m.badNasiyaPart, { optional: true }),
+    // Shu qism muddati: 'months' — oylik nasiya jadvali, 'days' — kun bo'yicha bir martalik qarz
+    bankTermUnit: zText(10),
+    debtDays: zOptInt(tr(m.debtDaysRequired, { n: MAX_BANK_DEBT_DAYS }), 1, MAX_BANK_DEBT_DAYS),
     dueDate: zOptDate(d.common.invalidInput),
   }), formToObject(formData), d.common.invalidInput);
   if (!parsed.ok) return { error: parsed.error };
   const { customerName, customerPhone, totalAmount, notes, photoUrl, bankName } = parsed.data;
   // Bank krediti + nasiya (12 mln = Ishonch 4 + BirZum 4 + nasiya 4): sotuv «Nasiya» bo'lib yoziladi,
-  // bank ulushlari bankParts'da (Kredit kassa), remainingAmount — faqat mijoz qarzi (nasiya jadvali)
+  // bank ulushlari bankParts'da (Kredit kassa), remainingAmount — faqat mijoz qarzi (nasiya jadvali).
+  // Muddat kunda bo'lsa (7 kun) — «Qarz» bo'lib yoziladi: mijoz qismini muddatgacha bir martada to'laydi
   const nasiyaPart = parsed.data.paymentType === 'bank_credit' ? parsed.data.nasiyaAmount ?? 0 : 0;
-  const bankNasiya = nasiyaPart > 0;
-  const paymentType: PaymentType = bankNasiya ? 'installment' : parsed.data.paymentType;
+  const bankSplit = nasiyaPart > 0;
+  const bankDebt = bankSplit && parsed.data.bankTermUnit === 'days';
+  const bankNasiya = bankSplit && !bankDebt;
+  const paymentType: PaymentType = bankDebt ? 'debt' : bankNasiya ? 'installment' : parsed.data.paymentType;
   const paidAmountRaw = parsed.data.paidAmount;
   const installmentMonthsRaw = parsed.data.installmentMonths ?? 0;
 
@@ -364,6 +370,9 @@ export async function createSaleAction(_prev: State, formData: FormData): Promis
   const multi = lines.length > 1;
   // Nasiya — har tovar o'z oylik jadvali bilan; hozircha bitta tovar (bank krediti/qarz — ko'p tovar)
   if (paymentType === 'installment' && multi) return { error: bankNasiya ? m.bankNasiyaOneItem : m.installmentOneItem };
+  // Bank + qarz ham bitta tovar: bank ulushlari qatorlarga bo'linmaydi (saleSplit faqat to'liq bank kreditida)
+  if (bankDebt && multi) return { error: m.bankNasiyaOneItem };
+  if (bankDebt && !parsed.data.debtDays) return { error: tr(m.debtDaysRequired, { n: MAX_BANK_DEBT_DAYS }) };
 
   // Rasm: faqat o'zimizning storage URL'i + «Rasm/kamera» moduli yoqilgan bo'lsa
   if (photoUrl) {
@@ -407,16 +416,16 @@ export async function createSaleAction(_prev: State, formData: FormData): Promis
   if (paymentType === 'installment' && !features.variant && !features.nasiya) {
     return { error: m.nasiyaDisabled };
   }
-  if ((paymentType === 'bank_credit' || bankNasiya) && !features.creditKassa) {
+  if ((paymentType === 'bank_credit' || bankSplit) && !features.creditKassa) {
     return { error: m.creditKassaDisabled };
   }
 
   // Bank krediti: qolgan summa bir yoki bir nechta bankka bo'linadi (jami = jami − bosh to'lov);
   // nasiya qismi bo'lsa — banklar jami = jami − bosh to'lov − nasiya (bankka kamida 1 so'm qolsin)
   let bankParts: ISaleBankPart[] | undefined;
-  if (paymentType === 'bank_credit' || bankNasiya) {
+  if (paymentType === 'bank_credit' || bankSplit) {
     const rest = totalAmount - paidAmount;
-    if (bankNasiya && nasiyaPart >= rest) return { error: tr(m.nasiyaPartTooBig, { sum: Math.max(0, rest).toLocaleString('uz-UZ') }) };
+    if (bankSplit && nasiyaPart >= rest) return { error: tr(m.nasiyaPartTooBig, { sum: Math.max(0, rest).toLocaleString('uz-UZ') }) };
     const financed = rest - nasiyaPart;
     const rawParts = parseBankPartsInput(parsed.data.bankParts);
     if (rawParts === null) return { error: m.bankRequired };
@@ -462,6 +471,11 @@ export async function createSaleAction(_prev: State, formData: FormData): Promis
     if (paymentType === 'installment' && installmentMonths) {
       dueDate = installmentDueDate(new Date(), installmentMonths, payDay);
     }
+    // Bank + qarz: muddat — bugun + N kun (brauzer sanasi, oddiy qarzdagi kabi; bo'lmasa — server sanasi)
+    if (bankDebt && parsed.data.debtDays && !dueDate) {
+      const t = new Date();
+      dueDate = new Date(Date.UTC(t.getFullYear(), t.getMonth(), t.getDate() + parsed.data.debtDays));
+    }
   }
 
   let customer = null;
@@ -497,8 +511,8 @@ export async function createSaleAction(_prev: State, formData: FormData): Promis
 
     // Bosh to'lov qatorni to'liq yopgan bo'lsa — unga bank ulushi tushmaydi
     const lineBank = line.bankParts && line.bankParts.length > 0 ? line.bankParts : undefined;
-    // Bank + nasiya: qoldiq — faqat mijoz qarzi (bank qismi Kredit kassada); bank kreditida — bank zimmasidagi summa
-    const remaining = Math.max(0, line.total - line.paid - (bankNasiya ? bankPartsTotal(lineBank) : 0));
+    // Bank + nasiya / qarz: qoldiq — faqat mijoz qarzi (bank qismi Kredit kassada); bank kreditida — bank zimmasidagi summa
+    const remaining = Math.max(0, line.total - line.paid - (bankSplit ? bankPartsTotal(lineBank) : 0));
     let saleId: Types.ObjectId;
     let saleNo: string;
     try {

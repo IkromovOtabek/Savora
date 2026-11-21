@@ -545,6 +545,8 @@ button.sl-tl-body:hover .sl-tl-cta--main { opacity: .88; }
 
 /* Muddat tez tanlovi */
 .sl-due-quick { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+/* Bank + nasiya / qarz muddati: son + birlik (kun/oy) — mobilda ham yonma-yon */
+.sl-term-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(88px, 34%); gap: 8px; }
 .sl-quick[aria-pressed="true"] { background: var(--brand-fill); color: var(--on-brand); }
 .sl-quick:disabled { opacity: .5; cursor: not-allowed; }
 

@@ -3,7 +3,9 @@ import {
   bankBalanceOf,
   bankPartsLabel,
   bankPartsTotal,
+  isBankDebt,
   isBankNasiya,
+  bankFinancedFilter,
   computeBankBalances,
   parseBankPartsInput,
   saleBankParts,
@@ -156,5 +158,36 @@ describe('Bank krediti + nasiya — 12 mln = Ishonch 4 + BirZum 4 + nasiya 4', (
     expect(isBankNasiya(plain)).toBe(false);
     expect(saleBankParts(plain)).toEqual([]);
     expect(computeBankBalances([plain], []).size).toBe(0);
+  });
+});
+
+describe('Bank krediti + qarz — 10 mln = Ishonch 8 + mijoz 2 mln (7 kunda bir martada)', () => {
+  const mixed = {
+    paymentType: 'debt' as const,
+    status: 'partial' as const,
+    bankParts: [{ bankName: 'Ishonch', amount: 8_000_000 }],
+    totalAmount: 10_000_000,
+    paidAmount: 0,
+    // Qoldiq — faqat mijoz qarzi
+    remainingAmount: 2_000_000,
+  };
+
+  it('bank ulushi Kredit kassada, mijoz qoldig\'i — qarz', () => {
+    expect(isBankDebt(mixed)).toBe(true);
+    expect(isBankNasiya(mixed)).toBe(false);
+    expect(saleBankParts(mixed)).toEqual(mixed.bankParts);
+    const map = computeBankBalances([mixed], []);
+    expect(bankBalanceOf(map, 'Ishonch')).toEqual({ financed: 8_000_000, received: 0, balance: 8_000_000, salesCount: 1 });
+  });
+
+  it('oddiy qarz (bankParts yo\'q) bankka tegishli emas', () => {
+    const plain = { ...mixed, bankParts: undefined, bankName: 'Ishonch' };
+    expect(isBankDebt(plain)).toBe(false);
+    expect(saleBankParts(plain)).toEqual([]);
+    expect(computeBankBalances([plain], []).size).toBe(0);
+  });
+
+  it('Kredit kassa so\'rovi bank + qarzni ham oladi', () => {
+    expect(bankFinancedFilter().$or).toContainEqual({ paymentType: 'debt', 'bankParts.0': { $exists: true } });
   });
 });

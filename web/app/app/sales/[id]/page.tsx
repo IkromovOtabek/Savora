@@ -7,7 +7,7 @@ import { getTenantSession } from '@/lib/tenantSession';
 import { isImeiEnabled } from '@/lib/features';
 import { fmtDate, fmtDateTime, fmtMoney } from '@/lib/format';
 import { computeDebtInfo } from '@/lib/debts';
-import { bankPartsTotal, isBankNasiya, saleBankParts } from '@/lib/bankCredit';
+import { bankPartsTotal, isBankDebt, isBankNasiya, saleBankParts } from '@/lib/bankCredit';
 import { computeInstallmentPlan } from '@/lib/installment';
 import InstallmentPlan from '@/components/tenant/InstallmentPlan';
 import SalePaymentForm from '@/components/tenant/SalePaymentForm';
@@ -73,11 +73,15 @@ export default async function SaleDetailPage({
   const bankParts = saleBankParts(sale);
   // Bank krediti + nasiya: banklar qismi Kredit kassada, sotuv qoldig'i — faqat mijoz nasiyasi
   const bankNasiya = isBankNasiya(sale);
-  const customerTotal = bankNasiya ? Math.max(0, sale.totalAmount - bankPartsTotal(bankParts)) : sale.totalAmount;
+  // Bank krediti + qarz: banklar qismi Kredit kassada, sotuv qoldig'i — mijozning bir martalik qarzi
+  const bankDebt = isBankDebt(sale);
+  const bankSplit = bankNasiya || bankDebt;
+  const customerTotal = bankSplit ? Math.max(0, sale.totalAmount - bankPartsTotal(bankParts)) : sale.totalAmount;
+  const payLabel = bankNasiya ? d.sales.bankNasiya : bankDebt ? d.sales.bankDebt : d.sales.paymentTypesFull[sale.paymentType];
   const canCancel = perms.has('sale.cancel') && sale.status !== 'cancelled';
   // Qisman qaytarish — bir nechta dona sotilganda (bank kreditida emas)
   // Qisman qaytarish: qaytarishdan keyin ham nimadir qolishi kerak (dona — 2+, kg — 0,001 dan ko'p)
-  const canReturn = perms.has('sale.return') && sale.status !== 'cancelled' && sale.paymentType !== 'bank_credit' && !bankNasiya && (sale.productSnapshot.saleQuantity ?? 1) > qtyStep(sale.productSnapshot.unit);
+  const canReturn = perms.has('sale.return') && sale.status !== 'cancelled' && sale.paymentType !== 'bank_credit' && !bankSplit && (sale.productSnapshot.saleQuantity ?? 1) > qtyStep(sale.productSnapshot.unit);
   const returns = sale.returns ?? [];
 
   // Nasiya (variant) sotuvi bo'lsa — oylik to'lov jadvali
@@ -110,7 +114,7 @@ export default async function SaleDetailPage({
           <p className="t-page-sub">{fmtDateTime(sale.createdAt!)} · {sale.soldBy}</p>
           <div className="sl-head-pills">
             <span className={`sl-pill sl-pill--${sale.status}`}><span className="sl-dot" />{d.sales.saleStatus[sale.status]}</span>
-            <span className={`sl-pill sl-pill--${sale.paymentType}`}>{bankNasiya ? d.sales.bankNasiya : d.sales.paymentTypesFull[sale.paymentType]}</span>
+            <span className={`sl-pill sl-pill--${sale.paymentType}`}>{payLabel}</span>
           </div>
         </div>
         <div className="t-page-actions sl-head-actions">
@@ -295,12 +299,12 @@ export default async function SaleDetailPage({
               <li><span>{d.common.product}</span><Link href={`/app/products/${sale.productId}`}>{sale.productSnapshot.name}</Link></li>
               {sale.productSnapshot.imei && <li><span>{isImeiEnabled(org) ? k.imeiCode : d.stock.detail.code}</span><code>{sale.productSnapshot.imei}</code></li>}
               {qty !== 1 && <li><span>{k.qty}</span><span>{qtyWithUnit(qty, sale.productSnapshot.unit, d.stock.fields.units)}</span></li>}
-              <li><span>{d.sales.paymentType}</span><span>{bankNasiya ? d.sales.bankNasiya : d.sales.paymentTypesFull[sale.paymentType]}</span></li>
+              <li><span>{d.sales.paymentType}</span><span>{payLabel}</span></li>
               {/* Bank krediti: har bank o'z ulushi bilan (bir nechta bo'lishi mumkin) */}
               {bankParts.map((p) => (
                 <li key={p.bankName}><span>{k.bank}</span><span>{p.bankName} · {fmtMoney(p.amount)} {d.common.sum}</span></li>
               ))}
-              {(isBank || bankNasiya) && !cancelled && (
+              {(isBank || bankSplit) && !cancelled && (
                 <li><span /><Link href="/app/kredit-kassa">{k.bankMoneyInKassa} →</Link></li>
               )}
               {bankNasiya && <li><span>{d.sales.newSale.restInstallment}</span><span>{fmtMoney(customerTotal - (sale.downPayment ?? 0))} {d.common.sum}</span></li>}
