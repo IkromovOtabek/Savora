@@ -42,9 +42,14 @@ def frames_db(x, fr=int(0.02 * SR)):
     return 10 * np.log10(np.mean(f ** 2, axis=1) + 1e-12), fr
 
 
-proj = Path(sys.argv[1])
+# --src vo/eleven: boshqa manba (masalan ElevenLabs); --chain toza: studiya TTS uchun yengil zanjir (EQ/kompressiya kam)
+CLEAN = "highpass=f=70,deesser=i=0.3,acompressor=threshold=-22dB:ratio=2:attack=6:release=90:makeup=1"
+argv = sys.argv[1:]
+proj = Path(argv[0])
 cfg = json.loads((proj / "voice_slots.json").read_text(encoding="utf-8"))
-src_dir, vo = proj / "vo" / "jonli", proj / "vo"
+src_dir, vo = proj / (argv[argv.index("--src") + 1] if "--src" in argv else "vo/jonli"), proj / "vo"
+if "--chain" in argv and argv[argv.index("--chain") + 1] == "toza":
+    BROADCAST = CLEAN
 work = src_dir / "_ish"
 work.mkdir(exist_ok=True)
 tts_backup = vo / "tts_oxirgi"
