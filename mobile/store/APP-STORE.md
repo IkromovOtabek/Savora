@@ -6,14 +6,15 @@
 
 ## 1. Til va umumiy sozlamalar
 
-App Store Connect'da **o'zbek tili yo'q**. O'zbekiston do'konida sahifa **English (U.K.)** tilida ko'rsatiladi
-(boshqa til tanlab bo'lmaydi). Shuning uchun:
+App Store Connect'da **o'zbek tili yo'q**. O'zbekiston do'koni English (U.K.) ni ko'rsatadi, u bo'lmasa — ilovaning asosiy tilini.
+«Savora» nomi **ingliz tilida boshqa dasturchida band** (en-GB qo'shishda 409 DUPLICATE.DIFFERENT_ACCOUNT), rus tilida esa bizda.
+Shuning uchun (2026-11-21 API orqali o'rnatildi):
 
-- **Primary Language:** English (U.K.)
-- English (U.K.) maydonlariga quyidagi **o'zbekcha** matnlarni qo'ying — O'zbekistondagi foydalanuvchi aynan shuni ko'radi.
+- **Primary Language:** Русский (ru) — nom «Savora» shu tilda saqlanadi; en-GB qo'shilmaydi.
+- ru maydonlariga quyidagi **o'zbekcha** matnlar yozilgan — O'zbekistondagi foydalanuvchi aynan shuni ko'radi.
 - **Category:** Business (asosiy), Productivity (qo'shimcha)
 - **Price:** Free (bepul)
-- **Availability:** Uzbekistan (xohlasangiz, Qozog'iston, Qirg'iziston, Tojikiston, Rossiya ham)
+- **Availability:** faqat Uzbekistan (yangi hududlarga avtomatik qo'shilmaydi)
 - **Age Rating:** barcha savollarga «None / No» → **4+**
 - **Copyright:** `2026 <Ism Familiya yoki kompaniya>`
 
@@ -99,7 +100,7 @@ Main flows to test: Sell tab (scan a barcode with the camera or pick a product),
 
 Savora Market (the first screen when not signed in) is a marketplace of physical goods from local shops.
 Buyers place an order and pay the shop in person on pickup or delivery — no payments are processed in the app.
-Demo buyer account: phone <BUYER_PHONE>, password <BUYER_PASSWORD>.
+A buyer account can be created in the app for free: Savora Market → person icon (top) → Sign up (phone number + password).
 
 Account deletion:
 - Business owner: Profile → Delete account.
