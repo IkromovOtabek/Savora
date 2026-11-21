@@ -205,6 +205,10 @@ export const uz = {
         invalid: "Telefon yoki parol noto'g'ri.",
         rateLimited: "Urinishlar ko'p. Birozdan keyin qayta urinib ko'ring.",
         blocked: 'Akkaunt bloklangan.',
+        /** Telegram orqali ro'yxatdan o'tish (lib/tgSignup.ts) */
+        tgNotConfigured: "Telegram orqali ro'yxatdan o'tish hozircha ishlamayapti. Raqam bilan davom eting.",
+        tgExpired: "Telegram tasdig'i eskirgan. «Telegram orqali» tugmasini qaytadan bosing.",
+        tgPhoneMismatch: "Telefon raqam Telegram'da tasdiqlangan raqamga mos emas.",
       },
     },
     orders: {
@@ -445,6 +449,9 @@ export const ru: typeof uz = {
         invalid: 'Неверный телефон или пароль.',
         rateLimited: 'Слишком много попыток. Попробуйте позже.',
         blocked: 'Аккаунт заблокирован.',
+        tgNotConfigured: 'Регистрация через Telegram пока недоступна. Продолжите с номером телефона.',
+        tgExpired: 'Подтверждение Telegram устарело. Нажмите «Через Telegram» ещё раз.',
+        tgPhoneMismatch: 'Номер не совпадает с номером, подтверждённым в Telegram.',
       },
     },
     orders: {

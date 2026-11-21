@@ -1,11 +1,26 @@
 import React, { createContext, useContext, useEffect, useRef, useState, useCallback } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as SecureStore from 'expo-secure-store';
 import { api, setToken, clearToken, getToken, setUnauthorizedHandler, ApiError, errMsg } from './api';
 import { unregisterPush } from './push';
 import { clearQueryCache } from './queryClient';
 
 /** Oxirgi muvaffaqiyatli profil — internetsiz ochilganda ilova (oflayn sotuv) ishlashi uchun */
 const ME_CACHE_KEY = 'savora_me_cache';
+/**
+ * Egasi filialga kirganda — uning o'z tokeni shu yerda turadi («Bosh hisobga qaytish» uchun).
+ * Bo'lsa: hozirgi sessiya — filial hisobi, egasi orqali ochilgan.
+ */
+const OWNER_TOKEN_KEY = 'savora_owner_token';
+async function getOwnerToken(): Promise<string | null> {
+  try { return await SecureStore.getItemAsync(OWNER_TOKEN_KEY); } catch { return null; }
+}
+async function setOwnerToken(t: string | null): Promise<void> {
+  try {
+    if (t) await SecureStore.setItemAsync(OWNER_TOKEN_KEY, t);
+    else await SecureStore.deleteItemAsync(OWNER_TOKEN_KEY);
+  } catch { /* saqlanmasa — qaytish o'rniga qayta kirish kerak bo'ladi */ }
+}
 /** Ochilishda profil javobini kutish chegarasi (keshdagi profil bo'lsa) */
 const STARTUP_WAIT_MS = 3000;
 const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
@@ -56,6 +71,8 @@ export type OnboardingAnswers = Record<string, string | number | boolean>;
 export interface RegisterInput {
   name: string; phone?: string; businessType: string; username: string; password: string; acceptTerms: true;
   onboarding?: { answers: OnboardingAnswers; sampleData: boolean };
+  /** Telegram orqali tasdiqlangan raqam chiptasi — server telefonni shundan oladi va egasining Telegram'ini bog'laydi */
+  tgTicket?: string;
 }
 
 interface AuthState {
@@ -66,6 +83,12 @@ interface AuthState {
   /** Profil serverdan emas, qurilmadagi keshdan (internet yo'q) */
   fromCache: boolean;
   login: (username: string, password: string, slug?: string) => Promise<void>;
+  /** Egasi filial hisobiga o'tgan (bosh hisob tokeni telefonda saqlangan) */
+  inBranch: boolean;
+  /** Egasi parolsiz filialga kiradi (filialdan filialga ham — egasi tokeni bilan) */
+  enterBranch: (branchId: string) => Promise<void>;
+  /** Filialdan bosh hisobga qaytish */
+  leaveBranch: () => Promise<void>;
   /** Ilova ichida bepul do'kon ochish — muvaffaqiyatda darhol kiradi */
   register: (input: RegisterInput) => Promise<void>;
   logout: () => Promise<void>;
@@ -79,6 +102,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [me, setMe] = useState<MeResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [fromCache, setFromCache] = useState(false);
+  const [inBranch, setInBranch] = useState(false);
   /** Serverdan profil javobi (muvaffaqiyat yoki aniq rad) olindimi — ochilishdagi kesh shundan keyin qo'yilmaydi */
   const answered = useRef(false);
 
@@ -112,6 +136,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     setUnauthorizedHandler(() => { setMe(null); setError(null); void cacheMe(null); void clearQueryCache(); });
+    void getOwnerToken().then((t) => setInBranch(!!t));
     (async () => {
       const done = refresh();
       // Telefonda oxirgi profil bo'lsa, ochilishda serverni STARTUP_WAIT_MS dan ortiq kutmaymiz: «ulangan, lekin
@@ -134,12 +159,44 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const res = await api<{ token: string }>('/api/mobile/auth/login', {
       method: 'POST', auth: false, body: { slug, username, password },
     });
+    // Yangi kirish — oldingi «egasi filialda» holati (eskirgan token) qolmasin
+    await setOwnerToken(null);
+    setInBranch(false);
     await setToken(res.token);
     await refresh();
   }, [refresh]);
 
+  /** Hisobni almashtirish: eski hisob keshi (sotuvlar, qarzdorlar…) yangisida ko'rinmasin */
+  const switchTo = useCallback(async (token: string) => {
+    await setToken(token);
+    void cacheMe(null);
+    await clearQueryCache();
+    await refresh();
+  }, [refresh]);
+
+  const enterBranch = useCallback(async (branchId: string) => {
+    // Filialda turib boshqa filialga o'tish ham egasi tokeni bilan (filial tokeni admin emas)
+    const owner = (await getOwnerToken()) ?? (await getToken());
+    if (!owner) throw new ApiError('Avtorizatsiya kerak.', 401);
+    const res = await api<{ token: string }>('/api/mobile/auth/branch', { method: 'POST', token: owner, body: { branchId } });
+    await setOwnerToken(owner);
+    setInBranch(true);
+    await switchTo(res.token);
+  }, [switchTo]);
+
+  const leaveBranch = useCallback(async () => {
+    const owner = await getOwnerToken();
+    await setOwnerToken(null);
+    setInBranch(false);
+    // Egasi tokeni yo'q/eskirgan bo'lsa — refresh 401 oladi va kirish ekraniga chiqaradi
+    if (owner) await switchTo(owner);
+    else await refresh();
+  }, [switchTo, refresh]);
+
   const register = useCallback(async (input: RegisterInput) => {
     const res = await api<{ token: string }>('/api/mobile/auth/register', { method: 'POST', auth: false, body: input });
+    await setOwnerToken(null);
+    setInBranch(false);
     await setToken(res.token);
     await refresh();
   }, [refresh]);
@@ -148,6 +205,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Avval serverdan qurilmani o'chiramiz (token hali amal qiladi) — chiqqan telefonga push bormasin
     await unregisterPush();
     await clearToken();
+    await setOwnerToken(null);
+    setInBranch(false);
     void cacheMe(null);
     // O'qish keshi (sotuvlar, qarzdorlar…) telefonda qolmasin; oflayn POS navbati foydalanuvchi kalitida alohida
     await clearQueryCache();
@@ -155,7 +214,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   return (
-    <AuthContext.Provider value={{ loading, me, error, fromCache, login, register, logout, refresh }}>
+    <AuthContext.Provider value={{ loading, me, error, fromCache, login, register, logout, refresh, inBranch, enterBranch, leaveBranch }}>
       {children}
     </AuthContext.Provider>
   );

@@ -15,6 +15,23 @@ import { isLocale, type Locale } from '@/lib/i18n/config';
 import { tr } from '@/lib/i18n/fmt';
 import { parseOnboardingInput, questionViews } from '@/lib/onboardingQuestions';
 import { applyOnboardingSetup } from '@/lib/onboardingSetup';
+import { buyerPhoneKey } from '@/lib/ecom/group';
+import { consumeTgTicket, verifyTgTicket, type TgTicket } from '@/lib/tgSignup';
+import { logError } from '@/lib/logger';
+
+/**
+ * Telegram orqali ro'yxatdan o'tganda: egasining Telegram'i shu hisobga bog'lanadi (Mini App avtomatik kiradi).
+ * Bitta Telegram = bitta Savora user — boshqa yozuvdagi bog'lanish olib tashlanadi (webhook handleUserLink kabi).
+ */
+async function linkOwnerTelegram(tg: TgTicket, a: { dbName: string; userId: string; organizationId: string; orgSlug: string; username: string }) {
+  try {
+    const { TelegramAccount } = await getMasterModels();
+    await TelegramAccount.updateMany({ telegramUserId: tg.tg }, { $unset: { telegramUserId: '' } });
+    await TelegramAccount.create({ ...a, telegramUserId: tg.tg, linkedAt: new Date() });
+  } catch (e) {
+    logError('register: telegram link failed', e);
+  }
+}
 
 /**
  * Ro'yxatdan o'tish formasi uchun (login'siz) — ?lang=uz|ru:
@@ -53,9 +70,20 @@ export async function POST(req: Request) {
     acceptTerms: z.literal(true, { message: "Oferta va maxfiylik siyosatiga rozilik bering." }),
     /** Ro'yxatdan o'tish ustasi: { answers?: {...}, sampleData?: boolean } — tur bo'yicha alohida tekshiriladi */
     onboarding: z.unknown().optional(),
+    /** Telegram orqali tasdiqlangan raqam chiptasi (lib/tgSignup.ts) — telefon shu chiptadan olinadi */
+    tgTicket: z.string().max(2000).optional(),
   }), { badJson: "Noto'g'ri so'rov.", fallback: "Ma'lumotlarni tekshiring." });
   if (!input.ok) return NextResponse.json({ error: input.error }, { status: 400 });
-  const { name, username, password, phone } = input.data;
+  const { name, username, password } = input.data;
+  let phone = input.data.phone;
+  let tg: TgTicket | null = null;
+  if (input.data.tgTicket) {
+    const t = getDictionary(requestLocale(req)).ecom.market.auth.errors;
+    tg = await verifyTgTicket(input.data.tgTicket);
+    if (!tg) return NextResponse.json({ error: t.tgExpired, code: 'tgExpired' }, { status: 400 });
+    if (phone && buyerPhoneKey(phone) !== tg.p) return NextResponse.json({ error: t.tgPhoneMismatch, code: 'tgPhoneMismatch' }, { status: 400 });
+    phone = tg.p;
+  }
   const businessType = parseBusinessType(
     input.data.businessType && (BUSINESS_TYPE_IDS as readonly string[]).includes(input.data.businessType) ? input.data.businessType : 'general',
   );
@@ -96,6 +124,11 @@ export async function POST(req: Request) {
     const { User } = await getTenantModels(org.dbName);
     const user = await User.findOne({ username: adminUsername, role: 'admin' }).lean();
     if (!user) return NextResponse.json({ error: "Do'kon ochildi, lekin kirib bo'lmadi. Login bilan kiring." }, { status: 500 });
+
+    if (tg) {
+      await consumeTgTicket(tg);
+      await linkOwnerTelegram(tg, { dbName: org.dbName, userId: String(user._id), organizationId: String(org._id), orgSlug: org.slug, username: user.username });
+    }
 
     const token = await createMobileToken({
       id: String(user._id),

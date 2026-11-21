@@ -89,7 +89,11 @@ export type BuyerAuthResult =
   | { ok: true; buyer: { _id: Types.ObjectId; name: string; phone: string; tokenVersion: number; address?: string } }
   | { ok: false; error: BuyerAuthError };
 
-export async function registerBuyer(input: { name: unknown; phone: unknown; password: unknown }, ip: string): Promise<BuyerAuthResult> {
+/** `telegramUserId` — chipta (lib/tgSignup.ts) route'da tekshirilgan bo'lsa; telefon o'sha chiptadagi raqam */
+export async function registerBuyer(
+  input: { name: unknown; phone: unknown; password: unknown; telegramUserId?: string },
+  ip: string,
+): Promise<BuyerAuthResult> {
   const rl = await hitRateLimit(`buyer-reg-ip:${ip}`, 10, 60 * 60_000);
   if (!rl.ok) return { ok: false, error: 'rateLimited' };
   const name = String(input.name ?? '').trim().replace(/\s+/g, ' ');
@@ -102,7 +106,10 @@ export async function registerBuyer(input: { name: unknown; phone: unknown; pass
   const { Buyer } = await getMasterModels();
   if (await Buyer.exists({ phone })) return { ok: false, error: 'exists' };
   try {
-    const b = await Buyer.create({ name, phone, password: await bcrypt.hash(password, 10), lastLoginAt: new Date() });
+    const b = await Buyer.create({
+      name, phone, password: await bcrypt.hash(password, 10), lastLoginAt: new Date(),
+      ...(input.telegramUserId ? { telegramUserId: input.telegramUserId } : {}),
+    });
     return { ok: true, buyer: { _id: b._id, name: b.name, phone: b.phone, tokenVersion: b.tokenVersion ?? 0 } };
   } catch (e) {
     if ((e as { code?: number })?.code === 11000) return { ok: false, error: 'exists' };

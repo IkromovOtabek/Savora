@@ -2,14 +2,14 @@ import { useState } from 'react';
 import { View, Pressable, Alert, ActivityIndicator, StyleSheet } from 'react-native';
 import { Text } from '@/components/ui/Text';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import * as Linking from 'expo-linking';
 import { API_URL, errMsg } from '@/lib/api';
 import { useAuth, type OnboardingAnswers } from '@/lib/auth';
 import { useResource } from '@/lib/hooks';
 import { useTheme, useStyles, type Palette } from '@/lib/theme';
 import { useI18n, tr } from '@/lib/i18n';
-import { uzPhone9, uzPhoneE164 } from '@/lib/phone';
+import { formatUzPhoneInput, uzPhone9, uzPhoneE164 } from '@/lib/phone';
 import { Screen, Group, Field, PhoneField, Button, Switch, IconSquare, BrandMark, SegmentedControl, Chips, type IconName } from '@/components/ui';
 
 interface BType { key: string; label: string; description: string }
@@ -57,6 +57,10 @@ const BIZ_ICON: Record<string, { icon: IconName; sq: keyof Palette['sq'] }> = {
 export default function Register() {
   const router = useRouter();
   const { register } = useAuth();
+  // Bozor → Ro'yxatdan o'tish → Biznes → Telegram: raqam botda tasdiqlangan (chipta serverda tekshiriladi)
+  const params = useLocalSearchParams<{ tg?: string; tgPhone?: string }>();
+  const tgTicket = typeof params.tg === 'string' && params.tg ? params.tg : undefined;
+  const tgPhone = tgTicket && typeof params.tgPhone === 'string' ? formatUzPhoneInput(params.tgPhone) : '';
   const { c } = useTheme();
   const st = useStyles(styles);
   const { d, locale } = useI18n();
@@ -65,7 +69,7 @@ export default function Register() {
 
   const [step, setStep] = useState(1);
   const [name, setName] = useState('');
-  const [phone, setPhone] = useState('');
+  const [phone, setPhone] = useState(tgPhone);
   const [biz, setBiz] = useState('general');
   // Ustaning javoblari (tur almashsa — tozalanadi, standart javoblar qo'llanadi); son maydonlari matn holida
   const [answers, setAnswers] = useState<OnboardingAnswers>({});
@@ -123,6 +127,7 @@ export default function Register() {
         name: name.trim(), phone: uzPhoneE164(phone), businessType: biz, username, password, acceptTerms: true,
         // Faqat ko'rinadigan savollar javobi; qolganini server standart javob bilan to'ldiradi
         onboarding: { answers: Object.fromEntries(visible.map((q) => [q.key, current[q.key]])), sampleData: sample },
+        ...(tgTicket ? { tgTicket } : {}),
       });
       router.replace('/(tabs)');
     } catch (e) {
@@ -188,8 +193,11 @@ export default function Register() {
               label={k.phone}
               value={phone}
               onChangeText={setPhone}
+              editable={!tgTicket}
               textContentType="telephoneNumber"
               autoComplete="tel"
+              hint={tgTicket ? k.phoneVerified : undefined}
+              right={tgTicket ? <Ionicons name="checkmark-circle" size={20} color={c.ok} /> : undefined}
               error={show(1, errs.phone)}
             />
           </View>

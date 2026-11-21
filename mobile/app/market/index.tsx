@@ -10,7 +10,8 @@ import { useMarketDict } from '@/lib/marketI18n';
 
 /**
  * Ilova ochilganda (biznes sessiyasi yo'q) — Savora Market katalogi.
- * Do'kon egasi panelga «Biznes uchun kirish» havolasi orqali kiradi.
+ * Kirish/ro'yxatdan o'tish — sarlavhadagi profil tugmasi orqali (yagona kirish: telefon yoki login).
+ * Biznes sessiyasi bo'lsa — panelga qaytish havolasi.
  */
 export default function MarketHome() {
   const m = useMarketDict();
@@ -18,18 +19,18 @@ export default function MarketHome() {
   const { me } = useAuth();
   const router = useRouter();
 
-  const business = (
+  const business = me ? (
     <Pressable
-      onPress={() => (me ? router.replace('/(tabs)') : router.push('/login'))}
+      onPress={() => router.replace('/(tabs)')}
       hitSlop={6}
       accessibilityRole="link"
       style={({ pressed }) => [s.biz, { backgroundColor: c.tintSoft }, pressed && { opacity: 0.6 }]}
     >
       <Ionicons name="briefcase-outline" size={16} color={c.tint} />
-      <Text style={[s.bizT, { color: c.tint }]} numberOfLines={1}>{me ? m.businessPanel : m.forBusiness}</Text>
+      <Text style={[s.bizT, { color: c.tint }]} numberOfLines={1}>{m.businessPanel}</Text>
       <Ionicons name="chevron-forward" size={15} color={c.tint} />
     </Pressable>
-  );
+  ) : null;
 
   return <Catalog title={m.brand} subtitle={m.tagline} left={<BrandMark size={40} />} extra={business} />;
 }

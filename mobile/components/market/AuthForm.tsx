@@ -3,66 +3,78 @@ import { View, Pressable, StyleSheet, type TextInput } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Text } from '@/components/ui/Text';
-import { Screen, NavBar, LargeTitle, Group, Field, PhoneField, Button, InlineError } from '@/components/ui';
-import { errMsg } from '@/lib/api';
+import { Screen, NavBar, LargeTitle, Group, Field, Button, InlineError } from '@/components/ui';
+import { ApiError, errMsg } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { useBuyer } from '@/lib/buyer';
 import { useTheme } from '@/lib/theme';
 import { useDict } from '@/lib/i18n';
-import { uzPhone9, uzPhoneE164 } from '@/lib/phone';
+import { loginIdKind } from '@/lib/phone';
 import { useMarketDict } from '@/lib/marketI18n';
 import { safeNext } from '@/lib/market';
 
 /**
- * Xaridor kirishi / ro'yxatdan o'tishi (ism + telefon + parol). Muvaffaqiyatda — kelgan joyga
- * (`next` — masalan savat; bo'lmasa orqaga). Server xato matni (tilga mos) maydonlar ostida ko'rinadi.
+ * Yagona kirish: «Telefon raqam yoki login» + parol. Telefon — xaridor akkaunti (topilmasa raqamli biznes logini
+ * sifatida ham sinanadi), harfli login — biznes paneli. Xaridor — kelgan joyga (`next`, masalan savat),
+ * biznes — o'z paneliga. Server xato matni (tilga mos) forma ostida ko'rinadi.
  */
-export function AuthForm({ mode }: { mode: 'login' | 'register' }) {
+export function LoginForm() {
   const m = useMarketDict();
   const a = m.auth;
   const d = useDict();
   const { c } = useTheme();
   const router = useRouter();
-  const { me } = useAuth();
+  const auth = useAuth();
   const buyer = useBuyer();
   const { next } = useLocalSearchParams<{ next?: string }>();
   const target = safeNext(next);
-  const reg = mode === 'register';
 
-  const [name, setName] = useState('');
-  const [phone, setPhone] = useState('');
+  const [loginId, setLoginId] = useState('');
   const [password, setPassword] = useState('');
   const [showPass, setShowPass] = useState(false);
   const [tried, setTried] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const phoneRef = useRef<TextInput>(null);
   const passRef = useRef<TextInput>(null);
 
+  const id = loginIdKind(loginId);
   const errs = {
-    name: reg && (name.trim().length < 2 || name.trim().length > 80) ? a.errName : null,
-    phone: !uzPhone9(phone) ? a.errPhone : null,
-    password: reg ? (password.length < 6 ? a.errPassword : null) : (!password ? a.errPassword : null),
+    loginId: !id ? a.errLoginId : null,
+    password: !password ? a.errPassword : null,
   };
   const show = (e: string | null) => (tried ? e : null);
 
   const back = () => (router.canGoBack() ? router.back() : router.replace('/market'));
 
-  function done() {
+  function buyerDone() {
     // Savatdan kelgan bo'lsa — savatga (oraliq kirish ekranlari yopiladi), aks holda orqaga
     if (target) router.dismissTo(target);
     else back();
   }
 
+  async function businessLogin(username: string) {
+    await auth.login(username, password);
+    router.replace('/(tabs)');
+  }
+
   async function submit() {
     setTried(true);
-    if (errs.name || errs.phone || errs.password) return;
+    if (!id || errs.password) return;
     setBusy(true);
     setError(null);
     try {
-      if (reg) await buyer.register(name.trim(), uzPhoneE164(phone), password);
-      else await buyer.login(uzPhoneE164(phone), password);
-      done();
+      if (id.kind === 'login') {
+        await businessLogin(id.login);
+      } else {
+        try {
+          await buyer.login(id.phone, password);
+          buyerDone();
+        } catch (e) {
+          // Xaridor topilmadi — raqamdan iborat biznes logini bo'lishi mumkin; u ham bo'lmasa — xaridor xatosi
+          if (!(e instanceof ApiError && e.status === 401)) throw e;
+          try { await businessLogin(id.login); } catch { throw e; }
+        }
+      }
     } catch (e) {
       setError(errMsg(e));
     } finally {
@@ -70,42 +82,26 @@ export function AuthForm({ mode }: { mode: 'login' | 'register' }) {
     }
   }
 
-  const swap = () => {
-    const q = target ? `?next=${encodeURIComponent(target)}` : '';
-    router.replace(`${reg ? '/market/login' : '/market/register'}${q}`);
-  };
+  const toRegister = () => router.replace(`/market/register${target ? `?next=${encodeURIComponent(target)}` : ''}`);
 
   return (
     <Screen keyboard header={<NavBar onBack={back} />} gap={16}>
-      <LargeTitle title={reg ? a.registerTitle : a.loginTitle} subtitle={a.sub} />
+      <LargeTitle title={a.loginTitle} subtitle={a.loginSub} />
 
       <Group>
         <View style={{ padding: 16, gap: 14 }}>
-          {reg ? (
-            <Field
-              label={a.name}
-              value={name}
-              onChangeText={setName}
-              placeholder={a.namePh}
-              autoCapitalize="words"
-              textContentType="name"
-              autoComplete="name"
-              maxLength={80}
-              returnKeyType="next"
-              onSubmitEditing={() => phoneRef.current?.focus()}
-              error={show(errs.name)}
-            />
-          ) : null}
-          <PhoneField
-            ref={phoneRef}
-            label={a.phone}
-            value={phone}
-            onChangeText={setPhone}
-            textContentType="telephoneNumber"
-            autoComplete="tel"
+          <Field
+            label={a.loginId}
+            value={loginId}
+            onChangeText={setLoginId}
+            placeholder={a.loginIdPh}
+            autoCapitalize="none"
+            textContentType="username"
+            autoComplete="username"
+            maxLength={40}
             returnKeyType="next"
             onSubmitEditing={() => passRef.current?.focus()}
-            error={show(errs.phone)}
+            error={show(errs.loginId)}
           />
           <Field
             ref={passRef}
@@ -115,12 +111,11 @@ export function AuthForm({ mode }: { mode: 'login' | 'register' }) {
             placeholder={a.passwordPh}
             secureTextEntry={!showPass}
             autoCapitalize="none"
-            textContentType={reg ? 'newPassword' : 'password'}
-            autoComplete={reg ? 'new-password' : 'password'}
-            maxLength={100}
+            textContentType="password"
+            autoComplete="password"
+            maxLength={128}
             returnKeyType="go"
             onSubmitEditing={submit}
-            hint={reg ? a.passwordHint : undefined}
             error={show(errs.password)}
             right={
               <Pressable onPress={() => setShowPass((v) => !v)} hitSlop={12} accessibilityLabel={showPass ? d.login.hidePass : d.login.showPass}>
@@ -133,19 +128,11 @@ export function AuthForm({ mode }: { mode: 'login' | 'register' }) {
 
       {error ? <InlineError message={error} /> : null}
 
-      <Button title={reg ? a.register : a.login} size="lg" full loading={busy} onPress={submit} />
+      <Button title={a.login} size="lg" full loading={busy} onPress={submit} />
 
-      <Pressable onPress={swap} hitSlop={8} accessibilityRole="link" style={({ pressed }) => [s.link, pressed && { opacity: 0.6 }]}>
-        <Text style={[s.linkT, { color: c.tint }]}>{reg ? a.haveAccount : a.noAccount}</Text>
+      <Pressable onPress={toRegister} hitSlop={8} accessibilityRole="link" style={({ pressed }) => [s.link, pressed && { opacity: 0.6 }]}>
+        <Text style={[s.linkT, { color: c.tint }]}>{a.noAccount}</Text>
       </Pressable>
-
-      {/* Do'kon egasi — biznes paneliga (alohida akkaunt) */}
-      {!me ? (
-        <Pressable onPress={() => router.push('/login')} hitSlop={8} accessibilityRole="link" style={({ pressed }) => [s.link, pressed && { opacity: 0.6 }]}>
-          <Ionicons name="briefcase-outline" size={16} color={c.ink3} />
-          <Text style={[s.linkT, { color: c.ink3, fontWeight: '500' }]}>{a.businessHint}</Text>
-        </Pressable>
-      ) : null}
     </Screen>
   );
 }

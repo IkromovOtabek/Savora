@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { sendTelegramTo, sendTelegramWebApp, sendTelegramReplyMenu, tgEscape } from '@/lib/telegram';
+import { sendTelegramTo, sendTelegramWebApp, sendTelegramReplyMenu, sendTelegramContactRequest, tgEscape } from '@/lib/telegram';
+import { TG_SIGNUP_PREFIX, botStartSignup, botContact, type BotReply } from '@/lib/tgSignup';
 import { getMasterModels } from '@/lib/masterDb';
 import { safeEqual, verifyOrgLinkToken } from '@/lib/security';
 import { logError, logInfo } from '@/lib/logger';
@@ -88,6 +89,13 @@ async function handleUserLink(telegramUserId: string, code: string): Promise<str
   }
 }
 
+/** Ro'yxatdan o'tish oqimi javobi: raqam tugmasi yoki doimiy menyuni tiklash */
+async function sendBotReply(chatId: string, r: BotReply): Promise<void> {
+  if (r.askContact) await sendTelegramContactRequest(chatId, r.text);
+  else if (r.restoreMenu) await sendTelegramReplyMenu(chatId, r.text, MINI_APP_URL);
+  else await sendTelegramTo(chatId, r.text);
+}
+
 export async function POST(req: NextRequest) {
   if (!isAuthenticWebhook(req)) {
     recordSecurityEvent('telegram_forbidden', { ...requestMeta(req.headers), zone: 'api', path: '/api/telegram/webhook' });
@@ -102,6 +110,7 @@ export async function POST(req: NextRequest) {
     const chatType: string = body?.message?.chat?.type ?? '';
     const fromId = body?.message?.from?.id;
     const text: string = body?.message?.text ?? '';
+    const contact = body?.message?.contact;
 
     const WELCOME =
       'Savora — do\'kon boshqaruv tizimi. Ilovani ochish uchun <b>“🚀 Savora’ni ochish”</b> tugmasini bosing.\n\nAgar "hisob bog\'lanmagan" chiqsa: panel → Kabinet → "Telegram hisobini bog\'lash".';
@@ -117,6 +126,13 @@ export async function POST(req: NextRequest) {
           const reply = await handleLink(chatId, linkToken);
           await sendTelegramTo(String(chatId), reply);
         }
+      } else if (param.startsWith(TG_SIGNUP_PREFIX) && fromId) {
+        // Ilovada ro'yxatdan o'tish (lib/tgSignup.ts) — raqam tugmasi faqat shaxsiy chatda ishlaydi
+        if (chatType !== 'private') {
+          await sendTelegramTo(String(chatId), 'Ro\'yxatdan o\'tish faqat bot bilan shaxsiy chatda ishlaydi.');
+        } else {
+          await sendBotReply(String(chatId), await botStartSignup(param.slice(TG_SIGNUP_PREFIX.length), String(fromId), String(chatId)));
+        }
       } else if (param.startsWith('lu_') && fromId) {
         const code = param.slice('lu_'.length);
         const reply = await handleUserLink(String(fromId), code);
@@ -125,6 +141,9 @@ export async function POST(req: NextRequest) {
         // Boshlang'ich /start — doimiy menyu (Savora'ni ochish + Boshlash)
         await sendTelegramReplyMenu(String(chatId), WELCOME, MINI_APP_URL);
       }
+    } else if (chatId && contact && fromId && chatType === 'private') {
+      const reply = await botContact(String(fromId), contact);
+      if (reply) await sendBotReply(String(chatId), reply);
     } else if (chatId && text.trim() === 'Boshlash') {
       await sendTelegramReplyMenu(String(chatId), WELCOME, MINI_APP_URL);
     }

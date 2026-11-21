@@ -80,6 +80,35 @@ export async function sendTelegramWebApp(
  * Doimiy pastki menyu (reply keyboard): "Savora'ni ochish" (web_app) + "Boshlash".
  * Bot ochilganda foydalanuvchi shu tugmalardan foydalanadi.
  */
+/**
+ * «📱 Raqamni yuborish» tugmasi bilan xabar (request_contact — faqat shaxsiy chatda ishlaydi).
+ * Telegram ro'yxatdan o'tish oqimi (lib/tgSignup.ts) uchun.
+ */
+export async function sendTelegramContactRequest(chatId: string, text: string): Promise<boolean> {
+  const token = process.env.TELEGRAM_BOT_TOKEN;
+  if (!token || !chatId) return false;
+  try {
+    const res = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        chat_id: chatId,
+        text,
+        parse_mode: 'HTML',
+        reply_markup: {
+          keyboard: [[{ text: '📱 Raqamni yuborish', request_contact: true }]],
+          resize_keyboard: true,
+          one_time_keyboard: true,
+        },
+      }),
+    });
+    if (!res.ok) await warnTelegramFailure('sendMessage', res);
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
 export async function sendTelegramReplyMenu(
   chatId: string,
   text: string,

@@ -1,6 +1,6 @@
-import { AuthForm } from '@/components/market/AuthForm';
+import { LoginForm } from '@/components/market/AuthForm';
 
-/** Savora Market: xaridor kirishi (telefon + parol). */
+/** Yagona kirish: telefon (xaridor) yoki login (biznes) + parol. */
 export default function MarketLogin() {
-  return <AuthForm mode="login" />;
+  return <LoginForm />;
 }

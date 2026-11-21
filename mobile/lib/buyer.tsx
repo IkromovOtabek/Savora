@@ -20,7 +20,8 @@ interface BuyerState {
   buyer: Buyer | null;
   token: string | null;
   login: (phone: string, password: string) => Promise<void>;
-  register: (name: string, phone: string, password: string) => Promise<void>;
+  /** tgTicket — Telegram orqali tasdiqlangan raqam chiptasi (POST/GET /api/mobile/auth/tg) */
+  register: (name: string, phone: string, password: string, tgTicket?: string) => Promise<void>;
   logout: () => Promise<void>;
   refresh: () => Promise<void>;
   /** Xaridor tokeni bilan so'rov; token bekor bo'lsa (401) — xaridor chiqariladi */
@@ -92,8 +93,10 @@ export function BuyerProvider({ children }: { children: React.ReactNode }) {
     await apply(r.token, r.buyer);
   }, [apply]);
 
-  const register = useCallback(async (name: string, phone: string, password: string) => {
-    const r = await api<{ token: string; buyer: Buyer }>('/api/market/auth/register', { method: 'POST', token: null, body: { name, phone, password } });
+  const register = useCallback(async (name: string, phone: string, password: string, tgTicket?: string) => {
+    const r = await api<{ token: string; buyer: Buyer }>('/api/market/auth/register', {
+      method: 'POST', token: null, body: { name, phone, password, ...(tgTicket ? { tgTicket } : {}) },
+    });
     await apply(r.token, r.buyer);
   }, [apply]);
 

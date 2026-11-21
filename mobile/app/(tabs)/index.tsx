@@ -1,5 +1,6 @@
 import { useCallback, useRef, useState } from 'react';
-import { View, StyleSheet } from 'react-native';
+import { View, Pressable, StyleSheet } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import Svg, { Defs, LinearGradient, Stop, Rect } from 'react-native-svg';
 import { Text } from '@/components/ui/Text';
 import { useFocusEffect, useRouter } from 'expo-router';
@@ -10,26 +11,26 @@ import { fmtMoney, fmtCompact, fmtDayMonth, greeting, isOverdue, isToday, payLab
 import { useDict, tr } from '@/lib/i18n';
 import {
   Screen, TopBar, IconButton, Group, GroupLink, Cell, Avatar, AmountColumn, Pill, StatCard, TileGrid, BrandMark, EmptyState, ErrorState, InlineError, Loading,
-  SegmentedControl, CacheStamp,
+  CacheStamp,
   type TileItem,
 } from '@/components/ui';
 import { NotifyBellButton } from '@/components/NotifyBellButton';
+import { PeriodSheet } from '@/components/PeriodSheet';
+import { BranchSheet } from '@/components/BranchSheet';
+import { isDayKey, fromDayKey, type HomePeriod } from '@/lib/homePeriod';
 
 interface Summary {
   inStock: number; todaySales: number; todayRevenue: number; debtTotal: number;
   /** Tanlangan davr bo'yicha (eski server javobida bo'lmasligi mumkin — unda bugungi) */
   periodSales?: number; periodRevenue?: number;
 }
-/** Web bosh sahifasi bilan bir xil davrlar (server: lib/period.ts) */
-const PERIODS = ['all', 'yesterday', 'today', 'week', 'month', 'year'] as const;
-type Period = (typeof PERIODS)[number];
 interface Sale {
   id: string; saleNo: string; product: string; customer: string | null; paymentType: string;
   totalAmount: number; remainingAmount: number; installmentMonths: number | null; dueDate: string | null;
 }
 
 export default function Home() {
-  const { me } = useAuth();
+  const { me, inBranch } = useAuth();
   const router = useRouter();
   const { c } = useTheme();
   const d = useDict();
@@ -41,7 +42,12 @@ export default function Home() {
   const canSales = can('sales.view');
 
   const [heroSize, setHeroSize] = useState({ w: 0, h: 0 });
-  const [period, setPeriod] = useState<Period>('today');
+  // Davr: preset yoki aniq kun (YYYY-MM-DD) — server lib/period.ts bilan bir xil `?p=`
+  const [period, setPeriod] = useState<HomePeriod>('today');
+  const [periodOpen, setPeriodOpen] = useState(false);
+  // Do'kon nomi → filialga kirish: egasi yoki egasi orqali ochilgan filial hisobi
+  const [branchOpen, setBranchOpen] = useState(false);
+  const canSwitchBranch = isAdmin || inBranch;
 
   // Keshdan darhol (oflayn/sekin internetda ham), fonda yangilanadi; davr almashsa — yangisi kelguncha eskisi turadi
   const sumQ = useResource<Summary>(`/api/mobile/summary?p=${period}`);
@@ -76,7 +82,9 @@ export default function Home() {
     <TopBar
       left={<BrandMark size={40} />}
       title={me?.org.name ?? 'Savora'}
-      subtitle={`${greeting()}, ${me?.user.username ?? ''}`}
+      subtitle={inBranch && me?.stockBranch ? tr(d.home.inBranch, { name: me.stockBranch.name }) : `${greeting()}, ${me?.user.username ?? ''}`}
+      onTitlePress={canSwitchBranch ? () => setBranchOpen(true) : undefined}
+      titleA11y={tr(d.home.branchSwitchA11y, { name: me?.org.name ?? 'Savora' })}
       actions={(
         <>
           {/* Bildirishnomalar (mijoz chaqiruvi, kam qoldiq) — restoran moduli bilan */}
@@ -119,7 +127,9 @@ export default function Home() {
   ];
 
   const isTodayPeriod = period === 'today';
-  const periodName = d.home.periods[period];
+  const periodName = isDayKey(period) ? fmtDayMonth(fromDayKey(period)) : d.home.periods[period];
+  // Sana tugmasi: bugun — «22-noyabr», aniq kun — o'sha sana, boshqa davr — nomi (Hafta, Oy ...)
+  const chipLabel = isTodayPeriod ? fmtDayMonth(new Date()) : periodName;
   const revenue = sum?.periodRevenue ?? sum?.todayRevenue;
   const salesN = sum?.periodSales ?? sum?.todaySales ?? 0;
 
@@ -137,19 +147,9 @@ export default function Home() {
         </Group>
       ) : null}
 
-      <SegmentedControl
-        options={PERIODS.map((p) => ({ key: p, label: d.home.periods[p] }))}
-        value={period}
-        onChange={setPeriod}
-      />
-
       <View
         style={[s.hero, { backgroundColor: c.hero2 }]}
-        onLayout={(e) => { const { width, height } = e.nativeEvent.layout; setHeroSize({ w: width, h: height }); }}
-        accessible
-        accessibilityLabel={isTodayPeriod
-          ? tr(d.home.todayRevenueA11y, { v: fmtMoney(revenue, { suffix: true }) })
-          : tr(d.home.periodRevenueA11y, { period: periodName, v: fmtMoney(revenue, { suffix: true }) })}>
+        onLayout={(e) => { const { width, height } = e.nativeEvent.layout; setHeroSize({ w: width, h: height }); }}>
         <Svg width={heroSize.w} height={heroSize.h} style={StyleSheet.absoluteFill} pointerEvents="none">
           <Defs>
             <LinearGradient id="heroGrad" x1="0" y1="0" x2="1" y2="1">
@@ -166,10 +166,28 @@ export default function Home() {
           <View style={[s.heroBar, { height: 76, opacity: 0.18 }]} />
         </View>
         <View style={s.heroTop}>
-          <Text style={s.heroL}>{isTodayPeriod ? d.home.todayRevenue : tr(d.home.periodRevenue, { period: periodName })}</Text>
-          {isTodayPeriod ? <View style={s.heroDate}><Text style={s.heroDateT}>{fmtDayMonth(new Date())}</Text></View> : null}
+          <Text style={s.heroL} numberOfLines={1}>{isTodayPeriod ? d.home.todayRevenue : tr(d.home.periodRevenue, { period: periodName })}</Text>
+          <Pressable
+            onPress={() => setPeriodOpen(true)}
+            hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel={tr(d.home.pickPeriodA11y, { period: chipLabel })}
+            style={({ pressed }) => [s.heroDate, pressed && { opacity: 0.6 }]}
+          >
+            <Text style={s.heroDateT} numberOfLines={1}>{chipLabel}</Text>
+            <Ionicons name="chevron-down" size={14} color="#fff" />
+          </Pressable>
         </View>
-        <Text style={[s.heroV, tabular]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.6}>
+        {/* Sana tugmasi alohida bosiladi — shuning uchun butun karta emas, summa o'qiladi */}
+        <Text
+          style={[s.heroV, tabular]}
+          numberOfLines={1}
+          adjustsFontSizeToFit
+          minimumFontScale={0.6}
+          accessibilityLabel={isTodayPeriod
+            ? tr(d.home.todayRevenueA11y, { v: fmtMoney(revenue, { suffix: true }) })
+            : tr(d.home.periodRevenueA11y, { period: periodName, v: fmtMoney(revenue, { suffix: true }) })}
+        >
           {fmtMoney(revenue)}<Text style={s.heroSuffix}> {d.format.currency}</Text>
         </Text>
         <View style={s.heroRow}>
@@ -224,6 +242,9 @@ export default function Home() {
       <Group header={d.home.modules} icon="grid-outline">
         <TileGrid items={modules} />
       </Group>
+
+      <PeriodSheet visible={periodOpen} value={period} onChange={setPeriod} onClose={() => setPeriodOpen(false)} />
+      {canSwitchBranch ? <BranchSheet visible={branchOpen} onClose={() => setBranchOpen(false)} /> : null}
     </Screen>
   );
 }
@@ -233,9 +254,9 @@ const s = StyleSheet.create({
   heroDeco: { position: 'absolute', right: 18, bottom: 0, flexDirection: 'row', alignItems: 'flex-end', gap: 8 },
   heroBar: { width: 18, borderTopLeftRadius: 9, borderTopRightRadius: 9, backgroundColor: '#fff' },
   heroTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
-  heroDate: { backgroundColor: 'rgba(255,255,255,0.16)', borderRadius: 999, paddingHorizontal: 10, paddingVertical: 3 },
-  heroDateT: { color: '#fff', fontSize: 12, fontWeight: '600' },
-  heroL: { color: 'rgba(255,255,255,0.9)', fontSize: 16, fontWeight: '700' },
+  heroDate: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: 'rgba(255,255,255,0.18)', borderRadius: 999, paddingLeft: 12, paddingRight: 9, minHeight: 32 },
+  heroDateT: { color: '#fff', fontSize: 14, fontWeight: '700' },
+  heroL: { flexShrink: 1, color: 'rgba(255,255,255,0.9)', fontSize: 16, fontWeight: '700' },
   heroV: { color: '#fff', fontSize: 42, fontWeight: '800', letterSpacing: -1.4 },
   heroSuffix: { fontSize: 17, fontWeight: '600', letterSpacing: 0 },
   heroRow: { flexDirection: 'row', flexWrap: 'wrap', columnGap: 14, rowGap: 2, marginTop: 2 },

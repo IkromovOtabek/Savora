@@ -92,3 +92,23 @@ export const uzPhoneE164 = (v: string) => {
   const l = uzPhone9(v);
   return l ? `+998${l}` : '';
 };
+
+/**
+ * Yagona kirish katagi «Telefon raqam yoki login» (bozor → kirish):
+ *   — to'liq O'zbekiston raqami → xaridor (telefon bilan); faqat raqamlardan iborat login ham bo'lishi mumkin,
+ *     shuning uchun `login` ham qaytadi (xaridor topilmasa biznes logini sifatida sinaladi);
+ *   — harfli matn → biznes logini (kichik harfda, bo'sh joysiz);
+ *   — «+», bo'sh joy yoki qavsli, lekin to'liq bo'lmagan raqam → null (noto'g'ri telefon).
+ */
+export type LoginId = { kind: 'phone'; phone: string; login: string } | { kind: 'login'; login: string };
+export function loginIdKind(raw: string): LoginId | null {
+  const v = raw.trim();
+  if (!v) return null;
+  if (/^[+\d\s()-]+$/.test(v)) {
+    const phone = uzPhoneE164(v);
+    const digits = v.replace(/\D/g, '');
+    if (phone) return { kind: 'phone', phone, login: digits };
+    return /^\d{3,40}$/.test(v) ? { kind: 'login', login: v } : null;
+  }
+  return { kind: 'login', login: v.toLowerCase().replace(/\s+/g, '') };
+}

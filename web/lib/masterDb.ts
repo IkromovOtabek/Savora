@@ -16,6 +16,7 @@ import { cronRunSchema, ICronRun } from './models/master/CronRun';
 import { pushDeviceSchema, IPushDevice } from './models/master/PushDevice';
 import { marketListingSchema, IMarketListing } from './models/master/MarketListing';
 import { buyerSchema, IBuyer } from './models/master/Buyer';
+import { tgSignupSchema, ITgSignup } from './models/master/TgSignup';
 import { marketOrderSchema, IMarketOrder } from './models/master/MarketOrder';
 
 /** Master DB modellari (Organization, SuperAdmin, Review) */
@@ -75,8 +76,12 @@ export async function getMasterModels() {
   const MarketOrder =
     (conn.models.MarketOrder as Model<IMarketOrder>) ||
     conn.model<IMarketOrder>('MarketOrder', marketOrderSchema);
+  // Telegram orqali ro'yxatdan o'tish (lib/tgSignup.ts) — qisqa muddatli, TTL bilan o'chadi
+  const TgSignup =
+    (conn.models.TgSignup as Model<ITgSignup>) ||
+    conn.model<ITgSignup>('TgSignup', tgSignupSchema);
   return {
     conn, Organization, SuperAdmin, PlatformSettings, Review, PaymentRequest, SiteVisit, ImeiBlacklist, BarcodeCatalog,
-    TelegramAccount, UserDirectory, SecurityEvent, SystemLog, CronRun, PushDevice, MarketListing, Buyer, MarketOrder,
+    TelegramAccount, UserDirectory, SecurityEvent, SystemLog, CronRun, PushDevice, MarketListing, Buyer, MarketOrder, TgSignup,
   };
 }

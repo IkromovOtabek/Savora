@@ -61,13 +61,16 @@ interface TopBarProps {
   profile?: boolean;
   /** Sarlavha ostidagi qotib turadigan qism (qidiruv, segment) */
   children?: React.ReactNode;
+  /** Sarlavha bosiladigan bo'lsa (masalan, do'kon nomi → filial tanlash) — yonida ▾ belgisi chiqadi */
+  onTitlePress?: () => void;
+  titleA11y?: string;
 }
 
 /**
  * Tab ekranlar sarlavhasi — pastki burchaklari yumaloq oq karta (Screen `bar` ichida).
  * Katta qalin sarlavha + dumaloq ikon tugmalar + kabinet avatari.
  */
-export function TopBar({ title, subtitle, left, actions, profile = true, children }: TopBarProps) {
+export function TopBar({ title, subtitle, left, actions, profile = true, children, onTitlePress, titleA11y }: TopBarProps) {
   const { c } = useTheme();
   const { compact } = useLayout();
   const { me } = useAuth();
@@ -78,18 +81,28 @@ export function TopBar({ title, subtitle, left, actions, profile = true, childre
     <View style={{ gap: 12 }}>
       <View style={s.topRow}>
         {left}
-        <View style={{ flex: 1, minWidth: 0 }}>
-          <Text
-            accessibilityRole="header"
-            style={[T.largeTitle, { fontSize: fs, lineHeight: Math.round(fs * 1.2), color: c.ink }]}
-            numberOfLines={1}
-            adjustsFontSizeToFit
-            minimumFontScale={0.75}
-          >
-            {title}
-          </Text>
+        <Pressable
+          onPress={onTitlePress}
+          disabled={!onTitlePress}
+          hitSlop={6}
+          accessibilityRole={onTitlePress ? 'button' : undefined}
+          accessibilityLabel={onTitlePress ? titleA11y ?? title : undefined}
+          style={({ pressed }) => [{ flex: 1, minWidth: 0 }, pressed && { opacity: 0.6 }]}
+        >
+          <View style={s.topTitleRow}>
+            <Text
+              accessibilityRole="header"
+              style={[T.largeTitle, { flexShrink: 1, fontSize: fs, lineHeight: Math.round(fs * 1.2), color: c.ink }]}
+              numberOfLines={1}
+              adjustsFontSizeToFit
+              minimumFontScale={0.75}
+            >
+              {title}
+            </Text>
+            {onTitlePress ? <Ionicons name="chevron-down" size={Math.round(fs * 0.6)} color={c.ink3} /> : null}
+          </View>
           {subtitle ? <Text style={[s.topSub, { color: c.ink3 }]} numberOfLines={1}>{subtitle}</Text> : null}
-        </View>
+        </Pressable>
         <View style={s.actions}>
           {actions}
           {profile && me ? (
@@ -201,6 +214,7 @@ const s = StyleSheet.create({
   eyebrow: { fontSize: 13, fontWeight: '600', flexShrink: 1 },
   actions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   topRow: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 44 },
+  topTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   topSub: { fontSize: 15, fontWeight: '600', marginTop: 1 },
   me: { width: 46, height: 46, borderRadius: 23, alignItems: 'center', justifyContent: 'center' },
   meT: { color: '#fff', fontSize: 17, fontWeight: '800', letterSpacing: 0.3 },
