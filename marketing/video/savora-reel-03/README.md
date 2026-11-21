@@ -1,12 +1,12 @@
 # Savora Reels #03 — «Sohangizga moslashadi» (3D motion)
 
-**Fayl:** `../savora-reel-03-sohangizga.mp4` — 1080×1920, 30 fps, 26.5 s, ovoz + musiqa (−14.6 LUFS).
+**Fayl:** `../savora-reel-03-sohangizga.mp4` — 1080×1920, 30 fps, 26.5 s, erkak ovozi + musiqa (−14.6 LUFS, ovoz musiqadan ~17 dB baland).
 **Muqova:** `../savora-reel-03-cover.png` (19.8 s kadr — 14 kub devori va «14 yo'nalish»).
 **G'oya:** bitta 3D «soha kubi» dumalaydi, har yuzida yangi soha — pastdagi Savora «Yangi tovar» kartasi shu sohaga moslashadi. Oxirida kub 14 kubga bo'linadi, so'ng 3D lenta-S logoga yig'iladi. Syujet variantlari — `STORYLINES.md`, kadrma-kadr reja — `SPEC.md`.
 
 ## Ssenariy
 
-| Vaqt | Sahna | Ekranda | Ovoz (UzbekVoice «jasur», erkak) |
+| Vaqt | Sahna | Ekranda | Ovoz (Edge TTS uz-UZ-SardorNeural, erkak) |
 | --- | --- | --- | --- |
 | 0.0–2.4 | HOOK: kub tez dumalaydi (6 yuz), soha nomi slot kabi almashadi | Biznes turi · Telefon do'kon → … → Avto ehtiyot qism | 0.30 Har bir do'kon o'zgacha ishlaydi. |
 | 2.4–4.9 | SHABLON: fon va kub kulrang, oddiy forma; IMEI / Yaroqlilik muddati / O'lcham chiplari sig'maydi | Hammaga bir xil? | 2.50 Bitta shablon hammaga to'g'ri kelmaydi. |
@@ -33,13 +33,16 @@
 - 3D: Three.js r169 (`src3d/stage3d.js` → `npm run build3d` → `lib/stage3d.js`, gitda yo'q). Har kadr `hf-seek` vaqtidan chiziladi; Three ichidagi `Math.random` urug'li PRNG ga almashtirilgan, rAF nomlari olib tashlangan (deterministik render).
 - Kub: RoundedBoxGeometry, clearcoat, bo'rtma ikonkalar (emissive + bump), VSM yumshoq soya; logo — `web/lib/brand.ts` yo'llaridan ekstruziya, brend gradienti vertex ranglarda.
 - HTML sahnalar: `compositions/` (bg, stage, hook, tension, reveal, proof, card, payoff, endcard). Shriftlar: Montserrat (HyperFrames ichida), Onest (OFL, `assets/fonts`).
-- Ovoz: `../src/tts_uzbekvoice.py vo/lines.txt --voice jasur` → `../src/mix_tts.py savora-reel-03` (voice_slots.json). Musiqa: `../src/music03.py` (protsedural, original).
+- Ovoz: erkak — Edge TTS `uz-UZ-SardorNeural` +10% (`../src/tts_lines.py`), o'rtacha asosiy ton ~130 Hz. UzbekVoice'ning 5 ta ovozi (shoira, lola, kamola, jasur, sevinch) o'lchanganda hammasi ~230–250 Hz (ayol diapazoni), «jasur» ham — shuning uchun almashtirildi; eski jasur jumlalari `vo/jasur/` da (gitda yo'q).
+- Miks: `../src/mix_tts.py savora-reel-03` — voice_slots.json `mix` bloki: ovozga EQ (+3 dB 3 kHz) va kompressor, musiqa −11 dB va ovoz ostida 6:1 ducking, statik gain → −14.5 LUFS, limiter −3 dB. Eski miksda ovoz musiqadan atigi ~4 dB baland edi, endi ~17 dB.
+- Litsenziya: Edge TTS — Microsoft onlayn xizmati; tijoriy reklamada ishlatishdan oldin shartlarini tekshirish tavsiya etiladi (ishonchli variant — Azure Speech, xuddi shu ovoz, yoki jonli diktor, `../OVOZ-YOZISH.md`).
+- Musiqa: `../src/music03.py` (protsedural, original).
 
 ## Qayta yig'ish
 
 ```bash
 npm install && npm run build3d
-../.venv/bin/python ../src/tts_uzbekvoice.py vo/lines.txt --voice jasur   # marketing/video dan: savora-reel-03/vo/lines.txt
+../.venv/bin/python ../src/tts_lines.py vo/lines.txt                       # marketing/video dan: savora-reel-03/vo/lines.txt (Sardor)
 ../.venv/bin/python ../src/music03.py assets/audio/music.wav
 ../.venv/bin/python ../src/mix_tts.py .                                    # marketing/video dan: savora-reel-03
 npx hyperframes@0.9.77 check
