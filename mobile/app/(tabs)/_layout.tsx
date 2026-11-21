@@ -1,4 +1,4 @@
-import { Tabs, Redirect, useRouter } from 'expo-router';
+import { Tabs, Redirect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { View, StyleSheet } from 'react-native';
 import { useAuth, canWith } from '@/lib/auth';
@@ -23,7 +23,6 @@ export default function TabsLayout() {
   const { c, dark } = useTheme();
   const d = useDict();
   const md = useMarketDict();
-  const router = useRouter();
 
   if (loading) return <Loading full />;
   if (!me && error) return <ErrorState full message={error} onRetry={refresh} />;
@@ -32,7 +31,6 @@ export default function TabsLayout() {
   const f = me.features ?? {};
   const nasiyaOn = !!(f.variant || f.nasiya);
   const can = (k: string) => canWith(me, k);
-  const canSell = can('sale.create');
   const canSales = can('sales.view');
   const canProducts = ['products.view', 'sale.create', 'transfer.create', 'product.create'].some(can);
 
@@ -61,23 +59,6 @@ export default function TabsLayout() {
     >
       <Tabs.Screen name="index" options={{ title: d.tabs.home, tabBarIcon: ({ color, focused }) => <TabIcon name={focused ? 'home' : 'home-outline'} active={focused} color={color} bg={c.tintSoft} /> }} />
       <Tabs.Screen name="products" options={{ title: me.features?.tables ? d.tabs.stock : me.terms?.items ?? d.terms.items, href: canProducts ? undefined : null, tabBarIcon: ({ color, focused }) => <TabIcon name={focused ? 'cube' : 'cube-outline'} active={focused} color={color} bg={c.tintSoft} /> }} />
-      <Tabs.Screen
-        name="sell"
-        options={{
-          title: d.tabs.sell,
-          href: canSell ? undefined : null,
-          tabBarAccessibilityLabel: d.tabs.newSale,
-          tabBarLabelStyle: { fontSize: 12, ...fontFor('700'), color: c.tint, marginTop: 3 },
-          tabBarIcon: () => (
-            <View style={[s.sell, { backgroundColor: c.tintFill }]}>
-              <Ionicons name="add" color="#fff" size={28} />
-            </View>
-          ),
-        }}
-        listeners={{
-          tabPress: (e) => { e.preventDefault(); router.push('/sale-new'); },
-        }}
-      />
       <Tabs.Screen name="nasiya" options={{ title: d.tabs.nasiya, href: nasiyaOn && canSales ? undefined : null, tabBarIcon: ({ color, focused }) => <TabIcon name={focused ? 'time' : 'time-outline'} active={focused} color={color} bg={c.tintSoft} /> }} />
       {/* Nasiya yoqilmagan bo'lsa — uning o'rnida Sotuvlar */}
       <Tabs.Screen name="sales" options={{ title: d.tabs.sales, href: !nasiyaOn && canSales ? undefined : null, tabBarIcon: ({ color, focused }) => <TabIcon name={focused ? 'cart' : 'cart-outline'} active={focused} color={color} bg={c.tintSoft} /> }} />
@@ -89,9 +70,5 @@ export default function TabsLayout() {
 }
 
 const s = StyleSheet.create({
-  sell: {
-    width: 58, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center',
-    shadowColor: '#2F6BFF', shadowOpacity: 0.4, shadowRadius: 8, shadowOffset: { width: 0, height: 4 }, elevation: 4,
-  },
   ind: { width: 62, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
 });
