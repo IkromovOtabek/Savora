@@ -174,3 +174,16 @@ describe.skipIf(!URI)('Egasi filialga kiradi (MongoDB)', () => {
     expect((await call(tokens.owner, { branchId: String(new Types.ObjectId()) })).status).toBe(404);
   });
 });
+
+describe('GET /api/mobile/auth/tg (nonce\'siz) — bot sozlanganmi', () => {
+  it('token va username bo\'lsa enabled, bo\'lmasa false', async () => {
+    const { GET } = await import('@/app/api/mobile/auth/tg/route');
+    const call = async () => (await GET(new Request('http://127.0.0.1/api/mobile/auth/tg'))).json();
+    vi.stubEnv('TELEGRAM_BOT_TOKEN', 't');
+    vi.stubEnv('TELEGRAM_BOT_USERNAME', '@savora_bot');
+    expect(await call()).toEqual({ enabled: true });
+    vi.stubEnv('TELEGRAM_BOT_USERNAME', '');
+    expect(await call()).toEqual({ enabled: false });
+    vi.unstubAllEnvs();
+  });
+});

@@ -34,10 +34,15 @@ export interface TgTicket {
 
 export const isTgNonce = (v: unknown): v is string => typeof v === 'string' && NONCE_RE.test(v);
 
+/** Bot sozlanganmi (token + username). Yo'q bo'lsa ilova «Telegram orqali» tugmasini ko'rsatmaydi. */
+export function tgSignupEnabled(): boolean {
+  return !!process.env.TELEGRAM_BOT_TOKEN && !!process.env.TELEGRAM_BOT_USERNAME?.replace(/^@/, '');
+}
+
 /** Yangi so'rov: ilova shu havolani ochadi. Bot sozlanmagan bo'lsa — null. */
 export async function startTgSignup(ip: string): Promise<{ ok: true; nonce: string; url: string; expiresAt: Date } | { ok: false; error: 'notConfigured' | 'rateLimited' }> {
   const bot = process.env.TELEGRAM_BOT_USERNAME?.replace(/^@/, '');
-  if (!process.env.TELEGRAM_BOT_TOKEN || !bot) return { ok: false, error: 'notConfigured' };
+  if (!tgSignupEnabled() || !bot) return { ok: false, error: 'notConfigured' };
   const rl = await hitRateLimit(`tg-signup-ip:${ip}`, 20, 60 * 60_000);
   if (!rl.ok) return { ok: false, error: 'rateLimited' };
   const nonce = randomBytes(24).toString('base64url'); // 32 belgi — start parametri 64 dan oshmaydi

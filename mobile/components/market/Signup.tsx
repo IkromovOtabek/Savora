@@ -1,10 +1,11 @@
 import { useRef, useState } from 'react';
 import { View, Pressable, ActivityIndicator, StyleSheet, type TextInput } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useQuery } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
 import { Text } from '@/components/ui/Text';
 import { Screen, NavBar, LargeTitle, Group, Field, PhoneField, Button, InlineError, IconSquare, type IconName } from '@/components/ui';
-import { errMsg } from '@/lib/api';
+import { api, errMsg } from '@/lib/api';
 import { useBuyer } from '@/lib/buyer';
 import { useTheme } from '@/lib/theme';
 import { useDict } from '@/lib/i18n';
@@ -33,6 +34,17 @@ export function Signup() {
   const [step, setStep] = useState<Step>('role');
   const [verified, setVerified] = useState<TgVerified | null>(null);
 
+  // Bot serverda sozlanganmi — yo'q bo'lsa (yoki eski server) Telegram tugmasi ko'rsatilmaydi, raqam bilan davom etiladi
+  const tgCfg = useQuery({
+    queryKey: ['market', 'tgSignupEnabled'],
+    queryFn: () => api<{ enabled?: boolean }>('/api/mobile/auth/tg', { token: null }),
+    staleTime: 5 * 60_000,
+    retry: 1,
+    meta: { persist: false },
+  });
+  const tgKnown = tgCfg.isFetched || tgCfg.isError;
+  const tgOn = tgCfg.data?.enabled === true;
+
   const tg = useTgSignup((r) => {
     setVerified(r);
     if (role === 'business') {
@@ -43,19 +55,25 @@ export function Signup() {
   });
 
   const back = () => {
-    if (step === 'form') { setStep('method'); setVerified(null); return; }
+    if (step === 'form') { setStep(tgOn ? 'method' : 'role'); setVerified(null); return; }
     if (step === 'method' && tg.state === 'waiting') { tg.cancel(); return; }
     if (step === 'method') { tg.cancel(); setStep('role'); return; }
     if (router.canGoBack()) router.back();
     else router.replace('/market');
   };
 
-  const pickRole = (r: Role) => { setRole(r); setStep('method'); };
-
-  const viaPhone = () => {
+  const goPhone = (r: Role) => {
     tg.cancel();
-    if (role === 'business') router.replace('/register');
+    if (r === 'business') router.replace('/register');
     else { setVerified(null); setStep('form'); }
+  };
+  const viaPhone = () => { if (role) goPhone(role); };
+
+  const pickRole = (r: Role) => {
+    setRole(r);
+    // Telegram o'chiq — usul tanlash ma'nosiz, to'g'ridan-to'g'ri ma'lumotlarga
+    if (tgKnown && !tgOn) goPhone(r);
+    else setStep('method');
   };
 
   const toLogin = () => router.replace(`/market/login${target ? `?next=${encodeURIComponent(target)}` : ''}`);
@@ -83,7 +101,9 @@ export function Signup() {
             compact
           />
 
-          {tg.state === 'waiting' ? (
+          {!tgKnown ? <ActivityIndicator color={c.tint} style={{ paddingVertical: 12 }} />
+          : !tgOn ? <Button title={a.viaPhone} icon="call-outline" size="lg" full onPress={viaPhone} />
+          : tg.state === 'waiting' ? (
             <Group>
               <View style={s.wait}>
                 <View style={s.waitHead}>
@@ -105,14 +125,16 @@ export function Signup() {
               style={{ backgroundColor: '#229ED9' }}
             />
           )}
-          {tg.state !== 'waiting' ? <Text style={[s.note, { color: c.ink3 }]}>{a.viaTelegramSub}</Text> : null}
+          {tgOn && tg.state !== 'waiting' ? <Text style={[s.note, { color: c.ink3 }]}>{a.viaTelegramSub}</Text> : null}
           {tg.state === 'expired' ? <InlineError message={a.tgExpired} /> : null}
           {tg.error ? <InlineError message={tg.error} /> : null}
 
-          <Pressable onPress={viaPhone} hitSlop={8} accessibilityRole="link" style={({ pressed }) => [s.link, pressed && { opacity: 0.6 }]}>
-            <Ionicons name="call-outline" size={16} color={c.tint} />
-            <Text style={[s.linkT, { color: c.tint }]}>{a.viaPhone}</Text>
-          </Pressable>
+          {tgOn ? (
+            <Pressable onPress={viaPhone} hitSlop={8} accessibilityRole="link" style={({ pressed }) => [s.link, pressed && { opacity: 0.6 }]}>
+              <Ionicons name="call-outline" size={16} color={c.tint} />
+              <Text style={[s.linkT, { color: c.tint }]}>{a.viaPhone}</Text>
+            </Pressable>
+          ) : null}
         </>
       ) : null}
 
