@@ -33,7 +33,7 @@
 - 3D: Three.js r169 (`src3d/stage3d.js` → `npm run build3d` → `lib/stage3d.js`, gitda yo'q). Har kadr `hf-seek` vaqtidan chiziladi; Three ichidagi `Math.random` urug'li PRNG ga almashtirilgan, rAF nomlari olib tashlangan (deterministik render).
 - Kub: RoundedBoxGeometry, clearcoat, bo'rtma ikonkalar (emissive + bump), VSM yumshoq soya; logo — `web/lib/brand.ts` yo'llaridan ekstruziya, brend gradienti vertex ranglarda.
 - HTML sahnalar: `compositions/` (bg, stage, hook, tension, reveal, proof, card, payoff, endcard). Shriftlar: Montserrat (HyperFrames ichida), Onest (OFL, `assets/fonts`).
-- Ovoz: erkak — Edge TTS `uz-UZ-SardorNeural`, tezlik +0%, ton −3 Hz (`../src/tts_lines.py vo/lines.txt --rate +0% --pitch -3Hz`), asosiy ton ~120 Hz. «Jonlilashtirish» (`mix.humanize`): iliq EQ (+2.5 dB 180 Hz, −1.5 dB 3.2 kHz), de-esser, yengil kompressiya, kichik xona akustikasi (8%), uzun pauzalardan oldin juda past nafas (−26 dB). UzbekVoice'ning 5 ta ovozi hammasi ~230–250 Hz (ayol diapazoni) — eski variantlar `vo/jasur/`, `vo/sardor/` (gitda yo'q). Eng tabiiy natija uchun — jonli yozuv (`../src/real_voice.py`, `../OVOZ-YOZISH.md`) yoki ElevenLabs v3 (o'zbek tilini qo'llaydi).
+- Ovoz: **jonli erkak ovozi** — Savora egasi o'zi o'qigan (asosiy ton ~130 Hz). Yozish: teleprompter + diktofon `../src/prompter/` (`python3 src/prompter/server.py savora-reel-03 --port 3121`, launch.json «reel-prompter», Chrome'da oching — so'zlar o'qish tezligida yonadi, har yozuv darhol eshittiriladi va tekshiriladi), yozuvlar `vo/jonli/lN.webm` (gitda yo'q). Tozalash: `../src/jonli_lines.py savora-reel-03` (shovqin, sibilyant, balandlikni tenglash, jimlikni kesish, ≤15% tezlashtirish) → `vo/lN.wav`. TTS zaxiralari: `vo/tts_oxirgi`, `vo/r0` (Sardor), `vo/jasur` (UzbekVoice — hamma ovozlari ~230–250 Hz, ayol diapazoni).
 - Miks: `../src/mix_tts.py savora-reel-03` — voice_slots.json `mix` bloki: ovozga EQ (+3 dB 3 kHz) va kompressor, musiqa −11 dB va ovoz ostida 6:1 ducking, statik gain → −14.5 LUFS, limiter −3 dB. Eski miksda ovoz musiqadan atigi ~4 dB baland edi, endi ~17 dB.
 - Litsenziya: Edge TTS — Microsoft onlayn xizmati; tijoriy reklamada ishlatishdan oldin shartlarini tekshirish tavsiya etiladi (ishonchli variant — Azure Speech, xuddi shu ovoz, yoki jonli diktor, `../OVOZ-YOZISH.md`).
 - Musiqa: `../src/music03.py` (protsedural, original).
@@ -42,7 +42,8 @@
 
 ```bash
 npm install && npm run build3d
-../.venv/bin/python ../src/tts_lines.py vo/lines.txt                       # marketing/video dan: savora-reel-03/vo/lines.txt (Sardor)
+python3 ../src/prompter/server.py savora-reel-03 --port 3121              # marketing/video dan; http://127.0.0.1:3121 da o'qib yozing
+../.venv/bin/python ../src/jonli_lines.py savora-reel-03                     # marketing/video dan
 ../.venv/bin/python ../src/music03.py assets/audio/music.wav
 ../.venv/bin/python ../src/mix_tts.py .                                    # marketing/video dan: savora-reel-03
 npx hyperframes@0.9.77 check

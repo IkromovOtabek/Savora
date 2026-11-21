@@ -47,25 +47,14 @@
       "Sohangizni tanlang: savora.uz — yetti kun bepul."
     ]
   ],
-  "voice": "Edge TTS uz-UZ-SardorNeural, rate +0%, pitch -3Hz (erkak, tabiiy tezlik) + humanize; eski variantlar vo/jasur, vo/sardor",
+  "voice": "Jonli ovoz — foydalanuvchi o'zi o'qigan (src/prompter teleprompter, vo/jonli/*.webm → src/jonli_lines.py). TTS zaxira: vo/tts_oxirgi, vo/r0, vo/sardor, vo/jasur",
   "mix": {
     "music_db": -11,
     "duck_threshold": 0.02,
     "duck_ratio": 6,
     "vo_db": 2,
-    "vo_presence_db": 3,
+    "vo_presence_db": 2,
     "target_lufs": -14.5,
-    "ceiling_db": -3,
-    "humanize": {
-      "room": 0.08,
-      "breath_db": -26,
-      "breaths": [
-        2,
-        3,
-        5,
-        8,
-        9
-      ]
-    }
+    "ceiling_db": -3
   }
 }
