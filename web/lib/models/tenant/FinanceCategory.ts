@@ -40,6 +40,9 @@ export const SALE_CANCEL_CATEGORY = 'Sotuv bekor qilindi';
 /** Egasining kiritgan puli — kirim, lekin foyda emas */
 export const INVESTMENT_CATEGORY = 'Investitsiya';
 
+/** Toifasiz kelgan chiqim (eski mobil ilova) shu toifaga yoziladi — sof foydadan ayirilsin */
+export const OTHER_EXPENSE_CATEGORY = 'Boshqa xarajat';
+
 /**
  * Toifa sof foydaga ta'sir qiladimi. Tizim toifalari (kassaga pul qo'shish/olish) — pul ko'chishi,
  * foyda emas; «Investitsiya» — egasining puli. Belgi qo'yilgan bo'lsa — o'sha (tizimdan tashqari).
@@ -58,7 +61,7 @@ export const DEFAULT_FINANCE_CATEGORIES: { name: string; type: 'income' | 'expen
   { name: 'Soliq', type: 'expense' },
   { name: 'Transport', type: 'expense' },
   { name: 'Reklama', type: 'expense' },
-  { name: 'Boshqa xarajat', type: 'expense' },
+  { name: OTHER_EXPENSE_CATEGORY, type: 'expense' },
   { name: SHIFT_WITHDRAW_CATEGORY, type: 'expense', system: true },
   { name: SALE_CANCEL_CATEGORY, type: 'expense', system: true },
   { name: INVESTMENT_CATEGORY, type: 'income' },
