@@ -2,6 +2,7 @@
 
 **Fayl:** `../savora-reel-03-sohangizga.mp4` — 1080×1920, 30 fps, 26.5 s, erkak ovozi + musiqa (−14.6 LUFS, ovoz musiqadan ~17 dB baland).
 **Muqova:** `../savora-reel-03-cover.png` (19.8 s kadr — 14 kub devori va «14 yo'nalish»).
+**Ko'rinish (2026-11-22):** har soha o'z yorqin rangli dunyosida (telefon — indigo, dorixona — feruza, kiyim — binafsha-pushti, restoran — marjon, qurilish — kahrabo, avto — shifer, mebel — yashil); kub — oq chinni, ikonkasi soha rangida; 14 kub — har biri o'z rangida; payoff va end card yorug' studiyada. Ranglar: `src3d/stage3d.js` `COLORS`/`WORLD` ↔ `compositions/bg.html`.
 **G'oya:** bitta 3D «soha kubi» dumalaydi, har yuzida yangi soha — pastdagi Savora «Yangi tovar» kartasi shu sohaga moslashadi. Oxirida kub 14 kubga bo'linadi, so'ng 3D lenta-S logoga yig'iladi. Syujet variantlari — `STORYLINES.md`, kadrma-kadr reja — `SPEC.md`.
 
 ## Ssenariy
@@ -31,7 +32,7 @@
 ## Texnika
 
 - 3D: Three.js r169 (`src3d/stage3d.js` → `npm run build3d` → `lib/stage3d.js`, gitda yo'q). Har kadr `hf-seek` vaqtidan chiziladi; Three ichidagi `Math.random` urug'li PRNG ga almashtirilgan, rAF nomlari olib tashlangan (deterministik render).
-- Kub: RoundedBoxGeometry, clearcoat, bo'rtma ikonkalar (emissive + bump), VSM yumshoq soya; logo — `web/lib/brand.ts` yo'llaridan ekstruziya, brend gradienti vertex ranglarda.
+- Kub: RoundedBoxGeometry, oq chinni (clearcoat), rangli ikonka `map` + bo'rtma `bump`, atrof rangi hemisphere orqali kubga tushadi; VSM yumshoq soya; 2x supersampling (qirralar miltillamaydi). Logo — `web/lib/brand.ts` yo'llaridan ekstruziya, qismlar turli chuqurlikda (z-fighting yo'q), tebranishsiz expo kirish; 14 kub logoga silliq kichrayib yig'iladi.
 - HTML sahnalar: `compositions/` (bg, stage, hook, tension, reveal, proof, card, payoff, endcard). Shriftlar: Montserrat (HyperFrames ichida), Onest (OFL, `assets/fonts`).
 - Ovoz: **ElevenLabs `eleven_v3`, «Davronbek — Journalist»** (`agoC45V78njTIxYzwmSb`, kutubxonadagi o'zbek diktori), Starter tarif — tijoriy foydalanish huquqi bor. Yaratish: `../src/tts_elevenlabs.py savora-reel-03 --voice agoC45V78njTIxYzwmSb` → `vo/eleven/lN.mp3` (kalit `../.env` `ELEVENLABS_API_KEY`). Joylash: `../src/jonli_lines.py savora-reel-03 --src vo/eleven --chain toza --lag 0.5` (hammasi tabiiy tezlikda; 5- va 7-jumla sig'ishi uchun biroz qisqartirildi). Zaxira variantlar (gitda yo'q): `vo/jonli` — egasining o'z ovozi (teleprompter `../src/prompter/`), `vo/r0` — Edge Sardor, `vo/jasur` — UzbekVoice.
 - Miks: `../src/mix_tts.py savora-reel-03` — voice_slots.json `mix` bloki: ovozga EQ (+3 dB 3 kHz) va kompressor, musiqa −11 dB va ovoz ostida 6:1 ducking, statik gain → −14.5 LUFS, limiter −3 dB. Eski miksda ovoz musiqadan atigi ~4 dB baland edi, endi ~17 dB.

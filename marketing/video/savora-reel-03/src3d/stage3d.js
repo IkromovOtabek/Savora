@@ -55,6 +55,18 @@ const SEQ = ['phone', 'pill', 'shirt', 'utensils', 'hammer', 'car', 'LOGO', 'pho
 // 14 yo'nalish — web/lib/businessTypes.ts tartibida
 const ALL14 = ['store', 'phone', 'tv', 'sofa', 'shirt', 'basket', 'hammer', 'sparkles', 'pill', 'car', 'box', 'utensils', 'wrench', 'building'];
 
+// har yo'nalishning o'z rangi (14 kub tanasi va oq kubdagi ikonka rangi)
+const COLORS = {
+  store: '#2F6BFF', phone: '#4F46E5', tv: '#0EA5E9', sofa: '#16A34A', shirt: '#C026D3', basket: '#65A30D',
+  hammer: '#D97706', sparkles: '#DB2777', pill: '#0D9488', car: '#475569', box: '#A16207', utensils: '#F2542D',
+  wrench: '#7C3AED', building: '#1E40AF', LOGO: '#1A5FE0', blank: '#1A5FE0',
+};
+// sahna foni rangi (bg.html bilan bir xil) — oq kubga atrof rangi tushadi
+const WORLD = [
+  [0, '#4F46E5'], [0.24, '#0D9488'], [0.56, '#C026D3'], [0.86, '#F2542D'], [1.15, '#D97706'], [1.48, '#475569'],
+  [2.38, '#C9CDD5'], [4.98, '#1A5FE0'], [7.4, '#4F46E5'], [9.8, '#0D9488'], [12.6, '#C026D3'], [14.9, '#F2542D'],
+  [17.25, '#D97706'], [17.6, '#475569'], [17.95, '#16A34A'], [18.3, '#E8EEF9'],
+];
 const T_BURST = 18.2;
 const T_END = 21.2;
 const LOGO_Y = 1.33;
@@ -86,7 +98,18 @@ function drawLogo(ctx, size) {
   for (const d of [LOGO.a, LOGO.b, ...LOGO.bars]) ctx.fill(new Path2D(d));
   ctx.restore();
 }
-function makeFace(img, kind) {
+function tinted(draw, color) {
+  // oq ikonkani berilgan rangga bo'yash
+  const c = document.createElement('canvas');
+  c.width = c.height = TEX;
+  const x = c.getContext('2d');
+  draw(x);
+  x.globalCompositeOperation = 'source-in';
+  x.fillStyle = color;
+  x.fillRect(0, 0, TEX, TEX);
+  return c;
+}
+function makeFace(img, kind, color = '#1A5FE0') {
   // emissive: qora fon + oq ikonka; bump: o'rta kulrang + ariqcha + bo'rtma ikonka
   const em = document.createElement('canvas');
   em.width = em.height = TEX;
@@ -121,8 +144,17 @@ function makeFace(img, kind) {
     t.needsUpdate = true;
     return t;
   };
+  // map: oq chinni yuz + rangli ikonka (oq kub uchun)
+  const mp = document.createElement('canvas');
+  mp.width = mp.height = TEX;
+  const m = mp.getContext('2d');
+  m.fillStyle = '#ffffff';
+  m.fillRect(0, 0, TEX, TEX);
+  if (kind === 'icon') m.drawImage(tinted((x) => x.drawImage(img, (TEX - ICON) / 2, (TEX - ICON) / 2, ICON, ICON), color), 0, 0);
+  else if (kind === 'logo') m.drawImage(tinted((x) => drawLogo(x, 300), color), 0, 0);
   const emissive = mk(em, true);
   const bump = mk(bu, false);
+  const map = mk(mp, true);
   // orqa yuz (-z) uchun 180° burilgan nusxa
   const rot = (t) => {
     const c = t.clone();
@@ -131,7 +163,7 @@ function makeFace(img, kind) {
     c.needsUpdate = true;
     return c;
   };
-  return { emissive, bump, emissiveR: rot(emissive), bumpR: rot(bump) };
+  return { emissive, bump, map, emissiveR: rot(emissive), bumpR: rot(bump), mapR: rot(map) };
 }
 function contactTexture() {
   const c = document.createElement('canvas');
@@ -169,7 +201,8 @@ function gradColor(g, u, v, out) {
 function logoGroup() {
   const loader = new SVGLoader();
   const group = new THREE.Group();
-  const mat = new THREE.MeshPhysicalMaterial({ vertexColors: true, roughness: 0.3, metalness: 0, clearcoat: 1, clearcoatRoughness: 0.1 });
+  const mat = new THREE.MeshPhysicalMaterial({ vertexColors: true, roughness: 0.34, metalness: 0, clearcoat: 1, clearcoatRoughness: 0.22 });
+  const ZOFF = { a: 0, b: 4, bars: 7 }; // SVG tartibi: a ostida, b ustida, ustunlar eng oldida — ustma-ust yuzlar talashmaydi
   const parts = [
     ['a', [LOGO.a]],
     ['b', [LOGO.b]],
@@ -198,7 +231,7 @@ function logoGroup() {
       }
       geo.setAttribute('color', new THREE.BufferAttribute(cols, 3));
       geo.rotateX(Math.PI); // SVG y pastga → 3D y yuqoriga (aylanish, o'ralish tartibi saqlanadi)
-      geo.translate(-(6 + 111), 2 + 149, 11);
+      geo.translate(-(6 + 111), 2 + 149, 11 + ZOFF[key]);
       geo.scale(scale, scale, scale);
       const mesh = new THREE.Mesh(geo, mat);
       mesh.castShadow = true;
@@ -213,7 +246,7 @@ const S = {};
 
 async function mount(canvas) {
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true, preserveDrawingBuffer: true });
-  renderer.setPixelRatio(1);
+  renderer.setPixelRatio(2); // 2x supersampling: qirra va yaltiroq «uchqun»lari yo'qoladi
   renderer.setSize(W, H, false);
   renderer.setClearColor(0x000000, 0);
   renderer.toneMapping = THREE.NeutralToneMapping;
@@ -242,7 +275,8 @@ async function mount(canvas) {
   const rim = new THREE.DirectionalLight(0xcfe0ff, 1.7);
   rim.position.set(5, 3, -5);
   scene.add(rim);
-  scene.add(new THREE.HemisphereLight(0xffffff, 0xb7c5e2, 0.55));
+  const hemi = new THREE.HemisphereLight(0xffffff, 0xb7c5e2, 0.55);
+  scene.add(hemi);
 
   const floor = new THREE.Mesh(new THREE.PlaneGeometry(60, 60), new THREE.ShadowMaterial({ opacity: 0.13 }));
   floor.rotation.x = -Math.PI / 2;
@@ -260,18 +294,17 @@ async function mount(canvas) {
   // teksturalar
   const names = [...new Set([...SEQ.filter((n) => n !== 'LOGO'), ...ALL14])];
   const faces = {};
-  await Promise.all(names.map((n) => svgImage(ICONS[n]).then((img) => (faces[n] = makeFace(img, 'icon')))));
-  faces.LOGO = makeFace(null, 'logo');
+  await Promise.all(names.map((n) => svgImage(ICONS[n]).then((img) => (faces[n] = makeFace(img, 'icon', COLORS[n])))));
+  faces.LOGO = makeFace(null, 'logo', COLORS.LOGO);
   faces.blank = makeFace(null, 'blank');
 
   // asosiy kub
-  const BLUE = new THREE.Color('#1F63E6');
-  const GREY = new THREE.Color('#AEB4BF');
+  const BLUE = new THREE.Color('#F4F6FB'); // oq chinni kub
+  const GREY = new THREE.Color('#A9AFBA');
   const heroMats = Array.from({ length: 6 }, () =>
     new THREE.MeshPhysicalMaterial({
-      color: BLUE.clone(), roughness: 0.32, metalness: 0, clearcoat: 1, clearcoatRoughness: 0.12,
-      emissive: 0xffffff, emissiveMap: faces.blank.emissive, emissiveIntensity: 0.95,
-      bumpMap: faces.blank.bump, bumpScale: 1.6,
+      color: BLUE.clone(), roughness: 0.3, metalness: 0, clearcoat: 1, clearcoatRoughness: 0.18,
+      map: faces.blank.map, bumpMap: faces.blank.bump, bumpScale: 1.6,
     }),
   );
   const hero = new THREE.Mesh(new RoundedBoxGeometry(1, 1, 1, 6, 0.14), heroMats);
@@ -291,10 +324,12 @@ async function mount(canvas) {
   rows.forEach((n, r) => {
     for (let c = 0; c < n; c++) {
       const name = ALL14[idx];
-      const front = sideMat.clone();
+      const side = sideMat.clone();
+      side.color = new THREE.Color(COLORS[name]);
+      const front = side.clone();
       front.emissiveMap = faces[name].emissive;
       front.bumpMap = faces[name].bump;
-      const mesh = new THREE.Mesh(smallGeo, [sideMat, sideMat, sideMat, sideMat, front, sideMat]);
+      const mesh = new THREE.Mesh(smallGeo, [side, side, side, side, front, side]);
       mesh.castShadow = true;
       mesh.visible = false;
       scene.add(mesh);
@@ -317,7 +352,7 @@ async function mount(canvas) {
   scene.add(logo);
   const logoContact = contact(2.2);
 
-  Object.assign(S, { renderer, scene, camera, key, floor, hero, heroPivot, heroMats, heroContact, faces, small, logo, logoContact, BLUE, GREY });
+  Object.assign(S, { hemi, renderer, scene, camera, key, floor, hero, heroPivot, heroMats, heroContact, faces, small, logo, logoContact, BLUE, GREY });
   renderer.compile(scene, camera);
   S.ready = true;
 }
@@ -376,8 +411,11 @@ function render(t) {
     const g = C4[j];
     // orqa (-z) yuz va reveal'dagi teskari logo 180° burilgan nusxani oladi
     const back = (g === 5) !== (name === 'LOGO' && j === jBack && SEQ[m] !== 'LOGO');
-    heroMats[g].emissiveMap = back ? f.emissiveR : f.emissive;
-    heroMats[g].bumpMap = back ? f.bumpR : f.bump;
+    // shablon paytida (kulrang) ikonkalar yo'q; logo yuzi reveal'da chiqadi
+    const shown = name === 'LOGO' ? t >= 5.3 : !(t >= 2.55 && t < 5.2);
+    const ff = shown ? f : faces.blank;
+    heroMats[g].map = back ? ff.mapR : ff.map;
+    heroMats[g].bumpMap = back ? ff.bumpR : ff.bump;
     heroMats[g].userData.isLogo = name === 'LOGO';
   }
   // kulrang shablon (2.4–4.95) va qaytish
@@ -387,17 +425,22 @@ function render(t) {
   for (let g = 0; g < 6; g++) {
     const mat = heroMats[g];
     mat.color.copy(tmpC);
-    mat.roughness = lerp(0.32, 0.55, grey);
+    mat.roughness = lerp(0.3, 0.55, grey);
     mat.clearcoat = lerp(1, 0.3, grey);
-    const vis = mat.userData.isLogo ? logoVis : 1 - grey;
-    mat.emissiveIntensity = (g === 0 || g === 1 ? 0.9 : 0.95) * vis;
     mat.bumpScale = g === 0 || g === 1 ? 1.6 : 1.6 * (mat.userData.isLogo ? logoVis : 1 - grey * 0.6);
   }
   if (!heroMats[0].userData.blankSet) {
-    heroMats[0].emissiveMap = heroMats[1].emissiveMap = faces.blank.emissive;
+    heroMats[0].map = heroMats[1].map = faces.blank.map;
     heroMats[0].bumpMap = heroMats[1].bumpMap = faces.blank.bump;
     heroMats[0].userData.blankSet = true;
   }
+  // atrof rangi oq kubga tushadi (fon bilan bir xil vaqtda, 0.4 s o'tish)
+  let wi = 0;
+  while (wi + 1 < WORLD.length && t >= WORLD[wi + 1][0]) wi++;
+  const wPrev = new THREE.Color(WORLD[Math.max(0, wi - 1)][1]);
+  const wCur = new THREE.Color(WORLD[wi][1]);
+  const wMix = wi === 0 ? 1 : E.p2io(seg(t, WORLD[wi][0], WORLD[wi][0] + 0.4));
+  S.hemi.color.copy(wPrev.lerp(wCur, wMix)).lerp(new THREE.Color('#ffffff'), 0.35);
   // reveal: sakrash + 360° aylanish (5.0–5.72), qo'nishda siqilish
   const rx = seg(t, 5.0, 5.72);
   const revealHop = 4 * 0.95 * rx * (1 - rx);
@@ -428,8 +471,8 @@ function render(t) {
     const tb0 = T_BURST + 0.2;
     const tb1 = tb0 + 0.24;
     const ts = tb1 + 0.05 * order;
-    const te = T_END + 0.03 * (13 - order);
-    let vis = t >= tb0 && t < te + 0.42;
+    const te = T_END + 0.015 * (13 - order);
+    let vis = t >= tb0 && t < te + 0.36;
     const pos = new THREE.Vector3();
     let sc = 1;
     let rotAmt = 1;
@@ -442,11 +485,12 @@ function render(t) {
       pos.copy(burst).lerp(slot, x);
       rotAmt = 1 - x;
     } else {
-      const x = E.p3in(seg(t, te, te + 0.42));
+      // logoga yig'ilish: silliq kichrayib yo'qoladi (keskin «o'chish» yo'q — miltillamaydi)
+      const x = E.p2io(seg(t, te, te + 0.36));
       pos.copy(slot).lerp(new THREE.Vector3(0, LOGO_Y, 0.2), x);
-      sc = lerp(1, 0.2, x);
+      sc = 1 - E.p2in(seg(t, te, te + 0.36));
       rotAmt = 0;
-      if (x >= 1) vis = false;
+      if (sc <= 0.001) vis = false;
     }
     const settle = wobble(t - (ts + 0.3), 0.08, 0.45, 16);
     mesh.visible = vis;
@@ -457,16 +501,17 @@ function render(t) {
   }
 
   // --- 3D logo
-  const tl0 = T_END + 0.32;
+  const tl0 = T_END + 0.4;
   const lv = t >= tl0;
   S.logo.visible = lv;
   S.logoContact.visible = lv;
   if (lv) {
-    const sp = springVal(t - tl0, 0.62, 9);
-    const rs = springVal(t - tl0, 0.72, 7.5);
-    S.logo.scale.setScalar(lerp(0.5, 1, sp));
-    S.logo.position.set(0, LOGO_Y + 0.1 * (1 - sp), 0);
-    S.logo.rotation.set(0.06 * (1 - rs), -1.75 * (1 - rs), 0);
+    // tebranishsiz kirish: expo.out — bir marta burilib joyiga tushadi va qimirlamaydi
+    const sp = E.expoOut(seg(t, tl0, tl0 + 0.75));
+    const rs = E.expoOut(seg(t, tl0, tl0 + 1.0));
+    S.logo.scale.setScalar(lerp(0.35, 1, sp));
+    S.logo.position.set(0, LOGO_Y + 0.08 * (1 - sp), 0);
+    S.logo.rotation.set(0.05 * (1 - rs), -1.4 * (1 - rs), 0);
     S.logoContact.visible = false; // logo havoda turadi
   }
   // kalit nuri asta suriladi — yaltiroq logodan o'tadi (obyekt emas, yorug'lik harakatlanadi)

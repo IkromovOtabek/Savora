@@ -9,74 +9,79 @@
       position: absolute;
       inset: 0;
     }
-    #bg-base {
-      background: linear-gradient(180deg, #f5f8fe 0%, #eaf0fa 46%, #dce5f4 100%);
-    }
-    #bg-grey {
-      background: linear-gradient(180deg, #f0f1f3 0%, #e4e6ea 48%, #d5d8df 100%);
-      opacity: 0;
-    }
-    #bg-blue {
-      background: linear-gradient(180deg, #f5f8fe 0%, #eaf0fa 46%, #dce5f4 100%);
-    }
-    #bg-phone {
-      background: linear-gradient(180deg, #f0f4ff 0%, #e2eaff 48%, #d2defb 100%);
-    }
-    #bg-pharm {
-      background: linear-gradient(180deg, #eef9fc 0%, #ddf1f9 48%, #c9e5f2 100%);
-    }
-    #bg-cloth {
-      background: linear-gradient(180deg, #f4f2ff 0%, #e9e5ff 48%, #d9d2f8 100%);
-    }
-    #bg-food {
-      background: linear-gradient(180deg, #fbf7f0 0%, #f3ece0 48%, #e6dcca 100%);
-    }
-    #bg-blue2 {
-      background: linear-gradient(180deg, #f5f8fe 0%, #eaf0fa 46%, #dce5f4 100%);
-    }
+    /* har sohaning o'z rangli dunyosi (stage3d WORLD bilan bir xil); oq kub va oq karta shu fonda turadi */
+    #bg-phone0, #bg-phone { background: linear-gradient(180deg, #5b54ee 0%, #4338ca 55%, #312e81 100%); }
+    #bg-h1, #bg-pharm { background: linear-gradient(180deg, #14a89c 0%, #0d9488 55%, #115e59 100%); }
+    #bg-h2, #bg-cloth { background: linear-gradient(180deg, #cb3fdc 0%, #a21caf 55%, #701a75 100%); }
+    #bg-h3, #bg-food { background: linear-gradient(180deg, #ec5530 0%, #e8452a 55%, #9a2a12 100%); }
+    #bg-h4, #bg-build { background: linear-gradient(180deg, #d27106 0%, #c2650a 55%, #7c3a06 100%); }
+    #bg-h5, #bg-auto { background: linear-gradient(180deg, #5b6b82 0%, #475569 55%, #1e293b 100%); }
+    #bg-furn { background: linear-gradient(180deg, #22b357 0%, #15803d 55%, #14532d 100%); }
+    #bg-grey { background: linear-gradient(180deg, #f0f1f3 0%, #e4e6ea 48%, #d5d8df 100%); opacity: 0; }
+    #bg-blue { background: linear-gradient(180deg, #2a6bf0 0%, #1a5fe0 55%, #0b2f8a 100%); }
+    #bg-light { background: linear-gradient(180deg, #f5f8fe 0%, #eaf0fa 46%, #dce5f4 100%); }
     .wipe {
-      clip-path: circle(0px at 540px 700px);
+      clip-path: circle(0px at 540px 760px);
     }
-    /* studiya polining yumshoq yorug' dog'i */
+    /* studiya polidagi yumshoq yorug'lik dog'i — kub turgan joy */
     #bg-floor {
       position: absolute;
       left: -120px;
       right: -120px;
-      top: 820px;
+      top: 760px;
       height: 760px;
-      background: radial-gradient(50% 45% at 50% 22%, rgba(255, 255, 255, 0.6), rgba(255, 255, 255, 0) 70%);
+      background: radial-gradient(50% 45% at 50% 22%, rgba(255, 255, 255, 0.24), rgba(255, 255, 255, 0) 70%);
     }
   </style>
   <div id="root" data-composition-id="bg" data-width="1080" data-height="1920">
-    <div id="bg-base" class="bg-layer"></div>
+    <div id="bg-phone0" class="bg-layer"></div>
+    <div id="bg-h1" class="bg-layer wipe"></div>
+    <div id="bg-h2" class="bg-layer wipe"></div>
+    <div id="bg-h3" class="bg-layer wipe"></div>
+    <div id="bg-h4" class="bg-layer wipe"></div>
+    <div id="bg-h5" class="bg-layer wipe"></div>
     <div id="bg-grey" class="bg-layer"></div>
     <div id="bg-blue" class="bg-layer wipe"></div>
     <div id="bg-phone" class="bg-layer wipe"></div>
     <div id="bg-pharm" class="bg-layer wipe"></div>
     <div id="bg-cloth" class="bg-layer wipe"></div>
     <div id="bg-food" class="bg-layer wipe"></div>
-    <div id="bg-blue2" class="bg-layer wipe"></div>
+    <div id="bg-build" class="bg-layer wipe"></div>
+    <div id="bg-auto" class="bg-layer wipe"></div>
+    <div id="bg-furn" class="bg-layer wipe"></div>
+    <div id="bg-light" class="bg-layer wipe"></div>
     <div id="bg-floor" data-layout-ignore></div>
   </div>
   <script>
     window.__timelines = window.__timelines || {};
     const tl = gsap.timeline({ paused: true });
-    // shablon: rang so'nadi
-    tl.fromTo("#bg-grey", { opacity: 0 }, { opacity: 1, duration: 0.4, ease: "power2.inOut" }, 2.38);
-    // kub dumalaganda rang to'lqini kubdan tarqaladi
+    // kub ag'darilganda yangi rang kubdan doira bo'lib tarqaladi
     const wipe = (id, at, dur) =>
       tl.fromTo(
         id,
-        { clipPath: "circle(0px at 540px 700px)" },
-        { clipPath: "circle(2300px at 540px 700px)", duration: dur, ease: "power2.inOut" },
+        { clipPath: "circle(0px at 540px 760px)" },
+        { clipPath: "circle(2300px at 540px 760px)", duration: dur, ease: "power2.inOut" },
         at,
       );
+    // hook: har ag'darilishda yangi soha rangi (hook.html slot bilan bir vaqtda)
+    wipe("#bg-h1", 0.2, 0.24);
+    wipe("#bg-h2", 0.52, 0.24);
+    wipe("#bg-h3", 0.82, 0.24);
+    wipe("#bg-h4", 1.11, 0.24);
+    wipe("#bg-h5", 1.44, 0.24);
+    // shablon: rang so'nadi, hammasi kulrang
+    tl.fromTo("#bg-grey", { opacity: 0 }, { opacity: 1, duration: 0.4, ease: "power2.inOut" }, 2.38);
     wipe("#bg-blue", 4.98, 0.55);
     wipe("#bg-phone", 7.4, 0.5);
     wipe("#bg-pharm", 9.8, 0.5);
     wipe("#bg-cloth", 12.6, 0.5);
     wipe("#bg-food", 14.9, 0.5);
-    wipe("#bg-blue2", 17.15, 0.45);
+    // tez montaj
+    wipe("#bg-build", 17.2, 0.22);
+    wipe("#bg-auto", 17.55, 0.22);
+    wipe("#bg-furn", 17.9, 0.22);
+    // payoff va end card: yorug' studiya — rangli 14 kub va ko'k logo ajralib tursin
+    wipe("#bg-light", 18.3, 0.5);
     tl.set({}, {}, 26.5);
     window.__timelines["bg"] = tl;
   </script>
