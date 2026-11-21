@@ -102,6 +102,14 @@ describe('POST /api/mobile/sales — clientSaleId', () => {
     expect(saleCreate).not.toHaveBeenCalled();
   });
 
+  it('qarz mijozsiz — 400; naqd mijozsiz (eski ilova) — o\'tadi', async () => {
+    const { POST } = await import('@/app/api/mobile/sales/route');
+    expect((await POST(post({ paymentType: 'debt', paidAmount: 0 }))).status).toBe(400);
+    expect((await POST(post({ paymentType: 'debt', paidAmount: 0, customerName: 'Ali' }))).status).toBe(400);
+    expect(saleCreate).not.toHaveBeenCalled();
+    expect((await POST(post())).status).toBe(201);
+  });
+
   it('noto\'g\'ri kalit — 400', async () => {
     const { POST } = await import('@/app/api/mobile/sales/route');
     expect((await POST(post({ clientSaleId: 'qisqa' }))).status).toBe(400);

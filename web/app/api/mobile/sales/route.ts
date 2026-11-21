@@ -4,8 +4,7 @@ import { authenticateMobile } from '@/lib/mobileAuth';
 import { mobilePermissionDenied, userCan } from '@/lib/permissionGuard';
 import { permissionDeniedError } from '@/lib/permissions';
 import { recordAudit } from '@/lib/audit';
-import { canonicalPhone } from '@/lib/phone';
-import { findCustomerByPhone } from '@/lib/daftarOps';
+import { resolveSaleCustomer } from '@/lib/saleCustomer';
 import { getTenantModels } from '@/lib/tenantDb';
 import { branchFilter } from '@/lib/branchScope';
 import { getMobileFeatures } from '@/lib/mobileOrg';
@@ -121,6 +120,8 @@ export async function POST(req: Request) {
   let body: {
     productId?: string; paymentType?: string; totalAmount?: number; paidAmount?: number;
     installmentMonths?: number; customerName?: string; customerPhone?: string;
+    /** F.I.O takliflaridan tanlangan mavjud mijoz (GET /api/mobile/customers); eski ilova yubormaydi */
+    customerId?: unknown;
     /** Nasiya: har oyning qaysi kuni to'laydi (1–31); eski ilova yubormaydi — sotuv sanasi + N oy */
     payDay?: number | string;
     dueDate?: string; bankName?: string; saleQty?: number | string; notes?: string;
@@ -166,6 +167,12 @@ export async function POST(req: Request) {
   const customerPhone = customerPhoneRaw.replace(/\D/g, '');
   if (customerPhoneRaw && (customerPhone.length < 9 || customerPhone.length > 15)) {
     return NextResponse.json({ error: 'Telefon raqami noto\'g\'ri (9–15 raqam).' }, { status: 400 });
+  }
+  const customerId = typeof body.customerId === 'string' && Types.ObjectId.isValid(body.customerId) ? body.customerId : '';
+  // Qarz/nasiya/kredit — mijozsiz bo'lmaydi. Naqdda yangi ilova mijozni o'zi talab qiladi; server talab qilmaydi —
+  // eski ilovalar (1.3.0, OTA'siz 1.6.0) naqdni mijozsiz yuboradi va ular sotolmay qolmasin
+  if (paymentType !== 'cash' && !customerId && (!customerName || !customerPhone)) {
+    return NextResponse.json({ error: 'Mijoz ismi va telefoni kiritilishi shart.' }, { status: 400 });
   }
 
   if (!Types.ObjectId.isValid(productId)) return NextResponse.json({ error: 'Mahsulot tanlanishi shart.' }, { status: 400 });
@@ -264,16 +271,14 @@ export async function POST(req: Request) {
   const checkoutId = newCheckoutId();
 
   // Mijoz — barcha tekshiruvlar o'tgach yaratiladi (rad etilgan sotuvdan "yetim" mijoz qolmaydi)
+  // Tanlangan mijoz (customerId) yoki telefon bo'yicha topiladi / yangisi ochiladi (web bilan bir xil — lib/saleCustomer)
   let customer: { _id: Types.ObjectId; fullName: string; phone: string } | null = null;
-  if (customerName && customerPhone) {
-    const phone = canonicalPhone(customerPhone);
-    const found = await findCustomerByPhone({ Customer }, phone);
-    if (found) {
-      customer = { _id: found._id, fullName: found.fullName, phone: found.phone };
-    } else {
-      const c = await Customer.create({ fullName: customerName, phone });
-      customer = { _id: c._id, fullName: c.fullName, phone: c.phone };
+  if (customerId || (customerName && customerPhone)) {
+    const r = await resolveSaleCustomer({ Customer }, { customerId, name: customerName, phone: customerPhone });
+    if (!r.ok) {
+      return NextResponse.json({ error: r.error === 'badPhone' ? 'Telefon raqami noto\'g\'ri (9–15 raqam).' : 'Mijoz ismi va telefoni kiritilishi shart.' }, { status: 400 });
     }
+    customer = r.customer;
   }
 
   // Atomik: qoldiq tekshiruvi + ayirish bitta so'rovda (parallel sotuvda minusga tushmaydi)

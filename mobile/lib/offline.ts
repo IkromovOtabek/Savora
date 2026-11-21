@@ -49,6 +49,10 @@ export interface QueuedSale {
   totalAmount: number;
   soldAt: string;
   notes: string;
+  /** Mijoz (yangi ilova; eski navbat yozuvlarida yo'q). Oflaynda — odatda qo'lda yozilgan ism + telefon */
+  customerId?: string;
+  customerName?: string;
+  customerPhone?: string;
   status: QueueStatus;
   reason?: QueueReason;
 }
@@ -207,6 +211,7 @@ async function doSync(userId: string): Promise<SyncReport> {
         sales: batch.map((s) => ({
           clientSaleId: s.clientSaleId, productId: s.productId, qty: s.qty,
           totalAmount: s.totalAmount, soldAt: s.soldAt, notes: s.notes,
+          customerId: s.customerId || undefined, customerName: s.customerName || undefined, customerPhone: s.customerPhone || undefined,
         })),
       },
     });

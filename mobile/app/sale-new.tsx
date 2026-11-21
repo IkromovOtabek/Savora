@@ -13,10 +13,11 @@ import { useOfflinePos } from '@/lib/offlinePos';
 import { getNetState } from '@/lib/net';
 import { isNetworkError, newClientSaleId, searchCatalog, toPicked } from '@/lib/offline';
 import { useDict, tr } from '@/lib/i18n';
+import { CustomerPicker, EMPTY_CUSTOMER, type PickedCustomer } from '@/components/CustomerPicker';
 import { fmtQty, isFractionalUnit, parseQty, priceTimesQty, qtyWithUnit } from '@/lib/qty';
 import {
   Screen, NavBar, LargeTitle, SearchField, Group, Cell, AmountColumn, Pill, Button, IconButton, SegmentedControl,
-  Field, PhoneField, Chips, Stepper, Loading, EmptyState, ErrorState,
+  Field, Chips, Stepper, Loading, EmptyState, ErrorState,
 } from '@/components/ui';
 
 const MONTH_PRESETS = [3, 6, 9, 12];
@@ -55,8 +56,8 @@ export default function SaleNew() {
   const [totalEdited, setTotalEdited] = useState(false);
   const [paid, setPaid] = useState('');
   const [months, setMonths] = useState('6');
-  const [custName, setCustName] = useState('');
-  const [custPhone, setCustPhone] = useState('');
+  // Mijoz — har qanday to'lov turida majburiy (naqd ham, web bilan bir xil); F.I.O katagida mavjud mijozlardan tanlanadi
+  const [customer, setCustomer] = useState<PickedCustomer>(EMPTY_CUSTOMER);
   const [notes, setNotes] = useState('');
   const [busy, setBusy] = useState(false);
   const [tried, setTried] = useState(false);
@@ -113,7 +114,8 @@ export default function SaleNew() {
   const priceLocked = baseTotal !== null && !canDiscount && !canRaise;
   const paidN = pay === 'cash' ? totalN : Number(digits(paid)) || 0;
   const monthsN = Number(months) || 0;
-  const needCustomer = pay !== 'cash';
+  /** Qarz/nasiya: hozir to'langan qism va qoldiq ko'rsatiladi */
+  const credit = pay !== 'cash';
 
   const errors = {
     qty: fractional && (fracQty === null || fracQty > (picked?.available ?? 0)) ? d.saleNew.errQty : null,
@@ -121,10 +123,11 @@ export default function SaleNew() {
       : baseTotal !== null && totalN < baseTotal && !canDiscount ? d.saleNew.errDiscount
       : baseTotal !== null && totalN > baseTotal && !canRaise ? d.saleNew.errRaise
       : null,
-    paid: pay !== 'cash' && paidN > totalN ? d.saleNew.errPaid : null,
+    paid: credit && paidN > totalN ? d.saleNew.errPaid : null,
     months: pay === 'installment' && (monthsN < 1 || monthsN > 60) ? d.saleNew.errMonths : null,
-    name: needCustomer && !custName.trim() ? d.saleNew.errName : null,
-    phone: needCustomer && !uzPhone9(custPhone) ? d.saleNew.errPhone : null,
+    // Ro'yxatdan tanlangan mijozning telefoni eski formatda bo'lishi mumkin — tekshirilmaydi
+    name: !customer.name.trim() ? d.saleNew.errName : null,
+    phone: !customer.id && !uzPhone9(customer.phone) ? d.saleNew.errPhone : null,
   };
   const show = (k: keyof typeof errors) => (tried ? errors[k] : null);
   const valid = !Object.values(errors).some(Boolean);
@@ -143,8 +146,9 @@ export default function SaleNew() {
       totalAmount: totalN,
       paidAmount: paidN,
       installmentMonths: pay === 'installment' ? monthsN : undefined,
-      customerName: needCustomer ? custName.trim() : '',
-      customerPhone: needCustomer ? uzPhoneE164(custPhone) : '',
+      customerId: customer.id || undefined,
+      customerName: customer.name.trim(),
+      customerPhone: customer.id ? customer.phone : uzPhoneE164(customer.phone),
       saleQty: picked.trackQuantity ? saleQty ?? undefined : undefined,
       notes: notes.trim() || undefined,
       payMethod: paidN > 0 ? method : undefined,
@@ -161,6 +165,9 @@ export default function SaleNew() {
           unit: p.unit ?? null,
           totalAmount: totalN,
           notes: notes.trim(),
+          customerId: customer.id || undefined,
+          customerName: customer.name.trim(),
+          customerPhone: customer.id ? customer.phone : uzPhoneE164(customer.phone),
         });
         Alert.alert(d.offline.savedTitle, d.offline.savedMsg, [{ text: 'OK', onPress: () => router.back() }]);
       } catch (err) {
@@ -303,6 +310,9 @@ export default function SaleNew() {
         />
       ) : null}
 
+      {/* Mijoz — yuqorida: Android'da klaviatura ekranni siqmaydi (edge-to-edge), takliflar klaviatura ustida ko'rinsin */}
+      <CustomerPicker value={customer} onChange={setCustomer} nameError={show('name')} phoneError={show('phone')} />
+
       <View style={{ gap: 8 }}>
         <Text style={[s.label, { color: c.ink3 }]}>{d.saleNew.payType}</Text>
         <SegmentedControl options={payTypes.map((k) => ({ key: k, label: payLabels()[k] }))} value={pay} onChange={setPay} />
@@ -321,7 +331,7 @@ export default function SaleNew() {
         hint={priceLocked ? d.saleNew.priceLocked : undefined}
       />
 
-      {needCustomer ? (
+      {credit ? (
         <Field
           label={pay === 'installment' ? d.saleNew.down : d.saleNew.paidNow}
           value={grouped(paid)}
@@ -348,24 +358,12 @@ export default function SaleNew() {
         </View>
       ) : null}
 
-      {needCustomer ? (
-        <>
-          <Field label={d.saleNew.custName} value={custName} onChangeText={setCustName} placeholder={d.saleNew.custPlaceholder} autoCapitalize="words" textContentType="name" error={show('name')} />
-          <PhoneField
-            label={d.common.phone}
-            value={custPhone}
-            onChangeText={setCustPhone}
-            error={show('phone')}
-          />
-        </>
-      ) : null}
-
       <Field label={d.common.noteOptional} value={notes} onChangeText={setNotes} placeholder={d.saleNew.notesPlaceholder} />
 
       <Group header={d.saleNew.summary}>
         <Cell title={d.common.total} value={fmtMoney(totalN, { suffix: true })} valueStrong />
-        {needCustomer ? <Cell title={d.saleNew.payNow} value={fmtMoney(paidN, { suffix: true })} valueColor={c.ok} /> : null}
-        {needCustomer ? <Cell title={d.common.remaining} value={fmtMoney(left, { suffix: true })} valueColor={left > 0 ? c.bad : c.ok} /> : null}
+        {credit ? <Cell title={d.saleNew.payNow} value={fmtMoney(paidN, { suffix: true })} valueColor={c.ok} /> : null}
+        {credit ? <Cell title={d.common.remaining} value={fmtMoney(left, { suffix: true })} valueColor={left > 0 ? c.bad : c.ok} /> : null}
         {monthly > 0 ? <Cell title={d.saleNew.monthly} right={<Text style={[s.gold, tabular, { color: c.gold }]}>{fmtMoney(monthly, { suffix: true })}</Text>} /> : null}
       </Group>
     </Screen>

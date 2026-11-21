@@ -13,6 +13,9 @@ const MAX_BATCH = 100;
 
 const BAD = { badJson: 'Noto\'g\'ri so\'rov.', fallback: 'Noto\'g\'ri so\'rov.' };
 
+/** Ixtiyoriy matn: rad etmaydi, kesadi */
+const softText = (max: number) => zField((v) => (typeof v === 'string' ? v.trim().slice(0, max) : ''));
+
 const saleSchema = z.object({
   // Qurilma bergan noyob kalit: UUID yoki shunga o'xshash 8–64 belgili [A-Za-z0-9-]
   clientSaleId: zField((v, ctx) => {
@@ -28,6 +31,12 @@ const saleSchema = z.object({
   totalAmount: zMoney('Summa noto\'g\'ri.', { min: 1 }),
   soldAt: zDate('Sotuv vaqti noto\'g\'ri.'),
   notes: zText(500, 'Izoh juda uzun.'),
+  // Mijoz (yangi ilova; eski ilova yubormaydi). Oflaynda qidiruv yo'q — odatda ism + telefon,
+  // internet uzilishidan oldin ro'yxatdan tanlangan bo'lsa — customerId ham.
+  // Xato/uzun bo'lsa ham paket rad etilmaydi (kesiladi) — sotuv allaqachon bo'lgan
+  customerId: softText(40),
+  customerName: softText(120),
+  customerPhone: softText(40),
 });
 
 /**
@@ -49,7 +58,7 @@ export async function POST(req: Request) {
   }), BAD);
   if (!input.ok) return NextResponse.json({ error: input.error }, { status: 400 });
 
-  const { Product, Sale } = await getTenantModels(user.dbName);
+  const { Product, Sale, Customer } = await getTenantModels(user.dbName);
   const perms = {
     canDiscount: await userCan(user, 'sale.discount'),
     canEditPrice: await userCan(user, 'sale.editPrice'),
@@ -59,7 +68,7 @@ export async function POST(req: Request) {
   const results: OfflineSaleResult[] = [];
   const sorted = [...input.data.sales].sort((a, b) => a.soldAt.getTime() - b.soldAt.getTime());
   for (const item of sorted) {
-    results.push(await applyOfflineSale({ Product, Sale }, user, item, perms));
+    results.push(await applyOfflineSale({ Product, Sale, Customer }, user, item, perms));
   }
 
   if (results.some((r) => r.status === 'ok')) await markOnboardingStep(user.organizationId, 'saleMade');

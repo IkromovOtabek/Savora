@@ -54,7 +54,7 @@ export default function OfflineSales() {
               icon="alert-circle"
               iconColor={c.bad}
               title={x.qty !== 1 ? `${x.name} × ${qtyWithUnit(x.qty, x.unit, d.productFields.units)}` : x.name}
-              subtitle={`${fmtMoney(x.totalAmount, { suffix: true })} · ${fmtDateTime(x.soldAt)}\n${x.reason ? o.reasons[x.reason] : o.rejected}`}
+              subtitle={`${fmtMoney(x.totalAmount, { suffix: true })} · ${fmtDateTime(x.soldAt)}${x.customerName ? ` · ${x.customerName}` : ''}\n${x.reason ? o.reasons[x.reason] : o.rejected}`}
               subtitleLines={4}
               right={<Button title={o.dismiss} size="sm" variant="tinted" onPress={() => dismiss(x.clientSaleId)} />}
             />
@@ -71,7 +71,7 @@ export default function OfflineSales() {
               icon="cloud-upload-outline"
               iconColor={c.warn}
               title={x.qty !== 1 ? `${x.name} × ${qtyWithUnit(x.qty, x.unit, d.productFields.units)}` : x.name}
-              subtitle={fmtDateTime(x.soldAt)}
+              subtitle={x.customerName ? `${fmtDateTime(x.soldAt)} · ${x.customerName}` : fmtDateTime(x.soldAt)}
               right={<AmountColumn amount={fmtMoney(x.totalAmount)}><Pill label={o.pending} tone="mut" /></AmountColumn>}
             />
           ))}

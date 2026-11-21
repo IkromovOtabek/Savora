@@ -1,6 +1,7 @@
 import type { Model } from 'mongoose';
 import type { IProduct } from './models/tenant/Product';
 import type { ISale } from './models/tenant/Sale';
+import type { ICustomer } from './models/tenant/Customer';
 import type { SessionUser } from './session';
 import { branchFilter } from './branchScope';
 import { reserveStock, releaseStock } from './stock';
@@ -8,6 +9,8 @@ import { generateSaleNo } from './sales';
 import { recordAudit } from './audit';
 import { isValidQty, priceTimesQty, qtyLabel } from './qty';
 import { isStockless } from './productQuantity';
+import { resolveSaleCustomer } from './saleCustomer';
+import { logError } from './logger';
 
 /**
  * Oflayn POS sinxronlash — mobil ilova internetsiz qilgan NAQD sotuvlarni serverga yozadi.
@@ -31,6 +34,10 @@ export type OfflineSaleInput = {
   totalAmount: number;
   soldAt: Date;
   notes: string;
+  /** Mijoz (yangi ilova): tanlangan id yoki ism + telefon. Yo'q / xato — sotuv mijozsiz yoziladi (rad etilmaydi) */
+  customerId?: string;
+  customerName?: string;
+  customerPhone?: string;
 };
 
 export type OfflineSaleStatus = 'ok' | 'duplicate' | 'conflict' | 'rejected';
@@ -63,7 +70,7 @@ export function isClientSaleId(v: unknown): v is string {
 }
 
 export async function applyOfflineSale(
-  models: { Product: Model<IProduct>; Sale: Model<ISale> },
+  models: { Product: Model<IProduct>; Sale: Model<ISale>; Customer?: Model<ICustomer> },
   user: Actor,
   item: OfflineSaleInput,
   perms: { canDiscount: boolean; canEditPrice: boolean },
@@ -102,6 +109,19 @@ export async function applyOfflineSale(
   });
   if (!reserved) return { ...base, status: 'conflict', reason: 'outOfStock' };
 
+  // Mijoz: sotuv oflaynda allaqachon bo'lgan (pul olingan) — mijoz ma'lumoti xato bo'lsa ham sotuv yoziladi
+  let customer: { _id: unknown; fullName: string; phone: string } | null = null;
+  if (models.Customer && (item.customerId || (item.customerName && item.customerPhone))) {
+    try {
+      const r = await resolveSaleCustomer({ Customer: models.Customer }, {
+        customerId: item.customerId, name: item.customerName ?? '', phone: item.customerPhone ?? '',
+      });
+      if (r.ok) customer = r.customer;
+    } catch (err) {
+      logError('posSync.customer', err);
+    }
+  }
+
   try {
     const saleNo = await generateSaleNo(Sale);
     const sale = await Sale.create({
@@ -116,6 +136,7 @@ export async function applyOfflineSale(
         saleQuantity: qty,
         unit: product.unit,
       },
+      ...(customer ? { customerId: customer._id, customerSnapshot: { fullName: customer.fullName, phone: customer.phone } } : {}),
       branchId: product.branchId,
       paymentType: 'cash',
       totalAmount: item.totalAmount,

@@ -24,6 +24,7 @@ describe.skipIf(!URI)('applyOfflineSale (MongoDB)', () => {
   let conn: mongoose.Connection;
   let Product: mongoose.Model<import('@/lib/models/tenant/Product').IProduct>;
   let Sale: mongoose.Model<import('@/lib/models/tenant/Sale').ISale>;
+  let Customer: mongoose.Model<import('@/lib/models/tenant/Customer').ICustomer>;
   const branchId = new Types.ObjectId();
   const admin = { id: 'u1', username: 'ali', role: 'admin' as const, branchId: undefined, dbName: 'x' };
   const allow = { canDiscount: true, canEditPrice: true };
@@ -35,6 +36,7 @@ describe.skipIf(!URI)('applyOfflineSale (MongoDB)', () => {
     const { saleSchema } = await import('@/lib/models/tenant/Sale');
     Product = conn.model('Product', productSchema);
     Sale = conn.model('Sale', saleSchema);
+    Customer = conn.model('Customer', (await import('@/lib/models/tenant/Customer')).customerSchema);
     await Sale.init();
     apply = (await import('@/lib/posSync')).applyOfflineSale;
   });
@@ -65,6 +67,19 @@ describe.skipIf(!URI)('applyOfflineSale (MongoDB)', () => {
     expect(s?.createdAt?.getTime()).toBe(it1.soldAt.getTime());
     expect(s?.payments[0].paidAt.getTime()).toBe(it1.soldAt.getTime());
     expect((await Product.findById(p._id).lean())?.soldQuantity).toBe(2);
+  });
+
+  it('mijoz: tanlangan id yoki ism+telefon bog\'lanadi; xato telefon — sotuv mijozsiz yoziladi', async () => {
+    const known = await Customer.create({ fullName: 'Aliyev Vali', phone: '+998 90 123 45 67' });
+    const p = await product({ quantity: 5 });
+    const a = await apply({ Product, Sale, Customer }, admin, item(String(p._id), { customerId: String(known._id), customerName: 'Aliyev Vali', customerPhone: '' }), allow);
+    expect((await Sale.findById(a.saleId).lean())?.customerSnapshot?.fullName).toBe('Aliyev Vali');
+    const b = await apply({ Product, Sale, Customer }, admin, item(String(p._id), { customerName: 'Karimova Nilufar', customerPhone: '+998 93 555 44 33' }), allow);
+    const sb = await Sale.findById(b.saleId).lean();
+    expect(sb?.customerSnapshot).toMatchObject({ fullName: 'Karimova Nilufar', phone: '+998 93 555 44 33' });
+    const c = await apply({ Product, Sale, Customer }, admin, item(String(p._id), { customerName: 'X', customerPhone: '12' }), allow);
+    expect(c.status).toBe('ok');
+    expect((await Sale.findById(c.saleId).lean())?.customerId).toBeUndefined();
   });
 
   it('duplicate: qayta yuborilsa ikki marta yozilmaydi (parallel ham)', async () => {
