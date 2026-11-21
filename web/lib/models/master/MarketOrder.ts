@@ -10,6 +10,14 @@ export type MarketOrderStatus = (typeof MARKET_ORDER_STATUSES)[number];
 export const MARKET_DELIVERY = ['pickup', 'delivery'] as const;
 export type MarketDelivery = (typeof MARKET_DELIVERY)[number];
 
+/** Yakunlash qulfi muddati: undan eski qulf — uzilgan jarayon, ochiq hisoblanadi (yakunlash odatda soniyalar) */
+export const COMPLETE_LOCK_MS = 2 * 60_000;
+
+/** Qulflanmagan (yoki qulfi eskirgan) buyurtma sharti — bekor/rad/qabul/yakunlash filtrlariga qo'shiladi */
+export function unlocked(now = Date.now()): Record<string, unknown> {
+  return { $or: [{ completingAt: null }, { completingAt: { $lt: new Date(now - COMPLETE_LOCK_MS) } }] };
+}
+
 export interface IMarketOrderItem {
   listingId: Types.ObjectId;
   key: string;
@@ -50,6 +58,13 @@ export interface IMarketOrder {
   reason?: string;
   /** Yakunlanganda do'konda yozilgan sotuvlar raqamlari */
   saleNos?: string[];
+  /**
+   * Yakunlash qulfi (lib/ecom/orders.ts): yakunlash davomida bekor/rad/qayta yakunlash to'siladi.
+   * Toza tugaganda olib tashlanadi; qolgan bo'lsa — jarayon o'rtada uzilgan (eskirgach qulf o'z-o'zidan ochiladi).
+   */
+  completingAt?: Date;
+  /** Xaridor ilovasining buyurtma urinishi kaliti — sekin tarmoqda qayta yuborilsa ikkinchi buyurtma ochilmaydi */
+  clientId?: string;
   createdAt?: Date;
   updatedAt?: Date;
 }
@@ -95,9 +110,16 @@ export const marketOrderSchema = new Schema<IMarketOrder>(
     },
     reason: { type: String, trim: true, maxlength: 300 },
     saleNos: { type: [String], default: undefined },
+    completingAt: { type: Date },
+    clientId: { type: String, trim: true, maxlength: 64 },
   },
   { timestamps: true, collection: 'market_orders' },
 );
 
 marketOrderSchema.index({ buyerId: 1, createdAt: -1 });
 marketOrderSchema.index({ orgId: 1, status: 1, createdAt: -1 });
+// Bitta urinish — har do'konga ko'pi bilan bitta buyurtma (eski yozuvlarda clientId yo'q — indeksga kirmaydi)
+marketOrderSchema.index(
+  { buyerId: 1, clientId: 1, orgId: 1 },
+  { unique: true, partialFilterExpression: { clientId: { $type: 'string' } } },
+);

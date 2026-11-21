@@ -4,11 +4,11 @@ import { headers } from 'next/headers';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { getDict } from '@/lib/i18n/server';
-import { tr } from '@/lib/i18n/fmt';
 import { clientIpFrom } from '@/lib/security';
 import { getBuyer, loginBuyer, registerBuyer, setBuyerCookie, clearBuyerCookie } from '@/lib/ecom/buyerAuth';
 import { cartListings, type ListingCard } from '@/lib/ecom/catalog';
 import { cancelBuyerOrder, placeMarketOrders, type CartLine } from '@/lib/ecom/orders';
+import { placeErrorText, placeSuccessText } from '@/lib/ecom/api';
 import { MARKET_DELIVERY, type MarketDelivery } from '@/lib/models/master/MarketOrder';
 
 /**
@@ -54,22 +54,23 @@ export async function refreshCartAction(ids: string[]): Promise<ListingCard[]> {
 }
 
 export type PlaceState =
-  | { ok: true; message: string }
+  | { ok: true; message: string; failedShops: string[] }
   | { ok: false; error: string; listingId?: string; refresh?: boolean }
   | null;
 
-export async function placeOrderAction(payload: { lines: CartLine[]; delivery: string; address?: string; note?: string }): Promise<PlaceState> {
+export async function placeOrderAction(payload: { lines: CartLine[]; delivery: string; address?: string; note?: string; clientId?: string }): Promise<PlaceState> {
   const t = (await getDict()).ecom.market;
   const buyer = await getBuyer();
   if (!buyer) return { ok: false, error: t.errors.loginRequired };
   const delivery: MarketDelivery = (MARKET_DELIVERY as readonly string[]).includes(payload?.delivery) ? (payload.delivery as MarketDelivery) : 'pickup';
-  const r = await placeMarketOrders(buyer, { lines: payload?.lines ?? [], delivery, address: payload?.address, note: payload?.note });
+  const r = await placeMarketOrders(buyer, {
+    lines: payload?.lines ?? [], delivery, address: payload?.address, note: payload?.note, clientId: payload?.clientId,
+  });
   if (!r.ok) {
-    const msg = r.error === 'notEnough' ? tr(t.errors.notEnough, { qty: r.available ?? 0 }) : t.errors[r.error];
-    return { ok: false, error: msg, listingId: r.listingId, refresh: ['unavailable', 'notEnough', 'priceChanged'].includes(r.error) };
+    return { ok: false, error: placeErrorText(t, r), listingId: r.listingId, refresh: ['unavailable', 'notEnough', 'priceChanged'].includes(r.error) };
   }
   revalidatePath('/market/orders');
-  return { ok: true, message: tr(t.checkout.success, { list: r.orders.map((o) => o.orderNo).join(', ') }) };
+  return { ok: true, message: placeSuccessText(t, r), failedShops: r.failedShops.map((s) => s.slug) };
 }
 
 export async function cancelMyOrderAction(orderId: string): Promise<{ ok: boolean; message: string }> {

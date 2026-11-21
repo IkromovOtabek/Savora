@@ -2,7 +2,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  clampQty, addLine, putLine, setLineQty, removeLine, syncLines, parseStoredCart, mergeLines, cartCount, MAX_LINES,
+  clampQty, addLine, putLine, applyRefusal, setLineQty, removeLine, syncLines, parseStoredCart, mergeLines, cartCount, MAX_LINES,
 } from '../lib/marketCartCore.ts';
 
 const card = (id, extra = {}) => ({
@@ -49,6 +49,18 @@ test('belgi soni: donalar yig\'indisi, kasr qator — 1', () => {
   let items = putLine([], card('a', { qty: 18 }), 6);
   items = putLine(items, card('k', { qty: 5, fractional: true, unit: 'kg' }), 1.5);
   assert.equal(cartCount(items), 7);
+});
+
+test('buyurtma rad javobi (409): jonli qoldiq/narx savatga yoziladi', () => {
+  const items = putLine(putLine([], card('a', { qty: 10 }), 6), card('b'), 2);
+  const less = applyRefusal(items, { code: 'notEnough', listingId: 'a', available: 3 });
+  assert.deepEqual([less[0].qty, less[0].max], [3, 3], 'miqdor va chegara mavjudga tushadi');
+  assert.equal(less[1], items[1], 'boshqa qator tegilmaydi');
+  assert.equal(applyRefusal(items, { code: 'notEnough', listingId: 'a', available: 0 })[0].max, 0, '0 — sotuvda yo\'q');
+  assert.equal(applyRefusal(items, { code: 'priceChanged', listingId: 'b', price: 12000 })[1].price, 12000);
+  assert.equal(applyRefusal(items, { code: 'unavailable', listingId: 'b' })[1].max, 0);
+  assert.equal(applyRefusal(items, { code: 'notEnough', listingId: 'yoq', available: 1 }), items, 'savatda yo\'q — o\'zgarmaydi');
+  assert.equal(applyRefusal(items, { code: 'notEnough' }), items, 'listingId yo\'q (eski server) — o\'zgarmaydi');
 });
 
 test('qatorlar soni chegarasi', () => {

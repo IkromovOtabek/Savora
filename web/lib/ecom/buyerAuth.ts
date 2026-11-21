@@ -3,6 +3,7 @@ import { Types } from 'mongoose';
 import { getIronSession, sealData, unsealData, type SessionOptions } from 'iron-session';
 import { cookies } from 'next/headers';
 import { getMasterModels } from '../masterDb';
+import { unlocked } from '../models/master/MarketOrder';
 import { hitRateLimit, clearRateLimit } from '../rateLimit';
 import { buyerPhoneKey } from './group';
 
@@ -157,10 +158,12 @@ export async function deleteBuyerAccount(buyerId: string, password: unknown): Pr
   if (!b) return { ok: false, error: 'notFound' };
   const pass = typeof password === 'string' ? password : '';
   if (!pass || pass.length > 100 || !(await bcrypt.compare(pass, b.password))) return { ok: false, error: 'badPassword' };
-  if (await MarketOrder.exists({ buyerId: b._id, status: 'accepted' })) return { ok: false, error: 'activeOrders' };
+  // Qabul qilingan yoki do'kon hozir yakunlayotgan (qulf) buyurtma — o'chirib bo'lmaydi
+  const busy = await MarketOrder.exists({ buyerId: b._id, $or: [{ status: 'accepted' }, { status: 'new', $nor: [unlocked()] }] });
+  if (busy) return { ok: false, error: 'activeOrders' };
 
   await MarketOrder.updateMany(
-    { buyerId: b._id, status: 'new' },
+    { buyerId: b._id, status: 'new', ...unlocked() },
     { $set: { status: 'cancelled' }, $push: { history: { status: 'cancelled', at: new Date(), by: 'xaridor' } } },
   );
   // Shu orada do'kon qabul qilgan buyurtma bo'lsa — uning aloqa ma'lumoti yetkazish uchun qoladi

@@ -85,6 +85,14 @@ export default function MarketCart() {
     return [...map.values()];
   }, [cart.items]);
   const live = cart.items.filter((x) => x.max > 0);
+  // Buyurtma urinishi kaliti: savat o'zgarmaguncha bir xil — javob kelmay (sekin tarmoq) qayta bosilsa server
+  // ikkinchi buyurtma ochmaydi, avvalgisini qaytaradi
+  const sig = live.map((x) => `${x.id}:${x.qty}:${x.price}`).join('|');
+  const attempt = useRef<{ sig: string; id: string } | null>(null);
+  const clientIdFor = (s: string) => {
+    if (attempt.current?.sig !== s) attempt.current = { sig: s, id: `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 12)}` };
+    return attempt.current.id;
+  };
   const total = live.reduce((sum, x) => sum + priceTimesQty(x.price, x.qty), 0);
   // «…dan» narxli tovar: server nusxalarni eng arzonidan taqsimlaydi — haqiqiy jami ko'proq bo'lishi mumkin
   const totalLabel = priceLabel(m, total, live.some((x) => x.priceFrom));
@@ -95,15 +103,24 @@ export default function MarketCart() {
     setAddrErr(null);
     setBusy(true);
     try {
-      const r = await request<{ orders: { id: string; orderNo: string; shopName: string; total: number }[]; message: string }>('/api/market/orders', {
+      const r = await request<{ orders: { id: string; orderNo: string; shopName: string; total: number }[]; failedShops?: string[]; message: string }>('/api/market/orders', {
         method: 'POST',
         body: {
           lines: live.map((x) => ({ listingId: x.id, qty: x.qty, price: x.price })),
           delivery,
           address: delivery === 'delivery' ? address.trim() : undefined,
           note: note.trim() || undefined,
+          clientId: clientIdFor(sig),
         },
       });
+      attempt.current = null;
+      // Ba'zi do'konga yuborib bo'lmagan — faqat yuborilganlarining tovarlari savatdan chiqadi, ekran shu yerda qoladi
+      const failed = Array.isArray(r.failedShops) ? r.failedShops : [];
+      if (failed.length) {
+        for (const x of cart.items) if (!failed.includes(x.shopSlug)) cart.remove(x.id);
+        Alert.alert(m.checkout.successTitle, r.message);
+        return;
+      }
       cart.clear();
       setChanged(false);
       router.replace('/market/orders');
@@ -111,6 +128,11 @@ export default function MarketCart() {
     } catch (e) {
       if (e instanceof ApiError && e.status === 409 && e.code && RESYNC_CODES.includes(e.code)) {
         await resync();
+        // Server jonli bazadan aytgan holat — keshdagi eski qoldiq ustidan
+        if (e.details) {
+          cart.refuse({ code: e.code, ...e.details });
+          setChanged(true);
+        }
         Alert.alert(m.checkout.failTitle, e.message);
       } else if (e instanceof ApiError && e.code === 'addressRequired') {
         setAddrErr(e.message);

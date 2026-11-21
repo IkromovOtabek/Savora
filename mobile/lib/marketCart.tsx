@@ -1,8 +1,8 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
-  addLine, putLine, setLineQty, removeLine, syncLines, parseStoredCart, mergeLines, cartCount,
-  type CartCard, type CartItem,
+  addLine, putLine, setLineQty, removeLine, syncLines, parseStoredCart, mergeLines, cartCount, applyRefusal,
+  type CartCard, type CartItem, type OrderRefusal,
 } from './marketCartCore';
 
 export type { CartCard, CartItem } from './marketCartCore';
@@ -29,6 +29,8 @@ interface MarketCartState {
   clear: () => void;
   /** Server holati bilan moslash; narx/qoldiq/mavjudlik o'zgargan bo'lsa — true */
   sync: (cards: CartCard[]) => boolean;
+  /** Buyurtma rad javobi (409 details) bo'yicha qatorni moslash */
+  refuse: (r: OrderRefusal) => void;
 }
 
 const MarketCartContext = createContext<MarketCartState | null>(null);
@@ -69,6 +71,7 @@ export function MarketCartProvider({ children }: { children: React.ReactNode }) 
   const setQty = useCallback((id: string, qty: number) => commit(setLineQty(itemsRef.current, id, qty)), [commit]);
   const remove = useCallback((id: string) => commit(removeLine(itemsRef.current, id)), [commit]);
   const clear = useCallback(() => commit([]), [commit]);
+  const refuse = useCallback((r: OrderRefusal) => commit(applyRefusal(itemsRef.current, r)), [commit]);
   const sync = useCallback((cards: CartCard[]) => {
     const r = syncLines(itemsRef.current, cards);
     commit(r.items);
@@ -79,8 +82,8 @@ export function MarketCartProvider({ children }: { children: React.ReactNode }) 
     items, ready,
     count: cartCount(items),
     qtyOf: (id) => items.find((x) => x.id === id)?.qty ?? 0,
-    add, put, setQty, remove, clear, sync,
-  }), [items, ready, add, put, setQty, remove, clear, sync]);
+    add, put, setQty, remove, clear, sync, refuse,
+  }), [items, ready, add, put, setQty, remove, clear, sync, refuse]);
 
   return <MarketCartContext.Provider value={value}>{children}</MarketCartContext.Provider>;
 }

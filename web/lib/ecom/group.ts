@@ -58,6 +58,16 @@ export function ecomAvailableQty(p: EcomSourceProduct): number {
   return getStockQty(p);
 }
 
+/**
+ * Mavjud buyurtmani bajarish uchun qoldiq (qabul/yakunlash): narx > 0 va stop-list sharti YO'Q — narx buyurtmada
+ * qotgan, egasi keyin narxni o'chirsa yoki stop-listga qo'ysa ham qabul qilingan buyurtma bajarilishi kerak.
+ * Faqat omborda turgan oddiy tovar (xizmat/to'plam/tizim qatori emas).
+ */
+export function orderAvailableQty(p: EcomSourceProduct): number {
+  if (p.systemKey || (p.kind && p.kind !== 'goods') || p.status !== 'in_stock') return 0;
+  return getStockQty(p);
+}
+
 /** Egasi tanlovi bo'lmasa — do'kon sozlamasi */
 export function resolveEcomListed(explicit: boolean | undefined | null, autoPublish: boolean): boolean {
   return typeof explicit === 'boolean' ? explicit : autoPublish;
@@ -187,14 +197,17 @@ export function buyerPhoneKey(raw: unknown): string | null {
 /**
  * Buyurtma miqdorini guruh hujjatlariga taqsimlash — eng arzonidan boshlab (narxlar har xil bo'lsa xaridor
  * «…dan» narxni ko'radi, jami esa haqiqiy narxlardan). Sanalmaydigan (IMEI) hujjat — 1 dona. Yetmasa — null.
+ * `availableOf` — buyurtma berishda ecomAvailableQty, bajarishda orderAvailableQty.
  */
-export function allocateCheapest<T extends EcomSourceProduct>(docs: T[], qty: number): { doc: T; qty: number }[] | null {
+export function allocateCheapest<T extends EcomSourceProduct>(
+  docs: T[], qty: number, availableOf: (p: T) => number = ecomAvailableQty,
+): { doc: T; qty: number }[] | null {
   const sorted = [...docs].sort((a, b) => a.salePrice - b.salePrice);
   const out: { doc: T; qty: number }[] = [];
   let left = roundQ(qty);
   for (const d of sorted) {
     if (left <= 0) break;
-    const avail = ecomAvailableQty(d);
+    const avail = availableOf(d);
     if (avail <= 0) continue;
     if (!d.trackQuantity) {
       if (left < 1) continue;

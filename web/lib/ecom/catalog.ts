@@ -101,6 +101,7 @@ export async function getListing(id: string): Promise<ListingDetail | null> {
 export async function cartListings(ids: unknown): Promise<ListingCard[]> {
   const list = (Array.isArray(ids) ? ids : []).map(String).filter((id) => Types.ObjectId.isValid(id)).slice(0, 100);
   if (list.length === 0) return [];
+  ensureCatalogFresh();
   const { MarketListing } = await getMasterModels();
   const rows = await MarketListing.find({ _id: { $in: list }, qty: { $gt: 0 } }).select(CARD_FIELDS).lean<ListingDoc[]>();
   return rows.map(toCard);

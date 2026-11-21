@@ -6,24 +6,43 @@
  * yig'ishga birlashadi (DEBOUNCE_MS). Xato bo'lsa jim: katalog o'z-o'zini davriy to'liq yig'ish bilan tiklaydi.
  */
 const DEBOUNCE_MS = 2500;
-const timers = new Map<string, ReturnType<typeof setTimeout>>();
+/**
+ * Kechiktirishning yuqori chegarasi: kassa ketma-ket sotsa (har sotuv Product'ga yozadi) taymer har safar qayta
+ * boshlanib, katalog umuman yangilanmay qolardi — birinchi belgidan ko'pi bilan shuncha vaqtda yig'iladi.
+ */
+const MAX_WAIT_MS = 15_000;
+const pending = new Map<string, { timer: ReturnType<typeof setTimeout>; since: number }>();
 
 /** Testlarda (vitest) va build paytida o'chiq — fon taymerlari ochiq qolmasin */
 function disabled(): boolean {
   return process.env.NODE_ENV === 'test' || !!process.env.VITEST || process.env.NEXT_PHASE === 'phase-production-build';
 }
 
+/**
+ * Keyingi yig'ishgacha kutish (sof — testlanadi): null — mavjud taymer o'z vaqtida ishlaydi (qayta boshlanmaydi).
+ * since — shu to'plamdagi birinchi belgi vaqti (yo'q bo'lsa — hozir).
+ */
+export function dirtyDelay(since: number | undefined, now: number): number | null {
+  if (since === undefined) return DEBOUNCE_MS;
+  const left = since + MAX_WAIT_MS - now;
+  if (left <= DEBOUNCE_MS) return null;
+  return DEBOUNCE_MS;
+}
+
 export function markEcomDirty(dbName: string | undefined | null): void {
   if (!dbName || disabled()) return;
-  const prev = timers.get(dbName);
-  if (prev) clearTimeout(prev);
+  const now = Date.now();
+  const prev = pending.get(dbName);
+  const delay = dirtyDelay(prev?.since, now);
+  if (delay === null) return;
+  if (prev) clearTimeout(prev.timer);
   const t = setTimeout(() => {
-    timers.delete(dbName);
+    pending.delete(dbName);
     void import('./sync')
       .then((m) => m.syncListingsForDb(dbName))
       .catch(() => { /* sync o'zi logError qiladi */ });
-  }, DEBOUNCE_MS);
+  }, delay);
   // Jarayonni faqat shu taymer uchun tirik ushlab turmaydi
   if (typeof t === 'object' && t && 'unref' in t) t.unref();
-  timers.set(dbName, t);
+  pending.set(dbName, { timer: t, since: prev?.since ?? now });
 }

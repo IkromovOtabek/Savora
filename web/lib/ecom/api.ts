@@ -3,6 +3,8 @@ import { getDictionary, type Dict } from '../i18n/dict';
 import { isLocale } from '../i18n/config';
 import { hitRateLimit } from '../rateLimit';
 import { clientIpFrom } from '../security';
+import { tr } from '../i18n/fmt';
+import type { PlaceOrderResult } from './orders';
 
 /**
  * Savora Market REST API yordamchilari (mobil ilova; web sahifalar server action ishlatadi).
@@ -36,4 +38,25 @@ export async function readBody(req: Request): Promise<Record<string, unknown> | 
   } catch {
     return null;
   }
+}
+
+type PlaceFail = Extract<PlaceOrderResult, { ok: false }>;
+
+/** Buyurtma rad javobi matni (REST va web server action uchun umumiy): tovar nomi ma'lum bo'lsa — u bilan */
+export function placeErrorText(t: Dict['ecom']['market'], r: PlaceFail): string {
+  const name = r.name;
+  if (r.error === 'notEnough') {
+    return name ? tr(t.errors.notEnoughItem, { name, qty: r.available ?? 0 }) : tr(t.errors.notEnough, { qty: r.available ?? 0 });
+  }
+  if (name && r.error === 'unavailable') return tr(t.errors.unavailableItem, { name });
+  if (name && r.error === 'priceChanged') return tr(t.errors.priceChangedItem, { name });
+  return t.errors[r.error];
+}
+
+/** Muvaffaqiyat matni: ba'zi do'konlarga yuborilmagan bo'lsa — aytiladi */
+export function placeSuccessText(t: Dict['ecom']['market'], r: Extract<PlaceOrderResult, { ok: true }>): string {
+  const list = r.orders.map((o) => o.orderNo).join(', ');
+  return r.failedShops.length
+    ? tr(t.checkout.partial, { list, shops: r.failedShops.map((s) => s.name).join(', ') })
+    : tr(t.checkout.success, { list });
 }

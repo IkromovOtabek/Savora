@@ -3,11 +3,12 @@ import { getMasterModels } from '../masterDb';
 import { getTenantModels } from '../tenantDb';
 import { getShopSettings } from '../shopSettings';
 import { isOrganizationActive } from '../models/master/Organization';
-import type { IMarketOrder, MarketDelivery, MarketOrderStatus } from '../models/master/MarketOrder';
+import { unlocked, type IMarketOrder, type MarketDelivery, type MarketOrderStatus } from '../models/master/MarketOrder';
 import type { IProduct } from '../models/tenant/Product';
 import type { ISale } from '../models/tenant/Sale';
-import { allocateCheapest, allocationTotal, buildEcomGroups, ecomGroupKey, ecomAvailableQty, splitTotal, type EcomSourceProduct } from './group';
+import { allocateCheapest, allocationTotal, buildEcomGroups, ecomGroupKey, orderAvailableQty, splitTotal, type EcomSourceProduct } from './group';
 import { ECOM_PRODUCT_PROJECTION } from './sync';
+import { markEcomDirty } from './dirty';
 import { isSampleItemCode } from '../onboardingSamples';
 import { isValidQty, priceTimesQty, qtyLabel, roundQty, subQty } from '../qty';
 import { hitRateLimit } from '../rateLimit';
@@ -31,12 +32,20 @@ import type { BuyerInfo } from './buyerAuth';
 export const ORDER_MAX_LINES = 50;
 
 export type CartLine = { listingId: string; qty: number; price?: number };
-export type PlaceOrderInput = { lines: CartLine[]; delivery: MarketDelivery; address?: string; note?: string };
+/** clientId — ilovaning buyurtma urinishi kaliti: javob kelmay qayta yuborilsa avval yaratilgan buyurtmalar qaytadi */
+export type PlaceOrderInput = { lines: CartLine[]; delivery: MarketDelivery; address?: string; note?: string; clientId?: unknown };
 export type PlaceOrderError =
   | 'emptyCart' | 'badQty' | 'unavailable' | 'notEnough' | 'priceChanged' | 'addressRequired' | 'rateLimited' | 'failed';
+export type PlacedOrder = { id: string; orderNo: string; shopName: string; shopSlug: string; total: number };
+/**
+ * failedShops — buyurtmasi yaratilmagan do'konlar (baza xatosi): ularning tovarlari savatda qolishi kerak.
+ * Xatoda name — qaysi tovar (xabar uchun).
+ */
 export type PlaceOrderResult =
-  | { ok: true; orders: { id: string; orderNo: string; shopName: string; total: number }[] }
-  | { ok: false; error: PlaceOrderError; listingId?: string; available?: number; price?: number };
+  | { ok: true; orders: PlacedOrder[]; failedShops: { slug: string; name: string }[] }
+  | { ok: false; error: PlaceOrderError; listingId?: string; available?: number; price?: number; name?: string };
+
+const CLIENT_ID_RE = /^[A-Za-z0-9_-]{8,64}$/;
 
 function money(n: number): string {
   return new Intl.NumberFormat('uz-UZ').format(Math.round(n || 0));
@@ -70,6 +79,7 @@ export async function placeMarketOrders(buyer: BuyerInfo, input: PlaceOrderInput
   if (!rl.ok) return { ok: false, error: 'rateLimited' };
   const lines = normalizeCart(input.lines);
   if (lines.length === 0) return { ok: false, error: 'emptyCart' };
+  const clientId = typeof input.clientId === 'string' && CLIENT_ID_RE.test(input.clientId) ? input.clientId : undefined;
   const address = String(input.address ?? '').trim().slice(0, 300);
   const note = String(input.note ?? '').trim().slice(0, 500);
   if (input.delivery === 'delivery' && address.length < 5) return { ok: false, error: 'addressRequired' };
@@ -86,8 +96,14 @@ export async function placeMarketOrders(buyer: BuyerInfo, input: PlaceOrderInput
     byOrg.set(org, [...(byOrg.get(org) ?? []), l]);
   }
 
+  // Takror yuborish (javob kelmay qolgan): shu urinishda yaratilgan do'kon buyurtmalari qayta yaratilmaydi
+  const already = clientId ? await MarketOrder.find({ buyerId: buyer.id, clientId }).lean<OrderDoc[]>() : [];
+  const placed: PlacedOrder[] = already.map(placedView);
+  const doneOrgs = new Set(already.map((o) => String(o.orgId)));
+
   const plans: { org: { _id: Types.ObjectId; name: string; slug: string; dbName: string; telegramChatId?: string }; items: PlannedItem[] }[] = [];
   for (const [orgId, orgLines] of byOrg) {
+    if (doneOrgs.has(orgId)) continue;
     const org = await Organization.findById(orgId).select('name slug dbName status expiresAt telegramChatId').lean();
     if (!org || !isOrganizationActive(org)) return { ok: false, error: 'unavailable', listingId: orgLines[0].listingId };
     const m = await getTenantModels(org.dbName);
@@ -95,21 +111,24 @@ export async function placeMarketOrders(buyer: BuyerInfo, input: PlaceOrderInput
     const autoPublish = settings.ecom?.autoPublish !== false;
 
     const items: PlannedItem[] = [];
+    // Rad javobi: qaysi tovar + katalog shu do'kon uchun fonda yangilanadi (savat qayta so'raganda eskisi kelmasin)
+    const refuse = (error: PlaceOrderError, line: CartLine, extra: { available?: number; price?: number } = {}): PlaceOrderResult => {
+      markEcomDirty(org.dbName);
+      return { ok: false, error, listingId: line.listingId, name: byId.get(line.listingId)?.name, ...extra };
+    };
     for (const line of orgLines) {
       const listing = byId.get(line.listingId)!;
       const docs = await m.Product.find({ _id: { $in: listing.productIds }, status: 'in_stock' }, ECOM_PRODUCT_PROJECTION)
         .lean<EcomSourceProduct[]>();
       const g = buildEcomGroups(docs, autoPublish).find((x) => x.key === listing.key);
-      if (!g || g.state !== 'live') return { ok: false, error: 'unavailable', listingId: line.listingId };
-      if (!isValidQty(line.qty, g.unit)) return { ok: false, error: 'badQty', listingId: line.listingId };
-      if (line.qty > g.qty) return { ok: false, error: 'notEnough', listingId: line.listingId, available: g.qty };
-      if (line.price !== undefined && line.price !== g.price) {
-        return { ok: false, error: 'priceChanged', listingId: line.listingId, price: g.price };
-      }
+      if (!g || g.state !== 'live') return refuse('unavailable', line);
+      if (!isValidQty(line.qty, g.unit)) return refuse('badQty', line);
+      if (line.qty > g.qty) return refuse('notEnough', line, { available: g.qty });
+      if (line.price !== undefined && line.price !== g.price) return refuse('priceChanged', line, { price: g.price });
       // Narxlar har xil bo'lsa — eng arzonidan boshlab; jami haqiqiy narxlardan (bitta narxda: narx × miqdor)
       const sellSet = new Set(g.sellIds);
       const allocs = allocateCheapest(docs.filter((x) => sellSet.has(String(x._id))), line.qty);
-      if (!allocs) return { ok: false, error: 'notEnough', listingId: line.listingId, available: g.qty };
+      if (!allocs) return refuse('notEnough', line, { available: g.qty });
       items.push({
         listingId: listing._id, key: listing.key, name: listing.name, image: listing.images[0], price: g.price,
         qty: line.qty, unit: g.unit, total: g.maxPrice > g.price ? allocationTotal(allocs) : priceTimesQty(g.price, line.qty),
@@ -119,28 +138,42 @@ export async function placeMarketOrders(buyer: BuyerInfo, input: PlaceOrderInput
     plans.push({ org: { _id: org._id, name: org.name, slug: org.slug, dbName: org.dbName, telegramChatId: org.telegramChatId }, items });
   }
 
-  const created: { id: string; orderNo: string; shopName: string; total: number }[] = [];
-  try {
-    for (const p of plans) {
+  // Har do'kon alohida: biri yiqilsa qolganlari yaratiladi, yiqilgani javobda (uning tovarlari savatda qoladi)
+  const failedShops: { slug: string; name: string }[] = [];
+  for (const p of plans) {
+    try {
       const total = p.items.reduce((s, i) => s + i.total, 0);
       const orderNo = await nextDocNo(MarketOrder, 'orderNo', 'ecom', datePrefix('E'));
       const o = await MarketOrder.create({
         orderNo, buyerId: new Types.ObjectId(buyer.id), buyerName: buyer.name, buyerPhone: buyer.phone,
         orgId: p.org._id, shopSlug: p.org.slug, shopName: p.org.name, items: p.items, total,
         delivery: input.delivery, address: input.delivery === 'delivery' ? address : undefined, note: note || undefined,
-        status: 'new', history: [{ status: 'new', at: new Date(), by: buyer.name }],
+        status: 'new', history: [{ status: 'new', at: new Date(), by: buyer.name }], ...(clientId ? { clientId } : {}),
       });
-      created.push({ id: String(o._id), orderNo, shopName: p.org.name, total });
+      placed.push({ id: String(o._id), orderNo, shopName: p.org.name, shopSlug: p.org.slug, total });
       void notifyShopNewOrder(p.org, { orderNo, total, buyerName: buyer.name, items: p.items.length, firstItem: p.items[0].name, delivery: input.delivery });
+    } catch (e) {
+      // Ikki marta bosildi (parallel so'rov) — o'sha urinishning buyurtmasi allaqachon bor
+      const twin = clientId && (e as { code?: number })?.code === 11000
+        ? await MarketOrder.findOne({ buyerId: buyer.id, clientId, orgId: p.org._id }).lean<OrderDoc>().catch(() => null)
+        : null;
+      if (twin) {
+        placed.push(placedView(twin));
+        continue;
+      }
+      logError('ecom.placeOrder', e, { buyer: buyer.id, shop: p.org.slug });
+      failedShops.push({ slug: p.org.slug, name: p.org.name });
     }
-  } catch (e) {
-    logError('ecom.placeOrder', e, { buyer: buyer.id });
-    if (created.length === 0) return { ok: false, error: 'failed' };
   }
+  if (placed.length === 0) return { ok: false, error: 'failed' };
   if (input.delivery === 'delivery' && address && address !== buyer.address) {
     await Buyer.updateOne({ _id: buyer.id }, { $set: { address } }).catch(() => {});
   }
-  return { ok: true, orders: created };
+  return { ok: true, orders: placed, failedShops };
+}
+
+function placedView(o: Pick<OrderDoc, '_id' | 'orderNo' | 'shopName' | 'shopSlug' | 'total'>): PlacedOrder {
+  return { id: String(o._id), orderNo: o.orderNo, shopName: o.shopName, shopSlug: o.shopSlug, total: o.total };
 }
 
 async function notifyShopNewOrder(
@@ -199,11 +232,16 @@ export async function buyerOrders(buyerId: string, limit = 50): Promise<OrderVie
 export async function cancelBuyerOrder(buyerId: string, orderId: string): Promise<boolean> {
   if (!Types.ObjectId.isValid(orderId)) return false;
   const { MarketOrder } = await getMasterModels();
-  const r = await MarketOrder.updateOne(
-    { _id: orderId, buyerId, status: 'new' },
-    { $set: { status: 'cancelled' }, $push: { history: { status: 'cancelled', at: new Date(), by: 'xaridor' } } },
-  );
-  return r.modifiedCount > 0;
+  // Do'kon hozir yakunlayotgan bo'lsa (qulf) — bekor qilinmaydi
+  const prev = await MarketOrder.findOneAndUpdate(
+    { _id: orderId, buyerId, status: 'new', ...unlocked() },
+    { $set: { status: 'cancelled' }, $unset: { completingAt: '' }, $push: { history: { status: 'cancelled', at: new Date(), by: 'xaridor' } } },
+    { new: false },
+  ).lean<OrderDoc>();
+  if (!prev) return false;
+  // Qulf qolgan — yakunlash o'rtada uzilgan: yozilib qolgan sotuvlar qaytariladi
+  if (prev.completingAt) await rollbackLeftovers(prev, { username: 'xaridor', role: 'user' });
+  return true;
 }
 
 // ── Do'kon tomoni ─────────────────────────────────────────────────────────────
@@ -223,7 +261,8 @@ export async function countNewShopOrders(orgId: string): Promise<number> {
 }
 
 export type ShopActor = { id: string; username: string; role: 'admin' | 'user'; dbName: string; branchId?: string };
-export type ShopOrderError = 'notFound' | 'badState' | 'notEnough' | 'failed';
+/** busy — buyurtma hozir yakunlanmoqda (boshqa qurilma/oyna) */
+export type ShopOrderError = 'notFound' | 'badState' | 'notEnough' | 'busy' | 'failed';
 export type ShopOrderResult = { ok: true; saleNos?: string[] } | { ok: false; error: ShopOrderError; item?: string };
 
 /** Qabul qilish / rad etish */
@@ -240,14 +279,21 @@ export async function setShopOrderStatus(
   const to: MarketOrderStatus = action === 'accept' ? 'accepted' : 'rejected';
   const why = String(reason ?? '').trim().slice(0, 300) || undefined;
   const o = await MarketOrder.findOneAndUpdate(
-    { _id: orderId, orgId, status: { $in: from } },
-    { $set: { status: to, ...(why ? { reason: why } : {}) }, $push: { history: { status: to, at: new Date(), by: actor.username, note: why } } },
-    { new: true },
-  ).lean();
+    { _id: orderId, orgId, status: { $in: from }, ...unlocked() },
+    {
+      $set: { status: to, ...(why ? { reason: why } : {}) }, $unset: { completingAt: '' },
+      $push: { history: { status: to, at: new Date(), by: actor.username, note: why } },
+    },
+    { new: false },
+  ).lean<OrderDoc>();
   if (!o) {
-    const exists = await MarketOrder.exists({ _id: orderId, orgId });
-    return { ok: false, error: exists ? 'badState' : 'notFound' };
+    const cur = await MarketOrder.findOne({ _id: orderId, orgId }, { status: 1 }).lean();
+    if (!cur) return { ok: false, error: 'notFound' };
+    // Holat mos, lekin o'zgarmadi — demak qulf: hozir yakunlanmoqda
+    return { ok: false, error: from.includes(cur.status) ? 'busy' : 'badState' };
   }
+  // Rad etilgan buyurtmada yakunlanmay qolgan sotuvlar bo'lsa (jarayon o'rtada uzilgan) — omborga qaytariladi
+  if (action === 'reject') await rollbackLeftovers(o, actor);
   await recordAudit(actor, {
     action: `ecom.${action}`, entity: 'order', entityId: orderId,
     summary: `Onlayn buyurtma ${o.orderNo}: ${action === 'accept' ? 'qabul qilindi' : `rad etildi${why ? ` (${why})` : ''}`}`,
@@ -258,14 +304,17 @@ export async function setShopOrderStatus(
 type ProductLean = IProduct & { _id: Types.ObjectId };
 type Alloc = { doc: ProductLean; qty: number };
 
-/** Buyurtma qatori uchun ombordagi hujjatlar (eng arzonidan) — yetmasa null */
+/**
+ * Buyurtma qatori uchun ombordagi hujjatlar (eng arzonidan) — yetmasa null.
+ * Avval buyurtma paytidagi aniq hujjatlar (productIds) — egasi keyin nom/rang/narxni o'zgartirsa yoki stop-listga
+ * qo'ysa ham ular buyurtmaniki (guruh kaliti tekshirilmaydi). Yetmasa — shu guruhga keyin qo'shilgan nusxalar.
+ */
 async function allocate(Product: Model<IProduct>, item: IMarketOrder['items'][number], qty: number): Promise<Alloc[] | null> {
   const goods = { status: 'in_stock', kind: { $nin: ['service', 'bundle'] }, systemKey: { $exists: false } };
   let docs = item.productIds?.length
     ? await Product.find({ _id: { $in: item.productIds }, ...goods }).lean<ProductLean[]>()
     : [];
-  docs = docs.filter((d) => ecomGroupKey(d) === item.key);
-  if (docs.reduce((s, d) => s + ecomAvailableQty(d as EcomSourceProduct), 0) < qty) {
+  if (docs.reduce((s, d) => s + orderAvailableQty(d as EcomSourceProduct), 0) < qty) {
     // Guruhga keyin qo'shilgan nusxalar (yangi kirim, boshqa filial) — nom bo'yicha
     const first = item.name.split(' · ')[0].trim();
     const more = await Product.find({ ...goods, name: { $regex: `^\\s*${escapeRegExp(first)}\\s*$`, $options: 'i' }, _id: { $nin: docs.map((d) => d._id) } })
@@ -273,7 +322,7 @@ async function allocate(Product: Model<IProduct>, item: IMarketOrder['items'][nu
     // Namuna tovar (lib/onboardingSamples) — faqat egasi aniq ko'rsatgan bo'lsa (lib/ecom/group qoidasi)
     docs = docs.concat(more.filter((d) => ecomGroupKey(d) === item.key && (d.ecomListed === true || !isSampleItemCode(d.itemCode))));
   }
-  return allocateCheapest(docs as (ProductLean & EcomSourceProduct)[], qty);
+  return allocateCheapest(docs as (ProductLean & EcomSourceProduct)[], qty, orderAvailableQty);
 }
 
 /**
@@ -303,61 +352,168 @@ async function acceptShortage(orgId: string, dbName: string, orderId: string): P
 
 /**
  * Yakunlash: tovarlar ombordan ayriladi va har hujjat uchun naqd sotuv yoziladi (summa — buyurtma jamidan,
- * hujjat narxi ulushida). Idempotent: sotuv kaliti `ecom-<buyurtma>-<qator>-<n>`; avvalgi urinishda yozilgan
- * sotuvlar hisobga olinadi — qayta bosilsa ikki marta ayirilmaydi, faqat qolgan qismi bajariladi.
+ * hujjat narxi ulushida).
+ *  - Qulf: buyurtma atomik egallanadi (completingAt) — shu payt xaridor bekor qila olmaydi, do'kon rad eta olmaydi,
+ *    ikkinchi oyna/qurilma qayta yakunlay olmaydi («busy»).
+ *  - Hammasi yoki hech narsa: o'rtada yiqilsa shu urinishda yozilgan sotuvlar qaytariladi (sotuv o'chadi, tovar
+ *    omborga qaytadi) — pul olinmagan, tovar berilmagan; buyurtma avvalgi holatida qoladi.
+ *  - Idempotent: sotuv kaliti `ecom-<buyurtma>-<qator>-<n>`; jarayon uzilib qolgan bo'lsa (server o'chdi) avvalgi
+ *    sotuvlar hisobga olinadi — qayta bosilsa ikki marta ayirilmaydi, faqat qolgan qismi bajariladi.
  */
 export async function completeShopOrder(orgId: string, actor: ShopActor, orderId: string): Promise<ShopOrderResult> {
   if (!Types.ObjectId.isValid(orderId)) return { ok: false, error: 'notFound' };
   const { MarketOrder } = await getMasterModels();
-  const o = await MarketOrder.findOne({ _id: orderId, orgId }).lean<OrderDoc>();
-  if (!o) return { ok: false, error: 'notFound' };
-  if (!ACTIVE_ORDER_STATUSES.includes(o.status)) return { ok: false, error: 'badState' };
+  const lockAt = new Date();
+  const o = await MarketOrder.findOneAndUpdate(
+    { _id: orderId, orgId, status: { $in: ACTIVE_ORDER_STATUSES }, ...unlocked(lockAt.getTime()) },
+    { $set: { completingAt: lockAt } },
+    { new: true },
+  ).lean<OrderDoc>();
+  if (!o) {
+    const cur = await MarketOrder.findOne({ _id: orderId, orgId }, { status: 1 }).lean();
+    if (!cur) return { ok: false, error: 'notFound' };
+    return { ok: false, error: ACTIVE_ORDER_STATUSES.includes(cur.status) ? 'busy' : 'badState' };
+  }
+  const mine = { _id: o._id, completingAt: lockAt };
+  const unlock = () => MarketOrder.updateOne(mine, { $unset: { completingAt: '' } })
+    .catch((e) => logError('ecom.unlock', e, { order: o.orderNo }));
 
   const { Product, Sale } = await getTenantModels(actor.dbName);
-  const prefix = `ecom-${orderId}-`;
-  const prior = await Sale.find({ clientSaleId: { $regex: `^${prefix}` } }, { clientSaleId: 1, saleNo: 1, totalAmount: 1, 'productSnapshot.saleQuantity': 1 }).lean();
-  const done = new Map<number, { qty: number; amount: number; nextJ: number }>();
-  for (const s of prior) {
-    const [i, j] = String(s.clientSaleId).slice(prefix.length).split('-').map(Number);
-    const cur = done.get(i) ?? { qty: 0, amount: 0, nextJ: 0 };
-    cur.qty = roundQty(cur.qty + (s.productSnapshot?.saleQuantity ?? 0));
-    cur.amount += s.totalAmount ?? 0;
-    cur.nextJ = Math.max(cur.nextJ, (j || 0) + 1);
-    done.set(i, cur);
-  }
+  const written: WrittenSale[] = [];
+  const fail = async (r: ShopOrderResult): Promise<ShopOrderResult> => {
+    await rollbackEcomSales({ Product, Sale }, actor, o, written, 'yakunlanmadi');
+    await unlock();
+    return r;
+  };
+  try {
+    const prefix = `ecom-${orderId}-`;
+    const prior = await Sale.find({ clientSaleId: { $regex: `^${prefix}` } }, { clientSaleId: 1, saleNo: 1, totalAmount: 1, 'productSnapshot.saleQuantity': 1 }).lean();
+    const done = new Map<number, { qty: number; amount: number; nextJ: number }>();
+    for (const s of prior) {
+      const [i, j] = String(s.clientSaleId).slice(prefix.length).split('-').map(Number);
+      const cur = done.get(i) ?? { qty: 0, amount: 0, nextJ: 0 };
+      cur.qty = roundQty(cur.qty + (s.productSnapshot?.saleQuantity ?? 0));
+      cur.amount += s.totalAmount ?? 0;
+      cur.nextJ = Math.max(cur.nextJ, (j || 0) + 1);
+      done.set(i, cur);
+    }
 
-  // Avval hammasi yetadimi — yarim bajarilgan buyurtma qolmasin
-  const plan: { idx: number; allocs: Alloc[]; amounts: number[]; startJ: number }[] = [];
-  for (let i = 0; i < o.items.length; i++) {
-    const item = o.items[i];
-    const d = done.get(i);
-    const left = subQty(item.qty, d?.qty ?? 0);
-    if (left <= 0) continue;
-    const allocs = await allocate(Product, item, left);
-    if (!allocs) return { ok: false, error: 'notEnough', item: item.name };
-    const amounts = splitTotal(Math.max(0, item.total - (d?.amount ?? 0)), allocs.map((a) => a.doc.salePrice * a.qty));
-    plan.push({ idx: i, allocs, amounts, startJ: d?.nextJ ?? 0 });
-  }
+    // Avval hammasi yetadimi — yozishdan oldin
+    const plan: { idx: number; allocs: Alloc[]; amounts: number[]; startJ: number }[] = [];
+    for (let i = 0; i < o.items.length; i++) {
+      const item = o.items[i];
+      const d = done.get(i);
+      const left = subQty(item.qty, d?.qty ?? 0);
+      if (left <= 0) continue;
+      const allocs = await allocate(Product, item, left);
+      if (!allocs) return await fail({ ok: false, error: 'notEnough', item: item.name });
+      const amounts = splitTotal(Math.max(0, item.total - (d?.amount ?? 0)), allocs.map((a) => a.doc.salePrice * a.qty));
+      plan.push({ idx: i, allocs, amounts, startJ: d?.nextJ ?? 0 });
+    }
 
-  const saleNos: string[] = prior.map((s) => s.saleNo).filter((x): x is string => !!x);
-  for (const { idx, allocs, amounts, startJ } of plan) {
-    const item = o.items[idx];
-    for (let j = 0; j < allocs.length; j++) {
-      const r = await recordEcomSale({ Product, Sale }, actor, o, allocs[j], amounts[j], `${prefix}${idx}-${startJ + j}`);
-      if (!r) return { ok: false, error: 'notEnough', item: item.name };
-      saleNos.push(r);
+    const saleNos: string[] = prior.map((s) => s.saleNo).filter((x): x is string => !!x);
+    for (const { idx, allocs, amounts, startJ } of plan) {
+      const item = o.items[idx];
+      for (let j = 0; j < allocs.length; j++) {
+        const r = await recordEcomSale({ Product, Sale }, actor, o, allocs[j], amounts[j], `${prefix}${idx}-${startJ + j}`);
+        // Oraliqda kassa shu tovarni sotgan bo'lsa — «yetarli emas», boshqa xato — «bajarib bo'lmadi»
+        if (!r.ok) return await fail(r.reason === 'stock' ? { ok: false, error: 'notEnough', item: item.name } : { ok: false, error: 'failed' });
+        saleNos.push(r.saleNo);
+        if (r.written) written.push(r.written);
+      }
+    }
+
+    const fin = await MarketOrder.updateOne(
+      { ...mine, status: { $in: ACTIVE_ORDER_STATUSES } },
+      {
+        $set: { status: 'completed', saleNos }, $unset: { completingAt: '' },
+        $push: { history: { status: 'completed', at: new Date(), by: actor.username } },
+      },
+    );
+    if (fin.modifiedCount === 0) {
+      // Qulf eskirib (≥ COMPLETE_LOCK_MS) boshqasi egallagan. Buyurtma bekor/rad bo'lgan bo'lsa — bu urinish sotuvlari
+      // qaytariladi; yakunlangan yoki hali faol bo'lsa — sotuvlar o'sha jarayonga «avvalgi» bo'lib hisoblanadi
+      const now = await MarketOrder.findById(o._id, { status: 1 }).lean();
+      logError('ecom.complete.lockLost', new Error('lock lost'), { order: o.orderNo, status: now?.status });
+      if (now && !ACTIVE_ORDER_STATUSES.includes(now.status) && now.status !== 'completed') {
+        await rollbackEcomSales({ Product, Sale }, actor, o, written, 'buyurtma bekor qilingan');
+        return { ok: false, error: 'badState' };
+      }
+      return now?.status === 'completed' ? { ok: true, saleNos } : { ok: false, error: 'busy' };
+    }
+    await recordAudit(actor, {
+      action: 'ecom.complete', entity: 'order', entityId: orderId,
+      summary: `Onlayn buyurtma ${o.orderNo} yakunlandi: ${money(o.total)} so'm (${saleNos.join(', ')})`,
+    });
+    return { ok: true, saleNos };
+  } catch (e) {
+    logError('ecom.complete', e, { order: o.orderNo });
+    return fail({ ok: false, error: 'failed' });
+  }
+}
+
+/** Shu urinishda yozilgan sotuv (qaytarish uchun) */
+type WrittenSale = { id: Types.ObjectId; saleNo: string; productId: Types.ObjectId; qty: number };
+type SaleWrite = { ok: true; saleNo: string; written?: WrittenSale } | { ok: false; reason: 'stock' | 'failed' };
+
+/**
+ * Onlayn buyurtma sotuvlarini qaytarish: sotuv hujjati o'chadi, tovar omborga qaytadi, auditda iz qoladi.
+ * Faqat yakunlanmagan buyurtmaniki — pul olinmagan, tovar berilmagan (POS «bekor qilish»dagi kassadan chiqim kerak emas:
+ * u kassada soxta kirim/chiqim juftligini qoldirardi). Qayta chaqirilsa ikki marta qaytarmaydi (deletedCount).
+ */
+async function rollbackEcomSales(
+  m: { Product: Model<IProduct>; Sale: Model<ISale> },
+  actor: { username: string; role: 'admin' | 'user'; dbName?: string },
+  o: Pick<OrderDoc, '_id' | 'orderNo'>,
+  sales: WrittenSale[],
+  why: string,
+): Promise<void> {
+  const back: string[] = [];
+  for (const s of sales) {
+    try {
+      const del = await m.Sale.deleteOne({ _id: s.id, clientSaleId: { $regex: `^ecom-${String(o._id)}-` } });
+      if (del.deletedCount === 0) continue;
+      await releaseStock(m.Product, s.productId, s.qty, {
+        action: 'returned', detail: `Onlayn ${o.orderNo}: ${why} — sotuv ${s.saleNo} qaytarildi`, by: actor.username, at: new Date(),
+      });
+      back.push(s.saleNo);
+    } catch (e) {
+      logError('ecom.rollbackSale', e, { order: o.orderNo, sale: s.saleNo });
     }
   }
-
-  await MarketOrder.updateOne(
-    { _id: orderId, orgId, status: { $in: ACTIVE_ORDER_STATUSES } },
-    { $set: { status: 'completed', saleNos }, $push: { history: { status: 'completed', at: new Date(), by: actor.username } } },
-  );
+  if (back.length === 0) return;
   await recordAudit(actor, {
-    action: 'ecom.complete', entity: 'order', entityId: orderId,
-    summary: `Onlayn buyurtma ${o.orderNo} yakunlandi: ${money(o.total)} so'm (${saleNos.join(', ')})`,
+    action: 'ecom.rollback', entity: 'order', entityId: String(o._id),
+    summary: `Onlayn buyurtma ${o.orderNo}: ${why} — ${back.length} ta sotuv qaytarildi (${back.join(', ')}), tovar omborga qaytdi`,
   });
-  return { ok: true, saleNos };
+}
+
+/**
+ * Yakunlanmagan buyurtmada qolib ketgan sotuvlar (jarayon o'rtada uzilgan: server o'chdi) — rad/bekor qilinganda
+ * qaytariladi. dbName berilmasa (xaridor tomoni) — do'kondan olinadi.
+ */
+async function rollbackLeftovers(
+  o: Pick<OrderDoc, '_id' | 'orderNo' | 'orgId'>,
+  actor: { username: string; role: 'admin' | 'user'; dbName?: string },
+): Promise<void> {
+  try {
+    let dbName = actor.dbName;
+    if (!dbName) {
+      const { Organization } = await getMasterModels();
+      dbName = (await Organization.findById(o.orgId).select('dbName').lean())?.dbName;
+    }
+    if (!dbName) return;
+    const m = await getTenantModels(dbName);
+    const left = await m.Sale.find(
+      { clientSaleId: { $regex: `^ecom-${String(o._id)}-` } }, { saleNo: 1, productId: 1, 'productSnapshot.saleQuantity': 1 },
+    ).lean();
+    const sales: WrittenSale[] = left.filter((x) => x.productId).map((x) => ({
+      id: x._id as Types.ObjectId, saleNo: x.saleNo ?? '', productId: x.productId as Types.ObjectId, qty: x.productSnapshot?.saleQuantity ?? 1,
+    }));
+    if (sales.length) await rollbackEcomSales({ Product: m.Product, Sale: m.Sale }, { ...actor, dbName }, o, sales, 'buyurtma yakunlanmadi');
+  } catch (e) {
+    logError('ecom.rollbackLeftovers', e, { order: o.orderNo });
+  }
 }
 
 async function recordEcomSale(
@@ -367,15 +523,15 @@ async function recordEcomSale(
   a: Alloc,
   amount: number,
   clientSaleId: string,
-): Promise<string | null> {
+): Promise<SaleWrite> {
   const dup = await m.Sale.findOne({ clientSaleId }, { saleNo: 1 }).lean();
-  if (dup) return dup.saleNo ?? '';
+  if (dup) return { ok: true, saleNo: dup.saleNo ?? '' };
   const p = a.doc;
   const reserved = await reserveStock(m.Product, p._id, a.qty, {
     set: { soldPaymentType: 'cash' },
     history: { action: 'sold', detail: `${qtyLabel(a.qty, p.unit)} · onlayn ${o.orderNo}`, by: actor.username, at: new Date() },
   });
-  if (!reserved) return null;
+  if (!reserved) return { ok: false, reason: 'stock' };
   try {
     const saleNo = await generateSaleNo(m.Sale);
     const sale = await m.Sale.create({
@@ -401,14 +557,14 @@ async function recordEcomSale(
       summary: `Onlayn sotuv ${saleNo}: ${p.name} · ${qtyLabel(a.qty, p.unit)} · ${money(amount)} so'm (${o.orderNo})`,
       meta: { saleQty: a.qty, totalAmount: amount, paymentType: 'cash', ecomOrder: o.orderNo },
     });
-    return saleNo;
+    return { ok: true, saleNo, written: { id: sale._id as Types.ObjectId, saleNo, productId: p._id, qty: a.qty } };
   } catch (e) {
     await releaseStock(m.Product, p._id, a.qty);
     if ((e as { code?: number })?.code === 11000) {
       const again = await m.Sale.findOne({ clientSaleId }, { saleNo: 1 }).lean();
-      if (again) return again.saleNo ?? '';
+      if (again) return { ok: true, saleNo: again.saleNo ?? '' };
     }
     logError('ecom.recordSale', e, { order: o.orderNo });
-    return null;
+    return { ok: false, reason: 'failed' };
   }
 }

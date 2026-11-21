@@ -98,6 +98,30 @@ export function setLineQty(items: CartItem[], id: string, qty: number): CartItem
   });
 }
 
+/** Buyurtma rad javobi (409 details) — server JONLI bazadan tekshirgan holat */
+export interface OrderRefusal { code?: string; listingId?: unknown; available?: unknown; price?: unknown }
+
+/**
+ * Rad javobi bo'yicha qatorni darhol moslash (katalog keshi hali eski bo'lishi mumkin — savat qayta so'ralganda
+ * eski qoldiq qaytib kelmasligi uchun sync'dan KEYIN qo'llanadi): notEnough — qoldiq/miqdor tushadi,
+ * priceChanged — yangi narx, unavailable — sotuvda yo'q.
+ */
+export function applyRefusal(items: CartItem[], r: OrderRefusal): CartItem[] {
+  const id = typeof r.listingId === 'string' ? r.listingId : '';
+  if (!id || !items.some((x) => x.id === id)) return items;
+  return items.map((x) => {
+    if (x.id !== id) return x;
+    if (r.code === 'unavailable') return { ...x, max: 0 };
+    if (r.code === 'notEnough' && typeof r.available === 'number' && Number.isFinite(r.available)) {
+      const max = Math.max(0, r.available);
+      const qty = max > 0 ? clampQty(Math.min(x.qty, max), max, x.fractional) : 0;
+      return qty > 0 ? { ...x, max, qty } : { ...x, max: 0 };
+    }
+    if (r.code === 'priceChanged' && typeof r.price === 'number' && r.price > 0) return { ...x, price: r.price };
+    return x;
+  });
+}
+
 export function removeLine(items: CartItem[], id: string): CartItem[] {
   return items.filter((x) => x.id !== id);
 }

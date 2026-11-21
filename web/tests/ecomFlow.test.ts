@@ -260,6 +260,83 @@ describe.skipIf(!URI)('e-commerce oqimi (MongoDB)', () => {
     expect(await auth.deleteBuyerAccount(new Types.ObjectId().toString(), 'secret12')).toEqual({ ok: false, error: 'notFound' });
   });
 
+  it('ishonchlilik: takror clientId, tahrirdan keyin yakunlash, qulf, yarim yiqilishda qaytarish, uzilgan sotuv', async () => {
+    const { recordAudit } = await import('@/lib/audit');
+    const reg = await auth.loginBuyer({ phone: '901112233', password: 'secret12' }, '127.0.0.1');
+    expect(reg.ok).toBe(true);
+    if (!reg.ok) return;
+    const buyer = { id: String(reg.buyer._id), name: reg.buyer.name, phone: reg.buyer.phone };
+    const base = { branchId, purchasePrice: 1000, status: 'in_stock' as const, kind: 'goods' as const, trackQuantity: true };
+    const piyola = await tenant.Product.create({ ...base, imei: `T${RUN}PIYOLA`.toUpperCase(), name: 'Piyola', salePrice: 20000, quantity: 5 });
+    const kosa = await tenant.Product.create({ ...base, imei: `T${RUN}KOSA`.toUpperCase(), name: 'Kosa', salePrice: 30000, quantity: 3 });
+    await sync.syncOrgListingsById(String(orgId));
+    const ls = await listings();
+    const lp = ls.find((l) => l.name === 'Piyola')!;
+    const lk = ls.find((l) => l.name === 'Kosa')!;
+    const lines = [{ listingId: String(lp._id), qty: 1 }, { listingId: String(lk._id), qty: 1 }];
+    const sold = async (id: Types.ObjectId) => (await tenant.Product.findById(id).lean())!.soldQuantity ?? 0;
+
+    // 1) Javob kelmay qayta yuborildi — ikkinchi buyurtma ochilmaydi
+    const first = await orders.placeMarketOrders(buyer, { lines, delivery: 'pickup', clientId: 'urinish-0001' });
+    const again = await orders.placeMarketOrders(buyer, { lines, delivery: 'pickup', clientId: 'urinish-0001' });
+    expect(first.ok && again.ok).toBe(true);
+    if (!first.ok || !again.ok) return;
+    expect(again.orders.map((o) => o.id)).toEqual(first.orders.map((o) => o.id));
+    expect(again.failedShops).toEqual([]);
+    expect(await master.MarketOrder.countDocuments({ buyerId: buyer.id, clientId: 'urinish-0001' })).toBe(1);
+    const id = first.orders[0].id;
+
+    // 2) Egasi nomni o'zgartirdi, narxni o'chirdi va stop-listga qo'ydi — qabul qilingan buyurtma baribir bajariladi
+    await tenant.Product.updateOne({ _id: piyola._id }, { $set: { name: 'Piyola (oq)', salePrice: 0, stopListed: true } });
+    expect(await orders.setShopOrderStatus(String(orgId), actor, id, 'accept')).toEqual({ ok: true });
+
+    // 3) Qulf: yakunlanayotgan buyurtmani rad etib/qayta yakunlab bo'lmaydi; eskirgan qulf ochiq
+    await master.MarketOrder.updateOne({ _id: id }, { $set: { completingAt: new Date() } });
+    expect(await orders.setShopOrderStatus(String(orgId), actor, id, 'reject')).toEqual({ ok: false, error: 'busy' });
+    expect(await orders.completeShopOrder(String(orgId), actor, id)).toEqual({ ok: false, error: 'busy' });
+    await master.MarketOrder.updateOne({ _id: id }, { $set: { completingAt: new Date(Date.now() - 3 * 60_000) } });
+
+    // 4) Ikkinchi sotuv yozilayotganda yiqildi — birinchisi qaytariladi, ombor joyida, buyurtma qabul holatida
+    const realCreate = tenant.Sale.create.bind(tenant.Sale);
+    let n = 0;
+    const spy = vi.spyOn(tenant.Sale, 'create').mockImplementation((async (...a: Parameters<typeof realCreate>) => {
+      n += 1;
+      if (n === 2) throw new Error('baza uzildi');
+      return realCreate(...a);
+    }) as typeof tenant.Sale.create);
+    expect(await orders.completeShopOrder(String(orgId), actor, id)).toEqual({ ok: false, error: 'failed' });
+    spy.mockRestore();
+    expect(await tenant.Sale.countDocuments({ clientSaleId: { $regex: `^ecom-${id}-` } })).toBe(0);
+    expect([await sold(piyola._id), await sold(kosa._id)]).toEqual([0, 0]);
+    const after = await master.MarketOrder.findById(id).lean();
+    expect(after?.status).toBe('accepted');
+    expect(after?.completingAt).toBeUndefined();
+    expect(vi.mocked(recordAudit).mock.calls.some(([, x]) => x.action === 'ecom.rollback')).toBe(true);
+
+    // Qayta bosildi — endi to'liq bajariladi
+    const ok = await orders.completeShopOrder(String(orgId), actor, id);
+    expect(ok.ok).toBe(true);
+    expect([await sold(piyola._id), await sold(kosa._id)]).toEqual([1, 1]);
+    expect(await tenant.Sale.countDocuments({ clientSaleId: { $regex: `^ecom-${id}-` } })).toBe(2);
+
+    // 5) Jarayon o'rtada uzilgan (server o'chdi): sotuv qolib ketgan, qulf eskirgan — rad etilganda qaytariladi
+    const r2 = await orders.placeMarketOrders(buyer, { lines: [{ listingId: String(lk._id), qty: 1 }], delivery: 'pickup', clientId: 'urinish-0002' });
+    expect(r2.ok).toBe(true);
+    if (!r2.ok) return;
+    const id2 = r2.orders[0].id;
+    expect(await orders.setShopOrderStatus(String(orgId), actor, id2, 'accept')).toEqual({ ok: true });
+    await tenant.Product.updateOne({ _id: kosa._id }, { $inc: { soldQuantity: 1 } });
+    await tenant.Sale.create({
+      saleNo: `S-UZILGAN-${RUN}`, productId: kosa._id, productSnapshot: { name: 'Kosa', imei: kosa.imei, saleQuantity: 1 }, branchId,
+      paymentType: 'cash', totalAmount: 30000, paidAmount: 30000, remainingAmount: 0, status: 'paid', soldBy: 'egasi',
+      clientSaleId: `ecom-${id2}-0-0`,
+    });
+    await master.MarketOrder.updateOne({ _id: id2 }, { $set: { completingAt: new Date(Date.now() - 5 * 60_000) } });
+    expect(await orders.setShopOrderStatus(String(orgId), actor, id2, 'reject', 'Mijoz kelmadi')).toEqual({ ok: true });
+    expect(await tenant.Sale.countDocuments({ clientSaleId: { $regex: `^ecom-${id2}-` } })).toBe(0);
+    expect(await sold(kosa._id)).toBe(1);
+  });
+
   it('muddati tugagan do\'kon tovarlari katalogdan olib tashlanadi', async () => {
     await master.Organization.updateOne({ _id: orgId }, { $set: { status: 'expired' } });
     await sync.syncOrgListingsById(String(orgId));

@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useMemo, useState, useTransition } from 'react';
+import { useEffect, useMemo, useRef, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import Icon from '@/components/icons/Icon';
 import { placeOrderAction, refreshCartAction } from '@/app/actions/market';
@@ -50,14 +50,29 @@ export default function CartView({ buyer }: { buyer: Buyer }) {
   }, [items]);
   const total = live.reduce((s, x) => s + Math.round(x.price * x.qty), 0);
 
+  // Buyurtma urinishi kaliti: savat o'zgarmaguncha bir xil — javob kelmay qayta bosilsa ikkinchi buyurtma ochilmaydi
+  const sig = live.map((x) => `${x.id}:${x.qty}:${x.price}`).join('|');
+  const attempt = useRef<{ sig: string; id: string } | null>(null);
+  const clientIdFor = (s: string) => {
+    if (attempt.current?.sig !== s) attempt.current = { sig: s, id: `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 12)}` };
+    return attempt.current.id;
+  };
+
   const place = () => start(async () => {
     setError('');
     const r = await placeOrderAction({
       lines: live.map((x) => ({ listingId: x.id, qty: x.qty, price: x.price })),
-      delivery, address, note,
+      delivery, address, note, clientId: clientIdFor(sig),
     });
     if (!r) return;
     if (r.ok) {
+      attempt.current = null;
+      // Ba'zi do'konga yuborilmagan bo'lsa — faqat yuborilganlarining tovarlari savatdan chiqadi
+      if (r.failedShops.length) {
+        for (const x of items) if (!r.failedShops.includes(x.shopSlug)) remove(x.id);
+        setError(r.message);
+        return;
+      }
       clear();
       toast(r.message, 'success');
       router.push('/market/orders?placed=1');
