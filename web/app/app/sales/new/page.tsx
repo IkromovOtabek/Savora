@@ -1,3 +1,4 @@
+import { Types } from 'mongoose';
 import { getTenantSession } from '@/lib/tenantSession';
 import { branchFilter } from '@/lib/branchScope';
 import { isPhoneShop } from '@/lib/businessTypes';
@@ -14,11 +15,11 @@ export async function generateMetadata() {
 export default async function NewSalePage({
   searchParams,
 }: {
-  searchParams: Promise<{ productId?: string; payment?: string }>;
+  searchParams: Promise<{ productId?: string; payment?: string; customer?: string }>;
 }) {
   await requirePermission('sale.create');
   const sp = await searchParams;
-  const { user, Product, Branch, CreditBank, org, features } = await getTenantSession();
+  const { user, Product, Branch, CreditBank, Customer, org, features } = await getTenantSession();
   const phoneShop = isPhoneShop(org);
 
   // Filial login — faqat o'z filiali mahsulotlarini sota oladi
@@ -29,6 +30,10 @@ export default async function NewSalePage({
   const creditBanks = features.creditKassa
     ? (await CreditBank.find({ active: true }).sort({ name: 1 }).lean()).map((b) => b.name)
     : [];
+  // «Yangi mijoz» formasidan qaytilganda (?customer=) — shu mijoz tanlangan holda ochiladi
+  const preCustomer = sp.customer && Types.ObjectId.isValid(sp.customer)
+    ? await Customer.findById(sp.customer).select('fullName phone').lean()
+    : null;
 
   return (
     <SaleForm
@@ -39,6 +44,7 @@ export default async function NewSalePage({
       canAddBank={user.role === 'admin' && features.creditKassa}
       preselectId={sp.productId}
       preselectPayment={sp.payment}
+      preselectCustomer={preCustomer ? { id: String(preCustomer._id), name: preCustomer.fullName, phone: preCustomer.phone } : undefined}
       products={inStock.map((p) => ({
         id: String(p._id),
         name: p.name,

@@ -281,7 +281,10 @@ export default async function SaleDetailPage({
               <div className="sl-person">
                 <span className="sl-av" aria-hidden>{initials(customerName ?? '')}</span>
                 <div>
-                  <b>{customerName ?? '—'}</b>
+                  {/* Mijoz kartochkasi — xaridlar tarixi (nima, qachon, qaysi filialdan) */}
+                  {sale.customerId && perms.has('customers.view')
+                    ? <b><Link href={`/app/customers/${String(sale.customerId)}`} className="sl-person-link">{customerName ?? '—'}</Link></b>
+                    : <b>{customerName ?? '—'}</b>}
                   {customerPhone ? <a href={`tel:${customerPhone}`}>{customerPhone}</a> : <small>{d.sales.noPhone}</small>}
                 </div>
               </div>

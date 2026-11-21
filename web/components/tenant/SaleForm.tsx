@@ -15,6 +15,7 @@ import BackLink from '@/components/ui/BackLink';
 import ImageUploadField from '@/components/ui/ImageUploadField';
 import PriceInput from '@/components/ui/PriceInput';
 import SelectAdd from '@/components/ui/SelectAdd';
+import CustomerPicker, { EMPTY_CUSTOMER, type PickedCustomer } from '@/components/tenant/CustomerPicker';
 import { quickCreditBankAction } from '@/app/actions/finance';
 import Icon from '@/components/icons/Icon';
 import { PQ294_MAX_MONTHS } from '@/lib/pq294';
@@ -113,9 +114,11 @@ interface Props {
   preselectId?: string;
   /** Ombor menyusidan tanlangan to'lov turi (cash/installment/bank_credit) */
   preselectPayment?: string;
+  /** «Yangi mijoz» formasidan qaytilganda (?customer=) — shu mijoz tanlangan holda */
+  preselectCustomer?: PickedCustomer;
 }
 
-export default function SaleForm({ isPhoneShop, products, mediaEnabled, features, creditBanks, canAddBank, preselectId, preselectPayment }: Props) {
+export default function SaleForm({ isPhoneShop, products, mediaEnabled, features, creditBanks, canAddBank, preselectId, preselectPayment, preselectCustomer }: Props) {
   const [state, formAction, isPending] = useActionState(createSaleAction, null);
   useToastOnState(state);
   const d = useDict();
@@ -140,8 +143,8 @@ export default function SaleForm({ isPhoneShop, products, mediaEnabled, features
   const [dueDate, setDueDate] = useState('');
   // Nasiya: har oyning qaysi kuni to'laydi (standart — bugungi kun, brauzerda qo'yiladi)
   const [payDay, setPayDay] = useState('');
-  const [customerName, setCustomerName] = useState('');
-  const [customerPhone, setCustomerPhone] = useState('');
+  // Mijoz — har qanday to'lov turida majburiy (naqd ham); F.I.O katagida mavjud mijozlardan tanlanadi
+  const [customer, setCustomer] = useState<PickedCustomer>(preselectCustomer ?? EMPTY_CUSTOMER);
   const [notes, setNotes] = useState('');
   // Bank krediti: bir yoki bir nechta bank. Bitta bank bo'lsa — qolgan summa to'liq unga yoziladi
   const [bankRows, setBankRows] = useState<{ bank: string; amount: string }[]>([{ bank: '', amount: '' }]);
@@ -179,8 +182,7 @@ export default function SaleForm({ isPhoneShop, products, mediaEnabled, features
     setItems(next);
     // Kassadagi jami (chegirma/ulgurji bilan) — o'zgarmagan bo'lsa ro'yxat narxi
     setTotalAmount(String(h.total && h.total > 0 ? h.total : cartTotal(next)));
-    if (h.customerName) setCustomerName(h.customerName);
-    if (h.customerPhone) setCustomerPhone(h.customerPhone);
+    if (h.customerName || h.customerPhone) setCustomer({ id: '', name: h.customerName ?? '', phone: h.customerPhone ?? '' });
     if (h.note) setNotes(h.note);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- faqat birinchi ochilishda
   }, []);
@@ -981,21 +983,12 @@ export default function SaleForm({ isPhoneShop, products, mediaEnabled, features
             </div>
           </section>
 
-          {paymentType !== 'cash' && (
-            <section className="sl-card" aria-labelledby="sl-step3">
-              <div className="sl-card-head"><h2 id="sl-step3"><span className="sl-step">3</span>{d.common.customer}</h2></div>
-              <div className="sl-fields">
-                <div className="auth-field">
-                  <label htmlFor="customerName">{k.customerName}</label>
-                  <input id="customerName" name="customerName" type="text" required value={customerName} onChange={(e) => setCustomerName(e.target.value)} disabled={fieldsOff} placeholder={k.customerNamePh} autoComplete="name" />
-                </div>
-                <div className="auth-field">
-                  <label htmlFor="customerPhone">{k.customerPhone}</label>
-                  <input id="customerPhone" name="customerPhone" type="tel" required value={customerPhone} onChange={(e) => setCustomerPhone(e.target.value)} disabled={fieldsOff} placeholder="+998 99 000 00 00" autoComplete="tel" />
-                </div>
-              </div>
-            </section>
-          )}
+          <section className="sl-card" aria-labelledby="sl-step3">
+            <div className="sl-card-head"><h2 id="sl-step3"><span className="sl-step">3</span>{d.common.customer}</h2></div>
+            <div className="sl-fields">
+              <CustomerPicker value={customer} onChange={setCustomer} disabled={fieldsOff} named />
+            </div>
+          </section>
 
           {/* Jami — desktopda o'ng ustun pastida, mobilda tab bar ustidagi qotirilgan panel */}
           <section className={`sl-card sl-pos-total${hasItems ? '' : ' sl-pos-total--empty'}`} aria-label={d.common.total}>

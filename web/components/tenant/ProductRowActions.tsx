@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, type ReactNode } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { quickMarkSoldAction } from '@/app/actions/products';
@@ -9,6 +9,7 @@ import { toast } from '@/lib/toast';
 import Icon from '@/components/icons/Icon';
 import ReviewModal from '@/components/tenant/ReviewModal';
 import PriceInput from '@/components/ui/PriceInput';
+import CustomerPicker, { EMPTY_CUSTOMER, type PickedCustomer } from '@/components/tenant/CustomerPicker';
 import { useDict } from '@/lib/i18n/client';
 import { qtyWithUnit, tr } from '@/lib/i18n/fmt';
 import { addQty, fmtQty, isFractionalUnit, parseQty, priceTimesQty, qtyStep } from '@/lib/qty';
@@ -59,7 +60,9 @@ export default function ProductRowActions({
   const [qty, setQty] = useState('1');
   const [price, setPrice] = useState('');
   const [branch, setBranch] = useState<{ id: string; name: string } | null>(null);
-  const [pos, setPos] = useState<{ top?: number; bottom?: number; left: number } | null>(null);
+  // Mijoz — har qanday to'lov turida majburiy (naqd ham); nasiya/kredit — sotuv formasida
+  const [customer, setCustomer] = useState<PickedCustomer>(EMPTY_CUSTOMER);
+  const [pos, setPos] = useState<{ top?: number; bottom?: number; left: number; maxHeight: number } | null>(null);
   const [reviewOpen, setReviewOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const btnRef = useRef<HTMLButtonElement>(null);
@@ -72,14 +75,16 @@ export default function ProductRowActions({
   const needQty = trackQuantity && available > qtyStep(unit) && (fractional || available > 1);
   const firstQty = fmtQty(Math.min(1, available));
   const needPrice = !salePrice || salePrice <= 0;
+  const customerOk = customer.name.trim() !== '' && customer.phone.replace(/\D/g, '').length >= 9;
 
   function openMenu() {
     const r = btnRef.current?.getBoundingClientRect();
     if (r) {
       const left = Math.max(8, Math.min(r.right - 240, window.innerWidth - 248));
       // Pastda joy kam bo'lsa (masalan, mobil sticky panel) — menyu tugma ustida ochiladi
-      if (window.innerHeight - r.bottom < 320 && r.top > 320) setPos({ bottom: window.innerHeight - r.top + 6, left });
-      else setPos({ top: r.bottom + 6, left });
+      // Sotish bosqichi (son, narx, mijoz) baland — sig'masa menyu o'zi aylantiriladi
+      if (window.innerHeight - r.bottom < 320 && r.top > 320) setPos({ bottom: window.innerHeight - r.top + 6, left, maxHeight: r.top - 14 });
+      else setPos({ top: r.bottom + 6, left, maxHeight: window.innerHeight - r.bottom - 14 });
     }
     setOpen(true);
     setView('menu');
@@ -87,6 +92,7 @@ export default function ProductRowActions({
     setQty(firstQty);
     setPrice('');
     setBranch(null);
+    setCustomer(EMPTY_CUSTOMER);
   }
 
   useEffect(() => {
@@ -96,7 +102,13 @@ export default function ProductRowActions({
       if (ref.current?.contains(t) || menuRef.current?.contains(t)) return;
       setOpen(false);
     };
-    const onScroll = () => setOpen(false);
+    // Menyu ichidagi aylantirish (mijozlar ro'yxati) yoki yozish paytidagi klaviatura — menyuni yopmaydi
+    const onScroll = (e: Event) => {
+      const m = menuRef.current;
+      // resize'da target — window (Node emas)
+      if (m && ((e.target instanceof Node && m.contains(e.target)) || m.contains(document.activeElement))) return;
+      setOpen(false);
+    };
     document.addEventListener('mousedown', onDoc);
     window.addEventListener('scroll', onScroll, true);
     window.addEventListener('resize', onScroll);
@@ -150,7 +162,12 @@ export default function ProductRowActions({
   }
 
   function doSell() {
-    const extra: Record<string, string> = { qty };
+    const extra: Record<string, string> = {
+      qty,
+      customerId: customer.id,
+      customerName: customer.name.trim(),
+      customerPhone: customer.phone.trim(),
+    };
     // Narx faqat o'zgargan (yoki mahsulotda narx yo'q) bo'lsa yuboriladi
     if (price.trim() && (needPrice || Number(price) !== salePrice)) extra.salePrice = price.trim();
     // Sotilgandan keyin baho modalini ochamiz
@@ -196,7 +213,7 @@ export default function ProductRowActions({
           </button>
 
           {open && pos && (
-            <div className="row-action-menu" ref={menuRef} style={{ position: 'fixed', top: pos.top, bottom: pos.bottom, left: pos.left }}>
+            <div className="row-action-menu" ref={menuRef} style={{ position: 'fixed', top: pos.top, bottom: pos.bottom, left: pos.left, maxHeight: Math.max(200, pos.maxHeight), overflowY: 'auto' }}>
               {err && <div className="row-action-err">{err}</div>}
 
               {view === 'menu' && (
@@ -260,7 +277,10 @@ export default function ProductRowActions({
                   onBack={() => setView('sellType')}
                   onConfirm={doSell}
                   confirmLabel={t.sold}
-                />
+                  confirmBlocked={!customerOk}
+                >
+                  <CustomerPicker value={customer} onChange={setCustomer} disabled={busy} compact />
+                </QtyStep>
               )}
 
               {view === 'branches' && (
@@ -326,13 +346,17 @@ function priceStep(base: number): number {
 function QtyStep({
   label, max, unit = null, qty, setQty, showQty = false, showPrice = false, price = '', setPrice,
   basePrice = 0, canEditPrice = false, canDiscount = false, purchasePrice = 0,
-  busy, onBack, onConfirm, confirmLabel,
+  busy, onBack, onConfirm, confirmLabel, confirmBlocked = false, children,
 }: {
   label: string; max: number; unit?: ProductUnit | null; qty: string; setQty: (v: string) => void;
   showQty?: boolean; showPrice?: boolean; price?: string; setPrice?: (v: string) => void;
   /** Mahsulotning sotuv narxi (0 — narx kiritilmagan, istalgan narx yoziladi) */
   basePrice?: number; canEditPrice?: boolean; canDiscount?: boolean; purchasePrice?: number;
   busy: boolean; onBack: () => void; onConfirm: () => void; confirmLabel: string;
+  /** Qo'shimcha shart bajarilmagan (masalan, mijoz kiritilmagan) — tasdiqlab bo'lmaydi */
+  confirmBlocked?: boolean;
+  /** Tasdiqlash tugmasi ustidagi qo'shimcha maydonlar (mijoz) */
+  children?: ReactNode;
 }) {
   const d = useDict();
   const t = d.stock.rowActions;
@@ -425,7 +449,8 @@ function QtyStep({
           )}
         </>
       )}
-      <button type="button" className="btn btn-primary btn-sm" style={{ width: '100%' }} disabled={busy || !priceOk || !qtyOk} onClick={onConfirm}>
+      {children}
+      <button type="button" className="btn btn-primary btn-sm" style={{ width: '100%' }} disabled={busy || !priceOk || !qtyOk || confirmBlocked} onClick={onConfirm}>
         {confirmLabel}
       </button>
     </div>

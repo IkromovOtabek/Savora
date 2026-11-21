@@ -10,9 +10,10 @@ import { getTenantSession } from '@/lib/tenantSession';
 import { branchAggMatch, branchFilter } from '@/lib/branchScope';
 import { normalizePhone } from '@/lib/sms';
 import { ledgerRemaining } from '@/lib/models/tenant/LedgerEntry';
-import { fmtDate, fmtMoney } from '@/lib/format';
+import { fmtDate, fmtDateTime, fmtMoney } from '@/lib/format';
 import { getDict } from '@/lib/i18n/server';
-import { plural, tr } from '@/lib/i18n/fmt';
+import { plural, qtyWithUnit, tr } from '@/lib/i18n/fmt';
+import { bankPartsTotal } from '@/lib/bankCredit';
 import '@/components/tenant/styles/clients.css';
 
 export async function generateMetadata() {
@@ -20,10 +21,21 @@ export async function generateMetadata() {
   return { title: d.crm.customers.detailMetaTitle };
 }
 
-export default async function CustomerDetailPage({ params }: { params: Promise<{ id: string }> }) {
+/** Xaridlar tarixi: avval oxirgilari, «Hammasini ko'rsatish» bilan — ko'pi bilan HISTORY_MAX */
+const HISTORY_LIMIT = 30;
+const HISTORY_MAX = 500;
+
+export default async function CustomerDetailPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ all?: string }>;
+}) {
   const { id } = await params;
+  const showAll = (await searchParams).all === '1';
   if (!Types.ObjectId.isValid(id)) notFound();
-  const { Customer, Sale, LedgerEntry, user, features } = await getTenantSession();
+  const { Customer, Sale, Branch, LedgerEntry, user, features } = await getTenantSession();
   const canManage = await userCan(user, 'customers.manage');
   const canDaftar = !!features.daftar && (await userCan(user, 'daftar.manage'));
   const customer = await Customer.findById(id).lean();
@@ -36,6 +48,21 @@ export default async function CustomerDetailPage({ params }: { params: Promise<{
     { $match: { customerId: new Types.ObjectId(String(customer._id)), status: { $ne: 'cancelled' }, ...branchAggMatch(user) } },
     { $group: { _id: null, count: { $sum: 1 }, total: { $sum: '$totalAmount' }, remaining: { $sum: { $cond: [{ $eq: ['$paymentType', 'bank_credit'] }, 0, '$remainingAmount'] } }, last: { $max: '$createdAt' } } },
   ]);
+
+  // Xaridlar tarixi: nima, qachon, qaysi filialdan (filial login — faqat o'z filiali)
+  const historyLimit = showAll ? HISTORY_MAX : HISTORY_LIMIT;
+  const purchases = await Sale.find({ customerId: customer._id, ...branchFilter(user) })
+    .sort({ createdAt: -1 })
+    .limit(historyLimit + 1)
+    .select('saleNo productSnapshot.name productSnapshot.imei productSnapshot.saleQuantity productSnapshot.unit branchId paymentType bankParts totalAmount remainingAmount status createdAt soldBy')
+    .lean();
+  const historyMore = purchases.length > historyLimit;
+  const history = purchases.slice(0, historyLimit);
+  const branchIds = [...new Set(history.map((s) => String(s.branchId)))];
+  const branchName = new Map(
+    (await Branch.find({ _id: { $in: branchIds } }).select('name').lean()).map((b) => [String(b._id), b.name]),
+  );
+  const h = c.history;
 
   // Daftar: mijozga bog'langan yoki shu telefon raqami bilan yozilgan qarzlar (eski yozuvlar ham)
   const ledger = canDaftar
@@ -90,6 +117,63 @@ export default async function CustomerDetailPage({ params }: { params: Promise<{
           }}
         />}
       </div>
+
+      <section className="cl-card cl-pdaftar" aria-labelledby="cl-phist-h">
+        <header className="cl-pdaftar-h">
+          <div>
+            <h2 id="cl-phist-h">{h.title}</h2>
+            <small>{h.sub}</small>
+          </div>
+        </header>
+        {history.length === 0 ? (
+          <p className="cl-phist-empty">{h.empty}</p>
+        ) : (
+          <ul className="cl-lcol-list" aria-label={h.listAria}>
+            {history.map((s) => {
+              const cancelled = s.status === 'cancelled';
+              // Bank krediti: qoldiq — bank zimmasida (mijoz qarzi emas); bank + nasiya/qarz — faqat mijoz qismi
+              const rest = s.paymentType === 'bank_credit' ? 0 : s.remainingAmount;
+              const qty = s.productSnapshot?.saleQuantity;
+              const bankPay = s.paymentType !== 'bank_credit' && bankPartsTotal(s.bankParts) > 0;
+              return (
+                <li key={String(s._id)} className={`cl-lentry${cancelled ? ' cl-lentry--done' : ''}`}>
+                  <div className="cl-lentry-main">
+                    <b className="cl-row-name">
+                      <Link href={`/app/sales/${String(s._id)}`}>{s.productSnapshot?.name ?? '—'}</Link>
+                      {qty && qty !== 1 ? <span className="cl-phist-qty"> × {qtyWithUnit(qty, s.productSnapshot?.unit, d.stock.fields.units)}</span> : null}
+                    </b>
+                    <small className="cl-row-sub">
+                      <span className="t-num">{s.createdAt ? fmtDateTime(s.createdAt) : '—'}</span>
+                      {' · '}<Icon name="building" size={12} /> {branchName.get(String(s.branchId)) ?? '—'}
+                    </small>
+                    <div className="cl-lentry-tags">
+                      <small>{bankPay ? (s.paymentType === 'debt' ? d.sales.bankDebtShort : d.sales.bankNasiyaShort) : d.sales.paymentTypes[s.paymentType]}</small>
+                      <small className="t-num">№ {s.saleNo}</small>
+                      {s.soldBy && <small>{tr(h.by, { name: s.soldBy })}</small>}
+                    </div>
+                  </div>
+                  <div className="cl-lentry-side">
+                    <b className="cl-row-amt t-num">{fmtMoney(s.totalAmount)}</b>
+                    {cancelled
+                      ? <Pill tone="mut">{d.sales.saleStatus.cancelled}</Pill>
+                      : rest > 0
+                        ? <Pill tone="warn">{tr(h.rest, { sum: fmtMoney(rest) })}</Pill>
+                        : <Pill tone="ok">{d.sales.saleStatus.paid}</Pill>}
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+        {(historyMore || showAll) && history.length > 0 && (
+          <footer className="cl-phist-foot">
+            <small>{tr(h.shownLast, { n: history.length })}</small>
+            {historyMore && !showAll && (
+              <Link href={`/app/customers/${String(customer._id)}?all=1`} className="btn btn-ghost btn-sm" scroll={false}>{h.showAll}</Link>
+            )}
+          </footer>
+        )}
+      </section>
 
       {ledger.length > 0 && (
         <section className="cl-card cl-pdaftar" aria-labelledby="cl-pdaftar-h">

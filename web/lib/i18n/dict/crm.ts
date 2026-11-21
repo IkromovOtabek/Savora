@@ -71,6 +71,19 @@ export const uz = {
     remainingDebt: 'Qoldiq qarz',
     /** {date} — oxirgi xarid sanasi */
     lastPurchase: 'Oxirgi xarid: {date}',
+    /** Mijoz kartochkasi: xaridlar tarixi (nima, qachon, qaysi filialdan) */
+    history: {
+      title: 'Xaridlar tarixi',
+      sub: 'Nima, qachon va qaysi filialdan xarid qilgan',
+      listAria: "Xaridlar ro'yxati",
+      empty: 'Bu mijoz hali xarid qilmagan',
+      /** {n} — ko'rsatilgan xaridlar soni */
+      shownLast: "Oxirgi {n} ta xarid ko'rsatilmoqda",
+      showAll: "Hammasini ko'rsatish",
+      /** {sum} — qolgan qarz */
+      rest: 'Qoldiq: {sum}',
+      by: 'Sotuvchi: {name}',
+    },
     form: {
       ariaNew: 'Yangi mijoz',
       ariaEdit: 'Mijozni tahrirlash',
@@ -613,6 +626,17 @@ export const ru: typeof uz = {
     totalAmount: 'Общая сумма',
     remainingDebt: 'Остаток долга',
     lastPurchase: 'Последняя покупка: {date}',
+    /** Карточка клиента: история покупок (что, когда, в каком филиале) */
+    history: {
+      title: 'История покупок',
+      sub: 'Что, когда и в каком филиале покупал',
+      listAria: 'Список покупок',
+      empty: 'Этот клиент ещё ничего не покупал',
+      shownLast: 'Показаны последние {n} покупок',
+      showAll: 'Показать все',
+      rest: 'Остаток: {sum}',
+      by: 'Продавец: {name}',
+    },
     form: {
       ariaNew: 'Новый клиент',
       ariaEdit: 'Редактировать клиента',

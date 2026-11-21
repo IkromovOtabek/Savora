@@ -272,6 +272,8 @@
 .sl-person b { display: block; font-size: 16px; font-weight: 600; }
 .sl-person a, .sl-person small { font-size: 14px; color: var(--brand); text-decoration: none; font-variant-numeric: tabular-nums; }
 .sl-person small { color: var(--ink-3); }
+.sl-person b .sl-person-link { font-size: inherit; color: var(--ink-1); }
+.sl-person b .sl-person-link:hover { color: var(--brand); text-decoration: underline; }
 
 /* To'lovlar tarixi */
 .sl-pays { list-style: none; margin: 0; padding: 0 0 6px; }

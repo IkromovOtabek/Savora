@@ -22,8 +22,7 @@ import { applySalePayment } from '@/lib/salePayment';
 import { SALE_CANCEL_CATEGORY } from '@/lib/models/tenant/FinanceCategory';
 import { computeInstallmentPlan, installmentDueDate, installmentPaymentMonths, installmentPaymentNote, normPayDay, spreadShortfall } from '@/lib/installment';
 import { recordAudit } from '@/lib/audit';
-import { canonicalPhone } from '@/lib/phone';
-import { findCustomerByPhone } from '@/lib/daftarOps';
+import { resolveSaleCustomer, searchSaleCustomers, type SaleCustomerSearch } from '@/lib/saleCustomer';
 import { markOnboardingStep } from '@/lib/onboarding';
 import { branchFilter } from '@/lib/branchScope';
 import { logError } from '@/lib/logger';
@@ -304,6 +303,18 @@ export async function quickSaleBatchAction(items: QuickSaleLine[]): Promise<Stat
   return { success: tr(m.quickSold, { n: soldCount, sum: soldTotal.toLocaleString('uz-UZ') }) };
 }
 
+/** Sotuv formasidagi F.I.O katagi: mijozlarni real vaqtda qidirish (bo'sh — so'nggi mijozlar) */
+export async function searchSaleCustomersAction(q: string): Promise<SaleCustomerSearch> {
+  const { user, Customer, features } = await getTenantSession();
+  if (!features.sales || !(await userCan(user, 'sale.create'))) return { hits: [], more: false };
+  try {
+    return await searchSaleCustomers({ Customer }, q);
+  } catch (err) {
+    logError('sales.searchCustomers', err);
+    return { hits: [], more: false };
+  }
+}
+
 export async function createSaleAction(_prev: State, formData: FormData): Promise<State> {
   const { user, Product, Customer, Sale, CreditBank, features } = await getTenantSession();
   const { locale, d } = await getI18n();
@@ -316,6 +327,8 @@ export async function createSaleAction(_prev: State, formData: FormData): Promis
     // Bir nechta tovar: [{ productId, qty }] (JSON). Eski forma — productId + saleQty
     items: zText(4000, tooLong),
     productId: zText(40),
+    // Ro'yxatdan tanlangan mavjud mijoz (bo'lmasa — ism + telefon bo'yicha topiladi yoki ochiladi)
+    customerId: zText(40),
     customerName: zText(120, tooLong),
     customerPhone: zText(40, tooLong),
     saleQty: zOptQty(m.badQty),
@@ -478,16 +491,10 @@ export async function createSaleAction(_prev: State, formData: FormData): Promis
     }
   }
 
-  let customer = null;
-  if (customerName && customerPhone) {
-    // Shu telefonli mijoz bor bo'lsa — uning ismi USTIDAN YOZILMAYDI (sotuvchi boshqa mijoz
-    // kartochkasini o'zgartirib yubormasin); mijoz ismi "Mijozlar" bo'limida tahrirlanadi
-    const phone = canonicalPhone(customerPhone);
-    customer = await findCustomerByPhone({ Customer }, phone);
-    if (!customer) {
-      customer = (await Customer.create({ fullName: customerName, phone })).toObject();
-    }
-  }
+  // Mijoz — har qanday to'lov turida majburiy (naqd ham): xaridlar tarixi mijoz kartochkasida yuritiladi
+  const cust = await resolveSaleCustomer({ Customer }, { customerId: parsed.data.customerId, name: customerName, phone: customerPhone });
+  if (!cust.ok) return { error: m[cust.error] };
+  const customer = cust.customer;
 
   // Qatorlar: jami, bosh to'lov va bank ulushlari aniq taqsimlanadi (lib/saleSplit.ts).
   // Bank + nasiya — doim bitta tovar (yuqorida tekshirilgan), bo'linish yo'q.
@@ -529,12 +536,8 @@ export async function createSaleAction(_prev: State, formData: FormData): Promis
           saleQuantity: qty,
           unit: product.unit,
         },
-        ...(customer
-          ? {
-              customerId: customer._id,
-              customerSnapshot: { fullName: customer.fullName, phone: customer.phone },
-            }
-          : {}),
+        customerId: customer._id,
+        customerSnapshot: { fullName: customer.fullName, phone: customer.phone },
         branchId: product.branchId,
         paymentType,
         bankName: lineBank ? bankPartsLabel(lineBank) : undefined,
@@ -595,7 +598,7 @@ export async function createSaleAction(_prev: State, formData: FormData): Promis
   void sendTelegram(
     `<b>Savora — Yangi sotuv</b>\n` +
     `${tgEscape(noLabel)} · ${results.map((r) => `${tgEscape(r.name)} (${qtyLabel(r.qty, r.unit)})`).join(', ')}\n` +
-    (customer ? `Mijoz: ${tgEscape(customer.fullName)}\n` : '') +
+    `Mijoz: ${tgEscape(customer.fullName)}\n` +
     `Summa: ${totalAmount.toLocaleString('uz-UZ')} so'm\n` +
     `To'lov: ${tgEscape(paymentType)}${bankLabel ? ` (${tgEscape(bankLabel)})` : ''}`,
   );

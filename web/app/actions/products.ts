@@ -32,6 +32,7 @@ import { BRAND_NAME_MAX } from '@/lib/models/tenant/Brand';
 import { LEGACY_CATEGORY_VALUE, normalizeCatalogName } from '@/lib/productCatalog';
 import { parseExtraFieldsJson } from '@/lib/productImport';
 import { notifyNewSale, salePayLabel } from '@/lib/shopNotify';
+import { resolveSaleCustomer } from '@/lib/saleCustomer';
 import { parseMxikInput } from '@/lib/mxik';
 import { isValidFactor } from '@/lib/production/calc';
 
@@ -608,9 +609,9 @@ export async function updateProductAction(_prev: State, formData: FormData): Pro
   }
 }
 
-/** Ro'yxatdan tezkor: mahsulotni sotilgan deb belgilash (naqd) + Sotuv yozuvi */
+/** Ro'yxatdan tezkor: mahsulotni sotilgan deb belgilash (naqd) + Sotuv yozuvi (mijoz majburiy) */
 export async function quickMarkSoldAction(_prev: State, formData: FormData): Promise<State> {
-  const { user, Product, Sale } = await getTenantSession();
+  const { user, Product, Sale, Customer } = await getTenantSession();
   { const denied = await checkPermission(user, 'sale.create'); if (denied) return denied; }
   const dict = await getDict();
   const m = dict.stock.msg;
@@ -647,6 +648,15 @@ export async function quickMarkSoldAction(_prev: State, formData: FormData): Pro
   if (!picked.ok) return { error: picked.reason === 'badQty' ? m.sellQtyInvalid : m.noStock };
   const saleQty = picked.qty;
 
+  // Mijoz — har qanday to'lov turida majburiy (createSaleAction bilan bir xil): tanlangan yoki telefon bo'yicha
+  const cust = await resolveSaleCustomer({ Customer }, {
+    customerId: String(formData.get('customerId') || '').slice(0, 40),
+    name: String(formData.get('customerName') || '').slice(0, 120),
+    phone: String(formData.get('customerPhone') || '').slice(0, 40),
+  });
+  if (!cust.ok) return { error: dict.sales.actions[cust.error] };
+  const customer = cust.customer;
+
   const now = new Date();
   const totalAmount = priceTimesQty(salePrice, saleQty);
   const priceChanged = found.salePrice > 0 && salePrice !== found.salePrice;
@@ -677,6 +687,8 @@ export async function quickMarkSoldAction(_prev: State, formData: FormData): Pro
           saleQuantity: saleQty,
           unit: found.unit,
         },
+        customerId: customer._id,
+        customerSnapshot: { fullName: customer.fullName, phone: customer.phone },
         branchId: product.branchId,
         paymentType: 'cash',
         totalAmount,

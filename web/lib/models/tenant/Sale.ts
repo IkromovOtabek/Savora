@@ -214,6 +214,7 @@ saleSchema.index({ branchId: 1, createdAt: -1 }); // filial bo'yicha scoping/his
 saleSchema.index({ status: 1, paymentType: 1 });
 saleSchema.index({ status: 1, dueDate: 1 });
 saleSchema.index({ 'productSnapshot.imei': 1 });
+saleSchema.index({ customerId: 1, createdAt: -1 }); // mijoz kartochkasi: xaridlar tarixi va 360° xulosa
 saleSchema.index({ checkoutId: 1 }, { partialFilterExpression: { checkoutId: { $type: 'string' } } });
 saleSchema.index({ branchId: 1, 'returns.returnedAt': -1 }); // kunlik kassa (qaytarilgan pul)
 // Faqat oflayn sotuvlarda bor — partial unique (null'lar to'qnashmaydi)

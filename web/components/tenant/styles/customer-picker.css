@@ -1,0 +1,37 @@
+/* CustomerPicker — mijoz F.I.O (real vaqt qidiruv) + telefon */
+.cpk { display: grid; gap: 14px; min-width: 0; }
+.cpk-field { display: grid; gap: 6px; min-width: 0; }
+.cpk-box { position: relative; display: flex; align-items: center; }
+.cpk-box > svg { position: absolute; left: 12px; color: var(--ink-3); pointer-events: none; }
+/* .auth-field input:not(...) dan ustun (sl-search kabi) */
+.cpk-box > .cpk-input { width: 100%; padding-left: 36px !important; }
+
+.cpk-ok { display: inline-flex; align-items: center; gap: 4px; font-size: 12.5px; font-weight: 500; color: var(--accent); }
+
+.cpk-list {
+  list-style: none; margin: 0; padding: 4px; max-height: 264px; overflow-y: auto; overscroll-behavior: contain;
+  border-radius: var(--r-lg);
+  box-shadow: inset 0 0 0 1px var(--sep);
+}
+.cpk-head { padding: 6px 10px 4px; font-size: 11.5px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--ink-3); }
+.cpk-opt {
+  display: grid; gap: 1px; padding: 8px 10px; border-radius: 9px; cursor: pointer; min-width: 0;
+  transition: background-color .1s;
+}
+.cpk-opt b { font-size: 14.5px; font-weight: 600; color: var(--ink-1); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cpk-opt span { font-size: 12.5px; color: var(--ink-3); }
+.cpk-opt mark { background: none; color: var(--brand); }
+.cpk-opt.is-active { background: var(--fill); }
+.cpk-opt.is-picked b { color: var(--brand); }
+.cpk-opt:active { opacity: .6; }
+.cpk-note { padding: 10px; font-size: 13px; line-height: 1.4; color: var(--ink-3); text-align: center; }
+
+/* Ixcham (ro'yxatdagi «Sotildi» menyusi) */
+.cpk--compact { gap: 8px; }
+.cpk--compact .cpk-field { gap: 6px; }
+.cpk--compact .input { width: 100%; min-height: 36px; padding-top: 7px; padding-bottom: 7px; font-size: 14px; }
+.cpk--compact .cpk-box > .cpk-input { padding-left: 32px !important; }
+.cpk--compact .cpk-box > svg { left: 10px; }
+.cpk--compact .cpk-list { max-height: 180px; }
+.cpk--compact .cpk-opt { padding: 6px 8px; }
+.cpk--compact .cpk-opt b { font-size: 13.5px; }
