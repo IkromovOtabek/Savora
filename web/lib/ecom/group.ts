@@ -4,6 +4,7 @@ import type { IProduct } from '../models/tenant/Product';
 import { getStockQty } from '../productQuantity';
 import { addQty, isFractionalUnit } from '../qty';
 import { isOwnUploadUrl } from '../fileUrl';
+import { isSampleItemCode } from '../onboardingSamples';
 
 /**
  * E-commerce qoidalari (toza funksiyalar — sync, biznes paneli va testlar uchun umumiy).
@@ -13,7 +14,8 @@ import { isOwnUploadUrl } from '../fileUrl';
  *  2) sotish narxi > 0 — narxsiz tovar HECH QACHON chiqmaydi;
  *  3) omborda qoldig'i bor;
  *  4) chiqarish yoqilgan: egasi qo'lda tanlagan (ecomListed) yoki — tanlamagan bo'lsa — do'konda
- *     «avtomatik chiqarish» yoqiq.
+ *     «avtomatik chiqarish» yoqiq. Ro'yxatdan o'tish ustasining namuna tovari (`itemCode = NAMUNA-…`) avtomatik
+ *     chiqmaydi — faqat egasi aniq «ko'rsatish» desa (soxta tovar ommaviy bozorga tushmasin).
  *
  * Bir xil tovarlar (nom + tur + rang) bitta guruh = bitta kartochka: telefon do'konidagi har dona alohida
  * hujjat va filiallardagi nusxalar xaridorga bitta mahsulot bo'lib ko'rinadi, qoldiq yig'iladi.
@@ -26,7 +28,7 @@ export type EcomSourceProduct = Pick<
   IProduct,
   | 'name' | 'variantName' | 'color' | 'salePrice' | 'oldPrice' | 'kind' | 'status' | 'trackQuantity' | 'quantity'
   | 'soldQuantity' | 'unit' | 'stopListed' | 'systemKey' | 'ecomListed' | 'ecomDescription' | 'ecomImages' | 'photoUrl'
-  | 'category' | 'brand'
+  | 'category' | 'brand' | 'itemCode'
 > & { _id: Types.ObjectId | string; updatedAt?: Date | string };
 
 /** Kalit uchun nom bo'lagi: kichik harf, ortiqcha bo'shliqsiz */
@@ -120,17 +122,22 @@ export function buildEcomGroups(products: EcomSourceProduct[], autoPublish: bool
       || (b.ecomDescription ? 1 : 0) - (a.ecomDescription ? 1 : 0)
       || ts(b.updatedAt) - ts(a.updatedAt))[0];
 
-    const sell = docs.filter((d) => ecomAvailableQty(d) > 0);
+    // Guruh tanlovi: aniq belgilangan eng yangi hujjat
+    const withChoice = docs.filter((d) => typeof d.ecomListed === 'boolean').sort((a, b) => ts(b.updatedAt) - ts(a.updatedAt));
+    const explicit = withChoice[0]?.ecomListed;
+
+    // Namuna tovar avtomatik rejimda sotilmaydi: haqiqiy nusxa bo'lsa — faqat u; faqat namunadan iborat guruh —
+    // yashirin (panelda narx/qoldig'i ko'rinadi, egasi «ko'rsatish» desa chiqadi)
+    const real = docs.filter((d) => !isSampleItemCode(d.itemCode));
+    const pool = explicit === true || real.length === 0 ? docs : real;
+    const listed = resolveEcomListed(explicit, autoPublish && real.length > 0);
+
+    const sell = pool.filter((d) => ecomAvailableQty(d) > 0);
     let qty = 0;
     for (const d of sell) qty = addQty(qty, ecomAvailableQty(d));
     const prices = sell.map((d) => d.salePrice);
     const price = prices.length ? Math.min(...prices) : 0;
     const maxPrice = prices.length ? Math.max(...prices) : 0;
-
-    // Guruh tanlovi: aniq belgilangan eng yangi hujjat
-    const withChoice = docs.filter((d) => typeof d.ecomListed === 'boolean').sort((a, b) => ts(b.updatedAt) - ts(a.updatedAt));
-    const explicit = withChoice[0]?.ecomListed;
-    const listed = resolveEcomListed(explicit, autoPublish);
 
     const hasPrice = docs.some((d) => d.salePrice > 0);
     const state: EcomGroupState = !hasPrice ? 'noPrice' : listed && qty > 0 ? 'live' : 'hidden';

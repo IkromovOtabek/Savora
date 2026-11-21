@@ -5,6 +5,7 @@ import {
   type EcomSourceProduct,
 } from '@/lib/ecom/group';
 import { normalizeCart } from '@/lib/ecom/orders';
+import { isSampleItemCode } from '@/lib/onboardingSamples';
 
 const img = (n: number) => `/api/uploads/biznes_test/${'a'.repeat(8)}-${n}.jpg`;
 
@@ -103,6 +104,48 @@ describe('e-commerce qoidalari (lib/ecom/group)', () => {
   it('eski narx faqat narx yagona va undan katta bo\'lsa', () => {
     expect(buildEcomGroups([p({ oldPrice: 60000 })], true)[0].oldPrice).toBe(60000);
     expect(buildEcomGroups([p({ oldPrice: 40000 })], true)[0].oldPrice).toBeUndefined();
+  });
+
+  it('namuna tovar (NAMUNA-…) avtomatik chiqmaydi: panelda yashirin, egasi «ko\'rsatish» desa — chiqadi', () => {
+    const sample = p({ name: 'Batareyka AA', itemCode: 'NAMUNA-GEN-BATAREYKA', salePrice: 5000, quantity: 24 });
+    const [g] = buildEcomGroups([sample], true);
+    expect(g.state).toBe('hidden');
+    expect(g.listed).toBe(false);
+    expect(g.explicit).toBeUndefined();
+    // Panelda narx va qoldiq ko'rinadi (egasi nimani ko'rsatishini bilsin); katalogga faqat «live» yoziladi
+    expect(g.price).toBe(5000);
+    expect(g.qty).toBe(24);
+
+    const shown = buildEcomGroups([{ ...sample, ecomListed: true }], true)[0];
+    expect(shown.state).toBe('live');
+    expect(shown.sellIds).toEqual([String(sample._id)]);
+    expect(buildEcomGroups([{ ...sample, ecomListed: true }], false)[0].state).toBe('live');
+  });
+
+  it('haqiqiy tovar namuna bilan bir guruhda: faqat haqiqiysi sotiladi; haqiqiysi tugasa — yashirin', () => {
+    const sample = p({ name: 'Non', itemCode: 'NAMUNA-OZQ-NON', salePrice: 4000, quantity: 50 });
+    const real = p({ name: 'Non', salePrice: 4500, quantity: 7 });
+    const [g] = buildEcomGroups([sample, real], true);
+    expect(g.state).toBe('live');
+    expect(g.sellIds).toEqual([String(real._id)]);
+    expect(g.qty).toBe(7);
+    expect(g.price).toBe(4500);
+    expect(g.allIds).toHaveLength(2);
+
+    const [empty] = buildEcomGroups([sample, { ...real, soldQuantity: 7 }], true);
+    expect(empty.state).toBe('hidden');
+    expect(empty.sellIds).toEqual([]);
+    // Egasi guruhni aniq ko'rsatsa — namuna nusxa ham sotiladi
+    const [all] = buildEcomGroups([{ ...sample, ecomListed: true }, { ...real, ecomListed: true }], true);
+    expect(all.sellIds).toHaveLength(2);
+  });
+
+  it('isSampleItemCode: faqat NAMUNA- prefiksi', () => {
+    expect(isSampleItemCode('NAMUNA-GEN-GUGURT')).toBe(true);
+    expect(isSampleItemCode('namuna-gen-gugurt')).toBe(true);
+    expect(isSampleItemCode('GEN-GUGURT')).toBe(false);
+    expect(isSampleItemCode(undefined)).toBe(false);
+    expect(isSampleItemCode(null)).toBe(false);
   });
 
   it('guruh kaliti barqaror va tekshiriladi', () => {

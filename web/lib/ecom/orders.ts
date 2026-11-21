@@ -8,6 +8,7 @@ import type { IProduct } from '../models/tenant/Product';
 import type { ISale } from '../models/tenant/Sale';
 import { allocateCheapest, allocationTotal, buildEcomGroups, ecomGroupKey, ecomAvailableQty, splitTotal, type EcomSourceProduct } from './group';
 import { ECOM_PRODUCT_PROJECTION } from './sync';
+import { isSampleItemCode } from '../onboardingSamples';
 import { isValidQty, priceTimesQty, qtyLabel, roundQty, subQty } from '../qty';
 import { hitRateLimit } from '../rateLimit';
 import { nextDocNo, datePrefix } from '../counters';
@@ -265,7 +266,8 @@ async function allocate(Product: Model<IProduct>, item: IMarketOrder['items'][nu
     const first = item.name.split(' · ')[0].trim();
     const more = await Product.find({ ...goods, name: { $regex: `^\\s*${escapeRegExp(first)}\\s*$`, $options: 'i' }, _id: { $nin: docs.map((d) => d._id) } })
       .limit(500).lean<ProductLean[]>();
-    docs = docs.concat(more.filter((d) => ecomGroupKey(d) === item.key));
+    // Namuna tovar (lib/onboardingSamples) — faqat egasi aniq ko'rsatgan bo'lsa (lib/ecom/group qoidasi)
+    docs = docs.concat(more.filter((d) => ecomGroupKey(d) === item.key && (d.ecomListed === true || !isSampleItemCode(d.itemCode))));
   }
   return allocateCheapest(docs as (ProductLean & EcomSourceProduct)[], qty);
 }

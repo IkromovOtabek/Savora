@@ -191,6 +191,31 @@ describe.skipIf(!URI)('ro\'yxatdan o\'tish ustasi — tenant sozlash (MongoDB)',
     expect((await el.m.ShopSettings.findOne({ key: 'main' }).lean()).receipt.footer).toBe('Mening matnim');
   });
 
+  it('namuna tovarlar Savora Market\'ga avtomatik chiqmaydi; haqiqiy tovar chiqadi; egasi ko\'rsatsa — chiqadi', async () => {
+    const { loadEcomGroups } = await import('@/lib/ecom/sync');
+    const { setEcomListed } = await import('@/lib/ecom/manage');
+    const { ctx, m, answers } = await shop('general', 'starter', {});
+    const r = await runTenantSetup(ctx, { answers, sampleData: true });
+    expect(r.errors).toEqual([]);
+    expect(r.samples?.products).toBe(6);
+    const groups = await loadEcomGroups(m.Product, true);
+    expect(groups.find((g) => g.name === 'Batareyka AA')?.state).toBe('hidden');
+    expect(groups.filter((g) => g.state === 'live')).toEqual([]);
+
+    const branchId = (await m.Branch.findOne({ isMain: true }).lean())._id;
+    await m.Product.create({
+      productId: 'REAL-1', imei: 'REAL-1', name: 'Choynak', salePrice: 50000, purchasePrice: 30000, trackQuantity: true,
+      quantity: 5, soldQuantity: 0, status: 'in_stock', branchId, unit: 'dona', createdBy: 'adm_general',
+    });
+    const after = await loadEcomGroups(m.Product, true);
+    expect(after.filter((g) => g.state === 'live').map((g) => g.name)).toEqual(['Choynak']);
+
+    const gugurt = after.find((g) => g.name === 'Gugurt')!;
+    await setEcomListed(m, { username: 'adm_general', role: 'admin', dbName: ctx.user.dbName }, [gugurt.key], true);
+    const shown = await loadEcomGroups(m.Product, true);
+    expect(shown.filter((g) => g.state === 'live').map((g) => g.name).sort()).toEqual(['Choynak', 'Gugurt']);
+  });
+
   it('xizmat (avtoservis): xizmat + ehtiyot qism namunalari', async () => {
     const { ctx, m, answers } = await shop('service', 'pro', { kind: 'auto' });
     const r = await runTenantSetup(ctx, { answers, sampleData: true });

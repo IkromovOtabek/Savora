@@ -269,6 +269,11 @@ export const SAMPLE_RESTAURANT: {
 
 export const SAMPLE_PREFIX = 'NAMUNA-';
 
+/** Ro'yxatdan o'tish ustasining namuna tovari (barqaror kod `NAMUNA-…`) — Savora Market'ga avtomatik chiqmaydi */
+export function isSampleItemCode(itemCode: string | null | undefined): boolean {
+  return typeof itemCode === 'string' && itemCode.toUpperCase().startsWith(SAMPLE_PREFIX);
+}
+
 /* ───────────────────────────── yozish ───────────────────────────── */
 
 export interface SetupCtx {

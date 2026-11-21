@@ -19,7 +19,7 @@ import { logError } from '../logger';
 export const ECOM_PRODUCT_PROJECTION = {
   name: 1, variantName: 1, color: 1, salePrice: 1, oldPrice: 1, kind: 1, status: 1, trackQuantity: 1, quantity: 1,
   soldQuantity: 1, unit: 1, stopListed: 1, systemKey: 1, ecomListed: 1, ecomDescription: 1, ecomImages: 1, photoUrl: 1,
-  category: 1, brand: 1, updatedAt: 1,
+  category: 1, brand: 1, itemCode: 1, updatedAt: 1,
 } as const;
 
 /** Do'konning omborda turgan oddiy tovarlari — guruhlangan (biznes paneli va sync uchun umumiy) */
