@@ -3,6 +3,7 @@ import { getDict } from '@/lib/i18n/server';
 
 const TABS = [
   { key: 'tx', href: '/app/finance' },
+  { key: 'flow', href: '/app/finance/kunlik' },
   { key: 'state', href: '/app/finance/state' },
   { key: 'cat', href: '/app/finance/categories' },
   { key: 'real', href: '/app/finance/realization' },
@@ -14,7 +15,7 @@ export type FinanceTab = (typeof TABS)[number]['key'];
 export default async function FinanceTabs({ current }: { current: FinanceTab }) {
   const d = await getDict();
   const f = d.sales.fin;
-  const label: Record<FinanceTab, string> = { tx: f.tabTx, state: f.tabState, cat: f.tabCat, real: d.crm.money.realTitle };
+  const label: Record<FinanceTab, string> = { tx: f.tabTx, flow: d.sales.kassa.flowBtn, state: f.tabState, cat: f.tabCat, real: d.crm.money.realTitle };
   return (
     <nav className="fx-pages" aria-label={f.pagesAria}>
       {TABS.map((t) => (

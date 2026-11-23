@@ -80,7 +80,7 @@ describe('applyNavLayout', () => {
       hidden: [],
     });
     const o = order(res);
-    expect(o[0]).toBe('Moliya:/app/kassa,/app/finance,/app/kredit-kassa');
+    expect(o[0]).toBe('Moliya:/app/kassa,/app/finance/kunlik,/app/finance,/app/kredit-kassa');
     // Saqlangan tartibda yo'q havolalar — o'z guruhi oxirida, standart tartibda (restoran: Menyu, Stollar, Bronlar, Kassa, Mening kunim, Oshxona)
     expect(o[1]).toBe('Sotuvlar:/app/reports,/app,/app/pos,/app/menu,/app/tables,/app/restaurant/reservations,/app/tables/cashier,/app/tables/me,/app/kitchen,/app/sales,/app/shifts');
     // Qolgan guruhlar standart tartibda oxirida, barcha havolalar saqlanadi

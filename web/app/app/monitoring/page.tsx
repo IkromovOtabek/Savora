@@ -1,7 +1,7 @@
 import { getTenantSession } from '@/lib/tenantSession';
 import { userCan } from '@/lib/permissionGuard';
 import { branchFilter, isBranchScoped } from '@/lib/branchScope';
-import { statsFromSales, monthRange, opexFromFlows } from '@/lib/monitoring';
+import { monthRange, opexFromFlows } from '@/lib/monitoring';
 import { saleProfitRevenue, splitBankReceipts } from '@/lib/bankCredit';
 import { earlierNasiyaFilter, profitBetween, saleProfitParts } from '@/lib/saleProfit';
 import Link from 'next/link';
@@ -9,10 +9,7 @@ import { PAYMENT_TYPE_LABELS, PaymentType } from '@/lib/models/tenant/Sale';
 import { getI18n } from '@/lib/i18n/server';
 import { tr, fmtMonthYear } from '@/lib/i18n/fmt';
 import { amtTone, fmtMoney } from '@/lib/format';
-import MonitoringChart from '@/components/tenant/MonitoringChart';
-import type { BranchMonthFlow } from '@/lib/inventoryFlow';
 import Icon from '@/components/icons/Icon';
-import Tilt from '@/components/ui/Tilt';
 import MoreMenu from '@/components/ui/MoreMenu';
 import MonthNav from '@/components/ui/MonthNav';
 import '@/components/tenant/styles/finance.css';
@@ -22,6 +19,14 @@ export async function generateMetadata() {
   return { title: d.shell.monitoring.metaTitle };
 }
 
+/** Filial qatori: shu oy sotuvi, sotuvlar soni va foydasi (nasiya va bank qoidalari bilan) */
+type BranchRow = { id: string; name: string; revenue: number; count: number; profit: number };
+
+/**
+ * Umumiy hisobot — oy natijasi oddiy savollar bilan: qancha sotildi, qancha pul olindi, qancha qarzda qoldi,
+ * qancha foyda qoldi va u qanday hisoblandi. Foyda qoidalari: bank krediti ulushi bankdan pul olinganda,
+ * nasiya — tannarx to'langach (lib/saleProfit.ts). Xarajatlar (sof foyda) — faqat do'kon egasiga.
+ */
 export default async function MonitoringPage({
   searchParams,
 }: {
@@ -39,7 +44,7 @@ export default async function MonitoringPage({
   // Sof foyda (xarajatlar bilan) — Moliya bo'limi kabi faqat do'kon egasiga: ish haqi, ijara — butun biznes puli
   const showNet = user.role === 'admin' && features.kirimChiqim;
 
-  // Filial login — faqat o'z filiali hisoboti; admin — barcha filiallar taqqoslamasi
+  // Filial login — faqat o'z filiali hisoboti; admin — barcha filiallar
   const scope = branchFilter(user);
   const [sales, branchesAll, flows, financeCategories, bankReceipts, earlierNasiya] = await Promise.all([
     Sale.find({ ...scope, status: { $ne: 'cancelled' }, createdAt: { $gte: start, $lt: end } }).lean(),
@@ -59,139 +64,113 @@ export default async function MonitoringPage({
     ? branchesAll.filter((b) => String(b._id) === user.branchId)
     : branchesAll;
 
-  const branchMap = Object.fromEntries(branches.map((b) => [String(b._id), b.name]));
+  // Tannarx — sotuv paytidagi snapshot; eski sotuvlarda yo'q bo'lsa mahsulotning joriy xarid narxi
+  const missing = [...sales, ...earlierNasiya].filter((s) => s.productSnapshot?.purchasePrice == null).map((s) => s.productId);
+  const fallback = missing.length
+    ? new Map((await Product.find({ _id: { $in: missing } }).select('purchasePrice').lean()).map((p) => [String(p._id), p.purchasePrice ?? 0]))
+    : new Map<string, number>();
+  const costOf = (sale: { productId: unknown; productSnapshot?: { saleQuantity?: number; purchasePrice?: number } }) =>
+    (sale.productSnapshot?.purchasePrice ?? fallback.get(String(sale.productId)) ?? 0) * (sale.productSnapshot?.saleQuantity ?? 1);
 
-  // Sotilgan mahsulotlar — Sale.createdAt asosida (to'g'ri sana)
-  // Product.updatedAt ishlatilmaydi — u tahrirlash vaqtida ham o'zgaradi
-  const soldProductIds = [...sales, ...earlierNasiya].map((s) => s.productId);
-  const soldProducts = soldProductIds.length > 0
-    ? await Product.find({ _id: { $in: soldProductIds } }).lean()
-    : [];
-  const soldProductMap = Object.fromEntries(soldProducts.map((p) => [String(p._id), p]));
-
-  // Omborga kirgan mahsulotlar (createdAt shu oyda) — chiqim
-  const incomingProducts = await Product.find({
-    branchId: { $in: branches.map((b) => b._id) },
-    createdAt: { $gte: start, $lt: end },
-  }).lean();
-
-  // Filial bo'yicha hisob — Sale.createdAt = sotuv sanasi (ishonchli)
-  const branchFlowMap = new Map<string, BranchMonthFlow>();
-  for (const b of branches) {
-    branchFlowMap.set(String(b._id), {
-      branchId: String(b._id),
-      name: b.name,
-      kirimQty: 0,
-      chiqimQty: 0,
-      kirimSum: 0,
-      chiqimSum: 0,
-      profit: 0,
-    });
+  // Shu oy omborga qo'shilgan mahsulotlar — xarajat emas, faqat izoh (sotilganda tannarxi foydadan ayriladi)
+  const incoming = await Product.find({ branchId: { $in: branches.map((b) => b._id) }, createdAt: { $gte: start, $lt: end } })
+    .select('quantity trackQuantity purchasePrice').lean();
+  let incomingQty = 0;
+  let incomingCost = 0;
+  for (const p of incoming) {
+    const qty = p.trackQuantity ? (p.quantity ?? 1) : 1;
+    incomingQty += qty;
+    incomingCost += (p.purchasePrice ?? 0) * qty;
   }
 
-  // Sotilganlar — Sale.createdAt bo'yicha (kirim = pul kirishi).
-  // Foyda: bank krediti ulushi sotuv paytida kirmaydi — u «Bankdan pul olindi» bilan kiradi (pastda).
-  // Nasiya: tannarx to'lanmaguncha foyda yo'q, tannarxdan oshgan to'lovlar to'lov oyida (lib/saleProfit.ts)
-  const costOf = (sale: { productId: unknown; productSnapshot?: { saleQuantity?: number; purchasePrice?: number } }) =>
-    (sale.productSnapshot?.purchasePrice ?? soldProductMap[String(sale.productId)]?.purchasePrice ?? 0) * (sale.productSnapshot?.saleQuantity ?? 1);
-  let salesNatural = 0;
+  const rows = new Map<string, BranchRow>(branches.map((b) => [String(b._id), { id: String(b._id), name: b.name, revenue: 0, count: 0, profit: 0 }]));
+  let revenue = 0;
+  let cost = 0;
+  let bankShare = 0;
+  let salesCount = 0;
+  let paid = 0;
+  let debt = 0;
   let nasiyaDeferred = 0;
   let nasiyaRecognized = 0;
+  const byPayment: Partial<Record<PaymentType, number>> = {};
   for (const sale of sales) {
-    const branchId = String(sale.branchId);
-    const row = branchFlowMap.get(branchId);
+    const row = rows.get(String(sale.branchId));
     if (!row) continue;
-    const qty = sale.productSnapshot?.saleQuantity ?? 1;
-    const cost = costOf(sale);
-    const natural = saleProfitRevenue(sale) - cost;
-    const parts = saleProfitParts(sale, cost);
-    row.kirimQty += qty;
-    row.kirimSum += sale.totalAmount;
+    const c = costOf(sale);
+    const own = saleProfitRevenue(sale); // bank ulushisiz
+    const parts = saleProfitParts(sale, c);
+    row.revenue += sale.totalAmount;
+    row.count += 1;
     row.profit += profitBetween(parts, start, end);
-    salesNatural += natural;
-    nasiyaDeferred += natural - profitBetween(parts, start, end, 'sale');
+    revenue += sale.totalAmount;
+    cost += c;
+    bankShare += sale.totalAmount - own;
+    salesCount += 1;
+    paid += sale.paidAmount;
+    debt += sale.remainingAmount;
+    nasiyaDeferred += own - c - profitBetween(parts, start, end, 'sale');
     nasiyaRecognized += profitBetween(parts, start, end, 'nasiya');
+    byPayment[sale.paymentType] = (byPayment[sale.paymentType] ?? 0) + sale.totalAmount;
   }
   for (const sale of earlierNasiya) {
-    const row = branchFlowMap.get(String(sale.branchId));
+    const row = rows.get(String(sale.branchId));
     if (!row) continue;
     const amount = profitBetween(saleProfitParts(sale, costOf(sale)), start, end);
     row.profit += amount;
     nasiyaRecognized += amount;
   }
-  const salesProfit = [...branchFlowMap.values()].reduce((s, r) => s + r.profit, 0);
-  const hasNasiya = nasiyaDeferred !== 0 || nasiyaRecognized !== 0;
 
-  // Bankdan olingan pul — olingan oyda to'liq foyda (bank ulushining tannarxi sotuv paytida ayrilgan)
-  const bank = splitBankReceipts(bankReceipts, [...branchFlowMap.keys()]);
+  // Bankdan olingan pul — pul tushgan filialga; filialsiz (eski) yoki nofaol filialniki — «filialga bog'lanmagan»
+  const bank = splitBankReceipts(bankReceipts, [...rows.keys()]);
   for (const [branchId, amount] of bank.byBranch) {
-    const row = branchFlowMap.get(branchId);
+    const row = rows.get(branchId);
     if (row) row.profit += amount;
   }
 
-  // Omborga kirgan — Product.createdAt bo'yicha (chiqim = pul ketishi)
-  for (const p of incomingProducts) {
-    const branchId = String(p.branchId);
-    const row = branchFlowMap.get(branchId);
-    if (!row) continue;
-    const qty = p.trackQuantity ? (p.quantity ?? 1) : 1;
-    row.chiqimQty += qty;
-    row.chiqimSum += (p.purchasePrice ?? 0) * qty;
-  }
-
-  const branchFlows = [...branchFlowMap.values()].sort((a, b) => b.profit - a.profit);
-
-  const monthStats = statsFromSales(sales, start, end);
-
-  const branchStats = branches.map((b) => {
-    const branchSales = sales.filter((s) => String(s.branchId) === String(b._id));
-    return { name: b.name, ...statsFromSales(branchSales, start, end) };
-  }).sort((a, b) => b.revenue - a.revenue);
-
-  const byPayment: Record<string, number> = {};
-  for (const s of sales) {
-    byPayment[s.paymentType] = (byPayment[s.paymentType] ?? 0) + s.totalAmount;
-  }
-
-  // Nomlash: BranchMonthFlow.kirim* = sotuvdan pul kirishi (sotilgan dona/summa),
-  // chiqim* = omborga kirgan mahsulot uchun pul ketishi (dona/xarid summa).
-  const monthSoldQty = branchFlows.reduce((s, r) => s + r.kirimQty, 0);
-  const monthIncomingQty = branchFlows.reduce((s, r) => s + r.chiqimQty, 0);
-  const monthIncomingSum = branchFlows.reduce((s, r) => s + r.chiqimSum, 0);
-  // Filialsiz (eski) va nofaol filial kassasiga tushgan bank puli — jami foydada, «Umumiy» qatorida
-  const monthProfit = branchFlows.reduce((s, r) => s + r.profit, 0) + bank.rest;
-  const showBank = features.creditKassa || bank.total > 0;
-
-  // Sof foyda = yalpi foyda + boshqa kirimlar − xarajatlar (faqat foydaga kiruvchi toifalar)
+  // Xarajatlar va boshqa kirimlar (faqat foydaga kiruvchi toifalar) — filial foydasiga ham
   const opex = opexFromFlows(flows, financeCategories);
-  const netProfit = monthProfit + opex.income - opex.expense;
   const branchOpex = (id: string) => {
     const o = opex.byBranch.get(id);
     return o ? o.income - o.expense : 0;
   };
-  // Filialsiz va jadvalda yo'q (nofaol) filial yozuvlari — jami bilan mos kelsin
-  const listedOpex = branchFlows.reduce((s, b) => s + branchOpex(b.branchId), 0);
-  const otherOpex = opex.income - opex.expense - listedOpex;
+  const branchList = [...rows.values()]
+    .map((r) => ({ ...r, profit: r.profit + (showNet ? branchOpex(r.id) : 0) }))
+    .sort((a, b) => b.revenue - a.revenue || b.profit - a.profit);
+  const listedOpex = branchList.reduce((s, b) => s + branchOpex(b.id), 0);
+  const restProfit = bank.rest + (showNet ? opex.income - opex.expense - listedOpex : 0);
+
+  // Foyda = sotuv − tannarx − bank ulushi − nasiya kutilayotgan + nasiya to'lovlaridan + bankdan kelgan (+ kirim − xarajat)
+  const profit = branchList.reduce((s, b) => s + b.profit, 0) + restProfit;
+  const loss = profit < 0;
 
   const ym = (yy: number, mm: number) => {
-    const d = new Date(yy, mm - 1, 1);
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    const dt = new Date(yy, mm - 1, 1);
+    return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}`;
   };
   const curMonth = ym(y, m);
   const nowMonth = ym(now.getFullYear(), now.getMonth() + 1);
   // Brauzer/Node tiliga bog'liq bo'lmagan yorliq — joriy interfeys tilida
   const monthLabel = fmtMonthYear(new Date(y, m - 1, 1), locale);
 
-  const paymentTotal = Object.values(byPayment).reduce((s, v) => s + v, 0);
-  const paymentTypes = Object.keys(PAYMENT_TYPE_LABELS) as PaymentType[];
-  const share = (v: number) => (paymentTotal > 0 ? (v / paymentTotal) * 100 : 0);
+  const paymentTypes = (Object.keys(PAYMENT_TYPE_LABELS) as PaymentType[]).filter((pt) => (byPayment[pt] ?? 0) > 0);
+  const share = (v: number) => (revenue > 0 ? (v / revenue) * 100 : 0);
+  const showBranches = branchList.length > 1 || restProfit !== 0;
+
+  const line = (label: string, value: number, sign: '+' | '−' | '', hint?: string) => (
+    <div className="fn-pass-row">
+      <span>{label}{hint && <> <small className="fn-pl-hint">({hint})</small></>}</span>
+      <strong className={sign === '+' ? 'fn-in' : sign === '−' && value ? 'fn-out' : undefined}>
+        {sign && `${sign} `}{fmtMoney(value)}
+      </strong>
+    </div>
+  );
 
   return (
     <div className="fn-page">
       <div className="t-page-head" style={{ marginBottom: 0 }}>
         <div>
           <h1 className="t-page-title">{t.title}</h1>
-          <p className="t-page-sub">{t.subtitle}</p>
+          <p className="t-page-sub">{tr(t.subtitle, { month: monthLabel })}</p>
         </div>
         <div className="fn-head-tools">
           <MonthNav value={curMonth} current={nowMonth} href={(v) => `/app/monitoring?month=${v}`} />
@@ -204,131 +183,92 @@ export default async function MonitoringPage({
         </div>
       </div>
 
-      <section className="fn-bento" aria-label={t.monthKpis}>
-        <Tilt stack className="fn-hero">
-          <div className="fn-hero-top">
-            <span className="fn-hero-label">{t.turnover}</span>
-            <span className="fn-hero-chip"><Icon name="chart" size={14} /> {monthLabel}</span>
-          </div>
-          <div className="fn-hero-value fn-num ux-z">{fmtMoney(monthStats.revenue)}<span className="fn-cur">{d.common.sum}</span></div>
-          <div className="fn-hero-grid">
-            <div className="fn-hero-stat">
-              <span className="fn-hero-stat-l">{t.transactions}</span>
-              <span className="fn-hero-stat-v fn-num">{tr(d.common.nPcs, { n: monthStats.salesCount })}</span>
-            </div>
-            <div className="fn-hero-stat">
-              <span className="fn-hero-stat-l">{d.common.paid}</span>
-              <span className="fn-hero-stat-v fn-num">{fmtMoney(monthStats.paid)}</span>
-            </div>
-            <div className="fn-hero-stat">
-              <span className="fn-hero-stat-l">{t.remainingDebt}</span>
-              <span className="fn-hero-stat-v fn-num">{fmtMoney(monthStats.debt)}</span>
-            </div>
-          </div>
-        </Tilt>
-        <div className="ux-strip fn-bento-tiles">
-          <div className="fn-tile">
-            <span className="fn-tile-head"><span className="ux-clay ux-clay--green"><Icon name="sparkles" size={15} /></span> {showNet ? t.netProfit : t.profit}</span>
-            {showNet ? (
-              <>
-                <span className={`fn-tile-v ${netProfit >= 0 ? 'fn-in' : 'fn-out'}`}>{fmtMoney(netProfit)}</span>
-                <span className="fn-tile-s">{t.netProfitSub}</span>
-              </>
-            ) : (
-              <>
-                <span className={`fn-tile-v ${monthProfit >= 0 ? 'fn-in' : 'fn-out'}`}>{fmtMoney(monthProfit)}</span>
-                <span className="fn-tile-s">{t.profitSub}</span>
-              </>
-            )}
-          </div>
-          <div className="fn-tile">
-            <span className="fn-tile-head"><span className="ux-clay"><Icon name="cart" size={15} /></span> {t.sold}</span>
-            <span className="fn-tile-v">{tr(d.common.nPcs, { n: monthSoldQty })}</span>
-            <span className="fn-tile-s">{t.soldSub}</span>
-          </div>
-          <div className="fn-tile">
-            <span className="fn-tile-head"><span className="ux-clay ux-clay--gold"><Icon name="box" size={15} /></span> {t.incoming}</span>
-            <span className="fn-tile-v">{tr(d.common.nPcs, { n: monthIncomingQty })}</span>
-            <span className="fn-tile-s">{t.incomingSub}</span>
-          </div>
-          <div className="fn-tile">
-            <span className="fn-tile-head"><span className="ux-clay ux-clay--red"><Icon name="wallet" size={15} /></span> {t.purchaseSum}</span>
-            <span className="fn-tile-v">{fmtMoney(monthIncomingSum)}</span>
-            <span className="fn-tile-s">{t.purchaseSumSub}</span>
-          </div>
+      <section className="fx-sums fx-real-sums mon-kpis" aria-label={t.kpiAria} style={{ marginBottom: 0 }}>
+        <div className="ux-stat">
+          <div className="ux-stat-l">{t.sales}</div>
+          <div className="ux-stat-v t-num">{fmtMoney(revenue)}<small>{d.common.sum}</small></div>
+          <div className="ux-stat-s">{tr(t.salesSub, { n: salesCount })}</div>
+        </div>
+        <div className="ux-stat">
+          <div className="ux-stat-l">{t.received}</div>
+          <div className="ux-stat-v t-num">{fmtMoney(paid)}<small>{d.common.sum}</small></div>
+          <div className="ux-stat-s">{t.receivedSub}</div>
+        </div>
+        <div className="ux-stat">
+          <div className="ux-stat-l">{t.debt}</div>
+          <div className="ux-stat-v t-num">{fmtMoney(debt)}<small>{d.common.sum}</small></div>
+          <div className="ux-stat-s">{t.debtSub}</div>
+        </div>
+        <div className="ux-stat">
+          <div className="ux-stat-l">{loss ? t.loss : t.profit}</div>
+          <div className={`ux-stat-v t-num ${amtTone(profit)}`}>{fmtMoney(profit)}<small>{d.common.sum}</small></div>
+          <div className="ux-stat-s">{showNet ? t.profitSubNet : t.profitSubGross}</div>
         </div>
       </section>
 
-      {showNet && (
-        <div className="fn-two">
-          <section className="fn-panel" aria-labelledby="mon-pl">
+      <div className="fn-two">
+        <section className="fn-panel" aria-labelledby="mon-how">
+          <div className="fn-panel-head">
+            <h2 id="mon-how">{t.howTitle}</h2>
+            <small>{monthLabel}</small>
+          </div>
+          <div className="fn-panel-body">
+            <div className="fn-pass-rows fn-pl">
+              {line(t.lSales, revenue, '')}
+              {line(t.lCost, cost, '−', t.lCostHint)}
+              {bankShare > 0 && line(t.lBankShare, bankShare, '−', t.lBankShareHint)}
+              {nasiyaDeferred > 0 && line(t.lNasiyaWait, nasiyaDeferred, '−', t.lNasiyaWaitHint)}
+              {nasiyaRecognized !== 0 && line(t.lNasiyaIn, Math.abs(nasiyaRecognized), nasiyaRecognized > 0 ? '+' : '−', t.lNasiyaInHint)}
+              {bank.total > 0 && line(t.lBankIn, bank.total, '+')}
+              {showNet && opex.income > 0 && line(t.lOtherIncome, opex.income, '+')}
+              {showNet && line(t.lExpenses, opex.expense, '−', t.lExpensesHint)}
+              <div className="fn-pass-row fn-pl-total">
+                <span>{loss ? t.lLoss : t.lResult}</span>
+                <strong className={loss ? 'fn-out' : 'fn-in'}>{fmtMoney(profit)} {d.common.sum}</strong>
+              </div>
+            </div>
+            <p className="fn-pl-note">
+              {showNet ? (
+                <>{t.noteNet} <Link href="/app/finance">{t.addExpense}</Link> · <Link href="/app/finance/categories">{t.categories}</Link></>
+              ) : t.noteGross}
+            </p>
+          </div>
+        </section>
+
+        <div className="fn-page" style={{ gap: 16 }}>
+          <section className="fn-panel" aria-labelledby="mon-pay">
             <div className="fn-panel-head">
-              <h2 id="mon-pl">{t.plTitle}</h2>
-              <small>{monthLabel}</small>
+              <h2 id="mon-pay">{t.payTitle}</h2>
             </div>
             <div className="fn-panel-body">
-              <div className="fn-pass-rows fn-pl">
-                {showBank || hasNasiya ? (
-                  <>
-                    <div className="fn-pass-row">
-                      <span>{hasNasiya ? t.saleProfit : t.grossProfit} <small className="fn-pl-hint">({showBank ? t.profitSubBank : t.profitSub})</small></span>
-                      <strong className={amtTone(hasNasiya ? salesNatural : salesProfit)}>{fmtMoney(hasNasiya ? salesNatural : salesProfit)}</strong>
-                    </div>
-                    {hasNasiya && (
-                      <>
-                        <div className="fn-pass-row">
-                          <span>{t.nasiyaDeferred}</span>
-                          <strong className={nasiyaDeferred ? 'fn-out' : undefined}>− {fmtMoney(nasiyaDeferred)}</strong>
-                        </div>
-                        <div className="fn-pass-row">
-                          <span>{t.nasiyaRecognized}</span>
-                          <strong className={nasiyaRecognized < 0 ? 'fn-out' : 'fn-in'}>{nasiyaRecognized < 0 ? '−' : '+'} {fmtMoney(Math.abs(nasiyaRecognized))}</strong>
-                        </div>
-                      </>
-                    )}
-                    {showBank && (
-                      <div className="fn-pass-row">
-                        <span>{t.bankReceived}</span>
-                        <strong className="fn-in">+ {fmtMoney(bank.total)}</strong>
-                      </div>
-                    )}
-                  </>
-                ) : (
-                  <div className="fn-pass-row">
-                    <span>{t.grossProfit} <small className="fn-pl-hint">({t.profitSub})</small></span>
-                    <strong className={amtTone(monthProfit)}>{fmtMoney(monthProfit)}</strong>
+              {paymentTypes.length === 0 ? (
+                <p className="fn-pl-note" style={{ margin: 0 }}>{t.noSales}</p>
+              ) : (
+                <>
+                  <div className="fn-mix" aria-hidden="true">
+                    {paymentTypes.map((pt) => <i key={pt} className={`fn-c-${pt}`} style={{ width: `${share(byPayment[pt] ?? 0)}%` }} />)}
                   </div>
-                )}
-                <div className="fn-pass-row">
-                  <span>{t.otherIncome}</span>
-                  <strong className="fn-in">+ {fmtMoney(opex.income)}</strong>
-                </div>
-                <div className="fn-pass-row">
-                  <span>{t.expenses}</span>
-                  <strong className="fn-out">− {fmtMoney(opex.expense)}</strong>
-                </div>
-                <div className="fn-pass-row fn-pl-total">
-                  <span>{t.netProfit}</span>
-                  <strong className={netProfit >= 0 ? 'fn-in' : 'fn-out'}>{fmtMoney(netProfit)} {d.common.sum}</strong>
-                </div>
-              </div>
-              <p className="fn-pl-note">
-                {hasNasiya && <>{t.nasiyaNote} </>}
-                {showBank && <>{t.bankNote} <Link href="/app/kredit-kassa">{d.sales.creditKassa.title}</Link>. </>}
-                {t.plNote} <Link href="/app/finance">{t.plAddExpense}</Link> · <Link href="/app/finance/categories">{t.plSettings}</Link>
-              </p>
+                  <ul className="fn-mix-list">
+                    {paymentTypes.map((pt) => (
+                      <li key={pt} className="fn-mix-row">
+                        <i className={`fn-c-${pt}`} aria-hidden="true" />
+                        <span>{d.shell.paymentTypes[pt] ?? PAYMENT_TYPE_LABELS[pt]}</span>
+                        <strong>{fmtMoney(byPayment[pt] ?? 0)}</strong>
+                        <small>{Math.round(share(byPayment[pt] ?? 0))}%</small>
+                      </li>
+                    ))}
+                  </ul>
+                </>
+              )}
             </div>
           </section>
 
-          <section className="fn-panel" aria-labelledby="mon-pl-cat">
-            <div className="fn-panel-head">
-              <h2 id="mon-pl-cat">{d.sales.fin.byCategory}</h2>
-              <small className={amtTone(opex.income - opex.expense)}>{fmtMoney(opex.income - opex.expense)} {d.common.sum}</small>
-            </div>
-            <div className="fn-panel-body">
-              {opex.byCategory.length === 0 ? (
-                <p className="fn-pl-note" style={{ margin: 0 }}>{t.plEmpty}</p>
-              ) : (
+          {showNet && opex.byCategory.length > 0 && (
+            <section className="fn-panel" aria-labelledby="mon-costs">
+              <div className="fn-panel-head">
+                <h2 id="mon-costs">{t.costsTitle}</h2>
+              </div>
+              <div className="fn-panel-body">
                 <ul className="fx-cats">
                   {opex.byCategory.map((c) => (
                     <li key={`${c.type}-${c.category}`}>
@@ -337,118 +277,41 @@ export default async function MonitoringPage({
                     </li>
                   ))}
                 </ul>
-              )}
-            </div>
-          </section>
+              </div>
+            </section>
+          )}
         </div>
-      )}
-
-      <div className="fn-two">
-        <section className="fn-panel" aria-labelledby="mon-rank">
-          <div className="fn-panel-head">
-            <h2 id="mon-rank">{t.branchRank}</h2>
-            <small>{t.bySaleSum}</small>
-          </div>
-          <div className="fn-panel-body">
-            <MonitoringChart rows={branchFlows} />
-          </div>
-        </section>
-
-        <section className="fn-panel" aria-labelledby="mon-pay">
-          <div className="fn-panel-head">
-            <h2 id="mon-pay">{t.paymentType}</h2>
-            <small>{fmtMoney(paymentTotal)} {d.common.sum}</small>
-          </div>
-          <div className="fn-panel-body">
-            <div className="fn-mix" aria-hidden="true">
-              {paymentTypes.map((pt) =>
-                (byPayment[pt] ?? 0) > 0 ? <i key={pt} className={`fn-c-${pt}`} style={{ width: `${share(byPayment[pt])}%` }} /> : null,
-              )}
-            </div>
-            <ul className="fn-mix-list">
-              {paymentTypes.map((pt) => (
-                <li key={pt} className="fn-mix-row">
-                  <i className={`fn-c-${pt}`} aria-hidden="true" />
-                  <span>{d.shell.paymentTypes[pt] ?? PAYMENT_TYPE_LABELS[pt]}</span>
-                  <strong>{fmtMoney(byPayment[pt] ?? 0)}</strong>
-                  <small>{Math.round(share(byPayment[pt] ?? 0))}%</small>
-                </li>
-              ))}
-            </ul>
-          </div>
-        </section>
       </div>
 
-      <section className="fn-panel" aria-labelledby="mon-table">
-        <div className="fn-panel-head">
-          <h2 id="mon-table">{t.branchTable}</h2>
-          <small>{tr(t.nBranches, { n: branchFlows.length })}</small>
-        </div>
-        {branchFlows.length === 0 ? (
-          <div className="ux-empty">
-            <span className="ux-empty-ic"><Icon name="store" size={26} /></span>
-            <b>{t.noActiveBranch}</b>
-            <p>{t.noActiveBranchText}</p>
+      {showBranches && (
+        <section className="fn-panel" aria-labelledby="mon-branches">
+          <div className="fn-panel-head">
+            <h2 id="mon-branches">{t.branchesTitle}</h2>
+            <small>{t.colProfit}</small>
           </div>
-        ) : (
-          <div className="table-wrap">
-            <table className="data-table fn-table">
-              <thead>
-                <tr>
-                  <th>{d.common.branch}</th>
-                  <th className="fn-right">{t.soldQty}</th>
-                  <th className="fn-right">{t.incomingQty}</th>
-                  <th className="fn-right">{t.saleSum}</th>
-                  <th className="fn-right">{t.purchaseSum}</th>
-                  <th className="fn-right">{showNet ? t.grossProfit : t.profit}</th>
-                  {showNet && <th className="fn-right">{t.opexCol}</th>}
-                  {showNet && <th className="fn-right">{t.netProfit}</th>}
-                  <th className="fn-right">{t.transaction}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {branchFlows.map((b) => {
-                  const saleRow = branchStats.find((s) => s.name === b.name);
-                  const bOpex = branchOpex(b.branchId);
-                  const bNet = b.profit + bOpex;
-                  return (
-                    <tr key={b.branchId}>
-                      <td data-label={d.common.branch}><span className="cell-main">{b.name}</span></td>
-                      <td data-label={t.soldQty} className="fn-right">{b.kirimQty}</td>
-                      <td data-label={t.incomingQty} className="fn-right">{b.chiqimQty}</td>
-                      <td data-label={t.saleSum} className="fn-right">{fmtMoney(b.kirimSum)}</td>
-                      <td data-label={t.purchaseSum} className="fn-right">{fmtMoney(b.chiqimSum)}</td>
-                      {showNet ? (
-                        <>
-                          <td data-label={t.grossProfit} className={`fn-right ${amtTone(b.profit)}`}>{fmtMoney(b.profit)}</td>
-                          <td data-label={t.opexCol} className={`fn-right ${amtTone(bOpex)}`}>{fmtMoney(bOpex)}</td>
-                          <td data-label={t.netProfit} className={`fn-right ${bNet >= 0 ? 'fn-in' : 'fn-out'}`}><strong>{fmtMoney(bNet)}</strong></td>
-                        </>
-                      ) : (
-                        <td data-label={t.profit} className={`fn-right ${b.profit >= 0 ? 'fn-in' : 'fn-out'}`}><strong>{fmtMoney(b.profit)}</strong></td>
-                      )}
-                      <td data-label={t.transaction} className="fn-right">{saleRow?.salesCount ?? 0}</td>
-                    </tr>
-                  );
-                })}
-                {showNet && (otherOpex !== 0 || bank.rest !== 0) && (
-                  <tr>
-                    <td data-label={d.common.branch}><span className="cell-main">{t.unbranched}</span></td>
-                    <td data-label={t.soldQty} className="fn-right">—</td>
-                    <td data-label={t.incomingQty} className="fn-right">—</td>
-                    <td data-label={t.saleSum} className="fn-right">—</td>
-                    <td data-label={t.purchaseSum} className="fn-right">—</td>
-                    <td data-label={t.grossProfit} className={`fn-right ${bank.rest ? amtTone(bank.rest) : ''}`}>{bank.rest ? fmtMoney(bank.rest) : '—'}</td>
-                    <td data-label={t.opexCol} className={`fn-right ${amtTone(otherOpex)}`}>{fmtMoney(otherOpex)}</td>
-                    <td data-label={t.netProfit} className={`fn-right ${otherOpex + bank.rest >= 0 ? 'fn-in' : 'fn-out'}`}><strong>{fmtMoney(otherOpex + bank.rest)}</strong></td>
-                    <td data-label={t.transaction} className="fn-right">—</td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </section>
+          <ul className="fx-list mon-branches">
+            {branchList.map((b) => (
+              <li key={b.id} className="fx-row fx-row--ro">
+                <span className="fn-avatar" aria-hidden="true">{b.name.trim().charAt(0).toUpperCase() || '?'}</span>
+                <span className="fx-main">
+                  <b>{b.name}</b>
+                  <small>{tr(t.branchMeta, { sum: fmtMoney(b.revenue), n: b.count })}</small>
+                </span>
+                <b className={`fx-amt t-num ${amtTone(b.profit)}`}>{fmtMoney(b.profit)}</b>
+              </li>
+            ))}
+            {restProfit !== 0 && (
+              <li className="fx-row fx-row--ro">
+                <span className="fn-avatar" aria-hidden="true">·</span>
+                <span className="fx-main"><b>{t.unbranched}</b></span>
+                <b className={`fx-amt t-num ${amtTone(restProfit)}`}>{fmtMoney(restProfit)}</b>
+              </li>
+            )}
+          </ul>
+        </section>
+      )}
+
+      {incomingQty > 0 && <p className="fn-pl-note" style={{ margin: 0 }}>{tr(t.incomingNote, { n: incomingQty, sum: fmtMoney(incomingCost) })}</p>}
     </div>
   );
 }

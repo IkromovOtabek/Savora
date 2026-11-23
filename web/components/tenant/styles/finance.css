@@ -339,10 +339,7 @@ a.fn-tl-title:focus-visible { outline: 2px solid var(--brand); outline-offset: 2
 .fn-add-actions { display: flex; gap: 8px; margin-top: auto; }
 .fn-add-actions .btn { flex: 1; }
 
-/* ── Hisobot (monitoring) ────────────────────────────────── */
-/* chapda aylanma (3D hamyon), o'ngda 2×2 KPI; mobilda KPI bitta gorizontal lentada (ux-strip) */
-.fn-bento { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px; align-items: stretch; }
-.fn-bento-tiles.ux-strip { --ux-cols: 2; }
+/* ── Hisobot / plitkalar ─────────────────────────────────── */
 .fn-tile {
   background: var(--surface); border-radius: var(--r-lg); padding: 14px 16px; box-shadow: var(--shadow-sm);
   display: flex; flex-direction: column; gap: 6px; min-width: 0;
@@ -355,52 +352,13 @@ a.fn-tl-title:focus-visible { outline: 2px solid var(--brand); outline-offset: 2
 
 .fn-two { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: 16px; align-items: start; }
 
-/* Grafik — filiallar reytingi: har filialga BITTA izometrik ustun (tannarx + foyda = sotuv summa) */
-.fn-chart-legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: 12.5px; color: var(--ink-2); }
-.fn-chart-legend span { display: inline-flex; align-items: center; gap: 6px; }
-.fn-chart-legend i { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
-.fn-chart { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 18px; }
-.fn-chart-row { display: grid; grid-template-columns: 26px minmax(0, 1fr); gap: 10px; align-items: start; }
-.fn-chart-rank {
-  width: 26px; height: 26px; border-radius: 8px; display: grid; place-items: center; font-size: 13px; font-weight: 700;
-  background: var(--fill-2); color: var(--ink-2); font-variant-numeric: tabular-nums;
+/* Umumiy hisobot: belgi va summa bir qatorda; filiallar ro'yxati; telefonda kartalar ixcham (so'm — sarlavhada) */
+.fn-pl .fn-pass-row strong { white-space: nowrap; flex: none; }
+.mon-branches .fn-avatar { width: 36px; height: 36px; }
+@media (max-width: 700px) {
+  .mon-kpis .ux-stat-v { font-size: 19px; }
+  .mon-kpis .ux-stat-v small { display: none; }
 }
-.fn-chart-row:first-child .fn-chart-rank { background: var(--gold-soft); color: var(--gold); }
-.fn-chart-main { min-width: 0; display: flex; flex-direction: column; gap: 6px; }
-.fn-chart-top { display: flex; justify-content: space-between; gap: 10px; align-items: baseline; }
-.fn-chart-name { font-weight: 600; font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.fn-chart-total { font-weight: 700; font-size: 14px; font-variant-numeric: tabular-nums; white-space: nowrap; }
-.fn-chart-meta { display: flex; gap: 12px; flex-wrap: wrap; font-size: 12px; color: var(--ink-3); font-variant-numeric: tabular-nums; }
-
-.fn-dot-cost { background: linear-gradient(180deg, #1f86f7, #1a5fe0); }
-.fn-dot-profit { background: linear-gradient(180deg, #2fae74, #147045); }
-
-/* Izometrik ustun: old yuz + ust yuz (skewX) + o'ng yon yuz (skewY). Sahifadagi yagona 3D grafik. */
-.fn-iso { --d: 7px; position: relative; height: 18px; margin: var(--d) var(--d) 2px 0; background: var(--fill-2); }
-.fn-iso::before, .fn-iso-seg::before {
-  content: ""; position: absolute; left: 0; right: 0; bottom: 100%; height: var(--d);
-  transform-origin: left bottom; transform: skewX(-45deg);
-}
-.fn-iso::after, .fn-iso-seg:last-child::after {
-  content: ""; position: absolute; left: 100%; top: 0; width: var(--d); height: 100%;
-  transform-origin: left top; transform: skewY(-45deg);
-}
-.fn-iso::before { background: var(--fill); }
-.fn-iso::after { background: var(--sep); }
-.fn-iso-bar {
-  position: absolute; inset: 0 auto 0 0; display: flex; z-index: 1;
-  transform-origin: left center; animation: fn-grow .7s cubic-bezier(.2, .8, .2, 1) both;
-  filter: drop-shadow(0 6px 5px rgba(13, 21, 38, .2));
-}
-.fn-iso-seg { position: relative; height: 100%; min-width: 3px; }
-.fn-iso-seg--cost { background: linear-gradient(180deg, #1f86f7, #1a5fe0); }
-.fn-iso-seg--cost::before { background: #7598de; }
-.fn-iso-seg--cost::after { background: #163a82; }
-.fn-iso-seg--profit { background: linear-gradient(180deg, #2fae74, #147045); }
-.fn-iso-seg--profit::before { background: #74d3a6; }
-.fn-iso-seg--profit::after { background: #0e5534; }
-@keyframes fn-grow { from { transform: scaleX(0); } to { transform: scaleX(1); } }
-@media (prefers-reduced-motion: reduce) { .fn-iso-bar { animation: none; } }
 
 /* To'lov turi taqsimoti */
 .fn-mix { display: flex; height: 12px; border-radius: var(--r-pill); overflow: hidden; background: var(--fill); gap: 2px; }
@@ -459,7 +417,6 @@ a.fn-tl-title:focus-visible { outline: 2px solid var(--brand); outline-offset: 2
 
 /* ── Moslashuvchanlik ────────────────────────────────────── */
 @media (max-width: 1000px) {
-  .fn-bento { grid-template-columns: minmax(0, 1fr); }
   .fn-two { grid-template-columns: 1fr; }
 }
 @media (max-width: 700px) {

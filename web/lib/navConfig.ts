@@ -36,6 +36,7 @@ export const NAV_ICONS: Record<string, IconName> = {
   '/app/write-off': 'trash',
   '/app/reports': 'chart',
   '/app/finance': 'repeat',
+  '/app/finance/kunlik': 'trendingUp',
   '/app/roles': 'shield',
   '/app/products': 'box',
   '/app/inventory': 'clipboard',
@@ -155,6 +156,8 @@ export const NAV_GROUPS: NavGroup[] = [
   {
     title: 'Moliya',
     links: [
+      // Kunlik kirim-chiqim (barcha pul harakati, Bugun / Sana) — Kassa → «Kirim-chiqim» bilan bir ko'rinish
+      { href: '/app/finance/kunlik', label: 'Kirim-chiqim', feature: 'kirimChiqim', permission: 'kirimChiqim.manage', adminOnly: true },
       // Hisoblar holati va Toifalar — /app/finance sahifasidagi tablar (FinanceTabs)
       { href: '/app/finance', label: 'Tranzaksiyalar', feature: 'kirimChiqim', permission: 'kirimChiqim.manage', adminOnly: true },
       { href: '/app/kredit-kassa', label: 'Kredit kassa', feature: 'creditKassa', adminOnly: true },
