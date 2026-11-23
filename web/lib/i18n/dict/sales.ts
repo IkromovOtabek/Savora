@@ -711,6 +711,17 @@ export const uz = {
     prevDay: 'Oldingi kun',
     nextDay: 'Keyingi kun',
     otherDate: 'Boshqa sanani tanlash, tanlangan: {date}',
+    /** Kunlik kirim-chiqim (/app/kassa/kunlik) — Realizatsiya bilan bir manba */
+    flowBtn: 'Kirim-chiqim',
+    flowMetaTitle: 'Kunlik kirim-chiqim — Savora',
+    flowTitle: 'Kunlik kirim-chiqim',
+    flowSub: '{date} · {scope}: barcha kirim va chiqimlar',
+    flowAllBranches: 'Barcha filiallar',
+    flowInParts: 'Kirim tarkibi',
+    flowOutParts: 'Chiqim tarkibi',
+    flowNone: "Yo'q",
+    flowEmpty: "Bu kunda kirim-chiqim yo'q",
+    flowEmptyHint: 'Boshqa sanani tanlang.',
   },
 
   creditKassa: {
@@ -1713,6 +1724,16 @@ export const ru: typeof uz = {
     prevDay: 'Предыдущий день',
     nextDay: 'Следующий день',
     otherDate: 'Выбрать другую дату, выбрано: {date}',
+    flowBtn: 'Приход-расход',
+    flowMetaTitle: 'Приход и расход за день — Savora',
+    flowTitle: 'Приход и расход за день',
+    flowSub: '{date} · {scope}: все поступления и расходы',
+    flowAllBranches: 'Все филиалы',
+    flowInParts: 'Состав прихода',
+    flowOutParts: 'Состав расхода',
+    flowNone: 'Нет',
+    flowEmpty: 'В этот день движения денег не было',
+    flowEmptyHint: 'Выберите другую дату.',
   },
 
   creditKassa: {

@@ -560,3 +560,12 @@ a.fn-tl-title:focus-visible { outline: 2px solid var(--brand); outline-offset: 2
 .fx-real-kind { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
 .fx-real tfoot th { font-weight: 700; border-top: 1px solid var(--sep); }
 .fx-real-more { margin-top: 8px; }
+
+/* Kunlik kirim-chiqim (/app/kassa/kunlik) — jami, kirim/chiqim tarkibi, o'chirish tugmasisiz qatorlar */
+.fx-day-sums { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.fx-day-parts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.fx-row--ro { grid-template-columns: 36px minmax(0, 1fr) auto; }
+@media (max-width: 640px) {
+  .fx-day-sums { grid-template-columns: minmax(0, 1fr); }
+  .fx-day-parts { grid-template-columns: minmax(0, 1fr); }
+}

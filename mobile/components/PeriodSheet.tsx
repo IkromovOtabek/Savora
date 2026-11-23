@@ -16,8 +16,11 @@ const WEEK_ORDER = [1, 2, 3, 4, 5, 6, 0];
  * Tushum davrini tanlash varag'i: tez tugmalar (Bugun · Kecha · Hafta · Oy · Yil · Hammasi) + kalendar.
  * Kelajakdagi kunlar tanlanmaydi. Tanlov darhol qo'llanadi va varaq yopiladi.
  */
-export function PeriodSheet({ visible, value, onChange, onClose }: {
+export function PeriodSheet({ visible, value, onChange, onClose, presets = PRESET_PERIODS, title }: {
   visible: boolean; value: HomePeriod; onChange: (p: HomePeriod) => void; onClose: () => void;
+  /** Tez tugmalar (kunlik ekranda — faqat Bugun · Kecha) */
+  presets?: readonly PresetPeriod[];
+  title?: string;
 }) {
   const { c } = useTheme();
   const d = useDict();
@@ -32,12 +35,12 @@ export function PeriodSheet({ visible, value, onChange, onClose }: {
   const canNext = !sameMonth(month, today) && month < today;
   const shift = (n: number) => setMonth((m) => new Date(m.getFullYear(), m.getMonth() + n, 1));
   const pick = (p: HomePeriod) => { onChange(p); onClose(); };
-  const preset = (PRESET_PERIODS as readonly string[]).includes(value) ? (value as PresetPeriod) : null;
+  const preset = (presets as readonly string[]).includes(value) ? (value as PresetPeriod) : null;
 
   return (
-    <Sheet visible={visible} onClose={onClose} title={d.home.pickPeriod} closeLabel={d.common.close}>
+    <Sheet visible={visible} onClose={onClose} title={title ?? d.home.pickPeriod} closeLabel={d.common.close}>
       <Chips
-        options={PRESET_PERIODS.map((p) => ({ key: p, label: d.home.periods[p] }))}
+        options={presets.map((p) => ({ key: p, label: d.home.periods[p] }))}
         value={preset}
         onChange={(p) => pick(p)}
       />

@@ -81,15 +81,19 @@ export default async function KassaPage() {
             {tr(k.sub, { scope: isBranchScoped(user) ? k.yourBranch : tr(plural(branches.length, d.sales.nBranches), { n: branches.length }) })}
           </p>
         </div>
-        {canExpense && (
-          <div className="t-page-actions">
+        <div className="t-page-actions">
+          {/* Kunlik kirim-chiqim: tanlangan kundagi barcha pul harakati (filial login — o'z filiali) */}
+          <Link href="/app/kassa/kunlik" className="btn btn-ghost btn-with-icon">
+            <Icon name="history" size={16} /> {k.flowBtn}
+          </Link>
+          {canExpense && (
             <QuickExpense
               variant="button"
               categories={expenseCategories}
               branches={allBranches.map((b) => ({ id: String(b._id), name: b.name }))}
             />
-          </div>
-        )}
+          )}
+        </div>
       </div>
       <NaxtKassaCards total={total} cards={cards} />
       {/* Kompyuterda yuqori paneldagi "Yangi sotuv" yetarli; telefonda — pastki o'ng tugma */}
