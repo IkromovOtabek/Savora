@@ -38,12 +38,13 @@ export default async function RealizationPage({ searchParams }: { searchParams: 
   const period = parsePeriod(sp.p, 'month');
   const view = sp.v === 'sales' ? 'sales' : 'money';
   const { start, end } = periodRange(period);
-  const { money, sold, branchNames } = await loadRealization({ Sale, CashFlow, BankReceipt, SupplierEntry, Supplier, Branch }, start, end);
+  const { money, sold, branchNames, nasiyaEarlier } = await loadRealization({ Sale, CashFlow, BankReceipt, SupplierEntry, Supplier, Branch }, start, end);
   const sums = sumMoney(money);
   const salesSum = sold.reduce((a, r) => ({ total: a.total + r.total, cost: a.cost + r.cost, profit: a.profit + r.profit }), { total: 0, cost: 0, profit: 0 });
-  // Foyda = sotuv foydasi (bank ulushisiz) + davrda bankdan olingan pul (Hisobot bilan bir qoida)
+  // Foyda = sotuv foydasi (bank ulushisiz, nasiya — tannarx qoplangach) + oldingi nasiyalarning davrdagi
+  // to'lovlaridan foyda + davrda bankdan olingan pul (Hisobot bilan bir qoida)
   const bankIn = bankInOf(money);
-  const profit = salesSum.profit + bankIn;
+  const profit = salesSum.profit + nasiyaEarlier + bankIn;
 
   const qs = (v: string) => {
     const p = new URLSearchParams();

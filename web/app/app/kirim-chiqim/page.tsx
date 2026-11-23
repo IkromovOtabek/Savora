@@ -6,7 +6,8 @@ import { getDict } from '@/lib/i18n/server';
 import { plural, tr } from '@/lib/i18n/fmt';
 import { priceTimesQty } from '@/lib/qty';
 import { addQtyByUnit, mergeQtyByUnit } from '@/lib/unitTotals';
-import { saleProfitRevenue, splitBankReceipts } from '@/lib/bankCredit';
+import { splitBankReceipts } from '@/lib/bankCredit';
+import { profitToDate, saleProfitParts } from '@/lib/saleProfit';
 
 export async function generateMetadata() {
   const d = await getDict();
@@ -52,8 +53,9 @@ export default async function KirimChiqimPage() {
     const cost = priceTimesQty(s.productSnapshot?.purchasePrice ?? 0, qty);
     card.chiqimValue += s.totalAmount ?? 0;
     addQtyByUnit(card.chiqimQty, qty, s.productSnapshot?.unit);
-    // Bank krediti ulushi sotuv paytida foydaga kirmaydi — bankdan pul olinganda (pastda)
-    card.foyda += saleProfitRevenue(s) - cost;
+    // Bank krediti ulushi sotuv paytida foydaga kirmaydi — bankdan pul olinganda (pastda);
+    // nasiya — tannarxdan oshib to'langan qismi (lib/saleProfit.ts)
+    card.foyda += profitToDate(saleProfitParts(s, cost));
   }
 
   const bank = splitBankReceipts(

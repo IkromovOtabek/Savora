@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { authenticateMobile } from '@/lib/mobileAuth';
 import { mobilePermissionDenied } from '@/lib/permissionGuard';
 import { getTenantModels } from '@/lib/tenantDb';
-import { getMobileFeatures } from '@/lib/mobileOrg';
+import { getMobileFeatures, kirimChiqimDenied } from '@/lib/mobileOrg';
 import { isBranchScoped } from '@/lib/branchScope';
 import { isDayPeriod, periodRange, toDayKey } from '@/lib/period';
 import { loadRealization, sumMoney } from '@/lib/realization';
@@ -15,6 +15,7 @@ const ROW_LIMIT = 300;
  * Kunlik kirim-chiqim — web /app/kassa/kunlik bilan bir manba (Realizatsiya): sotuv va qarz/nasiya to'lovlari,
  * bank tushumi, Moliya kirim/xarajatlari, qaytarishlar, yetkazib beruvchiga to'lovlar.
  * `?date=YYYY-MM-DD` (telefon kuni; yo'q bo'lsa — bugun). Filial login — faqat o'z filiali.
+ * Ruxsat: kassa moduli + kassa.view YOKI Kirim-chiqim oynasi (biznes egasi + kirimChiqim moduli) — kassa o'chiq bo'lsa ham.
  */
 export async function GET(req: Request) {
   const auth = await authenticateMobile(req);
@@ -22,8 +23,10 @@ export async function GET(req: Request) {
   const user = auth;
   if (!user || !user.dbName) return NextResponse.json({ error: 'Avtorizatsiya kerak.' }, { status: 401 });
   const features = await getMobileFeatures(user.organizationId);
-  if (!features?.kassa) return NextResponse.json({ error: 'Kassa moduli yoqilmagan.' }, { status: 403 });
-  { const noPerm = await mobilePermissionDenied(user, 'kassa.view'); if (noPerm) return noPerm; }
+  const kassaDenied = !features?.kassa
+    ? NextResponse.json({ error: 'Kassa moduli yoqilmagan.' }, { status: 403 })
+    : await mobilePermissionDenied(user, 'kassa.view');
+  if (kassaDenied && (await kirimChiqimDenied(user))) return kassaDenied;
 
   const raw = new URL(req.url).searchParams.get('date');
   const day = isDayPeriod(raw) ? raw : toDayKey(new Date());

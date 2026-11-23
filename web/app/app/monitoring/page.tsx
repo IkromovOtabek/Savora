@@ -3,6 +3,7 @@ import { userCan } from '@/lib/permissionGuard';
 import { branchFilter, isBranchScoped } from '@/lib/branchScope';
 import { statsFromSales, monthRange, opexFromFlows } from '@/lib/monitoring';
 import { saleProfitRevenue, splitBankReceipts } from '@/lib/bankCredit';
+import { earlierNasiyaFilter, profitBetween, saleProfitParts } from '@/lib/saleProfit';
 import Link from 'next/link';
 import { PAYMENT_TYPE_LABELS, PaymentType } from '@/lib/models/tenant/Sale';
 import { getI18n } from '@/lib/i18n/server';
@@ -40,7 +41,7 @@ export default async function MonitoringPage({
 
   // Filial login — faqat o'z filiali hisoboti; admin — barcha filiallar taqqoslamasi
   const scope = branchFilter(user);
-  const [sales, branchesAll, flows, financeCategories, bankReceipts] = await Promise.all([
+  const [sales, branchesAll, flows, financeCategories, bankReceipts, earlierNasiya] = await Promise.all([
     Sale.find({ ...scope, status: { $ne: 'cancelled' }, createdAt: { $gte: start, $lt: end } }).lean(),
     Branch.find({ active: true }).lean(),
     showNet
@@ -49,6 +50,10 @@ export default async function MonitoringPage({
     showNet ? FinanceCategory.find().select('name type system inProfit').lean() : Promise.resolve([]),
     // Bankdan olingan pul — bank krediti ulushi foydaga shu kuni kiradi (pul tushgan filial kassasi bo'yicha)
     BankReceipt.find({ ...scope, receivedAt: { $gte: start, $lt: end } }).select('amount branchId').lean(),
+    // Oldin sotilgan nasiyalar — shu oydagi to'lovlari tannarxdan oshgan qismi bilan foydaga kiradi
+    Sale.find({ ...scope, ...earlierNasiyaFilter(start, end) })
+      .select('branchId productId totalAmount paidAmount remainingAmount paymentType bankName bankParts productSnapshot createdAt payments.amount payments.paidAt returns.refundAmount returns.returnedAt')
+      .lean(),
   ]);
   const branches = isBranchScoped(user)
     ? branchesAll.filter((b) => String(b._id) === user.branchId)
@@ -58,7 +63,7 @@ export default async function MonitoringPage({
 
   // Sotilgan mahsulotlar — Sale.createdAt asosida (to'g'ri sana)
   // Product.updatedAt ishlatilmaydi — u tahrirlash vaqtida ham o'zgaradi
-  const soldProductIds = sales.map((s) => s.productId);
+  const soldProductIds = [...sales, ...earlierNasiya].map((s) => s.productId);
   const soldProducts = soldProductIds.length > 0
     ? await Product.find({ _id: { $in: soldProductIds } }).lean()
     : [];
@@ -85,19 +90,37 @@ export default async function MonitoringPage({
   }
 
   // Sotilganlar — Sale.createdAt bo'yicha (kirim = pul kirishi).
-  // Foyda: bank krediti ulushi sotuv paytida kirmaydi — u «Bankdan pul olindi» bilan kiradi (pastda)
+  // Foyda: bank krediti ulushi sotuv paytida kirmaydi — u «Bankdan pul olindi» bilan kiradi (pastda).
+  // Nasiya: tannarx to'lanmaguncha foyda yo'q, tannarxdan oshgan to'lovlar to'lov oyida (lib/saleProfit.ts)
+  const costOf = (sale: { productId: unknown; productSnapshot?: { saleQuantity?: number; purchasePrice?: number } }) =>
+    (sale.productSnapshot?.purchasePrice ?? soldProductMap[String(sale.productId)]?.purchasePrice ?? 0) * (sale.productSnapshot?.saleQuantity ?? 1);
+  let salesNatural = 0;
+  let nasiyaDeferred = 0;
+  let nasiyaRecognized = 0;
   for (const sale of sales) {
     const branchId = String(sale.branchId);
     const row = branchFlowMap.get(branchId);
     if (!row) continue;
-    const product = soldProductMap[String(sale.productId)];
     const qty = sale.productSnapshot?.saleQuantity ?? 1;
-    const purchasePrice = sale.productSnapshot?.purchasePrice ?? product?.purchasePrice ?? 0;
+    const cost = costOf(sale);
+    const natural = saleProfitRevenue(sale) - cost;
+    const parts = saleProfitParts(sale, cost);
     row.kirimQty += qty;
     row.kirimSum += sale.totalAmount;
-    row.profit += saleProfitRevenue(sale) - purchasePrice * qty;
+    row.profit += profitBetween(parts, start, end);
+    salesNatural += natural;
+    nasiyaDeferred += natural - profitBetween(parts, start, end, 'sale');
+    nasiyaRecognized += profitBetween(parts, start, end, 'nasiya');
+  }
+  for (const sale of earlierNasiya) {
+    const row = branchFlowMap.get(String(sale.branchId));
+    if (!row) continue;
+    const amount = profitBetween(saleProfitParts(sale, costOf(sale)), start, end);
+    row.profit += amount;
+    nasiyaRecognized += amount;
   }
   const salesProfit = [...branchFlowMap.values()].reduce((s, r) => s + r.profit, 0);
+  const hasNasiya = nasiyaDeferred !== 0 || nasiyaRecognized !== 0;
 
   // Bankdan olingan pul — olingan oyda to'liq foyda (bank ulushining tannarxi sotuv paytida ayrilgan)
   const bank = splitBankReceipts(bankReceipts, [...branchFlowMap.keys()]);
@@ -245,16 +268,30 @@ export default async function MonitoringPage({
             </div>
             <div className="fn-panel-body">
               <div className="fn-pass-rows fn-pl">
-                {showBank ? (
+                {showBank || hasNasiya ? (
                   <>
                     <div className="fn-pass-row">
-                      <span>{t.grossProfit} <small className="fn-pl-hint">({t.profitSubBank})</small></span>
-                      <strong className={amtTone(salesProfit)}>{fmtMoney(salesProfit)}</strong>
+                      <span>{hasNasiya ? t.saleProfit : t.grossProfit} <small className="fn-pl-hint">({showBank ? t.profitSubBank : t.profitSub})</small></span>
+                      <strong className={amtTone(hasNasiya ? salesNatural : salesProfit)}>{fmtMoney(hasNasiya ? salesNatural : salesProfit)}</strong>
                     </div>
-                    <div className="fn-pass-row">
-                      <span>{t.bankReceived}</span>
-                      <strong className="fn-in">+ {fmtMoney(bank.total)}</strong>
-                    </div>
+                    {hasNasiya && (
+                      <>
+                        <div className="fn-pass-row">
+                          <span>{t.nasiyaDeferred}</span>
+                          <strong className={nasiyaDeferred ? 'fn-out' : undefined}>− {fmtMoney(nasiyaDeferred)}</strong>
+                        </div>
+                        <div className="fn-pass-row">
+                          <span>{t.nasiyaRecognized}</span>
+                          <strong className={nasiyaRecognized < 0 ? 'fn-out' : 'fn-in'}>{nasiyaRecognized < 0 ? '−' : '+'} {fmtMoney(Math.abs(nasiyaRecognized))}</strong>
+                        </div>
+                      </>
+                    )}
+                    {showBank && (
+                      <div className="fn-pass-row">
+                        <span>{t.bankReceived}</span>
+                        <strong className="fn-in">+ {fmtMoney(bank.total)}</strong>
+                      </div>
+                    )}
                   </>
                 ) : (
                   <div className="fn-pass-row">
@@ -276,6 +313,7 @@ export default async function MonitoringPage({
                 </div>
               </div>
               <p className="fn-pl-note">
+                {hasNasiya && <>{t.nasiyaNote} </>}
                 {showBank && <>{t.bankNote} <Link href="/app/kredit-kassa">{d.sales.creditKassa.title}</Link>. </>}
                 {t.plNote} <Link href="/app/finance">{t.plAddExpense}</Link> · <Link href="/app/finance/categories">{t.plSettings}</Link>
               </p>

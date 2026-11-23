@@ -16,6 +16,10 @@ export interface ProfitData {
   revenue: number;
   cost: number;
   bankReceived: number;
+  /** Nasiya: shu oy sotuvlarining tannarx to'lanmaguncha kutilayotgan foydasi (eski serverda yo'q) */
+  nasiyaDeferred?: number;
+  /** Nasiya: shu oydagi to'lovlardan foyda (tannarx qoplangach) */
+  nasiyaRecognized?: number;
   gross: number;
   otherIncome: number;
   expense: number;
@@ -53,7 +57,7 @@ export function ProfitReport({ data, month, onMonth }: { data: ProfitData | null
   const k = useDict().kirimChiqim;
   const [y, m] = month.split('-').map(Number);
   const isCurrent = month >= currentMonth();
-  const empty = data && !data.revenue && !data.expense && !data.otherIncome;
+  const empty = data && !data.revenue && !data.expense && !data.otherIncome && !data.bankReceived && !data.nasiyaRecognized;
 
   return (
     <View style={{ gap: 12 }}>
@@ -100,6 +104,8 @@ function Ladder({ data }: { data: ProfitData }) {
       <Text style={[s.title, { color: c.ink }]}>{k.profitTitle}</Text>
       {row(k.pSales, fmtMoney(data.revenue), c.ink)}
       {row(k.pCost, fmtMoney(data.cost), c.bad)}
+      {data.nasiyaDeferred ? row(k.pNasiyaDeferred, fmtMoney(data.nasiyaDeferred), c.bad) : null}
+      {data.nasiyaRecognized ? row(k.pNasiyaRecognized, fmtMoney(data.nasiyaRecognized), data.nasiyaRecognized > 0 ? c.ok : c.bad) : null}
       {data.bankReceived ? row(k.pBank, fmtMoney(data.bankReceived), c.ok) : null}
       {row(k.pGross, fmtMoney(data.gross), data.gross >= 0 ? c.ink : c.bad, true)}
       {data.otherIncome ? row(k.pOtherIncome, fmtMoney(data.otherIncome), c.ok) : null}

@@ -4,13 +4,15 @@ import { useRouter } from 'expo-router';
 import { Text } from '@/components/ui/Text';
 import { FlowTotalCard, type FlowTotals } from '@/components/FlowTotalCard';
 import { ProfitReport, currentMonth, type ProfitData } from '@/components/ProfitReport';
+import { DayFilter, DayStats, DayDetails, useDayFlow } from '@/components/DayFlow';
 import { api, errMsg } from '@/lib/api';
 import { useResource } from '@/lib/hooks';
 import { useTheme } from '@/lib/theme';
-import { fmtMoney, fmtCompact, fmtDate, digits, grouped } from '@/lib/format';
+import { digits, grouped } from '@/lib/format';
 import { useDict } from '@/lib/i18n';
+import { toDayKey, type DayKey } from '@/lib/homePeriod';
 import {
-  Screen, NavBar, LargeTitle, Group, Cell, StatCard, SegmentedControl, Chips, Field, Button, Loading, ErrorState, InlineError, CacheStamp, EmptyState,
+  Screen, NavBar, LargeTitle, SegmentedControl, Chips, Field, Button, Loading, ErrorState, InlineError, CacheStamp,
 } from '@/components/ui';
 
 type FlowType = 'income' | 'expense';
@@ -35,6 +37,9 @@ export default function KirimChiqim() {
   // Oylik sof foyda — chiqim qo'shilgach darhol yangilanadi
   const [month, setMonth] = useState(currentMonth);
   const profit = useResource<ProfitData>(`/api/mobile/kirim-chiqim/profit?month=${month}`);
+  // Kunlik kirim-chiqim: tanlangan kundagi barcha pul harakati (sotuv, qarz/nasiya to'lovi, xarajat…) — Bugun / Sana
+  const [day, setDay] = useState<DayKey>(() => toDayKey(new Date()));
+  const flowDay = useDayFlow(day);
   const [type, setType] = useState<FlowType>('income');
   const [amount, setAmount] = useState('');
   const [desc, setDesc] = useState('');
@@ -69,13 +74,17 @@ export default function KirimChiqim() {
       setAmount(''); setDesc(''); setCategory(null); setTried(false);
       res.reloadSilently();
       profit.reloadSilently();
+      // Yangi yozuv bugungi kunga tushadi — ro'yxatda darhol ko'rinsin
+      const today = toDayKey(new Date());
+      if (day !== today) setDay(today);
+      else flowDay.res.reloadSilently();
     } catch (e) { Alert.alert(d.common.error, errMsg(e)); }
     finally { setBusy(false); }
   }
 
   const data = res.data;
   return (
-    <Screen keyboard header={<NavBar />} refreshing={res.refreshing} onRefresh={() => { res.refresh(); flow.reloadSilently(); profit.reloadSilently(); }}>
+    <Screen keyboard header={<NavBar />} refreshing={res.refreshing} onRefresh={() => { res.refresh(); flow.reloadSilently(); profit.reloadSilently(); flowDay.res.reloadSilently(); }}>
       <LargeTitle title={d.kirimChiqim.title} />
       {/* Oy almashganda oldingi oy ma'lumoti (keepPreviousData) ko'rsatilmasin */}
       <ProfitReport data={profit.data?.month === month ? profit.data : null} month={month} onMonth={setMonth} />
@@ -92,12 +101,11 @@ export default function KirimChiqim() {
         <>
           <CacheStamp of={res} />
           {res.error ? <InlineError message={res.error} onRetry={res.refresh} /> : null}
-          <Text style={{ fontSize: 20, fontWeight: '700', color: c.ink, marginTop: 4 }}>{d.kirimChiqim.cashTitle}</Text>
-          <View style={{ flexDirection: 'row', gap: 10 }}>
-            <StatCard label={d.kirimChiqim.income} value={fmtCompact(data.income)} color={c.ok} />
-            <StatCard label={d.kirimChiqim.expense} value={fmtCompact(data.expense)} color={c.bad} />
-            <StatCard label={d.kirimChiqim.balance} value={fmtCompact(data.balance)} color={data.balance >= 0 ? c.tint : c.bad} />
-          </View>
+          <Text style={{ fontSize: 20, fontWeight: '700', color: c.ink, marginTop: 4 }}>{d.dayFlow.title}</Text>
+          <DayFilter day={day} onChange={setDay} />
+          {flowDay.data ? <DayStats data={flowDay.data} />
+            : flowDay.res.error && !flowDay.res.loading ? <InlineError message={flowDay.res.error} onRetry={flowDay.res.retry} />
+            : <Loading />}
 
           <View style={{ gap: 12 }}>
             <SegmentedControl options={[{ key: 'income', label: d.kirimChiqim.income }, { key: 'expense', label: d.kirimChiqim.expense }]} value={type} onChange={changeType} />
@@ -131,22 +139,7 @@ export default function KirimChiqim() {
             <Button title={type === 'income' ? d.kirimChiqim.addIncome : d.kirimChiqim.addExpense} icon="add" full loading={busy} onPress={add} />
           </View>
 
-          {data.items.length === 0 ? <EmptyState icon="wallet-outline" title={d.kirimChiqim.empty} /> : (
-            <Group header={d.kirimChiqim.recent}>
-              {data.items.map((e) => (
-                <Cell
-                  key={e.id}
-                  icon={e.type === 'income' ? 'arrow-down' : 'arrow-up'}
-                  iconColor={e.type === 'income' ? c.sq.o : c.sq.r}
-                  title={e.description}
-                  subtitle={[e.category, e.branch, fmtDate(e.createdAt), e.recordedBy].filter(Boolean).join(' · ')}
-                  value={`${e.type === 'income' ? '+' : '−'}${fmtMoney(e.amount)}`}
-                  valueColor={e.type === 'income' ? c.ok : c.bad}
-                  valueStrong
-                />
-              ))}
-            </Group>
-          )}
+          {flowDay.data ? <DayDetails data={flowDay.data} /> : null}
         </>
       )}
     </Screen>

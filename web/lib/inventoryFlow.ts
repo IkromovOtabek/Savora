@@ -2,7 +2,7 @@ import type { IProduct } from './models/tenant/Product';
 import { getSoldQty, getStockQty } from './productQuantity';
 import { priceTimesQty } from './qty';
 import { addQtyByUnit, type QtyByUnit } from './unitTotals';
-import { saleProfitRevenue } from './bankCredit';
+import { profitToDate, saleProfitParts } from './saleProfit';
 import type { ISaleBankPart, PaymentType } from './models/tenant/Sale';
 
 export interface FlowLine {
@@ -70,11 +70,16 @@ interface SaleRow {
   bankParts?: ISaleBankPart[] | null;
   paidAmount?: number;
   remainingAmount?: number;
+  // Nasiya foydasi to'lovlar bo'yicha (tannarx qoplangach)
+  createdAt?: Date | null;
+  payments?: { amount: number; paidAt: Date }[] | null;
+  returns?: { refundAmount?: number; returnedAt: Date }[] | null;
 }
 
 /**
  * Chiqim qatori — haqiqiy sotuvdan (Sotildi bilan bir manba): tushum = totalAmount, tannarx = xarid narxi × miqdor.
- * Foyda: bank krediti ulushi kirmaydi — u bankdan pul olinganda jamiga qo'shiladi (`aggregateFlowTotals` bankIn).
+ * Foyda: bank krediti ulushi kirmaydi — u bankdan pul olinganda jamiga qo'shiladi (`aggregateFlowTotals` bankIn);
+ * nasiyada — hozirgacha tannarxdan oshib to'langani (lib/saleProfit.ts).
  */
 export function lineFromSale(s: SaleRow, branchName: string): FlowLine {
   const qty = s.productSnapshot?.saleQuantity ?? 1;
@@ -92,7 +97,7 @@ export function lineFromSale(s: SaleRow, branchName: string): FlowLine {
     unitSale: qty > 0 ? Math.round(revenue / qty) : revenue,
     cost,
     revenue,
-    profit: (s.paymentType ? saleProfitRevenue({ ...s, paymentType: s.paymentType }) : revenue) - cost,
+    profit: s.paymentType ? profitToDate(saleProfitParts({ ...s, paymentType: s.paymentType }, cost)) : revenue - cost,
   };
 }
 

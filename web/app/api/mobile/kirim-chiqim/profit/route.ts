@@ -4,11 +4,13 @@ import { getTenantModels } from '@/lib/tenantDb';
 import { kirimChiqimDenied } from '@/lib/mobileOrg';
 import { monthRange, profitReport, type ProfitSaleLine } from '@/lib/monitoring';
 import { saleProfitRevenue } from '@/lib/bankCredit';
+import { earlierNasiyaFilter, saleProfitParts } from '@/lib/saleProfit';
 
 /**
  * Oylik foyda hisobi — web «Hisobot → Foyda hisobi» bilan bir formula:
  * sof foyda = (sotuv − tannarx) + boshqa kirimlar − xarajatlar (faqat foydaga kiruvchi toifalar).
  * Bank krediti: bank ulushi sotuvda foydaga kirmaydi — bankdan pul olingan kuni (BankReceipt.receivedAt) kiradi.
+ * Nasiya: tannarx to'lanmaguncha foyda yo'q, undan oshgan to'lovlar to'lov kuni (lib/saleProfit.ts).
  * `?month=YYYY-MM` (standart — joriy oy). Faqat biznes egasi.
  */
 export async function GET(req: Request) {
@@ -28,10 +30,11 @@ export async function GET(req: Request) {
   const range = { createdAt: { $gte: start, $lt: end } };
 
   const { Sale, Product, Branch, CashFlow, FinanceCategory, BankReceipt } = await getTenantModels(user.dbName);
+  const saleFields = 'branchId productId totalAmount paidAmount remainingAmount paymentType bankName bankParts productSnapshot createdAt payments.amount payments.paidAt returns.refundAmount returns.returnedAt';
   const [branches, sales, flows, categories, receipts] = await Promise.all([
     Branch.find({ active: true }).select('name').sort({ createdAt: 1 }).lean(),
-    Sale.find({ ...range, status: { $ne: 'cancelled' } })
-      .select('branchId productId totalAmount paidAmount remainingAmount paymentType bankName bankParts productSnapshot createdAt').lean(),
+    // Shu oy sotuvlari + oldin sotilgan nasiyalarning shu oydagi to'lovlari
+    Sale.find({ $or: [{ ...range, status: { $ne: 'cancelled' } }, earlierNasiyaFilter(start, end)] }).select(saleFields).lean(),
     CashFlow.find({ ...range, category: { $nin: [null, ''] } }).select('type amount category branchId createdAt').lean(),
     FinanceCategory.find().select('name type system inProfit').lean(),
     BankReceipt.find({ receivedAt: { $gte: start, $lt: end } }).select('amount branchId receivedAt').lean(),
@@ -44,7 +47,8 @@ export async function GET(req: Request) {
     : new Map<string, number>();
   const lines: ProfitSaleLine[] = sales.map((s) => {
     const unit = s.productSnapshot?.purchasePrice ?? fallback.get(String(s.productId)) ?? 0;
-    return { branchId: String(s.branchId), revenue: saleProfitRevenue(s), cost: unit * (s.productSnapshot?.saleQuantity ?? 1), at: s.createdAt ?? start };
+    const cost = unit * (s.productSnapshot?.saleQuantity ?? 1);
+    return { branchId: String(s.branchId), revenue: saleProfitRevenue(s), cost, at: s.createdAt ?? start, parts: saleProfitParts(s, cost) };
   });
 
   const report = profitReport({

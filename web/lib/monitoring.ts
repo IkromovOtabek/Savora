@@ -2,6 +2,7 @@ import { ISale } from './models/tenant/Sale';
 import type { CashFlowType } from './models/tenant/CashFlow';
 import { categoryInProfit, type IFinanceCategory } from './models/tenant/FinanceCategory';
 import { splitBankReceipts } from './bankCredit';
+import type { ProfitPart } from './saleProfit';
 
 export interface PeriodStats {
   salesCount: number;
@@ -110,8 +111,13 @@ export interface ProfitSaleLine {
   branchId: string;
   revenue: number;
   cost: number;
-  /** Sotuv sanasi — kunlik qator uchun */
+  /** Sotuv sanasi — tushum/tannarx shu davrda bo'lsa hisobga kiradi */
   at: Date;
+  /**
+   * Foyda bo'laklari (`saleProfitParts`): nasiyada tannarx qoplangach to'lov kunlari. Yo'q bo'lsa — sotuv kuni
+   * revenue − cost. Oldingi oyda sotilgan nasiyaning shu oydagi to'lovlari ham shu yerda (at davrdan tashqarida).
+   */
+  parts?: ProfitPart[];
 }
 
 /** Eng katta xarajat toifasi — «nima uchun» */
@@ -154,7 +160,11 @@ export interface ProfitReport {
   cost: number;
   /** Davrda bankdan olingan pul */
   bankReceived: number;
-  /** Yalpi foyda = tushum − tannarx + bankdan olingan */
+  /** Shu davr nasiya sotuvlarining hali foydaga kirmagan foydasi (tannarx to'lanmaguncha kutiladi) */
+  nasiyaDeferred: number;
+  /** Davrdagi nasiya to'lovlaridan foyda (tannarx qoplangach; oldingi oylar sotuvlari ham) */
+  nasiyaRecognized: number;
+  /** Yalpi foyda = tushum − tannarx − nasiya kutilayotgan + nasiya to'lovlaridan + bankdan olingan */
   gross: number;
   /** Boshqa kirimlar (foydaga kiruvchi toifalar) */
   otherIncome: number;
@@ -206,16 +216,27 @@ export function profitReport(input: {
   const dayOf = (at: Date | null | undefined) => (at ? days.get(dayKey(new Date(at))) : undefined);
 
   const grossBy = new Map<string, number>();
+  const inPeriod = (at: Date) => at >= start && at < end;
   let revenue = 0;
   let cost = 0;
+  let saleProfit = 0;
+  let nasiyaRecognized = 0;
   for (const l of lines) {
     if (!listed.has(l.branchId)) continue;
-    revenue += l.revenue;
-    cost += l.cost;
-    grossBy.set(l.branchId, (grossBy.get(l.branchId) ?? 0) + l.revenue - l.cost);
-    const day = dayOf(l.at);
-    if (day) day.gross += l.revenue - l.cost;
+    if (inPeriod(l.at)) {
+      revenue += l.revenue;
+      cost += l.cost;
+    }
+    for (const p of l.parts ?? [{ at: l.at, amount: l.revenue - l.cost, kind: 'sale' as const }]) {
+      if (!inPeriod(p.at)) continue;
+      if (p.kind === 'nasiya') nasiyaRecognized += p.amount;
+      else saleProfit += p.amount;
+      grossBy.set(l.branchId, (grossBy.get(l.branchId) ?? 0) + p.amount);
+      const day = dayOf(p.at);
+      if (day) day.gross += p.amount;
+    }
   }
+  const nasiyaDeferred = revenue - cost - saleProfit;
   // Bank puli: filialga web Hisobot qoidasi bilan (splitBankReceipts), filialsiz qoldiq — «Umumiy» qatorida
   const bank = splitBankReceipts(receipts, branches.map((b) => b.id));
   for (const [bid, amount] of bank.byBranch) grossBy.set(bid, (grossBy.get(bid) ?? 0) + amount);
@@ -223,7 +244,7 @@ export function profitReport(input: {
     const day = dayOf(r.at);
     if (day && Number.isFinite(r.amount)) day.gross += r.amount;
   }
-  const gross = revenue - cost + bank.total;
+  const gross = saleProfit + nasiyaRecognized + bank.total;
 
   const opex = opexFromFlows(flows, categories);
   // Xarajat sababi: filial va kun bo'yicha toifa summalari (faqat foydaga kiruvchi toifalar)
@@ -263,7 +284,7 @@ export function profitReport(input: {
   const daily = [...days.values()].map((d) => ({ ...d, net: d.gross + d.income - d.expense, top: topOf(catByDay.get(d.day)) }));
 
   return {
-    revenue, cost, bankReceived: bank.total, gross,
+    revenue, cost, bankReceived: bank.total, nasiyaDeferred, nasiyaRecognized, gross,
     otherIncome: opex.income, expense: opex.expense, net: gross + opex.income - opex.expense,
     byCategory: opex.byCategory, byBranch, daily,
   };

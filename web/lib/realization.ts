@@ -10,7 +10,7 @@ import type { ISupplier, ISupplierEntry } from './models/tenant/Supplier';
 import type { IBranch } from './models/tenant/Branch';
 import type { ProductUnit } from './businessTypes';
 import { methodOf, type PayMethod } from './payMethods';
-import { saleProfitRevenue } from './bankCredit';
+import { defersProfit, profitBetween, saleProfitParts } from './saleProfit';
 
 export type MoneyKind = 'salePay' | 'debtPay' | 'bank' | 'income' | 'expense' | 'refund' | 'supplier';
 
@@ -161,7 +161,8 @@ export function sumMoney(rows: MoneyRow[]): { in: number; out: number; net: numb
 
 /**
  * Davrda yaratilgan (bekor qilinmagan) sotuvlar: summa, tannarx va foyda — Hisobotdagi foyda bilan bir xil formula:
- * bank krediti ulushi sotuv foydasiga kirmaydi (u bankdan pul olinganda — `bankInOf`).
+ * bank krediti ulushi sotuv foydasiga kirmaydi (u bankdan pul olinganda — `bankInOf`);
+ * nasiya foydasi — tannarx qoplangach davr oxirigacha kelgan to'lovlardan (lib/saleProfit.ts).
  */
 export function soldRows(sales: SaleLike[], start: Date, end: Date): SoldRow[] {
   return sales.flatMap((s) => {
@@ -173,9 +174,23 @@ export function soldRows(sales: SaleLike[], start: Date, end: Date): SoldRow[] {
     return [{
       saleId: String(s._id), saleNo: s.saleNo, at, product: s.productSnapshot?.name ?? '—', qty,
       unit: s.productSnapshot?.unit, customer: s.customerSnapshot?.fullName ?? '', paymentType: s.paymentType,
-      branchId: String(s.branchId), total: s.totalAmount, cost, profit: saleProfitRevenue(s) - cost,
+      branchId: String(s.branchId), total: s.totalAmount, cost, profit: profitBetween(saleProfitParts(s, cost), start, end),
     }];
   });
+}
+
+/**
+ * Davrdan oldin sotilgan nasiyalarning shu davrdagi to'lovlaridan foyda (tannarx qoplangach) — Realizatsiya
+ * «Foyda» kartasida sotilgan tovarlar foydasiga qo'shiladi (Hisobot bilan bir qoida).
+ */
+export function earlierNasiyaProfit(sales: SaleLike[], start: Date, end: Date): number {
+  let sum = 0;
+  for (const s of sales) {
+    if (s.status === 'cancelled' || !defersProfit(s) || !s.createdAt || new Date(s.createdAt) >= start) continue;
+    const cost = Math.round((s.productSnapshot?.purchasePrice ?? 0) * (s.productSnapshot?.saleQuantity ?? 1));
+    sum += profitBetween(saleProfitParts(s, cost), start, end);
+  }
+  return sum;
 }
 
 /** Bir davr uchun barcha manbalarni yuklaydi (Moliya → Realizatsiya va Excel eksporti) */
@@ -190,7 +205,7 @@ export async function loadRealization(
   },
   start: Date,
   end: Date,
-): Promise<{ money: MoneyRow[]; sold: SoldRow[]; branchNames: Map<string, string> }> {
+): Promise<{ money: MoneyRow[]; sold: SoldRow[]; branchNames: Map<string, string>; nasiyaEarlier: number }> {
   const range = { $gte: start, $lt: end };
   const [sales, flows, receipts, entries, branches] = await Promise.all([
     m.Sale.find({
@@ -220,5 +235,8 @@ export async function loadRealization(
     ...moneyRowsFromSupplier(entries, supplierNames, start, end),
   ].sort((a, b) => b.at.getTime() - a.at.getTime());
   const sold = soldRows(sales as SaleLike[], start, end).sort((a, b) => b.at.getTime() - a.at.getTime());
-  return { money, sold, branchNames: new Map(branches.map((b) => [String(b._id), b.name])) };
+  return {
+    money, sold, branchNames: new Map(branches.map((b) => [String(b._id), b.name])),
+    nasiyaEarlier: earlierNasiyaProfit(sales as SaleLike[], start, end),
+  };
 }
