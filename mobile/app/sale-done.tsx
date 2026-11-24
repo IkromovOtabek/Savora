@@ -18,9 +18,11 @@ export default function SaleDone() {
   const { c } = useTheme();
   const d = useDict();
   const { me } = useAuth();
-  const p = useLocalSearchParams<{ id: string; no: string; total: string; remaining: string; receipt?: string }>();
+  const p = useLocalSearchParams<{ id: string; no: string; total: string; remaining: string; receipt?: string; bank?: string; bankOnly?: string }>();
   const total = Number(p.total) || 0;
-  const remaining = Number(p.remaining) || 0;
+  // Bank krediti: bank qismi alohida; to'liq bank kreditida server qoldig'i — bank zimmasida, mijoz qarzi emas
+  const bank = Number(p.bank) || 0;
+  const remaining = p.bankOnly === '1' ? 0 : Number(p.remaining) || 0;
   const url = p.receipt ? `${API_URL}${p.receipt}` : null;
 
   async function share() {
@@ -45,6 +47,7 @@ export default function SaleDone() {
         </View>
         <Text style={[st.title, { color: c.ink }]}>{tr(d.saleNew.doneTitle, { no: String(p.no) })}</Text>
         <Text style={[st.sum, tabular, { color: c.ink }]}>{fmtMoney(total, { suffix: true })}</Text>
+        {bank > 0 ? <Text style={[st.debt, { color: c.tint }]}>{tr(d.saleNew.doneBank, { sum: fmtMoney(bank, { suffix: true }) })}</Text> : null}
         {remaining > 0 ? <Text style={[st.debt, { color: c.warn }]}>{tr(d.saleNew.doneDebt, { sum: fmtMoney(remaining, { suffix: true }) })}</Text> : null}
       </View>
 

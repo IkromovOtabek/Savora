@@ -17,7 +17,7 @@ import { installmentDueDate, normPayDay } from '@/lib/installment';
 import { pq294MonthsError } from '@/lib/pq294';
 import { isPayMethod, type PayMethod } from '@/lib/payMethods';
 import { newCheckoutId, receiptPath } from '@/lib/receiptLink';
-import { MAX_BANK_PARTS, bankPartsLabel, parseBankPartsInput, validateBankParts } from '@/lib/bankCredit';
+import { MAX_BANK_DEBT_DAYS, MAX_BANK_PARTS, bankPartsLabel, bankPartsTotal, parseBankPartsInput, validateBankParts } from '@/lib/bankCredit';
 import type { ISaleBankPart } from '@/lib/models/tenant/Sale';
 import { notifyNewSale, salePayLabel } from '@/lib/shopNotify';
 import { isClientSaleId, isDupKey } from '@/lib/posSync';
@@ -106,7 +106,11 @@ export async function GET(req: Request) {
   });
 }
 
-/** Yangi sotuv — naqd / qarz / nasiya / bank krediti. createSaleAction mantiqini takrorlaydi. */
+/**
+ * Yangi sotuv — naqd / qarz / nasiya / bank krediti. createSaleAction mantiqini takrorlaydi.
+ * Bank krediti + mijoz qismi (`nasiyaAmount`): muddat oyda — «Nasiya» (oylik jadval), kunda (`bankTermUnit: 'days'`,
+ * `debtDays`) — «Qarz»; bank ulushlari bankParts'da (Kredit kassa), remainingAmount — faqat mijoz qismi.
+ */
 export async function POST(req: Request) {
   const auth = await authenticateMobile(req);
   if (auth instanceof NextResponse) return auth;
@@ -127,6 +131,11 @@ export async function POST(req: Request) {
     dueDate?: string; bankName?: string; saleQty?: number | string; notes?: string;
     /** Bir nechta bank: [{ bankName, amount }] — yo'q bo'lsa bankName ga qolgan summa to'liq */
     bankParts?: unknown;
+    /** Bank krediti + nasiya / qarz: qolgan summaning mijoz do'konga to'laydigan qismi (eski ilova yubormaydi) */
+    nasiyaAmount?: unknown;
+    /** Mijoz qismi muddati: 'months' — oylik nasiya (installmentMonths), 'days' — bir martalik qarz (debtDays) */
+    bankTermUnit?: unknown;
+    debtDays?: unknown;
     /** To'langan qism usuli: cash | uzcard | humo | click | payme (eski ilova yubormaydi — naqd) */
     payMethod?: string;
     /**
@@ -144,7 +153,20 @@ export async function POST(req: Request) {
   }
 
   const productId = String(body.productId || '');
-  const paymentType = (PAYMENT_TYPES.includes(body.paymentType as PaymentType) ? body.paymentType : 'cash') as PaymentType;
+  const requestedType = (PAYMENT_TYPES.includes(body.paymentType as PaymentType) ? body.paymentType : 'cash') as PaymentType;
+  // Bank krediti + mijoz qismi: muddat oyda — sotuv «Nasiya», kunda — «Qarz» (web createSaleAction bilan bir xil)
+  const nasiyaParsed = requestedType === 'bank_credit' && body.nasiyaAmount != null && body.nasiyaAmount !== ''
+    ? parseIntegerSum(body.nasiyaAmount) : 0;
+  if (nasiyaParsed === null) return NextResponse.json({ error: 'Mijoz qismi summasi noto\'g\'ri.' }, { status: 400 });
+  const nasiyaPart = nasiyaParsed;
+  const bankSplit = nasiyaPart > 0;
+  const bankDebt = bankSplit && body.bankTermUnit === 'days';
+  const bankNasiya = bankSplit && !bankDebt;
+  const paymentType: PaymentType = bankDebt ? 'debt' : bankNasiya ? 'installment' : requestedType;
+  const debtDays = Number(body.debtDays);
+  if (bankDebt && !(Number.isInteger(debtDays) && debtDays >= 1 && debtDays <= MAX_BANK_DEBT_DAYS)) {
+    return NextResponse.json({ error: `Qarz muddati 1 dan ${MAX_BANK_DEBT_DAYS} kungacha bo'lishi kerak.` }, { status: 400 });
+  }
   // Butun so'm — kasr/manfiy summalar rad etiladi
   const totalAmount = parseIntegerSum(body.totalAmount) ?? 0;
   const paidAmountParsed = body.paidAmount == null ? 0 : parseIntegerSum(body.paidAmount);
@@ -217,11 +239,16 @@ export async function POST(req: Request) {
   if (paymentType === 'installment' && !features.variant && !features.nasiya) {
     return NextResponse.json({ error: 'Nasiya moduli yoqilmagan.' }, { status: 403 });
   }
-  // Bank krediti: qolgan summa bir yoki bir nechta bankka (lib/bankCredit.ts — web bilan bir xil qoida)
+  // Bank krediti: qolgan summa bir yoki bir nechta bankka (lib/bankCredit.ts — web bilan bir xil qoida);
+  // mijoz qismi bo'lsa — banklar jami = jami − bosh to'lov − mijoz qismi (bankka kamida 1 so'm qolsin)
   let bankParts: ISaleBankPart[] | undefined;
-  if (paymentType === 'bank_credit') {
+  if (paymentType === 'bank_credit' || bankSplit) {
     if (!features.creditKassa) return NextResponse.json({ error: 'Kredit kassa moduli yoqilmagan.' }, { status: 403 });
-    const financed = totalAmount - paidAmount;
+    const rest = totalAmount - paidAmount;
+    if (bankSplit && nasiyaPart >= rest) {
+      return NextResponse.json({ error: `Mijoz qismi qolgan summadan kam bo'lishi kerak: ${Math.max(0, rest).toLocaleString('uz-UZ')} so'm.` }, { status: 400 });
+    }
+    const financed = rest - nasiyaPart;
     const rawParts = parseBankPartsInput(body.bankParts);
     if (rawParts === null) return NextResponse.json({ error: 'Bank ulushlari noto\'g\'ri.' }, { status: 400 });
     const input = rawParts.length > 0 ? rawParts : bankName ? [{ bankName, amount: financed }] : [];
@@ -253,7 +280,8 @@ export async function POST(req: Request) {
     if (pqErr) return NextResponse.json({ error: pqErr }, { status: 400 });
   }
 
-  const remainingAmount = Math.max(0, totalAmount - paidAmount);
+  // Bank + nasiya / qarz: qoldiq — faqat mijoz qismi (bank qismi Kredit kassada); bank kreditida — bank zimmasidagi summa
+  const remainingAmount = Math.max(0, totalAmount - paidAmount - (bankSplit ? bankPartsTotal(bankParts) : 0));
   const status = calcSaleStatus(totalAmount, paidAmount);
 
   let dueDate: Date | undefined;
@@ -262,6 +290,11 @@ export async function POST(req: Request) {
     // Nasiya: muddat — oxirgi oy to'lovi (to'lov kuni bo'yicha)
     if (paymentType === 'installment' && installmentMonths) {
       dueDate = installmentDueDate(new Date(), installmentMonths, payDay);
+    }
+    // Bank + qarz: muddat — bugun + N kun
+    if (bankDebt && !dueDate) {
+      const t = new Date();
+      dueDate = new Date(Date.UTC(t.getFullYear(), t.getMonth(), t.getDate() + debtDays));
     }
   }
 
@@ -324,7 +357,7 @@ export async function POST(req: Request) {
     entity: 'sale',
     entityId: String(sale._id),
     summary: `Sotuv ${saleNo}: ${product.name} · ${qtyLabel(saleQty, product.unit)} · ${totalAmount.toLocaleString('uz-UZ')} so'm (${paymentType}${payMethod !== 'cash' ? `, ${payMethod}` : ''}) (mobil)`,
-    meta: { saleQty, totalAmount, paymentType, payMethod },
+    meta: { saleQty, totalAmount, paymentType, payMethod, ...(bankParts ? { bankParts } : {}) },
   });
   void notifyNewSale(user, {
     saleNo, items: 1, firstItem: product.name, total: totalAmount,

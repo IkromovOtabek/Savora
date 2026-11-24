@@ -4,10 +4,10 @@ import { Text } from '@/components/ui/Text';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { api, ApiError, errMsg } from '@/lib/api';
 import { useAuth, useCan } from '@/lib/auth';
-import { useDebounced, usePaged } from '@/lib/hooks';
+import { useDebounced, usePaged, useResource } from '@/lib/hooks';
 import { takePicked, type PickedProduct } from '@/lib/pick';
 import { useTheme, tabular } from '@/lib/theme';
-import { digits, grouped, fmtMoney, fmtDateTime, payLabels, payMethodLabel, PAY_METHODS, type PayMethod, type PayType } from '@/lib/format';
+import { digits, grouped, fmtMoney, fmtDate, fmtDateTime, payLabels, payMethodLabel, PAY_METHODS, type PayMethod, type PayType } from '@/lib/format';
 import { uzPhone9, uzPhoneE164 } from '@/lib/phone';
 import { useOfflinePos } from '@/lib/offlinePos';
 import { getNetState } from '@/lib/net';
@@ -17,10 +17,24 @@ import { CustomerPicker, EMPTY_CUSTOMER, type PickedCustomer } from '@/component
 import { fmtQty, isFractionalUnit, parseQty, priceTimesQty, qtyWithUnit } from '@/lib/qty';
 import {
   Screen, NavBar, LargeTitle, SearchField, Group, Cell, AmountColumn, Pill, Button, IconButton, SegmentedControl,
-  Field, Chips, Stepper, Loading, EmptyState, ErrorState,
+  Field, Chips, Stepper, Loading, EmptyState, ErrorState, InlineError,
 } from '@/components/ui';
 
 const MONTH_PRESETS = [3, 6, 9, 12];
+/** Bitta sotuvda eng ko'p bank (web lib/bankCredit MAX_BANK_PARTS) va bank + qarz muddati chegarasi (MAX_BANK_DEBT_DAYS) */
+const MAX_BANK_PARTS = 5;
+const MAX_BANK_DEBT_DAYS = 365;
+/** Mijoz qismi muddati: kun — muddatgacha bir martalik qarz, oy — oylik nasiya jadvali (web SaleForm TERM_PRESETS) */
+type TermUnit = 'days' | 'months';
+const TERM_PRESETS = [
+  { key: 'd7', unit: 'days', n: 7 },
+  { key: 'd14', unit: 'days', n: 14 },
+  { key: 'm1', unit: 'months', n: 1 },
+  { key: 'm3', unit: 'months', n: 3 },
+  { key: 'm6', unit: 'months', n: 6 },
+  { key: 'm12', unit: 'months', n: 12 },
+] as const;
+type TermKey = (typeof TERM_PRESETS)[number]['key'];
 
 export default function SaleNew() {
   const router = useRouter();
@@ -32,8 +46,9 @@ export default function SaleNew() {
   const f = me?.features ?? {};
   const nasiyaOn = !!(f.variant || f.nasiya);
 
-  // Bank krediti: server bankName talab qiladi, lekin mobil API'da banklar ro'yxati yo'q — shu sababli yashirin.
-  const payTypes: PayType[] = ['cash', 'debt', ...(nasiyaOn ? ['installment' as PayType] : [])];
+  // Bank krediti — Kredit kassa moduli yoqilganda (banklar GET /api/mobile/banks dan)
+  const bankOn = !!f.creditKassa;
+  const payTypes: PayType[] = ['cash', 'debt', ...(nasiyaOn ? ['installment' as PayType] : []), ...(bankOn ? ['bank_credit' as PayType] : [])];
 
   const initial: PickedProduct | null = params.productId && params.name ? {
     id: String(params.productId), name: String(params.name), salePrice: Number(params.price) || 0,
@@ -46,7 +61,9 @@ export default function SaleNew() {
   const [q, setQ] = useState('');
   const dq = useDebounced(q.trim(), 300);
 
-  const [pay, setPay] = useState<PayType>(params.pay === 'installment' && nasiyaOn ? 'installment' : 'cash');
+  const [pay, setPay] = useState<PayType>(
+    params.pay === 'installment' && nasiyaOn ? 'installment' : params.pay === 'bank_credit' && bankOn ? 'bank_credit' : 'cash',
+  );
   // Pul qanday keldi: naqd / UzCard / HUMO / Click / Payme (qarz/nasiyada — hozir to'langan qism)
   const [method, setMethod] = useState<PayMethod>('cash');
   const [qty, setQty] = useState(1);
@@ -56,6 +73,16 @@ export default function SaleNew() {
   const [totalEdited, setTotalEdited] = useState(false);
   const [paid, setPaid] = useState('');
   const [months, setMonths] = useState('6');
+  // Bank krediti: bir yoki bir nechta bank (bitta bo'lsa — qolgan summa to'liq unga); mijoz qismi — nasiya yoki qarz
+  const [bankRows, setBankRows] = useState<{ bank: string; amount: string }[]>([{ bank: '', amount: '' }]);
+  const [partOn, setPartOn] = useState(false);
+  const [partAmount, setPartAmount] = useState('');
+  const [termUnit, setTermUnit] = useState<TermUnit>(nasiyaOn ? 'months' : 'days');
+  const [debtDays, setDebtDays] = useState('7');
+  const [newBank, setNewBank] = useState('');
+  const [bankFormOpen, setBankFormOpen] = useState(false);
+  const [addingBank, setAddingBank] = useState(false);
+  const banks = useResource<{ banks: string[]; canAdd?: boolean }>(bankOn && pay === 'bank_credit' ? '/api/mobile/banks' : null);
   // Mijoz — har qanday to'lov turida majburiy (naqd ham, web bilan bir xil); F.I.O katagida mavjud mijozlardan tanlanadi
   const [customer, setCustomer] = useState<PickedCustomer>(EMPTY_CUSTOMER);
   const [notes, setNotes] = useState('');
@@ -117,6 +144,23 @@ export default function SaleNew() {
   /** Qarz/nasiya: hozir to'langan qism va qoldiq ko'rsatiladi */
   const credit = pay !== 'cash';
 
+  // Bank krediti: qolgan summa (jami − bosh to'lov) = banklar + mijoz qismi (web SaleForm bilan bir xil hisob)
+  const isBank = pay === 'bank_credit';
+  const rest = Math.max(0, totalN - paidN);
+  const unit: TermUnit = nasiyaOn ? termUnit : 'days';
+  const partN = isBank && partOn ? Number(digits(partAmount)) || 0 : 0;
+  const partDebt = isBank && partOn && unit === 'days';
+  const partNasiya = isBank && partOn && !partDebt;
+  const debtDaysN = Number(debtDays) || 0;
+  const bankRest = rest - partN;
+  const multiBank = bankRows.length > 1;
+  const rowAmount = (r: { amount: string }) => (multiBank ? Number(digits(r.amount)) || 0 : bankRest);
+  const bankTotal = bankRows.reduce((a, r) => a + rowAmount(r), 0);
+  const unallocated = bankRest - bankTotal;
+  const bankList = banks.data?.banks ?? [];
+  const partDue = partDebt && debtDaysN >= 1 && debtDaysN <= MAX_BANK_DEBT_DAYS
+    ? new Date(Date.now() + debtDaysN * 86_400_000) : null;
+
   const errors = {
     qty: fractional && (fracQty === null || fracQty > (picked?.available ?? 0)) ? d.saleNew.errQty : null,
     total: totalN <= 0 ? d.saleNew.errTotal
@@ -124,13 +168,67 @@ export default function SaleNew() {
       : baseTotal !== null && totalN > baseTotal && !canRaise ? d.saleNew.errRaise
       : null,
     paid: credit && paidN > totalN ? d.saleNew.errPaid : null,
-    months: pay === 'installment' && (monthsN < 1 || monthsN > 60) ? d.saleNew.errMonths : null,
+    months: (pay === 'installment' || partNasiya) && (monthsN < 1 || monthsN > 60) ? d.saleNew.errMonths : null,
+    bank: isBank && bankRows.some((r) => !r.bank) ? d.saleNew.errBank : null,
+    bankSum: isBank && bankRest < 1 ? d.saleNew.errBankNothing
+      : isBank && multiBank && (unallocated !== 0 || bankRows.some((r) => rowAmount(r) < 1)) ? tr(d.saleNew.errBankSum, { sum: fmtMoney(bankRest, { suffix: true }) })
+      : null,
+    part: isBank && partOn && (partN < 1 || partN >= rest) ? tr(d.saleNew.errPart, { sum: fmtMoney(rest, { suffix: true }) }) : null,
+    days: partDebt && (debtDaysN < 1 || debtDaysN > MAX_BANK_DEBT_DAYS) ? d.saleNew.errDays : null,
     // Ro'yxatdan tanlangan mijozning telefoni eski formatda bo'lishi mumkin — tekshirilmaydi
     name: !customer.name.trim() ? d.saleNew.errName : null,
     phone: !customer.id && !uzPhone9(customer.phone) ? d.saleNew.errPhone : null,
   };
   const show = (k: keyof typeof errors) => (tried ? errors[k] : null);
   const valid = !Object.values(errors).some(Boolean);
+
+  function updateBankRow(i: number, patch: Partial<{ bank: string; amount: string }>) {
+    setBankRows((rows) => rows.map((r, j) => (j === i ? { ...r, ...patch } : r)));
+  }
+  function addBankRow() {
+    setBankRows((rows) => {
+      if (rows.length >= MAX_BANK_PARTS) return rows;
+      // Birinchi qo'shishda: 1-bank hozirgi qoldiqni oladi, yangisi bo'sh — foydalanuvchi bo'lib chiqadi
+      if (rows.length === 1) return [{ ...rows[0], amount: String(bankRest) }, { bank: '', amount: '' }];
+      return [...rows, { bank: '', amount: unallocated > 0 ? String(unallocated) : '' }];
+    });
+  }
+  function removeBankRow(i: number) {
+    setBankRows((rows) => (rows.length > 1 ? rows.filter((_, j) => j !== i) : rows));
+  }
+  function togglePart(on: boolean) {
+    setPartOn(on);
+    // Bir nechta bankda bo'linmagan qoldiq bo'lsa — mijoz qismi shu summadan boshlanadi
+    if (on && !partAmount && multiBank && unallocated > 0) setPartAmount(String(unallocated));
+    if (!on) setPartAmount('');
+  }
+  function pickTerm(key: TermKey) {
+    const p = TERM_PRESETS.find((x) => x.key === key);
+    if (!p) return;
+    setTermUnit(p.unit);
+    if (p.unit === 'days') setDebtDays(String(p.n));
+    else setMonths(String(p.n));
+  }
+  async function addBank() {
+    const name = newBank.trim();
+    if (!name) return;
+    setAddingBank(true);
+    try {
+      const r = await api<{ name: string }>('/api/mobile/banks', { method: 'POST', body: { name } });
+      banks.setData((prev) => {
+        const list = prev?.banks ?? [];
+        return { ...(prev ?? {}), banks: list.includes(r.name) ? list : [...list, r.name].sort((a, b) => a.localeCompare(b)) };
+      });
+      // Bo'sh qatorga yangi bank darhol tanlanadi
+      setBankRows((rows) => {
+        const i = rows.findIndex((x) => !x.bank);
+        return i >= 0 ? rows.map((x, j) => (j === i ? { ...x, bank: r.name } : x)) : rows;
+      });
+      setNewBank(''); setBankFormOpen(false);
+    } catch (e) {
+      Alert.alert(d.common.error, errMsg(e));
+    } finally { setAddingBank(false); }
+  }
 
   async function submit() {
     setTried(true);
@@ -145,7 +243,12 @@ export default function SaleNew() {
       paymentType: pay,
       totalAmount: totalN,
       paidAmount: paidN,
-      installmentMonths: pay === 'installment' ? monthsN : undefined,
+      installmentMonths: pay === 'installment' || partNasiya ? monthsN : undefined,
+      // Bank krediti: ulushlar, mijoz qismi va uning muddati (server web createSaleAction qoidasini takrorlaydi)
+      ...(isBank ? {
+        bankParts: bankRows.map((r) => ({ bankName: r.bank, amount: rowAmount(r) })),
+        ...(partOn ? { nasiyaAmount: partN, bankTermUnit: unit, debtDays: partDebt ? debtDaysN : undefined } : {}),
+      } : {}),
       customerId: customer.id || undefined,
       customerName: customer.name.trim(),
       customerPhone: customer.id ? customer.phone : uzPhoneE164(customer.phone),
@@ -186,7 +289,11 @@ export default function SaleNew() {
       void pos.noteSold(picked.id, offlineQty);
       router.replace({
         pathname: '/sale-done',
-        params: { id: r.id, no: r.saleNo, total: String(r.totalAmount), remaining: String(r.remainingAmount), receipt: r.receiptPath ?? '' },
+        params: {
+          id: r.id, no: r.saleNo, total: String(r.totalAmount), remaining: String(r.remainingAmount), receipt: r.receiptPath ?? '',
+          // Bank krediti: bank qismi alohida; to'liq bank kreditida qoldiq — bank zimmasida (mijoz qarzi emas)
+          ...(isBank ? { bank: String(bankTotal), bankOnly: partOn ? '0' : '1' } : {}),
+        },
       });
     } catch (e) {
       if (!isNetworkError(e)) {
@@ -274,7 +381,11 @@ export default function SaleNew() {
 
   /* ───── 2-qadam: to'lov ───── */
   const left = Math.max(0, totalN - paidN);
-  const monthly = pay === 'installment' && monthsN > 0 ? Math.ceil(left / monthsN) : 0;
+  const monthly = pay === 'installment' && monthsN > 0 ? Math.ceil(left / monthsN)
+    : partNasiya && monthsN > 0 && partN > 0 ? Math.ceil(partN / monthsN)
+    : 0;
+  const termPresets = TERM_PRESETS.filter((p) => nasiyaOn || p.unit === 'days');
+  const termKey = termPresets.find((p) => p.unit === unit && (p.unit === 'days' ? debtDaysN : monthsN) === p.n)?.key ?? null;
 
   return (
     <Screen
@@ -333,7 +444,7 @@ export default function SaleNew() {
 
       {credit ? (
         <Field
-          label={pay === 'installment' ? d.saleNew.down : d.saleNew.paidNow}
+          label={isBank ? d.saleNew.bankDown : pay === 'installment' ? d.saleNew.down : d.saleNew.paidNow}
           value={grouped(paid)}
           onChangeText={(v) => setPaid(digits(v))}
           keyboardType="numeric"
@@ -350,6 +461,102 @@ export default function SaleNew() {
         </View>
       ) : null}
 
+      {isBank ? (
+        <View style={{ gap: 10 }}>
+          <Text style={[s.label, { color: c.ink3 }]}>{multiBank ? d.saleNew.banks : d.saleNew.bank}</Text>
+          {banks.error && !banks.data ? <InlineError message={banks.error} onRetry={banks.retry} />
+            : !banks.data ? <Loading />
+            : (
+              <>
+                {bankList.length === 0 ? <Text style={[s.hint, { color: c.ink3 }]}>{d.saleNew.noBanks}</Text> : null}
+                {bankList.length > 0 && bankRows.map((r, i) => (
+                  <View key={i} style={[s.bankRow, { backgroundColor: c.fill2 }]}>
+                    {/* Bir bank ikki qatorda tanlanmasin */}
+                    <Chips
+                      options={bankList.filter((b) => b === r.bank || !bankRows.some((x, j) => j !== i && x.bank === b)).map((b) => ({ key: b, label: b }))}
+                      value={r.bank || null}
+                      onChange={(b) => updateBankRow(i, { bank: b })}
+                    />
+                    {multiBank ? (
+                      <Field
+                        label={tr(d.saleNew.bankAmount, { n: i + 1 })}
+                        value={grouped(r.amount)}
+                        onChangeText={(v) => updateBankRow(i, { amount: digits(v) })}
+                        keyboardType="numeric"
+                        placeholder="0"
+                        suffix={d.format.currency}
+                        right={<IconButton icon="close" tone="plain" label={d.saleNew.removeBank} onPress={() => removeBankRow(i)} />}
+                      />
+                    ) : null}
+                  </View>
+                ))}
+                {show('bank') ? <Text style={[s.hint, { color: c.bad }]}>{show('bank')}</Text> : null}
+                {bankList.length > 0 ? (
+                  <Text style={[s.hint, { color: show('bankSum') ? c.bad : multiBank && unallocated === 0 ? c.ok : c.ink3 }]}>
+                    {show('bankSum')
+                      ?? (multiBank
+                        ? unallocated === 0 ? d.saleNew.bankAllocated
+                          : unallocated > 0 ? tr(d.saleNew.bankUnallocated, { sum: fmtMoney(unallocated, { suffix: true }) })
+                          : tr(d.saleNew.bankOver, { sum: fmtMoney(-unallocated, { suffix: true }) })
+                        : tr(d.saleNew.bankSingleHint, { sum: fmtMoney(Math.max(0, bankRest), { suffix: true }) }))}
+                  </Text>
+                ) : null}
+                <View style={s.bankActions}>
+                  {bankRows.length < Math.min(MAX_BANK_PARTS, bankList.length) ? (
+                    <Button title={d.saleNew.addBankRow} icon="add" size="sm" variant="tinted" onPress={addBankRow} />
+                  ) : null}
+                  {banks.data?.canAdd && !bankFormOpen ? (
+                    <Button title={d.saleNew.newBank} icon="add" size="sm" variant="gray" onPress={() => setBankFormOpen(true)} />
+                  ) : null}
+                  {!partOn ? <Button title={d.saleNew.partAdd} icon="add" size="sm" variant="gray" onPress={() => togglePart(true)} /> : null}
+                </View>
+                {bankFormOpen ? (
+                  <Field
+                    label={d.saleNew.newBank}
+                    value={newBank}
+                    onChangeText={setNewBank}
+                    placeholder={d.saleNew.newBankPh}
+                    autoFocus
+                    returnKeyType="done"
+                    onSubmitEditing={addBank}
+                    right={<Button title={d.saleNew.addBank} size="sm" variant="tinted" loading={addingBank} onPress={addBank} />}
+                  />
+                ) : null}
+              </>
+            )}
+        </View>
+      ) : null}
+
+      {isBank && partOn ? (
+        <View style={{ gap: 8 }}>
+          <Field
+            label={d.saleNew.partLabel}
+            value={grouped(partAmount)}
+            onChangeText={(v) => setPartAmount(digits(v))}
+            keyboardType="numeric"
+            placeholder="0"
+            suffix={d.format.currency}
+            error={show('part')}
+            hint={partDebt ? tr(d.saleNew.partDebtHint, { date: partDue ? fmtDate(partDue) : '—' }) : d.saleNew.partNasiyaHint}
+            right={<IconButton icon="close" tone="plain" label={d.saleNew.partRemove} onPress={() => togglePart(false)} />}
+          />
+          <Text style={[s.label, { color: c.ink3 }]}>{d.saleNew.partTerm}</Text>
+          <Chips options={termPresets.map((p) => ({ key: p.key, label: d.saleNew.termPresets[p.key] }))} value={termKey} onChange={pickTerm} />
+          {nasiyaOn ? (
+            <SegmentedControl
+              options={[{ key: 'days', label: d.saleNew.unitDays }, { key: 'months', label: d.saleNew.unitMonths }]}
+              value={unit}
+              onChange={setTermUnit}
+            />
+          ) : null}
+          {partDebt ? (
+            <Field value={debtDays} onChangeText={(v) => setDebtDays(digits(v).slice(0, 3))} keyboardType="numeric" placeholder={d.saleNew.otherTerm} suffix={d.saleNew.daySuffix} error={show('days')} />
+          ) : (
+            <Field value={months} onChangeText={(v) => setMonths(digits(v).slice(0, 2))} keyboardType="numeric" placeholder={d.saleNew.otherTerm} suffix={d.saleNew.monthSuffix} error={show('months')} />
+          )}
+        </View>
+      ) : null}
+
       {pay === 'installment' ? (
         <View style={{ gap: 8 }}>
           <Text style={[s.label, { color: c.ink3 }]}>{d.saleNew.term}</Text>
@@ -363,7 +570,10 @@ export default function SaleNew() {
       <Group header={d.saleNew.summary}>
         <Cell title={d.common.total} value={fmtMoney(totalN, { suffix: true })} valueStrong />
         {credit ? <Cell title={d.saleNew.payNow} value={fmtMoney(paidN, { suffix: true })} valueColor={c.ok} /> : null}
-        {credit ? <Cell title={d.common.remaining} value={fmtMoney(left, { suffix: true })} valueColor={left > 0 ? c.bad : c.ok} /> : null}
+        {isBank ? <Cell title={d.saleNew.toBank} value={fmtMoney(Math.max(0, bankTotal), { suffix: true })} valueColor={c.tint} /> : null}
+        {isBank && partOn ? <Cell title={d.saleNew.partLabel} value={fmtMoney(partN, { suffix: true })} valueColor={c.bad} /> : null}
+        {partDue ? <Cell title={d.saleNew.dueBy} value={fmtDate(partDue)} /> : null}
+        {credit && !isBank ? <Cell title={d.common.remaining} value={fmtMoney(left, { suffix: true })} valueColor={left > 0 ? c.bad : c.ok} /> : null}
         {monthly > 0 ? <Cell title={d.saleNew.monthly} right={<Text style={[s.gold, tabular, { color: c.gold }]}>{fmtMoney(monthly, { suffix: true })}</Text>} /> : null}
       </Group>
     </Screen>
@@ -374,4 +584,7 @@ const s = StyleSheet.create({
   label: { fontSize: 13, fontWeight: '500' },
   offline: { fontSize: 13, fontWeight: '500', lineHeight: 18 },
   gold: { fontSize: 15, fontWeight: '600' },
+  hint: { fontSize: 13, fontWeight: '500', lineHeight: 18 },
+  bankRow: { gap: 10, padding: 12, borderRadius: 16 },
+  bankActions: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
 });
