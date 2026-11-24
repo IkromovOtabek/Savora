@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { View, FlatList, RefreshControl, ActivityIndicator } from 'react-native';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
-import { usePaged } from '@/lib/hooks';
+import { useDebounced, usePaged } from '@/lib/hooks';
 import { useTheme } from '@/lib/theme';
 import { fmtMoney, payLabel, fmtDate } from '@/lib/format';
 import { useDict, tr } from '@/lib/i18n';
 import {
-  Screen, useLayout, TopBar, SegmentedControl, Cell, AmountColumn, Pill, listCellStyle,
+  Screen, useLayout, TopBar, SearchField, SegmentedControl, Cell, AmountColumn, Pill, listCellStyle,
   Loading, EmptyState, ErrorState, InlineError, CacheStamp, type Tone,
 } from '@/components/ui';
 
@@ -26,12 +26,16 @@ export default function Sales() {
   const [type, setType] = useState<'all' | 'debt'>(params.type === 'debt' ? 'debt' : 'all');
   useEffect(() => { if (params.type === 'debt' || params.type === 'all') setType(params.type); }, [params.type]);
 
-  const list = usePaged<Sale>(`/api/mobile/sales?type=${type}`);
+  // Qidiruv serverda (mahsulot, mijoz, telefon, №, IMEI) — yuklanmagan sahifalardagi sotuvlar ham topiladi
+  const [q, setQ] = useState('');
+  const dq = useDebounced(q.trim(), 300);
+  const list = usePaged<Sale>(`/api/mobile/sales?type=${type}${dq ? `&q=${encodeURIComponent(dq)}` : ''}`);
   const first = useRef(true);
   useFocusEffect(useCallback(() => { if (first.current) { first.current = false; return; } list.reloadSilently(); }, [list.reloadSilently])); // eslint-disable-line react-hooks/exhaustive-deps
 
   const bar = (
     <TopBar title={d.sales.title} subtitle={list.loading ? ' ' : tr(d.common.count, { n: fmtMoney(list.total) })}>
+      <SearchField value={q} onChangeText={setQ} placeholder={d.sales.searchPlaceholder} />
       <SegmentedControl
         options={[{ key: 'all', label: d.sales.all }, { key: 'debt', label: d.sales.debtors }]}
         value={type}
@@ -61,6 +65,7 @@ export default function Sales() {
         ListEmptyComponent={
           list.loading ? <Loading />
             : list.error ? <ErrorState message={list.error} onRetry={list.retry} />
+            : dq ? <EmptyState icon="search" title={d.common.notFound} message={tr(d.sales.notFoundMsg, { q: dq })} />
             : <EmptyState icon="cart-outline" title={type === 'debt' ? d.sales.emptyDebt : d.sales.empty} message={type === 'debt' ? d.sales.emptyDebtMsg : d.sales.emptyMsg} />
         }
         ListFooterComponent={list.loadingMore ? <ActivityIndicator color={c.tint} style={{ marginVertical: 16 }} /> : null}

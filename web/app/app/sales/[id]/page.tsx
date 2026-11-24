@@ -13,6 +13,8 @@ import InstallmentPlan from '@/components/tenant/InstallmentPlan';
 import SalePaymentForm from '@/components/tenant/SalePaymentForm';
 import CancelSaleButton from '@/components/tenant/CancelSaleButton';
 import ReturnSaleForm from '@/components/tenant/ReturnSaleForm';
+import EditSaleForm from '@/components/tenant/EditSaleForm';
+import type { ISaleEditChange } from '@/lib/models/tenant/Sale';
 import { qtyStep } from '@/lib/qty';
 import SaleReviewTrigger from '@/components/tenant/SaleReviewTrigger';
 import Tilt from '@/components/ui/Tilt';
@@ -25,6 +27,15 @@ import { plural, tr, qtyWithUnit } from '@/lib/i18n/fmt';
 export async function generateMetadata() {
   const d = await getDict();
   return { title: d.sales.detail.metaTitle };
+}
+
+/** Tahrir tarixi qiymati: narx — so'm, sana — kun, bo'sh — «yo'q» */
+function editValueOf(c: ISaleEditChange, side: 'from' | 'to', none: string, sum: string): string {
+  const v = c[side] ?? '';
+  if (!v) return none;
+  if (c.field === 'totalAmount') return `${fmtMoney(Number(v))} ${sum}`;
+  if (c.field === 'dueDate') return fmtDate(new Date(v));
+  return c.field === 'notes' ? `«${v}»` : v;
 }
 
 const RING_R = 40;
@@ -83,6 +94,10 @@ export default async function SaleDetailPage({
   // Qisman qaytarish: qaytarishdan keyin ham nimadir qolishi kerak (dona — 2+, kg — 0,001 dan ko'p)
   const canReturn = perms.has('sale.return') && sale.status !== 'cancelled' && sale.paymentType !== 'bank_credit' && !bankSplit && (sale.productSnapshot.saleQuantity ?? 1) > qtyStep(sale.productSnapshot.unit);
   const returns = sale.returns ?? [];
+  // Tahrirlash: mijoz, izoh, muddat — «sale.edit»; narx — qo'shimcha «sale.editPrice» (bankda narx qat'iy)
+  const canEdit = perms.has('sale.edit') && sale.status !== 'cancelled';
+  const edits = [...(sale.edits ?? [])].reverse();
+  const editValue = (c: ISaleEditChange, side: 'from' | 'to') => editValueOf(c, side, d.sales.editForm.none, d.common.sum);
 
   // Nasiya (variant) sotuvi bo'lsa — oylik to'lov jadvali
   // Bekor qilingan sotuvda jadval (navbatdagi oy, keyingi to'lov) ko'rsatilmaydi — to'lov kutilmaydi
@@ -122,6 +137,12 @@ export default async function SaleDetailPage({
             <a href="#tolov" className="btn btn-primary btn-with-icon">
               <Icon name="wallet" size={16} />
               {k.acceptShort}
+            </a>
+          )}
+          {canEdit && (
+            <a href="#tahrir" className="btn btn-ghost btn-with-icon">
+              <Icon name="edit" size={16} />
+              {d.sales.editForm.open}
             </a>
           )}
           {!cancelled && (
@@ -258,7 +279,11 @@ export default async function SaleDetailPage({
                   <li key={i} className="sl-pay">
                     <span className="sl-pay-ic sl-pay-ic--return" aria-hidden><Icon name="repeat" size={16} /></span>
                     <div className="sl-pay-main">
-                      <b>{tr(d.sales.returnForm.historyLine, { n: qtyWithUnit(r.qty, sale.productSnapshot.unit, d.stock.fields.units), sum: fmtMoney(r.amount) })}</b>
+                      <b>
+                        {r.kind === 'price'
+                          ? tr(d.sales.returnForm.priceLine, { sum: fmtMoney(r.amount) })
+                          : tr(d.sales.returnForm.historyLine, { n: qtyWithUnit(r.qty, sale.productSnapshot.unit, d.stock.fields.units), sum: fmtMoney(r.amount) })}
+                      </b>
                       <span>
                         {fmtDateTime(r.returnedAt)} · {r.by}
                         {r.refundAmount > 0 ? ` · ${tr(d.sales.returnForm.refundLine, { sum: fmtMoney(r.refundAmount) })}` : ''}
@@ -267,6 +292,23 @@ export default async function SaleDetailPage({
                       </span>
                     </div>
                     <span className="sl-pay-amt sl-pay-amt--return">−{fmtMoney(r.amount)}</span>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
+
+          {edits.length > 0 && (
+            <section className="sl-card" aria-labelledby="sl-edits-h">
+              <div className="sl-card-head">
+                <h2 id="sl-edits-h">{d.sales.editForm.historyTitle}</h2>
+                <small>{tr(d.common.nPcs, { n: edits.length })}</small>
+              </div>
+              <ul className="sl-edit-log">
+                {edits.map((e, i) => (
+                  <li key={i}>
+                    <small>{fmtDateTime(e.at)} · {e.by}</small>
+                    {e.changes.map((c, j) => <span key={j}><b>{d.sales.editForm.fields[c.field]}:</b> {editValue(c, 'from')} → {editValue(c, 'to')}</span>)}
                   </li>
                 ))}
               </ul>
@@ -355,6 +397,22 @@ export default async function SaleDetailPage({
             <div id="tolov">
               <SalePaymentForm saleId={String(sale._id)} remaining={sale.remainingAmount} />
             </div>
+          )}
+          {canEdit && (
+            <EditSaleForm
+              saleId={String(sale._id)}
+              customer={{ id: sale.customerId ? String(sale.customerId) : '', name: customerName ?? '', phone: customerPhone ?? '' }}
+              notes={sale.notes ?? ''}
+              dueDate={sale.dueDate ? new Date(sale.dueDate).toISOString().slice(0, 10) : ''}
+              totalAmount={sale.totalAmount}
+              paidAmount={sale.paidAmount}
+              remainingAmount={sale.remainingAmount}
+              paymentType={sale.paymentType}
+              priceLocked={isBank || bankSplit}
+              canEditPrice={perms.has('sale.editPrice')}
+              downPayment={plan?.down ?? 0}
+              checkoutItems={Math.max(1, siblings.length)}
+            />
           )}
           {canReturn && (
             <div id="qaytarish">

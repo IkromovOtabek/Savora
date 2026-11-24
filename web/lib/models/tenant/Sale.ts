@@ -22,6 +22,11 @@ export interface ISalePayment {
 
 /** Qisman qaytarish yozuvi — sotuvdan bir necha dona qaytarilganda (to'liq qaytarish = bekor qilish) */
 export interface ISaleReturn {
+  /**
+   * 'price' — narx tuzatilishi (lib/saleEdit): dona qaytmaydi (qty 0), faqat ortiqcha to'langan pul mijozga
+   * qaytarilgan. Pul hisobi (kassa, kirim-chiqim, foyda) oddiy qaytarish bilan bir xil. Yo'q — dona qaytarish.
+   */
+  kind?: 'price';
   qty: number;
   /** Qaytgan mahsulot qiymati (sotuv narxi bo'yicha) */
   amount: number;
@@ -39,6 +44,20 @@ export interface ISaleBankPart {
   bankName: string;
   /** Shu bank zimmasidagi summa (so'm) — Kredit kassada "Kiritilgan" bo'lib hisoblanadi */
   amount: number;
+}
+
+/** Sotuvni tahrirlash yozuvi (lib/saleEditOps) — sotuv sahifasida «Tahrirlash tarixi» */
+export type SaleEditField = 'customer' | 'notes' | 'dueDate' | 'totalAmount';
+export interface ISaleEditChange {
+  field: SaleEditField;
+  /** Ko'rsatish uchun: summa — raqam satri, sana — YYYY-MM-DD, mijoz — «Ism · telefon» */
+  from?: string;
+  to?: string;
+}
+export interface ISaleEdit {
+  at: Date;
+  by: string;
+  changes: ISaleEditChange[];
 }
 
 export interface IProductSnapshot {
@@ -95,6 +114,7 @@ export interface ISale {
   lastInstallmentNotifiedAt?: Date;
   payments: ISalePayment[];
   returns?: ISaleReturn[];
+  edits?: ISaleEdit[];
   soldBy: string;
   notes?: string;
   photoUrl?: string;
@@ -184,7 +204,9 @@ export const saleSchema = new Schema<ISale>(
       balanceAfter: { type: Number, min: 0 },
     }],
     returns: [{
-      qty: { type: Number, required: true, min: 0.001 },
+      kind: { type: String, enum: ['price'] },
+      // Narx tuzatilishida (kind: 'price') — 0; dona qaytarishda kamida 0.001
+      qty: { type: Number, required: true, min: 0 },
       amount: { type: Number, required: true, min: 0 },
       debtReduced: { type: Number, required: true, min: 0, default: 0 },
       refundAmount: { type: Number, required: true, min: 0, default: 0 },
@@ -192,6 +214,20 @@ export const saleSchema = new Schema<ISale>(
       returnedAt: { type: Date, required: true, default: Date.now },
       by: { type: String, required: true, trim: true },
     }],
+    edits: {
+      type: [{
+        _id: false,
+        at: { type: Date, required: true },
+        by: { type: String, required: true, trim: true },
+        changes: [{
+          _id: false,
+          field: { type: String, enum: ['customer', 'notes', 'dueDate', 'totalAmount'], required: true },
+          from: { type: String, maxlength: 300 },
+          to: { type: String, maxlength: 300 },
+        }],
+      }],
+      default: undefined,
+    },
     soldBy: { type: String, required: true, trim: true },
     notes: { type: String, trim: true },
     photoUrl: { type: String, trim: true },

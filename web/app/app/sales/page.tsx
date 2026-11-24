@@ -12,6 +12,7 @@ import { loadUserPermissions, requirePermission } from '@/lib/permissionGuard';
 import { getDict } from '@/lib/i18n/server';
 import { plural, qtyWithUnit, tr } from '@/lib/i18n/fmt';
 import { bankFinancedFilter, isBankDebt, isBankNasiya } from '@/lib/bankCredit';
+import { normSaleQuery, saleSearchFilter } from '@/lib/saleSearch';
 
 export async function generateMetadata() {
   const d = await getDict();
@@ -29,7 +30,7 @@ type SumRow = { n: number; sum: number };
 export default async function SalesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ status?: string; type?: string; p?: string }>;
+  searchParams: Promise<{ status?: string; type?: string; p?: string; q?: string }>;
 }) {
   const sp = await searchParams;
   await requirePermission('sales.view');
@@ -63,6 +64,10 @@ export default async function SalesPage({
     periodMatch.createdAt = { $gte: start, $lt: end };
     filter.createdAt = periodMatch.createdAt;
   }
+  // Qidiruv: mahsulot, mijoz (ism/telefon), sotuv raqami, IMEI — filtrlar bilan birga
+  const q = normSaleQuery(sp.q);
+  const qFilter = saleSearchFilter(q);
+  if (qFilter) filter.$and = [qFilter];
   const activeStatus = filter.status as SaleStatus | undefined;
   const activeType = typeParam;
 
@@ -159,15 +164,16 @@ export default async function SalesPage({
     return true;
   });
 
-  const href = (status?: string, type?: string, p: PeriodKey = period) => {
-    const q = new URLSearchParams();
-    if (status) q.set('status', status);
-    if (type) q.set('type', type);
-    if (p !== 'all') q.set('p', p);
-    const s = q.toString();
+  const href = (status?: string, type?: string, p: PeriodKey = period, search: string = q) => {
+    const qs = new URLSearchParams();
+    if (status) qs.set('status', status);
+    if (type) qs.set('type', type);
+    if (p !== 'all') qs.set('p', p);
+    if (search) qs.set('q', search);
+    const s = qs.toString();
     return s ? `/app/sales?${s}` : '/app/sales';
   };
-  const filtered = !!(activeStatus || activeType || period !== 'all');
+  const filtered = !!(activeStatus || activeType || period !== 'all' || q);
   const canExport = features.export && perms.has('export.data');
 
   return (
@@ -225,6 +231,19 @@ export default async function SalesPage({
       </section>
 
       <div className="t-split-main">
+      {/* Qidiruv — tanlangan holat, tur va davr saqlanadi */}
+      <form method="get" action="/app/sales" className="sl-search" role="search">
+        {activeStatus && <input type="hidden" name="status" value={activeStatus} />}
+        {activeType && <input type="hidden" name="type" value={activeType} />}
+        {period !== 'all' && <input type="hidden" name="p" value={period} />}
+        <label htmlFor="sl-q" className="sl-search-field">
+          <Icon name="search" size={17} />
+          <span className="sr-only">{k.searchLabel}</span>
+          <input id="sl-q" name="q" type="search" defaultValue={q} placeholder={k.searchPh} autoComplete="off" maxLength={60} />
+        </label>
+        <button type="submit" className="btn btn-primary">{d.common.search}</button>
+        {q && <Link href={href(activeStatus, activeType, period, '')} className="btn btn-ghost">{d.common.reset}</Link>}
+      </form>
       <div className="sl-toolbar">
         <nav className="sl-seg" aria-label={d.sales.statusFilterAria}>
           {STATUS_SEG.map((s) => (
@@ -260,8 +279,8 @@ export default async function SalesPage({
         {rows.length === 0 ? (
           <div className="ux-empty sl-empty">
             <div className="ux-empty-ic"><Icon name="cart" size={28} /></div>
-            <b>{filtered ? k.emptyFiltered : k.emptyNone}</b>
-            <p>{filtered ? k.emptyFilteredHint : k.emptyNoneHint}</p>
+            <b>{q ? tr(k.notFound, { q }) : filtered ? k.emptyFiltered : k.emptyNone}</b>
+            <p>{q ? k.notFoundHint : filtered ? k.emptyFilteredHint : k.emptyNoneHint}</p>
             {filtered ? (
               <Link href="/app/sales" className="btn btn-ghost">{d.sales.clearFilter}</Link>
             ) : (

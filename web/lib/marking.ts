@@ -94,11 +94,12 @@ export function checkMarkingLines(
  */
 export function soldMarkingConflict(
   keys: readonly string[],
-  sold: readonly { markingKeys?: string[] | null; returns?: unknown[] | null; status?: string }[],
+  sold: readonly { markingKeys?: string[] | null; returns?: { kind?: string | null }[] | null; status?: string }[],
 ): string | null {
   const want = new Set(keys);
   for (const s of sold) {
-    if (s.status === 'cancelled' || (s.returns?.length ?? 0) > 0) continue;
+    // Narx tuzatilishi (kind: 'price') — tovar qaytmagan, kod sotilganligicha qoladi
+    if (s.status === 'cancelled' || (s.returns ?? []).some((r) => r?.kind !== 'price')) continue;
     const k = s.markingKeys?.find((x) => want.has(x));
     if (k) return k;
   }

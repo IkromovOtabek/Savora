@@ -94,6 +94,22 @@
   display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between;
   gap: 10px 16px; margin-bottom: 14px;
 }
+/* Sotuvlar qidiruvi (Mijozlar qidiruvi bilan bir xil ko'rinish) */
+.sl-search { display: flex; gap: 8px; align-items: center; margin-bottom: 12px; }
+.sl-search-field {
+  flex: 1; min-width: 0;
+  display: flex; align-items: center; gap: 8px;
+  min-height: 44px; padding: 0 14px; border-radius: var(--r);
+  background: var(--surface); box-shadow: var(--shadow-sm); color: var(--ink-3);
+  cursor: text;
+}
+.sl-search-field:focus-within { box-shadow: 0 0 0 3px var(--brand-ring); }
+.sl-search-field input {
+  flex: 1; min-width: 0; border: 0; background: transparent; outline: none;
+  font: inherit; font-size: 15px; color: var(--ink-1); padding: 10px 0;
+}
+.sl-search-field input::placeholder { color: var(--ink-3); }
+.sl-search .btn { min-height: 44px; }
 .sl-seg {
   display: inline-flex; gap: 2px; padding: 2px; border-radius: 10px; background: var(--fill);
   max-width: 100%; overflow-x: auto; scrollbar-width: none;
@@ -187,6 +203,8 @@
   .sl-list-actions { flex: none; width: auto; }
   .sl-row-amt strong small { display: none; }
   .sl-toolbar { flex-direction: column; align-items: stretch; gap: 8px; margin-bottom: 12px; }
+  .sl-search { margin-bottom: 8px; }
+  .sl-search .btn { padding-inline: 14px; }
   .sl-seg { width: 100%; }
   .sl-seg-btn { flex: 1; min-height: 40px; padding: 6px 8px; }
   .sl-chips { margin: 0 -16px; padding: 0 40px 2px 16px; }
@@ -372,6 +390,19 @@ button.sl-tl-body:hover .sl-tl-cta--main { opacity: .88; }
 }
 .sl-remain-box span { font-size: 13px; color: var(--warn); font-weight: 600; }
 .sl-remain-box strong { font-size: 18px; color: var(--warn); font-variant-numeric: tabular-nums; }
+
+/* Sotuvni tahrirlash */
+.sl-edit-cust { display: grid; gap: 10px; }
+.sl-edit-cust .auth-field { margin: 0; }
+.sl-edit-cust-x { justify-self: start; }
+.sl-edit-hint { display: block; margin: 0; font-size: 13px; line-height: 1.4; color: var(--ink-3); }
+.sl-remain-box--out { background: color-mix(in srgb, var(--danger) 10%, transparent); }
+.sl-remain-box--out span { color: var(--danger); }
+.sl-edit-log { list-style: none; margin: 0; padding: 0 18px 14px; display: grid; gap: 10px; }
+.sl-edit-log li { display: grid; gap: 2px; font-size: 14px; }
+.sl-edit-log small { color: var(--ink-3); font-size: 12.5px; }
+.sl-edit-log span { color: var(--ink-2); overflow-wrap: anywhere; }
+.sl-edit-log b { font-weight: 600; color: var(--ink-1); }
 
 /* Bekor qilish */
 .sl-return-text { margin: 0; color: var(--ink-3); font-size: 14px; line-height: 1.45; }

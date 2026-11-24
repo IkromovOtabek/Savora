@@ -21,6 +21,7 @@ import { MAX_BANK_DEBT_DAYS, MAX_BANK_PARTS, bankPartsLabel, bankPartsTotal, par
 import type { ISaleBankPart } from '@/lib/models/tenant/Sale';
 import { notifyNewSale, salePayLabel } from '@/lib/shopNotify';
 import { isClientSaleId, isDupKey } from '@/lib/posSync';
+import { saleSearchFilter } from '@/lib/saleSearch';
 import type { SessionUser } from '@/lib/session';
 
 type SaleModel = Awaited<ReturnType<typeof getTenantModels>>['Sale'];
@@ -51,7 +52,7 @@ const tooLong = (v: string, max: number) => v.length > max;
 
 /**
  * Mobil sotuvlar ro'yxati. Filtr:
- *   ?type=all (default) | debt (qarzdorlik) | installment (nasiya)
+ *   ?type=all (default) | debt (qarzdorlik) | installment (nasiya); ?q= — qidiruv (lib/saleSearch)
  * Qarzdorlik/Nasiya faqat qoldiqli (partial) sotuvlarni beradi.
  */
 export async function GET(req: Request) {
@@ -78,6 +79,9 @@ export async function GET(req: Request) {
   } else if (type === 'installment') {
     filter.paymentType = 'installment';
   }
+  // ?q= — mahsulot, mijoz (ism/telefon), sotuv raqami, IMEI (web ro'yxati bilan bir xil; eski ilova yubormaydi)
+  const qf = saleSearchFilter(url.searchParams.get('q'));
+  if (qf) filter.$and = [qf];
 
   const [items, total] = await Promise.all([
     Sale.find(filter).sort({ createdAt: -1 }).skip((page - 1) * limit).limit(limit).lean(),

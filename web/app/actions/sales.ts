@@ -32,6 +32,7 @@ import { pq294MonthsError } from '@/lib/pq294';
 import { getI18n } from '@/lib/i18n/server';
 import { qtyWithUnit, tr } from '@/lib/i18n/fmt';
 import { computePartialReturn } from '@/lib/saleReturn';
+import { SALE_NOTES_MAX, editSale, type SaleEditError, type SaleEditInput } from '@/lib/saleEditOps';
 import { z } from 'zod';
 import { formToObject, parseInput, zId, zText, zMoney, zInt, zOptInt, zOptQty, zOptDate, zField, zOneOf } from '@/lib/validation';
 import { PAY_METHODS } from '@/lib/payMethods';
@@ -878,5 +879,80 @@ export async function returnSaleItemsAction(_prev: State, formData: FormData): P
     success: c.refundAmount > 0
       ? tr(m.returnedRefund, { n: qtyWithUnit(returnQty, unit, d.stock.fields.units), sum: c.refundAmount.toLocaleString('uz-UZ') })
       : tr(m.returnedNoRefund, { n: qtyWithUnit(returnQty, unit, d.stock.fields.units) }),
+  };
+}
+
+/**
+ * Sotuvni tahrirlash — mijoz, izoh, qarz muddati, narx (lib/saleEditOps).
+ * Huquq: «sale.edit»; narx uchun qo'shimcha «sale.editPrice». Forma faqat ko'rsatilgan maydonlarni yuboradi
+ * (`customerOn` / `dueOn` / `totalAmount` bo'lmasa — o'sha maydon o'zgarmaydi).
+ */
+export async function editSaleAction(_prev: State, formData: FormData): Promise<State> {
+  const { user, Sale, Customer } = await getTenantSession();
+  const { d } = await getI18n();
+  const m = d.sales.actions;
+  { const denied = await checkPermission(user, 'sale.edit'); if (denied) return denied; }
+
+  const parsed = parseInput(z.object({
+    saleId: zId(m.saleNotFound),
+    customerOn: zText(1),
+    customerId: zText(40),
+    customerName: zText(80, m.nameTooLong80),
+    customerPhone: zText(20, m.badPhone),
+    notes: zText(SALE_NOTES_MAX, d.common.tooLong),
+    dueOn: zText(1),
+    dueDate: zOptDate(m.badDate),
+    totalAmount: zText(20),
+  }), formToObject(formData), m.saleNotFound);
+  if (!parsed.ok) return { error: parsed.error };
+  const f = parsed.data;
+
+  const input: SaleEditInput = { notes: formData.has('notes') ? f.notes : undefined };
+  if (f.customerOn === '1') {
+    input.customer = f.customerId || f.customerName.trim() || f.customerPhone.trim()
+      ? { id: f.customerId || undefined, name: f.customerName, phone: f.customerPhone }
+      : null;
+  }
+  if (f.dueOn === '1') input.dueDate = f.dueDate ?? null;
+  if (formData.has('totalAmount')) {
+    const n = Number(f.totalAmount.replace(/\s/g, ''));
+    if (!f.totalAmount.trim() || !Number.isSafeInteger(n)) return { error: m.editBadAmount };
+    input.totalAmount = n;
+  }
+
+  const res = await editSale({ Sale, Customer }, user, f.saleId, input, { canEditPrice: await userCan(user, 'sale.editPrice') });
+  if (!res.ok) {
+    if (res.error === 'pricePerm') return permissionDeniedError('sale.editPrice');
+    const err: Record<Exclude<SaleEditError, 'pricePerm'>, string> = {
+      notFound: m.saleNotFound,
+      cancelled: m.editCancelled,
+      bankCredit: m.editBankCredit,
+      badAmount: m.editBadAmount,
+      belowDown: m.editBelowDown,
+      noChanges: m.editNoChanges,
+      conflict: m.returnConflict,
+      customerRequired: m.editCustomerRequired,
+      dueNotAllowed: m.editDueNotAllowed,
+      badDate: m.badDate,
+      nameRequired: m.nameRequired,
+      phoneRequired: m.phoneRequired,
+      badPhone: m.badPhone,
+    };
+    return { error: err[res.error] };
+  }
+
+  revalidatePath('/app/sales');
+  revalidatePath(`/app/sales/${f.saleId}`);
+  if (res.price) {
+    revalidatePath('/app/kassa');
+    revalidatePath('/app/debts');
+    revalidatePath('/app/nasiya');
+    revalidatePath('/app');
+  }
+  const p = res.price;
+  return {
+    success: p && p.refundAmount > 0 ? tr(m.editedRefund, { sum: p.refundAmount.toLocaleString('uz-UZ') })
+      : p && p.newRemaining > 0 ? tr(m.editedRemaining, { sum: p.newRemaining.toLocaleString('uz-UZ') })
+      : m.edited,
   };
 }

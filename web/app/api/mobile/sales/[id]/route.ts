@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { Types } from 'mongoose';
 import { authenticateMobile } from '@/lib/mobileAuth';
-import { loadUserPermissions, mobilePermissionDenied, saleViewScope } from '@/lib/permissionGuard';
+import { loadUserPermissions, mobilePermissionDenied, saleViewScope, userCan } from '@/lib/permissionGuard';
 import { permissionDeniedError } from '@/lib/permissions';
 import { recordAudit } from '@/lib/audit';
 import { getTenantModels } from '@/lib/tenantDb';
@@ -13,6 +13,7 @@ import { readJsonInput, zMoney, zOneOf, zText } from '@/lib/validation';
 import { PAY_METHODS, methodOf } from '@/lib/payMethods';
 import { receiptPath } from '@/lib/receiptLink';
 import { saleBankParts } from '@/lib/bankCredit';
+import { SALE_NOTES_MAX, editSale, type SaleEditError, type SaleEditInput } from '@/lib/saleEditOps';
 
 /** Mobil ilova to'lovga qo'yadigan standart izoh (mobile/app/sale/[id].tsx) */
 const MOBILE_DEFAULT_NOTE = 'Mobil to\'lov';
@@ -34,6 +35,8 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
   if (!s) return NextResponse.json({ error: 'Sotuv topilmadi.' }, { status: 404 });
 
   const plan = s.paymentType === 'installment' ? computeInstallmentPlan(s) : null;
+  // Bitta xariddagi tovarlar soni — tahrirlashda mijoz hammasiga qo'llanadi
+  const checkoutItems = s.checkoutId ? await Sale.countDocuments({ checkoutId: s.checkoutId, ...branchFilter(user) }) : 1;
 
   return NextResponse.json({
     id: String(s._id),
@@ -42,6 +45,8 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
     imei: s.productSnapshot?.imei ?? null,
     customer: s.customerSnapshot?.fullName ?? null,
     phone: s.customerSnapshot?.phone ?? null,
+    customerId: s.customerId ? String(s.customerId) : null,
+    notes: s.notes ?? null,
     paymentType: s.paymentType,
     bankName: s.bankName ?? null,
     bankParts: saleBankParts(s),
@@ -54,6 +59,10 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
     createdAt: s.createdAt,
     soldBy: s.soldBy,
     payments: (s.payments ?? []).map((p) => ({ amount: p.amount, paidAt: p.paidAt, note: p.note ?? null, recordedBy: p.recordedBy ?? null, method: methodOf(p) })),
+    // Tahrirlash (eski ilova e'tiborsiz qoldiradi): tarix, xarid hajmi; narx tuzatilishida mijozga qaytarilgan pul
+    edits: (s.edits ?? []).map((e) => ({ at: e.at, by: e.by, changes: e.changes.map((c) => ({ field: c.field, from: c.from ?? '', to: c.to ?? '' })) })),
+    checkoutItems,
+    priceRefunds: (s.returns ?? []).filter((r) => r.kind === 'price' && r.refundAmount > 0).map((r) => ({ amount: r.refundAmount, at: r.returnedAt, by: r.by })),
     // Ochiq chek havolasi — faqat yangi (checkoutId bor) sotuvlarda
     receiptPath: s.checkoutId && user.organizationId && s.status !== 'cancelled' ? receiptPath(user.organizationId, s.checkoutId) : null,
     plan: plan ? {
@@ -120,4 +129,77 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   });
 
   return NextResponse.json({ ok: true, ...res });
+}
+
+/** Tahrirlash xatolari (mobil — o'zbekcha, mavjud API kabi) */
+const EDIT_ERRORS: Record<SaleEditError, { error: string; status: number }> = {
+  notFound: { error: 'Sotuv topilmadi.', status: 404 },
+  cancelled: { error: 'Bekor qilingan sotuvni tahrirlab bo\'lmaydi.', status: 400 },
+  bankCredit: { error: 'Bank krediti sotuvida narx o\'zgarmaydi.', status: 400 },
+  badAmount: { error: 'Narx noto\'g\'ri (butun so\'mda, 1 so\'mdan katta).', status: 400 },
+  belowDown: { error: 'Nasiyada narx boshlang\'ich to\'lovdan katta bo\'lishi kerak.', status: 400 },
+  noChanges: { error: 'O\'zgarish yo\'q.', status: 400 },
+  conflict: { error: 'Sotuv shu orada o\'zgardi. Yangilab qayta urinib ko\'ring.', status: 409 },
+  pricePerm: { error: 'Narxni o\'zgartirish huquqi yo\'q.', status: 403 },
+  customerRequired: { error: 'Qarz yoki qoldiqli sotuvda mijoz bo\'lishi shart.', status: 400 },
+  dueNotAllowed: { error: 'Qarz muddati faqat qoldig\'i bor qarz yoki naqd sotuvda qo\'yiladi.', status: 400 },
+  badDate: { error: 'Sana noto\'g\'ri.', status: 400 },
+  nameRequired: { error: 'Mijoz ismi kiritilishi shart.', status: 400 },
+  phoneRequired: { error: 'Telefon raqami shart.', status: 400 },
+  badPhone: { error: 'Telefon raqami noto\'g\'ri.', status: 400 },
+};
+
+/**
+ * Sotuvni tahrirlash — web editSaleAction bilan bir xil (lib/saleEditOps). Huquq «sale.edit», narx — «sale.editPrice».
+ * Body (yuborilmagan maydon o'zgarmaydi): customer: { id?, name, phone } | null, notes, dueDate: 'YYYY-MM-DD' | null, totalAmount.
+ */
+export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
+  const auth = await authenticateMobile(req);
+  if (auth instanceof NextResponse) return auth;
+  const user = auth;
+  if (!user || !user.dbName) return NextResponse.json({ error: 'Avtorizatsiya kerak.' }, { status: 401 });
+  { const denied = await mobilePermissionDenied(user, 'sale.edit'); if (denied) return denied; }
+  const { id } = await params;
+  if (!Types.ObjectId.isValid(id)) return NextResponse.json(EDIT_ERRORS.notFound, { status: 404 });
+
+  const input = await readJsonInput(req, z.object({
+    customer: z.union([
+      z.null(),
+      z.object({
+        id: z.string().max(40).optional(),
+        name: z.string().max(80, 'Ism juda uzun.'),
+        phone: z.string().max(20, 'Telefon raqami noto\'g\'ri.'),
+      }),
+    ]).optional(),
+    notes: z.string().max(SALE_NOTES_MAX, 'Izoh juda uzun.').optional(),
+    dueDate: z.union([z.null(), z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Sana noto\'g\'ri.')]).optional(),
+    totalAmount: z.number().int('Narx butun so\'mda bo\'lishi kerak.').optional(),
+  }), { badJson: 'Noto\'g\'ri so\'rov.', fallback: 'Noto\'g\'ri so\'rov.' });
+  if (!input.ok) return NextResponse.json({ error: input.error }, { status: 400 });
+  const b = input.data;
+
+  const edit: SaleEditInput = {
+    customer: b.customer === undefined ? undefined
+      : b.customer === null || (!b.customer.id && !b.customer.name.trim() && !b.customer.phone.trim()) ? null
+      : { id: b.customer.id, name: b.customer.name, phone: b.customer.phone },
+    notes: b.notes,
+    dueDate: b.dueDate === undefined ? undefined : b.dueDate === null ? null : new Date(b.dueDate),
+    totalAmount: b.totalAmount,
+  };
+
+  const models = await getTenantModels(user.dbName);
+  const res = await editSale(models, user, id, edit, { canEditPrice: await userCan(user, 'sale.editPrice') });
+  if (!res.ok) {
+    const e = EDIT_ERRORS[res.error];
+    return NextResponse.json({ error: e.error }, { status: e.status });
+  }
+  const p = res.price;
+  return NextResponse.json({
+    ok: true,
+    refundAmount: p?.refundAmount ?? 0,
+    remainingAmount: p?.newRemaining ?? null,
+    message: p && p.refundAmount > 0 ? `Saqlandi. Mijozga ${p.refundAmount.toLocaleString('uz-UZ')} so'm naqd qaytaring.`
+      : p && p.newRemaining > 0 ? `Saqlandi. Qoldiq: ${p.newRemaining.toLocaleString('uz-UZ')} so'm.`
+      : 'Saqlandi.',
+  });
 }

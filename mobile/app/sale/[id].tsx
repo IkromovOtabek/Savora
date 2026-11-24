@@ -1,7 +1,7 @@
 import { useCallback, useRef, useState } from 'react';
 import { View, Modal, Alert, Linking, Share, KeyboardAvoidingView, Platform, ScrollView, StyleSheet } from 'react-native';
 import { Text } from '@/components/ui/Text';
-import { useLocalSearchParams, useFocusEffect } from 'expo-router';
+import { useLocalSearchParams, useFocusEffect, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { api, errMsg, API_URL } from '@/lib/api';
 import { useAuth, useCan } from '@/lib/auth';
@@ -25,7 +25,13 @@ interface Sale {
   payments: Payment[]; plan: Plan | null;
   /** Ochiq chek havolasi (yangi sotuvlarda) */
   receiptPath?: string | null;
+  /** Tahrirlash (eski server bermaydi) */
+  notes?: string | null;
+  edits?: { at: string; by: string; changes: { field: EditField; from: string; to: string }[] }[];
+  /** Narx tuzatilishida mijozga naqd qaytarilgan pul */
+  priceRefunds?: { amount: number; at: string; by: string }[];
 }
+type EditField = 'customer' | 'notes' | 'dueDate' | 'totalAmount';
 
 /** Oy holati ko'rinishi — matni lug'atda (d.saleDetail.monthState) */
 const MONTH_STATE: Record<string, { tone: Tone; icon: IconName; sq: 'o' | 'a' | 'g' | 'r' | 'b' }> = {
@@ -42,6 +48,7 @@ export default function SaleDetail() {
   const d = useDict();
   const can = useCan();
   const { me } = useAuth();
+  const router = useRouter();
   const res = useResource<Sale>(id ? `/api/mobile/sales/${id}` : null);
   const first = useRef(true);
   useFocusEffect(useCallback(() => { if (first.current) { first.current = false; return; } res.reloadSilently(); }, [res.reloadSilently]));
@@ -55,6 +62,12 @@ export default function SaleDetail() {
 
   const pct = s.totalAmount > 0 ? s.paidAmount / s.totalAmount : 0;
   const canPay = s.remainingAmount > 0 && s.status !== 'cancelled' && can('payment.accept');
+  const canEdit = s.status !== 'cancelled' && can('sale.edit');
+  /** Tahrir tarixi qiymati: narx — so'm, sana — kun, bo'sh — «yo'q» */
+  const editValue = (f: EditField, v: string) => !v ? d.saleDetail.none
+    : f === 'totalAmount' ? fmtMoney(Number(v), { suffix: true })
+    : f === 'dueDate' ? fmtDate(v)
+    : f === 'notes' ? `«${v}»` : v;
   const nextMonth = s.plan?.schedule.find((m) => !m.paid);
   const nextDue = nextMonth ? Math.min(monthLeft(nextMonth), s.remainingAmount) : s.remainingAmount;
   const statusLabels: Record<string, string> = d.saleDetail.status;
@@ -64,7 +77,7 @@ export default function SaleDetail() {
 
   return (
     <Screen
-      header={<NavBar backLabel={backLabel} />}
+      header={<NavBar backLabel={backLabel} right={canEdit ? <Button title={d.saleDetail.edit} variant="plain" onPress={() => router.push(`/sale-edit?id=${s.id}`)} /> : undefined} />}
       refreshing={res.refreshing}
       onRefresh={res.refresh}
       gap={18}
@@ -101,6 +114,7 @@ export default function SaleDetail() {
         {s.imei && !s.imei.startsWith('SVR-') ? <Cell title={d.saleDetail.code} value={s.imei} valueMono={MONO} /> : null}
         <Cell title={d.saleDetail.date} value={fmtDate(s.createdAt)} />
         {s.soldBy ? <Cell title={d.saleDetail.seller} value={s.soldBy} /> : null}
+        {s.notes ? <Cell title={d.saleDetail.notes} subtitle={s.notes} /> : null}
       </Group>
 
       {s.plan && s.plan.schedule.length > 0 ? (
@@ -143,15 +157,42 @@ export default function SaleDetail() {
         </Group>
       ) : null}
 
-      {s.payments.length > 0 ? (
+      {s.payments.length > 0 || (s.priceRefunds?.length ?? 0) > 0 ? (
         <Group header={d.saleDetail.paymentsHistory}>
-          {[...s.payments].reverse().map((p, i) => (
+          {[
+            ...s.payments.map((p) => ({ at: p.paidAt, pay: p as Payment | null, refund: null as { amount: number; by: string } | null })),
+            ...(s.priceRefunds ?? []).map((r) => ({ at: r.at, pay: null as Payment | null, refund: r })),
+          ].sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime()).map((x, i) => x.pay ? (
             <Cell
-              key={`${p.paidAt}-${i}`}
+              key={`${x.at}-${i}`}
               icon="cash"
               iconColor={c.sq.o}
-              title={fmtMoney(p.amount, { suffix: true })}
-              subtitle={[fmtDate(p.paidAt), payMethodLabel(p.method), p.note, p.recordedBy].filter(Boolean).join(' · ')}
+              title={fmtMoney(x.pay.amount, { suffix: true })}
+              subtitle={[fmtDate(x.pay.paidAt), payMethodLabel(x.pay.method), x.pay.note, x.pay.recordedBy].filter(Boolean).join(' · ')}
+            />
+          ) : (
+            <Cell
+              key={`${x.at}-${i}`}
+              icon="arrow-undo"
+              iconColor={c.sq.r}
+              title={`−${fmtMoney(x.refund?.amount ?? 0, { suffix: true })}`}
+              subtitle={[fmtDate(x.at), d.saleDetail.priceRefund, x.refund?.by].filter(Boolean).join(' · ')}
+              subtitleLines={2}
+            />
+          ))}
+        </Group>
+      ) : null}
+
+      {(s.edits?.length ?? 0) > 0 ? (
+        <Group header={d.saleDetail.editsHistory}>
+          {[...(s.edits ?? [])].reverse().map((e, i) => (
+            <Cell
+              key={`${e.at}-${i}`}
+              icon="create-outline"
+              iconColor={c.sq.b}
+              title={e.changes.map((ch) => `${d.saleDetail.editFields[ch.field] ?? ch.field}: ${editValue(ch.field, ch.from)} → ${editValue(ch.field, ch.to)}`).join('\n')}
+              titleLines={e.changes.length * 3}
+              subtitle={[fmtDate(e.at), e.by].filter(Boolean).join(' · ')}
             />
           ))}
         </Group>

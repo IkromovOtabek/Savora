@@ -65,6 +65,8 @@ describe('markirovka qoidalari', () => {
     expect(soldMarkingConflict([key], [{ markingKeys: [key], status: 'paid' }])).toBe(key);
     expect(soldMarkingConflict([key], [{ markingKeys: [key], status: 'cancelled' }])).toBeNull();
     expect(soldMarkingConflict([key], [{ markingKeys: [key], status: 'paid', returns: [{}] }])).toBeNull();
+    // Narx tuzatilishi — tovar qaytmagan, kod hali sotilgan
+    expect(soldMarkingConflict([key], [{ markingKeys: [key], status: 'paid', returns: [{ kind: 'price' }] }])).toBe(key);
     expect(serialOfKey(key)).toBe('AAA111');
   });
 });

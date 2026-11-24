@@ -24,6 +24,7 @@ export const PERMISSION_KEYS = [
   'sales.view',
   'sale.cancel',
   'sale.return',
+  'sale.edit',
   // Naqd kassa va smenalar
   'kassa.view',
   'kassa.shift',
@@ -201,6 +202,8 @@ export const PERMISSIONS: Record<PermissionKey, PermissionDef> = {
   'sales.view': P('sales.view', 'sales', "Sotuvlarni ko'rish", "Sotuvlar ro'yxati, sotuv tafsiloti va cheklar", { feature: 'sales', legacy: 'open' }),
   'sale.cancel': P('sale.cancel', 'sales', 'Sotuvni bekor qilish', 'Sotuvni bekor qilib, mahsulotni omborga qaytarish', { feature: 'sales' }),
   'sale.return': P('sale.return', 'sales', 'Qaytarib olish', "Sotilgan mahsulotning bir qismini qaytarib olish", { feature: 'sales', legacy: 'sale.cancel' }),
+  // Narxni o'zgartirish uchun qo'shimcha «sale.editPrice» kerak (lib/saleEdit)
+  'sale.edit': P('sale.edit', 'sales', 'Sotuvni tahrirlash', "Mijoz, izoh, qarz muddati va narxni o'zgartirish", { feature: 'sales', legacy: 'sale.cancel', since: 6 }),
 
   'kassa.view': P('kassa.view', 'kassa', "Kassani ko'rish", 'Naqd kassa, kunlik tushum va smenalar tarixi', { feature: 'kassa' }),
   'kassa.shift': P('kassa.shift', 'kassa', 'Smena ochish/yopish', "Smenani ochish-yopish, kassaga pul kiritish/olish", { feature: 'kassa' }),
@@ -278,9 +281,9 @@ export const PERMISSIONS: Record<PermissionKey, PermissionDef> = {
  * kalitlar `legacy` qoidasi bilan qo'shiladi.
  *   2 — sahifalar bo'yicha bo'lingan huquqlar; 3 — restoran (order.*, kitchen.*, menu.stopList, tables.manage);
  *   4 — ishlab chiqarish va kirim (production.*, recipe.manage, receipt.create, po.manage, piecework.*);
- *   5 — restoran bronlari (reservation.manage).
+ *   5 — restoran bronlari (reservation.manage); 6 — sotuvni tahrirlash (sale.edit).
  */
-export const PERMISSIONS_VERSION = 5;
+export const PERMISSIONS_VERSION = 6;
 
 /** `since` ko'rsatilmagan legacy huquqlar 2-versiyada qo'shilgan */
 const DEFAULT_SINCE = 2;
