@@ -95,7 +95,13 @@ export default async function KassaPage() {
           )}
         </div>
       </div>
-      <NaxtKassaCards total={total} cards={cards} />
+      <NaxtKassaCards
+        total={total}
+        cards={cards}
+        // Jami / Naqd / Kredit filtri: Kredit kassa yoqiq yoki bankdan pul olingan bo'lsa
+        hasCredit={features.creditKassa || bankTotal > 0}
+        creditHref={user.role === 'admin' && features.creditKassa ? '/app/kredit-kassa' : undefined}
+      />
       {/* Kompyuterda yuqori paneldagi "Yangi sotuv" yetarli; telefonda — pastki o'ng tugma */}
       <Link href="/app/pos" className="ux-fab">
         <Icon name="plus" size={20} /> {d.common.sale}

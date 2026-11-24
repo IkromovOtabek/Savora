@@ -759,6 +759,14 @@ export const uz = {
     flowNone: "Yo'q",
     flowEmpty: "Bu kunda kirim-chiqim yo'q",
     flowEmptyHint: 'Boshqa sanani tanlang.',
+    /** Ko'rinish filtri: jami qoldiq = naqd + kredit (Kredit kassada bankdan olingan pul) */
+    viewAria: "Ko'rinish: jami, naqd yoki kredit",
+    viewAll: 'Jami',
+    viewCash: 'Naqd',
+    viewCredit: 'Kredit',
+    cashPart: 'Naqd pul',
+    creditPart: 'Kredit (bankdan olingan)',
+    mixAria: 'Jami qoldiq tarkibi: naqd {cash}, kredit {credit}',
   },
 
   creditKassa: {
@@ -1817,6 +1825,13 @@ export const ru: typeof uz = {
     flowNone: 'Нет',
     flowEmpty: 'В этот день движения денег не было',
     flowEmptyHint: 'Выберите другую дату.',
+    viewAria: 'Вид: всего, наличные или кредит',
+    viewAll: 'Всего',
+    viewCash: 'Наличные',
+    viewCredit: 'Кредит',
+    cashPart: 'Наличные',
+    creditPart: 'Кредит (получено из банка)',
+    mixAria: 'Состав остатка: наличные {cash}, кредит {credit}',
   },
 
   creditKassa: {
