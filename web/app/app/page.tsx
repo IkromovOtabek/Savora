@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { Types } from 'mongoose';
 import { getTenantSession } from '@/lib/tenantSession';
-import { branchFilter, branchAggMatch } from '@/lib/branchScope';
+import { branchFilter, branchAggMatch, isBranchScoped } from '@/lib/branchScope';
 import { fmtDateTime, fmtMoney } from '@/lib/format';
 import Icon from '@/components/icons/Icon';
 import OnboardingChecklist from '@/components/tenant/OnboardingChecklist';
@@ -249,8 +249,10 @@ export default async function TenantDashboard({
   const canAddProduct = features.products && perms.has('product.create');
   const canKassa = features.kassa && perms.has('kassa.view');
   const canReports = features.monitoring && perms.has('reports.view');
-  // Xarajat (sof foydadan ayiriladi) — do'kon egasi, «Kirim-Chiqim» moduli bilan; smenasiz do'konlar ham shu yerdan
-  const canExpense = isAdmin && features.kirimChiqim;
+  // Xarajat (sof foydadan ayiriladi) — do'kon egasi, «Kirim-Chiqim» moduli bilan; smenasiz do'konlar ham shu yerdan.
+  // Filial xodimi — «Xarajat yozish» huquqi bilan (perms o'chiq modulni kesadi), o'z filiali kassasidan
+  const branchExpense = isBranchScoped(user) && perms.has('kassa.expense');
+  const canExpense = (isAdmin && features.kirimChiqim) || branchExpense;
   const expenseCategories = canExpense ? await loadExpenseCategories(FinanceCategory) : [];
   const quickCount = [showSaleCta, canAddProduct, canKassa, canExpense, canReports].filter(Boolean).length;
 
@@ -424,6 +426,7 @@ export default async function TenantDashboard({
           )}
           {canExpense && (
             <QuickExpense
+              mode={branchExpense ? 'branch' : 'owner'}
               categories={expenseCategories}
               branches={branchList.map((b) => ({ id: String(b._id), name: b.name }))}
             />

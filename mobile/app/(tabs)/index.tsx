@@ -121,6 +121,8 @@ export default function Home() {
     ...(f.kassa && can('kassa.view') ? [{ key: 'shifts', label: d.profile.shifts, icon: 'time' as const, color: c.sq.o, onPress: () => router.push('/shifts') }] : []),
     // Kunlik kirim-chiqim (web Kassa → «Kirim-chiqim»): server ham kassa moduli + kassa.view tekshiradi
     ...(f.kassa && can('kassa.view') ? [{ key: 'dayFlow', label: d.dayFlow.tile, icon: 'swap-vertical' as const, color: c.sq.g, onPress: () => router.push('/kirim-chiqim-day') }] : []),
+    // Filial xodimi xarajati (o'z filiali kassasidan); egasi — «Kirim-chiqim» ekranidan. Server: /api/mobile/kassa/expense
+    ...(f.kirimChiqim && !isAdmin && can('kassa.expense') ? [{ key: 'expense', label: d.branchExpense.tile, icon: 'wallet' as const, color: c.sq.r, onPress: () => router.push('/expense-new') }] : []),
     ...(f.transferred && can('transfer.create') ? [{ key: 'transfer', label: d.home.transfer, icon: 'swap-horizontal' as const, color: c.sq.g, onPress: () => router.push('/transfer') }] : []),
     ...(f.kirimChiqim && isAdmin && can('kirimChiqim.manage') ? [{ key: 'kc', label: d.home.kirimChiqim, icon: 'cash' as const, color: c.sq.o, onPress: () => router.push('/kirim-chiqim') }] : []),
     ...(f.daftar && can('daftar.manage') ? [{ key: 'daftar', label: d.daftar.title, icon: 'book' as const, color: c.sq.g, onPress: () => router.push('/daftar') }] : []),

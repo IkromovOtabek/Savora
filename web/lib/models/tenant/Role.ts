@@ -30,7 +30,7 @@ export const DEFAULT_ROLES: { name: string; permissions: PermissionKey[]; permVe
   {
     name: 'Kassir',
     permissions: [
-      'sale.create', 'sales.view', 'kassa.view', 'kassa.shift', 'customers.view', 'customers.manage',
+      'sale.create', 'sales.view', 'kassa.view', 'kassa.shift', 'kassa.expense', 'customers.view', 'customers.manage',
       'debts.view', 'payment.accept', 'nasiya.view', 'tasks.view', 'profile.password',
     ],
     permVersion: PERMISSIONS_VERSION,
@@ -38,7 +38,7 @@ export const DEFAULT_ROLES: { name: string; permissions: PermissionKey[]; permVe
   {
     name: 'Sotuvchi',
     permissions: [
-      'sale.create', 'sale.discount', 'sales.view', 'kassa.view', 'kassa.shift',
+      'sale.create', 'sale.discount', 'sales.view', 'kassa.view', 'kassa.shift', 'kassa.expense',
       'products.view', 'product.create', 'transfer.create', 'inventory.view', 'transferred.view',
       'customers.view', 'customers.manage', 'debts.view', 'payment.accept', 'nasiya.view',
       'daftar.manage', 'daftar.delete', 'tasks.view', 'profile.password',
@@ -49,7 +49,7 @@ export const DEFAULT_ROLES: { name: string; permissions: PermissionKey[]; permVe
     name: 'Menejer',
     permissions: [
       'sale.create', 'sale.discount', 'sale.editPrice', 'sales.view', 'sale.cancel', 'sale.return',
-      'kassa.view', 'kassa.shift',
+      'kassa.view', 'kassa.shift', 'kassa.expense',
       'products.view', 'product.create', 'product.edit', 'product.delete', 'product.viewCost', 'catalog.manage', 'transfer.create',
       'inventory.view', 'stock.adjust', 'stock.writeOff', 'transferred.view', 'suppliers.view', 'suppliers.manage', 'suppliers.delete',
       'customers.view', 'customers.manage', 'debts.view', 'payment.accept', 'nasiya.view', 'daftar.manage', 'daftar.delete',
@@ -85,7 +85,7 @@ export const RESTAURANT_ROLES: { name: string; permissions: PermissionKey[]; per
     // Mavjud «Kassir» + barcha buyurtmalar, to'lov, hisobni bo'lish, bronlar
     name: 'Kassir (restoran)',
     permissions: [
-      'sale.create', 'sales.view', 'kassa.view', 'kassa.shift', 'customers.view', 'customers.manage',
+      'sale.create', 'sales.view', 'kassa.view', 'kassa.shift', 'kassa.expense', 'customers.view', 'customers.manage',
       'debts.view', 'payment.accept', 'order.create', 'order.viewAll', 'order.split', 'reservation.manage', 'tasks.view', 'profile.password',
     ],
     permVersion: PERMISSIONS_VERSION,
@@ -94,7 +94,7 @@ export const RESTAURANT_ROLES: { name: string; permissions: PermissionKey[]; per
     // Stol o'tkazish, bekor qilish, qayta ochish, chegirma, stollar sozlamasi, bronlar, hisobotlar, hisobdan chiqarish
     name: 'Administrator',
     permissions: [
-      'sale.create', 'sale.discount', 'sales.view', 'sale.cancel', 'sale.return', 'kassa.view', 'kassa.shift',
+      'sale.create', 'sale.discount', 'sales.view', 'sale.cancel', 'sale.return', 'kassa.view', 'kassa.shift', 'kassa.expense',
       'products.view', 'product.edit', 'stock.writeOff', 'customers.view', 'debts.view', 'payment.accept',
       'order.create', 'order.viewAll', 'order.transfer', 'order.voidItem', 'order.split', 'order.reopen',
       'kitchen.view', 'kitchen.bump', 'menu.stopList', 'tables.manage', 'reservation.manage',

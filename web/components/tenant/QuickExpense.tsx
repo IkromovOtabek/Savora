@@ -2,7 +2,7 @@
 
 import { useActionState, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { createQuickExpenseAction } from '@/app/actions/finance';
+import { createBranchExpenseAction, createQuickExpenseAction } from '@/app/actions/finance';
 import { useToastOnState } from '@/lib/useToastOnState';
 import PriceInput from '@/components/ui/PriceInput';
 import FinanceCategorySelect from '@/components/tenant/FinanceCategorySelect';
@@ -12,13 +12,16 @@ import { useDict } from '@/lib/i18n/client';
 /**
  * Tez «Xarajat qo'shish»: bosh sahifa va kassada (smenasiz do'konlar ham ishlatadi).
  * Toifa majburiy — yozuv Hisobotdagi sof foydadan ayiriladi.
+ * owner — do'kon egasi: filialni tanlaydi, toifani shu yerda qo'sha/tahrirlay oladi;
+ * branch — filial xodimi («Xarajat yozish» huquqi): pul o'z filiali kassasidan, toifa faqat ro'yxatdan.
  */
-export default function QuickExpense({ categories, branches, variant = 'tile' }: {
+export default function QuickExpense({ categories, branches = [], variant = 'tile', mode = 'owner' }: {
   /** Faol xarajat toifalari (tizimdan tashqari) */
   categories: string[];
-  branches: { id: string; name: string }[];
+  branches?: { id: string; name: string }[];
   /** tile — bosh sahifadagi «Tezkor amallar» plitkasi; button — sahifa sarlavhasidagi tugma */
   variant?: 'tile' | 'button';
+  mode?: 'owner' | 'branch';
 }) {
   const d = useDict();
   const f = d.sales.fin;
@@ -26,7 +29,8 @@ export default function QuickExpense({ categories, branches, variant = 'tile' }:
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [category, setCategory] = useState(categories[0] ?? '');
-  const [state, action, pending] = useActionState(createQuickExpenseAction, null);
+  const isBranch = mode === 'branch';
+  const [state, action, pending] = useActionState(isBranch ? createBranchExpenseAction : createQuickExpenseAction, null);
   useToastOnState(state);
 
   // Saqlangach — oyna yopiladi, sahifa raqamlari yangilanadi
@@ -72,23 +76,31 @@ export default function QuickExpense({ categories, branches, variant = 'tile' }:
               </button>
             </div>
             <form action={action}>
-              <p className="field-hint" style={{ margin: 0 }}>{f.qeHint}</p>
+              <p className="field-hint" style={{ margin: 0 }}>{isBranch ? f.qeHintBranch : f.qeHint}</p>
               <div className="auth-field">
                 <label htmlFor="qe-amount">{f.amount}</label>
                 <PriceInput id="qe-amount" name="amount" required placeholder="0" disabled={pending} />
               </div>
               <div className="auth-field">
                 <label htmlFor="qe-cat">{f.category}</label>
-                {/* Ichida «+» — yangi toifa; o'ngda tanlanganini tahrirlash/o'chirish */}
-                <FinanceCategorySelect id="qe-cat" type="expense" categories={categories} value={category} onChange={setCategory} required disabled={pending} />
+                {isBranch ? (
+                  // Filial xodimi toifani boshqarmaydi — egasi qo'shgan ro'yxatdan tanlaydi
+                  <select id="qe-cat" name="category" value={category} onChange={(e) => setCategory(e.target.value)} required disabled={pending}>
+                    {categories.length === 0 && <option value="">{f.qeNoCategory}</option>}
+                    {categories.map((n) => <option key={n} value={n}>{n}</option>)}
+                  </select>
+                ) : (
+                  // Ichida «+» — yangi toifa; o'ngda tanlanganini tahrirlash/o'chirish
+                  <FinanceCategorySelect id="qe-cat" type="expense" categories={categories} value={category} onChange={setCategory} required disabled={pending} />
+                )}
               </div>
               <div className="auth-field">
                 <label htmlFor="qe-note">{f.qeNote}</label>
                 <input id="qe-note" name="note" maxLength={300} placeholder={f.qeNotePh} autoComplete="off" disabled={pending} />
               </div>
-              {/* Bitta filial — avtomatik o'sha (filial foydasida ko'rinadi); bir nechta — tanlanadi */}
-              {branches.length === 1 && <input type="hidden" name="branchId" value={branches[0].id} />}
-              {branches.length > 1 && (
+              {/* Bitta filial — avtomatik o'sha (filial foydasida ko'rinadi); bir nechta — tanlanadi. Filial xodimi — doim o'z filiali (server) */}
+              {!isBranch && branches.length === 1 && <input type="hidden" name="branchId" value={branches[0].id} />}
+              {!isBranch && branches.length > 1 && (
                 <div className="auth-field">
                   <label htmlFor="qe-branch">{f.branch}</label>
                   <select id="qe-branch" name="branchId" defaultValue="" disabled={pending}>

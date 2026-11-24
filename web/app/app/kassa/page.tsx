@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { getTenantSession } from '@/lib/tenantSession';
 import Icon from '@/components/icons/Icon';
 import { isBranchScoped } from '@/lib/branchScope';
+import { userCan } from '@/lib/permissionGuard';
 import { KASSA_SALE_FILTER } from '@/lib/kassa';
 import NaxtKassaCards, { KassaCard } from '@/components/tenant/NaxtKassaCards';
 import QuickExpense from '@/components/tenant/QuickExpense';
@@ -36,8 +37,10 @@ export default async function KassaPage() {
   ]);
   const bankByBranch = new Map(bankAgg.map((x) => [x._id ? String(x._id) : '', x.total]));
   const adminTotal = expenseAgg[0]?.total ?? 0;
-  // Xarajat qo'shish — do'kon egasi («Kirim-Chiqim» moduli); kassa «Chiqim» summasiga ham kiradi
-  const canExpense = user.role === 'admin' && features.kirimChiqim;
+  // Xarajat qo'shish — do'kon egasi («Kirim-Chiqim» moduli); kassa «Chiqim» summasiga ham kiradi.
+  // Filial xodimi — «Xarajat yozish» huquqi bilan, o'z filiali kassasidan (lib/branchExpense)
+  const branchExpense = isBranchScoped(user) && features.kirimChiqim && (await userCan(user, 'kassa.expense'));
+  const canExpense = (user.role === 'admin' && features.kirimChiqim) || branchExpense;
   const expenseCategories = canExpense ? await loadExpenseCategories(FinanceCategory) : [];
 
   // Filial bo'yicha naqd tushum
@@ -89,6 +92,7 @@ export default async function KassaPage() {
           {canExpense && (
             <QuickExpense
               variant="button"
+              mode={branchExpense ? 'branch' : 'owner'}
               categories={expenseCategories}
               branches={allBranches.map((b) => ({ id: String(b._id), name: b.name }))}
             />

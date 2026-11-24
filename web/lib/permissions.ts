@@ -28,6 +28,7 @@ export const PERMISSION_KEYS = [
   // Naqd kassa va smenalar
   'kassa.view',
   'kassa.shift',
+  'kassa.expense',
   // Ombor
   'products.view',
   'product.create',
@@ -207,6 +208,8 @@ export const PERMISSIONS: Record<PermissionKey, PermissionDef> = {
 
   'kassa.view': P('kassa.view', 'kassa', "Kassani ko'rish", 'Naqd kassa, kunlik tushum va smenalar tarixi', { feature: 'kassa' }),
   'kassa.shift': P('kassa.shift', 'kassa', 'Smena ochish/yopish', "Smenani ochish-yopish, kassaga pul kiritish/olish", { feature: 'kassa' }),
+  // Toifali xarajat (sof foydadan ayiriladi) — o'z filiali kassasidan; ilgari kassadan pul ola olgan xodimga meros (lib/branchExpense)
+  'kassa.expense': P('kassa.expense', 'kassa', 'Xarajat yozish', "O'z filiali kassasidan toifali xarajat (ijara, transport…) — sof foydadan ayiriladi", { feature: 'kirimChiqim', legacy: 'kassa.shift', since: 7 }),
 
   'products.view': P('products.view', 'products', "Omborni ko'rish", "Mahsulotlar ro'yxati va mahsulot kartochkasi", { feature: 'products', legacy: 'open' }),
   'product.create': P('product.create', 'products', "Mahsulot qo'shish", "Yangi mahsulot, shtrix-kod bo'yicha qidirish", { feature: 'products' }),
@@ -281,9 +284,10 @@ export const PERMISSIONS: Record<PermissionKey, PermissionDef> = {
  * kalitlar `legacy` qoidasi bilan qo'shiladi.
  *   2 — sahifalar bo'yicha bo'lingan huquqlar; 3 — restoran (order.*, kitchen.*, menu.stopList, tables.manage);
  *   4 — ishlab chiqarish va kirim (production.*, recipe.manage, receipt.create, po.manage, piecework.*);
- *   5 — restoran bronlari (reservation.manage); 6 — sotuvni tahrirlash (sale.edit).
+ *   5 — restoran bronlari (reservation.manage); 6 — sotuvni tahrirlash (sale.edit);
+ *   7 — filial xarajati (kassa.expense).
  */
-export const PERMISSIONS_VERSION = 6;
+export const PERMISSIONS_VERSION = 7;
 
 /** `since` ko'rsatilmagan legacy huquqlar 2-versiyada qo'shilgan */
 const DEFAULT_SINCE = 2;
@@ -305,6 +309,7 @@ export const ROLE_DEFAULT_PERMISSIONS: Record<TenantRole, readonly PermissionKey
     'sales.view',
     'kassa.view',
     'kassa.shift',
+    'kassa.expense',
     'products.view',
     'product.create',
     'product.edit',

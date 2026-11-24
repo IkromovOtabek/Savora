@@ -1,7 +1,9 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { getTenantAdminSession } from '@/lib/tenantSession';
+import { getTenantAdminSession, getTenantSession } from '@/lib/tenantSession';
+import { checkPermission } from '@/lib/permissionGuard';
+import { addBranchExpense } from '@/lib/branchExpense';
 import { recordAudit } from '@/lib/audit';
 import { featureDisabledError } from '@/lib/featureAction';
 import { getDict } from '@/lib/i18n/server';
@@ -272,6 +274,35 @@ export async function createQuickExpenseAction(_prev: State, formData: FormData)
   } catch {
     return { error: m.saveFailed };
   }
+}
+
+/**
+ * Filial xodimining xarajati (kassa, bosh sahifa): filial — o'zi, toifa majburiy, ochiq smena bo'lsa
+ * kassadagi puldan oshmaydi (lib/branchExpense). Huquq: «Xarajat yozish» (kassa.expense, Kirim-chiqim moduli).
+ */
+export async function createBranchExpenseAction(_prev: State, formData: FormData): Promise<State> {
+  const session = await getTenantSession();
+  const { user } = session;
+  // Modul o'chiq bo'lsa — checkPermission «modul o'chirilgan» xabarini qaytaradi
+  const denied = await checkPermission(user, 'kassa.expense');
+  if (denied) return denied;
+  const d = await getDict();
+  const f = d.sales.fin;
+  const parsed = parseInput(z.object({
+    amount: zMoney(d.sales.actions.badAmount, { min: 1 }),
+    category: zReqText(60, f.badCategory, d.common.tooLong),
+    note: zText(300, d.common.tooLong),
+  }), formToObject(formData), d.sales.actions.badAmount);
+  if (!parsed.ok) return { error: parsed.error };
+
+  const res = await addBranchExpense(user, session, { fin: f, shifts: d.sales.shifts }, parsed.data);
+  if ('error' in res) return res;
+  revalidatePath('/app');
+  revalidatePath('/app/kassa');
+  revalidatePath('/app/shifts');
+  revalidatePath('/app/finance');
+  revalidatePath('/app/monitoring');
+  return res;
 }
 
 export async function createFinanceCategoryAction(_prev: State, formData: FormData): Promise<State> {
