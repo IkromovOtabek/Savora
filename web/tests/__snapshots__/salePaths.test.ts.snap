@@ -1,0 +1,1006 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`sotuv yo'llari — hozirgi xatti-harakat (MongoDB) > POS: ikki tovar, foiz chegirma, aralash to'lov (naqd + click), qaytim 1`] = `
+{
+  "done": {
+    "change": 70000,
+    "debt": 0,
+    "n": 2,
+    "total": 630000,
+  },
+  "saleIds": 2,
+  "success": "3 ta sotildi · 630 000 so'm",
+}
+`;
+
+exports[`sotuv yo'llari — hozirgi xatti-harakat (MongoDB) > POS: ikki tovar, foiz chegirma, aralash to'lov (naqd + click), qaytim 2`] = `
+[
+  {
+    "bankName": undefined,
+    "bankParts": undefined,
+    "clientSaleId": undefined,
+    "customer": undefined,
+    "discount": 30000,
+    "downPayment": undefined,
+    "dueInDays": undefined,
+    "hasCheckout": true,
+    "hasCustomerId": false,
+    "installmentMonths": undefined,
+    "notes": undefined,
+    "paidAmount": 270000,
+    "payDay": undefined,
+    "paymentType": "cash",
+    "payments": [
+      {
+        "amount": 30000,
+        "balanceAfter": undefined,
+        "method": "cash",
+        "months": undefined,
+        "note": undefined,
+      },
+      {
+        "amount": 240000,
+        "balanceAfter": undefined,
+        "method": "click",
+        "months": undefined,
+        "note": undefined,
+      },
+    ],
+    "product": "Tovar 11",
+    "purchasePrice": 700000,
+    "qty": 1,
+    "remainingAmount": 0,
+    "soldBy": "egasi",
+    "status": "paid",
+    "totalAmount": 270000,
+  },
+  {
+    "bankName": undefined,
+    "bankParts": undefined,
+    "clientSaleId": undefined,
+    "customer": undefined,
+    "discount": 40000,
+    "downPayment": undefined,
+    "dueInDays": undefined,
+    "hasCheckout": true,
+    "hasCustomerId": false,
+    "installmentMonths": undefined,
+    "notes": undefined,
+    "paidAmount": 360000,
+    "payDay": undefined,
+    "paymentType": "cash",
+    "payments": [
+      {
+        "amount": 360000,
+        "balanceAfter": undefined,
+        "method": "click",
+        "months": undefined,
+        "note": undefined,
+      },
+    ],
+    "product": "Tovar 12",
+    "purchasePrice": 700000,
+    "qty": 2,
+    "remainingAmount": 0,
+    "soldBy": "egasi",
+    "status": "paid",
+    "totalAmount": 360000,
+  },
+]
+`;
+
+exports[`sotuv yo'llari — hozirgi xatti-harakat (MongoDB) > POS: narxni o'zgartirish huquqisiz — rad 1`] = `
+{
+  "error": "«Narxni o'zgartirish» huquqi yo'q. Do'kon egasiga murojaat qiling.",
+}
+`;
+
+exports[`sotuv yo'llari — hozirgi xatti-harakat (MongoDB) > POS: nasiya 3 oy 1`] = `
+[
+  {
+    "bankName": undefined,
+    "bankParts": undefined,
+    "clientSaleId": undefined,
+    "customer": {
+      "fullName": "Hasan",
+      "phone": "+998 90 111 22 44",
+    },
+    "discount": undefined,
+    "downPayment": 100000,
+    "dueInDays": 92,
+    "hasCheckout": true,
+    "hasCustomerId": true,
+    "installmentMonths": 3,
+    "notes": undefined,
+    "paidAmount": 100000,
+    "payDay": undefined,
+    "paymentType": "installment",
+    "payments": [
+      {
+        "amount": 100000,
+        "balanceAfter": undefined,
+        "method": "cash",
+        "months": undefined,
+        "note": "Boshlang'ich to'lov",
+      },
+    ],
+    "product": "Tovar 14",
+    "purchasePrice": 700000,
+    "qty": 1,
+    "remainingAmount": 900000,
+    "soldBy": "egasi",
+    "status": "partial",
+    "totalAmount": 1000000,
+  },
+]
+`;
+
+exports[`sotuv yo'llari — hozirgi xatti-harakat (MongoDB) > POS: qarzga, qisman to'lov, mijoz telefon bo'yicha 1`] = `
+{
+  "done": {
+    "change": 0,
+    "debt": 750000,
+    "n": 1,
+    "total": 1000000,
+  },
+  "saleIds": 1,
+  "success": "1 ta sotildi · 1 000 000 so'm",
+}
+`;
+
+exports[`sotuv yo'llari — hozirgi xatti-harakat (MongoDB) > POS: qarzga, qisman to'lov, mijoz telefon bo'yicha 2`] = `
+[
+  {
+    "bankName": undefined,
+    "bankParts": undefined,
+    "clientSaleId": undefined,
+    "customer": {
+      "fullName": "Vali",
+      "phone": "+998 90 111 22 33",
+    },
+    "discount": undefined,
+    "downPayment": undefined,
+    "dueInDays": 4,
+    "hasCheckout": true,
+    "hasCustomerId": true,
+    "installmentMonths": undefined,
+    "notes": undefined,
+    "paidAmount": 250000,
+    "payDay": undefined,
+    "paymentType": "debt",
+    "payments": [
+      {
+        "amount": 250000,
+        "balanceAfter": undefined,
+        "method": "cash",
+        "months": undefined,
+        "note": "Boshlang'ich to'lov",
+      },
+    ],
+    "product": "Tovar 13",
+    "purchasePrice": 700000,
+    "qty": 1,
+    "remainingAmount": 750000,
+    "soldBy": "egasi",
+    "status": "partial",
+    "totalAmount": 1000000,
+  },
+]
+`;
+
+exports[`sotuv yo'llari — hozirgi xatti-harakat (MongoDB) > mobil: bank + nasiya 1`] = `
+[
+  {
+    "bankName": "Ipak Yo'li",
+    "bankParts": [
+      {
+        "amount": 600000,
+        "bankName": "Ipak Yo'li",
+      },
+    ],
+    "clientSaleId": undefined,
+    "customer": {
+      "fullName": "Ali Valiyev",
+      "phone": "+998 90 123 45 67",
+    },
+    "discount": undefined,
+    "downPayment": 200000,
+    "dueInDays": 120,
+    "hasCheckout": true,
+    "hasCustomerId": true,
+    "installmentMonths": 4,
+    "notes": undefined,
+    "paidAmount": 200000,
+    "payDay": undefined,
+    "paymentType": "installment",
+    "payments": [
+      {
+        "amount": 200000,
+        "balanceAfter": undefined,
+        "method": "cash",
+        "months": undefined,
+        "note": "Boshlang'ich to'lov",
+      },
+    ],
+    "product": "Tovar 19",
+    "purchasePrice": 700000,
+    "qty": 1,
+    "remainingAmount": 400000,
+    "soldBy": "egasi",
+    "status": "partial",
+    "totalAmount": 1200000,
+  },
+]
+`;
+
+exports[`sotuv yo'llari — hozirgi xatti-harakat (MongoDB) > mobil: naqd mijozsiz, karta usuli 1`] = `
+{
+  "error": undefined,
+  "status": 201,
+}
+`;
+
+exports[`sotuv yo'llari — hozirgi xatti-harakat (MongoDB) > mobil: naqd mijozsiz, karta usuli 2`] = `
+[
+  {
+    "bankName": undefined,
+    "bankParts": undefined,
+    "clientSaleId": undefined,
+    "customer": undefined,
+    "discount": undefined,
+    "downPayment": undefined,
+    "dueInDays": undefined,
+    "hasCheckout": true,
+    "hasCustomerId": false,
+    "installmentMonths": undefined,
+    "notes": undefined,
+    "paidAmount": 1000000,
+    "payDay": undefined,
+    "paymentType": "cash",
+    "payments": [
+      {
+        "amount": 1000000,
+        "balanceAfter": undefined,
+        "method": "uzcard",
+        "months": undefined,
+        "note": undefined,
+      },
+    ],
+    "product": "Tovar 16",
+    "purchasePrice": 700000,
+    "qty": 1,
+    "remainingAmount": 0,
+    "soldBy": "egasi",
+    "status": "paid",
+    "totalAmount": 1000000,
+  },
+]
+`;
+
+exports[`sotuv yo'llari — hozirgi xatti-harakat (MongoDB) > mobil: nasiya 70 oy (60 gacha qisqaradi), to'lov kuni 1`] = `
+{
+  "error": undefined,
+  "status": 201,
+}
+`;
+
+exports[`sotuv yo'llari — hozirgi xatti-harakat (MongoDB) > mobil: nasiya 70 oy (60 gacha qisqaradi), to'lov kuni 2`] = `
+[
+  {
+    "bankName": undefined,
+    "bankParts": undefined,
+    "clientSaleId": undefined,
+    "customer": {
+      "fullName": "Ali Valiyev",
+      "phone": "+998 90 123 45 67",
+    },
+    "discount": undefined,
+    "downPayment": 200000,
+    "dueInDays": 1811,
+    "hasCheckout": true,
+    "hasCustomerId": true,
+    "installmentMonths": 60,
+    "notes": undefined,
+    "paidAmount": 200000,
+    "payDay": 10,
+    "paymentType": "installment",
+    "payments": [
+      {
+        "amount": 200000,
+        "balanceAfter": undefined,
+        "method": "cash",
+        "months": undefined,
+        "note": "Boshlang'ich to'lov",
+      },
+    ],
+    "product": "Tovar 17",
+    "purchasePrice": 700000,
+    "qty": 1,
+    "remainingAmount": 1000000,
+    "soldBy": "egasi",
+    "status": "partial",
+    "totalAmount": 1200000,
+  },
+]
+`;
+
+exports[`sotuv yo'llari — hozirgi xatti-harakat (MongoDB) > mobil: qarz, clientSaleId bilan ikki marta — bitta sotuv 1`] = `
+[
+  {
+    "error": undefined,
+    "status": 201,
+  },
+  {
+    "error": undefined,
+    "status": 200,
+  },
+]
+`;
+
+exports[`sotuv yo'llari — hozirgi xatti-harakat (MongoDB) > mobil: qarz, clientSaleId bilan ikki marta — bitta sotuv 2`] = `
+[
+  {
+    "bankName": undefined,
+    "bankParts": undefined,
+    "clientSaleId": "3f2a9c1e-7b4d-4e8a-9f10-2c6d8e4b1a18",
+    "customer": {
+      "fullName": "Ali Valiyev",
+      "phone": "+998 90 123 45 67",
+    },
+    "discount": undefined,
+    "downPayment": undefined,
+    "dueInDays": undefined,
+    "hasCheckout": true,
+    "hasCustomerId": true,
+    "installmentMonths": undefined,
+    "notes": undefined,
+    "paidAmount": 0,
+    "payDay": undefined,
+    "paymentType": "debt",
+    "payments": [],
+    "product": "Tovar 18",
+    "purchasePrice": 700000,
+    "qty": 1,
+    "remainingAmount": 1000000,
+    "soldBy": "egasi",
+    "status": "partial",
+    "totalAmount": 1000000,
+  },
+]
+`;
+
+exports[`sotuv yo'llari — hozirgi xatti-harakat (MongoDB) > tezkor sotuv (bosh sahifa): ikki tovar, biri o'zgargan narx 1`] = `
+{
+  "success": "4 ta sotildi · 1 100 000 so'm",
+}
+`;
+
+exports[`sotuv yo'llari — hozirgi xatti-harakat (MongoDB) > tezkor sotuv (bosh sahifa): ikki tovar, biri o'zgargan narx 2`] = `
+[
+  {
+    "bankName": undefined,
+    "bankParts": undefined,
+    "clientSaleId": undefined,
+    "customer": undefined,
+    "discount": undefined,
+    "downPayment": undefined,
+    "dueInDays": undefined,
+    "hasCheckout": false,
+    "hasCustomerId": false,
+    "installmentMonths": undefined,
+    "notes": undefined,
+    "paidAmount": 950000,
+    "payDay": undefined,
+    "paymentType": "cash",
+    "payments": [
+      {
+        "amount": 950000,
+        "balanceAfter": undefined,
+        "method": undefined,
+        "months": undefined,
+        "note": undefined,
+      },
+    ],
+    "product": "Tovar 20",
+    "purchasePrice": 700000,
+    "qty": 1,
+    "remainingAmount": 0,
+    "soldBy": "egasi",
+    "status": "paid",
+    "totalAmount": 950000,
+  },
+  {
+    "bankName": undefined,
+    "bankParts": undefined,
+    "clientSaleId": undefined,
+    "customer": undefined,
+    "discount": undefined,
+    "downPayment": undefined,
+    "dueInDays": undefined,
+    "hasCheckout": false,
+    "hasCustomerId": false,
+    "installmentMonths": undefined,
+    "notes": undefined,
+    "paidAmount": 150000,
+    "payDay": undefined,
+    "paymentType": "cash",
+    "payments": [
+      {
+        "amount": 150000,
+        "balanceAfter": undefined,
+        "method": undefined,
+        "months": undefined,
+        "note": undefined,
+      },
+    ],
+    "product": "Tovar 21",
+    "purchasePrice": 700000,
+    "qty": 3,
+    "remainingAmount": 0,
+    "soldBy": "egasi",
+    "status": "paid",
+    "totalAmount": 150000,
+  },
+]
+`;
+
+exports[`sotuv yo'llari — hozirgi xatti-harakat (MongoDB) > to'lov: mobil — nasiyaga to'lov 1`] = `200`;
+
+exports[`sotuv yo'llari — hozirgi xatti-harakat (MongoDB) > to'lov: mobil — nasiyaga to'lov 2`] = `
+{
+  "bankName": undefined,
+  "bankParts": undefined,
+  "clientSaleId": undefined,
+  "customer": {
+    "fullName": "Ali Valiyev",
+    "phone": "+998 90 123 45 67",
+  },
+  "discount": undefined,
+  "downPayment": 0,
+  "dueInDays": 120,
+  "hasCheckout": false,
+  "hasCustomerId": true,
+  "installmentMonths": 4,
+  "notes": undefined,
+  "paidAmount": 350000,
+  "payDay": undefined,
+  "paymentType": "installment",
+  "payments": [
+    {
+      "amount": 350000,
+      "balanceAfter": undefined,
+      "method": "humo",
+      "months": undefined,
+      "note": "1–2-oy (2-oy qisman)",
+    },
+  ],
+  "product": "Tovar 24",
+  "purchasePrice": 700000,
+  "qty": 1,
+  "remainingAmount": 850000,
+  "soldBy": "egasi",
+  "status": "partial",
+  "totalAmount": 1200000,
+}
+`;
+
+exports[`sotuv yo'llari — hozirgi xatti-harakat (MongoDB) > to'lov: ommaviy — mijozning qarzlariga taqsimlanadi 1`] = `
+{
+  "success": "Ommaviy Mijoz: 600 000 so'm 2 ta qarzga taqsimlandi",
+}
+`;
+
+exports[`sotuv yo'llari — hozirgi xatti-harakat (MongoDB) > to'lov: ommaviy — mijozning qarzlariga taqsimlanadi 2`] = `
+[
+  {
+    "bankName": undefined,
+    "bankParts": undefined,
+    "clientSaleId": undefined,
+    "customer": {
+      "fullName": "Ommaviy Mijoz",
+      "phone": "9055500006",
+    },
+    "discount": undefined,
+    "downPayment": undefined,
+    "dueInDays": 2,
+    "hasCheckout": false,
+    "hasCustomerId": true,
+    "installmentMonths": undefined,
+    "notes": undefined,
+    "paidAmount": 200000,
+    "payDay": undefined,
+    "paymentType": "debt",
+    "payments": [
+      {
+        "amount": 200000,
+        "balanceAfter": undefined,
+        "method": "cash",
+        "months": undefined,
+        "note": "Ommaviy to'lov",
+      },
+    ],
+    "product": "Tovar 25",
+    "purchasePrice": 700000,
+    "qty": 1,
+    "remainingAmount": 300000,
+    "soldBy": "egasi",
+    "status": "partial",
+    "totalAmount": 500000,
+  },
+  {
+    "bankName": undefined,
+    "bankParts": undefined,
+    "clientSaleId": undefined,
+    "customer": {
+      "fullName": "Ommaviy Mijoz",
+      "phone": "9055500006",
+    },
+    "discount": undefined,
+    "downPayment": undefined,
+    "dueInDays": 0,
+    "hasCheckout": false,
+    "hasCustomerId": true,
+    "installmentMonths": undefined,
+    "notes": undefined,
+    "paidAmount": 400000,
+    "payDay": undefined,
+    "paymentType": "debt",
+    "payments": [
+      {
+        "amount": 400000,
+        "balanceAfter": undefined,
+        "method": "cash",
+        "months": undefined,
+        "note": "Ommaviy to'lov",
+      },
+    ],
+    "product": "Tovar 26",
+    "purchasePrice": 700000,
+    "qty": 1,
+    "remainingAmount": 0,
+    "soldBy": "egasi",
+    "status": "paid",
+    "totalAmount": 400000,
+  },
+]
+`;
+
+exports[`sotuv yo'llari — hozirgi xatti-harakat (MongoDB) > to'lov: web — nasiyaga qisman to'lov, qolgani keyingi oylarga 1`] = `
+{
+  "paymentId": "string",
+  "success": "To'lov qo'shildi.",
+}
+`;
+
+exports[`sotuv yo'llari — hozirgi xatti-harakat (MongoDB) > to'lov: web — nasiyaga qisman to'lov, qolgani keyingi oylarga 2`] = `
+{
+  "bankName": undefined,
+  "bankParts": undefined,
+  "clientSaleId": undefined,
+  "customer": {
+    "fullName": "Ali Valiyev",
+    "phone": "+998 90 123 45 67",
+  },
+  "discount": undefined,
+  "downPayment": 0,
+  "dueInDays": 120,
+  "hasCheckout": false,
+  "hasCustomerId": true,
+  "installmentMonths": 4,
+  "notes": undefined,
+  "paidAmount": 200000,
+  "payDay": undefined,
+  "paymentType": "installment",
+  "payments": [
+    {
+      "amount": 200000,
+      "balanceAfter": 1000000,
+      "method": "cash",
+      "months": undefined,
+      "note": "1-oy (qisman) · 100 000 so'm 2–4-oylarga bo'lindi",
+    },
+  ],
+  "product": "Tovar 23",
+  "purchasePrice": 700000,
+  "qty": 1,
+  "remainingAmount": 1000000,
+  "soldBy": "egasi",
+  "status": "partial",
+  "totalAmount": 1200000,
+}
+`;
+
+exports[`sotuv yo'llari — hozirgi xatti-harakat (MongoDB) > web: bank + nasiya (oylar) va bank + qarz (kunlar) 1`] = `
+[
+  {
+    "bankName": "Ipak Yo'li",
+    "bankParts": [
+      {
+        "amount": 600000,
+        "bankName": "Ipak Yo'li",
+      },
+    ],
+    "clientSaleId": undefined,
+    "customer": {
+      "fullName": "Ali Valiyev",
+      "phone": "+998 90 123 45 67",
+    },
+    "discount": undefined,
+    "downPayment": 200000,
+    "dueInDays": 120,
+    "hasCheckout": false,
+    "hasCustomerId": true,
+    "installmentMonths": 4,
+    "notes": undefined,
+    "paidAmount": 200000,
+    "payDay": undefined,
+    "paymentType": "installment",
+    "payments": [
+      {
+        "amount": 200000,
+        "balanceAfter": undefined,
+        "method": undefined,
+        "months": undefined,
+        "note": "Boshlang'ich to'lov",
+      },
+    ],
+    "product": "Tovar 6",
+    "purchasePrice": 700000,
+    "qty": 1,
+    "remainingAmount": 400000,
+    "soldBy": "egasi",
+    "status": "partial",
+    "totalAmount": 1200000,
+  },
+  {
+    "bankName": "Anorbank",
+    "bankParts": [
+      {
+        "amount": 700000,
+        "bankName": "Anorbank",
+      },
+    ],
+    "clientSaleId": undefined,
+    "customer": {
+      "fullName": "Ali Valiyev",
+      "phone": "+998 90 123 45 67",
+    },
+    "discount": undefined,
+    "downPayment": undefined,
+    "dueInDays": 6,
+    "hasCheckout": false,
+    "hasCustomerId": true,
+    "installmentMonths": undefined,
+    "notes": undefined,
+    "paidAmount": 0,
+    "payDay": undefined,
+    "paymentType": "debt",
+    "payments": [],
+    "product": "Tovar 7",
+    "purchasePrice": 700000,
+    "qty": 1,
+    "remainingAmount": 300000,
+    "soldBy": "egasi",
+    "status": "partial",
+    "totalAmount": 1000000,
+  },
+]
+`;
+
+exports[`sotuv yo'llari — hozirgi xatti-harakat (MongoDB) > web: bank krediti, ikki bank 1`] = `
+[
+  {
+    "bankName": "Ipak Yo'li, Anorbank",
+    "bankParts": [
+      {
+        "amount": 500000,
+        "bankName": "Ipak Yo'li",
+      },
+      {
+        "amount": 400000,
+        "bankName": "Anorbank",
+      },
+    ],
+    "clientSaleId": undefined,
+    "customer": {
+      "fullName": "Ali Valiyev",
+      "phone": "+998 90 123 45 67",
+    },
+    "discount": undefined,
+    "downPayment": undefined,
+    "dueInDays": undefined,
+    "hasCheckout": false,
+    "hasCustomerId": true,
+    "installmentMonths": undefined,
+    "notes": undefined,
+    "paidAmount": 100000,
+    "payDay": undefined,
+    "paymentType": "bank_credit",
+    "payments": [
+      {
+        "amount": 100000,
+        "balanceAfter": undefined,
+        "method": undefined,
+        "months": undefined,
+        "note": "Boshlang'ich to'lov",
+      },
+    ],
+    "product": "Tovar 5",
+    "purchasePrice": 700000,
+    "qty": 1,
+    "remainingAmount": 900000,
+    "soldBy": "egasi",
+    "status": "partial",
+    "totalAmount": 1000000,
+  },
+]
+`;
+
+exports[`sotuv yo'llari — hozirgi xatti-harakat (MongoDB) > web: chegirma huquqisiz arzon sotish — rad 1`] = `
+{
+  "error": "«Chegirma berish» huquqi yo'q. Do'kon egasiga murojaat qiling.",
+}
+`;
+
+exports[`sotuv yo'llari — hozirgi xatti-harakat (MongoDB) > web: ko'p tovar, chegirma bilan jami — qatorlarga bo'linadi 1`] = `
+[
+  {
+    "bankName": undefined,
+    "bankParts": undefined,
+    "clientSaleId": undefined,
+    "customer": {
+      "fullName": "Ali Valiyev",
+      "phone": "+998 90 123 45 67",
+    },
+    "discount": undefined,
+    "downPayment": undefined,
+    "dueInDays": undefined,
+    "hasCheckout": true,
+    "hasCustomerId": true,
+    "installmentMonths": undefined,
+    "notes": undefined,
+    "paidAmount": 214286,
+    "payDay": undefined,
+    "paymentType": "debt",
+    "payments": [
+      {
+        "amount": 214286,
+        "balanceAfter": undefined,
+        "method": undefined,
+        "months": undefined,
+        "note": "Boshlang'ich to'lov",
+      },
+    ],
+    "product": "Tovar 8",
+    "purchasePrice": 700000,
+    "qty": 1,
+    "remainingAmount": 342857,
+    "soldBy": "egasi",
+    "status": "partial",
+    "totalAmount": 557143,
+  },
+  {
+    "bankName": undefined,
+    "bankParts": undefined,
+    "clientSaleId": undefined,
+    "customer": {
+      "fullName": "Ali Valiyev",
+      "phone": "+998 90 123 45 67",
+    },
+    "discount": undefined,
+    "downPayment": undefined,
+    "dueInDays": undefined,
+    "hasCheckout": true,
+    "hasCustomerId": true,
+    "installmentMonths": undefined,
+    "notes": undefined,
+    "paidAmount": 285714,
+    "payDay": undefined,
+    "paymentType": "debt",
+    "payments": [
+      {
+        "amount": 285714,
+        "balanceAfter": undefined,
+        "method": undefined,
+        "months": undefined,
+        "note": "Boshlang'ich to'lov",
+      },
+    ],
+    "product": "Tovar 9",
+    "purchasePrice": 700000,
+    "qty": 2,
+    "remainingAmount": 457143,
+    "soldBy": "egasi",
+    "status": "partial",
+    "totalAmount": 742857,
+  },
+]
+`;
+
+exports[`sotuv yo'llari — hozirgi xatti-harakat (MongoDB) > web: naqd, bitta tovar, 2 dona 1`] = `
+[
+  {
+    "bankName": undefined,
+    "bankParts": undefined,
+    "clientSaleId": undefined,
+    "customer": {
+      "fullName": "Ali Valiyev",
+      "phone": "+998 90 123 45 67",
+    },
+    "discount": undefined,
+    "downPayment": undefined,
+    "dueInDays": undefined,
+    "hasCheckout": false,
+    "hasCustomerId": true,
+    "installmentMonths": undefined,
+    "notes": undefined,
+    "paidAmount": 2000000,
+    "payDay": undefined,
+    "paymentType": "cash",
+    "payments": [
+      {
+        "amount": 2000000,
+        "balanceAfter": undefined,
+        "method": undefined,
+        "months": undefined,
+        "note": "Naqd to'lov",
+      },
+    ],
+    "product": "Tovar 1",
+    "purchasePrice": 700000,
+    "qty": 2,
+    "remainingAmount": 0,
+    "soldBy": "egasi",
+    "status": "paid",
+    "totalAmount": 2000000,
+  },
+]
+`;
+
+exports[`sotuv yo'llari — hozirgi xatti-harakat (MongoDB) > web: naqd, bitta tovar, 2 dona 2`] = `
+{
+  "quantity": 10,
+  "soldQuantity": 2,
+  "status": "in_stock",
+}
+`;
+
+exports[`sotuv yo'llari — hozirgi xatti-harakat (MongoDB) > web: naqd, mijozsiz — rad etiladi 1`] = `
+{
+  "error": "Ism kiritilishi shart.",
+}
+`;
+
+exports[`sotuv yo'llari — hozirgi xatti-harakat (MongoDB) > web: nasiya 6 oy, boshlang'ich, to'lov kuni 1`] = `
+[
+  {
+    "bankName": undefined,
+    "bankParts": undefined,
+    "clientSaleId": undefined,
+    "customer": {
+      "fullName": "Ali Valiyev",
+      "phone": "+998 90 123 45 67",
+    },
+    "discount": undefined,
+    "downPayment": 200000,
+    "dueInDays": 161,
+    "hasCheckout": false,
+    "hasCustomerId": true,
+    "installmentMonths": 6,
+    "notes": undefined,
+    "paidAmount": 200000,
+    "payDay": 5,
+    "paymentType": "installment",
+    "payments": [
+      {
+        "amount": 200000,
+        "balanceAfter": undefined,
+        "method": undefined,
+        "months": undefined,
+        "note": "Boshlang'ich to'lov",
+      },
+    ],
+    "product": "Tovar 4",
+    "purchasePrice": 700000,
+    "qty": 1,
+    "remainingAmount": 1000000,
+    "soldBy": "egasi",
+    "status": "partial",
+    "totalAmount": 1200000,
+  },
+]
+`;
+
+exports[`sotuv yo'llari — hozirgi xatti-harakat (MongoDB) > web: qarz, qisman to'lov, muddat 1`] = `
+[
+  {
+    "bankName": undefined,
+    "bankParts": undefined,
+    "clientSaleId": undefined,
+    "customer": {
+      "fullName": "Ali Valiyev",
+      "phone": "+998 90 123 45 67",
+    },
+    "discount": undefined,
+    "downPayment": undefined,
+    "dueInDays": 9,
+    "hasCheckout": false,
+    "hasCustomerId": true,
+    "installmentMonths": undefined,
+    "notes": undefined,
+    "paidAmount": 300000,
+    "payDay": undefined,
+    "paymentType": "debt",
+    "payments": [
+      {
+        "amount": 300000,
+        "balanceAfter": undefined,
+        "method": undefined,
+        "months": undefined,
+        "note": "Boshlang'ich to'lov",
+      },
+    ],
+    "product": "Tovar 3",
+    "purchasePrice": 700000,
+    "qty": 1,
+    "remainingAmount": 700000,
+    "soldBy": "egasi",
+    "status": "partial",
+    "totalAmount": 1000000,
+  },
+]
+`;
+
+exports[`sotuv yo'llari — hozirgi xatti-harakat (MongoDB) > «Sotildi» tugmasi (mahsulot qatori) 1`] = `
+{
+  "success": "2 dona sotildi.",
+}
+`;
+
+exports[`sotuv yo'llari — hozirgi xatti-harakat (MongoDB) > «Sotildi» tugmasi (mahsulot qatori) 2`] = `
+[
+  {
+    "bankName": undefined,
+    "bankParts": undefined,
+    "clientSaleId": undefined,
+    "customer": {
+      "fullName": "Ali Valiyev",
+      "phone": "+998 90 123 45 67",
+    },
+    "discount": undefined,
+    "downPayment": undefined,
+    "dueInDays": undefined,
+    "hasCheckout": false,
+    "hasCustomerId": true,
+    "installmentMonths": undefined,
+    "notes": undefined,
+    "paidAmount": 2000000,
+    "payDay": undefined,
+    "paymentType": "cash",
+    "payments": [
+      {
+        "amount": 2000000,
+        "balanceAfter": undefined,
+        "method": undefined,
+        "months": undefined,
+        "note": undefined,
+      },
+    ],
+    "product": "Tovar 22",
+    "purchasePrice": 700000,
+    "qty": 2,
+    "remainingAmount": 0,
+    "soldBy": "egasi",
+    "status": "paid",
+    "totalAmount": 2000000,
+  },
+]
+`;
+
+exports[`sotuv yo'llari — hozirgi xatti-harakat (MongoDB) > «Sotildi» tugmasi (mahsulot qatori) 3`] = `
+{
+  "quantity": 10,
+  "soldQuantity": 2,
+  "status": "in_stock",
+}
+`;
