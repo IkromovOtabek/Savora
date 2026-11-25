@@ -1,6 +1,5 @@
-import { recordAudit } from './audit';
+import { recordCashFlow } from './cashFlowEntry';
 import { isBranchScoped } from './branchScope';
-import { shiftTotalsNow } from './cashShiftOps';
 import { fmtMoney } from './format';
 import { tr } from './i18n/fmt';
 import type { Dict } from './i18n/dict';
@@ -24,34 +23,13 @@ export async function addBranchExpense(
 ): Promise<BranchExpenseResult> {
   // Faqat filial login — egasi filialni o'zi tanlaydigan «Xarajat qo'shish» dan foydalanadi
   if (!isBranchScoped(user)) return { error: d.shifts.badBranch };
-  const branch = await m.Branch.findOne({ _id: user.branchId, active: true }).select('name').lean();
-  if (!branch) return { error: d.shifts.badBranch };
-
-  // Tizim toifalari (kassaga qo'shildi/olindi, sotuv bekor qilindi …) qo'lda tanlanmaydi
-  const okCategory = await m.FinanceCategory.exists({ name: category, type: 'expense', active: true, system: { $ne: true } });
-  if (!okCategory) return { error: d.fin.badCategory };
-
-  const shift = await m.CashShift.findOne({ branchId: user.branchId, status: 'open' }).lean();
-  if (shift) {
-    const { current } = await shiftTotalsNow(m, shift);
-    if (amount > current) return { error: tr(d.shifts.opTooMuch, { v: fmtMoney(current) }) };
-  }
-
-  try {
-    const entry = await m.CashFlow.create({
-      type: 'expense', amount, category, description: note || category,
-      branchId: user.branchId, recordedBy: user.username,
-      ...(shift ? { shiftId: shift._id } : {}),
-    });
-    await recordAudit(user, {
-      action: 'finance.expense',
-      entity: 'finance',
-      entityId: String(entry._id),
-      summary: `Chiqim (${category}): ${fmtMoney(amount)} so'm — ${note || category} · ${branch.name}${shift ? `, smena ${shift.shiftNo}` : ''}${via}`,
-      meta: { type: 'expense', amount, category, branchId: user.branchId, ...(shift ? { shiftId: String(shift._id) } : {}), branchStaff: true },
-    });
-    return { success: tr(d.fin.qeAdded, { sum: fmtMoney(amount), cat: category }) };
-  } catch {
+  // Toifa, smena (kassadagi puldan oshmaydi) va audit — lib/cashFlowEntry (egasining xarajati bilan bir qoida)
+  const res = await recordCashFlow(m, user, { type: 'expense', amount, category, description: note, branchId: user.branchId, source: 'branch', via });
+  if (!res.ok) {
+    if (res.error.code === 'badCategory') return { error: d.fin.badCategory };
+    if (res.error.code === 'opTooMuch') return { error: tr(d.shifts.opTooMuch, { v: fmtMoney(res.error.current) }) };
+    if (res.error.code === 'badBranch') return { error: d.shifts.badBranch };
     return { error: d.shifts.failed };
   }
+  return { success: tr(d.fin.qeAdded, { sum: fmtMoney(amount), cat: category }) };
 }

@@ -12,8 +12,19 @@ import { z } from 'zod';
 import { formToObject, parseInput, zId, zMoney, zOneOf, zOptDate, zOptId, zReqText, zText } from '@/lib/validation';
 import { softDeleteOne } from '@/lib/softDelete';
 import { loadCashFlowLocks } from '@/lib/cashFlowLock';
+import { recordCashFlow, type CashFlowEntryError } from '@/lib/cashFlowEntry';
+import { fmtMoney } from '@/lib/format';
+import type { Dict } from '@/lib/i18n/server';
 
 type State = { error?: string; success?: string } | null;
+
+/** Kirim/chiqim xatosi → matn */
+function cashFlowErrorText(e: CashFlowEntryError, d: Dict): string {
+  if (e.code === 'badCategory') return d.sales.fin.badCategory;
+  if (e.code === 'badBranch') return d.sales.fin.branch;
+  if (e.code === 'opTooMuch') return tr(d.sales.shifts.opTooMuch, { v: fmtMoney(e.current) });
+  return d.sales.actions.saveFailed;
+}
 
 function fmtSum(n: number): string {
   return new Intl.NumberFormat('uz-UZ').format(n) + ' so\'m';
@@ -140,36 +151,6 @@ export async function deleteBankReceiptAction(formData: FormData): Promise<void>
   revalidatePath('/app/kredit-kassa');
 }
 
-export async function createCashFlowAction(_prev: State, formData: FormData): Promise<State> {
-  const { user, CashFlow, features } = await getTenantAdminSession();
-  if (!features.kirimChiqim) return featureDisabledError('kirimChiqim');
-  const d = await getDict();
-  const m = d.sales.actions;
-  const parsed = parseInput(z.object({
-    type: zOneOf(['income', 'expense'] as const, m.badType),
-    description: zReqText(300, m.descriptionRequired, d.common.tooLong),
-    // Butun so'm — kasr summalar rad etiladi
-    amount: zMoney(m.badAmount, { min: 1 }),
-  }), formToObject(formData), m.badAmount);
-  if (!parsed.ok) return { error: parsed.error };
-  const { type, description, amount } = parsed.data;
-
-  try {
-    const entry = await CashFlow.create({ type, amount, description, recordedBy: user.username });
-    await recordAudit(user, {
-      action: type === 'income' ? 'finance.income' : 'finance.expense',
-      entity: 'finance',
-      entityId: String(entry._id),
-      summary: `${type === 'income' ? 'Kirim' : 'Chiqim'}: ${fmtSum(amount)} — ${description}`,
-      meta: { type, amount },
-    });
-    revalidatePath('/app/kirim-chiqim');
-    return { success: type === 'income' ? m.incomeAdded : m.expenseAdded };
-  } catch {
-    return { error: m.saveFailed };
-  }
-}
-
 export async function deleteCashFlowAction(formData: FormData): Promise<void> {
   const { user, CashFlow, CashShift, PieceworkEntry, features } = await getTenantAdminSession();
   if (!features.kirimChiqim) return;
@@ -200,7 +181,7 @@ export async function deleteCashFlowAction(formData: FormData): Promise<void> {
 
 /** Moliyaviy yozuv (web): turi, summa, toifa, izoh, ixtiyoriy filial */
 export async function createFinanceTxAction(_prev: State, formData: FormData): Promise<State> {
-  const { user, CashFlow, Branch, FinanceCategory, features } = await getTenantAdminSession();
+  const { user, CashFlow, Branch, FinanceCategory, CashShift, Sale, features } = await getTenantAdminSession();
   if (!features.kirimChiqim) return featureDisabledError('kirimChiqim');
   const d = await getDict();
   const m = d.sales.actions;
@@ -215,30 +196,15 @@ export async function createFinanceTxAction(_prev: State, formData: FormData): P
   if (!parsed.ok) return { error: parsed.error };
   const { type, amount, category, description, branchId } = parsed.data;
 
-  if (category && !(await FinanceCategory.exists({ name: category, type, active: true, system: { $ne: true } }))) return { error: f.badCategory };
-  if (branchId && !(await Branch.exists({ _id: branchId, active: true }))) return { error: f.branch };
-
-  try {
-    const entry = await CashFlow.create({
-      type, amount, description, recordedBy: user.username,
-      ...(category ? { category } : {}),
-      ...(branchId ? { branchId } : {}),
-    });
-    await recordAudit(user, {
-      action: type === 'income' ? 'finance.income' : 'finance.expense',
-      entity: 'finance',
-      entityId: String(entry._id),
-      summary: `${type === 'income' ? 'Kirim' : 'Chiqim'}${category ? ` (${category})` : ''}: ${fmtSum(amount)} — ${description}`,
-      meta: { type, amount, category, branchId },
-    });
-    revalidatePath('/app/finance');
-    revalidatePath('/app/finance/state');
-    revalidatePath('/app/finance/kunlik');
-    revalidatePath('/app/kassa');
-    return { success: f.added };
-  } catch {
-    return { error: m.saveFailed };
-  }
+  // Toifa, filial, smena va audit — lib/cashFlowEntry (tez xarajat, filial xarajati, mobil bilan bir qoida)
+  const res = await recordCashFlow({ CashFlow, Branch, FinanceCategory, CashShift, Sale }, user, { type, amount, category, description, branchId, source: 'finance' });
+  if (!res.ok) return { error: cashFlowErrorText(res.error, d) };
+  revalidatePath('/app/finance');
+  revalidatePath('/app/finance/state');
+  revalidatePath('/app/finance/kunlik');
+  revalidatePath('/app/kassa');
+  revalidatePath('/app/shifts');
+  return { success: f.added };
 }
 
 /**
@@ -246,7 +212,7 @@ export async function createFinanceTxAction(_prev: State, formData: FormData): P
  * Izoh bo'sh bo'lsa — toifa nomi. Faqat do'kon egasi (Moliya bo'limi kabi).
  */
 export async function createQuickExpenseAction(_prev: State, formData: FormData): Promise<State> {
-  const { user, CashFlow, Branch, FinanceCategory, features } = await getTenantAdminSession();
+  const { user, CashFlow, Branch, FinanceCategory, CashShift, Sale, features } = await getTenantAdminSession();
   if (!features.kirimChiqim) return featureDisabledError('kirimChiqim');
   const d = await getDict();
   const m = d.sales.actions;
@@ -260,30 +226,16 @@ export async function createQuickExpenseAction(_prev: State, formData: FormData)
   if (!parsed.ok) return { error: parsed.error };
   const { amount, category, note, branchId } = parsed.data;
 
-  if (!(await FinanceCategory.exists({ name: category, type: 'expense', active: true, system: { $ne: true } }))) return { error: f.badCategory };
-  if (branchId && !(await Branch.exists({ _id: branchId, active: true }))) return { error: f.branch };
-
-  try {
-    const entry = await CashFlow.create({
-      type: 'expense', amount, category, description: note || category, recordedBy: user.username,
-      ...(branchId ? { branchId } : {}),
-    });
-    await recordAudit(user, {
-      action: 'finance.expense',
-      entity: 'finance',
-      entityId: String(entry._id),
-      summary: `Chiqim (${category}): ${fmtSum(amount)} — ${note || category}`,
-      meta: { type: 'expense', amount, category, branchId, quick: true },
-    });
-    revalidatePath('/app');
-    revalidatePath('/app/finance');
-    revalidatePath('/app/finance/state');
-    revalidatePath('/app/monitoring');
-    revalidatePath('/app/kassa');
-    return { success: tr(f.qeAdded, { sum: new Intl.NumberFormat('uz-UZ').format(amount), cat: category }) };
-  } catch {
-    return { error: m.saveFailed };
-  }
+  // Toifa, filial, smena (kassadagi puldan oshmaydi) va audit — lib/cashFlowEntry
+  const res = await recordCashFlow({ CashFlow, Branch, FinanceCategory, CashShift, Sale }, user, { type: 'expense', amount, category, description: note, branchId, source: 'quick' });
+  if (!res.ok) return { error: cashFlowErrorText(res.error, d) };
+  revalidatePath('/app');
+  revalidatePath('/app/finance');
+  revalidatePath('/app/finance/state');
+  revalidatePath('/app/monitoring');
+  revalidatePath('/app/kassa');
+  revalidatePath('/app/shifts');
+  return { success: tr(f.qeAdded, { sum: new Intl.NumberFormat('uz-UZ').format(amount), cat: category }) };
 }
 
 /**

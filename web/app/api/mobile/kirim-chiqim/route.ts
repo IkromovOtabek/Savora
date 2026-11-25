@@ -1,12 +1,15 @@
 import { NextResponse } from 'next/server';
 import { authenticateMobile } from '@/lib/mobileAuth';
-import { recordAudit } from '@/lib/audit';
+import { recordCashFlow } from '@/lib/cashFlowEntry';
+import { getDictionary } from '@/lib/i18n/dict';
+import { tr } from '@/lib/i18n/fmt';
+import { fmtMoney } from '@/lib/format';
 import { getTenantModels } from '@/lib/tenantDb';
 import { kirimChiqimDenied } from '@/lib/mobileOrg';
 import { z } from 'zod';
 import { readJsonInput, zMoney, zOneOf, zOptId, zReqText, zText } from '@/lib/validation';
 import { ensureFinanceCategories } from '@/lib/financeCategories';
-import { categoryInProfit, OTHER_EXPENSE_CATEGORY } from '@/lib/models/tenant/FinanceCategory';
+import { categoryInProfit } from '@/lib/models/tenant/FinanceCategory';
 
 /** Izoh uzunlik chegarasi — oshsa 400 */
 const MAX_DESCRIPTION_LEN = 300;
@@ -46,7 +49,7 @@ export async function GET(req: Request) {
   });
 }
 
-/** Kirim yoki chiqim qo'shish. createCashFlowAction mantiqi. */
+/** Kirim yoki chiqim qo'shish — lib/cashFlowEntry (web bilan bir qoida). */
 export async function POST(req: Request) {
   const auth = await authenticateMobile(req);
   if (auth instanceof NextResponse) return auth;
@@ -66,36 +69,17 @@ export async function POST(req: Request) {
   if (!input.ok) return NextResponse.json({ error: input.error }, { status: 400 });
   const { type, amount, description, branchId } = input.data;
 
-  const { CashFlow, Branch, FinanceCategory } = await getTenantModels(user.dbName);
-  let category = input.data.category;
-  if (category) {
-    if (!(await FinanceCategory.exists({ name: category, type, active: true }))) {
-      return NextResponse.json({ error: 'Toifa topilmadi.' }, { status: 400 });
-    }
-  } else if (type === 'expense') {
-    // Eski ilova toifasiz yuboradi — toifasiz chiqim sof foydadan ayirilmasdi
-    category = OTHER_EXPENSE_CATEGORY;
-    await FinanceCategory.updateOne(
-      { name: category, type: 'expense' },
-      { $setOnInsert: { name: category, type: 'expense', active: true } },
-      { upsert: true },
-    );
+  // Toifa, filial, smena va audit — lib/cashFlowEntry (web «Moliya» va «Xarajat qo'shish» bilan bir qoida).
+  // Eski ilova toifasiz yuboradi — toifasiz chiqim «Boshqa xarajat» ga (sof foydadan ayiriladi)
+  const m = await getTenantModels(user.dbName);
+  const res = await recordCashFlow(m, user, { type, amount, category: input.data.category, description, branchId, source: 'mobile' });
+  if (!res.ok) {
+    const d = getDictionary('uz');
+    const error = res.error.code === 'badCategory' ? 'Toifa topilmadi.'
+      : res.error.code === 'badBranch' ? 'Filial topilmadi.'
+      : res.error.code === 'opTooMuch' ? tr(d.sales.shifts.opTooMuch, { v: fmtMoney(res.error.current) })
+      : d.sales.actions.saveFailed;
+    return NextResponse.json({ error }, { status: res.error.code === 'failed' ? 500 : 400 });
   }
-  if (branchId && !(await Branch.exists({ _id: branchId, active: true }))) {
-    return NextResponse.json({ error: 'Filial topilmadi.' }, { status: 400 });
-  }
-
-  const entry = await CashFlow.create({
-    type, amount, description, recordedBy: user.username,
-    ...(category ? { category } : {}),
-    ...(branchId ? { branchId } : {}),
-  });
-  await recordAudit(user, {
-    action: type === 'income' ? 'finance.income' : 'finance.expense',
-    entity: 'finance',
-    entityId: String(entry._id),
-    summary: `${type === 'income' ? 'Kirim' : 'Chiqim'}${category ? ` (${category})` : ''}: ${amount.toLocaleString('uz-UZ')} so'm — ${description} (mobil)`,
-    meta: { type, amount, category, branchId },
-  });
-  return NextResponse.json({ id: String(entry._id), type, amount, category: category || null }, { status: 201 });
+  return NextResponse.json({ id: res.id, type, amount, category: res.category || null }, { status: 201 });
 }
