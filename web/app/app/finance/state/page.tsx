@@ -1,6 +1,5 @@
 import { getTenantSession } from '@/lib/tenantSession';
-import { sumCashFromSales } from '@/lib/cashKassa';
-import { KASSA_SALE_FILTER } from '@/lib/kassa';
+import { branchCashOf, loadBranchCash } from '@/lib/branchCash';
 import { bankFinancedFilter } from '@/lib/bankCredit';
 import { amtTone, fmtMoney } from '@/lib/format';
 import { getDict } from '@/lib/i18n/server';
@@ -18,13 +17,10 @@ export default async function FinanceStatePage() {
   const { Branch, Sale, CashFlow, BankReceipt } = await getTenantSession();
   const f = (await getDict()).sales.fin;
 
-  const [branches, sales, flows, debtAgg, bankAgg, receiptAgg] = await Promise.all([
+  const [branches, cashRes, debtAgg, bankAgg] = await Promise.all([
     Branch.find({ active: true }).select('name').sort({ createdAt: 1 }).lean(),
-    // Bekor qilingan (yangi tartib) — to'lovlari realizatsiya, qaytarilgani «Olingan» ustunida (CashFlow chiqimi)
-    Sale.find(KASSA_SALE_FILTER).select('branchId status cancelledAt paymentType payments returns').lean(),
-    CashFlow.aggregate<{ _id: { branchId: unknown; type: string }; total: number }>([
-      { $group: { _id: { branchId: '$branchId', type: '$type' }, total: { $sum: '$amount' } } },
-    ]),
+    // Naqd kassa — yagona formula (lib/branchCash, Naqd kassa sahifasi bilan bir xil)
+    loadBranchCash({ Sale, CashFlow, BankReceipt }),
     Sale.aggregate<{ _id: unknown; total: number }>([
       { $match: { status: 'partial', paymentType: { $in: ['debt', 'installment'] } } },
       { $group: { _id: '$branchId', total: { $sum: '$remainingAmount' } } },
@@ -38,30 +34,24 @@ export default async function FinanceStatePage() {
         { $sum: '$bankParts.amount' },
       ] } } } },
     ]),
-    // Bankdan olingan pul — filial naqd kassasiga o'tadi, bank qarzidan ayriladi
-    BankReceipt.aggregate<{ _id: unknown; total: number }>([{ $group: { _id: '$branchId', total: { $sum: '$amount' } } }]),
   ]);
 
-  const cashByBranch = sumCashFromSales(sales);
-  const flow = (id: string | null, type: string) => flows.find((x) => (x._id.branchId ? String(x._id.branchId) : null) === id && x._id.type === type)?.total ?? 0;
   const debt = new Map(debtAgg.map((x) => [String(x._id), x.total]));
   const bank = new Map(bankAgg.map((x) => [String(x._id), x.total]));
-  const received = new Map(receiptAgg.filter((x) => x._id).map((x) => [String(x._id), x.total]));
 
   const rows: Row[] = branches.map((b) => {
     const id = String(b._id);
-    const cashSales = cashByBranch.get(id) ?? 0;
-    const fromBank = received.get(id) ?? 0;
-    const deposits = flow(id, 'income') + fromBank;
-    const withdrawals = flow(id, 'expense');
-    return { id, name: b.name, cashSales, deposits, withdrawals, cash: cashSales + deposits - withdrawals, debtors: debt.get(id) ?? 0, bank: (bank.get(id) ?? 0) - fromBank };
+    const c = branchCashOf(cashRes, id);
+    // Bankdan olingan pul — filial naqd kassasiga o'tadi, bank qarzidan ayriladi
+    const deposits = c.income + c.bankIn;
+    return { id, name: b.name, cashSales: c.cashSales, deposits, withdrawals: c.expense, cash: c.cash, debtors: debt.get(id) ?? 0, bank: (bank.get(id) ?? 0) - c.bankIn };
   });
   const total = rows.reduce((a, r) => ({
     cashSales: a.cashSales + r.cashSales, deposits: a.deposits + r.deposits, withdrawals: a.withdrawals + r.withdrawals,
     cash: a.cash + r.cash, debtors: a.debtors + r.debtors, bank: a.bank + r.bank,
   }), { cashSales: 0, deposits: 0, withdrawals: 0, cash: 0, debtors: 0, bank: 0 });
-  const unIn = flow(null, 'income');
-  const unOut = flow(null, 'expense');
+  const unIn = cashRes.unbranched.income;
+  const unOut = cashRes.unbranched.expense;
 
   return (
     <>

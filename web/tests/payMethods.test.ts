@@ -7,7 +7,7 @@ import { Types } from 'mongoose';
 import { allocateParts, methodOf, settlePayment } from '@/lib/payMethods';
 import { computeShiftTotals } from '@/lib/cashShift';
 import { effectivePaymentType } from '@/lib/kassa';
-import { sumCashFromSales } from '@/lib/cashKassa';
+import { sumCashFromSales } from '@/lib/branchCash';
 import { parseReceiptToken, receiptToken } from '@/lib/receiptLink';
 import type { ISale } from '@/lib/models/tenant/Sale';
 

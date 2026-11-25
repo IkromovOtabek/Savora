@@ -505,6 +505,8 @@ a.fn-tl-title:focus-visible { outline: 2px solid var(--brand); outline-offset: 2
 .fx-amt { white-space: nowrap; }
 .fx-del { width: 36px; height: 36px; border: 0; border-radius: 10px; background: transparent; color: var(--ink-3); display: grid; place-items: center; cursor: pointer; }
 .fx-del:hover { background: var(--danger-soft); color: var(--danger); }
+.fx-del--locked { cursor: help; opacity: .55; }
+.fx-del--locked:hover { background: transparent; color: var(--ink-3); }
 .fx-add { margin-bottom: 14px; }
 .fx-catform { display: grid; grid-template-columns: minmax(0, 1fr) 160px auto; gap: 10px; }
 .fx-catgrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 14px; }

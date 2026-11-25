@@ -3,7 +3,7 @@ import { Types } from 'mongoose';
 import { computePriceEdit, respreadInstallmentAmounts, type PriceEditInput } from '@/lib/saleEdit';
 import { computeInstallmentPlan } from '@/lib/installment';
 import { extractKassaPayments } from '@/lib/kassa';
-import { sumCashFromSales } from '@/lib/cashKassa';
+import { sumCashFromSales } from '@/lib/branchCash';
 import { saleProfitParts, profitToDate } from '@/lib/saleProfit';
 import { saleSearchFilter } from '@/lib/saleSearch';
 import type { ISale } from '@/lib/models/tenant/Sale';

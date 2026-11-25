@@ -325,7 +325,7 @@ export default async function DebtsPage({
                   customerName: s.customerSnapshot?.fullName,
                   productName: s.productSnapshot.name,
                   remaining: s.remainingAmount,
-                  dueDate: s.dueDate,
+                  dueDate: info.dueDate,
                   overdue: info.state === 'overdue',
                 });
                 return (
@@ -342,7 +342,7 @@ export default async function DebtsPage({
                     <b className="cl-debt-amt cl-row-amt t-num">{fmtMoney(s.remainingAmount)} <small>{d.common.sum}</small></b>
                     <span className="cl-debt-date">
                       <Pill tone={g.tone}>{debtLabel(info, d)}</Pill>
-                      {s.dueDate && <span className="t-num">{fmtDate(s.dueDate)}</span>}
+                      {info.dueDate && <span className="t-num">{fmtDate(info.dueDate)}</span>}
                     </span>
                     <div className="cl-debt-act">
                       <DebtReminderButton phone={phone} text={text} prominent={info.state === 'overdue' || info.state === 'due_soon'} />

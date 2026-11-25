@@ -3,7 +3,7 @@ import { userCan } from '@/lib/permissionGuard';
 import { branchFilter, isBranchScoped } from '@/lib/branchScope';
 import { monthRange, opexFromFlows } from '@/lib/monitoring';
 import { saleProfitRevenue, splitBankReceipts } from '@/lib/bankCredit';
-import { earlierNasiyaFilter, profitBetween, saleProfitParts } from '@/lib/saleProfit';
+import { earlierNasiyaFilter, loadCostFallback, profitBetween, saleCost, saleProfitParts } from '@/lib/saleProfit';
 import Link from 'next/link';
 import { PAYMENT_TYPE_LABELS, PaymentType } from '@/lib/models/tenant/Sale';
 import { getI18n } from '@/lib/i18n/server';
@@ -65,12 +65,8 @@ export default async function MonitoringPage({
     : branchesAll;
 
   // Tannarx — sotuv paytidagi snapshot; eski sotuvlarda yo'q bo'lsa mahsulotning joriy xarid narxi
-  const missing = [...sales, ...earlierNasiya].filter((s) => s.productSnapshot?.purchasePrice == null).map((s) => s.productId);
-  const fallback = missing.length
-    ? new Map((await Product.find({ _id: { $in: missing } }).select('purchasePrice').lean()).map((p) => [String(p._id), p.purchasePrice ?? 0]))
-    : new Map<string, number>();
-  const costOf = (sale: { productId: unknown; productSnapshot?: { saleQuantity?: number; purchasePrice?: number } }) =>
-    (sale.productSnapshot?.purchasePrice ?? fallback.get(String(sale.productId)) ?? 0) * (sale.productSnapshot?.saleQuantity ?? 1);
+  const fallback = await loadCostFallback(Product, [...sales, ...earlierNasiya]);
+  const costOf = (sale: Parameters<typeof saleCost>[0]) => saleCost(sale, fallback);
 
   // Shu oy omborga qo'shilgan mahsulotlar — xarajat emas, faqat izoh (sotilganda tannarxi foydadan ayriladi)
   const incoming = await Product.find({ branchId: { $in: branches.map((b) => b._id) }, createdAt: { $gte: start, $lt: end } })

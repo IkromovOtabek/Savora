@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { Types } from 'mongoose';
 import { countsInKassa, extractKassaPayments } from '@/lib/kassa';
-import { sumCashFromSales } from '@/lib/cashKassa';
+import { sumCashFromSales } from '@/lib/branchCash';
 import type { ISale } from '@/lib/models/tenant/Sale';
 
 const branchId = new Types.ObjectId();

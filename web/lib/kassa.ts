@@ -118,18 +118,3 @@ export function sumByMethod(rows: KassaPaymentRow[]): Partial<Record<PayMethod, 
   }
   return out;
 }
-
-export function dayRange(dateStr: string): { start: Date; end: Date; label: string } {
-  const start = new Date(dateStr);
-  if (Number.isNaN(start.getTime())) {
-    const now = new Date();
-    now.setHours(0, 0, 0, 0);
-    const end = new Date(now);
-    end.setDate(end.getDate() + 1);
-    return { start: now, end, label: now.toISOString().slice(0, 10) };
-  }
-  start.setHours(0, 0, 0, 0);
-  const end = new Date(start);
-  end.setDate(end.getDate() + 1);
-  return { start, end, label: dateStr };
-}

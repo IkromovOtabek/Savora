@@ -7,7 +7,7 @@ import PeriodSeg from '@/components/tenant/PeriodSeg';
 import BackLink from '@/components/ui/BackLink';
 import { getDict } from '@/lib/i18n/server';
 import { qtyByUnits, qtyWithUnit } from '@/lib/i18n/fmt';
-import { QTY_DECIMALS } from '@/lib/qty';
+import { SALE_COST_EXPR } from '@/lib/saleProfit';
 import { addQtyByUnit, type QtyByUnit } from '@/lib/unitTotals';
 import '@/components/tenant/styles/reports.css';
 
@@ -19,14 +19,8 @@ type Row = { _id: { name: string; unit: string }; qty: number; count: number; re
 
 const LIMIT = 200;
 const SALE_QTY = { $ifNull: ['$productSnapshot.saleQuantity', 1] };
-const SCALE = 10 ** QTY_DECIMALS;
-/** priceTimesQty (lib/qty.ts) ning Mongo nusxasi: tannarx × miqdor butun arifmetikada, butun so'mga (yarmi yuqoriga) */
-const LINE_COST = {
-  $floor: { $divide: [
-    { $add: [{ $multiply: [{ $ifNull: ['$productSnapshot.purchasePrice', 0] }, { $round: [{ $multiply: [SALE_QTY, SCALE] }, 0] }] }, SCALE / 2] },
-    SCALE,
-  ] },
-};
+/** Tannarx — lib/saleProfit SALE_COST_EXPR (saleCost bilan bir qoida) */
+const LINE_COST = SALE_COST_EXPR;
 
 export default async function ProductsReport({ searchParams }: { searchParams: Promise<{ p?: string }> }) {
   const sp = await searchParams;

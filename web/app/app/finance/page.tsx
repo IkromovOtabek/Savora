@@ -4,6 +4,7 @@ import { ensureFinanceCategories } from '@/lib/financeCategories';
 import { parsePeriod, periodRange } from '@/lib/period';
 import { amtTone, fmtDateTime, fmtMoney } from '@/lib/format';
 import { deleteCashFlowAction } from '@/app/actions/finance';
+import { loadCashFlowLocks } from '@/lib/cashFlowLock';
 import { FinanceTxForm } from '@/components/tenant/FinanceForms';
 import PeriodSeg from '@/components/tenant/PeriodSeg';
 import Icon from '@/components/icons/Icon';
@@ -18,7 +19,7 @@ export async function generateMetadata() {
 /** Moliyaviy tranzaksiyalar — BILLZ: chapda jurnal, o'ngda jami va yangi yozuv */
 export default async function FinanceTxPage({ searchParams }: { searchParams: Promise<{ p?: string; t?: string }> }) {
   const sp = await searchParams;
-  const { CashFlow, Branch, FinanceCategory } = await getTenantSession();
+  const { CashFlow, Branch, FinanceCategory, CashShift, PieceworkEntry } = await getTenantSession();
   const d = await getDict();
   const f = d.sales.fin;
   await ensureFinanceCategories(FinanceCategory);
@@ -38,8 +39,10 @@ export default async function FinanceTxPage({ searchParams }: { searchParams: Pr
       { $limit: 12 },
     ]),
     Branch.find({ active: true }).select('name').sort({ createdAt: 1 }).lean(),
-    FinanceCategory.find({ active: true }).select('name type').sort({ name: 1 }).lean(),
+    // Tizim toifalari (smena, sotuv bekor qilish) qo'lda tanlanmaydi — ular faqat avtomatik yoziladi
+    FinanceCategory.find({ active: true, system: { $ne: true } }).select('name type').sort({ name: 1 }).lean(),
   ]);
+  const locks = await loadCashFlowLocks({ CashShift, PieceworkEntry }, entries);
   const income = sums.find((x) => x._id === 'income')?.total ?? 0;
   const expense = sums.find((x) => x._id === 'expense')?.total ?? 0;
   const branchName = new Map(branches.map((b) => [String(b._id), b.name]));
@@ -113,10 +116,16 @@ export default async function FinanceTxPage({ searchParams }: { searchParams: Pr
                     </small>
                   </span>
                   <b className={`fx-amt t-num ${e.type === 'income' ? 'fx-in' : 'fx-out'}`}>{e.type === 'income' ? '+' : '−'} {fmtMoney(e.amount)}</b>
-                  <form action={deleteCashFlowAction}>
-                    <input type="hidden" name="entryId" value={String(e._id)} />
-                    <button type="submit" className="fx-del" aria-label={`${f.delete}: ${e.description}`}><Icon name="trash" size={15} /></button>
-                  </form>
+                  {locks.has(String(e._id)) ? (
+                    <span className="fx-del fx-del--locked" title={f.lock[locks.get(String(e._id))!]} aria-label={f.lock[locks.get(String(e._id))!]}>
+                      <Icon name="lock" size={15} />
+                    </span>
+                  ) : (
+                    <form action={deleteCashFlowAction}>
+                      <input type="hidden" name="entryId" value={String(e._id)} />
+                      <button type="submit" className="fx-del" aria-label={`${f.delete}: ${e.description}`}><Icon name="trash" size={15} /></button>
+                    </form>
+                  )}
                 </li>
               ))}
             </ul>

@@ -11,6 +11,7 @@ import { tr } from '@/lib/i18n/fmt';
 import { z } from 'zod';
 import { formToObject, parseInput, zId, zMoney, zOneOf, zOptDate, zOptId, zReqText, zText } from '@/lib/validation';
 import { softDeleteOne } from '@/lib/softDelete';
+import { loadCashFlowLocks } from '@/lib/cashFlowLock';
 
 type State = { error?: string; success?: string } | null;
 
@@ -170,11 +171,16 @@ export async function createCashFlowAction(_prev: State, formData: FormData): Pr
 }
 
 export async function deleteCashFlowAction(formData: FormData): Promise<void> {
-  const { user, CashFlow, features } = await getTenantAdminSession();
+  const { user, CashFlow, CashShift, PieceworkEntry, features } = await getTenantAdminSession();
   if (!features.kirimChiqim) return;
   const id = parseInput(zId('bad'), formData.get('entryId'));
   if (!id.ok) return;
   const entryId = id.data;
+
+  // Tizim yozuvi (smena, daftar, sotuv qaytarish, ishbay, yopilgan smena) — o'chirilmaydi, aks holda qoldiqlar buziladi
+  const target = await CashFlow.findById(entryId).select('saleId ledgerEntryId shiftId category').lean();
+  if (!target) return;
+  if ((await loadCashFlowLocks({ CashShift, PieceworkEntry }, [target])).size) return;
 
   const deleted = await softDeleteOne(CashFlow, { _id: entryId }, user.username);
   await recordAudit(user, {
@@ -185,9 +191,11 @@ export async function deleteCashFlowAction(formData: FormData): Promise<void> {
       ? `${deleted.type === 'income' ? 'Kirim' : 'Chiqim'} o'chirildi: ${fmtSum(deleted.amount)} — ${deleted.description}`
       : `Kirim/chiqim o'chirildi: ${entryId}`,
   });
-  revalidatePath('/app/kirim-chiqim');
   revalidatePath('/app/finance');
   revalidatePath('/app/finance/state');
+  revalidatePath('/app/finance/kunlik');
+  revalidatePath('/app/kassa');
+  revalidatePath('/app/shifts');
 }
 
 /** Moliyaviy yozuv (web): turi, summa, toifa, izoh, ixtiyoriy filial */
@@ -207,7 +215,7 @@ export async function createFinanceTxAction(_prev: State, formData: FormData): P
   if (!parsed.ok) return { error: parsed.error };
   const { type, amount, category, description, branchId } = parsed.data;
 
-  if (category && !(await FinanceCategory.exists({ name: category, type, active: true }))) return { error: f.badCategory };
+  if (category && !(await FinanceCategory.exists({ name: category, type, active: true, system: { $ne: true } }))) return { error: f.badCategory };
   if (branchId && !(await Branch.exists({ _id: branchId, active: true }))) return { error: f.branch };
 
   try {
@@ -225,6 +233,8 @@ export async function createFinanceTxAction(_prev: State, formData: FormData): P
     });
     revalidatePath('/app/finance');
     revalidatePath('/app/finance/state');
+    revalidatePath('/app/finance/kunlik');
+    revalidatePath('/app/kassa');
     return { success: f.added };
   } catch {
     return { error: m.saveFailed };

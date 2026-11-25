@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { computePartialReturn, type ReturnCalcInput } from '@/lib/saleReturn';
 import { extractKassaPayments } from '@/lib/kassa';
-import { sumCashFromSales } from '@/lib/cashKassa';
+import { sumCashFromSales } from '@/lib/branchCash';
 import type { ISale } from '@/lib/models/tenant/Sale';
 
 function input(over: Partial<ReturnCalcInput> = {}): ReturnCalcInput {

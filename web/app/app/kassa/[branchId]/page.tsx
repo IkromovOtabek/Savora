@@ -3,7 +3,8 @@ import { notFound } from 'next/navigation';
 import { Types } from 'mongoose';
 import { getTenantSession } from '@/lib/tenantSession';
 import { isBranchScoped } from '@/lib/branchScope';
-import { KASSA_SALE_FILTER, dayRange, extractKassaPayments, isCashRow, sumByMethod } from '@/lib/kassa';
+import { KASSA_SALE_FILTER, extractKassaPayments, isCashRow, sumByMethod } from '@/lib/kassa';
+import { isDayPeriod, periodRange, toDayKey } from '@/lib/period';
 import { fmtDate, fmtDateTime, fmtMoney } from '@/lib/format';
 import KassaDateFilter from '@/components/tenant/KassaDateFilter';
 import BackLink from '@/components/ui/BackLink';
@@ -37,7 +38,10 @@ export default async function KassaBranchPage({
   const branch = await Branch.findById(branchId).lean();
   if (!branch) notFound();
 
-  const { start, end, label } = dayRange(sp.date ?? new Date().toISOString().slice(0, 10));
+  // Kun — mahalliy (kunlik kirim-chiqim bilan bir xil); toISOString UTC bo'lib, tungi soatlarda kechagi kun chiqardi
+  const today = toDayKey(new Date());
+  const label = isDayPeriod(sp.date) && sp.date <= today ? sp.date : today;
+  const { start, end } = periodRange(label);
 
   const sales = await Sale.find({
     branchId: branch._id,
@@ -66,7 +70,6 @@ export default async function KassaBranchPage({
   const total = rows.reduce((s, r) => s + r.amount, 0) + bankTotal;
   const payRows = rows.filter((r) => !r.isRefund);
 
-  const today = new Date().toISOString().slice(0, 10);
   // Vaqt chizig'i — kun ichida xronologik tartibda (sotuv to'lovlari + bank tushumlari)
   const timeline = [
     ...rows.map((r, i) => ({

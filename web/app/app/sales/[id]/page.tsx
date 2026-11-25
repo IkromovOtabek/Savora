@@ -105,7 +105,7 @@ export default async function SaleDetailPage({
 
   const cancelled = sale.status === 'cancelled';
   const pct = customerTotal > 0 ? Math.min(100, Math.round((sale.paidAmount / customerTotal) * 100)) : 100;
-  const debtInfo = !isBank && sale.dueDate && sale.remainingAmount > 0 ? computeDebtInfo(sale) : null;
+  const debtInfo = !isBank && (sale.dueDate || sale.installmentMonths) && sale.remainingAmount > 0 ? computeDebtInfo(sale) : null;
   const customerName = sale.customerSnapshot?.fullName;
   const customerPhone = sale.customerSnapshot?.phone;
   const qty = sale.productSnapshot.saleQuantity ?? 1;
@@ -355,11 +355,11 @@ export default async function SaleDetailPage({
               {bankNasiya && <li><span>{d.sales.newSale.restInstallment}</span><span>{fmtMoney(customerTotal - (sale.downPayment ?? 0))} {d.common.sum}</span></li>}
               {sale.installmentMonths && <li><span>{d.common.installment}</span><span>{tr(d.common.nMonths, { n: sale.installmentMonths })}</span></li>}
               {sale.payDay && <li><span>{d.sales.newSale.payDayLabel}</span><span>{tr(d.sales.newSale.payDayEvery, { n: sale.payDay })}</span></li>}
-              {sale.dueDate && debtInfo && (
+              {debtInfo?.dueDate && (
                 <li>
                   <span>{d.sales.dueDate}</span>
                   <span className={debtInfo.state === 'overdue' ? 'sl-danger-txt' : undefined}>
-                    {fmtDate(sale.dueDate)} · {debtLabel}
+                    {fmtDate(debtInfo.dueDate)} · {debtLabel}
                   </span>
                 </li>
               )}

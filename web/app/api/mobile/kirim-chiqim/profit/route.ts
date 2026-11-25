@@ -4,7 +4,7 @@ import { getTenantModels } from '@/lib/tenantDb';
 import { kirimChiqimDenied } from '@/lib/mobileOrg';
 import { monthRange, profitReport, type ProfitSaleLine } from '@/lib/monitoring';
 import { saleProfitRevenue } from '@/lib/bankCredit';
-import { earlierNasiyaFilter, saleProfitParts } from '@/lib/saleProfit';
+import { earlierNasiyaFilter, loadCostFallback, saleCost, saleProfitParts } from '@/lib/saleProfit';
 
 /**
  * Oylik foyda hisobi — web «Hisobot → Foyda hisobi» bilan bir formula:
@@ -41,13 +41,9 @@ export async function GET(req: Request) {
   ]);
 
   // Tannarx — sotuv vaqtidagi snapshot; eski sotuvlarda yo'q bo'lsa mahsulotning joriy xarid narxi (web kabi)
-  const missing = sales.filter((s) => s.productSnapshot?.purchasePrice == null).map((s) => s.productId);
-  const fallback = missing.length
-    ? new Map((await Product.find({ _id: { $in: missing } }).select('purchasePrice').lean()).map((p) => [String(p._id), p.purchasePrice ?? 0]))
-    : new Map<string, number>();
+  const fallback = await loadCostFallback(Product, sales);
   const lines: ProfitSaleLine[] = sales.map((s) => {
-    const unit = s.productSnapshot?.purchasePrice ?? fallback.get(String(s.productId)) ?? 0;
-    const cost = unit * (s.productSnapshot?.saleQuantity ?? 1);
+    const cost = saleCost(s, fallback);
     return { branchId: String(s.branchId), revenue: saleProfitRevenue(s), cost, at: s.createdAt ?? start, parts: saleProfitParts(s, cost) };
   });
 

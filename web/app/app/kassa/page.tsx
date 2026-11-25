@@ -3,7 +3,7 @@ import { getTenantSession } from '@/lib/tenantSession';
 import Icon from '@/components/icons/Icon';
 import { isBranchScoped } from '@/lib/branchScope';
 import { userCan } from '@/lib/permissionGuard';
-import { KASSA_SALE_FILTER } from '@/lib/kassa';
+import { branchCashOf, loadBranchCash } from '@/lib/branchCash';
 import NaxtKassaCards, { KassaCard } from '@/components/tenant/NaxtKassaCards';
 import QuickExpense from '@/components/tenant/QuickExpense';
 import { loadExpenseCategories } from '@/lib/financeCategories';
@@ -23,57 +23,36 @@ export default async function KassaPage() {
 
   const allBranches = await Branch.find({ active: true }).sort({ createdAt: 1 }).lean();
   // Filial login — faqat o'z filiali kassasi
-  const branches = isBranchScoped(user)
-    ? allBranches.filter((b) => String(b._id) === user.branchId)
-    : allBranches;
-  const branchIds = branches.map((b) => b._id);
+  const scoped = isBranchScoped(user);
+  const branches = scoped ? allBranches.filter((b) => String(b._id) === user.branchId) : allBranches;
 
-  const [sales, expenseAgg, bankAgg] = await Promise.all([
-    // Bekor qilingan (yangi tartib) sotuv to'lovi — realizatsiya; qaytarilgani CashFlow chiqimida (lib/kassa)
-    Sale.find({ ...KASSA_SALE_FILTER, branchId: { $in: branchIds } }).limit(5000).lean(),
-    CashFlow.aggregate([{ $match: { type: 'expense' } }, { $group: { _id: null, total: { $sum: '$amount' } } }]),
-    // Kredit kassada «Bankdan pul olindi» — naqd kassaga qo'shiladi (filial bo'yicha; eski yozuvlar filialsiz)
-    BankReceipt.aggregate<{ _id: unknown; total: number }>([{ $group: { _id: '$branchId', total: { $sum: '$amount' } } }]),
-  ]);
-  const bankByBranch = new Map(bankAgg.map((x) => [x._id ? String(x._id) : '', x.total]));
-  const adminTotal = expenseAgg[0]?.total ?? 0;
+  // Naqd kassa qoldig'i — yagona formula (lib/branchCash, Moliya → Hisoblar holati bilan bir xil):
+  // naqd to'lovlar − qaytarish + bankdan olingan + filial kirimi − filial chiqimi
+  const cashRes = await loadBranchCash({ Sale, CashFlow, BankReceipt }, scoped ? branches.map((b) => String(b._id)) : undefined);
   // Xarajat qo'shish — do'kon egasi («Kirim-Chiqim» moduli); kassa «Chiqim» summasiga ham kiradi.
   // Filial xodimi — «Xarajat yozish» huquqi bilan, o'z filiali kassasidan (lib/branchExpense)
-  const branchExpense = isBranchScoped(user) && features.kirimChiqim && (await userCan(user, 'kassa.expense'));
+  const branchExpense = scoped && features.kirimChiqim && (await userCan(user, 'kassa.expense'));
   const canExpense = (user.role === 'admin' && features.kirimChiqim) || branchExpense;
   const expenseCategories = canExpense ? await loadExpenseCategories(FinanceCategory) : [];
 
-  // Filial bo'yicha naqd tushum
-  const map = new Map<string, KassaCard>();
-  for (const b of branches) {
-    map.set(String(b._id), { id: String(b._id), name: b.name, naxtSotuv: 0, bankOlgan: bankByBranch.get(String(b._id)) ?? 0, adminOlgan: 0, qolgan: 0 });
-  }
-
-  for (const s of sales) {
-    const card = map.get(String(s.branchId));
-    if (!card) continue;
-    // Naqd qo'lga olingan pul: naqd sotuv to'liq, boshqa turlarda bosh to'lov (paidAmount)
-    const cashReceived = s.paymentType === 'cash' ? (s.totalAmount ?? 0) : (s.paidAmount ?? 0);
-    card.naxtSotuv += cashReceived;
-  }
-
-  const cards = [...map.values()];
-  for (const c of cards) c.qolgan = c.naxtSotuv + (c.bankOlgan ?? 0) - c.adminOlgan;
-
-  const naxtSotuvTotal = cards.reduce((s, c) => s + c.naxtSotuv, 0);
-  // Filial login — faqat o'z filiali; egasi — filialsiz eski tushumlar ham jamida
-  const bankTotal = isBranchScoped(user)
-    ? cards.reduce((s, c) => s + (c.bankOlgan ?? 0), 0)
-    : bankAgg.reduce((s, x) => s + x.total, 0);
+  // Kartada: «Naqd kirim» — naqd to'lovlar + kassaga kiritilgan pul; «Kassadan chiqim» — xarajat, olingan, qaytarilgan
+  const cards: KassaCard[] = branches.map((b) => {
+    const c = branchCashOf(cashRes, String(b._id));
+    return { id: String(b._id), name: b.name, naxtSotuv: c.cashSales + c.income, bankOlgan: c.bankIn, adminOlgan: c.expense, qolgan: c.cash };
+  });
+  const sum = (f: (c: KassaCard) => number) => cards.reduce((a, c) => a + f(c), 0);
+  // Egasi — filialsiz eski kirim/chiqim va bank tushumlari ham jamida; filial login — faqat o'z filiali
+  const un = scoped ? { income: 0, expense: 0, bankIn: 0 } : cashRes.unbranched;
   const total: KassaCard = {
     id: 'all',
     // Filial login bitta filialni ko'radi — "barcha filiallar" deyish noto'g'ri
-    name: isBranchScoped(user) ? k.yourBranchKassa : k.totalAllBranches,
-    naxtSotuv: naxtSotuvTotal,
-    bankOlgan: bankTotal,
-    adminOlgan: adminTotal,
-    qolgan: naxtSotuvTotal + bankTotal - adminTotal,
+    name: scoped ? k.yourBranchKassa : k.totalAllBranches,
+    naxtSotuv: sum((c) => c.naxtSotuv) + un.income,
+    bankOlgan: sum((c) => c.bankOlgan ?? 0) + un.bankIn,
+    adminOlgan: sum((c) => c.adminOlgan) + un.expense,
+    qolgan: sum((c) => c.qolgan) + un.income + un.bankIn - un.expense,
   };
+  const bankTotal = total.bankOlgan ?? 0;
 
   return (
     <>
@@ -81,7 +60,7 @@ export default async function KassaPage() {
         <div>
           <h1 className="t-page-title">{k.title}</h1>
           <p className="t-page-sub">
-            {tr(k.sub, { scope: isBranchScoped(user) ? k.yourBranch : tr(plural(branches.length, d.sales.nBranches), { n: branches.length }) })}
+            {tr(k.sub, { scope: scoped ? k.yourBranch : tr(plural(branches.length, d.sales.nBranches), { n: branches.length }) })}
           </p>
         </div>
         <div className="t-page-actions">

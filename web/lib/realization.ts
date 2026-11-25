@@ -10,7 +10,7 @@ import type { ISupplier, ISupplierEntry } from './models/tenant/Supplier';
 import type { IBranch } from './models/tenant/Branch';
 import type { ProductUnit } from './businessTypes';
 import { methodOf, type PayMethod } from './payMethods';
-import { defersProfit, profitBetween, saleProfitParts } from './saleProfit';
+import { defersProfit, profitBetween, saleCost, saleProfitParts } from './saleProfit';
 
 export type MoneyKind = 'salePay' | 'debtPay' | 'bank' | 'income' | 'expense' | 'refund' | 'supplier';
 
@@ -170,7 +170,7 @@ export function soldRows(sales: SaleLike[], start: Date, end: Date): SoldRow[] {
     const at = new Date(s.createdAt);
     if (!inRange(at, start, end)) return [];
     const qty = s.productSnapshot?.saleQuantity ?? 1;
-    const cost = Math.round((s.productSnapshot?.purchasePrice ?? 0) * qty);
+    const cost = saleCost(s);
     return [{
       saleId: String(s._id), saleNo: s.saleNo, at, product: s.productSnapshot?.name ?? '—', qty,
       unit: s.productSnapshot?.unit, customer: s.customerSnapshot?.fullName ?? '', paymentType: s.paymentType,
@@ -187,7 +187,7 @@ export function earlierNasiyaProfit(sales: SaleLike[], start: Date, end: Date): 
   let sum = 0;
   for (const s of sales) {
     if (s.status === 'cancelled' || !defersProfit(s) || !s.createdAt || new Date(s.createdAt) >= start) continue;
-    const cost = Math.round((s.productSnapshot?.purchasePrice ?? 0) * (s.productSnapshot?.saleQuantity ?? 1));
+    const cost = saleCost(s);
     sum += profitBetween(saleProfitParts(s, cost), start, end);
   }
   return sum;

@@ -4,6 +4,7 @@ import { branchAggMatch } from '@/lib/branchScope';
 import { userCan } from '@/lib/permissionGuard';
 import { parsePeriod, periodRange } from '@/lib/period';
 import { fmtMoney } from '@/lib/format';
+import { SALE_COST_EXPR } from '@/lib/saleProfit';
 import PeriodSeg from '@/components/tenant/PeriodSeg';
 import BackLink from '@/components/ui/BackLink';
 import { getDict } from '@/lib/i18n/server';
@@ -31,7 +32,8 @@ export default async function SellersReport({ searchParams }: { searchParams: Pr
       count: { $sum: 1 },
       revenue: { $sum: '$totalAmount' },
       paid: { $sum: '$paidAmount' },
-      cost: { $sum: { $multiply: [{ $ifNull: ['$productSnapshot.purchasePrice', 0] }, { $ifNull: ['$productSnapshot.saleQuantity', 1] }] } },
+      // Tannarx — saleCost bilan bir qoida (butun so'mga yaxlitlangan)
+      cost: { $sum: SALE_COST_EXPR },
     } },
     { $sort: { revenue: -1 } },
   ]);
