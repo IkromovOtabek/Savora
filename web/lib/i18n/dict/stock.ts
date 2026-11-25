@@ -639,6 +639,16 @@ export const uz = {
       delete: "O'chirish",
       deleteConfirm: "Bu yozuvni o'chirasizmi? Qarz qayta hisoblanadi.",
     },
+    /** Yetkazib beruvchi sahifasi: kirim aktlari va xaridlar (purchasing moduli) */
+    docs: {
+      title: 'Kirim aktlari va xaridlar',
+      newReceipt: 'Yangi kirim akti',
+      newPo: 'Yangi xarid',
+      empty: "Bu yetkazib beruvchidan hali hujjat yo'q.",
+      receipt: 'Kirim akti',
+      po: 'Xarid',
+      all: "Hammasini ko'rish",
+    },
     products: {
       title: 'Undan olingan mahsulotlar',
       empty: "Bu yetkazib beruvchiga bog'langan mahsulot yo'q. Mahsulot formasida yetkazib beruvchini tanlang.",
@@ -1314,6 +1324,15 @@ export const ru: typeof uz = {
       auto: 'приёмка товара',
       delete: 'Удалить',
       deleteConfirm: 'Удалить эту запись? Долг будет пересчитан.',
+    },
+    docs: {
+      title: 'Приходные акты и закупки',
+      newReceipt: 'Новый приходный акт',
+      newPo: 'Новая закупка',
+      empty: 'От этого поставщика ещё нет документов.',
+      receipt: 'Приходный акт',
+      po: 'Закупка',
+      all: 'Смотреть все',
     },
     products: {
       title: 'Товары от поставщика',

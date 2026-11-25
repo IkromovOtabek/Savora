@@ -47,3 +47,8 @@
 @media (max-width: 760px) {
   .sp-seg { grid-template-columns: 1fr; }
 }
+
+/* Kirim aktlari va xaridlar bo'limi */
+.sp-docs-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.sp-docs-acts { display: flex; gap: 8px; flex-wrap: wrap; }
+.sp-docs-all { display: block; padding: 4px 18px 16px; font-size: 14px; }
