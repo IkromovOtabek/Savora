@@ -2,49 +2,20 @@
 
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
-import type { Types } from 'mongoose';
-import type { IProduct } from '@/lib/models/tenant/Product';
 import { getTenantSession } from '@/lib/tenantSession';
-import { generateSaleNo } from '@/lib/sales';
-import { reserveStock, releaseStock } from '@/lib/stock';
-import { recordAudit } from '@/lib/audit';
-import { canonicalPhone } from '@/lib/phone';
-import { findCustomerByPhone } from '@/lib/daftarOps';
-import { markOnboardingStep } from '@/lib/onboarding';
-import { branchFilter } from '@/lib/branchScope';
-import { logError } from '@/lib/logger';
+import { afterSales, checkSaleMarking, loadSaleLines, resolveCustomerFor, saleCoreErrorText, writeSales } from '@/lib/sales/createSales';
+import { resolveSaleTerms, saleTermsErrorText } from '@/lib/sales/terms';
 import { featureDisabledError } from '@/lib/featureAction';
 import { checkPermission, userCan } from '@/lib/permissionGuard';
 import { permissionDeniedError } from '@/lib/permissions';
-import { runWithCompensation } from '@/lib/compensate';
 import { allocateDiscount, discountAmount, unitPriceFor } from '@/lib/posCart';
 import { parseInput, zId, zMoney, zOneOf, zOptDate, zOptInt, zOptQty, zText } from '@/lib/validation';
-import { addMonthsClamped } from '@/lib/dates';
-import { pq294MonthsError } from '@/lib/pq294';
 import { PAY_METHODS, allocateParts, settlePayment, type PayMethod } from '@/lib/payMethods';
-import { calcSaleStatus } from '@/lib/sales';
 import { newCheckoutId, receiptPath } from '@/lib/receiptLink';
-import { checkSaleQty } from '@/lib/productQuantity';
 import { isFractionalUnit, priceTimesQty, qtyLabel } from '@/lib/qty';
 import { getI18n } from '@/lib/i18n/server';
 import { tr } from '@/lib/i18n/fmt';
-import { notifyNewSale, salePayLabel } from '@/lib/shopNotify';
-import { getShopSettings } from '@/lib/shopSettings';
-import { MARKING_MAX_PER_LINE, checkMarkingLines, markingModeOf, serialOfKey, soldMarkingConflict, type MarkingLineError } from '@/lib/marking';
-import { localDateKey } from '@/lib/gs1';
-import type { Dict } from '@/lib/i18n/server';
-
-/** Markirovka xatosi → matn (d.sales.marking) */
-function markingErrorText(e: MarkingLineError, t: Dict['sales']['marking']): string {
-  switch (e.code) {
-    case 'invalid': return tr(t.invalid, { name: e.name, code: e.value });
-    case 'mismatch': return tr(t.mismatch, { name: e.name, code: e.value });
-    case 'duplicate': return tr(t.duplicate, { name: e.name, code: e.value });
-    case 'tooMany': return tr(t.tooMany, { name: e.name });
-    case 'missing': return tr(t.missing, { name: e.name, n: e.n });
-    case 'expired': return tr(t.expired, { name: e.name, date: e.date.split('-').reverse().join('.') });
-  }
-}
+import { MARKING_MAX_PER_LINE } from '@/lib/marking';
 
 /** Muvaffaqiyatli kassa sotuvi natijasi — muvaffaqiyat oynasi va chek uchun */
 export interface PosDone {
@@ -127,64 +98,31 @@ export async function posSaleAction(input: PosSaleInput): Promise<State> {
   const isInstall = payment.mode === 'installment';
   const isDebt = payment.mode !== 'full';
   if (isDebt && (!customerName || !customerPhone)) return { error: k.debtNeedsCustomer };
-  let months: number | undefined;
-  if (isInstall) {
-    if (!features.variant && !features.nasiya) return { error: m.nasiyaDisabled };
-    // Nasiya — har tovarning o'z oylik jadvali bo'lardi; savatchada bitta tovar
-    if (lines.length !== 1) return { error: d.crm.money.restOneItem };
-    months = payment.months;
-    if (!months) return { error: m.monthsRequired };
-    const pqErr = pq294MonthsError(months, new Date(), locale);
-    if (pqErr) return { error: pqErr };
-  }
 
-  const scope = branchFilter(user);
+  // Tovarlar (filial doirasi, omborda, miqdor) — lib/sales/createSales (barcha sotuv yo'llari bilan bir yadro)
+  const loaded = await loadSaleLines({ Product }, user, lines.map((l) => ({ productId: l.productId, qty: l.qty })));
+  if (!loaded.ok) return { error: saleCoreErrorText(loaded.error, d) };
+  // Birlik narxi: ulgurji / chakana; boshqa narx — «Narxni o'zgartirish» huquqi bilan
   const canEditPrice = await userCan(user, 'sale.editPrice');
-
-  // 1) Avval barcha qatorlar tekshiriladi (mavjudligi, qoldig'i, narxi) — yarim sotuv bo'lmasin
-  const prepared: { found: IProduct & { _id: Types.ObjectId }; qty: number; unit: number }[] = [];
-  for (const line of lines) {
-    const found = await Product.findOne({ _id: line.productId, ...scope }).lean<IProduct & { _id: Types.ObjectId }>();
-    if (!found) return { error: m.productNotFoundOrDenied };
-    if (found.status !== 'in_stock') return { error: tr(m.productNotInStock, { name: found.name }) };
-    // dona — butun, kg/m… — ≤3 xona kasr
-    const qtyCheck = checkSaleQty(found, line.qty);
-    if (!qtyCheck.ok) return { error: qtyCheck.reason === 'badQty' ? `${found.name}: ${m.badQty}` : tr(m.notEnoughStockFor, { name: found.name }) };
-    const qty = qtyCheck.qty;
-
-    let unit = unitPriceFor(found, wholesale);
-    if (line.price > 0 && line.price !== unit) {
-      // Narxi bor mahsulotda qo'lda narx — "sale.editPrice" huquqi kerak
+  const prepared = [];
+  for (const [i, pl] of loaded.lines.entries()) {
+    let unit = unitPriceFor(pl.product, wholesale);
+    const price = lines[i].price;
+    if (price > 0 && price !== unit) {
       if (unit > 0 && !canEditPrice) return permissionDeniedError('sale.editPrice');
-      unit = line.price;
+      unit = price;
     }
-    if (!unit || unit <= 0) return { error: tr(m.enterPriceFor, { name: found.name }) };
-    prepared.push({ found, qty, unit });
+    if (!unit || unit <= 0) return { error: tr(m.enterPriceFor, { name: pl.product.name }) };
+    prepared.push({ ...pl, unit });
   }
 
-  // Markirovka (DataMatrix): kod formati, tovarga mosligi (GTIN ↔ shtrix-kod), savatchada va bazada takror yo'qligi;
-  // majburiy rejimda — har donaga kod va muddati o'tmagan. Fiskal tekshiruv EMAS (docs/SOLIQ.md).
-  const markingMode = markingModeOf((await getShopSettings(ShopSettings)).stock?.markingMode);
-  const marking = checkMarkingLines(prepared.map(({ found, qty }, i) => ({
-    name: found.name,
-    qty,
-    unit: found.unit,
-    marked: (found.kind ?? 'goods') === 'goods' && !!found.marked,
-    productCodes: [found.barcode, found.imei],
-    codes: lines[i].markingCodes ?? [],
-  })), markingMode, localDateKey());
-  if (!marking.ok) return { error: markingErrorText(marking.error, d.sales.marking) };
-  const markingKeys = marking.lines.flatMap((l) => l.keys);
-  if (markingKeys.length) {
-    const sold = await Sale.find({ markingKeys: { $in: markingKeys }, status: { $ne: 'cancelled' } })
-      .select('markingKeys returns status').lean();
-    const conflict = soldMarkingConflict(markingKeys, sold);
-    if (conflict) return { error: tr(d.sales.marking.alreadySold, { code: serialOfKey(conflict) }) };
-  }
+  // Markirovka: kodlar formati, tovarga mosligi, avval sotilmaganligi; «majburiy» rejimda kodsiz sotilmaydi
+  const marking = await checkSaleMarking({ Sale, ShopSettings }, prepared, lines.map((l) => l.markingCodes ?? []));
+  if (!marking.ok) return { error: saleCoreErrorText(marking.error, d) };
 
-  // Kasr miqdorda qator jami butun so'mga yaxlitlanadi (client PosScreen bilan bir xil formula)
+  // Narx va chegirma (chegirma katalog narxini o'zgartirmaydi — faqat sotuv summasi kamayadi)
   const lineTotals = prepared.map((p) => priceTimesQty(p.unit, p.qty));
-  const subtotal = lineTotals.reduce((s, n) => s + n, 0);
+  const subtotal = lineTotals.reduce((sum, n) => sum + n, 0);
   const disc = discountAmount(subtotal, discount);
   if (disc >= subtotal) return { error: k.discountTooBig };
   if (disc > 0 && !(await userCan(user, 'sale.discount'))) return permissionDeniedError('sale.discount');
@@ -192,128 +130,55 @@ export async function posSaleAction(input: PosSaleInput): Promise<State> {
   const finalTotals = lineTotals.map((t, i) => t - lineDisc[i]);
   const grandTotal = subtotal - disc;
 
-  // To'lov: to'liq rejimda summa yetarli bo'lishi, karta summadan oshmasligi; qaytim — faqat naqddan
+  // To'lov: naqd/karta (aralash ham) yoki qarz / nasiya — qismlar qatorlarga ketma-ket taqsimlanadi
   const settled = settlePayment(grandTotal, payment.parts, isDebt ? 'debt' : 'full');
   if (!settled.ok) return { error: k[settled.reason] };
   const lineParts = allocateParts(finalTotals, settled.parts);
-  // Nasiya: oxirgi oy sanasi; qarz: tanlangan qaytarish sanasi
-  const dueDate = isDebt && settled.paid < grandTotal
-    ? (isInstall && months ? addMonthsClamped(new Date(), months) : payment.dueDate)
-    : undefined;
 
-  // Qarzda mijoz kartochkasi majburiy (Qarzdorlar bo'limida ko'rinadi). Telefon bo'yicha topiladi —
-  // mavjud mijoz ismi ustidan yozilmaydi (createSaleAction bilan bir xil qoida).
-  let customer: { _id?: Types.ObjectId; fullName: string; phone?: string } | undefined;
-  if (isDebt) {
-    const phone = canonicalPhone(customerPhone);
-    const found = await findCustomerByPhone({ Customer }, phone);
-    const c = found ?? (await Customer.create({ fullName: customerName, phone })).toObject();
-    customer = { _id: c._id, fullName: c.fullName, phone: c.phone };
-  } else if (customerName) {
-    customer = { fullName: customerName, phone: customerPhone || undefined };
-  }
+  // To'lov shartlari (nasiya oylari, PQ-294, muddat) — lib/sales/terms (web va mobil bilan bir qoida)
+  const t = await resolveSaleTerms({
+    paymentType: isInstall ? 'installment' : isDebt ? 'debt' : 'cash', total: grandTotal, paid: settled.paid, lineCount: prepared.length,
+    months: payment.months, dueDate: payment.dueDate, features, locale,
+  }, async () => false);
+  if (!t.ok) return { error: t.error.code === 'installmentOneItem' ? d.crm.money.restOneItem : saleTermsErrorText(t.error, d) };
+
+  const cust = await resolveCustomerFor({ Customer }, { name: customerName, phone: customerPhone }, isDebt);
+  if (!cust.ok) return { error: cust.error.code === 'customer' && cust.error.reason === 'badPhone' ? k.badPhone : saleCoreErrorText(cust.error, d) };
+
   const checkoutId = newCheckoutId();
-
-  // 2) Sotish — "hammasi yoki hech biri": biror qator o'tmasa, oldingilari bekor qilinadi
-  //    (sotuv yozuvi o'chadi, mahsulot omborga qaytadi). Audit faqat to'liq muvaffaqiyatdan keyin.
-  let shortOf: string | null = null;
-  const saleNos: string[] = [];
-  const outcome = await runWithCompensation(prepared, async ({ found, qty, unit }, i) => {
-    const total = finalTotals[i];
-    const parts = lineParts[i];
-    const paid = parts.reduce((s, p) => s + p.amount, 0);
-    const now = new Date();
-    const product = await reserveStock(Product, found._id, qty, {
-      scope,
-      set: { soldPaymentType: isDebt ? 'debt' : 'cash' },
-      history: { action: 'sold', detail: `${qtyLabel(qty, found.unit)} · ${total.toLocaleString('uz-UZ')} so'm`, by: user.username, at: now },
-    });
-    if (!product) { shortOf = found.name; return null; }
-    const restock = () => releaseStock(Product, product._id, qty, { action: 'returned', detail: 'Kassa: sotuv yakunlanmadi', by: user.username, at: new Date() });
-
-    let saleId: unknown;
-    try {
-      const saleNo = await generateSaleNo(Sale);
-      const sale = await Sale.create({
-        saleNo,
-        productId: product._id,
-        productSnapshot: {
-          name: product.name,
-          imei: product.imei,
-          brand: product.brand,
-          deviceModel: product.deviceModel,
-          purchasePrice: product.purchasePrice,
-          saleQuantity: qty,
-          unit: product.unit,
-          ...(found.ikpu ? { ikpu: found.ikpu } : {}),
-        },
-        ...(marking.lines[i].codes.length ? { markingCodes: marking.lines[i].codes, markingKeys: marking.lines[i].keys } : {}),
-        ...(customer ? { ...(customer._id ? { customerId: customer._id } : {}), customerSnapshot: { fullName: customer.fullName, phone: customer.phone } } : {}),
-        branchId: product.branchId,
-        paymentType: isInstall ? 'installment' : isDebt ? 'debt' : 'cash',
-        ...(isInstall ? { installmentMonths: months, downPayment: paid } : {}),
-        totalAmount: total,
-        paidAmount: paid,
-        remainingAmount: total - paid,
-        status: calcSaleStatus(total, paid),
-        ...(dueDate && total > paid ? { dueDate } : {}),
-        // Qarzdagi bosh to'lov izohi — naqd qismi kassaga tushum bo'lib hisoblanadi (lib/kassa)
-        payments: parts.map((p) => ({ amount: p.amount, paidAt: now, recordedBy: user.username, method: p.method, ...(isDebt ? { note: "Boshlang'ich to'lov" } : {}) })),
-        checkoutId,
-        ...(lineDisc[i] > 0 ? { discount: lineDisc[i] } : {}),
-        notes: note || undefined,
-        soldBy: user.username,
-      });
-      saleId = sale._id;
-      saleNos.push(saleNo);
-    } catch (err) {
-      await restock();
-      throw err;
-    }
-    return {
-      result: { productId: String(product._id), saleId: String(saleId), name: product.name, qty, measure: found.unit, unit, discount: lineDisc[i], total, marks: marking.lines[i].codes.length },
-      undo: async () => { await Sale.deleteOne({ _id: saleId }); await restock(); },
-    };
+  const written = await writeSales({ Product, Sale }, user, {
+    lines: prepared.map((p, i) => ({ ...p, total: finalTotals[i], parts: lineParts[i], discount: lineDisc[i] || undefined, marking: marking.lines[i] })),
+    terms: t.terms, customer: cust.customer, checkoutId, notes: note,
+    productSet: { soldPaymentType: isDebt ? 'debt' : 'cash' },
+    stockDetail: (l) => `${qtyLabel(l.qty, l.product.unit)} · ${l.total.toLocaleString('uz-UZ')} so'm`,
   });
-
-  if (!outcome.ok) {
-    if (outcome.error) logError('posSaleAction failed', outcome.error, { user: user.username, dbName: user.dbName });
-    return { error: shortOf ? tr(m.notEnoughStockFor, { name: shortOf }) : m.sellFailed };
-  }
+  if (!written.ok) return { error: 'error' in written ? saleCoreErrorText(written.error, d) : m.sellFailed };
+  const results = written.sales;
 
   const payLabel = isInstall
-    ? `nasiya ${months} oy (${settled.paid.toLocaleString('uz-UZ')} to'landi)`
+    ? `nasiya ${t.terms.months} oy (${settled.paid.toLocaleString('uz-UZ')} to'landi)`
     : isDebt
     ? `qarz (${settled.paid.toLocaleString('uz-UZ')} to'landi)`
     : settled.parts.map((p) => `${p.method} ${p.amount.toLocaleString('uz-UZ')}`).join(' + ');
-  for (const r of outcome.results) {
-    await recordAudit(user, {
-      action: 'sale.pos',
-      entity: 'sale',
-      entityId: r.productId,
-      summary: `Kassa: ${r.name} · ${qtyLabel(r.qty, r.measure)} × ${r.unit.toLocaleString('uz-UZ')}${r.discount ? ` − ${r.discount.toLocaleString('uz-UZ')} chegirma` : ''} = ${r.total.toLocaleString('uz-UZ')} so'm${wholesale ? ' (ulgurji)' : ''} · ${payLabel}${r.marks ? ` · markirovka ${r.marks} ta` : ''}`,
-      meta: { qty: r.qty, unit: r.unit, discount: r.discount, total: r.total, wholesale, payment: payment.mode, parts: settled.parts, checkoutId, ...(r.marks ? { markingCodes: r.marks } : {}) },
-    });
-  }
-  // Birliklar aralash bo'lsa (kg + dona) miqdorlarni qo'shib bo'lmaydi — unda qatorlar soni
-  const soldCount = outcome.results.some((r) => isFractionalUnit(r.measure))
-    ? outcome.results.length
-    : outcome.results.reduce((s, r) => s + r.qty, 0);
-  const soldTotal = outcome.results.reduce((s, r) => s + r.total, 0);
+  await afterSales(user, results, {
+    terms: t.terms, methods: settled.parts.map((p) => p.method), source: 'pos', checkoutId,
+    extra: `Kassa${wholesale ? ' (ulgurji)' : ''} · ${payLabel}`,
+  });
 
-  await markOnboardingStep(user.organizationId, 'saleMade');
+  // Dona o'lchovli savatchada — dona soni; kasrli (kg) qatorlar bo'lsa — qatorlar soni
+  const soldCount = results.some((r) => isFractionalUnit(r.product.unit))
+    ? results.length
+    : results.reduce((sum, r) => sum + r.qty, 0);
+  const soldTotal = results.reduce((sum, r) => sum + r.total, 0);
+
   revalidatePath('/app');
   revalidatePath('/app/products');
   revalidatePath('/app/sales');
   revalidatePath('/app/shifts');
   if (isDebt) revalidatePath('/app/debts');
   if (isInstall) revalidatePath('/app/nasiya');
-  const saleIds = outcome.results.map((r) => r.saleId);
-  const sorted = [...saleNos].sort();
-  void notifyNewSale(user, {
-    saleNo: sorted[0], items: outcome.results.length, firstItem: outcome.results[0]?.name ?? '—', total: soldTotal,
-    payment: salePayLabel(isInstall ? 'installment' : isDebt ? 'debt' : 'cash', settled.parts.map((p) => p.method)), by: user.username,
-  });
+  const saleIds = results.map((r) => r.saleId);
+  const sorted = results.map((r) => r.saleNo).sort();
   return {
     success: tr(m.quickSold, { n: soldCount, sum: soldTotal.toLocaleString('uz-UZ') }),
     saleIds,

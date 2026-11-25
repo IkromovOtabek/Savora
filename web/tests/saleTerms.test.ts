@@ -62,3 +62,14 @@ describe('missingPriceRight', () => {
     expect(await missingPriceRight(0, 50, false, none)).toBeNull();
   });
 });
+
+describe('writesCatalogPrice (tezkor sotuv, «Sotildi»)', () => {
+  it('yagona dona yoki narxsiz tovarda — yoziladi; miqdorli tovarda — katalog narxi saqlanadi', async () => {
+    const { writesCatalogPrice } = await import('@/lib/sales/createSales');
+    expect(writesCatalogPrice({ salePrice: 100, trackQuantity: false }, 120)).toBe(true);
+    expect(writesCatalogPrice({ salePrice: 0, trackQuantity: true }, 120)).toBe(true);
+    expect(writesCatalogPrice({ salePrice: 100, trackQuantity: true }, 90)).toBe(false);
+    expect(writesCatalogPrice({ salePrice: 100, trackQuantity: false, kind: 'service' }, 90)).toBe(false);
+    expect(writesCatalogPrice({ salePrice: 100, trackQuantity: false }, 100)).toBe(false);
+  });
+});

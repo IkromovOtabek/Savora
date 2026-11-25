@@ -11,3 +11,8 @@ export function isDbConnectionError(err: unknown): boolean {
 
 export const DB_UNAVAILABLE_MESSAGE =
   "Ma'lumotlar bazasiga ulanib bo'lmadi. MongoDB ishlayotganini tekshiring (mongod) va .env fayldagi MONGO_URI ni ko'ring.";
+
+/** MongoDB unikal indeks buzilishi (E11000) — parallel yozuv yoki takroriy kalit */
+export function isDupKey(err: unknown): boolean {
+  return !!err && typeof err === 'object' && (err as { code?: number }).code === 11000;
+}

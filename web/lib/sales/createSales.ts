@@ -16,7 +16,7 @@ import type { SessionUser } from '../session';
 import type { Dict } from '../i18n/dict';
 import { tr, qtyWithUnit } from '../i18n/fmt';
 import { branchFilter } from '../branchScope';
-import { checkSaleQty } from '../productQuantity';
+import { checkSaleQty, isStockless } from '../productQuantity';
 import { priceTimesQty, qtyLabel } from '../qty';
 import { reserveStock, releaseStock } from '../stock';
 import { runWithCompensation } from '../compensate';
@@ -28,7 +28,7 @@ import { getShopSettings } from '../shopSettings';
 import { recordAudit } from '../audit';
 import { notifyNewSale, salePayLabel } from '../shopNotify';
 import { markOnboardingStep } from '../onboarding';
-import { isDupKey } from '../posSync';
+import { isDupKey } from '../dbError';
 import type { PayPart } from '../payMethods';
 import { bankPartsLabel } from '../bankCredit';
 import { saleRemaining, type SaleTerms } from './terms';
@@ -143,6 +143,18 @@ export interface SaleLineWrite extends PreparedLine {
   /** Chegirma (POS) — ro'yxat jamidan ayirilgan */
   discount?: number;
   marking?: { codes: string[]; keys: string[] };
+  /**
+   * Sotilgan birlik narxi (tezkor sotuv, «Sotildi»). Yagona dona (IMEI) yoki narxsiz tovarda katalog narxi
+   * shu bilan yangilanadi; miqdorli tovarda — qolgan zaxira narxi o'zgarmaydi.
+   */
+  soldUnitPrice?: number;
+}
+
+/** Sotilgan narx katalogga yoziladimi: yagona dona yoki narxsiz tovar */
+export function writesCatalogPrice(product: Pick<IProduct, 'salePrice' | 'trackQuantity' | 'kind'>, unit?: number): boolean {
+  if (!unit || unit <= 0 || unit === product.salePrice) return false;
+  if (!(product.salePrice > 0)) return true;
+  return !product.trackQuantity && !isStockless(product);
 }
 
 export interface WrittenSale {
@@ -176,7 +188,10 @@ export async function writeSales(
     stockDetail?: (line: SaleLineWrite) => string;
     /** Tovarga qo'shimcha belgi (POS: soldPaymentType) */
     productSet?: Record<string, unknown>;
+    /** Sotuv vaqti (oflayn sotuv — qurilmadagi vaqt); to'lov ham shu vaqtda */
     at?: Date;
+    /** Sotuv yozuviga qo'shimcha maydonlar (oflayn: offline, syncedAt) */
+    saleExtra?: Record<string, unknown>;
   },
 ): Promise<{ ok: true; sales: WrittenSale[] } | { ok: false; error: SaleCoreError } | { ok: false; duplicate: true }> {
   const { terms, customer } = input;
@@ -187,13 +202,19 @@ export async function writeSales(
   const outcome = await runWithCompensation(input.lines, async (line) => {
     const { product, qty } = line;
     const now = input.at ?? new Date();
+    const catalogPrice = writesCatalogPrice(product, line.soldUnitPrice);
+    const set = { ...input.productSet, ...(catalogPrice ? { salePrice: line.soldUnitPrice } : {}) };
     const reserved = await reserveStock(m.Product, product._id, qty, {
       scope,
-      ...(input.productSet ? { set: input.productSet } : {}),
+      ...(Object.keys(set).length ? { set } : {}),
       history: { action: 'sold', detail: input.stockDetail ? input.stockDetail(line) : qtyLabel(qty, product.unit), by: user.username, at: now },
     });
     if (!reserved) { shortOf = product.name; return null; }
-    const restock = (history?: boolean) => releaseStock(m.Product, product._id, qty, history ? { action: 'returned', detail: 'Sotuv yakunlanmadi', by: user.username, at: new Date() } : undefined);
+    const restock = async (history?: boolean) => {
+      await releaseStock(m.Product, product._id, qty, history ? { action: 'returned', detail: 'Sotuv yakunlanmadi', by: user.username, at: new Date() } : undefined);
+      // Katalog narxi yozilgan bo'lsa — eski narx tiklanadi
+      if (catalogPrice) await m.Product.updateOne({ _id: product._id }, { $set: { salePrice: product.salePrice } });
+    };
 
     const paid = line.parts.reduce((s, p) => s + p.amount, 0);
     const lineBank = line.bankParts && line.bankParts.length > 0 ? line.bankParts : undefined;
@@ -235,6 +256,7 @@ export async function writeSales(
         notes: input.notes || undefined,
         photoUrl: input.photoUrl || undefined,
         ...(input.at ? { createdAt: input.at } : {}),
+        ...input.saleExtra,
       });
       saleId = sale._id;
     } catch (err) {

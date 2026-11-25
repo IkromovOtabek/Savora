@@ -5,25 +5,20 @@ import { redirect } from 'next/navigation';
 import { Types } from 'mongoose';
 import { getTenantSession } from '@/lib/tenantSession';
 import { parsePrice } from '@/lib/format';
-import { calcSaleStatus, generateSaleNo } from '@/lib/sales';
 import { PaymentType, type ISaleBankPart } from '@/lib/models/tenant/Sale';
 import { MAX_BANK_DEBT_DAYS, bankPartsLabel } from '@/lib/bankCredit';
 import type { ProductUnit } from '@/lib/businessTypes';
 import { sendTelegram, tgEscape } from '@/lib/telegram';
-import { notifyNewSale, salePayLabel } from '@/lib/shopNotify';
 import { featureDisabledError } from '@/lib/featureAction';
 import { isOwnUploadUrl } from '@/lib/fileUrl';
-import { checkSaleQty } from '@/lib/productQuantity';
 import { sellableInfo } from '@/lib/productKinds';
 import { isFractionalUnit, priceTimesQty, qtyLabel } from '@/lib/qty';
-import { reserveStock, releaseStock } from '@/lib/stock';
-import { runWithCompensation } from '@/lib/compensate';
+import { releaseStock } from '@/lib/stock';
 import { applySalePayment } from '@/lib/salePayment';
 import { SALE_CANCEL_CATEGORY } from '@/lib/models/tenant/FinanceCategory';
 import { computeInstallmentPlan, installmentPaymentMonths, installmentPaymentNote, spreadShortfall } from '@/lib/installment';
 import { recordAudit } from '@/lib/audit';
-import { resolveSaleCustomer, searchSaleCustomers, type SaleCustomerSearch } from '@/lib/saleCustomer';
-import { markOnboardingStep } from '@/lib/onboarding';
+import { searchSaleCustomers, type SaleCustomerSearch } from '@/lib/saleCustomer';
 import { branchFilter } from '@/lib/branchScope';
 import { logError } from '@/lib/logger';
 import { checkPermission, userCan } from '@/lib/permissionGuard';
@@ -172,11 +167,11 @@ export type QuickSaleLine = { productId: string; qty: number; salePrice?: number
 
 /** Tez sotuv — bir nechta mahsulotni naqd sotish */
 export async function quickSaleBatchAction(items: QuickSaleLine[]): Promise<State> {
-  const { user, Product, Sale, features } = await getTenantSession();
-  const m = (await getI18n()).d.sales.actions;
+  const { user, Product, Sale, ShopSettings, features } = await getTenantSession();
+  const { locale, d } = await getI18n();
+  const m = d.sales.actions;
   if (!features.sales) return featureDisabledError('sales');
   { const denied = await checkPermission(user, 'sale.create'); if (denied) return denied; }
-  const canEditPrice = await userCan(user, 'sale.editPrice');
   // Client'dan to'g'ridan-to'g'ri keladigan massiv — shakli, soni va qiymatlari tekshiriladi
   const parsed = parseInput(
     z.array(z.object({
@@ -190,119 +185,43 @@ export async function quickSaleBatchAction(items: QuickSaleLine[]): Promise<Stat
   if (!parsed.ok) return { error: parsed.error };
   const lines = parsed.data;
 
-  const scope = branchFilter(user);
+  // Tovarlar (filial doirasi, omborda, miqdor) va narx — lib/sales/createSales (barcha sotuv yo'llari bilan bir yadro)
+  const loaded = await loadSaleLines({ Product }, user, lines.map((l) => ({ productId: l.productId, qty: l.qty })));
+  if (!loaded.ok) return { error: saleCoreErrorText(loaded.error.code === 'onlyNLeft' ? { code: 'notEnoughStock', name: loaded.error.name } : loaded.error, d) };
+  const priced = [];
+  for (const [i, pl] of loaded.lines.entries()) {
+    const unit = lines[i].salePrice > 0 ? lines[i].salePrice : pl.product.salePrice;
+    if (!unit || unit <= 0) return { error: tr(m.enterPriceFor, { name: pl.product.name }) };
+    const total = priceTimesQty(unit, pl.qty);
+    // Ro'yxat narxidan arzon — sale.discount, qimmat — sale.editPrice (web/mobil bilan bir qoida)
+    const right = await missingPriceRight(pl.listTotal, total, pl.product.salePrice > 0, (k) => userCan(user, k));
+    if (right) return permissionDeniedError(right);
+    priced.push({ ...pl, unit, total });
+  }
+  const marking = await checkSaleMarking({ Sale, ShopSettings }, priced, []);
+  if (!marking.ok) return { error: saleCoreErrorText(marking.error, d) };
+  const grand = priced.reduce((sum, p) => sum + p.total, 0);
+  const t = await resolveSaleTerms({ paymentType: 'cash', total: grand, lineCount: priced.length, features, locale }, async () => false);
+  if (!t.ok) return { error: saleTermsErrorText(t.error, d) };
 
-  // "Hammasi yoki hech biri": biror qator o'tmasa, oldingi qatorlar bekor qilinadi
-  // (sotuv yozuvi o'chadi, mahsulot omborga qaytadi). Audit faqat to'liq muvaffaqiyatdan keyin.
-  let failMsg: string | null = null;
-  const outcome = await runWithCompensation(lines, async (item) => {
-    const found = await Product.findOne({ _id: item.productId, ...scope }).lean();
-    if (!found) { failMsg = m.productNotFoundOrDenied; return null; }
-    if (found.status !== 'in_stock') { failMsg = tr(m.productNotInStock, { name: found.name }); return null; }
-
-    const qtyCheck = checkSaleQty(found, item.qty);
-    if (!qtyCheck.ok) {
-      failMsg = qtyCheck.reason === 'badQty' ? m.badQty : tr(m.notEnoughStockFor, { name: found.name });
-      return null;
-    }
-    const saleQty = qtyCheck.qty;
-
-    let salePrice = found.salePrice;
-    if (item.salePrice > 0) {
-      // Narxi bor mahsulotda narxni o'zgartirish — "sale.editPrice" huquqi kerak
-      if (!canEditPrice && found.salePrice > 0 && item.salePrice !== found.salePrice) {
-        failMsg = permissionDeniedError('sale.editPrice').error;
-        return null;
-      }
-      salePrice = item.salePrice;
-    }
-    if (!salePrice || salePrice <= 0) { failMsg = tr(m.enterPriceFor, { name: found.name }); return null; }
-
-    const now = new Date();
-    const lineTotal = priceTimesQty(salePrice, saleQty);
-
-    // Atomik: qoldiq tekshiruvi + ayirish bitta so'rovda (parallel sotuvda minusga tushmaydi)
-    const product = await reserveStock(Product, found._id, saleQty, {
-      scope,
-      set: { salePrice, soldPaymentType: 'cash' },
-      history: {
-        action: 'sold',
-        detail: `${qtyLabel(saleQty, found.unit)} · ${lineTotal.toLocaleString('uz-UZ')} so'm`,
-        by: user.username,
-        at: now,
-      },
-    });
-    if (!product) { failMsg = tr(m.notEnoughStockFor, { name: found.name }); return null; }
-    const restock = async () => {
-      await releaseStock(Product, product._id, saleQty, { action: 'returned', detail: 'Tez sotuv yakunlanmadi', by: user.username, at: new Date() });
-      // Narx o'zgartirilgan bo'lsa — eski katalog narxi tiklanadi
-      if (salePrice !== found.salePrice) await Product.updateOne({ _id: product._id }, { $set: { salePrice: found.salePrice } });
-    };
-
-    let saleId: unknown;
-    try {
-      const saleNo = await generateSaleNo(Sale);
-      const sale = await Sale.create({
-        saleNo,
-        productId: product._id,
-        productSnapshot: {
-          name: product.name,
-          imei: product.imei,
-          brand: product.brand,
-          deviceModel: product.deviceModel,
-          purchasePrice: product.purchasePrice,
-          saleQuantity: saleQty,
-          unit: product.unit,
-        },
-        branchId: product.branchId,
-        paymentType: 'cash',
-        totalAmount: lineTotal,
-        paidAmount: lineTotal,
-        remainingAmount: 0,
-        status: 'paid',
-        payments: [{ amount: lineTotal, paidAt: now, recordedBy: user.username }],
-        soldBy: user.username,
-      });
-      saleId = sale._id;
-    } catch (err) {
-      await restock();
-      throw err;
-    }
-    return {
-      result: { productId: String(product._id), name: product.name, saleQty, unit: found.unit, lineTotal },
-      undo: async () => { await Sale.deleteOne({ _id: saleId }); await restock(); },
-    };
+  const written = await writeSales({ Product, Sale }, user, {
+    lines: priced.map((p, i) => ({ ...p, parts: [{ method: 'cash' as const, amount: p.total }], soldUnitPrice: p.unit, marking: marking.lines[i] })),
+    terms: t.terms, customer: null,
+    productSet: { soldPaymentType: 'cash' },
+    stockDetail: (l) => `${qtyLabel(l.qty, l.product.unit)} · ${l.total.toLocaleString('uz-UZ')} so'm`,
   });
+  if (!written.ok) return { error: 'error' in written ? saleCoreErrorText(written.error, d) : m.sellFailed };
+  const results = written.sales;
+  await afterSales(user, results, { terms: t.terms, methods: ['cash'], source: 'quick' });
 
-  if (!outcome.ok) {
-    if (outcome.error) logError('quickSaleBatchAction failed', outcome.error, { user: user.username, dbName: user.dbName });
-    return { error: failMsg ?? m.sellFailed };
-  }
-
-  for (const r of outcome.results) {
-    await recordAudit(user, {
-      action: 'sale.quick',
-      entity: 'sale',
-      entityId: r.productId,
-      summary: `Tez sotuv: ${r.name} · ${qtyLabel(r.saleQty, r.unit)} · ${r.lineTotal.toLocaleString('uz-UZ')} so'm`,
-      meta: { saleQty: r.saleQty, totalAmount: r.lineTotal },
-    });
-  }
   // Birliklar aralash bo'lsa (kg + dona) miqdorlarni qo'shib bo'lmaydi — unda qatorlar soni
-  const soldCount = outcome.results.some((r) => isFractionalUnit(r.unit))
-    ? outcome.results.length
-    : outcome.results.reduce((s, r) => s + r.saleQty, 0);
-  const soldTotal = outcome.results.reduce((s, r) => s + r.lineTotal, 0);
-  void notifyNewSale(user, {
-    items: outcome.results.length, firstItem: outcome.results[0]?.name ?? '—', total: soldTotal,
-    payment: salePayLabel('cash'), by: user.username,
-  });
-
-  await markOnboardingStep(user.organizationId, 'saleMade');
+  const soldCount = results.some((r) => isFractionalUnit(r.product.unit))
+    ? results.length
+    : results.reduce((sum, r) => sum + r.qty, 0);
   revalidatePath('/app');
   revalidatePath('/app/products');
   revalidatePath('/app/sales');
-  return { success: tr(m.quickSold, { n: soldCount, sum: soldTotal.toLocaleString('uz-UZ') }) };
+  return { success: tr(m.quickSold, { n: soldCount, sum: grand.toLocaleString('uz-UZ') }) };
 }
 
 /** Sotuv formasidagi F.I.O katagi: mijozlarni real vaqtda qidirish (bo'sh — so'nggi mijozlar) */

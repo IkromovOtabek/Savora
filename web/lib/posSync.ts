@@ -4,8 +4,8 @@ import type { ISale } from './models/tenant/Sale';
 import type { ICustomer } from './models/tenant/Customer';
 import type { SessionUser } from './session';
 import { branchFilter } from './branchScope';
-import { reserveStock, releaseStock } from './stock';
-import { generateSaleNo } from './sales';
+import { writeSales, type SaleCustomerSnap } from './sales/createSales';
+import { missingPriceRight, type SaleTerms } from './sales/terms';
 import { recordAudit } from './audit';
 import { isValidQty, priceTimesQty, qtyLabel } from './qty';
 import { isStockless } from './productQuantity';
@@ -60,9 +60,8 @@ export function clampSoldAt(soldAt: Date, now: Date = new Date()): Date {
   return soldAt;
 }
 
-export function isDupKey(err: unknown): boolean {
-  return !!err && typeof err === 'object' && (err as { code?: number }).code === 11000;
-}
+/** E11000 — lib/dbError (eski import yo'llari uchun shu yerdan ham) */
+export { isDupKey } from './dbError';
 
 /** Qurilma bergan sotuv kaliti: UUID yoki shunga o'xshash 8–64 belgili [A-Za-z0-9-] */
 export function isClientSaleId(v: unknown): v is string {
@@ -93,24 +92,15 @@ export async function applyOfflineSale(
   // dona — butun, kg/m… — ≤3 xona kasr
   if (!isValidQty(qty, product.kind === 'bundle' ? 'dona' : product.unit)) return { ...base, status: 'rejected', reason: 'badQty' };
 
+  // Narx huquqi — barcha sotuv yo'llari bilan bir qoida (lib/sales/terms)
   const listTotal = priceTimesQty(product.salePrice, qty);
-  if (product.salePrice > 0 && item.totalAmount < listTotal && !perms.canDiscount) {
-    return { ...base, status: 'rejected', reason: 'priceDiscount' };
-  }
-  if (product.salePrice > 0 && item.totalAmount > listTotal && !perms.canEditPrice) {
-    return { ...base, status: 'rejected', reason: 'priceEdit' };
-  }
+  const right = await missingPriceRight(listTotal, item.totalAmount, product.salePrice > 0, async (k) => (k === 'sale.discount' ? perms.canDiscount : perms.canEditPrice));
+  if (right) return { ...base, status: 'rejected', reason: right === 'sale.discount' ? 'priceDiscount' : 'priceEdit' };
 
   const soldAt = clampSoldAt(item.soldAt, now);
-  const reserved = await reserveStock(Product, product._id, qty, {
-    scope,
-    set: { soldPaymentType: 'cash' },
-    history: { action: 'sold', detail: `${qtyLabel(qty, product.unit)} · oflayn`, by: user.username, at: soldAt },
-  });
-  if (!reserved) return { ...base, status: 'conflict', reason: 'outOfStock' };
 
   // Mijoz: sotuv oflaynda allaqachon bo'lgan (pul olingan) — mijoz ma'lumoti xato bo'lsa ham sotuv yoziladi
-  let customer: { _id: unknown; fullName: string; phone: string } | null = null;
+  let customer: SaleCustomerSnap | null = null;
   if (models.Customer && (item.customerId || (item.customerName && item.customerPhone))) {
     try {
       const r = await resolveSaleCustomer({ Customer: models.Customer }, {
@@ -122,53 +112,30 @@ export async function applyOfflineSale(
     }
   }
 
-  try {
-    const saleNo = await generateSaleNo(Sale);
-    const sale = await Sale.create({
-      saleNo,
-      productId: product._id,
-      productSnapshot: {
-        name: product.name,
-        imei: product.imei,
-        brand: product.brand,
-        deviceModel: product.deviceModel,
-        purchasePrice: product.purchasePrice,
-        saleQuantity: qty,
-        unit: product.unit,
-      },
-      ...(customer ? { customerId: customer._id, customerSnapshot: { fullName: customer.fullName, phone: customer.phone } } : {}),
-      branchId: product.branchId,
-      paymentType: 'cash',
-      totalAmount: item.totalAmount,
-      paidAmount: item.totalAmount,
-      remainingAmount: 0,
-      status: 'paid',
-      payments: item.totalAmount > 0
-        ? [{ amount: item.totalAmount, paidAt: soldAt, note: "Naqd to'lov", recordedBy: user.username }]
-        : [],
-      soldBy: user.username,
-      notes: item.notes || undefined,
-      clientSaleId: item.clientSaleId,
-      offline: true,
-      syncedAt: now,
-      createdAt: soldAt,
-    });
-
-    await recordAudit(user, {
-      action: 'sale.create',
-      entity: 'sale',
-      entityId: String(sale._id),
-      summary: `Oflayn sotuv ${saleNo}: ${product.name} · ${qtyLabel(qty, product.unit)} · ${item.totalAmount.toLocaleString('uz-UZ')} so'm (sinxronlandi)`,
-      meta: { saleQty: qty, totalAmount: item.totalAmount, paymentType: 'cash', offline: true, soldAt },
-    });
-    return { ...base, status: 'ok', saleId: String(sale._id), saleNo };
-  } catch (err) {
-    // Kompensatsiya: sotuv yozilmasa — mahsulot omborga qaytadi
-    await releaseStock(Product, product._id, qty);
-    if (isDupKey(err)) {
+  // Ombordan ayirish + sotuv yozuvi — sotuv yadrosi (lib/sales/createSales), sotuv vaqti — qurilmadagi vaqt
+  const terms: SaleTerms = { paymentType: 'cash', paid: item.totalAmount, bankSplit: false, bankDebt: false, bankNasiya: false };
+  const written = await writeSales({ Product, Sale }, user as SessionUser, {
+    lines: [{ product, qty, listTotal, total: item.totalAmount, parts: [{ method: 'cash', amount: item.totalAmount }] }],
+    terms, customer, clientSaleId: item.clientSaleId, notes: item.notes, at: soldAt,
+    productSet: { soldPaymentType: 'cash' },
+    stockDetail: () => `${qtyLabel(qty, product.unit)} · oflayn`,
+    saleExtra: { offline: true, syncedAt: now },
+  });
+  if (!written.ok) {
+    if ('duplicate' in written) {
       const dup = await Sale.findOne({ clientSaleId: item.clientSaleId }, { _id: 1, saleNo: 1 }).lean();
       if (dup) return { ...base, status: 'duplicate', saleId: String(dup._id), saleNo: dup.saleNo };
     }
+    if ('error' in written && written.error.code === 'notEnoughStock') return { ...base, status: 'conflict', reason: 'outOfStock' };
     return { ...base, status: 'rejected', reason: 'failed' };
   }
+  const sale = written.sales[0];
+  await recordAudit(user, {
+    action: 'sale.create',
+    entity: 'sale',
+    entityId: sale.saleId,
+    summary: `Oflayn sotuv ${sale.saleNo}: ${product.name} · ${qtyLabel(qty, product.unit)} · ${item.totalAmount.toLocaleString('uz-UZ')} so'm (sinxronlandi) [offline]`,
+    meta: { saleQty: qty, totalAmount: item.totalAmount, paymentType: 'cash', offline: true, soldAt, source: 'offline' },
+  });
+  return { ...base, status: 'ok', saleId: sale.saleId, saleNo: sale.saleNo };
 }
