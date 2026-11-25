@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { Types } from 'mongoose';
 import CustomerForm from '@/components/tenant/CustomerForm';
+import DeleteCustomerBox from '@/components/tenant/DeleteCustomerBox';
 import { userCan } from '@/lib/permissionGuard';
 import BackLink from '@/components/ui/BackLink';
 import Icon from '@/components/icons/Icon';
@@ -35,7 +36,7 @@ export default async function CustomerDetailPage({
   const { id } = await params;
   const showAll = (await searchParams).all === '1';
   if (!Types.ObjectId.isValid(id)) notFound();
-  const { Customer, Sale, Branch, LedgerEntry, user, features } = await getTenantSession();
+  const { Customer, Sale, Branch, LedgerEntry, Reservation, user, features } = await getTenantSession();
   const canManage = await userCan(user, 'customers.manage');
   const canDaftar = !!features.daftar && (await userCan(user, 'daftar.manage'));
   const customer = await Customer.findById(id).lean();
@@ -57,6 +58,10 @@ export default async function CustomerDetailPage({
     .select('saleNo productSnapshot.name productSnapshot.imei productSnapshot.saleQuantity productSnapshot.unit branchId paymentType bankParts totalAmount remainingAmount status createdAt soldBy')
     .lean();
   const historyMore = purchases.length > historyLimit;
+  // O'chirish faqat tarixsiz mijozda (filialdan qat'i nazar): sotuv, daftar yozuvi, bron
+  const hasHistory = user.role === 'admin'
+    ? !!(await Sale.exists({ customerId: customer._id })) || !!(await LedgerEntry.exists({ customerId: customer._id })) || !!(await Reservation.exists({ customerId: customer._id }))
+    : true;
   const history = purchases.slice(0, historyLimit);
   const branchIds = [...new Set(history.map((s) => String(s.branchId)))];
   const branchName = new Map(
@@ -211,6 +216,11 @@ export default async function CustomerDetailPage({
             })}
           </ul>
         </section>
+      )}
+
+      {/* O'chirish — faqat egasi; tarixi bor mijoz o'chirilmaydi (server ham tekshiradi) */}
+      {user.role === 'admin' && canManage && (
+        <DeleteCustomerBox customerId={String(customer._id)} name={customer.fullName} blocked={hasHistory} />
       )}
     </div>
   );

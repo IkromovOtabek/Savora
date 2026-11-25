@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { getTenantSession } from '@/lib/tenantSession';
+import { recordAudit } from '@/lib/audit';
 import { userCan } from '@/lib/permissionGuard';
 import { getDict } from '@/lib/i18n/server';
 import { tr } from '@/lib/i18n/fmt';
@@ -95,4 +96,36 @@ export async function updateCustomerAction(_prev: State, formData: FormData): Pr
   revalidatePath('/app/customers');
   revalidatePath('/app/sales/new');
   return { success: d.crm.customers.updated };
+}
+
+/**
+ * Mijozni o'chirish — faqat do'kon egasi va faqat tarixsiz mijoz (sotuv, daftar, bron yo'q):
+ * masalan, xato kiritilgan yozuv. Tarixi bor mijoz o'chirilmaydi — sotuvlar va akt-sverka unga bog'langan.
+ */
+export async function deleteCustomerAction(_prev: State, formData: FormData): Promise<State> {
+  const { user, Customer, Sale, LedgerEntry, Reservation } = await getTenantSession();
+  const d = await getDict();
+  const t = d.crm.customers.deleteBox;
+  if (user.role !== 'admin') return { error: t.ownerOnly };
+  const parsed = parseInput(zId(d.crm.customers.errNotFound), formData.get('customerId'));
+  if (!parsed.ok) return { error: parsed.error };
+  const id = parsed.data;
+
+  const [hasSales, hasLedger, hasReservations] = await Promise.all([
+    Sale.exists({ customerId: id }),
+    LedgerEntry.exists({ customerId: id }),
+    Reservation.exists({ customerId: id }),
+  ]);
+  if (hasSales || hasLedger || hasReservations) return { error: t.blocked };
+
+  const removed = await Customer.findOneAndDelete({ _id: id }).lean();
+  if (!removed) return { error: d.crm.customers.errNotFound };
+  await recordAudit(user, {
+    action: 'customer.delete',
+    entity: 'customer',
+    entityId: id,
+    summary: `Mijoz o'chirildi: ${removed.fullName}${removed.phone ? ` (${removed.phone})` : ''}`,
+  });
+  revalidatePath('/app/customers');
+  redirect('/app/customers');
 }
