@@ -9,6 +9,7 @@ import { useResource } from '@/lib/hooks';
 import { useTheme, tabular, MONO } from '@/lib/theme';
 import { fmtMoney, fmtDate, fmtDayMonth, payLabel, payMethodLabel, digits, grouped, PAY_METHODS, type PayMethod } from '@/lib/format';
 import { useDict, tr } from '@/lib/i18n';
+import { parseQty, qtyWithUnit } from '@/lib/qty';
 import {
   Screen, NavBar, LargeTitle, Group, Cell, Pill, Ring, Button, Field, Chips, Loading, ErrorState, InlineError, CacheStamp, useLayout, type Tone, type IconName,
 } from '@/components/ui';
@@ -30,6 +31,10 @@ interface Sale {
   edits?: { at: string; by: string; changes: { field: EditField; from: string; to: string }[] }[];
   /** Narx tuzatilishida mijozga naqd qaytarilgan pul */
   priceRefunds?: { amount: number; at: string; by: string }[];
+  /** Qaytarish / bekor qilish (eski server bermaydi — tugmalar ko'rinmaydi) */
+  qty?: number;
+  unit?: string | null;
+  itemReturns?: { qty: number; amount: number; refund: number; at: string; by: string; reason: string | null }[];
 }
 type EditField = 'customer' | 'notes' | 'dueDate' | 'totalAmount';
 
@@ -53,6 +58,8 @@ export default function SaleDetail() {
   const first = useRef(true);
   useFocusEffect(useCallback(() => { if (first.current) { first.current = false; return; } res.reloadSilently(); }, [res.reloadSilently]));
   const [sheet, setSheet] = useState(false);
+  const [returnSheet, setReturnSheet] = useState(false);
+  const [undoBusy, setUndoBusy] = useState(false);
 
   const s = res.data;
   const backLabel = s?.paymentType === 'installment' ? d.tabs.nasiya : d.common.back;
@@ -63,6 +70,34 @@ export default function SaleDetail() {
   const pct = s.totalAmount > 0 ? s.paidAmount / s.totalAmount : 0;
   const canPay = s.remainingAmount > 0 && s.status !== 'cancelled' && can('payment.accept');
   const canEdit = s.status !== 'cancelled' && can('sale.edit');
+  // Qaytarish / bekor qilish — web sotuv sahifasi bilan bir qoida (server ham tekshiradi). Eski server qty bermaydi
+  const units = d.productFields.units;
+  const qtyText = (n: number) => qtyWithUnit(n, s.unit ?? null, units);
+  const canReturn = s.qty !== undefined && s.qty > 0 && s.status !== 'cancelled' && s.paymentType !== 'bank_credit' && can('sale.return');
+  const canCancel = s.qty !== undefined && s.status !== 'cancelled' && can('sale.cancel');
+  function confirmCancel() {
+    if (!s) return;
+    const refund = s.paidAmount;
+    Alert.alert(
+      d.saleDetail.cancelTitle,
+      refund > 0 ? tr(d.saleDetail.cancelMsg, { v: fmtMoney(refund, { suffix: true }) }) : d.saleDetail.cancelMsgNoPay,
+      [
+        { text: d.saleDetail.cancelKeep, style: 'cancel' },
+        {
+          text: d.saleDetail.cancelBtn, style: 'destructive', onPress: async () => {
+            setUndoBusy(true);
+            try {
+              await api(`/api/mobile/sales/${s.id}/cancel`, { method: 'POST' });
+              res.reloadSilently();
+              Alert.alert(d.saleDetail.cancelled);
+            } catch (e) {
+              Alert.alert(d.common.error, errMsg(e, d.saleDetail.undoError));
+            } finally { setUndoBusy(false); }
+          },
+        },
+      ],
+    );
+  }
   /** Tahrir tarixi qiymati: narx — so'm, sana — kun, bo'sh — «yo'q» */
   const editValue = (f: EditField, v: string) => !v ? d.saleDetail.none
     : f === 'totalAmount' ? fmtMoney(Number(v), { suffix: true })
@@ -157,11 +192,12 @@ export default function SaleDetail() {
         </Group>
       ) : null}
 
-      {s.payments.length > 0 || (s.priceRefunds?.length ?? 0) > 0 ? (
+      {s.payments.length > 0 || (s.priceRefunds?.length ?? 0) > 0 || (s.itemReturns?.length ?? 0) > 0 ? (
         <Group header={d.saleDetail.paymentsHistory}>
           {[
             ...s.payments.map((p) => ({ at: p.paidAt, pay: p as Payment | null, refund: null as { amount: number; by: string } | null })),
             ...(s.priceRefunds ?? []).map((r) => ({ at: r.at, pay: null as Payment | null, refund: r })),
+            ...(s.itemReturns ?? []).map((r) => ({ at: r.at, pay: null as Payment | null, refund: { amount: r.refund, by: r.by, qty: r.qty, reason: r.reason } })),
           ].sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime()).map((x, i) => x.pay ? (
             <Cell
               key={`${x.at}-${i}`}
@@ -176,7 +212,12 @@ export default function SaleDetail() {
               icon="arrow-undo"
               iconColor={c.sq.r}
               title={`−${fmtMoney(x.refund?.amount ?? 0, { suffix: true })}`}
-              subtitle={[fmtDate(x.at), d.saleDetail.priceRefund, x.refund?.by].filter(Boolean).join(' · ')}
+              subtitle={[
+                fmtDate(x.at),
+                x.refund && 'qty' in x.refund ? tr(d.saleDetail.returnRow, { n: qtyText(Number(x.refund.qty)) }) : d.saleDetail.priceRefund,
+                x.refund && 'reason' in x.refund ? x.refund.reason : null,
+                x.refund?.by,
+              ].filter(Boolean).join(' · ')}
               subtitleLines={2}
             />
           ))}
@@ -198,6 +239,28 @@ export default function SaleDetail() {
         </Group>
       ) : null}
 
+      {canReturn || canCancel ? (
+        <Group header={d.saleDetail.actions}>
+          {canReturn ? (
+            <Cell icon="arrow-undo" iconColor={c.sq.a} title={d.saleDetail.returnItems} chevron onPress={() => setReturnSheet(true)} />
+          ) : null}
+          {canCancel ? (
+            <Cell icon="close-circle" iconColor={c.sq.r} title={d.saleDetail.cancelSale} destructive onPress={undoBusy ? undefined : confirmCancel} />
+          ) : null}
+        </Group>
+      ) : null}
+
+      {canReturn ? (
+        <ReturnSheet
+          visible={returnSheet}
+          onClose={() => setReturnSheet(false)}
+          sale={s}
+          key={returnSheet ? 'open' : 'closed'}
+          qtyText={qtyText}
+          onDone={() => { setReturnSheet(false); res.reloadSilently(); }}
+        />
+      ) : null}
+
       <PaySheet
         visible={sheet}
         onClose={() => setSheet(false)}
@@ -206,6 +269,65 @@ export default function SaleDetail() {
         onPaid={() => { setSheet(false); res.reloadSilently(); }}
       />
     </Screen>
+  );
+}
+
+/** Qisman qaytarish: miqdor va sabab — server avval qarzni kamaytiradi, ortig'ini naqd qaytarishni aytadi */
+function ReturnSheet({ visible, onClose, sale, qtyText, onDone }: {
+  visible: boolean; onClose: () => void; sale: Sale; qtyText: (n: number) => string; onDone: () => void;
+}) {
+  const { c } = useTheme();
+  const d = useDict();
+  const L = useLayout();
+  const insets = useSafeAreaInsets();
+  const [qty, setQty] = useState('');
+  const [reason, setReason] = useState('');
+  const [busy, setBusy] = useState(false);
+  const sold = sale.qty ?? 1;
+  const val = parseQty(qty, sale.unit);
+  const bad = qty !== '' && (val === null || val <= 0 || val >= sold);
+
+  async function submit() {
+    if (val === null || val <= 0 || val >= sold) { Alert.alert(d.saleDetail.returnTitle, d.saleDetail.returnBadQty); return; }
+    setBusy(true);
+    try {
+      const r = await api<{ refundAmount: number }>(`/api/mobile/sales/${sale.id}/return`, { method: 'POST', body: { qty: val, reason: reason.trim() } });
+      setQty(''); setReason('');
+      onDone();
+      Alert.alert(d.saleDetail.returned, r.refundAmount > 0
+        ? tr(d.saleDetail.returnedRefund, { n: qtyText(val), v: fmtMoney(r.refundAmount, { suffix: true }) })
+        : tr(d.saleDetail.returnedNoRefund, { n: qtyText(val) }));
+    } catch (e) {
+      Alert.alert(d.common.error, errMsg(e, d.saleDetail.undoError));
+    } finally { setBusy(false); }
+  }
+
+  return (
+    <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose} transparent={false}>
+      <KeyboardAvoidingView style={{ flex: 1, backgroundColor: c.bg }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <ScrollView contentContainerStyle={[L.content, { paddingTop: Platform.OS === 'ios' ? 16 : insets.top + 12, paddingBottom: insets.bottom + 24, gap: 18 }]} keyboardShouldPersistTaps="handled">
+          <View style={st2.sheetBar}>
+            <Button title={d.common.cancel} variant="plain" onPress={onClose} />
+            <Text style={[st2.sheetTitle, { color: c.ink }]}>{d.saleDetail.returnTitle}</Text>
+            <View style={{ width: 90 }} />
+          </View>
+          <Group footer={tr(d.saleDetail.returnQtyHint, { v: qtyText(sold) })}>
+            <Cell title={sale.product} subtitle={`№${sale.saleNo}`} />
+          </Group>
+          <Field
+            label={d.saleDetail.returnQty}
+            value={qty}
+            onChangeText={setQty}
+            keyboardType="decimal-pad"
+            placeholder="1"
+            autoFocus
+            error={bad ? d.saleDetail.returnBadQty : null}
+          />
+          <Field label={d.saleDetail.returnReason} value={reason} onChangeText={setReason} maxLength={300} />
+          <Button title={d.saleDetail.returnBtn} size="lg" full loading={busy} disabled={!qty || bad} onPress={submit} />
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </Modal>
   );
 }
 

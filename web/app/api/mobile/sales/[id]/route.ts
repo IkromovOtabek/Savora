@@ -63,6 +63,11 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
     edits: (s.edits ?? []).map((e) => ({ at: e.at, by: e.by, changes: e.changes.map((c) => ({ field: c.field, from: c.from ?? '', to: c.to ?? '' })) })),
     checkoutItems,
     priceRefunds: (s.returns ?? []).filter((r) => r.kind === 'price' && r.refundAmount > 0).map((r) => ({ amount: r.refundAmount, at: r.returnedAt, by: r.by })),
+    // Qaytarish / bekor qilish (mobil 1.7+): miqdor va birlik, tovar qaytarishlari tarixi
+    qty: s.productSnapshot?.saleQuantity ?? 1,
+    unit: s.productSnapshot?.unit ?? null,
+    itemReturns: (s.returns ?? []).filter((r) => r.kind !== 'price').map((r) => ({ qty: r.qty ?? 0, amount: r.amount ?? 0, refund: r.refundAmount ?? 0, at: r.returnedAt, by: r.by, reason: r.reason ?? null })),
+    cancelledAt: s.cancelledAt ?? null,
     // Ochiq chek havolasi — faqat yangi (checkoutId bor) sotuvlarda
     receiptPath: s.checkoutId && user.organizationId && s.status !== 'cancelled' ? receiptPath(user.organizationId, s.checkoutId) : null,
     plan: plan ? {
