@@ -188,6 +188,141 @@ exports[`sotuv yo'llari — hozirgi xatti-harakat (MongoDB) > POS: qarzga, qisma
 ]
 `;
 
+exports[`sotuv yo'llari — hozirgi xatti-harakat (MongoDB) > bekor qilish: mobil API — web bilan bir xil natija 1`] = `
+{
+  "body": {
+    "ok": true,
+    "refund": 2000000,
+    "saleNo": undefined,
+  },
+  "status": 200,
+}
+`;
+
+exports[`sotuv yo'llari — hozirgi xatti-harakat (MongoDB) > bekor qilish: mobil API — web bilan bir xil natija 2`] = `
+{
+  "bankName": undefined,
+  "bankParts": undefined,
+  "clientSaleId": undefined,
+  "customer": {
+    "fullName": "Ali Valiyev",
+    "phone": "+998 90 123 45 67",
+  },
+  "discount": undefined,
+  "downPayment": undefined,
+  "dueInDays": undefined,
+  "hasCheckout": false,
+  "hasCustomerId": true,
+  "installmentMonths": undefined,
+  "notes": undefined,
+  "paidAmount": 2000000,
+  "payDay": undefined,
+  "paymentType": "cash",
+  "payments": [
+    {
+      "amount": 2000000,
+      "balanceAfter": undefined,
+      "method": "cash",
+      "months": undefined,
+      "note": "Naqd to'lov",
+    },
+  ],
+  "product": "Tovar 29",
+  "purchasePrice": 700000,
+  "qty": 2,
+  "remainingAmount": 0,
+  "soldBy": "egasi",
+  "status": "cancelled",
+  "totalAmount": 2000000,
+}
+`;
+
+exports[`sotuv yo'llari — hozirgi xatti-harakat (MongoDB) > bekor qilish: mobil API — web bilan bir xil natija 3`] = `
+{
+  "quantity": 10,
+  "soldQuantity": 0,
+  "status": "in_stock",
+}
+`;
+
+exports[`sotuv yo'llari — hozirgi xatti-harakat (MongoDB) > bekor qilish: mobil API — web bilan bir xil natija 4`] = `
+[
+  {
+    "amount": 2000000,
+    "category": "Sotuv bekor qilindi",
+    "type": "expense",
+  },
+]
+`;
+
+exports[`sotuv yo'llari — hozirgi xatti-harakat (MongoDB) > bekor qilish: web — ombor qaytadi, to'langan pul kassadan chiqim; ikkinchi marta — rad 1`] = `
+{
+  "success": "Sotuv bekor qilindi. Mahsulot omborga qaytdi, mijozga 2 000 000 so'm qaytarildi (kassadan chiqim).",
+}
+`;
+
+exports[`sotuv yo'llari — hozirgi xatti-harakat (MongoDB) > bekor qilish: web — ombor qaytadi, to'langan pul kassadan chiqim; ikkinchi marta — rad 2`] = `
+{
+  "error": "Allaqachon bekor qilingan.",
+}
+`;
+
+exports[`sotuv yo'llari — hozirgi xatti-harakat (MongoDB) > bekor qilish: web — ombor qaytadi, to'langan pul kassadan chiqim; ikkinchi marta — rad 3`] = `
+{
+  "bankName": undefined,
+  "bankParts": undefined,
+  "clientSaleId": undefined,
+  "customer": {
+    "fullName": "Ali Valiyev",
+    "phone": "+998 90 123 45 67",
+  },
+  "discount": undefined,
+  "downPayment": undefined,
+  "dueInDays": undefined,
+  "hasCheckout": false,
+  "hasCustomerId": true,
+  "installmentMonths": undefined,
+  "notes": undefined,
+  "paidAmount": 2000000,
+  "payDay": undefined,
+  "paymentType": "cash",
+  "payments": [
+    {
+      "amount": 2000000,
+      "balanceAfter": undefined,
+      "method": "cash",
+      "months": undefined,
+      "note": "Naqd to'lov",
+    },
+  ],
+  "product": "Tovar 28",
+  "purchasePrice": 700000,
+  "qty": 2,
+  "remainingAmount": 0,
+  "soldBy": "egasi",
+  "status": "cancelled",
+  "totalAmount": 2000000,
+}
+`;
+
+exports[`sotuv yo'llari — hozirgi xatti-harakat (MongoDB) > bekor qilish: web — ombor qaytadi, to'langan pul kassadan chiqim; ikkinchi marta — rad 4`] = `
+{
+  "quantity": 10,
+  "soldQuantity": 0,
+  "status": "in_stock",
+}
+`;
+
+exports[`sotuv yo'llari — hozirgi xatti-harakat (MongoDB) > bekor qilish: web — ombor qaytadi, to'langan pul kassadan chiqim; ikkinchi marta — rad 5`] = `
+[
+  {
+    "amount": 2000000,
+    "category": "Sotuv bekor qilindi",
+    "type": "expense",
+  },
+]
+`;
+
 exports[`sotuv yo'llari — hozirgi xatti-harakat (MongoDB) > mobil: bank + nasiya 1`] = `
 [
   {
@@ -367,6 +502,70 @@ exports[`sotuv yo'llari — hozirgi xatti-harakat (MongoDB) > mobil: qarz, clien
     "totalAmount": 1000000,
   },
 ]
+`;
+
+exports[`sotuv yo'llari — hozirgi xatti-harakat (MongoDB) > qaytarish: web va mobil — 3 tadan 1 ta, keyin mobil 1 ta 1`] = `
+{
+  "success": "1 dona omborga qaytdi. Mijozga 1 000 000 so'm naqd qaytaring.",
+}
+`;
+
+exports[`sotuv yo'llari — hozirgi xatti-harakat (MongoDB) > qaytarish: web va mobil — 3 tadan 1 ta, keyin mobil 1 ta 2`] = `
+{
+  "body": {
+    "ok": true,
+    "qty": 1,
+    "refundAmount": 1000000,
+    "saleNo": undefined,
+  },
+  "status": 200,
+}
+`;
+
+exports[`sotuv yo'llari — hozirgi xatti-harakat (MongoDB) > qaytarish: web va mobil — 3 tadan 1 ta, keyin mobil 1 ta 3`] = `
+{
+  "bankName": undefined,
+  "bankParts": undefined,
+  "clientSaleId": undefined,
+  "customer": {
+    "fullName": "Ali Valiyev",
+    "phone": "+998 90 123 45 67",
+  },
+  "discount": undefined,
+  "downPayment": undefined,
+  "dueInDays": undefined,
+  "hasCheckout": false,
+  "hasCustomerId": true,
+  "installmentMonths": undefined,
+  "notes": undefined,
+  "paidAmount": 1000000,
+  "payDay": undefined,
+  "paymentType": "cash",
+  "payments": [
+    {
+      "amount": 3000000,
+      "balanceAfter": undefined,
+      "method": "cash",
+      "months": undefined,
+      "note": "Naqd to'lov",
+    },
+  ],
+  "product": "Tovar 30",
+  "purchasePrice": 700000,
+  "qty": 1,
+  "remainingAmount": 0,
+  "soldBy": "egasi",
+  "status": "paid",
+  "totalAmount": 1000000,
+}
+`;
+
+exports[`sotuv yo'llari — hozirgi xatti-harakat (MongoDB) > qaytarish: web va mobil — 3 tadan 1 ta, keyin mobil 1 ta 4`] = `
+{
+  "quantity": 10,
+  "soldQuantity": 1,
+  "status": "in_stock",
+}
 `;
 
 exports[`sotuv yo'llari — hozirgi xatti-harakat (MongoDB) > tezkor sotuv (bosh sahifa): ikki tovar, biri o'zgargan narx 1`] = `

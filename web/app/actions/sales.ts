@@ -13,22 +13,19 @@ import { featureDisabledError } from '@/lib/featureAction';
 import { isOwnUploadUrl } from '@/lib/fileUrl';
 import { sellableInfo } from '@/lib/productKinds';
 import { isFractionalUnit, priceTimesQty, qtyLabel } from '@/lib/qty';
-import { releaseStock } from '@/lib/stock';
 import { applySalePayment } from '@/lib/salePayment';
-import { SALE_CANCEL_CATEGORY } from '@/lib/models/tenant/FinanceCategory';
 import { computeInstallmentPlan, installmentPaymentMonths, installmentPaymentNote, spreadShortfall } from '@/lib/installment';
-import { recordAudit } from '@/lib/audit';
 import { searchSaleCustomers, type SaleCustomerSearch } from '@/lib/saleCustomer';
 import { branchFilter } from '@/lib/branchScope';
 import { logError } from '@/lib/logger';
 import { checkPermission, userCan } from '@/lib/permissionGuard';
 import { missingPriceRight, resolveSaleTerms, saleTermsErrorText } from '@/lib/sales/terms';
 import { addSalePayment, salePaymentErrorText } from '@/lib/sales/addPayment';
+import { cancelSale, returnSaleItems, saleUndoErrorText } from '@/lib/sales/undoSale';
 import { afterSales, checkSaleMarking, loadSaleLines, resolveCustomerFor, saleCoreErrorText, writeSales } from '@/lib/sales/createSales';
 import { permissionDeniedError } from '@/lib/permissions';
 import { getI18n } from '@/lib/i18n/server';
 import { qtyWithUnit, tr } from '@/lib/i18n/fmt';
-import { computePartialReturn } from '@/lib/saleReturn';
 import { SALE_NOTES_MAX, editSale, type SaleEditError, type SaleEditInput } from '@/lib/saleEditOps';
 import { z } from 'zod';
 import { formToObject, parseInput, zId, zText, zMoney, zInt, zOptInt, zOptQty, zOptDate, zField, zOneOf } from '@/lib/validation';
@@ -398,75 +395,17 @@ export async function addSalePaymentAction(_prev: State, formData: FormData): Pr
 export async function cancelSaleAction(_prev: State, formData: FormData): Promise<State> {
   // Admin — doim; filial login — faqat "sale.cancel" huquqi bo'lsa va faqat o'z filiali sotuvini
   const { user, Product, Sale, CashFlow, CashShift, FinanceCategory } = await getTenantSession();
-  const m = (await getI18n()).d.sales.actions;
+  const { d } = await getI18n();
+  const m = d.sales.actions;
   { const denied = await checkPermission(user, 'sale.cancel'); if (denied) return denied; }
 
   const parsed = parseInput(zId(m.saleNotFound), formData.get('saleId'));
   if (!parsed.ok) return { error: parsed.error };
   const saleId = parsed.data;
 
-  // Idempotent: faqat bekor qilinmagan sotuv bir marta "cancelled" ga o'tadi —
-  // ikki marta bosilsa ham mahsulot omborga ikki marta qaytmaydi, pul ikki marta chiqmaydi.
-  // cancelledAt — yangi tartib belgisi: to'lovlar kassada realizatsiya bo'lib qoladi (lib/kassa).
-  const scope = branchFilter(user);
-  const cancelledAt = new Date();
-  const sale = await Sale.findOneAndUpdate(
-    { _id: saleId, ...scope, status: { $ne: 'cancelled' } },
-    { $set: { status: 'cancelled', remainingAmount: 0, cancelledAt, cancelledBy: user.username } },
-    { new: false }
-  ).lean();
-  if (!sale) {
-    const exists = await Sale.exists({ _id: saleId, ...scope });
-    return { error: exists ? m.alreadyCancelled : m.saleNotFound };
-  }
-
-  // To'langan pul (qisman qaytarishda qaytgani ayirilgan) mijozga naqd qaytariladi —
-  // Moliya'da «Sotuv bekor qilindi» chiqimi: Hisoblar holati, smena va kirim-chiqimda kassadan ayiriladi
-  const refund = Math.max(0, sale.paidAmount);
-  await Sale.updateOne({ _id: sale._id }, { $set: { cancelRefund: refund } });
-  if (refund > 0) {
-    try {
-      await FinanceCategory.updateOne(
-        { type: 'expense', name: SALE_CANCEL_CATEGORY },
-        { $setOnInsert: { system: true, active: true } },
-        { upsert: true },
-      ).catch(() => { /* parallel upsert — unikal indeks */ });
-      const shift = await CashShift.findOne({ branchId: sale.branchId, status: 'open' }).select('_id').lean();
-      const customer = sale.customerSnapshot?.fullName;
-      await CashFlow.create({
-        type: 'expense',
-        amount: refund,
-        description: `${sale.saleNo} bekor qilindi — mijozga qaytarildi: ${sale.productSnapshot?.name ?? ''}${customer ? `, ${customer}` : ''}`.slice(0, 300),
-        category: SALE_CANCEL_CATEGORY,
-        branchId: sale.branchId,
-        ...(shift ? { shiftId: shift._id } : {}),
-        saleId: sale._id,
-        recordedBy: user.username,
-      });
-    } catch (err) {
-      // Sotuv bekor bo'ldi, lekin chiqim yozilmadi — audit/logda ko'rinadi, qo'lda kiritiladi
-      logError('cancelSaleAction refund cashflow failed', err, { user: user.username, dbName: user.dbName, saleNo: sale.saleNo });
-    }
-  }
-
-  if (sale.productId) {
-    const saleQty = sale.productSnapshot?.saleQuantity ?? 1;
-    await releaseStock(Product, sale.productId, saleQty, {
-      action: 'returned',
-      detail: `Sotuv ${sale.saleNo} bekor qilindi`,
-      by: user.username,
-      at: new Date(),
-    });
-  }
-
-  await recordAudit(user, {
-    action: 'sale.cancel',
-    entity: 'sale',
-    entityId: saleId,
-    summary: `Sotuv bekor qilindi: ${sale.saleNo} · ${sale.productSnapshot?.name ?? ''} · ${sale.totalAmount.toLocaleString('uz-UZ')} so'm`
-      + (refund > 0 ? ` · mijozga qaytarildi ${refund.toLocaleString('uz-UZ')} so'm (kassadan chiqim)` : ''),
-    meta: { paidAmount: sale.paidAmount, paymentType: sale.paymentType, totalAmount: sale.totalAmount, refund },
-  });
+  // Bekor qilish — lib/sales/undoSale (mobil bilan bir yadro)
+  const r = await cancelSale({ Product, Sale, CashFlow, CashShift, FinanceCategory }, user, saleId);
+  if (!r.ok) return { error: saleUndoErrorText(r.error, d) };
 
   revalidatePath('/app/sales');
   revalidatePath(`/app/sales/${saleId}`);
@@ -474,12 +413,11 @@ export async function cancelSaleAction(_prev: State, formData: FormData): Promis
   revalidatePath('/app/finance');
   revalidatePath('/app/kassa');
   revalidatePath('/app');
-  return { success: refund > 0 ? tr(m.saleCancelledRefund, { sum: refund.toLocaleString('uz-UZ') }) : m.saleCancelled };
+  return { success: r.refund > 0 ? tr(m.saleCancelledRefund, { sum: r.refund.toLocaleString('uz-UZ') }) : m.saleCancelled };
 }
 
 /**
- * Qisman qaytarish — sotuvdan bir necha dona omborga qaytadi, summa kamayadi.
- * Avval qarz kamayadi, ortig'i mijozga naqd qaytariladi (kunlik kassada chiqim bo'lib ko'rinadi).
+ * Qisman qaytarish — lib/sales/undoSale (mobil bilan bir yadro).
  * Huquq: "sale.return" (eski ro'yxatlarda "sale.cancel" dan meros — lib/permissions legacy).
  */
 export async function returnSaleItemsAction(_prev: State, formData: FormData): Promise<State> {
@@ -491,104 +429,22 @@ export async function returnSaleItemsAction(_prev: State, formData: FormData): P
   const parsed = parseInput(z.object({
     saleId: zId(m.saleNotFound),
     qty: zOptQty(m.returnBadQty),
-    reason: zText(300, (await getI18n()).d.common.tooLong),
+    reason: zText(300, d.common.tooLong),
   }), formToObject(formData), m.returnBadQty);
   if (!parsed.ok) return { error: parsed.error };
   const { saleId, reason } = parsed.data;
   if (parsed.data.qty === undefined) return { error: m.returnBadQty };
-  const returnQty = parsed.data.qty;
 
-  const scope = branchFilter(user);
-  const sale = await Sale.findOne({ _id: saleId, ...scope }).lean();
-  if (!sale) return { error: m.saleNotFound };
-
-  const qty = sale.productSnapshot?.saleQuantity ?? 1;
-  const unit = sale.productSnapshot?.unit;
-  const res = computePartialReturn({
-    qty,
-    unit,
-    totalAmount: sale.totalAmount,
-    paidAmount: sale.paidAmount,
-    remainingAmount: sale.remainingAmount,
-    paymentType: sale.paymentType,
-    status: sale.status,
-    bankParts: sale.bankParts,
-  }, returnQty);
-  if (!res.ok) {
-    const err = {
-      cancelled: m.alreadyCancelled,
-      bankCredit: m.returnBankCredit,
-      badQty: m.returnBadQty,
-      useCancel: m.returnUseCancel,
-    }[res.error];
-    return { error: err };
-  }
-  const c = res.calc;
-  const now = new Date();
-
-  // Optimistik qulf: sotuv o'qilgandan beri o'zgarmagan bo'lsagina yoziladi —
-  // ikki marta bosish yoki parallel to'lov ikki marta qaytarishga olib kelmaydi.
-  const updated = await Sale.findOneAndUpdate(
-    {
-      _id: saleId,
-      ...scope,
-      status: { $ne: 'cancelled' },
-      totalAmount: sale.totalAmount,
-      paidAmount: sale.paidAmount,
-      remainingAmount: sale.remainingAmount,
-      'productSnapshot.saleQuantity': qty, // qisman qaytarish faqat qty > 1 da — maydon doim bor
-    },
-    {
-      $set: {
-        'productSnapshot.saleQuantity': c.newQty,
-        totalAmount: c.newTotal,
-        paidAmount: c.newPaid,
-        remainingAmount: c.newRemaining,
-        status: c.newStatus,
-      },
-      $push: {
-        returns: {
-          qty: returnQty,
-          amount: c.amount,
-          debtReduced: c.debtReduced,
-          refundAmount: c.refundAmount,
-          reason: reason || undefined,
-          returnedAt: now,
-          by: user.username,
-        },
-      },
-    },
-    { new: true }
-  ).lean();
-  if (!updated) return { error: m.returnConflict };
-
-  if (sale.productId) {
-    await releaseStock(Product, sale.productId, returnQty, {
-      action: 'returned',
-      detail: `Sotuv ${sale.saleNo}: ${qtyLabel(returnQty, unit)} qaytarildi`,
-      by: user.username,
-      at: now,
-    });
-  }
-
-  await recordAudit(user, {
-    action: 'sale.return',
-    entity: 'sale',
-    entityId: saleId,
-    summary: `Qaytarish: ${sale.saleNo} · ${qtyLabel(returnQty, unit)} · ${c.amount.toLocaleString('uz-UZ')} so'm (naqd qaytarildi ${c.refundAmount.toLocaleString('uz-UZ')} so'm)`,
-    meta: { qty: returnQty, amount: c.amount, debtReduced: c.debtReduced, refundAmount: c.refundAmount, reason },
-  });
+  const r = await returnSaleItems({ Product, Sale }, user, { saleId, qty: parsed.data.qty, reason });
+  if (!r.ok) return { error: saleUndoErrorText(r.error, d) };
 
   revalidatePath('/app/sales');
   revalidatePath(`/app/sales/${saleId}`);
   revalidatePath('/app/products');
   revalidatePath('/app/kassa');
   revalidatePath('/app');
-  return {
-    success: c.refundAmount > 0
-      ? tr(m.returnedRefund, { n: qtyWithUnit(returnQty, unit, d.stock.fields.units), sum: c.refundAmount.toLocaleString('uz-UZ') })
-      : tr(m.returnedNoRefund, { n: qtyWithUnit(returnQty, unit, d.stock.fields.units) }),
-  };
+  const n = qtyWithUnit(r.qty, r.unit as never, d.stock.fields.units);
+  return { success: r.refundAmount > 0 ? tr(m.returnedRefund, { n, sum: r.refundAmount.toLocaleString('uz-UZ') }) : tr(m.returnedNoRefund, { n }) };
 }
 
 /**

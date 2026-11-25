@@ -349,4 +349,43 @@ describe.skipIf(!URI)('sotuv yo\'llari — hozirgi xatti-harakat (MongoDB)', () 
     expect(await bulkDebtPaymentAction({ customerId: String(s1.customerId), amount: 600000, method: 'cash' })).toMatchSnapshot();
     expect([...(await salesOf(p1._id)), ...(await salesOf(p2._id))].map(norm)).toMatchSnapshot();
   });
+
+  // ── bekor qilish va qaytarish (web va mobil — bitta yadro, lib/sales/undoSale) ─────────
+  async function cashSale(qty = 3) {
+    const p = await product();
+    await webSale({ productId: String(p._id), saleQty: String(qty), paymentType: 'cash', totalAmount: String(qty * 1_000_000), ...cust });
+    return { p, s: (await salesOf(p._id))[0] };
+  }
+  const refundFlows = (saleId: unknown) => ctl.models.CashFlow.find({ saleId }).select('type amount category -_id').lean();
+
+  it('bekor qilish: web — ombor qaytadi, to\'langan pul kassadan chiqim; ikkinchi marta — rad', async () => {
+    const { p, s } = await cashSale(2);
+    const { cancelSaleAction } = await import('@/app/actions/sales');
+    expect(await cancelSaleAction(null, fd({ saleId: String(s._id) }))).toMatchSnapshot();
+    expect(await cancelSaleAction(null, fd({ saleId: String(s._id) }))).toMatchSnapshot();
+    expect(norm(await ctl.models.Sale.findById(s._id).lean())).toMatchSnapshot();
+    expect(await stockOf(p._id)).toMatchSnapshot();
+    expect(await refundFlows(s._id)).toMatchSnapshot();
+  });
+
+  it('bekor qilish: mobil API — web bilan bir xil natija', async () => {
+    const { p, s } = await cashSale(2);
+    const { POST } = await import('@/app/api/mobile/sales/[id]/cancel/route');
+    const res = await POST(new Request('http://x', { method: 'POST' }), { params: Promise.resolve({ id: String(s._id) }) });
+    expect({ status: res.status, body: { ...(await res.json()), saleNo: undefined } }).toMatchSnapshot();
+    expect(norm(await ctl.models.Sale.findById(s._id).lean())).toMatchSnapshot();
+    expect(await stockOf(p._id)).toMatchSnapshot();
+    expect(await refundFlows(s._id)).toMatchSnapshot();
+  });
+
+  it('qaytarish: web va mobil — 3 tadan 1 ta, keyin mobil 1 ta', async () => {
+    const { p, s } = await cashSale(3);
+    const { returnSaleItemsAction } = await import('@/app/actions/sales');
+    expect(await returnSaleItemsAction(null, fd({ saleId: String(s._id), qty: '1', reason: 'singan' }))).toMatchSnapshot();
+    const { POST } = await import('@/app/api/mobile/sales/[id]/return/route');
+    const res = await POST(new Request('http://x', { method: 'POST', body: JSON.stringify({ qty: 1 }) }), { params: Promise.resolve({ id: String(s._id) }) });
+    expect({ status: res.status, body: { ...(await res.json()), saleNo: undefined } }).toMatchSnapshot();
+    expect(norm(await ctl.models.Sale.findById(s._id).lean())).toMatchSnapshot();
+    expect(await stockOf(p._id)).toMatchSnapshot();
+  });
 });
