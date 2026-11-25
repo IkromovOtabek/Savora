@@ -48,6 +48,7 @@ WORKDIR /app
 ARG APP_VERSION=dev
 ENV NODE_ENV=production \
     NEXT_TELEMETRY_DISABLED=1 \
+    TZ=Asia/Tashkent \
     PORT=3000 \
     HOSTNAME=0.0.0.0 \
     APP_VERSION=${APP_VERSION}

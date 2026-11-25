@@ -6,12 +6,16 @@
  * 2) onRequestError — ushlanmagan server xatolarini logger + ERROR_WEBHOOK_URL ga yuboradi.
  * 3) DB log sink — xatolar system_logs kolleksiyasiga (Monitoring sahifasi uchun).
  * 4) Sentry — faqat SENTRY_DSN bo'lsa (lib/sentry.ts); logError() orqali yuboriladi.
+ * 5) Vaqt zonasi — Asia/Tashkent (TZ berilmagan bo'lsa).
  *
  * Node-only kod `NEXT_RUNTIME === 'nodejs'` bloki ichida dinamik import qilinadi —
  * Edge (middleware) bundle'iga tushmaydi.
  */
 export async function register() {
   if (process.env.NEXT_RUNTIME === 'nodejs') {
+    // Kun chegarasi (bugun, kecha, kunlik kassa, nasiya muddati) — Toshkent vaqti bo'yicha. Server UTC'da
+    // ishlasa 00:00–05:00 dagi sotuv kechagi kunga tushardi. Docker image'da ham TZ o'rnatilgan.
+    if (!process.env.TZ) process.env.TZ = 'Asia/Tashkent';
     const { startupEnvCheck } = await import('./lib/env');
     startupEnvCheck();
     // Xatolar master DB (system_logs) ga ham yoziladi — Super Admin → Monitoring

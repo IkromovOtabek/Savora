@@ -25,6 +25,8 @@ x-app: &app
     # Tashqi baza (masalan Atlas) uchun .env ga MONGO_URI_DOCKER=mongodb+srv://... yozing.
     MONGO_URI: ${MONGO_URI_DOCKER:-mongodb://mongo:27017}
     NODE_ENV: production
+    # Kun chegarasi — Toshkent vaqti (instrumentation.ts ham o'rnatadi)
+    TZ: Asia/Tashkent
   volumes:
     - uploads:/app/public/uploads
   depends_on:
