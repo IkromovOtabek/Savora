@@ -23,6 +23,7 @@ import { branchFilter } from '@/lib/branchScope';
 import { logError } from '@/lib/logger';
 import { checkPermission, userCan } from '@/lib/permissionGuard';
 import { missingPriceRight, resolveSaleTerms, saleTermsErrorText } from '@/lib/sales/terms';
+import { addSalePayment, salePaymentErrorText } from '@/lib/sales/addPayment';
 import { afterSales, checkSaleMarking, loadSaleLines, resolveCustomerFor, saleCoreErrorText, writeSales } from '@/lib/sales/createSales';
 import { permissionDeniedError } from '@/lib/permissions';
 import { getI18n } from '@/lib/i18n/server';
@@ -380,49 +381,10 @@ export async function addSalePaymentAction(_prev: State, formData: FormData): Pr
   if (!parsed.ok) return { error: parsed.error };
   const { saleId, amount, method, note } = parsed.data;
 
-  // Filial login faqat o'z filiali sotuviga to'lov qo'shadi
-  const sale = await Sale.findOne({ _id: saleId, ...branchFilter(user) }).lean();
-  if (!sale) return { error: m.saleNotFound };
-  if (sale.status === 'cancelled') return { error: m.cancelledNoPayment };
-  if (sale.status === 'paid') return { error: m.alreadyPaid };
-  // Bank krediti: pulni bank o'tkazadi — Kredit kassada bank bo'yicha yoziladi (ikki marta hisoblanmasin)
-  if (sale.paymentType === 'bank_credit') return { error: m.bankSalePayment };
-  if (amount > sale.remainingAmount) return { error: tr(m.remainingIs, { sum: sale.remainingAmount.toLocaleString('uz-UZ') }) };
-
-  // Nasiya: izoh haqiqiy taqsimotdan ("2-oy (qisman)", "2–3-oy to'lovi") — to'lov doim
-  // eng erta to'lanmagan oyga tushadi, foydalanuvchi qaysi oyni bosganidan qat'i nazar.
-  // Qisman to'lovda (navbatdagi oydan kam) "spread" bo'lsa — oy shu summa bilan yopiladi,
-  // yetmagani keyingi oylarga teng bo'linadi (lib/installment spreadShortfall)
-  const schedule = sale.paymentType === 'installment' ? computeInstallmentPlan(sale)?.schedule ?? [] : [];
-  const spread = schedule.length > 0 && parsed.data.spread === '1' ? spreadShortfall(schedule, amount) : null;
-  const months = schedule.length > 0 ? installmentPaymentMonths(schedule, amount) : undefined;
-  const autoNote = !note && schedule.length > 0 ? installmentPaymentNote(schedule, amount, spread) : undefined;
-
-  // Atomik: qoldiq sharti bilan bitta yozuv — ikki parallel to'lov ortiqcha to'lovga olib kelmaydi.
-  // expectPaid: jadval/izoh/qoldiq shu holatdan hisoblandi — orada boshqa to'lov tushsa, qayta urinish
-  const res = await applySalePayment(Sale, saleId, amount, {
-    scope: branchFilter(user),
-    note: note || autoNote,
-    recordedBy: user.username,
-    method,
-    expectPaid: sale.paidAmount,
-    extra: {
-      balanceAfter: Math.max(0, sale.remainingAmount - amount),
-      ...(months ? { months } : {}),
-      ...(spread ? { carry: { amount: spread.carry, from: spread.from, to: spread.to } } : {}),
-    },
-    set: spread ? { installmentAmounts: spread.amounts } : undefined,
-  });
-  if (!res) return { error: m.paymentConflict };
-
-  await recordAudit(user, {
-    action: 'sale.payment',
-    entity: 'sale',
-    entityId: saleId,
-    summary: `To'lov qabul qilindi: ${sale.saleNo} · ${amount.toLocaleString('uz-UZ')} so'm, ${method} (qoldiq ${res.remainingAmount.toLocaleString('uz-UZ')} so'm)`
-      + (spread ? ` · ${spread.month}-oydan ${spread.carry.toLocaleString('uz-UZ')} so'm ${spread.from}–${spread.to}-oylarga bo'lindi` : ''),
-    meta: { amount, method, remaining: res.remainingAmount, status: res.status, ...(spread ? { carry: spread.carry, carryFrom: spread.from, carryTo: spread.to } : {}) },
-  });
+  // To'lov — lib/sales/addPayment (mobil va ommaviy to'lov bilan bir yadro)
+  const r = await addSalePayment({ Sale }, user, { saleId, amount, method, note, spread: parsed.data.spread === '1', source: 'web' });
+  if (!r.ok) return { error: salePaymentErrorText(r.error, (await getI18n()).d) };
+  const res = r.done;
 
   revalidatePath('/app/sales');
   revalidatePath(`/app/sales/${saleId}`);

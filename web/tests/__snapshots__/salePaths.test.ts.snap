@@ -468,7 +468,7 @@ exports[`sotuv yo'llari — hozirgi xatti-harakat (MongoDB) > to'lov: mobil — 
   "payments": [
     {
       "amount": 350000,
-      "balanceAfter": undefined,
+      "balanceAfter": 850000,
       "method": "humo",
       "months": undefined,
       "note": "1–2-oy (2-oy qisman)",
@@ -513,7 +513,7 @@ exports[`sotuv yo'llari — hozirgi xatti-harakat (MongoDB) > to'lov: ommaviy �
     "payments": [
       {
         "amount": 200000,
-        "balanceAfter": undefined,
+        "balanceAfter": 300000,
         "method": "cash",
         "months": undefined,
         "note": "Ommaviy to'lov",
@@ -548,7 +548,7 @@ exports[`sotuv yo'llari — hozirgi xatti-harakat (MongoDB) > to'lov: ommaviy �
     "payments": [
       {
         "amount": 400000,
-        "balanceAfter": undefined,
+        "balanceAfter": 0,
         "method": "cash",
         "months": undefined,
         "note": "Ommaviy to'lov",

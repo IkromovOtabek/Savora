@@ -7,7 +7,8 @@ import { getTenantSession } from '@/lib/tenantSession';
 import { recordAudit } from '@/lib/audit';
 import { checkPermission } from '@/lib/permissionGuard';
 import { branchFilter } from '@/lib/branchScope';
-import { applySalePayment } from '@/lib/salePayment';
+import { addSalePayment } from '@/lib/sales/addPayment';
+import { effectiveDueDate } from '@/lib/debts';
 import { allocatePayment } from '@/lib/debtLedger';
 import { runWithCompensation } from '@/lib/compensate';
 import { logError } from '@/lib/logger';
@@ -40,19 +41,22 @@ export async function bulkDebtPaymentAction(input: { customerId: string; amount:
   const { customerId, amount, method } = parsed.data;
   const scope = branchFilter(user);
 
-  // Bank krediti sotuvlariga mijoz to'lovi taqsimlanmaydi (bank qarzi — Kredit kassada)
-  const debts = await Sale.find({ ...scope, customerId: new Types.ObjectId(customerId), status: 'partial', remainingAmount: { $gt: 0 }, paymentType: { $ne: 'bank_credit' } })
-    .sort({ dueDate: 1, createdAt: 1 })
-    .select('saleNo remainingAmount customerSnapshot')
-    .lean();
+  // Bank krediti sotuvlariga mijoz to'lovi taqsimlanmaydi (bank qarzi — Kredit kassada).
+  // Tartib — haqiqiy muddat bo'yicha: nasiyada birinchi to'lanmagan oy (Qarzdorlik/Nasiya sahifalari bilan bir xil)
+  const now = new Date();
+  const debts = (await Sale.find({ ...scope, customerId: new Types.ObjectId(customerId), status: 'partial', remainingAmount: { $gt: 0 }, paymentType: { $ne: 'bank_credit' } }).lean())
+    .map((x) => ({ x, due: effectiveDueDate(x, now)?.getTime() ?? Infinity }))
+    .sort((p, q) => p.due - q.due || new Date(p.x.createdAt ?? 0).getTime() - new Date(q.x.createdAt ?? 0).getTime())
+    .map((p) => p.x);
   const total = debts.reduce((s, x) => s + x.remainingAmount, 0);
   const plan = allocatePayment(debts.map((x) => ({ id: String(x._id), remaining: x.remainingAmount })), amount);
   if (!plan) return { error: tr(k.bulkTooMuch, { sum: fmtMoney(total) }) };
   const name = debts[0]?.customerSnapshot?.fullName ?? '—';
 
+  // Har sotuvga — to'lov yadrosi (lib/sales/addPayment): nasiya oylari, qoldiq, parallel to'lovdan himoya
   const outcome = await runWithCompensation(plan, async (part) => {
-    const res = await applySalePayment(Sale, part.id, part.amount, { scope, note: k.bulkNote, recordedBy: user.username, method });
-    if (!res) return null;
+    const res = await addSalePayment({ Sale }, user, { saleId: part.id, amount: part.amount, method, note: k.bulkNote, source: 'bulk', skipAudit: true });
+    if (!res.ok) return null;
     return {
       result: part,
       // Bekor qilish: oxirgi to'lov olib tashlanadi, summa qaytariladi, holat "qisman"

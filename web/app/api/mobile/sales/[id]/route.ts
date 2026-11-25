@@ -1,13 +1,13 @@
 import { NextResponse } from 'next/server';
+import { addSalePayment, salePaymentErrorText } from '@/lib/sales/addPayment';
+import { getDictionary } from '@/lib/i18n/dict';
 import { Types } from 'mongoose';
 import { authenticateMobile } from '@/lib/mobileAuth';
 import { loadUserPermissions, mobilePermissionDenied, saleViewScope, userCan } from '@/lib/permissionGuard';
 import { permissionDeniedError } from '@/lib/permissions';
-import { recordAudit } from '@/lib/audit';
 import { getTenantModels } from '@/lib/tenantDb';
 import { branchFilter } from '@/lib/branchScope';
-import { applySalePayment } from '@/lib/salePayment';
-import { computeInstallmentPlan, installmentPaymentNote } from '@/lib/installment';
+import { computeInstallmentPlan } from '@/lib/installment';
 import { z } from 'zod';
 import { readJsonInput, zMoney, zOneOf, zText } from '@/lib/validation';
 import { PAY_METHODS, methodOf } from '@/lib/payMethods';
@@ -93,42 +93,18 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   if (!input.ok) return NextResponse.json({ error: input.error }, { status: 400 });
   const { amount, note, method } = input.data;
 
+  // To'lov — lib/sales/addPayment (web va ommaviy to'lov bilan bir yadro: parallel to'lovdan himoya,
+  // nasiya oylari, to'lovdan keyingi qoldiq). Ilovaning standart izohi — nasiyada haqiqiy taqsimot bilan almashadi
   const { Sale } = await getTenantModels(user.dbName);
-  const sale = await Sale.findOne({ _id: id, ...branchFilter(user) }).lean();
-  if (!sale) return NextResponse.json({ error: 'Sotuv topilmadi.' }, { status: 404 });
-  if (sale.status === 'cancelled') return NextResponse.json({ error: 'Bekor qilingan sotuv.' }, { status: 400 });
-  if (sale.status === 'paid') return NextResponse.json({ error: 'Allaqachon to\'liq to\'langan.' }, { status: 400 });
-  // Bank krediti: pulni bank o'tkazadi — Kredit kassada yoziladi (ikki marta hisoblanmasin)
-  if (sale.paymentType === 'bank_credit') {
-    return NextResponse.json({ error: 'Bank krediti sotuvida pulni bank o\'tkazadi — uni saytdagi Kredit kassada yozing.' }, { status: 400 });
-  }
-  if (amount > sale.remainingAmount) return NextResponse.json({ error: `Qoldiq: ${sale.remainingAmount}` }, { status: 400 });
-
-  // Nasiya: ilovaning standart izohi o'rniga haqiqiy taqsimot ("2-oy (qisman)") — webdagi kabi
-  const autoNote = sale.paymentType === 'installment' && (!note || note === MOBILE_DEFAULT_NOTE)
-    ? installmentPaymentNote(computeInstallmentPlan(sale)?.schedule ?? [], amount)
-    : undefined;
-
-  // Atomik: qoldiq sharti bilan bitta yozuv (parallel to'lovda ortiqcha to'lov bo'lmaydi)
-  const res = await applySalePayment(Sale, id, amount, {
-    scope: branchFilter(user),
-    note: autoNote || note || undefined,
-    recordedBy: user.username,
-    method,
+  const r = await addSalePayment({ Sale }, user, {
+    saleId: id, amount, method: method ?? 'cash', note, defaultNote: MOBILE_DEFAULT_NOTE, source: 'mobile',
   });
-  if (!res) {
-    return NextResponse.json({ error: 'To\'lov qo\'shilmadi: qoldiq o\'zgargan. Qayta urinib ko\'ring.' }, { status: 409 });
+  if (!r.ok) {
+    const status = r.error.code === 'saleNotFound' ? 404 : r.error.code === 'paymentConflict' ? 409 : 400;
+    return NextResponse.json({ error: salePaymentErrorText(r.error, getDictionary('uz')) }, { status });
   }
-
-  await recordAudit(user, {
-    action: 'sale.payment',
-    entity: 'sale',
-    entityId: id,
-    summary: `To'lov ${sale.saleNo}: ${amount.toLocaleString('uz-UZ')} so'm (mobil)`,
-    meta: { amount },
-  });
-
-  return NextResponse.json({ ok: true, ...res });
+  const { paymentId, paidAmount, remainingAmount, status } = r.done;
+  return NextResponse.json({ ok: true, paidAmount, remainingAmount, status, paymentId });
 }
 
 /** Tahrirlash xatolari (mobil — o'zbekcha, mavjud API kabi) */
