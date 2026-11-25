@@ -14,7 +14,7 @@ export type NavLink = {
   feature?: FeatureKey;
   /** xodimda huquq bo'lmasa yashiriladi */
   permission?: PermissionKey;
-  /** Ro'yxatdagi huquqlardan birortasi bo'lsa yetarli (`permission` bilan birga ishlatilmaydi) */
+  /** Ro'yxatdagi huquqlardan birortasi bo'lsa yetarli; `permission` bilan birga — ikkalasi ham talab qilinadi */
   anyPermission?: PermissionKey[];
   adminOnly?: boolean;
   imeiOnly?: boolean;
@@ -121,11 +121,11 @@ export const NAV_GROUPS: NavGroup[] = [
       // Restoran: stollar (ofitsant + kassadagi «Stollar») va oshxona ekrani — docs/RESTORAN_API.md
       // Restoran menyusi: taomlar, retsept (xom ashyo — Omborda); ofitsant/oshpaz — faqat stop-list
       { href: '/app/menu', label: 'Menyu', feature: 'tables', anyPermission: ['product.create', 'product.edit', 'menu.stopList'] },
-      { href: '/app/tables', label: 'Stollar', feature: 'tables', permission: 'order.create' },
+      { href: '/app/tables', label: 'Stollar', feature: 'tables', anyPermission: ['order.create', 'order.viewAll'] },
       // Bronlar: ro'yxat va «Keldi» — ofitsant ham; yaratish — reservation.manage (docs/RESTORAN_API.md §18)
       { href: '/app/restaurant/reservations', label: 'Bronlar', feature: 'tables', anyPermission: ['reservation.manage', 'order.create'] },
-      // Restoran kassiri: to'lov navbati va hisob (barcha hisoblar — order.viewAll, sahifa o'zi tekshiradi)
-      { href: '/app/tables/cashier', label: 'Kassa', feature: 'tables', permission: 'sale.create' },
+      // Restoran kassiri: to'lov navbati va hisob — sahifa guard'i bilan bir xil: sale.create + (order.create | order.viewAll)
+      { href: '/app/tables/cashier', label: 'Restoran kassasi', feature: 'tables', permission: 'sale.create', anyPermission: ['order.create', 'order.viewAll'] },
       // Ofitsant kabineti: o'z hisoblari, sotuvi, ochiq stollari (lib/restaurant/waiterDay.ts)
       { href: '/app/tables/me', label: 'Mening kunim', feature: 'tables', permission: 'order.create' },
       { href: '/app/kitchen', label: 'Oshxona', feature: 'kitchen', permission: 'kitchen.view' },
@@ -174,7 +174,7 @@ export const NAV_GROUPS: NavGroup[] = [
   {
     title: 'Boshqaruv',
     links: [
-      { href: '/app/users', label: 'Filiallar', feature: 'users', permission: 'users.manage', adminOnly: true },
+      { href: '/app/users', label: 'Filiallar va jamoa', feature: 'users', permission: 'users.manage', adminOnly: true },
       { href: '/app/roles', label: 'Rollar', feature: 'users', permission: 'users.manage', adminOnly: true },
       { href: '/app/tasks', label: 'Topshiriqlar', feature: 'tasks', permission: 'tasks.view' },
       { href: '/app/audit', label: 'Amallar', feature: 'audit', permission: 'audit.view', adminOnly: true },

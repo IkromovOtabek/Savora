@@ -35,8 +35,8 @@ export const uz = {
   ack: "Ko'rdim",
 
   /* Kassir oynasi */
-  metaTitle: 'Kassa — Savora',
-  title: 'Kassa',
+  metaTitle: 'Restoran kassasi — Savora',
+  title: 'Restoran kassasi',
   tablesLink: 'Stollar',
   searchPh: 'Stol yoki saboy raqami',
   searchAria: 'Hisob qidirish (stol raqami, saboy raqami yoki ofitsant)',
@@ -89,8 +89,8 @@ export const ru: typeof uz = {
   linkedAria: 'Заказы с собой для этого стола: {n}',
   ack: 'Принято',
 
-  metaTitle: 'Касса — Savora',
-  title: 'Касса',
+  metaTitle: 'Касса ресторана — Savora',
+  title: 'Касса ресторана',
   tablesLink: 'Столы',
   searchPh: 'Номер стола или заказа',
   searchAria: 'Поиск счёта (номер стола, заказа или официант)',

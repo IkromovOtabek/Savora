@@ -132,15 +132,6 @@ export function productFieldErrorText(
   return tr(tpl, { field: labels[res.key] });
 }
 
-/** Do'kondagi mavjud kategoriyalar (formada taklif uchun), alifbo bo'yicha, ko'pi bilan 200 ta */
-export async function loadCategories(Product: { distinct(field: 'category'): PromiseLike<unknown[]> }): Promise<string[]> {
-  const raw = await Product.distinct('category');
-  return raw
-    .filter((v): v is string => typeof v === 'string' && v.trim() !== '')
-    .sort((a, b) => a.localeCompare(b))
-    .slice(0, 200);
-}
-
 /** Do'kondagi qo'shimcha ustun nomlari (Product.extraFields.name), alifbo bo'yicha */
 export async function loadExtraFieldNames(
   Product: { distinct(field: 'extraFields.name', filter?: Record<string, unknown>): PromiseLike<unknown[]> },

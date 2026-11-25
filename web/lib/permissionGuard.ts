@@ -64,12 +64,6 @@ export async function checkPermission(user: PermUser, key: PermissionKey): Promi
   return permissionDeniedError(key);
 }
 
-/** void qaytaradigan action'lar uchun — huquq bo'lmasa xato tashlaydi */
-export async function assertPermission(user: PermUser, key: PermissionKey): Promise<void> {
-  const denied = await checkPermission(user, key);
-  if (denied) throw new Error(denied.error);
-}
-
 /** Sahifa/layout uchun: huquq bo'lmasa /app/locked?p=<key> (modul o'chiq bo'lsa ?m=<modul>) ga yo'naltiradi */
 export async function requirePermission(key: PermissionKey): Promise<SessionUser> {
   const user = await requireOrgUser();

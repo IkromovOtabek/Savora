@@ -22,8 +22,8 @@ export default async function ReportsHub() {
     // Sahifa guard'i bilan bir xil: faqat do'kon egasi + Kirim-chiqim moduli
     { key: 'stockValue', href: '/app/kirim-chiqim', icon: 'wallet', show: user.role === 'admin' && features.kirimChiqim },
     { key: 'shifts', href: '/app/shifts', icon: 'clock', show: features.kassa && perms.has('kassa.view') },
-    { key: 'debts', href: '/app/debts', icon: 'bell', show: features.sales },
-    { key: 'writeoff', href: '/app/write-off', icon: 'trash', show: features.products && perms.has('stock.adjust') },
+    { key: 'debts', href: '/app/debts', icon: 'bell', show: features.sales && perms.has('debts.view') },
+    { key: 'writeoff', href: '/app/write-off', icon: 'trash', show: features.products && perms.has('stock.writeOff') },
     { key: 'ai', href: '/app/ai', icon: 'sparkles', show: features.ai && perms.has('ai.view') },
     // Restoran moduli yoqiq bo'lsa (sahifa guard'i: tables + reports.view)
     { key: 'restaurant', href: '/app/restaurant/reports', icon: 'utensils', show: features.tables && perms.has('reports.view') },

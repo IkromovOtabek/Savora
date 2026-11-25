@@ -119,12 +119,6 @@ export function sumByMethod(rows: KassaPaymentRow[]): Partial<Record<PayMethod, 
   return out;
 }
 
-export function sumByType(rows: KassaPaymentRow[]): Record<PaymentType, number> {
-  const totals: Record<PaymentType, number> = { cash: 0, debt: 0, installment: 0, bank_credit: 0 };
-  for (const r of rows) totals[r.paymentType] += r.amount;
-  return totals;
-}
-
 export function dayRange(dateStr: string): { start: Date; end: Date; label: string } {
   const start = new Date(dateStr);
   if (Number.isNaN(start.getTime())) {

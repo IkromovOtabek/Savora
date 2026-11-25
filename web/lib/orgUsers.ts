@@ -25,24 +25,6 @@ export async function addOrgUser(organizationId: string | undefined, entry: OrgU
   }
 }
 
-export async function updateOrgUserByBranch(
-  organizationId: string | undefined,
-  branchId: string,
-  patch: { name?: string; username?: string }
-): Promise<void> {
-  try {
-    if (!organizationId || !branchId) return;
-    const set: Record<string, unknown> = {};
-    if (patch.name !== undefined) set['users.$.name'] = patch.name;
-    if (patch.username !== undefined) set['users.$.username'] = patch.username;
-    if (Object.keys(set).length === 0) return;
-    const { Organization } = await getMasterModels();
-    await Organization.updateOne({ _id: organizationId, 'users.branchId': branchId }, { $set: set });
-  } catch {
-    /* e'tiborsiz */
-  }
-}
-
 export async function removeOrgUserByBranch(organizationId: string | undefined, branchId: string): Promise<void> {
   try {
     if (!organizationId || !branchId) return;

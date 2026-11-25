@@ -24,13 +24,6 @@ export function computeDebtInfo(sale: Pick<ISale, 'dueDate'>, now = new Date()):
   return { state: 'on_track', daysLeft: days, label: `${days} kun qoldi` };
 }
 
-export const DEBT_STATE_META: Record<DebtState, { label: string; cls: string }> = {
-  overdue: { label: 'Muddati o\'tgan', cls: 'badge-status--expired' },
-  due_soon: { label: 'Muddati yaqin', cls: 'badge-status--suspended' },
-  on_track: { label: 'Muddatida', cls: 'badge-status--active' },
-  no_date: { label: 'Muddatsiz', cls: 'badge-status--suspended' },
-};
-
 /** Mijozga yuboriladigan eslatma matni (WhatsApp/Telegram uchun) */
 export function buildReminderText(opts: {
   shopName: string;
