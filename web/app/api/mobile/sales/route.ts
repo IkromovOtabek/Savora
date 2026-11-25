@@ -13,12 +13,11 @@ import { checkSaleQty } from '@/lib/productQuantity';
 import { parseQty, priceTimesQty, qtyLabel } from '@/lib/qty';
 import { reserveStock, releaseStock } from '@/lib/stock';
 import { parseIntegerSum } from '@/lib/security';
-import { installmentDueDate, normPayDay } from '@/lib/installment';
-import { pq294MonthsError } from '@/lib/pq294';
+import { missingPriceRight, resolveSaleTerms, saleRemaining, saleTermsErrorText } from '@/lib/sales/terms';
+import { getDictionary } from '@/lib/i18n/dict';
 import { isPayMethod, type PayMethod } from '@/lib/payMethods';
 import { newCheckoutId, receiptPath } from '@/lib/receiptLink';
-import { MAX_BANK_DEBT_DAYS, MAX_BANK_PARTS, bankPartsLabel, bankPartsTotal, parseBankPartsInput, validateBankParts } from '@/lib/bankCredit';
-import type { ISaleBankPart } from '@/lib/models/tenant/Sale';
+import { bankPartsLabel } from '@/lib/bankCredit';
 import { notifyNewSale, salePayLabel } from '@/lib/shopNotify';
 import { isClientSaleId, isDupKey } from '@/lib/posSync';
 import { saleSearchFilter } from '@/lib/saleSearch';
@@ -158,19 +157,11 @@ export async function POST(req: Request) {
 
   const productId = String(body.productId || '');
   const requestedType = (PAYMENT_TYPES.includes(body.paymentType as PaymentType) ? body.paymentType : 'cash') as PaymentType;
-  // Bank krediti + mijoz qismi: muddat oyda — sotuv «Nasiya», kunda — «Qarz» (web createSaleAction bilan bir xil)
   const nasiyaParsed = requestedType === 'bank_credit' && body.nasiyaAmount != null && body.nasiyaAmount !== ''
     ? parseIntegerSum(body.nasiyaAmount) : 0;
   if (nasiyaParsed === null) return NextResponse.json({ error: 'Mijoz qismi summasi noto\'g\'ri.' }, { status: 400 });
-  const nasiyaPart = nasiyaParsed;
-  const bankSplit = nasiyaPart > 0;
-  const bankDebt = bankSplit && body.bankTermUnit === 'days';
-  const bankNasiya = bankSplit && !bankDebt;
-  const paymentType: PaymentType = bankDebt ? 'debt' : bankNasiya ? 'installment' : requestedType;
-  const debtDays = Number(body.debtDays);
-  if (bankDebt && !(Number.isInteger(debtDays) && debtDays >= 1 && debtDays <= MAX_BANK_DEBT_DAYS)) {
-    return NextResponse.json({ error: `Qarz muddati 1 dan ${MAX_BANK_DEBT_DAYS} kungacha bo'lishi kerak.` }, { status: 400 });
-  }
+  // Qarz/nasiya/kredit (bank + mijoz qismi ham) — mijozsiz bo'lmaydi
+  const needsCustomer = requestedType !== 'cash';
   // Butun so'm — kasr/manfiy summalar rad etiladi
   const totalAmount = parseIntegerSum(body.totalAmount) ?? 0;
   const paidAmountParsed = body.paidAmount == null ? 0 : parseIntegerSum(body.paidAmount);
@@ -197,7 +188,7 @@ export async function POST(req: Request) {
   const customerId = typeof body.customerId === 'string' && Types.ObjectId.isValid(body.customerId) ? body.customerId : '';
   // Qarz/nasiya/kredit — mijozsiz bo'lmaydi. Naqdda yangi ilova mijozni o'zi talab qiladi; server talab qilmaydi —
   // eski ilovalar (1.3.0, OTA'siz 1.6.0) naqdni mijozsiz yuboradi va ular sotolmay qolmasin
-  if (paymentType !== 'cash' && !customerId && (!customerName || !customerPhone)) {
+  if (needsCustomer && !customerId && (!customerName || !customerPhone)) {
     return NextResponse.json({ error: 'Mijoz ismi va telefoni kiritilishi shart.' }, { status: 400 });
   }
 
@@ -228,79 +219,23 @@ export async function POST(req: Request) {
   }
   const saleQty = qtyCheck.qty;
 
-  // Sotuv narxidan arzon sotish — "sale.discount" huquqi kerak (web createSaleAction bilan bir xil)
-  if (product.salePrice > 0 && totalAmount < priceTimesQty(product.salePrice, saleQty) && !(await userCan(user, 'sale.discount'))) {
-    return NextResponse.json(permissionDeniedError('sale.discount'), { status: 403 });
+  // Narx huquqi va to'lov shartlari — lib/sales/terms (web «Yangi sotuv» bilan bir qoida)
+  const right = await missingPriceRight(priceTimesQty(product.salePrice, saleQty), totalAmount, product.salePrice > 0, (k) => userCan(user, k));
+  if (right) return NextResponse.json(permissionDeniedError(right), { status: 403 });
+  const dueParsed = dueDateRaw ? new Date(dueDateRaw) : undefined;
+  const t = await resolveSaleTerms({
+    paymentType: requestedType, total: totalAmount, paid: paidAmountRaw, lineCount: 1,
+    months: installmentMonthsRaw, payDay: body.payDay, dueDate: dueParsed && !Number.isNaN(dueParsed.getTime()) ? dueParsed : undefined,
+    bankParts: body.bankParts, bankName, nasiyaAmount: nasiyaParsed, bankTermUnit: body.bankTermUnit,
+    debtDays: Number(body.debtDays), features,
+  }, async (names) => (await CreditBank.countDocuments({ name: { $in: names }, active: true })) === names.length);
+  if (!t.ok) {
+    const status = t.error.code === 'nasiyaDisabled' || t.error.code === 'creditKassaDisabled' ? 403 : 400;
+    return NextResponse.json({ error: saleTermsErrorText(t.error, getDictionary('uz')) }, { status });
   }
-  // Sotuv narxidan qimmat sotish (narxni o'zgartirish) — "sale.editPrice" (web createSaleAction bilan bir xil)
-  if (product.salePrice > 0 && totalAmount > priceTimesQty(product.salePrice, saleQty) && !(await userCan(user, 'sale.editPrice'))) {
-    return NextResponse.json(permissionDeniedError('sale.editPrice'), { status: 403 });
-  }
-
-  let paidAmount = paymentType === 'cash' ? totalAmount : paidAmountRaw;
-  if (paidAmount > totalAmount) return NextResponse.json({ error: 'To\'langan summa jami summadan oshmasligi kerak.' }, { status: 400 });
-
-  if (paymentType === 'installment' && !features.variant && !features.nasiya) {
-    return NextResponse.json({ error: 'Nasiya moduli yoqilmagan.' }, { status: 403 });
-  }
-  // Bank krediti: qolgan summa bir yoki bir nechta bankka (lib/bankCredit.ts — web bilan bir xil qoida);
-  // mijoz qismi bo'lsa — banklar jami = jami − bosh to'lov − mijoz qismi (bankka kamida 1 so'm qolsin)
-  let bankParts: ISaleBankPart[] | undefined;
-  if (paymentType === 'bank_credit' || bankSplit) {
-    if (!features.creditKassa) return NextResponse.json({ error: 'Kredit kassa moduli yoqilmagan.' }, { status: 403 });
-    const rest = totalAmount - paidAmount;
-    if (bankSplit && nasiyaPart >= rest) {
-      return NextResponse.json({ error: `Mijoz qismi qolgan summadan kam bo'lishi kerak: ${Math.max(0, rest).toLocaleString('uz-UZ')} so'm.` }, { status: 400 });
-    }
-    const financed = rest - nasiyaPart;
-    const rawParts = parseBankPartsInput(body.bankParts);
-    if (rawParts === null) return NextResponse.json({ error: 'Bank ulushlari noto\'g\'ri.' }, { status: 400 });
-    const input = rawParts.length > 0 ? rawParts : bankName ? [{ bankName, amount: financed }] : [];
-    const v = validateBankParts(input, financed);
-    if (!v.ok) {
-      const msg = {
-        required: 'Bank tanlanishi shart.',
-        tooMany: `Bitta sotuvda ko'pi bilan ${MAX_BANK_PARTS} ta bank bo'lishi mumkin.`,
-        duplicate: 'Bir bank ikki marta tanlangan.',
-        badAmount: 'Har bank summasi butun so\'mda va 0 dan katta bo\'lishi kerak.',
-        nothingFinanced: 'Bank krediti uchun bankka summa qolishi kerak — bosh to\'lov jami summadan kam bo\'lsin.',
-        sumMismatch: `Banklar summasi bankka qoladigan summaga teng bo'lishi kerak: ${financed.toLocaleString('uz-UZ')} so'm.`,
-      }[v.error];
-      return NextResponse.json({ error: msg }, { status: 400 });
-    }
-    const names = v.parts.map((p) => p.bankName);
-    if ((await CreditBank.countDocuments({ name: { $in: names }, active: true })) !== names.length) {
-      return NextResponse.json({ error: 'Tanlangan bank topilmadi.' }, { status: 400 });
-    }
-    bankParts = v.parts;
-  }
-
-  let installmentMonths: number | undefined;
-  const payDay = paymentType === 'installment' ? normPayDay(body.payDay) : undefined;
-  if (paymentType === 'installment') {
-    installmentMonths = installmentMonthsRaw >= 1 ? Math.min(60, Math.floor(installmentMonthsRaw)) : undefined;
-    if (!installmentMonths) return NextResponse.json({ error: 'Nasiya oylari kiritilishi shart (1–60).' }, { status: 400 });
-    const pqErr = pq294MonthsError(installmentMonths);
-    if (pqErr) return NextResponse.json({ error: pqErr }, { status: 400 });
-  }
-
-  // Bank + nasiya / qarz: qoldiq — faqat mijoz qismi (bank qismi Kredit kassada); bank kreditida — bank zimmasidagi summa
-  const remainingAmount = Math.max(0, totalAmount - paidAmount - (bankSplit ? bankPartsTotal(bankParts) : 0));
+  const { paymentType, paid: paidAmount, bankParts, months: installmentMonths, payDay, dueDate } = t.terms;
+  const remainingAmount = saleRemaining(totalAmount, paidAmount, t.terms, bankParts);
   const status = calcSaleStatus(totalAmount, paidAmount);
-
-  let dueDate: Date | undefined;
-  if (remainingAmount > 0 && paymentType !== 'cash') {
-    if (dueDateRaw) { const d = new Date(dueDateRaw); if (!Number.isNaN(d.getTime())) dueDate = d; }
-    // Nasiya: muddat — oxirgi oy to'lovi (to'lov kuni bo'yicha)
-    if (paymentType === 'installment' && installmentMonths) {
-      dueDate = installmentDueDate(new Date(), installmentMonths, payDay);
-    }
-    // Bank + qarz: muddat — bugun + N kun
-    if (bankDebt && !dueDate) {
-      const t = new Date();
-      dueDate = new Date(Date.UTC(t.getFullYear(), t.getMonth(), t.getDate() + debtDays));
-    }
-  }
 
   const payments = paidAmount > 0
     ? [{ amount: paidAmount, paidAt: new Date(), note: paymentType === 'cash' ? (payMethod === 'cash' ? 'Naqd to\'lov' : undefined) : 'Boshlang\'ich to\'lov', recordedBy: user.username, method: payMethod }]
