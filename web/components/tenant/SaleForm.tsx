@@ -988,7 +988,7 @@ export default function SaleForm({ isPhoneShop, products, mediaEnabled, features
           <section className="sl-card" aria-labelledby="sl-step3">
             <div className="sl-card-head"><h2 id="sl-step3"><span className="sl-step">3</span>{d.common.customer}</h2></div>
             <div className="sl-fields">
-              <CustomerPicker value={customer} onChange={setCustomer} disabled={fieldsOff} named />
+              <CustomerPicker value={customer} onChange={setCustomer} disabled={fieldsOff} named optional={paymentType === 'cash'} />
             </div>
           </section>
 

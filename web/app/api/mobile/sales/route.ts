@@ -3,23 +3,17 @@ import { Types } from 'mongoose';
 import { authenticateMobile } from '@/lib/mobileAuth';
 import { mobilePermissionDenied, userCan } from '@/lib/permissionGuard';
 import { permissionDeniedError } from '@/lib/permissions';
-import { recordAudit } from '@/lib/audit';
-import { resolveSaleCustomer } from '@/lib/saleCustomer';
 import { getTenantModels } from '@/lib/tenantDb';
 import { branchFilter } from '@/lib/branchScope';
 import { getMobileFeatures } from '@/lib/mobileOrg';
-import { generateSaleNo, calcSaleStatus } from '@/lib/sales';
-import { checkSaleQty } from '@/lib/productQuantity';
-import { parseQty, priceTimesQty, qtyLabel } from '@/lib/qty';
-import { reserveStock, releaseStock } from '@/lib/stock';
+import { parseQty } from '@/lib/qty';
 import { parseIntegerSum } from '@/lib/security';
-import { missingPriceRight, resolveSaleTerms, saleRemaining, saleTermsErrorText } from '@/lib/sales/terms';
+import { missingPriceRight, resolveSaleTerms, saleTermsErrorText } from '@/lib/sales/terms';
+import { afterSales, checkSaleMarking, loadSaleLines, resolveCustomerFor, saleCoreErrorText, writeSales, type SaleCoreError } from '@/lib/sales/createSales';
 import { getDictionary } from '@/lib/i18n/dict';
 import { isPayMethod, type PayMethod } from '@/lib/payMethods';
 import { newCheckoutId, receiptPath } from '@/lib/receiptLink';
-import { bankPartsLabel } from '@/lib/bankCredit';
-import { notifyNewSale, salePayLabel } from '@/lib/shopNotify';
-import { isClientSaleId, isDupKey } from '@/lib/posSync';
+import { isClientSaleId } from '@/lib/posSync';
 import { saleSearchFilter } from '@/lib/saleSearch';
 import type { SessionUser } from '@/lib/session';
 
@@ -195,32 +189,25 @@ export async function POST(req: Request) {
   if (!Types.ObjectId.isValid(productId)) return NextResponse.json({ error: 'Mahsulot tanlanishi shart.' }, { status: 400 });
   if (totalAmount <= 0) return NextResponse.json({ error: 'Sotuv summasi noto\'g\'ri.' }, { status: 400 });
 
-  const { Product, Sale, Customer, CreditBank } = await getTenantModels(user.dbName);
+  const { Product, Sale, Customer, CreditBank, ShopSettings } = await getTenantModels(user.dbName);
   // Qayta yuborish: sotuv birinchi so'rovda yozilgan (mahsulot endi "sotilgan" bo'lishi mumkin) — o'sha javob
   if (clientSaleId) {
     const prev = await existingSaleResponse(Sale, clientSaleId, user);
     if (prev) return prev;
   }
-  const product = await Product.findById(productId).lean();
-  if (!product || product.status !== 'in_stock') {
-    return NextResponse.json({ error: 'Mahsulot omborda emas yoki sotilgan.' }, { status: 400 });
-  }
-  // Filial-login faqat o'z filialidan sotadi
-  if (user.role === 'user' && user.branchId && String(product.branchId) !== String(user.branchId)) {
-    return NextResponse.json({ error: 'Bu mahsulot boshqa filialda.' }, { status: 403 });
-  }
-
-  // dona — butun, kg/m… — ≤3 xona kasr ("1,5" ham)
-  const qtyCheck = checkSaleQty(product, body.saleQty == null || body.saleQty === '' ? undefined : parseQty(body.saleQty, product.unit));
-  if (!qtyCheck.ok) {
-    return NextResponse.json({
-      error: qtyCheck.reason === 'badQty' ? 'Miqdor noto\'g\'ri.' : `Omborda faqat ${qtyLabel(qtyCheck.available, product.unit)} qoldi.`,
-    }, { status: 400 });
-  }
-  const saleQty = qtyCheck.qty;
+  // Tovar (filial doirasi, omborda, miqdor) — lib/sales/createSales (web «Yangi sotuv» bilan bir yadro).
+  // Miqdor: "1,5" ham; birlikka mosligi (dona — butun) yadroda tekshiriladi
+  const d = getDictionary('uz');
+  const fail = (e: SaleCoreError, status = 400) => NextResponse.json({ error: saleCoreErrorText(e, d) }, { status });
+  const qtyIn = body.saleQty == null || body.saleQty === '' ? undefined : parseQty(body.saleQty, 'kg');
+  const loaded = await loadSaleLines({ Product }, user, [{ productId, qty: qtyIn ?? undefined }]);
+  if (!loaded.ok) return fail(loaded.error);
+  if (qtyIn === null) return fail({ code: 'badQty' });
+  const line = loaded.lines[0];
+  const { product, qty: saleQty } = line;
 
   // Narx huquqi va to'lov shartlari — lib/sales/terms (web «Yangi sotuv» bilan bir qoida)
-  const right = await missingPriceRight(priceTimesQty(product.salePrice, saleQty), totalAmount, product.salePrice > 0, (k) => userCan(user, k));
+  const right = await missingPriceRight(line.listTotal, totalAmount, product.salePrice > 0, (k) => userCan(user, k));
   if (right) return NextResponse.json(permissionDeniedError(right), { status: 403 });
   const dueParsed = dueDateRaw ? new Date(dueDateRaw) : undefined;
   const t = await resolveSaleTerms({
@@ -231,80 +218,35 @@ export async function POST(req: Request) {
   }, async (names) => (await CreditBank.countDocuments({ name: { $in: names }, active: true })) === names.length);
   if (!t.ok) {
     const status = t.error.code === 'nasiyaDisabled' || t.error.code === 'creditKassaDisabled' ? 403 : 400;
-    return NextResponse.json({ error: saleTermsErrorText(t.error, getDictionary('uz')) }, { status });
+    return NextResponse.json({ error: saleTermsErrorText(t.error, d) }, { status });
   }
-  const { paymentType, paid: paidAmount, bankParts, months: installmentMonths, payDay, dueDate } = t.terms;
-  const remainingAmount = saleRemaining(totalAmount, paidAmount, t.terms, bankParts);
-  const status = calcSaleStatus(totalAmount, paidAmount);
 
-  const payments = paidAmount > 0
-    ? [{ amount: paidAmount, paidAt: new Date(), note: paymentType === 'cash' ? (payMethod === 'cash' ? 'Naqd to\'lov' : undefined) : 'Boshlang\'ich to\'lov', recordedBy: user.username, method: payMethod }]
-    : [];
+  // Mijoz — barcha tekshiruvlar o'tgach (rad etilgan sotuvdan "yetim" mijoz qolmaydi); naqdda ixtiyoriy
+  const cust = await resolveCustomerFor({ Customer }, { customerId, name: customerName, phone: customerPhone }, t.terms.paymentType !== 'cash');
+  if (!cust.ok) return fail(cust.error);
+  // Markirovka: do'kon «majburiy» rejimida markirovkali tovar kodsiz sotilmaydi
+  const marking = await checkSaleMarking({ Sale, ShopSettings }, loaded.lines, []);
+  if (!marking.ok) return fail(marking.error);
+
   const checkoutId = newCheckoutId();
-
-  // Mijoz — barcha tekshiruvlar o'tgach yaratiladi (rad etilgan sotuvdan "yetim" mijoz qolmaydi)
-  // Tanlangan mijoz (customerId) yoki telefon bo'yicha topiladi / yangisi ochiladi (web bilan bir xil — lib/saleCustomer)
-  let customer: { _id: Types.ObjectId; fullName: string; phone: string } | null = null;
-  if (customerId || (customerName && customerPhone)) {
-    const r = await resolveSaleCustomer({ Customer }, { customerId, name: customerName, phone: customerPhone });
-    if (!r.ok) {
-      return NextResponse.json({ error: r.error === 'badPhone' ? 'Telefon raqami noto\'g\'ri (9–15 raqam).' : 'Mijoz ismi va telefoni kiritilishi shart.' }, { status: 400 });
-    }
-    customer = r.customer;
-  }
-
-  // Atomik: qoldiq tekshiruvi + ayirish bitta so'rovda (parallel sotuvda minusga tushmaydi)
-  const reserved = await reserveStock(Product, product._id, saleQty, {
-    scope: branchFilter(user),
-    history: { action: 'sold', detail: qtyLabel(saleQty, product.unit), by: user.username, at: new Date() },
+  const written = await writeSales({ Product, Sale }, user, {
+    lines: [{ ...line, total: totalAmount, parts: [{ method: payMethod, amount: t.terms.paid }], bankParts: t.terms.bankParts, marking: marking.lines[0] }],
+    terms: t.terms, customer: cust.customer, checkoutId, clientSaleId: clientSaleId as string | undefined, notes,
   });
-  if (!reserved) {
-    return NextResponse.json({ error: 'Mahsulot omborda yetarli emas yoki allaqachon sotilgan.' }, { status: 409 });
-  }
-
-  let saleNo: string;
-  let sale;
-  try {
-    saleNo = await generateSaleNo(Sale);
-    sale = await Sale.create({
-      saleNo,
-      productId: product._id,
-      productSnapshot: { name: product.name, imei: product.imei, brand: product.brand, deviceModel: product.deviceModel, purchasePrice: product.purchasePrice, saleQuantity: saleQty, unit: product.unit },
-      ...(customer ? { customerId: customer._id, customerSnapshot: { fullName: customer.fullName, phone: customer.phone } } : {}),
-      branchId: product.branchId,
-      paymentType,
-      bankName: bankParts ? bankPartsLabel(bankParts) : undefined,
-      bankParts,
-      totalAmount, paidAmount, remainingAmount, installmentMonths, payDay,
-      downPayment: paymentType === 'installment' ? paidAmount : undefined,
-      dueDate, status, payments, soldBy: user.username, notes: notes || undefined, checkoutId,
-      ...(clientSaleId ? { clientSaleId } : {}),
-    });
-  } catch (err) {
-    // Kompensatsiya: sotuv yozilmasa — mahsulot omborga qaytadi
-    await releaseStock(Product, product._id, saleQty);
+  if (!written.ok) {
     // Parallel so'rov (yoki oflayn sinxron) shu kalit bilan allaqachon yozgan — o'sha sotuv qaytadi
-    if (clientSaleId && isDupKey(err)) {
+    if ('duplicate' in written && clientSaleId) {
       const prev = await existingSaleResponse(Sale, clientSaleId, user);
       if (prev) return prev;
     }
-    return NextResponse.json({ error: 'Sotuvda xatolik yuz berdi.' }, { status: 500 });
+    if ('error' in written) return fail(written.error, written.error.code === 'notEnoughStock' ? 409 : 500);
+    return fail({ code: 'failed' }, 500);
   }
-
-  await recordAudit(user, {
-    action: 'sale.create',
-    entity: 'sale',
-    entityId: String(sale._id),
-    summary: `Sotuv ${saleNo}: ${product.name} · ${qtyLabel(saleQty, product.unit)} · ${totalAmount.toLocaleString('uz-UZ')} so'm (${paymentType}${payMethod !== 'cash' ? `, ${payMethod}` : ''}) (mobil)`,
-    meta: { saleQty, totalAmount, paymentType, payMethod, ...(bankParts ? { bankParts } : {}) },
-  });
-  void notifyNewSale(user, {
-    saleNo, items: 1, firstItem: product.name, total: totalAmount,
-    payment: salePayLabel(paymentType, [payMethod]), by: user.username,
-  });
+  const sale = written.sales[0];
+  await afterSales(user, written.sales, { terms: t.terms, methods: [payMethod], source: 'mobile', checkoutId });
 
   return NextResponse.json({
-    id: String(sale._id), saleNo, totalAmount, remainingAmount,
+    id: sale.saleId, saleNo: sale.saleNo, totalAmount, remainingAmount: sale.remaining,
     // Mijozga ulashiladigan ochiq chek (login talab qilmaydi)
     receiptPath: user.organizationId ? receiptPath(user.organizationId, checkoutId) : null,
   }, { status: 201 });

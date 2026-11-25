@@ -56,15 +56,19 @@ interface Props {
   named?: boolean;
   /** Kichik menyu (ro'yxatdagi «Sotildi») — ixcham yorliqlar */
   compact?: boolean;
+  /** Naqd sotuvda mijoz ixtiyoriy (qarz/nasiya/bankda majburiy — server ham tekshiradi) */
+  optional?: boolean;
 }
 
 /**
  * Mijoz F.I.O + telefon. F.I.O katagida — mavjud mijozlar ro'yxati: bosilganda so'nggilari,
  * har harf yozilganda real vaqtda qidiriladi (ism yoki raqam). Tanlansa — telefon o'zi to'ladi.
  */
-export default function CustomerPicker({ value, onChange, disabled, named, compact }: Props) {
+export default function CustomerPicker({ value, onChange, disabled, named, compact, optional }: Props) {
   const d = useDict();
   const k = d.sales.newSale;
+  // Ixtiyoriy bo'lsa — yorliqdagi majburiy belgisi («*») olib tashlanadi
+  const lbl = (v: string) => (optional ? v.replace(/\s*\*$/, '') : v);
   const uid = useId();
   const nameId = `${uid}-name`;
   const phoneId = `${uid}-phone`;
@@ -155,7 +159,7 @@ export default function CustomerPicker({ value, onChange, disabled, named, compa
     <div className={`cpk${compact ? ' cpk--compact' : ''}`}>
       {named && <input type="hidden" name="customerId" value={value.id} />}
       <div className={compact ? 'cpk-field' : 'auth-field cpk-field'}>
-        <label htmlFor={nameId} className={labelCls}>{k.customerName}</label>
+        <label htmlFor={nameId} className={labelCls}>{lbl(k.customerName)}</label>
         <div className="cpk-box">
           <Icon name="search" size={16} />
           <input
@@ -163,7 +167,7 @@ export default function CustomerPicker({ value, onChange, disabled, named, compa
             name={named ? 'customerName' : undefined}
             type="text"
             className={inputCls}
-            required
+            required={!optional}
             maxLength={120}
             value={value.name}
             onChange={(e) => onNameChange(e.target.value)}
@@ -213,13 +217,13 @@ export default function CustomerPicker({ value, onChange, disabled, named, compa
         )}
       </div>
       <div className={compact ? 'cpk-field' : 'auth-field cpk-field'}>
-        <label htmlFor={phoneId} className={labelCls}>{k.customerPhone}</label>
+        <label htmlFor={phoneId} className={labelCls}>{lbl(k.customerPhone)}</label>
         <input
           id={phoneId}
           name={named ? 'customerPhone' : undefined}
           type="tel"
           className={compact ? 'input' : undefined}
-          required
+          required={!optional}
           maxLength={40}
           value={value.phone}
           onChange={(e) => {

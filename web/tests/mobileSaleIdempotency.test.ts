@@ -26,7 +26,8 @@ vi.mock('@/lib/mobileOrg', () => ({ getMobileFeatures: async () => ({ variant: t
 vi.mock('@/lib/tenantDb', () => ({
   getTenantModels: async () => ({
     Sale: { findOne: saleFindOne, create: saleCreate },
-    Product: { findById: productFindById },
+    Product: { findById: productFindById, findOne: productFindById },
+    ShopSettings: {},
     Customer: {},
     CreditBank: {},
   }),
@@ -34,6 +35,8 @@ vi.mock('@/lib/tenantDb', () => ({
 vi.mock('@/lib/stock', () => ({ reserveStock, releaseStock }));
 vi.mock('@/lib/sales', async (orig) => ({ ...(await orig<typeof import('@/lib/sales')>()), generateSaleNo: async () => 'S-0001' }));
 vi.mock('@/lib/audit', () => ({ recordAudit: vi.fn(async () => {}) }));
+vi.mock('@/lib/shopSettings', () => ({ getShopSettings: async () => ({ stock: {} }) }));
+vi.mock('@/lib/onboarding', () => ({ markOnboardingStep: vi.fn(async () => {}) }));
 vi.mock('@/lib/shopNotify', () => ({ notifyNewSale: vi.fn(async () => {}), salePayLabel: () => 'naqd' }));
 vi.mock('@/lib/daftarOps', () => ({ findCustomerByPhone: async () => null }));
 

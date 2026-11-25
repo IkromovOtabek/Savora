@@ -27,7 +27,8 @@ import { markOnboardingStep } from '@/lib/onboarding';
 import { branchFilter } from '@/lib/branchScope';
 import { logError } from '@/lib/logger';
 import { checkPermission, userCan } from '@/lib/permissionGuard';
-import { missingPriceRight, resolveSaleTerms, saleRemaining, saleTermsErrorText } from '@/lib/sales/terms';
+import { missingPriceRight, resolveSaleTerms, saleTermsErrorText } from '@/lib/sales/terms';
+import { afterSales, checkSaleMarking, loadSaleLines, resolveCustomerFor, saleCoreErrorText, writeSales } from '@/lib/sales/createSales';
 import { permissionDeniedError } from '@/lib/permissions';
 import { getI18n } from '@/lib/i18n/server';
 import { qtyWithUnit, tr } from '@/lib/i18n/fmt';
@@ -317,7 +318,7 @@ export async function searchSaleCustomersAction(q: string): Promise<SaleCustomer
 }
 
 export async function createSaleAction(_prev: State, formData: FormData): Promise<State> {
-  const { user, Product, Customer, Sale, CreditBank, features } = await getTenantSession();
+  const { user, Product, Customer, Sale, CreditBank, ShopSettings, features } = await getTenantSession();
   const { locale, d } = await getI18n();
   const m = d.sales.actions;
   if (!features.sales) return featureDisabledError('sales');
@@ -378,24 +379,10 @@ export async function createSaleAction(_prev: State, formData: FormData): Promis
     if (!isOwnUploadUrl(photoUrl)) return { error: m.badPhotoUrl };
   }
 
-  // Avval barcha tovarlar tekshiriladi (mavjudligi, qoldig'i) — yarim sotuv bo'lmasin.
-  // Filial login faqat o'z filiali mahsulotini sotadi (IDOR himoyasi)
-  const scope = branchFilter(user);
-  const prepared: { product: IProduct & { _id: Types.ObjectId }; qty: number; listTotal: number }[] = [];
-  for (const line of lines) {
-    const product = await Product.findOne({ _id: line.productId, ...scope }).lean<IProduct & { _id: Types.ObjectId }>();
-    if (!product || product.status !== 'in_stock') {
-      return { error: multi && product ? tr(m.productNotInStock, { name: product.name }) : m.notInStock };
-    }
-    // dona — butun, kg/m… — ≤3 xona kasr
-    const qtyCheck = checkSaleQty(product, line.qty);
-    if (!qtyCheck.ok) {
-      const msg = qtyCheck.reason === 'badQty' ? m.badQty : tr(m.onlyNLeft, { n: qtyWithUnit(qtyCheck.available, product.unit, d.stock.fields.units) });
-      return { error: multi ? `${product.name}: ${msg}` : msg };
-    }
-    // Ro'yxat narxi bo'yicha jami (kasr miqdorda butun so'mga yaxlitlangan)
-    prepared.push({ product, qty: qtyCheck.qty, listTotal: priceTimesQty(product.salePrice, qtyCheck.qty) });
-  }
+  // Tovarlar (filial doirasi, omborda, miqdor) — lib/sales/createSales (mobil bilan bir yadro)
+  const loaded = await loadSaleLines({ Product }, user, lines);
+  if (!loaded.ok) return { error: saleCoreErrorText(loaded.error, d) };
+  const prepared = loaded.lines;
   // Ko'p tovarda jami narxlarga mutanosib bo'linadi — har birining narxi bo'lishi kerak
   if (multi) {
     const noPrice = prepared.find((p) => !(p.product.salePrice > 0));
@@ -418,121 +405,36 @@ export async function createSaleAction(_prev: State, formData: FormData): Promis
   const { paymentType, paid: paidAmount, bankParts, bankNasiya, months: installmentMonths, payDay, dueDate } = t.terms;
   const bankLabel = bankParts ? bankPartsLabel(bankParts) : '';
 
-  // Mijoz — har qanday to'lov turida majburiy (naqd ham): xaridlar tarixi mijoz kartochkasida yuritiladi
-  const cust = await resolveSaleCustomer({ Customer }, { customerId: parsed.data.customerId, name: customerName, phone: customerPhone });
-  if (!cust.ok) return { error: m[cust.error] };
-  const customer = cust.customer;
+  // Mijoz: qarz/nasiya/bankda majburiy, naqdda ixtiyoriy (lib/sales/createSales)
+  const cust = await resolveCustomerFor({ Customer }, { customerId: parsed.data.customerId, name: customerName, phone: customerPhone }, paymentType !== 'cash');
+  if (!cust.ok) return { error: saleCoreErrorText(cust.error, d) };
+  // Markirovka: do'kon «majburiy» rejimida markirovkali tovar kodsiz sotilmaydi (kod — Kassa/POS skaneri)
+  const marking = await checkSaleMarking({ Sale, ShopSettings }, prepared, []);
+  if (!marking.ok) return { error: saleCoreErrorText(marking.error, d) };
 
   // Qatorlar: jami, bosh to'lov va bank ulushlari aniq taqsimlanadi (lib/saleSplit.ts).
-  // Bank + nasiya — doim bitta tovar (yuqorida tekshirilgan), bo'linish yo'q.
   // Har qator — alohida sotuv, bitta xarid (checkoutId) bilan bog'langan (POS'dagi kabi).
   const split = multi
     ? splitSale({ listTotals: prepared.map((p) => p.listTotal), total: totalAmount, paid: paidAmount, bankParts })
     : [{ total: totalAmount, paid: paidAmount, bankParts }];
   const checkoutId = multi ? newCheckoutId() : undefined;
-
-  // "Hammasi yoki hech biri": biror qator o'tmasa, oldingilari bekor qilinadi (sotuv o'chadi, tovar omborga qaytadi)
-  let shortOf: string | null = null;
-  const outcome = await runWithCompensation(prepared, async ({ product, qty }, i) => {
-    const line = split[i];
-    const now = new Date();
-    // Atomik: qoldiq tekshiruvi + ayirish bitta so'rovda
-    const reserved = await reserveStock(Product, product._id, qty, {
-      scope,
-      history: { action: 'sold', detail: qtyLabel(qty, product.unit), by: user.username, at: now },
-    });
-    if (!reserved) { shortOf = product.name; return null; }
-
-    // Bosh to'lov qatorni to'liq yopgan bo'lsa — unga bank ulushi tushmaydi
-    const lineBank = line.bankParts && line.bankParts.length > 0 ? line.bankParts : undefined;
-    // Bank + nasiya / qarz: qoldiq — faqat mijoz qarzi (bank qismi Kredit kassada); bank kreditida — bank zimmasidagi summa
-    const remaining = saleRemaining(line.total, line.paid, t.terms, lineBank);
-    let saleId: Types.ObjectId;
-    let saleNo: string;
-    try {
-      saleNo = await generateSaleNo(Sale);
-      const sale = await Sale.create({
-        saleNo,
-        productId: product._id,
-        productSnapshot: {
-          name: product.name,
-          imei: product.imei,
-          brand: product.brand,
-          deviceModel: product.deviceModel,
-          purchasePrice: product.purchasePrice,
-          saleQuantity: qty,
-          unit: product.unit,
-        },
-        customerId: customer._id,
-        customerSnapshot: { fullName: customer.fullName, phone: customer.phone },
-        branchId: product.branchId,
-        paymentType,
-        bankName: lineBank ? bankPartsLabel(lineBank) : undefined,
-        bankParts: lineBank,
-        totalAmount: line.total,
-        paidAmount: line.paid,
-        remainingAmount: remaining,
-        installmentMonths,
-        payDay,
-        // Nasiya boshlang'ich to'lovi = sotuv paytidagi paidAmount (oy jadvali shu asosda)
-        downPayment: paymentType === 'installment' ? line.paid : undefined,
-        dueDate: remaining > 0 ? dueDate : undefined,
-        status: calcSaleStatus(line.total, line.paid),
-        payments: line.paid > 0
-          ? [{ amount: line.paid, paidAt: now, note: paymentType === 'cash' ? 'Naqd to\'lov' : 'Boshlang\'ich to\'lov', recordedBy: user.username }]
-          : [],
-        checkoutId,
-        soldBy: user.username,
-        notes: notes || undefined,
-        photoUrl: photoUrl || undefined,
-      });
-      saleId = sale._id;
-    } catch (err) {
-      // Kompensatsiya: sotuv yozilmasa — mahsulot omborga qaytadi
-      await releaseStock(Product, product._id, qty);
-      throw err;
-    }
-    return {
-      result: { saleId: String(saleId), saleNo, name: product.name, qty, unit: product.unit, total: line.total, bankParts: lineBank },
-      undo: async () => {
-        await Sale.deleteOne({ _id: saleId });
-        await releaseStock(Product, product._id, qty, { action: 'returned', detail: 'Sotuv yakunlanmadi', by: user.username, at: new Date() });
-      },
-    };
+  const written = await writeSales({ Product, Sale }, user, {
+    lines: prepared.map((p, i) => ({ ...p, total: split[i].total, parts: [{ method: 'cash' as const, amount: split[i].paid }], bankParts: split[i].bankParts, marking: marking.lines[i] })),
+    terms: t.terms, customer: cust.customer, checkoutId, notes, photoUrl,
   });
+  if (!written.ok) return { error: 'error' in written ? saleCoreErrorText(written.error, d) : m.saleFailed };
+  const results = written.sales;
+  await afterSales(user, results, { terms: t.terms, methods: ['cash'], source: 'web', checkoutId });
 
-  if (!outcome.ok) {
-    if (outcome.error) logError('createSaleAction failed', outcome.error, { user: user.username, dbName: user.dbName });
-    if (shortOf) return { error: multi ? tr(m.notEnoughStockFor, { name: shortOf }) : m.notEnoughStock };
-    return { error: m.saleFailed };
-  }
-  const results = outcome.results;
-
-  for (const r of results) {
-    await recordAudit(user, {
-      action: 'sale.create',
-      entity: 'sale',
-      entityId: r.saleId,
-      summary: `Sotuv ${r.saleNo}: ${r.name} · ${qtyLabel(r.qty, r.unit)} · ${r.total.toLocaleString('uz-UZ')} so'm (${paymentType})${multi ? ` · xarid ${results.length} ta tovar` : ''}`,
-      meta: { saleQty: r.qty, totalAmount: r.total, paymentType, ...(r.bankParts ? { bankParts: r.bankParts } : {}), ...(checkoutId ? { checkoutId } : {}) },
-    });
-  }
-  await markOnboardingStep(user.organizationId, 'saleMade');
-
-  const first = results[0];
   const saleNos = results.map((r) => r.saleNo).sort();
   const noLabel = saleNos.length > 1 ? `${saleNos[0]} – ${saleNos[saleNos.length - 1]}` : saleNos[0];
   void sendTelegram(
     `<b>Savora — Yangi sotuv</b>\n` +
-    `${tgEscape(noLabel)} · ${results.map((r) => `${tgEscape(r.name)} (${qtyLabel(r.qty, r.unit)})`).join(', ')}\n` +
-    `Mijoz: ${tgEscape(customer.fullName)}\n` +
+    `${tgEscape(noLabel)} · ${results.map((r) => `${tgEscape(r.product.name)} (${qtyLabel(r.qty, r.product.unit)})`).join(', ')}\n` +
+    `Mijoz: ${tgEscape(cust.customer?.fullName ?? '—')}\n` +
     `Summa: ${totalAmount.toLocaleString('uz-UZ')} so'm\n` +
     `To'lov: ${tgEscape(paymentType)}${bankLabel ? ` (${tgEscape(bankLabel)})` : ''}`,
   );
-  void notifyNewSale(user, {
-    saleNo: saleNos[0], items: results.length, firstItem: first.name, total: totalAmount,
-    payment: salePayLabel(paymentType), by: user.username,
-  });
 
   revalidatePath('/app');
   revalidatePath('/app/sales');
@@ -540,7 +442,7 @@ export async function createSaleAction(_prev: State, formData: FormData): Promis
   if (bankParts) revalidatePath('/app/kredit-kassa');
   if (paymentType === 'installment') revalidatePath('/app/nasiya');
   if (paymentType === 'debt' || bankNasiya) revalidatePath('/app/debts');
-  redirect(`/app/sales/${first.saleId}?created=1`);
+  redirect(`/app/sales/${results[0].saleId}?created=1`);
 }
 
 export async function addSalePaymentAction(_prev: State, formData: FormData): Promise<State> {

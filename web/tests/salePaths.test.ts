@@ -152,11 +152,14 @@ describe.skipIf(!URI)('sotuv yo\'llari — hozirgi xatti-harakat (MongoDB)', () 
     expect(await stockOf(p._id)).toMatchSnapshot();
   });
 
-  it('web: naqd, mijozsiz — rad etiladi', async () => {
+  // 2026-11-25 qaror: naqdda mijoz ixtiyoriy (qarz/nasiya/bankda majburiy) — barcha sotuv yo'llarida bir xil
+  it('web: naqd, mijozsiz — sotiladi; qarz mijozsiz — rad', async () => {
     const p = await product();
-    const r = await webSale({ productId: String(p._id), paymentType: 'cash', totalAmount: '1000000' });
-    expect(r).toMatchSnapshot();
-    expect(await salesOf(p._id)).toHaveLength(0);
+    expect(await webSale({ productId: String(p._id), paymentType: 'cash', totalAmount: '1000000' })).toMatchSnapshot();
+    expect((await salesOf(p._id)).map(norm)).toMatchSnapshot();
+    const q = await product();
+    expect(await webSale({ productId: String(q._id), paymentType: 'debt', totalAmount: '1000000', paidAmount: '0' })).toMatchSnapshot();
+    expect(await salesOf(q._id)).toHaveLength(0);
   });
 
   it('web: qarz, qisman to\'lov, muddat', async () => {

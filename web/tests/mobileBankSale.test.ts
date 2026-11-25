@@ -25,7 +25,8 @@ vi.mock('@/lib/mobileOrg', () => ({ getMobileFeatures: async () => features }));
 vi.mock('@/lib/tenantDb', () => ({
   getTenantModels: async () => ({
     Sale: { findOne: vi.fn(() => ({ lean: async () => null })), create: saleCreate },
-    Product: { findById: vi.fn(() => ({ lean: async () => product })) },
+    Product: { findById: vi.fn(() => ({ lean: async () => product })), findOne: vi.fn(() => ({ lean: async () => product })) },
+    ShopSettings: {},
     Customer: {},
     CreditBank: { countDocuments: bankCount },
   }),
@@ -36,6 +37,8 @@ vi.mock('@/lib/saleCustomer', () => ({
 vi.mock('@/lib/stock', () => ({ reserveStock: vi.fn(async () => true), releaseStock: vi.fn(async () => {}) }));
 vi.mock('@/lib/sales', async (orig) => ({ ...(await orig<typeof import('@/lib/sales')>()), generateSaleNo: async () => 'S-0001' }));
 vi.mock('@/lib/audit', () => ({ recordAudit: vi.fn(async () => {}) }));
+vi.mock('@/lib/shopSettings', () => ({ getShopSettings: async () => ({ stock: {} }) }));
+vi.mock('@/lib/onboarding', () => ({ markOnboardingStep: vi.fn(async () => {}) }));
 vi.mock('@/lib/shopNotify', () => ({ notifyNewSale: vi.fn(async () => {}), salePayLabel: () => 'bank' }));
 
 const post = (extra: Record<string, unknown>) => new Request('http://x/api/mobile/sales', {
