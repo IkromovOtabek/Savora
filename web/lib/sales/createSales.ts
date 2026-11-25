@@ -199,7 +199,7 @@ export async function writeSales(
   let shortOf: string | null = null;
   let duplicate = false;
 
-  const outcome = await runWithCompensation(input.lines, async (line) => {
+  const outcome = await runWithCompensation(input.lines, async (line, idx) => {
     const { product, qty } = line;
     const now = input.at ?? new Date();
     const catalogPrice = writesCatalogPrice(product, line.soldUnitPrice);
@@ -251,7 +251,8 @@ export async function writeSales(
         payments: line.parts.filter((p) => p.amount > 0).map((p) => ({ amount: p.amount, paidAt: now, note: note(p.method), recordedBy: user.username, method: p.method })),
         checkoutId: input.checkoutId,
         ...(line.discount ? { discount: line.discount } : {}),
-        ...(input.clientSaleId ? { clientSaleId: input.clientSaleId } : {}),
+        // Kalit faqat birinchi qatorda (unikal indeks); savatning qolgani — checkoutId orqali
+        ...(input.clientSaleId && idx === 0 ? { clientSaleId: input.clientSaleId } : {}),
         soldBy: user.username,
         notes: input.notes || undefined,
         photoUrl: input.photoUrl || undefined,

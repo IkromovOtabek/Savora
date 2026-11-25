@@ -7,6 +7,7 @@ import { getTenantModels } from '@/lib/tenantDb';
 import { branchFilter } from '@/lib/branchScope';
 import { getMobileFeatures } from '@/lib/mobileOrg';
 import { parseQty } from '@/lib/qty';
+import { splitSale } from '@/lib/saleSplit';
 import { parseIntegerSum } from '@/lib/security';
 import { missingPriceRight, resolveSaleTerms, saleTermsErrorText } from '@/lib/sales/terms';
 import { afterSales, checkSaleMarking, loadSaleLines, resolveCustomerFor, saleCoreErrorText, writeSales, type SaleCoreError } from '@/lib/sales/createSales';
@@ -30,8 +31,13 @@ async function existingSaleResponse(Sale: SaleModel, clientSaleId: string, user:
   ).lean();
   if (!prev) return null;
   if (prev.soldBy !== user.username) return NextResponse.json({ error: 'Sotuv kaliti band.' }, { status: 409 });
+  // Savat: kalit birinchi qatorda — jami butun xarid (checkoutId) bo'yicha
+  const all = prev.checkoutId
+    ? await Sale.find({ checkoutId: prev.checkoutId }, { totalAmount: 1, remainingAmount: 1 }).lean()
+    : [prev];
   return NextResponse.json({
-    id: String(prev._id), saleNo: prev.saleNo, totalAmount: prev.totalAmount, remainingAmount: prev.remainingAmount,
+    id: String(prev._id), saleNo: prev.saleNo,
+    totalAmount: all.reduce((a, x) => a + x.totalAmount, 0), remainingAmount: all.reduce((a, x) => a + x.remainingAmount, 0), items: all.length,
     receiptPath: user.organizationId && prev.checkoutId ? receiptPath(user.organizationId, prev.checkoutId) : null,
   }, { status: 200 });
 }
@@ -42,6 +48,8 @@ const PAYMENT_TYPES: PaymentType[] = ['cash', 'debt', 'installment', 'bank_credi
 /** Matn maydonlari uzunlik chegarasi — oshsa 400 (xotira/DB to'ldirish himoyasi) */
 const MAX_LEN = { customerName: 80, customerPhone: 20, bankName: 80, notes: 500 } as const;
 const tooLong = (v: string, max: number) => v.length > max;
+/** Savatda ko'pi bilan shuncha tovar (web «Yangi sotuv» SALE_MAX_LINES bilan bir xil) */
+const MAX_ITEMS = 20;
 
 /**
  * Mobil sotuvlar ro'yxati. Filtr:
@@ -141,6 +149,8 @@ export async function POST(req: Request) {
      * (pos/sync bilan umumiy unikal indeks).
      */
     clientSaleId?: unknown;
+    /** Savat (mobil 1.7+): bir nechta tovar [{ productId, qty }] — naqd/qarz; jami narxlarga mutanosib bo'linadi */
+    items?: unknown;
   };
   try { body = await req.json(); } catch { return NextResponse.json({ error: 'Noto\'g\'ri so\'rov.' }, { status: 400 }); }
 
@@ -186,7 +196,18 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Mijoz ismi va telefoni kiritilishi shart.' }, { status: 400 });
   }
 
-  if (!Types.ObjectId.isValid(productId)) return NextResponse.json({ error: 'Mahsulot tanlanishi shart.' }, { status: 400 });
+  // Tovar qatorlari: savat (items) yoki eski bitta tovar (productId + saleQty). Miqdor "1,5" ham —
+  // birlikka mosligi (dona — butun) yadroda tekshiriladi
+  const rawItems = Array.isArray(body.items) ? body.items : null;
+  if (rawItems && (rawItems.length < 1 || rawItems.length > MAX_ITEMS)) return NextResponse.json({ error: 'Tovarlar soni noto\'g\'ri.' }, { status: 400 });
+  const reqLines: { productId: string; qty?: number | null }[] = rawItems
+    ? rawItems.map((it) => {
+      const o = (it ?? {}) as { productId?: unknown; qty?: unknown };
+      return { productId: String(o.productId ?? ''), qty: o.qty == null || o.qty === '' ? undefined : parseQty(o.qty as string | number, 'kg') };
+    })
+    : [{ productId, qty: body.saleQty == null || body.saleQty === '' ? undefined : parseQty(body.saleQty, 'kg') }];
+  if (reqLines.some((l) => !Types.ObjectId.isValid(l.productId))) return NextResponse.json({ error: 'Mahsulot tanlanishi shart.' }, { status: 400 });
+  if (new Set(reqLines.map((l) => l.productId)).size !== reqLines.length) return NextResponse.json({ error: 'Bir tovar ikki marta qo\'shilgan.' }, { status: 400 });
   if (totalAmount <= 0) return NextResponse.json({ error: 'Sotuv summasi noto\'g\'ri.' }, { status: 400 });
 
   const { Product, Sale, Customer, CreditBank, ShopSettings } = await getTenantModels(user.dbName);
@@ -199,19 +220,22 @@ export async function POST(req: Request) {
   // Miqdor: "1,5" ham; birlikka mosligi (dona — butun) yadroda tekshiriladi
   const d = getDictionary('uz');
   const fail = (e: SaleCoreError, status = 400) => NextResponse.json({ error: saleCoreErrorText(e, d) }, { status });
-  const qtyIn = body.saleQty == null || body.saleQty === '' ? undefined : parseQty(body.saleQty, 'kg');
-  const loaded = await loadSaleLines({ Product }, user, [{ productId, qty: qtyIn ?? undefined }]);
+  if (reqLines.some((l) => l.qty === null)) return fail({ code: 'badQty' });
+  const loaded = await loadSaleLines({ Product }, user, reqLines.map((l) => ({ productId: l.productId, qty: l.qty ?? undefined })));
   if (!loaded.ok) return fail(loaded.error);
-  if (qtyIn === null) return fail({ code: 'badQty' });
-  const line = loaded.lines[0];
-  const { product, qty: saleQty } = line;
+  const lines = loaded.lines;
+  const multi = lines.length > 1;
+  // Ko'p tovarda jami narxlarga mutanosib bo'linadi — har birining narxi bo'lishi kerak (web bilan bir xil)
+  const noPrice = multi ? lines.find((l) => !(l.product.salePrice > 0)) : undefined;
+  if (noPrice) return fail({ code: 'enterPriceFor', name: noPrice.product.name });
+  const listTotal = lines.reduce((a, l) => a + l.listTotal, 0);
 
   // Narx huquqi va to'lov shartlari — lib/sales/terms (web «Yangi sotuv» bilan bir qoida)
-  const right = await missingPriceRight(line.listTotal, totalAmount, product.salePrice > 0, (k) => userCan(user, k));
+  const right = await missingPriceRight(listTotal, totalAmount, lines.every((l) => l.product.salePrice > 0), (k) => userCan(user, k));
   if (right) return NextResponse.json(permissionDeniedError(right), { status: 403 });
   const dueParsed = dueDateRaw ? new Date(dueDateRaw) : undefined;
   const t = await resolveSaleTerms({
-    paymentType: requestedType, total: totalAmount, paid: paidAmountRaw, lineCount: 1,
+    paymentType: requestedType, total: totalAmount, paid: paidAmountRaw, lineCount: lines.length,
     months: installmentMonthsRaw, payDay: body.payDay, dueDate: dueParsed && !Number.isNaN(dueParsed.getTime()) ? dueParsed : undefined,
     bankParts: body.bankParts, bankName, nasiyaAmount: nasiyaParsed, bankTermUnit: body.bankTermUnit,
     debtDays: Number(body.debtDays), features,
@@ -225,12 +249,16 @@ export async function POST(req: Request) {
   const cust = await resolveCustomerFor({ Customer }, { customerId, name: customerName, phone: customerPhone }, t.terms.paymentType !== 'cash');
   if (!cust.ok) return fail(cust.error);
   // Markirovka: do'kon «majburiy» rejimida markirovkali tovar kodsiz sotilmaydi
-  const marking = await checkSaleMarking({ Sale, ShopSettings }, loaded.lines, []);
+  const marking = await checkSaleMarking({ Sale, ShopSettings }, lines, []);
   if (!marking.ok) return fail(marking.error);
 
+  // Qatorlar: jami, bosh to'lov va bank ulushlari aniq taqsimlanadi (lib/saleSplit — web bilan bir xil)
+  const split = multi
+    ? splitSale({ listTotals: lines.map((l) => l.listTotal), total: totalAmount, paid: t.terms.paid, bankParts: t.terms.bankParts })
+    : [{ total: totalAmount, paid: t.terms.paid, bankParts: t.terms.bankParts }];
   const checkoutId = newCheckoutId();
   const written = await writeSales({ Product, Sale }, user, {
-    lines: [{ ...line, total: totalAmount, parts: [{ method: payMethod, amount: t.terms.paid }], bankParts: t.terms.bankParts, marking: marking.lines[0] }],
+    lines: lines.map((l, i) => ({ ...l, total: split[i].total, parts: [{ method: payMethod, amount: split[i].paid }], bankParts: split[i].bankParts, marking: marking.lines[i] })),
     terms: t.terms, customer: cust.customer, checkoutId, clientSaleId: clientSaleId as string | undefined, notes,
   });
   if (!written.ok) {
@@ -246,7 +274,8 @@ export async function POST(req: Request) {
   await afterSales(user, written.sales, { terms: t.terms, methods: [payMethod], source: 'mobile', checkoutId });
 
   return NextResponse.json({
-    id: sale.saleId, saleNo: sale.saleNo, totalAmount, remainingAmount: sale.remaining,
+    id: sale.saleId, saleNo: sale.saleNo, totalAmount, remainingAmount: written.sales.reduce((a, x) => a + x.remaining, 0),
+    items: written.sales.length,
     // Mijozga ulashiladigan ochiq chek (login talab qilmaydi)
     receiptPath: user.organizationId ? receiptPath(user.organizationId, checkoutId) : null,
   }, { status: 201 });

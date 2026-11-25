@@ -35,6 +35,23 @@ const TERM_PRESETS = [
   { key: 'm12', unit: 'months', n: 12 },
 ] as const;
 type TermKey = (typeof TERM_PRESETS)[number]['key'];
+/** Savatda ko'pi bilan shuncha tovar (server MAX_ITEMS bilan bir xil) */
+const MAX_ITEMS = 20;
+/** Savatdagi qo'shimcha qator: birinchi tovar — `picked`, qolganlari shu yerda */
+type CartLine = { p: PickedProduct; qty: number; qtyText: string };
+const lineQty = (l: CartLine) => (l.p.trackQuantity ? (isFractionalUnit(l.p.unit) ? parseQty(l.qtyText, l.p.unit) : l.qty) : 1);
+
+/** Summani og'irliklarga mutanosib bo'lish (butun so'm, yig'indisi aniq) — oflayn savat qatorlari uchun */
+function splitByWeights(weights: number[], amount: number): number[] {
+  const sum = weights.reduce((a, w) => a + w, 0);
+  if (sum <= 0) return weights.map((_, i) => (i === 0 ? amount : 0));
+  const raw = weights.map((w) => (w / sum) * amount);
+  const out = raw.map(Math.floor);
+  let rest = amount - out.reduce((a, v) => a + v, 0);
+  const order = raw.map((v, i) => ({ i, f: v - Math.floor(v) })).sort((a, b) => b.f - a.f);
+  for (let k = 0; rest > 0; k = (k + 1) % order.length, rest -= 1) out[order[k].i] += 1;
+  return out;
+}
 
 export default function SaleNew() {
   const router = useRouter();
@@ -58,6 +75,9 @@ export default function SaleNew() {
   } : null;
 
   const [picked, setPicked] = useState<PickedProduct | null>(initial);
+  // Savat: qo'shimcha tovarlar (naqd / qarz) va «Tovar qo'shish» rejimi (ro'yxat ochiq)
+  const [extra, setExtra] = useState<CartLine[]>([]);
+  const [adding, setAdding] = useState(false);
   const [q, setQ] = useState('');
   const dq = useDebounced(q.trim(), 300);
 
@@ -91,9 +111,10 @@ export default function SaleNew() {
   // Bitta sotuv — bitta kalit: javob kelmay qolsa (timeout) qayta yuborish ham, oflayn navbat ham shu kalit
   // bilan ketadi — server sotuvni ikki marta yozmaydi. Boshqa mahsulot tanlansa — yangi sotuv, yangi kalit.
   const saleKey = useRef<string | null>(null);
-  useEffect(() => { saleKey.current = null; }, [picked?.id]);
+  const cartSig = extra.map((l) => `${l.p.id}:${l.qty}:${l.qtyText}`).join('|');
+  useEffect(() => { saleKey.current = null; }, [picked?.id, cartSig]);
 
-  const list = usePaged<PickedProduct>(picked ? null : `/api/mobile/products?q=${encodeURIComponent(dq)}`);
+  const list = usePaged<PickedProduct>(picked && !adding ? null : `/api/mobile/products?q=${encodeURIComponent(dq)}`);
 
   // Oflayn: server ro'yxati tarmoq xatosi bilan tugasa — qurilmadagi katalogdan qidiramiz
   const pos = useOfflinePos();
@@ -106,17 +127,27 @@ export default function SaleNew() {
     [listOffline, pos.catalog, dq],
   );
 
+  const addingRef = useRef(false);
+  addingRef.current = adding;
+  const pickedId = picked?.id;
   const choose = useCallback((p: PickedProduct) => {
     const first = p.trackQuantity && isFractionalUnit(p.unit) ? Math.min(1, p.available) : 1;
-    setPicked(p); setQty(1); setQtyText(fmtQty(first)); setTotal(String(priceTimesQty(p.salePrice, first))); setTotalEdited(false);
-  }, []);
+    if (addingRef.current) {
+      // Savatga: shu tovar allaqachon bor bo'lsa — qo'shilmaydi (miqdorini qatorda oshiring)
+      setAdding(false); setQ('');
+      if (p.id === pickedId) return;
+      setExtra((xs) => (xs.some((x) => x.p.id === p.id) ? xs : [...xs, { p, qty: 1, qtyText: fmtQty(first) }]));
+      setTotalEdited(false);
+      return;
+    }
+    setPicked(p); setExtra([]); setQty(1); setQtyText(fmtQty(first)); setTotal(String(priceTimesQty(p.salePrice, first))); setTotalEdited(false);
+  }, [pickedId]);
 
   // Skanerdan (mode=pick) qaytganda
   useFocusEffect(useCallback(() => { const p = takePicked(); if (p) choose(p); }, [choose]));
 
   function changeQty(n: number) {
     setQty(n);
-    if (picked && !totalEdited) setTotal(String(priceTimesQty(picked.salePrice, n)));
   }
 
   const fractional = !!picked?.trackQuantity && isFractionalUnit(picked?.unit);
@@ -127,8 +158,6 @@ export default function SaleNew() {
   function changeQtyText(v: string) {
     const text = v.replace(/[^\d.,]/g, '');
     setQtyText(text);
-    const n = parseQty(text, picked?.unit);
-    if (picked && n !== null && !totalEdited) setTotal(String(priceTimesQty(picked.salePrice, n)));
   }
 
   const totalN = Number(digits(total)) || 0;
@@ -137,7 +166,22 @@ export default function SaleNew() {
   const canDiscount = can('sale.discount');
   const canRaise = can('sale.editPrice');
   const baseQty = picked?.trackQuantity ? saleQty : 1;
-  const baseTotal = picked && picked.salePrice > 0 && baseQty !== null ? priceTimesQty(picked.salePrice, baseQty) : null;
+  const firstTotal = picked && picked.salePrice > 0 && baseQty !== null ? priceTimesQty(picked.salePrice, baseQty) : null;
+  // Savat: ro'yxat narxlari yig'indisi (qo'shimcha qatorlar narxsiz bo'lmaydi — server ham talab qiladi)
+  const multi = extra.length > 0;
+  const extraTotal = extra.reduce((a, l) => { const n = lineQty(l); return a + (n !== null ? priceTimesQty(l.p.salePrice, n) : 0); }, 0);
+  const baseTotal = firstTotal !== null ? firstTotal + extraTotal : null;
+  // Jami summa — foydalanuvchi o'zgartirmaguncha narx × miqdor (savat bilan)
+  const autoTotal = picked ? (firstTotal ?? 0) + extraTotal : 0;
+  useEffect(() => { if (picked && !totalEdited) setTotal(String(autoTotal)); }, [autoTotal, picked, totalEdited]);
+  // Bir nechta tovar — naqd yoki qarz (nasiya va bank — bitta tovar, server qoidasi)
+  useEffect(() => { if (multi && (pay === 'installment' || pay === 'bank_credit')) setPay('cash'); }, [multi, pay]);
+  function updateLine(i: number, patch: Partial<CartLine>) {
+    setExtra((xs) => xs.map((x, j) => (j === i ? { ...x, ...patch } : x)));
+  }
+  function removeLine(i: number) {
+    setExtra((xs) => xs.filter((_, j) => j !== i));
+  }
   const priceLocked = baseTotal !== null && !canDiscount && !canRaise;
   const paidN = pay === 'cash' ? totalN : Number(digits(paid)) || 0;
   const monthsN = Number(months) || 0;
@@ -163,6 +207,8 @@ export default function SaleNew() {
 
   const errors = {
     qty: fractional && (fracQty === null || fracQty > (picked?.available ?? 0)) ? d.saleNew.errQty : null,
+    items: multi && (!(picked && picked.salePrice > 0) || extra.some((l) => { const n = lineQty(l); return n === null || n <= 0 || (l.p.trackQuantity && n > l.p.available) || !(l.p.salePrice > 0); }))
+      ? d.saleNew.errItems : null,
     total: totalN <= 0 ? d.saleNew.errTotal
       : baseTotal !== null && totalN < baseTotal && !canDiscount ? d.saleNew.errDiscount
       : baseTotal !== null && totalN > baseTotal && !canRaise ? d.saleNew.errRaise
@@ -176,8 +222,9 @@ export default function SaleNew() {
     part: isBank && partOn && (partN < 1 || partN >= rest) ? tr(d.saleNew.errPart, { sum: fmtMoney(rest, { suffix: true }) }) : null,
     days: partDebt && (debtDaysN < 1 || debtDaysN > MAX_BANK_DEBT_DAYS) ? d.saleNew.errDays : null,
     // Ro'yxatdan tanlangan mijozning telefoni eski formatda bo'lishi mumkin — tekshirilmaydi
-    name: !customer.name.trim() ? d.saleNew.errName : null,
-    phone: !customer.id && !uzPhone9(customer.phone) ? d.saleNew.errPhone : null,
+    // Naqdda mijoz ixtiyoriy (server bilan bir xil); kiritilsa — telefon to'g'ri bo'lsin
+    name: credit && !customer.name.trim() ? d.saleNew.errName : null,
+    phone: !customer.id && (credit || customer.phone.trim()) && !uzPhone9(customer.phone) ? d.saleNew.errPhone : null,
   };
   const show = (k: keyof typeof errors) => (tried ? errors[k] : null);
   const valid = !Object.values(errors).some(Boolean);
@@ -237,9 +284,14 @@ export default function SaleNew() {
     setBusy(true);
     if (!saleKey.current) saleKey.current = newClientSaleId();
     const clientSaleId = saleKey.current;
+    // Savat: hamma qatorlar items'da (server jamini narxlarga mutanosib bo'ladi); bitta tovar — eski shakl
+    const cartItems = multi ? [
+      { productId: picked.id, qty: picked.trackQuantity ? saleQty ?? undefined : undefined },
+      ...extra.map((l) => ({ productId: l.p.id, qty: l.p.trackQuantity ? lineQty(l) ?? undefined : undefined })),
+    ] : null;
     const body = {
       clientSaleId,
-      productId: picked.id,
+      ...(cartItems ? { items: cartItems } : { productId: picked.id }),
       paymentType: pay,
       totalAmount: totalN,
       paidAmount: paidN,
@@ -252,26 +304,35 @@ export default function SaleNew() {
       customerId: customer.id || undefined,
       customerName: customer.name.trim(),
       customerPhone: customer.id ? customer.phone : uzPhoneE164(customer.phone),
-      saleQty: picked.trackQuantity ? saleQty ?? undefined : undefined,
+      ...(cartItems ? {} : { saleQty: picked.trackQuantity ? saleQty ?? undefined : undefined }),
       notes: notes.trim() || undefined,
       payMethod: paidN > 0 ? method : undefined,
     };
     const offlineQty = picked.trackQuantity ? saleQty ?? 1 : 1;
+    // Oflayn navbat har tovarni alohida sotuv qilib yuboradi: savat jami narxlarga mutanosib bo'linadi,
+    // har qatorga o'z kaliti (birinchisi — shu sotuv kaliti)
+    const offlineLines = [
+      { p: picked, qty: offlineQty },
+      ...extra.map((l) => ({ p: l.p, qty: l.p.trackQuantity ? lineQty(l) ?? 1 : 1 })),
+    ];
+    const offlineTotals = multi ? splitByWeights(offlineLines.map((l) => priceTimesQty(l.p.salePrice, l.qty)), totalN) : [totalN];
     /** Naqd sotuv telefondagi navbatga (o'sha kalit bilan — server uni ikki marta yozmaydi) */
-    async function saveOffline(p: PickedProduct) {
+    async function saveOffline() {
       try {
-        await pos.enqueue({
-          clientSaleId,
-          productId: p.id,
-          name: p.name,
-          qty: offlineQty,
-          unit: p.unit ?? null,
-          totalAmount: totalN,
-          notes: notes.trim(),
-          customerId: customer.id || undefined,
-          customerName: customer.name.trim(),
-          customerPhone: customer.id ? customer.phone : uzPhoneE164(customer.phone),
-        });
+        for (const [i, l] of offlineLines.entries()) {
+          await pos.enqueue({
+            clientSaleId: i === 0 ? clientSaleId : newClientSaleId(),
+            productId: l.p.id,
+            name: l.p.name,
+            qty: l.qty,
+            unit: l.p.unit ?? null,
+            totalAmount: offlineTotals[i],
+            notes: notes.trim(),
+            customerId: customer.id || undefined,
+            customerName: customer.name.trim(),
+            customerPhone: customer.id ? customer.phone : uzPhoneE164(customer.phone),
+          });
+        }
         Alert.alert(d.offline.savedTitle, d.offline.savedMsg, [{ text: 'OK', onPress: () => router.back() }]);
       } catch (err) {
         Alert.alert(d.saleNew.failTitle, errMsg(err, d.saleNew.failFallback));
@@ -281,12 +342,12 @@ export default function SaleNew() {
       // Tarmoq oflayn deb aniqlangan — naqd sotuv serverni kutmasdan navbatga. Aks holda «ulangan, lekin javob yo'q»
       // tarmoqda (balans tugagan, signal yo'q) har sotuv 15 s timeout kutardi. Internet qaytsa navbat o'zi yuboriladi.
       if (pay === 'cash' && method === 'cash' && getNetState() === 'offline') {
-        await saveOffline(picked);
+        await saveOffline();
         return;
       }
       const r = await api<{ id: string; saleNo: string; totalAmount: number; remainingAmount: number; receiptPath: string | null }>('/api/mobile/sales', { method: 'POST', body });
       // Telefondagi oflayn katalog ham kamaysin — aks holda internet uzilsa sotilgan dona yana «bor» ko'rinadi
-      void pos.noteSold(picked.id, offlineQty);
+      for (const l of offlineLines) void pos.noteSold(l.p.id, l.qty);
       router.replace({
         pathname: '/sale-done',
         params: {
@@ -309,15 +370,15 @@ export default function SaleNew() {
         else Alert.alert(d.offline.bannerTitle, d.offline.cashOnly);
         return;
       }
-      await saveOffline(picked);
+      await saveOffline();
     } finally { setBusy(false); }
   }
 
-  /* ───── 1-qadam: mahsulot tanlash ───── */
-  if (!picked) {
+  /* ───── 1-qadam: mahsulot tanlash (yoki savatga qo'shish) ───── */
+  if (!picked || adding) {
     return (
-      <Screen keyboard header={<NavBar backLabel={d.common.cancel} />}>
-        <LargeTitle title={d.saleNew.title} subtitle={d.saleNew.subtitle} />
+      <Screen keyboard header={<NavBar backLabel={d.common.cancel} onBack={adding ? () => { setAdding(false); setQ(''); } : undefined} />}>
+        <LargeTitle title={adding ? d.saleNew.addItem : d.saleNew.title} subtitle={adding ? d.saleNew.addItemSub : d.saleNew.subtitle} />
         <SearchField
           value={q}
           onChangeText={setQ}
@@ -421,12 +482,50 @@ export default function SaleNew() {
         />
       ) : null}
 
+      {/* Savat: qo'shimcha tovarlar — har biri alohida sotuv, bitta xarid (chek) */}
+      {extra.length > 0 ? (
+        <Group header={tr(d.saleNew.cartHeader, { n: extra.length + 1 })} footer={show('items') ?? undefined}>
+          {extra.map((l, i) => {
+            const frac = l.p.trackQuantity && isFractionalUnit(l.p.unit);
+            const n = lineQty(l);
+            return (
+              <View key={l.p.id}>
+                <Cell
+                  icon="cube"
+                  iconColor={c.sq.b}
+                  title={l.p.name}
+                  subtitle={`${fmtMoney(l.p.salePrice, { suffix: true })}${n !== null && n > 0 && n !== 1 ? ` × ${fmtQty(n)} = ${fmtMoney(priceTimesQty(l.p.salePrice, n), { suffix: true })}` : ''}`}
+                  right={<IconButton icon="close" tone="plain" label={d.saleNew.removeItem} onPress={() => removeLine(i)} />}
+                />
+                {l.p.trackQuantity && !frac ? (
+                  <Cell title={d.common.qty} right={<Stepper value={l.qty} onChange={(v) => updateLine(i, { qty: v })} min={1} max={Math.max(1, l.p.available)} />} />
+                ) : null}
+                {frac ? (
+                  <Field
+                    label={d.common.qty}
+                    value={l.qtyText}
+                    onChangeText={(v) => updateLine(i, { qtyText: v.replace(/[^\d.,]/g, '') })}
+                    keyboardType="decimal-pad"
+                    placeholder="1,5"
+                    suffix={l.p.unit ? d.productFields.units[l.p.unit] : undefined}
+                  />
+                ) : null}
+              </View>
+            );
+          })}
+        </Group>
+      ) : null}
+      {(pay === 'cash' || pay === 'debt') && extra.length + 1 < MAX_ITEMS && picked.salePrice > 0 ? (
+        <Button title={d.saleNew.addItem} icon="add" size="sm" variant="tinted" onPress={() => { setQ(''); setAdding(true); }} style={{ alignSelf: 'flex-start' }} />
+      ) : null}
+
       {/* Mijoz — yuqorida: Android'da klaviatura ekranni siqmaydi (edge-to-edge), takliflar klaviatura ustida ko'rinsin */}
       <CustomerPicker value={customer} onChange={setCustomer} nameError={show('name')} phoneError={show('phone')} />
 
       <View style={{ gap: 8 }}>
         <Text style={[s.label, { color: c.ink3 }]}>{d.saleNew.payType}</Text>
-        <SegmentedControl options={payTypes.map((k) => ({ key: k, label: payLabels()[k] }))} value={pay} onChange={setPay} />
+        <SegmentedControl options={(multi ? payTypes.filter((k) => k === 'cash' || k === 'debt') : payTypes).map((k) => ({ key: k, label: payLabels()[k] }))} value={pay} onChange={setPay} />
+        {multi && (nasiyaOn || bankOn) ? <Text style={[s.hint, { color: c.ink3 }]}>{d.saleNew.multiPayHint}</Text> : null}
       </View>
 
       <Field

@@ -526,6 +526,13 @@ const uz = {
     settingsHint: 'O\'lcham, maydonlar va avto-chop etish — web\'da: Sozlamalar → Barkod yorlig\'i.',
   },
   saleNew: {
+    /** Savat (bir nechta tovar) */
+    addItem: 'Tovar qo\'shish',
+    addItemSub: 'Savatga yana tovar tanlang',
+    removeItem: 'Olib tashlash',
+    cartHeader: 'Savat · {n} ta tovar',
+    errItems: 'Savatdagi tovar miqdori noto\'g\'ri yoki narxi yo\'q',
+    multiPayHint: 'Bir nechta tovar naqd yoki qarzga sotiladi. Nasiya va bank krediti — bitta tovar.',
     title: 'Yangi sotuv',
     subtitle: 'Mahsulotni tanlang yoki skaner qiling',
     searchPlaceholder: 'Mahsulot nomi yoki kodi',
@@ -1998,6 +2005,12 @@ const ru: Dict = {
     settingsHint: 'Размер, поля и автопечать — в веб-версии: Настройки → Этикетка (штрихкод).',
   },
   saleNew: {
+    addItem: 'Добавить товар',
+    addItemSub: 'Выберите ещё товар в корзину',
+    removeItem: 'Убрать',
+    cartHeader: 'Корзина · {n} тов.',
+    errItems: 'В корзине неверное количество или товар без цены',
+    multiPayHint: 'Несколько товаров — наличными или в долг. Рассрочка и банковский кредит — один товар.',
     title: 'Новая продажа',
     subtitle: 'Выберите товар или отсканируйте код',
     searchPlaceholder: 'Название или код товара',

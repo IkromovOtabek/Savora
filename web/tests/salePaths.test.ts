@@ -296,6 +296,34 @@ describe.skipIf(!URI)('sotuv yo\'llari — hozirgi xatti-harakat (MongoDB)', () 
     expect((await salesOf(p._id)).map(norm)).toMatchSnapshot();
   });
 
+  it('mobil savat: ikki tovar, naqd — jami narxlarga mutanosib, bitta xarid', async () => {
+    const a = await product({ salePrice: 600_000 });
+    const b = await product({ salePrice: 200_000 });
+    expect(await mobile({ items: [{ productId: String(a._id), qty: 1 }, { productId: String(b._id), qty: 2 }], paymentType: 'cash', totalAmount: 900000, payMethod: 'click' })).toMatchSnapshot();
+    expect([...(await salesOf(a._id)), ...(await salesOf(b._id))].map(norm)).toMatchSnapshot();
+  });
+
+  it('mobil savat: qarz, kalit bilan ikki marta — bitta xarid, javobda jami', async () => {
+    const a = await product({ salePrice: 300_000 });
+    const b = await product({ salePrice: 100_000 });
+    const key = '7c1d2e3f-4a5b-4c6d-8e9f-0a1b2c3d4e' + String(n).padStart(2, '0');
+    const body = { items: [{ productId: String(a._id), qty: 1 }, { productId: String(b._id), qty: 1 }], paymentType: 'debt', totalAmount: 400000, paidAmount: 100000, clientSaleId: key, ...cust };
+    const { POST } = await import('@/app/api/mobile/sales/route');
+    const call = async () => {
+      const res = await POST(new Request('http://x/api/mobile/sales', { method: 'POST', body: JSON.stringify(body) }));
+      const j = await res.json();
+      return { status: res.status, totalAmount: j.totalAmount, remainingAmount: j.remainingAmount, items: j.items };
+    };
+    expect([await call(), await call()]).toMatchSnapshot();
+    expect([...(await salesOf(a._id)), ...(await salesOf(b._id))].map(norm)).toMatchSnapshot();
+  });
+
+  it('mobil savat: nasiyada bir nechta tovar — rad', async () => {
+    const a = await product();
+    const b = await product();
+    expect(await mobile({ items: [{ productId: String(a._id) }, { productId: String(b._id) }], paymentType: 'installment', totalAmount: 2000000, installmentMonths: 3, ...cust })).toMatchSnapshot();
+  });
+
   // ── tezkor sotuv va «Sotildi» ──────────────────────────────────────────────────────
   it('tezkor sotuv (bosh sahifa): ikki tovar, biri o\'zgargan narx', async () => {
     const a = await product();

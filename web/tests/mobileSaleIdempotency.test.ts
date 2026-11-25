@@ -25,7 +25,7 @@ vi.mock('@/lib/permissionGuard', () => ({ mobilePermissionDenied: async () => nu
 vi.mock('@/lib/mobileOrg', () => ({ getMobileFeatures: async () => ({ variant: true, nasiya: true, creditKassa: false }) }));
 vi.mock('@/lib/tenantDb', () => ({
   getTenantModels: async () => ({
-    Sale: { findOne: saleFindOne, create: saleCreate },
+    Sale: { findOne: saleFindOne, create: saleCreate, find: vi.fn(() => ({ lean: async () => (prevSale ? [prevSale] : []) })) },
     Product: { findById: productFindById, findOne: productFindById },
     ShopSettings: {},
     Customer: {},
