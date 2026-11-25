@@ -10,7 +10,7 @@ import { checkPermission } from '@/lib/permissionGuard';
 import { branchFilter, isBranchScoped } from '@/lib/branchScope';
 import { nextDocNo } from '@/lib/counters';
 import { runWithCompensation } from '@/lib/compensate';
-import { planWriteOff } from '@/lib/stockAdjust';
+import { planWriteOff, planWriteOffUndo } from '@/lib/stockAdjust';
 import { logError } from '@/lib/logger';
 import { parseInput, zId, zMoney, zOneOf, zOptQty, zText } from '@/lib/validation';
 import { fmtQty, priceTimesQty, qtyLabel } from '@/lib/qty';
@@ -195,4 +195,82 @@ export async function writeOffAction(input: WriteOffInput): Promise<State> {
     for (const r of outcome.results) await r.undo().catch(() => {});
     return { error: k.failed };
   }
+}
+
+/**
+ * Ombor hujjatini bekor qilish (qayta baholash yoki hisobdan chiqarish): mahsulotlar avvalgi holatiga
+ * qaytadi, hujjat tarixda «Bekor qilingan» bo'lib qoladi. «Hammasi yoki hech biri»: shu orada o'zgargan
+ * mahsulot (sotilgan, narxi qayta o'zgargan) bo'lsa — hech narsa o'zgarmaydi. Huquq — yaratish bilan bir xil.
+ */
+export async function cancelStockAdjustmentAction(_prev: State, formData: FormData): Promise<State> {
+  const { user, features, Product, StockAdjustment } = await getTenantSession();
+  if (!features.products) return featureDisabledError('products');
+  const k = (await getDict()).stock.adjust;
+  const parsed = parseInput(zId(k.failed), formData.get('docId'));
+  if (!parsed.ok) return { error: parsed.error };
+  const doc = await StockAdjustment.findOne({
+    _id: parsed.data, cancelledAt: { $exists: false },
+    ...(isBranchScoped(user) ? { branchId: user.branchId } : {}),
+  }).lean();
+  if (!doc) return { error: k.failed };
+  const denied = await checkPermission(user, doc.type === 'writeoff' ? 'stock.writeOff' : 'stock.adjust');
+  if (denied) return denied;
+  if (doc.reason === 'production_scrap') return { error: k.cancelScrap };
+
+  const scope = branchFilter(user);
+  const at = new Date();
+  // Avval hujjat atomik «band qilinadi» — parallel bosishda ikki marta qaytarilmaydi
+  const claimed = await StockAdjustment.updateOne({ _id: doc._id, cancelledAt: { $exists: false } }, { $set: { cancelledAt: at, cancelledBy: user.username } });
+  if (claimed.modifiedCount !== 1) return { error: k.failed };
+  const release = () => StockAdjustment.updateOne({ _id: doc._id }, { $unset: { cancelledAt: '', cancelledBy: '' } });
+
+  let fail: string | null = null;
+  const outcome = await runWithCompensation(doc.items, async (it) => {
+    const p = await Product.findOne({ _id: it.productId, ...scope }).lean<ProductLean>();
+    if (!p) { fail = tr(k.cancelChanged, { name: it.name }); return null; }
+    // Tarix: mavjud amal turlari (enum) — chiqarish bekori «qaytarildi», narx bekori «qayta baholandi»
+    const history = doc.type === 'writeoff'
+      ? { action: 'returned', detail: `${doc.docNo} bekor qilindi · ${qtyLabel(it.qty ?? 1, p.unit)}`, by: user.username, at }
+      : { action: 'revalued', detail: `${doc.docNo} bekor qilindi → ${fmtMoney(it.oldSalePrice ?? 0)} so'm`, by: user.username, at };
+    if (doc.type === 'revaluation') {
+      // Narx faqat hujjatdagi yangi narxda turgan bo'lsa qaytadi (keyin yana o'zgartirilgan bo'lsa — yo'q)
+      const res = await Product.updateOne(
+        { _id: p._id, salePrice: it.newSalePrice },
+        {
+          $set: { salePrice: it.oldSalePrice ?? 0, ...(it.oldWholesalePrice !== undefined ? { wholesalePrice: it.oldWholesalePrice } : {}) },
+          ...(it.oldWholesalePrice === undefined ? { $unset: { wholesalePrice: '' } } : {}),
+          $push: { history },
+        },
+      );
+      if (res.modifiedCount !== 1) { fail = tr(k.cancelChanged, { name: it.name }); return null; }
+      return {
+        result: it,
+        undo: async () => { await Product.updateOne({ _id: p._id }, { $set: { salePrice: p.salePrice, ...(p.wholesalePrice !== undefined ? { wholesalePrice: p.wholesalePrice } : {}) }, $pop: { history: 1 } }); },
+      };
+    }
+    const plan = planWriteOffUndo(p, it.qty ?? 1);
+    if (!plan.ok) { fail = tr(k.cancelChanged, { name: it.name }); return null; }
+    const res = await Product.updateOne({ _id: p._id, ...plan.filter }, { ...plan.update, $push: { history } });
+    if (res.modifiedCount !== 1) { fail = tr(k.cancelChanged, { name: it.name }); return null; }
+    return {
+      result: it,
+      undo: async () => { await Product.updateOne({ _id: p._id }, { $set: { quantity: p.quantity, status: p.status }, $pop: { history: 1 } }); },
+    };
+  });
+  if (!outcome.ok) {
+    if (outcome.error) logError('cancelStockAdjustment failed', outcome.error, { user: user.username, dbName: user.dbName });
+    await release();
+    return { error: fail ?? k.failed };
+  }
+  await recordAudit(user, {
+    action: doc.type === 'writeoff' ? 'stock.writeoffCancel' : 'stock.revaluationCancel',
+    entity: 'product',
+    entityId: String(doc._id),
+    summary: `${doc.docNo} bekor qilindi: ${doc.items.length} ta mahsulot avvalgi holatiga qaytarildi${doc.type === 'writeoff' ? ` (zarar ${fmtMoney(doc.totalCost)} so'm qaytdi)` : ''}`,
+    meta: { docNo: doc.docNo, type: doc.type },
+  });
+  revalidatePath(doc.type === 'writeoff' ? '/app/write-off' : '/app/revaluation');
+  revalidatePath('/app/products');
+  revalidatePath('/app/pos');
+  return { success: tr(k.doneCancel, { no: doc.docNo }) };
 }

@@ -4,6 +4,7 @@ import { userCan } from '@/lib/permissionGuard';
 import { getStockQty } from '@/lib/productQuantity';
 import { fmtDateTime, fmtMoney } from '@/lib/format';
 import StockAdjustForm, { type AdjustProduct } from './StockAdjustForm';
+import CancelAdjustButton from './CancelAdjustButton';
 import { getDict } from '@/lib/i18n/server';
 import { tr } from '@/lib/i18n/fmt';
 import './styles/stockAdjust.css';
@@ -16,6 +17,8 @@ export default async function StockAdjustPage({ mode, initialIds }: { mode: 'rev
   const d = await getDict();
   const k = d.stock.adjust;
   const canViewCost = await userCan(user, 'product.viewCost');
+  // Bekor qilish huquqi — yaratish bilan bir xil
+  const canCancel = await userCan(user, mode === 'writeoff' ? 'stock.writeOff' : 'stock.adjust');
 
   const [products, docs] = await Promise.all([
     // Xizmat/to'plamning o'z qoldig'i yo'q — hisobdan chiqarish va qayta baholashda ko'rinmaydi
@@ -63,12 +66,12 @@ export default async function StockAdjustPage({ mode, initialIds }: { mode: 'rev
       ) : (
         <ul className="sa-docs">
           {docs.map((doc) => (
-            <li key={String(doc._id)}>
+            <li key={String(doc._id)} className={doc.cancelledAt ? 'sa-doc--cancelled' : undefined}>
               <details>
                 <summary>
                   <span className="sa-doc-no">{doc.docNo}</span>
                   <span className="sa-doc-meta">
-                    <b>{tr(k.items, { n: doc.items.length })}{doc.reason ? ` · ${k.reasons[doc.reason]}` : ''}</b>
+                    <b>{tr(k.items, { n: doc.items.length })}{doc.reason ? ` · ${k.reasons[doc.reason]}` : ''}{doc.cancelledAt ? ` · ${k.cancelled}` : ''}</b>
                     <small>{doc.createdAt ? fmtDateTime(doc.createdAt) : ''} · {doc.by}{doc.note ? ` · ${doc.note}` : ''}</small>
                   </span>
                   {mode === 'writeoff' && canViewCost && <b className="sa-doc-cost">− {fmtMoney(doc.totalCost)} {d.common.sum}</b>}
@@ -83,6 +86,12 @@ export default async function StockAdjustPage({ mode, initialIds }: { mode: 'rev
                     </li>
                   ))}
                 </ul>
+                {canCancel && !doc.cancelledAt && doc.reason !== 'production_scrap' && (
+                  <CancelAdjustButton docId={String(doc._id)} docNo={doc.docNo} />
+                )}
+                {doc.cancelledAt && (
+                  <p className="sa-doc-cancelled">{k.cancelled}: {fmtDateTime(doc.cancelledAt)} · {doc.cancelledBy}</p>
+                )}
               </details>
             </li>
           ))}

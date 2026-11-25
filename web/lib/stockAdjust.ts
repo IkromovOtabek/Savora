@@ -40,3 +40,29 @@ export function planWriteOff(p: StockState, qty: number): WriteOffPlan {
   if (qty < available) return { ok: true, set: { quantity: roundQty(quantity - qty) } };
   return sold > 0 ? { ok: true, set: { quantity: sold, status: 'sold' } } : { ok: true, set: { status: 'defective' } };
 }
+
+export type WriteOffUndoPlan =
+  | { ok: true; filter: Record<string, unknown>; update: Record<string, unknown> }
+  | { ok: false };
+
+/**
+ * Hisobdan chiqarishni bekor qilish — `planWriteOff` ning teskarisi (hozirgi holatdan):
+ *  - dona (son yuritilmaydi) yoki butun partiya «Nuqsonli» bo'lgan — holat yana «Sotuvda»;
+ *  - sanaladigan: quantity qty ga ortadi, holat «Sotuvda» (butun qoldiq chiqib «Sotilgan» bo'lgan bo'lsa ham).
+ * `filter` — optimistik shart: shu orada holat o'zgargan bo'lsa yangilanmaydi.
+ */
+export function planWriteOffUndo(p: StockState & { status?: string }, qty: number): WriteOffUndoPlan {
+  if (!p.trackQuantity) {
+    if (p.status !== 'defective') return { ok: false };
+    return { ok: true, filter: { status: 'defective', trackQuantity: { $ne: true } }, update: { $set: { status: 'in_stock' } } };
+  }
+  if (p.status === 'defective') {
+    return { ok: true, filter: { status: 'defective', trackQuantity: true, quantity: p.quantity }, update: { $set: { status: 'in_stock' } } };
+  }
+  if (p.status !== 'in_stock' && p.status !== 'sold') return { ok: false };
+  return {
+    ok: true,
+    filter: { status: p.status, trackQuantity: true, quantity: p.quantity, soldQuantity: p.soldQuantity },
+    update: { $set: { quantity: roundQty((p.quantity ?? 1) + qty), status: 'in_stock' } },
+  };
+}

@@ -35,6 +35,9 @@ export interface IStockAdjustment {
   by: string;
   /** Filial login bajargan bo'lsa — uning filiali */
   branchId?: Types.ObjectId;
+  /** Bekor qilingan: ombor/narx avvalgi holatiga qaytarilgan (hujjat tarixda qoladi) */
+  cancelledAt?: Date;
+  cancelledBy?: string;
   createdAt?: Date;
   updatedAt?: Date;
 }
@@ -63,6 +66,8 @@ export const stockAdjustmentSchema = new Schema<IStockAdjustment>(
     totalCost: { type: Number, default: 0, min: 0 },
     by: { type: String, required: true, trim: true },
     branchId: { type: Schema.Types.ObjectId, ref: 'Branch' },
+    cancelledAt: { type: Date },
+    cancelledBy: { type: String, trim: true },
   },
   { timestamps: true, collection: 'stock_adjustments' }
 );

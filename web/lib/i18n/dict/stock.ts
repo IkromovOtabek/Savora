@@ -238,6 +238,13 @@ export const uz = {
     failed: "Saqlab bo'lmadi. Qayta urinib ko'ring.",
     noChange: "Narxlar o'zgarmagan",
     remove: 'Olib tashlash',
+    /** Hujjatni bekor qilish — ombor / narx avvalgi holatiga qaytadi */
+    cancel: 'Bekor qilish',
+    cancelConfirm: "{no} bekor qilinsinmi? Mahsulotlar ombor / narxi avvalgi holatiga qaytadi.",
+    cancelled: 'Bekor qilingan',
+    doneCancel: '{no} bekor qilindi',
+    cancelChanged: "«{name}» shu orada o'zgardi (sotildi yoki narxi o'zgardi) — hujjatni bekor qilib bo'lmaydi",
+    cancelScrap: 'Ishlab chiqarish braki ishlab chiqarish akti bilan boshqariladi',
   },
 
   /** Yo'nalishga xos mahsulot maydonlari (lib/businessTypes.ts → PRODUCT_FIELDS) */
@@ -962,6 +969,12 @@ export const ru: typeof uz = {
     failed: 'Не удалось сохранить. Попробуйте ещё раз.',
     noChange: 'Цены не изменились',
     remove: 'Убрать',
+    cancel: 'Отменить',
+    cancelConfirm: 'Отменить {no}? Товары вернутся в прежнее состояние склада / цены.',
+    cancelled: 'Отменён',
+    doneCancel: '{no} отменён',
+    cancelChanged: '«{name}» за это время изменился (продан или изменена цена) — документ отменить нельзя',
+    cancelScrap: 'Брак производства управляется актом производства',
   },
 
   fields: {

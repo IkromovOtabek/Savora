@@ -73,3 +73,21 @@ describe('writesCatalogPrice (tezkor sotuv, «Sotildi»)', () => {
     expect(writesCatalogPrice({ salePrice: 100, trackQuantity: false }, 100)).toBe(false);
   });
 });
+
+describe('planWriteOffUndo — hisobdan chiqarishni bekor qilish', () => {
+  it('planWriteOff ning teskarisi: qisman, butun qoldiq (sotilgan/nuqsonli), dona', async () => {
+    const { planWriteOff, planWriteOffUndo } = await import('@/lib/stockAdjust');
+    // qisman: 10 dan 3 — 7; bekor — 10
+    const p = { trackQuantity: true, quantity: 10, soldQuantity: 0, unit: 'dona', status: 'in_stock' };
+    const w = planWriteOff(p, 3);
+    expect(w).toEqual({ ok: true, set: { quantity: 7 } });
+    expect(planWriteOffUndo({ ...p, quantity: 7 }, 3)).toMatchObject({ ok: true, update: { $set: { quantity: 10, status: 'in_stock' } } });
+    // butun qoldiq, avval 4 ta sotilgan: quantity 4, «sotilgan» → bekor: quantity 10, «sotuvda»
+    expect(planWriteOffUndo({ trackQuantity: true, quantity: 4, soldQuantity: 4, status: 'sold' }, 6)).toMatchObject({ ok: true, update: { $set: { quantity: 10, status: 'in_stock' } } });
+    // butun partiya nuqsonli (sotilmagan) — faqat holat
+    expect(planWriteOffUndo({ trackQuantity: true, quantity: 5, soldQuantity: 0, status: 'defective' }, 5)).toMatchObject({ ok: true, update: { $set: { status: 'in_stock' } } });
+    // dona: nuqsonli → sotuvda; keyin sotilgan bo'lsa — bekor qilinmaydi
+    expect(planWriteOffUndo({ trackQuantity: false, status: 'defective' }, 1)).toMatchObject({ ok: true });
+    expect(planWriteOffUndo({ trackQuantity: false, status: 'in_stock' }, 1)).toEqual({ ok: false });
+  });
+});

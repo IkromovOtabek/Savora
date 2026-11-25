@@ -73,3 +73,9 @@
   .sa-pct { width: 100%; }
   .sa-pct .input { flex: 1; width: auto; }
 }
+
+/* Hujjatni bekor qilish */
+.sa-doc-cancel { display: flex; align-items: center; justify-content: flex-end; gap: 10px; padding: 8px 14px 12px; }
+.sa-doc-err { color: var(--danger); font-size: 13px; }
+.sa-doc--cancelled .sa-doc-no, .sa-doc--cancelled .sa-doc-cost { text-decoration: line-through; opacity: .6; }
+.sa-doc-cancelled { margin: 0; padding: 8px 14px 12px; font-size: 13px; color: var(--ink-3); }
