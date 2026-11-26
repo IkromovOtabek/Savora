@@ -61,7 +61,10 @@ const DAY = 86400_000;
 /** Sotuvning solishtiriladigan qismi: id, sana va tasodifiy raqamlarsiz */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function norm(s: any) {
-  const days = (d?: Date | null) => (d ? Math.round((new Date(d).getTime() - Date.now()) / DAY) : undefined);
+  // Bugungi kun boshiga nisbatan (soatga bog'liq bo'lmasin — aks holda kun vaqtiga qarab ±1 chiqadi)
+  const n = new Date();
+  const today = Date.UTC(n.getFullYear(), n.getMonth(), n.getDate());
+  const days = (d?: Date | null) => (d ? Math.round((new Date(d).getTime() - today) / DAY) : undefined);
   return {
     product: s.productSnapshot?.name,
     purchasePrice: s.productSnapshot?.purchasePrice,
