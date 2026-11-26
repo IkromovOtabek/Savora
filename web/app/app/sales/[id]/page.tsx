@@ -16,6 +16,7 @@ import ReturnSaleForm from '@/components/tenant/ReturnSaleForm';
 import EditSaleForm from '@/components/tenant/EditSaleForm';
 import type { ISaleEditChange } from '@/lib/models/tenant/Sale';
 import { qtyStep } from '@/lib/qty';
+import { sellableInfo } from '@/lib/productKinds';
 import SaleReviewTrigger from '@/components/tenant/SaleReviewTrigger';
 import Tilt from '@/components/ui/Tilt';
 import { Types } from 'mongoose';
@@ -56,7 +57,7 @@ export default async function SaleDetailPage({
 }) {
   const { id } = await params;
   const sp = await searchParams;
-  const { user, Sale, org } = await getTenantSession();
+  const { user, Sale, Product, org } = await getTenantSession();
   const d = await getDict();
   const k = d.sales.detail;
   if (!Types.ObjectId.isValid(id)) notFound();
@@ -97,6 +98,20 @@ export default async function SaleDetailPage({
   // Tahrirlash: mijoz, izoh, muddat — «sale.edit»; narx — qo'shimcha «sale.editPrice» (bankda narx qat'iy)
   const canEdit = perms.has('sale.edit') && sale.status !== 'cancelled';
   const edits = [...(sale.edits ?? [])].reverse();
+  // Tovarni almashtirish: sotuv filialidagi omborda bor tovarlar (markirovkali sotuvda — yo'q)
+  const swapBlocked = (sale.markingKeys?.length ?? 0) > 0;
+  const swapSource = canEdit && !swapBlocked
+    ? await Product.find({ ...branchFilter(user), branchId: sale.branchId, status: 'in_stock', _id: { $ne: sale.productId } })
+        .select('name imei barcode salePrice trackQuantity quantity soldQuantity unit kind bundleItems status')
+        .sort({ name: 1 })
+        .limit(3000)
+        .lean()
+    : [];
+  const sellOf = await sellableInfo(Product, swapSource);
+  const swapProducts = swapSource.map((x) => ({
+    id: String(x._id), name: x.name, imei: x.imei || undefined, barcode: x.barcode || undefined, salePrice: x.salePrice,
+    tracked: sellOf(x).tracked, available: sellOf(x).available, unit: x.unit ?? null,
+  }));
   const editValue = (c: ISaleEditChange, side: 'from' | 'to') => editValueOf(c, side, d.sales.editForm.none, d.common.sum);
 
   // Nasiya (variant) sotuvi bo'lsa — oylik to'lov jadvali
@@ -412,6 +427,11 @@ export default async function SaleDetailPage({
               canEditPrice={perms.has('sale.editPrice')}
               downPayment={plan?.down ?? 0}
               checkoutItems={Math.max(1, siblings.length)}
+              swapProducts={swapProducts}
+              swapBlocked={swapBlocked}
+              saleQty={sale.productSnapshot.saleQuantity ?? 1}
+              saleUnit={sale.productSnapshot.unit ?? null}
+              bank={bankPartsTotal(saleBankParts(sale))}
             />
           )}
           {canReturn && (

@@ -47,7 +47,7 @@ export interface ISaleBankPart {
 }
 
 /** Sotuvni tahrirlash yozuvi (lib/saleEditOps) — sotuv sahifasida «Tahrirlash tarixi» */
-export type SaleEditField = 'customer' | 'notes' | 'dueDate' | 'totalAmount';
+export type SaleEditField = 'customer' | 'notes' | 'dueDate' | 'totalAmount' | 'product';
 export interface ISaleEditChange {
   field: SaleEditField;
   /** Ko'rsatish uchun: summa — raqam satri, sana — YYYY-MM-DD, mijoz — «Ism · telefon» */
@@ -221,7 +221,7 @@ export const saleSchema = new Schema<ISale>(
         by: { type: String, required: true, trim: true },
         changes: [{
           _id: false,
-          field: { type: String, enum: ['customer', 'notes', 'dueDate', 'totalAmount'], required: true },
+          field: { type: String, enum: ['customer', 'notes', 'dueDate', 'totalAmount', 'product'], required: true },
           from: { type: String, maxlength: 300 },
           to: { type: String, maxlength: 300 },
         }],

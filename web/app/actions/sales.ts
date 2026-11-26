@@ -29,7 +29,7 @@ import { qtyWithUnit, tr } from '@/lib/i18n/fmt';
 import { SALE_NOTES_MAX, editSale, type SaleEditError, type SaleEditInput } from '@/lib/saleEditOps';
 import { z } from 'zod';
 import { formToObject, parseInput, zId, zText, zMoney, zInt, zOptInt, zOptQty, zOptDate, zField, zOneOf } from '@/lib/validation';
-import { PAY_METHODS } from '@/lib/payMethods';
+import { PAY_METHODS, type PayMethod } from '@/lib/payMethods';
 import { escapeRegExp } from '@/lib/security';
 import { scanVariants } from '@/lib/scanCode';
 import { splitSale } from '@/lib/saleSplit';
@@ -453,7 +453,7 @@ export async function returnSaleItemsAction(_prev: State, formData: FormData): P
  * (`customerOn` / `dueOn` / `totalAmount` bo'lmasa — o'sha maydon o'zgarmaydi).
  */
 export async function editSaleAction(_prev: State, formData: FormData): Promise<State> {
-  const { user, Sale, Customer } = await getTenantSession();
+  const { user, Sale, Customer, Product, ShopSettings } = await getTenantSession();
   const { d } = await getI18n();
   const m = d.sales.actions;
   { const denied = await checkPermission(user, 'sale.edit'); if (denied) return denied; }
@@ -468,6 +468,9 @@ export async function editSaleAction(_prev: State, formData: FormData): Promise<
     dueOn: zText(1),
     dueDate: zOptDate(m.badDate),
     totalAmount: zText(20),
+    productId: zText(40),
+    settle: zText(5),
+    method: zText(10),
   }), formToObject(formData), m.saleNotFound);
   if (!parsed.ok) return { error: parsed.error };
   const f = parsed.data;
@@ -484,8 +487,14 @@ export async function editSaleAction(_prev: State, formData: FormData): Promise<
     if (!f.totalAmount.trim() || !Number.isSafeInteger(n)) return { error: m.editBadAmount };
     input.totalAmount = n;
   }
+  // Tovarni almashtirish: farq hozir to'lanadi (usul bilan) yoki qarzga yoziladi
+  if (f.productId) {
+    if (!Types.ObjectId.isValid(f.productId)) return { error: m.editSwapNotInStock };
+    const method = (PAY_METHODS as readonly string[]).includes(f.method) ? (f.method as PayMethod) : 'cash';
+    input.product = { id: f.productId, settle: f.settle === 'debt' ? 'debt' : 'now', method };
+  }
 
-  const res = await editSale({ Sale, Customer }, user, f.saleId, input, { canEditPrice: await userCan(user, 'sale.editPrice') });
+  const res = await editSale({ Sale, Customer, Product, ShopSettings }, user, f.saleId, input, { canEditPrice: await userCan(user, 'sale.editPrice') });
   if (!res.ok) {
     if (res.error === 'pricePerm') return permissionDeniedError('sale.editPrice');
     const err: Record<Exclude<SaleEditError, 'pricePerm'>, string> = {
@@ -502,21 +511,32 @@ export async function editSaleAction(_prev: State, formData: FormData): Promise<
       nameRequired: m.nameRequired,
       phoneRequired: m.phoneRequired,
       badPhone: m.badPhone,
+      belowBank: m.editBelowBank,
+      swapSame: m.editSwapSame,
+      swapNotInStock: m.editSwapNotInStock,
+      swapQty: m.editSwapQty,
+      swapMarked: m.editSwapMarked,
+      swapNoPrice: m.editSwapNoPrice,
     };
     return { error: err[res.error] };
   }
 
   revalidatePath('/app/sales');
   revalidatePath(`/app/sales/${f.saleId}`);
-  if (res.price) {
+  if (res.swap) {
+    revalidatePath('/app/products');
+    revalidatePath(`/app/products/${f.productId}`);
+  }
+  if (res.price || res.swap) {
     revalidatePath('/app/kassa');
     revalidatePath('/app/debts');
     revalidatePath('/app/nasiya');
     revalidatePath('/app');
   }
-  const p = res.price;
+  const p = res.swap ?? res.price;
   return {
-    success: p && p.refundAmount > 0 ? tr(m.editedRefund, { sum: p.refundAmount.toLocaleString('uz-UZ') })
+    success: res.swap && res.swap.collectNow > 0 ? tr(m.editedCollected, { sum: res.swap.collectNow.toLocaleString('uz-UZ') })
+      : p && p.refundAmount > 0 ? tr(m.editedRefund, { sum: p.refundAmount.toLocaleString('uz-UZ') })
       : p && p.newRemaining > 0 ? tr(m.editedRemaining, { sum: p.newRemaining.toLocaleString('uz-UZ') })
       : m.edited,
   };

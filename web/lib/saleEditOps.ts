@@ -6,7 +6,15 @@ import { branchFilter } from './branchScope';
 import { recordAudit } from './audit';
 import { computeInstallmentPlan } from './installment';
 import { resolveSaleCustomer, type SaleCustomerError } from './saleCustomer';
-import { computePriceEdit, respreadInstallmentAmounts, type PriceEditCalc, type PriceEditError } from './saleEdit';
+import { computePriceEdit, computeProductSwap, respreadInstallmentAmounts, type PriceEditCalc, type PriceEditError, type SwapCalc, type SwapError, type SwapSettle } from './saleEdit';
+import type { IProduct } from './models/tenant/Product';
+import type { PayMethod } from './payMethods';
+import { bankPartsTotal, saleBankParts } from './bankCredit';
+import { checkSaleQty } from './productQuantity';
+import { priceTimesQty, qtyLabel } from './qty';
+import { reserveStock, releaseStock } from './stock';
+import { markingModeOf } from './marking';
+import { getShopSettings } from './shopSettings';
 
 /**
  * Sotuvni tahrirlash — web (editSaleAction) va mobil (PATCH /api/mobile/sales/[id]) uchun umumiy.
@@ -18,22 +26,30 @@ import { computePriceEdit, respreadInstallmentAmounts, type PriceEditCalc, type 
  *  - notes: izoh ('' — o'chirish)
  *  - dueDate: qarz muddati (null — olib tashlash) — faqat qarz / qoldiqli naqd sotuvda (nasiyada jadval bo'yicha)
  *  - totalAmount: narx — pul qoidasi lib/saleEdit (oshsa — qoldiqqa, kamaysa — avval qarzdan, ortig'i naqd qaytariladi)
+ *  - product: tovarni almashtirish (shu miqdorda) — eski tovar omborga qaytadi, yangisi ayiriladi. Summa — yangi tovar
+ *    narxi × miqdor (yoki `totalAmount`, «sale.editPrice» bilan). Farq: `settle` 'now' — mijoz hozir to'laydi
+ *    (`method` bilan to'lov yoziladi), 'debt' — qoldiqqa; arzonlashsa — avval qarzdan, ortig'i naqd qaytariladi.
+ *    Bank ulushi o'zgarmaydi (lib/saleEdit computeProductSwap).
  */
-type Models = Pick<Awaited<ReturnType<typeof getTenantModels>>, 'Sale' | 'Customer'>;
+type AllModels = Awaited<ReturnType<typeof getTenantModels>>;
+type Models = Pick<AllModels, 'Sale' | 'Customer'> & Partial<Pick<AllModels, 'Product' | 'ShopSettings'>>;
+type ProductDoc = IProduct & { _id: Types.ObjectId };
 
 export interface SaleEditInput {
   customer?: { id?: string; name: string; phone: string } | null;
   notes?: string;
   dueDate?: Date | null;
   totalAmount?: number;
+  product?: { id: string; settle: SwapSettle; method?: PayMethod };
 }
 
 export type SaleEditError =
   | 'notFound' | 'noChanges' | 'conflict' | 'pricePerm' | 'customerRequired' | 'dueNotAllowed' | 'badDate'
-  | Exclude<PriceEditError, 'same'> | SaleCustomerError;
+  | Exclude<PriceEditError, 'same'> | SwapError | SaleCustomerError
+  | 'swapSame' | 'swapNotInStock' | 'swapQty' | 'swapMarked' | 'swapNoPrice';
 
 export type SaleEditResult =
-  | { ok: true; saleNo: string; changes: ISaleEditChange[]; price: PriceEditCalc | null; siblings: number }
+  | { ok: true; saleNo: string; changes: ISaleEditChange[]; price: PriceEditCalc | null; swap: SwapCalc | null; siblings: number }
   | { ok: false; error: SaleEditError };
 
 export const SALE_NOTES_MAX = 500;
@@ -61,9 +77,73 @@ export async function editSale(
   const set: Record<string, unknown> = {};
   const unset: Record<string, ''> = {};
   let price: PriceEditCalc | null = null;
+  let swap: { calc: SwapCalc; product: ProductDoc; qty: number; method: PayMethod } | null = null;
+  const oldQty = sale.productSnapshot?.saleQuantity ?? 1;
+
+  // 0) Tovarni almashtirish (summa ham shu yerda — 1-qadam o'tkazib yuboriladi)
+  if (input.product) {
+    if (!m.Product || !m.ShopSettings) return { ok: false, error: 'swapNotInStock' };
+    // Markirovka kodlari eski tovarniki — almashtirilsa chek/kodlar noto'g'ri bo'ladi
+    if (sale.markingKeys?.length) return { ok: false, error: 'swapMarked' };
+    if (String(sale.productId) === input.product.id) return { ok: false, error: 'swapSame' };
+    const product = await m.Product.findOne({ _id: input.product.id, ...scope }).lean<ProductDoc>();
+    // Ombor va kassa filial bo'yicha — yangi tovar sotuv filialidan bo'lishi kerak
+    if (!product || product.status !== 'in_stock' || String(product.branchId) !== String(sale.branchId)) {
+      return { ok: false, error: 'swapNotInStock' };
+    }
+    const marked = (product.kind ?? 'goods') === 'goods' && !!product.marked;
+    if (marked && markingModeOf((await getShopSettings(m.ShopSettings)).stock?.markingMode) === 'require') {
+      return { ok: false, error: 'swapMarked' };
+    }
+    const q = checkSaleQty(product, oldQty);
+    if (!q.ok) return { ok: false, error: 'swapQty' };
+    let newTotal = priceTimesQty(product.salePrice, q.qty);
+    if (input.totalAmount !== undefined && input.totalAmount !== newTotal) {
+      if (!opts.canEditPrice) return { ok: false, error: 'pricePerm' };
+      newTotal = input.totalAmount;
+    }
+    if (!(newTotal >= 1)) return { ok: false, error: 'swapNoPrice' };
+    const plan = sale.paymentType === 'installment' ? computeInstallmentPlan(sale) : null;
+    const bank = bankPartsTotal(saleBankParts(sale));
+    const r = computeProductSwap({
+      totalAmount: sale.totalAmount,
+      paidAmount: sale.paidAmount,
+      remainingAmount: sale.remainingAmount,
+      paymentType: sale.paymentType,
+      status: sale.status,
+      bank,
+      downPayment: plan?.down ?? 0,
+    }, newTotal, input.product.settle);
+    if (!r.ok) return { ok: false, error: r.error };
+    const c = r.calc;
+    swap = { calc: c, product, qty: q.qty, method: input.product.method ?? 'cash' };
+    set.productId = product._id;
+    set.productSnapshot = {
+      name: product.name, imei: product.imei, brand: product.brand, deviceModel: product.deviceModel,
+      purchasePrice: product.purchasePrice, saleQuantity: q.qty, unit: product.unit,
+      ...(product.ikpu ? { ikpu: product.ikpu } : {}),
+    };
+    // Chegirma eski tovar narxidan edi
+    if (sale.discount) unset.discount = '';
+    changes.push({ field: 'product', from: snap(sale.productSnapshot?.name ?? ''), to: snap(product.name) });
+    if (c.delta !== 0) {
+      set.totalAmount = c.newTotal;
+      set.paidAmount = c.newPaid;
+      set.remainingAmount = c.newRemaining;
+      set.status = c.newStatus;
+      if (c.newDown !== undefined) set.downPayment = c.newDown;
+      if (plan && c.newDown === undefined) {
+        // Moliyalangan summa o'zgardi: to'langan oylar qoladi, farq to'lanmagan oylarga
+        const amounts = respreadInstallmentAmounts(plan.schedule, c.newTotal - bank - plan.down);
+        if (amounts) set.installmentAmounts = amounts;
+        else unset.installmentAmounts = '';
+      }
+      changes.push({ field: 'totalAmount', from: String(sale.totalAmount), to: String(c.newTotal) });
+    }
+  }
 
   // 1) Narx
-  if (input.totalAmount !== undefined && input.totalAmount !== sale.totalAmount) {
+  if (!swap && input.totalAmount !== undefined && input.totalAmount !== sale.totalAmount) {
     if (!opts.canEditPrice) return { ok: false, error: 'pricePerm' };
     const plan = sale.paymentType === 'installment' ? computeInstallmentPlan(sale) : null;
     const r = computePriceEdit({
@@ -92,7 +172,7 @@ export async function editSale(
       changes.push({ field: 'totalAmount', from: String(sale.totalAmount), to: String(price.newTotal) });
     }
   }
-  const remainingAfter = price ? price.newRemaining : sale.remainingAmount;
+  const remainingAfter = swap ? swap.calc.newRemaining : price ? price.newRemaining : sale.remainingAmount;
 
   // 2) Mijoz
   let customerSet: { customerId: Types.ObjectId; customerSnapshot: { fullName: string; phone: string } } | null = null;
@@ -157,19 +237,42 @@ export async function editSale(
   const now = new Date();
   const edit = { at: now, by: user.username, changes };
   const push: Record<string, unknown> = { edits: edit };
-  if (price && price.refundAmount > 0) {
+  const money = swap?.calc ?? price;
+  if (money && money.refundAmount > 0) {
     // Ortiqcha to'langan pul mijozga naqd — kassa/kirim-chiqim/foyda buni qaytarish kabi hisoblaydi (lib/kassa)
     const ret: ISaleReturn = {
       kind: 'price',
       qty: 0,
-      amount: -price.delta,
-      debtReduced: price.debtReduced,
-      refundAmount: price.refundAmount,
-      reason: `Narx o'zgartirildi: ${sum(sale.totalAmount)} → ${sum(price.newTotal)} so'm`,
+      amount: -money.delta,
+      debtReduced: money.debtReduced,
+      refundAmount: money.refundAmount,
+      reason: swap
+        ? `Tovar almashtirildi: ${sale.productSnapshot?.name ?? ''} → ${swap.product.name} (${sum(sale.totalAmount)} → ${sum(money.newTotal)} so'm)`.slice(0, 300)
+        : `Narx o'zgartirildi: ${sum(sale.totalAmount)} → ${sum(money.newTotal)} so'm`,
       returnedAt: now,
       by: user.username,
     };
     push.returns = ret;
+  }
+  if (swap && swap.calc.collectNow > 0) {
+    // Farqni mijoz hozir to'ladi — kassaga bugun, tanlangan usul bilan
+    push.payments = {
+      amount: swap.calc.collectNow,
+      paidAt: now,
+      note: 'Tovar almashtirildi — farq',
+      recordedBy: user.username,
+      method: swap.method,
+      balanceAfter: swap.calc.newRemaining,
+    };
+  }
+
+  // Yangi tovar ombordan (atomik); sotuv yozilmasa — qaytariladi
+  if (swap) {
+    const reserved = await reserveStock(m.Product!, swap.product._id, swap.qty, {
+      scope,
+      history: { action: 'sold', detail: `Sotuv ${sale.saleNo}: ${qtyLabel(swap.qty, swap.product.unit)} (${sale.productSnapshot?.name ?? ''} o'rniga)`.slice(0, 300), by: user.username, at: now },
+    });
+    if (!reserved) return { ok: false, error: 'swapNotInStock' };
   }
 
   // Optimistik qulf: o'qilgandan beri to'lov/qaytarish bo'lmagan bo'lsagina yoziladi
@@ -181,6 +284,7 @@ export async function editSale(
       totalAmount: sale.totalAmount,
       paidAmount: sale.paidAmount,
       remainingAmount: sale.remainingAmount,
+      productId: sale.productId,
     },
     {
       ...(Object.keys(set).length ? { $set: set } : {}),
@@ -189,7 +293,19 @@ export async function editSale(
     },
     { new: true, projection: { _id: 1 } },
   ).lean();
-  if (!updated) return { ok: false, error: 'conflict' };
+  if (!updated) {
+    if (swap) await releaseStock(m.Product!, swap.product._id, swap.qty, { action: 'returned', detail: `Sotuv ${sale.saleNo}: almashtirish yakunlanmadi`, by: user.username, at: new Date() });
+    return { ok: false, error: 'conflict' };
+  }
+  // Eski tovar omborga
+  if (swap && sale.productId) {
+    await releaseStock(m.Product!, sale.productId, oldQty, {
+      action: 'returned',
+      detail: `Sotuv ${sale.saleNo}: tovar almashtirildi → ${swap.product.name}`.slice(0, 300),
+      by: user.username,
+      at: new Date(),
+    });
+  }
 
   // Bitta xarid — bitta mijoz: qolgan tovarlarga ham (tarixda shu o'zgarish bilan)
   let siblings = 0;
@@ -206,8 +322,11 @@ export async function editSale(
   }
 
   const parts = changes.map((c) => {
+    if (c.field === 'product') return `tovar: ${c.from || '—'} → ${c.to || '—'}`;
     if (c.field === 'totalAmount') {
-      const extra = price && price.refundAmount > 0 ? ` (mijozga qaytarildi ${sum(price.refundAmount)} so'm)` : '';
+      const extra = money && money.refundAmount > 0 ? ` (mijozga qaytarildi ${sum(money.refundAmount)} so'm)`
+        : swap && swap.calc.collectNow > 0 ? ` (mijoz to'ladi ${sum(swap.calc.collectNow)} so'm, ${swap.method})`
+        : swap && swap.calc.addedToDebt > 0 ? ` (qarzga ${sum(swap.calc.addedToDebt)} so'm)` : '';
       return `narx ${sum(Number(c.from))} → ${sum(Number(c.to))} so'm${extra}`;
     }
     if (c.field === 'customer') return `mijoz: ${c.from || '—'} → ${c.to || '—'}${siblings ? ` (xariddagi yana ${siblings} ta tovar)` : ''}`;
@@ -221,10 +340,11 @@ export async function editSale(
     summary: `Sotuv tahrirlandi: ${sale.saleNo} · ${parts.join(' · ')}`,
     meta: {
       changes,
-      ...(price ? { delta: price.delta, refundAmount: price.refundAmount, debtReduced: price.debtReduced, remaining: price.newRemaining } : {}),
+      ...(money ? { delta: money.delta, refundAmount: money.refundAmount, debtReduced: money.debtReduced, remaining: money.newRemaining } : {}),
+      ...(swap ? { productFrom: String(sale.productId), productTo: String(swap.product._id), collectNow: swap.calc.collectNow, addedToDebt: swap.calc.addedToDebt, method: swap.method } : {}),
       ...(siblings ? { siblings } : {}),
     },
   });
 
-  return { ok: true, saleNo: sale.saleNo, changes, price, siblings };
+  return { ok: true, saleNo: sale.saleNo, changes, price, swap: swap?.calc ?? null, siblings };
 }

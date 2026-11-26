@@ -97,3 +97,107 @@ export function respreadInstallmentAmounts(
   open.forEach((i, k) => { amounts[i] = k === open.length - 1 ? rest - base * (open.length - 1) : base; });
   return amounts;
 }
+
+/**
+ * Tovarni almashtirish hisobi — sof funksiya (forma oldindan ko'rsatadi, yadro yozadi).
+ * Yangi summa (yangi tovar narxi × miqdor) eski summaga solishtiriladi; to'langan pul va bank ulushi hisobga olinadi:
+ *  - QIMMATROQ (delta > 0): `settle: 'now'` — farqni mijoz hozir to'laydi (to'lov yoziladi, kassaga tushadi);
+ *    `'debt'` — farq qoldiqqa (qarz / nasiya oylariga). Sof bank kreditida qarz yo'q — faqat hozir.
+ *  - ARZONROQ (delta < 0): avval mijoz qarzi kamayadi, ortig'i mijozga naqd qaytariladi. Sof bank kreditida
+ *    qoldiq — bank ulushi, unga tegilmaydi: farq mijoz o'zi to'lagan puldan qaytariladi.
+ *  - Bank ulushi o'zgarmaydi (shartnoma bank bilan): yangi summa bank ulushidan kam bo'lolmaydi.
+ *  - Nasiya: mijoz qismi (summa − bank) boshlang'ich to'lovdan katta bo'lishi kerak. Hozir to'langan farq
+ *    boshlang'ich to'lovga qo'shiladi (oylar o'zgarmaydi); qarzga qo'shilsa — to'lanmagan oylarga bo'linadi.
+ */
+export type SwapSettle = 'now' | 'debt';
+
+export type SwapInput = {
+  totalAmount: number;
+  paidAmount: number;
+  remainingAmount: number;
+  paymentType: PaymentType;
+  status: string;
+  /** Bank ulushlari jami (lib/bankCredit saleBankParts) — bankli bo'lmasa 0 */
+  bank: number;
+  /** Nasiya boshlang'ich to'lovi; boshqa turlarda 0 */
+  downPayment?: number;
+};
+
+export type SwapCalc = {
+  delta: number;
+  newTotal: number;
+  newPaid: number;
+  newRemaining: number;
+  newStatus: 'paid' | 'partial';
+  /** Mijoz hozir to'laydigan (kassaga tushadigan) summa */
+  collectNow: number;
+  /** Qarzga (qoldiqqa) qo'shilgan summa */
+  addedToDebt: number;
+  /** Arzonlashganda qarzdan kamaygani */
+  debtReduced: number;
+  /** Arzonlashganda mijozga naqd qaytariladigani (kassadan chiqim) */
+  refundAmount: number;
+  /** Nasiya: yangi boshlang'ich to'lov (o'zgarmasa — undefined) */
+  newDown?: number;
+  /** Shu sotuvda farqni qarzga yozib bo'ladimi (sof bank kreditida — yo'q) */
+  canDebt: boolean;
+};
+
+export type SwapError = 'cancelled' | 'badAmount' | 'belowBank' | 'belowDown';
+
+export function computeProductSwap(
+  sale: SwapInput,
+  newTotal: number,
+  settle: SwapSettle,
+): { ok: true; calc: SwapCalc } | { ok: false; error: SwapError } {
+  if (sale.status === 'cancelled') return { ok: false, error: 'cancelled' };
+  if (!Number.isSafeInteger(newTotal) || newTotal < 1 || newTotal > MAX_SALE_TOTAL) return { ok: false, error: 'badAmount' };
+  const bank = Math.max(0, sale.bank);
+  const pureBank = sale.paymentType === 'bank_credit';
+  if (newTotal < bank) return { ok: false, error: 'belowBank' };
+  const down = sale.paymentType === 'installment' ? Math.max(0, sale.downPayment ?? 0) : 0;
+
+  const paid = Math.max(0, sale.paidAmount);
+  const remaining = Math.max(0, sale.remainingAmount);
+  const delta = newTotal - sale.totalAmount;
+  const canDebt = !pureBank;
+  let newPaid = paid;
+  let newRemaining = remaining;
+  let collectNow = 0;
+  let addedToDebt = 0;
+  let debtReduced = 0;
+  let refundAmount = 0;
+  let newDown: number | undefined;
+
+  if (delta > 0) {
+    if (settle === 'now' || !canDebt) {
+      collectNow = delta;
+      newPaid = paid + delta;
+      // Nasiya: hozirgi to'lov boshlang'ichga — oylik jadval (moliyalangan summa) o'zgarmaydi
+      if (sale.paymentType === 'installment') newDown = down + delta;
+    } else {
+      addedToDebt = delta;
+      newRemaining = remaining + delta;
+    }
+  } else if (delta < 0) {
+    const cut = -delta;
+    // Sof bank kreditida qoldiq — bank ulushi (Kredit kassa), mijoz qarzi emas
+    debtReduced = pureBank ? 0 : Math.min(cut, remaining);
+    refundAmount = cut - debtReduced;
+    if (refundAmount > paid) return { ok: false, error: pureBank ? 'belowBank' : 'badAmount' };
+    newPaid = paid - refundAmount;
+    newRemaining = remaining - debtReduced;
+  }
+
+  if (sale.paymentType === 'installment' && newTotal - bank <= (newDown ?? down)) return { ok: false, error: 'belowDown' };
+
+  return {
+    ok: true,
+    calc: {
+      delta, newTotal, newPaid, newRemaining,
+      newStatus: newRemaining > 0 || newPaid < newTotal ? 'partial' : 'paid',
+      collectNow, addedToDebt, debtReduced, refundAmount, canDebt,
+      ...(newDown !== undefined ? { newDown } : {}),
+    },
+  };
+}
