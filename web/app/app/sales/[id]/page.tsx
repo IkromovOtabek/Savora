@@ -95,7 +95,7 @@ export default async function SaleDetailPage({
   // Qisman qaytarish: qaytarishdan keyin ham nimadir qolishi kerak (dona — 2+, kg — 0,001 dan ko'p)
   const canReturn = perms.has('sale.return') && sale.status !== 'cancelled' && sale.paymentType !== 'bank_credit' && !bankSplit && (sale.productSnapshot.saleQuantity ?? 1) > qtyStep(sale.productSnapshot.unit);
   const returns = sale.returns ?? [];
-  // Tahrirlash: mijoz, izoh, muddat — «sale.edit»; narx — qo'shimcha «sale.editPrice» (bankda narx qat'iy)
+  // Tahrirlash (modal): barcha turlarda mijoz, tovar, summa, muddatlar, izoh — «sale.edit»; summani qo'lda — «sale.editPrice»
   const canEdit = perms.has('sale.edit') && sale.status !== 'cancelled';
   const edits = [...(sale.edits ?? [])].reverse();
   // Tovarni almashtirish: sotuv filialidagi omborda bor tovarlar (markirovkali sotuvda — yo'q)
@@ -423,9 +423,10 @@ export default async function SaleDetailPage({
               paidAmount={sale.paidAmount}
               remainingAmount={sale.remainingAmount}
               paymentType={sale.paymentType}
-              priceLocked={isBank || bankSplit}
               canEditPrice={perms.has('sale.editPrice')}
-              downPayment={plan?.down ?? 0}
+              downPayment={sale.paymentType === 'installment' ? plan?.down ?? computeInstallmentPlan({ ...sale, installmentMonths: 1 })?.down ?? 0 : 0}
+              installmentMonths={sale.installmentMonths ?? 0}
+              payDay={sale.payDay ?? 0}
               checkoutItems={Math.max(1, siblings.length)}
               swapProducts={swapProducts}
               swapBlocked={swapBlocked}

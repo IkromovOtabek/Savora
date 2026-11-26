@@ -127,11 +127,40 @@ describe.skipIf(!URI)('editSale (MongoDB)', () => {
     expect(await editSale(m, kassirB, String(s._id), { notes: 'x' }, { canEditPrice: true })).toEqual({ ok: false, error: 'notFound' });
   });
 
-  it("bekor qilingan va bank krediti: narx rad, bank sotuvida izoh o'zgaradi", async () => {
+  it("bekor qilingan rad; bank krediti: bank ulushidan past emas, oshsa — mijoz hozir to'laydi", async () => {
     const c = await m.Sale.create(base({ status: 'cancelled' }));
     expect(await editSale(m, admin, String(c._id), { notes: 'x' }, { canEditPrice: true })).toEqual({ ok: false, error: 'cancelled' });
-    const bank = await m.Sale.create(base({ paymentType: 'bank_credit', paidAmount: 0, remainingAmount: 150_000, payments: [], bankParts: [{ bankName: 'Ipak', amount: 150_000 }] }));
-    expect(await editSale(m, admin, String(bank._id), { totalAmount: 100_000 }, { canEditPrice: true })).toEqual({ ok: false, error: 'bankCredit' });
+    const bank = await m.Sale.create(base({ paymentType: 'bank_credit', status: 'partial', paidAmount: 0, remainingAmount: 150_000, payments: [], bankParts: [{ bankName: 'Ipak', amount: 150_000 }] }));
+    expect(await editSale(m, admin, String(bank._id), { totalAmount: 100_000 }, { canEditPrice: true })).toEqual({ ok: false, error: 'belowBank' });
     expect((await editSale(m, admin, String(bank._id), { notes: 'Ipak yo\'li' }, { canEditPrice: true })).ok).toBe(true);
+    const r = await editSale(m, admin, String(bank._id), { totalAmount: 170_000, method: 'humo' }, { canEditPrice: true });
+    expect(r.ok && r.price?.collectNow).toBe(20_000);
+    const after = await m.Sale.findById(bank._id).lean();
+    expect(after).toMatchObject({ totalAmount: 170_000, paidAmount: 20_000, remainingAmount: 150_000 });
+    expect(after.payments.at(-1)).toMatchObject({ amount: 20_000, method: 'humo', note: "Narx o'zgartirildi — farq" });
+  });
+
+  it("naqd sotuv qimmatlashdi, hozir to'laydi: to'lov yoziladi, qoldiq yo'q", async () => {
+    const s = await m.Sale.create(base());
+    const r = await editSale(m, admin, String(s._id), { totalAmount: 160_000, settle: 'now', method: 'cash' }, { canEditPrice: true });
+    expect(r.ok).toBe(true);
+    expect(await m.Sale.findById(s._id).lean()).toMatchObject({ totalAmount: 160_000, paidAmount: 160_000, remainingAmount: 0, status: 'paid' });
+  });
+
+  it("nasiya muddati: oylar soni va to'lov kuni o'zgaradi, jadval teng bo'linadi; boshqa turda — rad", async () => {
+    const ins = await m.Sale.create(base({
+      paymentType: 'installment', status: 'partial', installmentMonths: 4, downPayment: 0, paidAmount: 0, remainingAmount: 150_000,
+      payments: [], installmentAmounts: [10_000, 40_000, 50_000, 50_000], customerSnapshot: { fullName: 'Ali', phone: '+998901111111' },
+    }));
+    const r = await editSale(m, admin, String(ins._id), { installmentMonths: 6, payDay: 10 }, { canEditPrice: false });
+    expect(r.ok).toBe(true);
+    const after = await m.Sale.findById(ins._id).lean();
+    expect(after).toMatchObject({ installmentMonths: 6, payDay: 10 });
+    expect(after.installmentAmounts).toBeUndefined();
+    expect(after.edits.at(-1).changes.map((c: { field: string }) => c.field)).toEqual(['installmentMonths', 'payDay']);
+    expect(await editSale(m, admin, String(ins._id), { installmentMonths: 0 }, { canEditPrice: false })).toEqual({ ok: false, error: 'badMonths' });
+    expect(await editSale(m, admin, String(ins._id), { payDay: 32 }, { canEditPrice: false })).toEqual({ ok: false, error: 'badPayDay' });
+    const cash = await m.Sale.create(base());
+    expect(await editSale(m, admin, String(cash._id), { installmentMonths: 3 }, { canEditPrice: false })).toEqual({ ok: false, error: 'termsNotAllowed' });
   });
 });

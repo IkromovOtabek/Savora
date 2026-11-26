@@ -134,12 +134,17 @@ const EDIT_ERRORS: Record<SaleEditError, { error: string; status: number }> = {
   swapQty: { error: 'Yangi tovar miqdori yetarli emas yoki o\'lchov birligi mos emas.', status: 400 },
   swapMarked: { error: 'Markirovkali tovar bilan almashtirib bo\'lmaydi.', status: 400 },
   swapNoPrice: { error: 'Yangi tovar narxi ko\'rsatilmagan — summani kiriting.', status: 400 },
+  termsNotAllowed: { error: 'Oylar soni va to\'lov kuni faqat nasiya sotuvida o\'zgaradi.', status: 400 },
+  badMonths: { error: 'Oylar soni noto\'g\'ri (1–60).', status: 400 },
+  badPayDay: { error: 'To\'lov kuni noto\'g\'ri (1–31).', status: 400 },
 };
 
 /**
  * Sotuvni tahrirlash — web editSaleAction bilan bir xil (lib/saleEditOps). Huquq «sale.edit», narx — «sale.editPrice».
  * Body (yuborilmagan maydon o'zgarmaydi): customer: { id?, name, phone } | null, notes, dueDate: 'YYYY-MM-DD' | null, totalAmount,
- * product: { id, settle: 'now' | 'debt', method? } — tovarni almashtirish (summa — yangi tovar narxi yoki totalAmount).
+ * product: { id, settle?, method? } — tovarni almashtirish (summa — yangi tovar narxi yoki totalAmount);
+ * settle: 'now' | 'debt' (summa oshganda; standart — qarzga), method — hozirgi to'lov usuli;
+ * installmentMonths, payDay (null — sotuv sanasi bo'yicha) — faqat nasiyada.
  */
 export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const auth = await authenticateMobile(req);
@@ -164,9 +169,13 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     totalAmount: z.number().int('Narx butun so\'mda bo\'lishi kerak.').optional(),
     product: z.object({
       id: z.string().refine((v) => Types.ObjectId.isValid(v), 'Tovar topilmadi.'),
-      settle: z.enum(['now', 'debt']),
+      settle: z.enum(['now', 'debt']).optional(),
       method: z.enum(PAY_METHODS).optional(),
     }).optional(),
+    settle: z.enum(['now', 'debt']).optional(),
+    method: z.enum(PAY_METHODS).optional(),
+    installmentMonths: z.number().int('Oylar soni butun bo\'lishi kerak.').optional(),
+    payDay: z.union([z.null(), z.number().int('To\'lov kuni noto\'g\'ri.')]).optional(),
   }), { badJson: 'Noto\'g\'ri so\'rov.', fallback: 'Noto\'g\'ri so\'rov.' });
   if (!input.ok) return NextResponse.json({ error: input.error }, { status: 400 });
   const b = input.data;
@@ -179,6 +188,10 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     dueDate: b.dueDate === undefined ? undefined : b.dueDate === null ? null : new Date(b.dueDate),
     totalAmount: b.totalAmount,
     product: b.product,
+    settle: b.settle,
+    method: b.method,
+    installmentMonths: b.installmentMonths,
+    payDay: b.payDay,
   };
 
   const models = await getTenantModels(user.dbName);
@@ -192,8 +205,8 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     ok: true,
     refundAmount: p?.refundAmount ?? 0,
     remainingAmount: p?.newRemaining ?? null,
-    collectedAmount: res.swap?.collectNow ?? 0,
-    message: res.swap && res.swap.collectNow > 0 ? `Tovar almashtirildi. Mijozdan ${res.swap.collectNow.toLocaleString('uz-UZ')} so'm qabul qilindi.`
+    collectedAmount: p?.collectNow ?? 0,
+    message: p && p.collectNow > 0 ? `Saqlandi. Mijozdan ${p.collectNow.toLocaleString('uz-UZ')} so'm qabul qilindi.`
       : p && p.refundAmount > 0 ? `Saqlandi. Mijozga ${p.refundAmount.toLocaleString('uz-UZ')} so'm naqd qaytaring.`
       : p && p.newRemaining > 0 ? `Saqlandi. Qoldiq: ${p.newRemaining.toLocaleString('uz-UZ')} so'm.`
       : 'Saqlandi.',

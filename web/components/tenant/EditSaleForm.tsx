@@ -1,10 +1,10 @@
 'use client';
 
-import { useActionState, useEffect, useMemo, useState } from 'react';
+import { useActionState, useCallback, useEffect, useMemo, useState } from 'react';
 import { useToastOnState } from '@/lib/useToastOnState';
 import { editSaleAction } from '@/app/actions/sales';
 import { fmtMoney } from '@/lib/format';
-import { computePriceEdit, computeProductSwap, type SwapSettle } from '@/lib/saleEdit';
+import { computeProductSwap, type SwapSettle } from '@/lib/saleEdit';
 import type { PaymentType } from '@/lib/models/tenant/Sale';
 import type { ProductUnit } from '@/lib/businessTypes';
 import type { PayMethod } from '@/lib/payMethods';
@@ -26,11 +26,12 @@ interface Props {
   paidAmount: number;
   remainingAmount: number;
   paymentType: PaymentType;
-  /** Bank krediti / bank + nasiya / bank + qarz — narx qat'iy */
-  priceLocked: boolean;
   canEditPrice: boolean;
-  /** Nasiya boshlang'ich to'lovi (narx undan katta bo'lishi kerak) */
+  /** Nasiya boshlang'ich to'lovi (mijoz qismi undan katta bo'lishi kerak) */
   downPayment: number;
+  /** Nasiya: oylar soni va to'lov kuni (0 — sotuv sanasi bo'yicha) */
+  installmentMonths: number;
+  payDay: number;
   /** Shu xariddagi tovarlar soni (mijoz hammasiga qo'llanadi) */
   checkoutItems: number;
   /** Almashtirish uchun: sotuv filialidagi omborda bor tovarlar (joriy tovarsiz) */
@@ -56,8 +57,13 @@ export interface SwapProduct {
 }
 
 const PICK_LIMIT = 30;
+const HASH = '#tahrir';
 
-/** Sotuvni tahrirlash: mijoz, izoh, qarz muddati, narx — pul oqibati oldindan ko'rsatiladi (lib/saleEdit) */
+/**
+ * Sotuvni tahrirlash — modal oyna (sahifa boshidagi «Tahrirlash» tugmasi #tahrir bilan ochadi).
+ * Barcha turlarda (naqd, qarz, nasiya, bank krediti): mijoz, tovar, summa, qarz muddati, nasiya muddati, izoh.
+ * Summa o'zgarsa pul oqibati oldindan ko'rsatiladi (lib/saleEdit computeProductSwap — yadro bilan bir xil).
+ */
 export default function EditSaleForm(p: Props) {
   const [state, formAction, isPending] = useActionState(editSaleAction, null);
   useToastOnState(state);
@@ -69,30 +75,57 @@ export default function EditSaleForm(p: Props) {
   const hadCustomer = !!(p.customer.name || p.customer.phone);
   // Mijoz bloki: naqd sotuvda mijozsiz ham bo'ladi (Picker'dagi telefon majburiy — shuning uchun alohida ochiladi)
   const [custOn, setCustOn] = useState(hadCustomer || p.paymentType !== 'cash' || p.remainingAmount > 0);
+  const [swapOn, setSwapOn] = useState(false);
+  const [query, setQuery] = useState('');
+  const [picked, setPicked] = useState<SwapProduct | null>(null);
+  const [settle, setSettle] = useState<SwapSettle>('now');
+  const [method, setMethod] = useState<PayMethod>('cash');
+  const [months, setMonths] = useState(String(p.installmentMonths || ''));
+  const [payDay, setPayDay] = useState(p.payDay ? String(p.payDay) : '');
 
-  // «Tahrirlash» tugmasi (sahifa boshida) #tahrir ga olib keladi — forma ochiladi
+  const reset = useCallback(() => {
+    setSwapOn(false);
+    setPicked(null);
+    setQuery('');
+    setPrice(String(p.totalAmount));
+    setSettle('now');
+    setMethod('cash');
+    setMonths(String(p.installmentMonths || ''));
+    setPayDay(p.payDay ? String(p.payDay) : '');
+  }, [p.totalAmount, p.installmentMonths, p.payDay]);
+
+  const close = useCallback(() => {
+    setOpen(false);
+    reset();
+    // Xesh olib tashlanadi — tugma qayta bosilganda yana ochiladi
+    if (window.location.hash === HASH) history.replaceState(null, '', window.location.pathname + window.location.search);
+  }, [reset]);
+
+  // «Tahrirlash» tugmasi (sahifa boshida) #tahrir ga olib keladi — modal darhol ochiladi
   useEffect(() => {
-    const sync = () => { if (window.location.hash === '#tahrir') setOpen(true); };
+    const sync = () => { if (window.location.hash === HASH) setOpen(true); };
     sync();
     window.addEventListener('hashchange', sync);
     return () => window.removeEventListener('hashchange', sync);
   }, []);
-  // Saqlangach — yangi qiymatlar sahifadan keladi, forma yopiladi
+  // Saqlangach — yangi qiymatlar sahifadan keladi, modal yopiladi
   useEffect(() => {
-    if (state?.success) { setOpen(false); setSwapOn(false); setPicked(null); }
-  }, [state]);
+    if (state?.success) close();
+  }, [state, close]);
+  // Ochiqda: sahifa aylanmaydi, Esc — yopish
+  useEffect(() => {
+    if (!open) return;
+    document.body.style.overflow = 'hidden';
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape' && !isPending) close(); };
+    window.addEventListener('keydown', onKey);
+    return () => { document.body.style.overflow = ''; window.removeEventListener('keydown', onKey); };
+  }, [open, isPending, close]);
+
   const { id: cid, name: cname, phone: cphone } = p.customer;
   useEffect(() => { setCustomer({ id: cid, name: cname, phone: cphone }); setCustOn(!!(cname || cphone) || p.paymentType !== 'cash' || p.remainingAmount > 0); }, [cid, cname, cphone, p.paymentType, p.remainingAmount]);
   useEffect(() => { setPrice(String(p.totalAmount)); }, [p.totalAmount]);
 
-  // Tovarni almashtirish
-  const [swapOn, setSwapOn] = useState(false);
-  const [query, setQuery] = useState('');
-  const [picked, setPicked] = useState<SwapProduct | null>(null);
-  const [swapPrice, setSwapPrice] = useState('');
-  const [settle, setSettle] = useState<SwapSettle>('now');
-  const [method, setMethod] = useState<PayMethod>('cash');
-  // Qidiruv: nom, IMEI, shtrix-kod (bo'sh — birinchi tovarlar)
+  // Tovar qidiruvi: nom, IMEI, shtrix-kod (bo'sh — birinchi tovarlar)
   const matches = useMemo(() => {
     const q = query.trim().toLowerCase();
     const all = q
@@ -105,51 +138,55 @@ export default function EditSaleForm(p: Props) {
   const pick = (x: SwapProduct) => {
     setPicked(x);
     const list = priceTimesQty(x.salePrice, x.tracked ? p.saleQty : 1);
-    setSwapPrice(list > 0 ? String(list) : '');
+    setPrice(list > 0 ? String(list) : '');
   };
-  const swapTotal = Number(swapPrice);
-  const swapCalc = swapOn && picked && swapPrice !== ''
+  const swapping = swapOn && !!picked;
+
+  // Summa va pul oqibati — tovar almashtirilganda ham, narx o'zgarganda ham bitta hisob
+  const total = Number(price);
+  const priceChanged = price !== '' && total !== p.totalAmount;
+  const calcRes = (swapping || (p.canEditPrice && priceChanged)) && price !== ''
     ? computeProductSwap({
       totalAmount: p.totalAmount, paidAmount: p.paidAmount, remainingAmount: p.remainingAmount,
       paymentType: p.paymentType, status: 'partial', bank: p.bank, downPayment: p.downPayment,
-    }, swapTotal, settle)
+    }, total, settle)
     : null;
-  const swap = swapCalc?.ok ? swapCalc.calc : null;
-  const swapping = swapOn && !!picked;
+  const calc = calcRes?.ok ? calcRes.calc : null;
+  const remainingAfter = calc ? calc.newRemaining : p.remainingAmount;
 
-  const showPrice = p.canEditPrice && !p.priceLocked && !swapping;
-  const newTotal = Number(price);
-  const calc = showPrice && price !== '' && newTotal !== p.totalAmount
-    ? computePriceEdit({
-      totalAmount: p.totalAmount, paidAmount: p.paidAmount, remainingAmount: p.remainingAmount,
-      paymentType: p.paymentType, status: 'partial', downPayment: p.downPayment,
-    }, newTotal)
-    : null;
-  const preview = calc?.ok ? calc.calc : null;
-  const remainingAfter = swap ? swap.newRemaining : preview ? preview.newRemaining : p.remainingAmount;
-  // Qarz muddati — qarz yoki qoldiqli naqd sotuvda (nasiyada — jadval, bankda — bank)
+  const isInstallment = p.paymentType === 'installment';
+  // Qarz muddati — qarz yoki qoldiqli naqd sotuvda (nasiyada — oylik jadval)
   const showDue = (p.paymentType === 'debt' || p.paymentType === 'cash') && (remainingAfter > 0 || p.dueDate !== '');
   const customerRequired = p.paymentType !== 'cash' || remainingAfter > 0;
   const customerChanged = customer.id !== cid || customer.name !== cname || customer.phone !== cphone;
-  // Narx oshib qoldiq paydo bo'lsa — mijoz shart
+  // Summa oshib qoldiq paydo bo'lsa — mijoz shart
   useEffect(() => { if (customerRequired) setCustOn(true); }, [customerRequired]);
 
+  // Nasiya oylik to'lovi (taxminan): mijoz qismi − boshlang'ich, oylarga teng
+  const monthsN = Number(months);
+  const financed = Math.max(0, (calc ? calc.newTotal : p.totalAmount) - p.bank - (calc?.newDown ?? p.downPayment));
+  const monthly = isInstallment && Number.isInteger(monthsN) && monthsN > 0 ? Math.round(financed / monthsN) : 0;
+
+  const blocked = isPending || (calcRes !== null && !calcRes.ok) || (swapOn && !picked);
+
+  if (!open) return null;
   return (
-    <section className="sl-card" id="tahrir" aria-labelledby="sl-edit-h">
-      <div className="sl-card-head">
-        <h2 id="sl-edit-h">{t.title}</h2>
-        <button type="button" className="btn btn-ghost btn-sm btn-with-icon" onClick={() => setOpen((v) => !v)} aria-expanded={open} aria-controls="sl-edit-form">
-          <Icon name={open ? 'close' : 'edit'} size={15} />
-          {open ? t.close : t.open}
-        </button>
-      </div>
-      {open && (
-        <form id="sl-edit-form" action={formAction} className="sl-payform">
+    <div className="u-modal-overlay" onClick={() => !isPending && close()}>
+      <div className="u-modal u-modal--wide sl-edit-modal" role="dialog" aria-modal="true" aria-labelledby="sl-edit-h" onClick={(e) => e.stopPropagation()}>
+        <div className="u-modal-head">
+          <h3 id="sl-edit-h">{t.title}</h3>
+          <button type="button" className="u-icon-btn" onClick={close} disabled={isPending} aria-label={t.close}>
+            <Icon name="close" size={18} />
+          </button>
+        </div>
+
+        <form id="sl-edit-form" action={formAction}>
           <input type="hidden" name="saleId" value={p.saleId} />
+          <input type="hidden" name="settle" value={calc && !calc.canDebt ? 'now' : settle} />
           {state?.error && <div className="auth-alert auth-alert--error">{state.error}</div>}
           <p className="sl-return-text">{t.text}</p>
 
-          {/* customerOn: mijoz faqat o'zgartirilganda yuboriladi; blok yopilgan bo'lsa — mijoz olib tashlanadi */}
+          {/* Mijoz — customerOn: faqat o'zgartirilganda yuboriladi; blok yopilgan bo'lsa — mijoz olib tashlanadi */}
           {(custOn ? customerChanged : hadCustomer) && <input type="hidden" name="customerOn" value="1" />}
           {custOn ? (
             <div className="sl-edit-cust">
@@ -172,13 +209,13 @@ export default function EditSaleForm(p: Props) {
             </div>
           )}
 
-          {/* Tovarni almashtirish — farq: hozir to'lanadi / qarzga / qaytariladi (lib/saleEdit computeProductSwap) */}
+          {/* Tovar */}
           <div className="auth-field">
             <span className="sl-pm-l">{t.product}</span>
             {p.swapBlocked ? (
               <small className="sl-edit-hint">{t.productMarked}</small>
             ) : !swapOn ? (
-              <button type="button" className="btn btn-tinted btn-sm btn-with-icon" onClick={() => setSwapOn(true)} disabled={isPending}>
+              <button type="button" className="btn btn-tinted btn-sm btn-with-icon sl-edit-cust-x" onClick={() => setSwapOn(true)} disabled={isPending}>
                 <Icon name="edit" size={14} />
                 {t.productChange}
               </button>
@@ -186,9 +223,11 @@ export default function EditSaleForm(p: Props) {
               <>
                 {picked ? (
                   <div className="sl-edit-cust">
+                    <input type="hidden" name="productId" value={picked.id} />
                     <span><b>{picked.name}</b>{picked.imei ? ` · ${picked.imei}` : ''}</span>
-                    <button type="button" className="btn btn-ghost btn-sm btn-with-icon sl-edit-cust-x" onClick={() => setPicked(null)} disabled={isPending}>
-                      <Icon name="close" size={14} />
+                    <small className="sl-edit-hint">{tr(t.productHint, { n: qtyWithUnit(swapQty, p.saleUnit, d.stock.fields.units) })}</small>
+                    <button type="button" className="btn btn-ghost btn-sm btn-with-icon sl-edit-cust-x" onClick={() => { setPicked(null); setPrice(String(p.totalAmount)); }} disabled={isPending}>
+                      <Icon name="search" size={14} />
                       {t.productSearch}
                     </button>
                   </div>
@@ -224,7 +263,7 @@ export default function EditSaleForm(p: Props) {
                     </ul>
                   </>
                 )}
-                <button type="button" className="btn btn-ghost btn-sm btn-with-icon" onClick={() => { setSwapOn(false); setPicked(null); }} disabled={isPending}>
+                <button type="button" className="btn btn-ghost btn-sm btn-with-icon sl-edit-cust-x" onClick={() => { setSwapOn(false); setPicked(null); setPrice(String(p.totalAmount)); }} disabled={isPending}>
                   <Icon name="close" size={14} />
                   {t.productKeep}
                 </button>
@@ -232,66 +271,78 @@ export default function EditSaleForm(p: Props) {
             )}
           </div>
 
-          {swapping && picked && (
-            <>
-              <input type="hidden" name="productId" value={picked.id} />
-              <input type="hidden" name="settle" value={swap && !swap.canDebt ? 'now' : settle} />
-              <small className="sl-edit-hint">{tr(t.productHint, { n: qtyWithUnit(swapQty, p.saleUnit, d.stock.fields.units) })}</small>
-              <div className="auth-field">
-                <label htmlFor="edit-swap-price">{t.swapPrice}</label>
-                {p.canEditPrice ? (
-                  <PriceInput id="edit-swap-price" name="totalAmount" required disabled={isPending} value={swapPrice} onValueChange={setSwapPrice} />
-                ) : (
-                  <input id="edit-swap-price" value={swapPrice ? fmtMoney(swapTotal) : ''} readOnly />
-                )}
-                <small className="sl-edit-hint">{t.swapPriceHint}</small>
-              </div>
-
-              {swap && (
-                <div className={`sl-remain-box sl-swap-box${swap.refundAmount > 0 ? " sl-remain-box--out" : ""}`} role="status" aria-label={t.swapTitle}>
-                  <ul className="sl-swap-rows">
-                    <li><span>{t.swapOld}</span><b>{fmtMoney(p.totalAmount)}</b></li>
-                    <li><span>{t.swapNew}</span><b>{fmtMoney(swap.newTotal)}</b></li>
-                    <li><span>{t.swapPaid}</span><b>{fmtMoney(p.paidAmount)}</b></li>
-                    {p.bank > 0 && <li><span>{t.swapBank}</span><b>{fmtMoney(p.bank)}</b></li>}
-                    {p.paymentType !== 'bank_credit' && p.remainingAmount > 0 && <li><span>{t.swapDebt}</span><b>{fmtMoney(p.remainingAmount)}</b></li>}
-                  </ul>
-                  <strong>
-                    {swap.delta === 0 ? t.swapEven
-                      : swap.collectNow > 0 ? tr(t.swapCollect, { sum: fmtMoney(swap.collectNow) })
-                      : swap.addedToDebt > 0 ? tr(t.swapToDebt, { sum: fmtMoney(swap.addedToDebt), rest: fmtMoney(swap.newRemaining) })
-                      : swap.refundAmount > 0 ? tr(t.swapRefund, { sum: fmtMoney(swap.refundAmount) })
-                      : tr(t.swapDebtDown, { sum: fmtMoney(swap.newRemaining) })}
-                  </strong>
-                  {swap.refundAmount > 0 && swap.debtReduced > 0 && <span>{tr(t.swapDebtDown, { sum: fmtMoney(swap.newRemaining) })}</span>}
-                </div>
-              )}
-              {swapCalc && !swapCalc.ok && (
-                <div className="auth-alert auth-alert--error">
-                  {swapCalc.error === 'belowBank' ? d.sales.actions.editBelowBank
-                    : swapCalc.error === 'belowDown' ? d.sales.actions.editBelowDown
-                    : d.sales.actions.editBadAmount}
-                </div>
-              )}
-
-              {swap && swap.delta > 0 && (swap.canDebt ? (
-                <div className="sl-payform-quick" role="group" aria-label={t.swapTitle}>
-                  <button type="button" className="sl-quick" aria-pressed={settle === 'now'} onClick={() => setSettle('now')} disabled={isPending}>{t.settleNow}</button>
-                  <button type="button" className="sl-quick" aria-pressed={settle === 'debt'} onClick={() => setSettle('debt')} disabled={isPending}>
-                    {p.paymentType === 'installment' ? t.settleInstallment : t.settleDebt}
-                  </button>
-                </div>
-              ) : (
-                <small className="sl-edit-hint">{t.settleBankOnly}</small>
-              ))}
-              {swap && swap.collectNow > 0 && <PayMethodPicker value={method} onChange={setMethod} disabled={isPending} name="method" />}
-            </>
-          )}
-
+          {/* Summa — barcha to'lov turlarida (bank ulushi o'zgarmaydi) */}
           <div className="auth-field">
-            <label htmlFor="edit-notes">{t.notes}</label>
-            <textarea id="edit-notes" name="notes" rows={2} maxLength={500} defaultValue={p.notes} disabled={isPending} placeholder={t.notesPh} />
+            <label htmlFor="edit-price">{swapping ? t.swapPrice : t.price}</label>
+            {p.canEditPrice ? (
+              <PriceInput id="edit-price" name="totalAmount" required disabled={isPending} value={price} onValueChange={setPrice} />
+            ) : (
+              <input id="edit-price" value={price ? fmtMoney(total) : ''} readOnly />
+            )}
+            <small className="sl-edit-hint">
+              {swapping ? t.swapPriceHint : p.canEditPrice ? t.priceAny : t.priceNoPerm}
+              {isInstallment && p.canEditPrice ? ` ${t.priceInstallment}` : ''}
+            </small>
           </div>
+
+          {calc && (calc.delta !== 0 || swapping) && (
+            <div className={`sl-remain-box sl-swap-box${calc.refundAmount > 0 ? ' sl-remain-box--out' : ''}`} role="status" aria-label={t.swapTitle}>
+              <ul className="sl-swap-rows">
+                <li><span>{t.swapOld}</span><b>{fmtMoney(p.totalAmount)}</b></li>
+                <li><span>{t.swapNew}</span><b>{fmtMoney(calc.newTotal)}</b></li>
+                <li><span>{t.swapPaid}</span><b>{fmtMoney(p.paidAmount)}</b></li>
+                {p.bank > 0 && <li><span>{t.swapBank}</span><b>{fmtMoney(p.bank)}</b></li>}
+                {p.paymentType !== 'bank_credit' && p.remainingAmount > 0 && <li><span>{t.swapDebt}</span><b>{fmtMoney(p.remainingAmount)}</b></li>}
+              </ul>
+              <strong>
+                {calc.delta === 0 ? t.swapEven
+                  : calc.collectNow > 0 ? tr(t.swapCollect, { sum: fmtMoney(calc.collectNow) })
+                  : calc.addedToDebt > 0 ? tr(t.swapToDebt, { sum: fmtMoney(calc.addedToDebt), rest: fmtMoney(calc.newRemaining) })
+                  : calc.refundAmount > 0 ? tr(t.swapRefund, { sum: fmtMoney(calc.refundAmount) })
+                  : tr(t.swapDebtDown, { sum: fmtMoney(calc.newRemaining) })}
+              </strong>
+              {calc.refundAmount > 0 && calc.debtReduced > 0 && <span>{tr(t.swapDebtDown, { sum: fmtMoney(calc.newRemaining) })}</span>}
+            </div>
+          )}
+          {calcRes && !calcRes.ok && (
+            <div className="auth-alert auth-alert--error">
+              {calcRes.error === 'belowBank' ? d.sales.actions.editBelowBank
+                : calcRes.error === 'belowDown' ? d.sales.actions.editBelowDown
+                : d.sales.actions.editBadAmount}
+            </div>
+          )}
+          {calc && calc.delta > 0 && (calc.canDebt ? (
+            <div className="sl-payform-quick" role="group" aria-label={t.swapTitle}>
+              <button type="button" className="sl-quick" aria-pressed={settle === 'now'} onClick={() => setSettle('now')} disabled={isPending}>{t.settleNow}</button>
+              <button type="button" className="sl-quick" aria-pressed={settle === 'debt'} onClick={() => setSettle('debt')} disabled={isPending}>
+                {isInstallment ? t.settleInstallment : t.settleDebt}
+              </button>
+            </div>
+          ) : (
+            <small className="sl-edit-hint">{t.settleBankOnly}</small>
+          ))}
+          {calc && calc.collectNow > 0 && <PayMethodPicker value={method} onChange={setMethod} disabled={isPending} name="method" />}
+
+          {/* Nasiya muddati: oylar soni va to'lov kuni */}
+          {isInstallment && (
+            <fieldset className="sl-edit-terms">
+              <legend className="sl-pm-l">{t.termsTitle}</legend>
+              <input type="hidden" name="termsOn" value="1" />
+              <div className="sl-edit-terms-row">
+                <div className="auth-field">
+                  <label htmlFor="edit-months">{t.months}</label>
+                  <input id="edit-months" name="installmentMonths" type="number" inputMode="numeric" min={1} max={60} step={1} required={p.installmentMonths > 0} value={months} onChange={(e) => setMonths(e.target.value)} disabled={isPending} />
+                </div>
+                <div className="auth-field">
+                  <label htmlFor="edit-payday">{t.payDay}</label>
+                  <input id="edit-payday" name="payDay" type="number" inputMode="numeric" min={1} max={31} step={1} value={payDay} onChange={(e) => setPayDay(e.target.value)} placeholder={t.payDayPh} disabled={isPending} />
+                </div>
+              </div>
+              <small className="sl-edit-hint">
+                {monthly > 0 ? `${tr(t.monthlyPreview, { sum: fmtMoney(monthly) })}. ` : ''}{t.termsHint}
+              </small>
+            </fieldset>
+          )}
 
           {showDue && (
             <div className="auth-field">
@@ -301,47 +352,27 @@ export default function EditSaleForm(p: Props) {
             </div>
           )}
 
-          {showPrice ? (
-            <div className="auth-field">
-              <label htmlFor="edit-price">{t.price}</label>
-              <PriceInput id="edit-price" name="totalAmount" required disabled={isPending} value={price} onValueChange={setPrice} />
-              <small className="sl-edit-hint">{t.priceHint}{p.paymentType === 'installment' ? ` ${t.priceInstallment}` : ''}</small>
-            </div>
-          ) : !swapping && (
-            <p className="sl-edit-hint">{p.priceLocked ? t.priceLocked : t.priceNoPerm}</p>
-          )}
+          <div className="auth-field">
+            <label htmlFor="edit-notes">{t.notes}</label>
+            <textarea id="edit-notes" name="notes" rows={2} maxLength={500} defaultValue={p.notes} disabled={isPending} placeholder={t.notesPh} />
+          </div>
 
-          {preview && (
-            <div className={`sl-remain-box${preview.refundAmount > 0 ? ' sl-remain-box--out' : ''}`} role="status">
-              <span>
-                {preview.refundAmount > 0
-                  ? tr(t.previewRefund, { sum: fmtMoney(preview.refundAmount) })
-                  : preview.delta > 0
-                    ? tr(t.previewUp, { sum: fmtMoney(preview.newRemaining), delta: fmtMoney(preview.delta) })
-                    : tr(t.previewDebt, { sum: fmtMoney(preview.newRemaining) })}
-              </span>
-            </div>
-          )}
-          {calc && !calc.ok && calc.error !== 'same' && (
-            <div className="auth-alert auth-alert--error">
-              {calc.error === 'belowDown' ? d.sales.actions.editBelowDown : d.sales.actions.editBadAmount}
-            </div>
-          )}
-
-          <button
-            type="submit"
-            className="btn btn-primary btn-full"
-            disabled={isPending || (calc !== null && !calc.ok && calc.error !== 'same') || (swapOn && (!picked || !swap))}
-            onClick={(e) => {
-              const refund = swap ? swap.refundAmount : preview?.refundAmount ?? 0;
-              if (refund > 0 && !confirm(tr(t.confirmRefund, { sum: fmtMoney(refund) }))) e.preventDefault();
-              else if (swap && swap.collectNow > 0 && !confirm(tr(t.confirmCollect, { sum: fmtMoney(swap.collectNow) }))) e.preventDefault();
-            }}
-          >
-            {isPending ? t.pending : t.save}
-          </button>
+          <div className="u-modal-actions">
+            <button type="button" className="btn btn-ghost" onClick={close} disabled={isPending}>{t.close}</button>
+            <button
+              type="submit"
+              className="btn btn-primary"
+              disabled={blocked}
+              onClick={(e) => {
+                if (calc && calc.refundAmount > 0 && !confirm(tr(t.confirmRefund, { sum: fmtMoney(calc.refundAmount) }))) e.preventDefault();
+                else if (calc && calc.collectNow > 0 && !confirm(tr(t.confirmCollect, { sum: fmtMoney(calc.collectNow) }))) e.preventDefault();
+              }}
+            >
+              {isPending ? t.pending : t.save}
+            </button>
+          </div>
         </form>
-      )}
-    </section>
+      </div>
+    </div>
   );
 }

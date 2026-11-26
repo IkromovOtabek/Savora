@@ -471,6 +471,9 @@ export async function editSaleAction(_prev: State, formData: FormData): Promise<
     productId: zText(40),
     settle: zText(5),
     method: zText(10),
+    termsOn: zText(1),
+    installmentMonths: zText(3),
+    payDay: zText(2),
   }), formToObject(formData), m.saleNotFound);
   if (!parsed.ok) return { error: parsed.error };
   const f = parsed.data;
@@ -487,11 +490,24 @@ export async function editSaleAction(_prev: State, formData: FormData): Promise<
     if (!f.totalAmount.trim() || !Number.isSafeInteger(n)) return { error: m.editBadAmount };
     input.totalAmount = n;
   }
-  // Tovarni almashtirish: farq hozir to'lanadi (usul bilan) yoki qarzga yoziladi
+  // Summa oshsa — farq hozir to'lanadi (usul bilan) yoki qarzga yoziladi; tovar almashtirish ham shu qoida
+  if (f.settle) input.settle = f.settle === 'debt' ? 'debt' : 'now';
+  if (f.method) input.method = (PAY_METHODS as readonly string[]).includes(f.method) ? (f.method as PayMethod) : 'cash';
   if (f.productId) {
     if (!Types.ObjectId.isValid(f.productId)) return { error: m.editSwapNotInStock };
-    const method = (PAY_METHODS as readonly string[]).includes(f.method) ? (f.method as PayMethod) : 'cash';
-    input.product = { id: f.productId, settle: f.settle === 'debt' ? 'debt' : 'now', method };
+    input.product = { id: f.productId };
+  }
+  // Nasiya muddati (forma faqat nasiyada yuboradi)
+  if (f.termsOn === '1') {
+    // Bo'sh — o'zgarmaydi (eski sotuvda oylar soni yozilmagan bo'lishi mumkin)
+    if (f.installmentMonths.trim()) {
+      const months = Number(f.installmentMonths);
+      if (!Number.isInteger(months)) return { error: m.editBadMonths };
+      input.installmentMonths = months;
+    }
+    const pd = f.payDay.trim();
+    input.payDay = pd ? Number(pd) : null;
+    if (input.payDay !== null && !Number.isInteger(input.payDay)) return { error: m.editBadPayDay };
   }
 
   const res = await editSale({ Sale, Customer, Product, ShopSettings }, user, f.saleId, input, { canEditPrice: await userCan(user, 'sale.editPrice') });
@@ -517,6 +533,9 @@ export async function editSaleAction(_prev: State, formData: FormData): Promise<
       swapQty: m.editSwapQty,
       swapMarked: m.editSwapMarked,
       swapNoPrice: m.editSwapNoPrice,
+      termsNotAllowed: m.editTermsNotAllowed,
+      badMonths: m.editBadMonths,
+      badPayDay: m.editBadPayDay,
     };
     return { error: err[res.error] };
   }
@@ -527,7 +546,7 @@ export async function editSaleAction(_prev: State, formData: FormData): Promise<
     revalidatePath('/app/products');
     revalidatePath(`/app/products/${f.productId}`);
   }
-  if (res.price || res.swap) {
+  if (res.price || res.swap || res.changes.some((c) => c.field === 'installmentMonths' || c.field === 'payDay')) {
     revalidatePath('/app/kassa');
     revalidatePath('/app/debts');
     revalidatePath('/app/nasiya');
@@ -536,6 +555,7 @@ export async function editSaleAction(_prev: State, formData: FormData): Promise<
   const p = res.swap ?? res.price;
   return {
     success: res.swap && res.swap.collectNow > 0 ? tr(m.editedCollected, { sum: res.swap.collectNow.toLocaleString('uz-UZ') })
+      : res.price && res.price.collectNow > 0 ? tr(m.editedCollectedPrice, { sum: res.price.collectNow.toLocaleString('uz-UZ') })
       : p && p.refundAmount > 0 ? tr(m.editedRefund, { sum: p.refundAmount.toLocaleString('uz-UZ') })
       : p && p.newRemaining > 0 ? tr(m.editedRemaining, { sum: p.newRemaining.toLocaleString('uz-UZ') })
       : m.edited,

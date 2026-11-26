@@ -6,7 +6,8 @@ import { branchFilter } from './branchScope';
 import { recordAudit } from './audit';
 import { computeInstallmentPlan } from './installment';
 import { resolveSaleCustomer, type SaleCustomerError } from './saleCustomer';
-import { computePriceEdit, computeProductSwap, respreadInstallmentAmounts, type PriceEditCalc, type PriceEditError, type SwapCalc, type SwapError, type SwapSettle } from './saleEdit';
+import { computeProductSwap, respreadInstallmentAmounts, type PriceEditError, type SwapCalc, type SwapError, type SwapSettle } from './saleEdit';
+import { SALE_MAX_MONTHS } from './sales/terms';
 import type { IProduct } from './models/tenant/Product';
 import type { PayMethod } from './payMethods';
 import { bankPartsTotal, saleBankParts } from './bankCredit';
@@ -40,16 +41,23 @@ export interface SaleEditInput {
   notes?: string;
   dueDate?: Date | null;
   totalAmount?: number;
-  product?: { id: string; settle: SwapSettle; method?: PayMethod };
+  product?: { id: string; settle?: SwapSettle; method?: PayMethod };
+  /** Summa oshganda farq: 'now' — hozir to'lanadi (`method` bilan), 'debt' — qoldiqqa (standart) */
+  settle?: SwapSettle;
+  method?: PayMethod;
+  /** Nasiya muddati: oylar soni (to'langan oylar saqlanadi, jadval teng bo'linadi) */
+  installmentMonths?: number;
+  /** Nasiya to'lov kuni (1–31); null — sotuv sanasi bo'yicha */
+  payDay?: number | null;
 }
 
 export type SaleEditError =
   | 'notFound' | 'noChanges' | 'conflict' | 'pricePerm' | 'customerRequired' | 'dueNotAllowed' | 'badDate'
   | Exclude<PriceEditError, 'same'> | SwapError | SaleCustomerError
-  | 'swapSame' | 'swapNotInStock' | 'swapQty' | 'swapMarked' | 'swapNoPrice';
+  | 'swapSame' | 'swapNotInStock' | 'swapQty' | 'swapMarked' | 'swapNoPrice' | 'termsNotAllowed' | 'badMonths' | 'badPayDay';
 
 export type SaleEditResult =
-  | { ok: true; saleNo: string; changes: ISaleEditChange[]; price: PriceEditCalc | null; swap: SwapCalc | null; siblings: number }
+  | { ok: true; saleNo: string; changes: ISaleEditChange[]; price: SwapCalc | null; swap: SwapCalc | null; siblings: number }
   | { ok: false; error: SaleEditError };
 
 export const SALE_NOTES_MAX = 500;
@@ -76,11 +84,21 @@ export async function editSale(
   const changes: ISaleEditChange[] = [];
   const set: Record<string, unknown> = {};
   const unset: Record<string, ''> = {};
-  let price: PriceEditCalc | null = null;
-  let swap: { calc: SwapCalc; product: ProductDoc; qty: number; method: PayMethod } | null = null;
+  let price: SwapCalc | null = null;
+  let swap: { calc: SwapCalc; product: ProductDoc; qty: number } | null = null;
+  const method: PayMethod = input.method ?? input.product?.method ?? 'cash';
+  const settle: SwapSettle = input.settle ?? input.product?.settle ?? 'debt';
   const oldQty = sale.productSnapshot?.saleQuantity ?? 1;
+  const plan = sale.paymentType === 'installment' ? computeInstallmentPlan(sale) : null;
+  // Boshlang'ich to'lov: oylar soni yozilmagan eski nasiyada ham (to'lov izohidan) — reja shunda ham hisoblanadi
+  const down = sale.paymentType === 'installment'
+    ? plan?.down ?? computeInstallmentPlan({ ...sale, installmentMonths: 1 })?.down ?? 0
+    : 0;
+  const bank = bankPartsTotal(saleBankParts(sale));
 
-  // 0) Tovarni almashtirish (summa ham shu yerda — 1-qadam o'tkazib yuboriladi)
+  // 0) Tovarni almashtirish — summa yangi tovar narxidan (yoki qo'lda, «sale.editPrice» bilan)
+  let newProduct: { product: ProductDoc; qty: number } | null = null;
+  let targetTotal: number | undefined;
   if (input.product) {
     if (!m.Product || !m.ShopSettings) return { ok: false, error: 'swapNotInStock' };
     // Markirovka kodlari eski tovarniki — almashtirilsa chek/kodlar noto'g'ri bo'ladi
@@ -97,14 +115,21 @@ export async function editSale(
     }
     const q = checkSaleQty(product, oldQty);
     if (!q.ok) return { ok: false, error: 'swapQty' };
-    let newTotal = priceTimesQty(product.salePrice, q.qty);
-    if (input.totalAmount !== undefined && input.totalAmount !== newTotal) {
+    targetTotal = priceTimesQty(product.salePrice, q.qty);
+    if (input.totalAmount !== undefined && input.totalAmount !== targetTotal) {
       if (!opts.canEditPrice) return { ok: false, error: 'pricePerm' };
-      newTotal = input.totalAmount;
+      targetTotal = input.totalAmount;
     }
-    if (!(newTotal >= 1)) return { ok: false, error: 'swapNoPrice' };
-    const plan = sale.paymentType === 'installment' ? computeInstallmentPlan(sale) : null;
-    const bank = bankPartsTotal(saleBankParts(sale));
+    if (!(targetTotal >= 1)) return { ok: false, error: 'swapNoPrice' };
+    newProduct = { product, qty: q.qty };
+  } else if (input.totalAmount !== undefined && input.totalAmount !== sale.totalAmount) {
+    if (!opts.canEditPrice) return { ok: false, error: 'pricePerm' };
+    targetTotal = input.totalAmount;
+  }
+
+  // 1) Summa — barcha to'lov turlarida bitta qoida (lib/saleEdit computeProductSwap): to'langan pul va bank ulushi
+  // hisobga olinadi; oshsa — hozir to'lanadi yoki qarzga, kamaysa — avval qarzdan, ortig'i naqd qaytariladi
+  if (targetTotal !== undefined) {
     const r = computeProductSwap({
       totalAmount: sale.totalAmount,
       paidAmount: sale.paidAmount,
@@ -112,67 +137,40 @@ export async function editSale(
       paymentType: sale.paymentType,
       status: sale.status,
       bank,
-      downPayment: plan?.down ?? 0,
-    }, newTotal, input.product.settle);
+      downPayment: down,
+    }, targetTotal, settle);
     if (!r.ok) return { ok: false, error: r.error };
     const c = r.calc;
-    swap = { calc: c, product, qty: q.qty, method: input.product.method ?? 'cash' };
-    set.productId = product._id;
-    set.productSnapshot = {
-      name: product.name, imei: product.imei, brand: product.brand, deviceModel: product.deviceModel,
-      purchasePrice: product.purchasePrice, saleQuantity: q.qty, unit: product.unit,
-      ...(product.ikpu ? { ikpu: product.ikpu } : {}),
-    };
-    // Chegirma eski tovar narxidan edi
-    if (sale.discount) unset.discount = '';
-    changes.push({ field: 'product', from: snap(sale.productSnapshot?.name ?? ''), to: snap(product.name) });
     if (c.delta !== 0) {
+      price = c;
       set.totalAmount = c.newTotal;
       set.paidAmount = c.newPaid;
       set.remainingAmount = c.newRemaining;
       set.status = c.newStatus;
       if (c.newDown !== undefined) set.downPayment = c.newDown;
       if (plan && c.newDown === undefined) {
-        // Moliyalangan summa o'zgardi: to'langan oylar qoladi, farq to'lanmagan oylarga
+        // Moliyalangan summa o'zgardi: to'langan oylar qoladi, farq to'lanmagan oylarga (bo'lolmasa — teng bo'linadi)
         const amounts = respreadInstallmentAmounts(plan.schedule, c.newTotal - bank - plan.down);
         if (amounts) set.installmentAmounts = amounts;
         else unset.installmentAmounts = '';
       }
-      changes.push({ field: 'totalAmount', from: String(sale.totalAmount), to: String(c.newTotal) });
     }
-  }
-
-  // 1) Narx
-  if (!swap && input.totalAmount !== undefined && input.totalAmount !== sale.totalAmount) {
-    if (!opts.canEditPrice) return { ok: false, error: 'pricePerm' };
-    const plan = sale.paymentType === 'installment' ? computeInstallmentPlan(sale) : null;
-    const r = computePriceEdit({
-      totalAmount: sale.totalAmount,
-      paidAmount: sale.paidAmount,
-      remainingAmount: sale.remainingAmount,
-      paymentType: sale.paymentType,
-      status: sale.status,
-      bankParts: sale.bankParts,
-      downPayment: plan?.down ?? 0,
-    }, input.totalAmount);
-    if (!r.ok) {
-      if (r.error !== 'same') return { ok: false, error: r.error };
-    } else {
-      price = r.calc;
-      set.totalAmount = price.newTotal;
-      set.paidAmount = price.newPaid;
-      set.remainingAmount = price.newRemaining;
-      set.status = price.newStatus;
-      if (plan) {
-        // Nasiya: to'langan oylar o'zgarmaydi, farq to'lanmagan oylarga (bo'lolmasa — jadval teng bo'linadi)
-        const amounts = respreadInstallmentAmounts(plan.schedule, price.newTotal - plan.down);
-        if (amounts) set.installmentAmounts = amounts;
-        else unset.installmentAmounts = '';
-      }
-      changes.push({ field: 'totalAmount', from: String(sale.totalAmount), to: String(price.newTotal) });
+    if (newProduct) {
+      const { product, qty } = newProduct;
+      swap = { calc: c, product, qty };
+      set.productId = product._id;
+      set.productSnapshot = {
+        name: product.name, imei: product.imei, brand: product.brand, deviceModel: product.deviceModel,
+        purchasePrice: product.purchasePrice, saleQuantity: qty, unit: product.unit,
+        ...(product.ikpu ? { ikpu: product.ikpu } : {}),
+      };
+      // Chegirma eski tovar narxidan edi
+      if (sale.discount) unset.discount = '';
+      changes.push({ field: 'product', from: snap(sale.productSnapshot?.name ?? ''), to: snap(product.name) });
     }
+    if (c.delta !== 0) changes.push({ field: 'totalAmount', from: String(sale.totalAmount), to: String(c.newTotal) });
   }
-  const remainingAfter = swap ? swap.calc.newRemaining : price ? price.newRemaining : sale.remainingAmount;
+  const remainingAfter = price ? price.newRemaining : sale.remainingAmount;
 
   // 2) Mijoz
   let customerSet: { customerId: Types.ObjectId; customerSnapshot: { fullName: string; phone: string } } | null = null;
@@ -232,12 +230,32 @@ export async function editSale(
     }
   }
 
+  // 5) Nasiya muddati: oylar soni va to'lov kuni (to'lovlar oylarga qaytadan taqsimlanadi — jadval teng bo'linadi)
+  if (input.installmentMonths !== undefined && input.installmentMonths !== (sale.installmentMonths ?? 0)) {
+    if (sale.paymentType !== 'installment') return { ok: false, error: 'termsNotAllowed' };
+    const n = input.installmentMonths;
+    if (!Number.isInteger(n) || n < 1 || n > SALE_MAX_MONTHS) return { ok: false, error: 'badMonths' };
+    set.installmentMonths = n;
+    // Oylar soni o'zgarsa — eski oylik summalar yaroqsiz (narx bilan qayta taqsimlangan bo'lsa ham)
+    delete set.installmentAmounts;
+    unset.installmentAmounts = '';
+    changes.push({ field: 'installmentMonths', from: String(sale.installmentMonths ?? ''), to: String(n) });
+  }
+  if (input.payDay !== undefined && (input.payDay ?? null) !== (sale.payDay ?? null)) {
+    if (sale.paymentType !== 'installment') return { ok: false, error: 'termsNotAllowed' };
+    const pd = input.payDay;
+    if (pd !== null && (!Number.isInteger(pd) || pd < 1 || pd > 31)) return { ok: false, error: 'badPayDay' };
+    if (pd === null) unset.payDay = '';
+    else set.payDay = pd;
+    changes.push({ field: 'payDay', from: sale.payDay ? String(sale.payDay) : '', to: pd ? String(pd) : '' });
+  }
+
   if (changes.length === 0) return { ok: false, error: 'noChanges' };
 
   const now = new Date();
   const edit = { at: now, by: user.username, changes };
   const push: Record<string, unknown> = { edits: edit };
-  const money = swap?.calc ?? price;
+  const money = price;
   if (money && money.refundAmount > 0) {
     // Ortiqcha to'langan pul mijozga naqd — kassa/kirim-chiqim/foyda buni qaytarish kabi hisoblaydi (lib/kassa)
     const ret: ISaleReturn = {
@@ -254,15 +272,15 @@ export async function editSale(
     };
     push.returns = ret;
   }
-  if (swap && swap.calc.collectNow > 0) {
+  if (price && price.collectNow > 0) {
     // Farqni mijoz hozir to'ladi — kassaga bugun, tanlangan usul bilan
     push.payments = {
-      amount: swap.calc.collectNow,
+      amount: price.collectNow,
       paidAt: now,
-      note: 'Tovar almashtirildi — farq',
+      note: swap ? 'Tovar almashtirildi — farq' : "Narx o'zgartirildi — farq",
       recordedBy: user.username,
-      method: swap.method,
-      balanceAfter: swap.calc.newRemaining,
+      method,
+      balanceAfter: price.newRemaining,
     };
   }
 
@@ -325,12 +343,14 @@ export async function editSale(
     if (c.field === 'product') return `tovar: ${c.from || '—'} → ${c.to || '—'}`;
     if (c.field === 'totalAmount') {
       const extra = money && money.refundAmount > 0 ? ` (mijozga qaytarildi ${sum(money.refundAmount)} so'm)`
-        : swap && swap.calc.collectNow > 0 ? ` (mijoz to'ladi ${sum(swap.calc.collectNow)} so'm, ${swap.method})`
-        : swap && swap.calc.addedToDebt > 0 ? ` (qarzga ${sum(swap.calc.addedToDebt)} so'm)` : '';
+        : money && money.collectNow > 0 ? ` (mijoz to'ladi ${sum(money.collectNow)} so'm, ${method})`
+        : money && money.addedToDebt > 0 ? ` (qarzga ${sum(money.addedToDebt)} so'm)` : '';
       return `narx ${sum(Number(c.from))} → ${sum(Number(c.to))} so'm${extra}`;
     }
     if (c.field === 'customer') return `mijoz: ${c.from || '—'} → ${c.to || '—'}${siblings ? ` (xariddagi yana ${siblings} ta tovar)` : ''}`;
     if (c.field === 'dueDate') return `muddat: ${c.from || '—'} → ${c.to || '—'}`;
+    if (c.field === 'installmentMonths') return `nasiya: ${c.from || '—'} → ${c.to} oy`;
+    if (c.field === 'payDay') return `to'lov kuni: ${c.from || '—'} → ${c.to || '—'}`;
     return 'izoh';
   });
   await recordAudit(user, {
@@ -341,7 +361,8 @@ export async function editSale(
     meta: {
       changes,
       ...(money ? { delta: money.delta, refundAmount: money.refundAmount, debtReduced: money.debtReduced, remaining: money.newRemaining } : {}),
-      ...(swap ? { productFrom: String(sale.productId), productTo: String(swap.product._id), collectNow: swap.calc.collectNow, addedToDebt: swap.calc.addedToDebt, method: swap.method } : {}),
+      ...(money ? { collectNow: money.collectNow, addedToDebt: money.addedToDebt, ...(money.collectNow ? { method } : {}) } : {}),
+      ...(swap ? { productFrom: String(sale.productId), productTo: String(swap.product._id) } : {}),
       ...(siblings ? { siblings } : {}),
     },
   });
